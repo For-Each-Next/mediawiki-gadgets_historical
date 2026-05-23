@@ -6,6 +6,9 @@ Chinese Wikipedia.
 The gadget UI is written in English, while the generated stub text is Chinese
 wikitext for the Chinese Wikipedia.
 
+The dialog can also fetch source metadata through the MediaWiki Citoid REST API
+from a URL and generate a `{{cite ...}}` template for the stub reference.
+
 ## Scripts
 
 - `npm run check` validates the gadget entry file syntax.

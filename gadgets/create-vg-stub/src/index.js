@@ -5,6 +5,7 @@
  */
 
 import { buildCompanyMetadata } from "./companies.js";
+import { fetchCiteTemplate } from "./citations.js";
 import { buildPlatformMetadata } from "./platforms.js";
 import { buildYearGenreMetadata } from "./year-genre.js";
 import {
@@ -62,9 +63,11 @@ class VideoGameArticleParams {
    * @param {string} form.name - Game title.
    * @param {string} form.platforms - Platform names.
    * @param {string} form.publishers - Publisher names.
+   * @param {string} form.citation - Citation template wikitext.
    * @param {string} form.year - Release year.
    */
   constructor(form) {
+    this.citation = form.citation;
     this.companies = {
       developers: form.developers,
       publishers: form.publishers,
@@ -103,6 +106,11 @@ const ARTICLE_PARAMETER_GROUPS = [
   ]),
 ];
 
+const CITATION_PARAMETER_FIELDS = [
+  new ArticleParameterField("citationUrl", "URL", "citationUrl"),
+  new ArticleParameterField("citation", "Citation template", "citation"),
+];
+
 /**
  * Checks whether the current view is editing a missing page.
  *
@@ -126,12 +134,46 @@ function isNewPageEdit() {
  */
 export function buildStubText(params) {
   const intro =
-    `《'''${params.name}'''》是${buildVideoGameText(params)}。` +
+    `《'''${params.name}'''》是${buildVideoGameText(params)}` +
+    `${buildCitationReferenceText(params.citation)}。` +
     params.platformMetadata.text;
 
-  return [intro, buildCategoryText(params), buildStubTagText(params)]
+  return [
+    intro,
+    buildReferencesText(params.citation),
+    buildCategoryText(params),
+    buildStubTagText(params),
+  ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * Builds reference wikitext for one generated citation template.
+ *
+ * @param {string} citation - Citation template wikitext.
+ * @returns {string} Reference wikitext, or an empty string.
+ */
+function buildCitationReferenceText(citation) {
+  if (citation == null || citation.trim() === "") {
+    return "";
+  }
+
+  return `<ref>${citation.trim()}</ref>`;
+}
+
+/**
+ * Builds the references section for generated citations.
+ *
+ * @param {string} citation - Citation template wikitext.
+ * @returns {string} References section, or an empty string.
+ */
+function buildReferencesText(citation) {
+  if (citation == null || citation.trim() === "") {
+    return "";
+  }
+
+  return "== 参考资料 ==\n{{reflist}}";
 }
 
 /**
@@ -228,7 +270,11 @@ function createHost() {
  * @returns {object} Initial dialog form values.
  */
 function createFormValues() {
-  return Object.fromEntries(getArticleFields().map(getEmptyFieldValue));
+  return Object.fromEntries(
+    [...getArticleFields(), ...CITATION_PARAMETER_FIELDS].map(
+      getEmptyFieldValue,
+    ),
+  );
 }
 
 /**
@@ -286,6 +332,10 @@ export function createArticleParams(form) {
  */
 function createDialogComponent(Vue) {
   const form = Vue.reactive(createFormValues());
+  const citationFetchState = Vue.reactive({
+    error: "",
+    loading: false,
+  });
   const open = Vue.ref(false);
 
   window.createVgStubDialog = {
@@ -312,6 +362,24 @@ function createDialogComponent(Vue) {
         writeEditText(buildStubText(createArticleParams(form)));
         open.value = false;
       },
+
+      /**
+       * Fetches citation metadata for the entered URL.
+       *
+       * @returns {Promise<void>} Resolves after citation text is updated.
+       */
+      async fetchCitation() {
+        citationFetchState.error = "";
+        citationFetchState.loading = true;
+
+        try {
+          form.citation = await fetchCiteTemplate(form.citationUrl);
+        } catch (error) {
+          citationFetchState.error = error.message;
+        } finally {
+          citationFetchState.loading = false;
+        }
+      },
     },
     /**
      * Exposes dialog state and actions to the template.
@@ -322,6 +390,12 @@ function createDialogComponent(Vue) {
       return {
         defaultAction: {
           label: "Cancel",
+        },
+        citationFields: CITATION_PARAMETER_FIELDS,
+        citationFetchState,
+        fetchCitationAction: {
+          actionType: "progressive",
+          label: "Fetch",
         },
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
@@ -353,6 +427,27 @@ function createDialogComponent(Vue) {
             <cdx-text-input v-model="form[field.key]" />
             <template #label>{{ field.label }}</template>
           </cdx-field>
+        </section>
+        <section>
+          <h3>Citation</h3>
+          <cdx-field>
+            <cdx-text-input v-model="form.citationUrl" />
+            <template #label>{{ citationFields[0].label }}</template>
+          </cdx-field>
+          <cdx-button
+            :action="fetchCitationAction.actionType"
+            :disabled="citationFetchState.loading"
+            @click="fetchCitation"
+          >
+            {{ citationFetchState.loading ? "Fetching" : fetchCitationAction.label }}
+          </cdx-button>
+          <cdx-field>
+            <cdx-text-area v-model="form.citation" />
+            <template #label>{{ citationFields[1].label }}</template>
+          </cdx-field>
+          <p v-if="citationFetchState.error">
+            {{ citationFetchState.error }}
+          </p>
         </section>
       </cdx-dialog>
     `,
@@ -398,7 +493,9 @@ function init(require) {
   const app = Vue.createMwApp(createDialogComponent(Vue));
 
   app.component("CdxDialog", Codex.CdxDialog);
+  app.component("CdxButton", Codex.CdxButton);
   app.component("CdxField", Codex.CdxField);
+  app.component("CdxTextArea", Codex.CdxTextArea);
   app.component("CdxTextInput", Codex.CdxTextInput);
   app.mount(createHost());
   addToolboxLink();

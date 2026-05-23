@@ -5,11 +5,11 @@
  */
 
 import { buildCompanyMetadata } from "./companies.js";
+import { buildPlatformMetadata } from "./platforms.js";
 import { buildYearGenreMetadata } from "./year-genre.js";
 import {
   buildCategoryLink,
   buildTemplateCall,
-  joinFieldValues,
   uniqueValues,
 } from "./utils.js";
 
@@ -73,7 +73,7 @@ class VideoGameArticleParams {
     this.genres = form.genres;
     this.name = form.name;
     this.platforms = form.platforms;
-    this.platformText = joinFieldValues(this.platforms);
+    this.platformMetadata = buildPlatformMetadata(this.platforms);
     this.year = form.year;
     this.yearGenreMetadata = buildYearGenreMetadata({
       genres: this.genres,
@@ -120,14 +120,14 @@ function isNewPageEdit() {
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
  * @param {string} params.name - Game title.
- * @param {string} params.platformText - Joined platform names.
+ * @param {object} params.platformMetadata - Platform text and metadata.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Generated Chinese wikitext.
  */
 export function buildStubText(params) {
   const intro =
     `《'''${params.name}'''》是${buildVideoGameText(params)}。` +
-    `游戏对应${params.platformText}平台。`;
+    params.platformMetadata.text;
 
   return [intro, buildCategoryText(params), buildStubTagText(params)]
     .filter(Boolean)
@@ -168,12 +168,14 @@ function buildAttributionText(text) {
  *
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
+ * @param {object} params.platformMetadata - Platform text and metadata.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Category wikitext.
  */
 function buildCategoryText(params) {
   return uniqueValues([
     ...params.companyMetadata.categories,
+    ...params.platformMetadata.categories,
     ...params.yearGenreMetadata.categories,
   ])
     .map(buildCategoryLink)
@@ -185,12 +187,14 @@ function buildCategoryText(params) {
  *
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
+ * @param {object} params.platformMetadata - Platform text and metadata.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Stub tag wikitext.
  */
 function buildStubTagText(params) {
   return uniqueValues([
     ...params.companyMetadata.stubTags,
+    ...params.platformMetadata.stubTags,
     ...params.yearGenreMetadata.stubTags,
   ])
     .map(buildTemplateCall)

@@ -16,7 +16,7 @@ test("RPG genre alias generates linked genre, category, and stub tag", async () 
   assert.equal(
     text,
     "《'''Example'''》是2024年[[電子角色扮演遊戲|角色扮演]]类" +
-      "[[电子游戏]]，由Foo Studio开发、Bar Games发行。游戏对应PC平台。" +
+      "[[电子游戏]]，由Foo Studio开发、Bar Games发行。作品对应PC平台。" +
       "\n\n[[Category:電子角色扮演遊戲]]" +
       "\n[[Category:2024年電子遊戲]]\n\n{{Rpg-videogame-stub}}",
   );
@@ -130,7 +130,7 @@ test("empty developers and publishers omit attribution", async () => {
   });
 
   assert.equal(text.includes("，由"), false);
-  assert.equal(text.includes("[[电子游戏]]。游戏对应PC平台。"), true);
+  assert.equal(text.includes("[[电子游戏]]。作品对应PC平台。"), true);
 });
 
 test("empty genre omits genre class suffix", async () => {
@@ -169,7 +169,7 @@ test("separated genre, company, and platform values render as lists", async () =
     developers: "Square Enix, Company B",
     genres: "RPG, Action",
     name: "Example",
-    platforms: "PC\nSwitch",
+    platforms: "PS5\nSwitch",
     publishers: "Bar Games\nCompany C",
     year: "2024",
   });
@@ -180,11 +180,32 @@ test("separated genre, company, and platform values render as lists", async () =
   );
   assert.equal(text.includes("由[[史克威尔艾尼克斯]]、Company B开发"), true);
   assert.equal(text.includes("Bar Games、Company C发行"), true);
-  assert.equal(text.includes("游戏对应PC、Switch平台。"), true);
+  assert.equal(text.includes("作品对应[[PlayStation 5]]、Switch平台。"), true);
   assert.equal(text.includes("[[Category:史克威爾艾尼克斯遊戲]]"), true);
   assert.equal(text.includes("[[Category:電子角色扮演遊戲]]"), true);
+  assert.equal(text.includes("[[Category:PlayStation 5游戏]]"), true);
   assert.equal(text.includes("{{SquareEnix-stub}}"), true);
   assert.equal(text.includes("{{Rpg-videogame-stub}}"), true);
+});
+
+test("empty platform omits the platform sentence", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "RPG",
+    name: "Example",
+    platforms: "",
+    publishers: "Bar Games",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("作品对应"), false);
+  assert.equal(text.includes("平台。"), false);
+  assert.equal(
+    text.includes(
+      "《'''Example'''》是2024年[[電子角色扮演遊戲|角色扮演]]类[[电子游戏]]",
+    ),
+    true,
+  );
 });
 
 async function buildStubText(values) {

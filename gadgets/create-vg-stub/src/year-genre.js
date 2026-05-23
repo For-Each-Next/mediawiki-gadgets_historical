@@ -70,10 +70,23 @@ function buildYearGenreText(params) {
  * @returns {string} Genre phrase wikitext.
  */
 function buildGenreText(params) {
-  const [genreReference] = params.genreReferences;
+  return splitFieldValues(params.genres).map(buildGenreItemText).join("、");
+}
+
+/**
+ * Builds one genre item.
+ *
+ * @param {string} value - User-entered genre value.
+ * @returns {string} Genre item wikitext.
+ */
+function buildGenreItemText(value) {
+  const genreReference = getReferenceDefinition(
+    FIELD_REFERENCE_DATA.genres,
+    value,
+  );
 
   if (genreReference == null || genreReference.page == null) {
-    return params.genres;
+    return value;
   }
 
   return buildLinkText(

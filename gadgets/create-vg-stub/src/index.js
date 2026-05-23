@@ -5,6 +5,7 @@ import { buildYearGenreMetadata } from "./year-genre.js";
 import {
   buildCategoryLink,
   buildTemplateCall,
+  joinFieldValues,
   uniqueValues,
 } from "./utils.js";
 
@@ -68,6 +69,7 @@ class VideoGameArticleParams {
     this.genres = form.genres;
     this.name = form.name;
     this.platforms = form.platforms;
+    this.platformText = joinFieldValues(this.platforms);
     this.year = form.year;
     this.yearGenreMetadata = buildYearGenreMetadata({
       genres: this.genres,
@@ -114,14 +116,14 @@ function isNewPageEdit() {
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
  * @param {string} params.name - Game title.
- * @param {string} params.platforms - Platform names.
+ * @param {string} params.platformText - Joined platform names.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Generated Chinese wikitext.
  */
 export function buildStubText(params) {
   const intro =
     `《'''${params.name}'''》是${buildVideoGameText(params)}。` +
-    `游戏对应${params.platforms}平台。`;
+    `游戏对应${params.platformText}平台。`;
 
   return [intro, buildCategoryText(params), buildStubTagText(params)]
     .filter(Boolean)

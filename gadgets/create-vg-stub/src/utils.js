@@ -71,6 +71,16 @@ export function uniqueValues(values) {
 }
 
 /**
+ * Joins one user-entered field for display in prose.
+ *
+ * @param {string} value - User-entered field value.
+ * @returns {string} Joined display text.
+ */
+export function joinFieldValues(value) {
+  return splitFieldValues(value).join("、");
+}
+
+/**
  * Splits one user-entered field into reusable lookup values.
  *
  * @param {string} value - User-entered field value.
@@ -78,7 +88,7 @@ export function uniqueValues(values) {
  */
 export function splitFieldValues(value) {
   return value
-    .split(/[、,，;；/]+/u)
+    .split(/[、,，;；/\r\n]+/u)
     .map(trimValue)
     .filter(Boolean);
 }

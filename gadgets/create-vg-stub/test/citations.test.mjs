@@ -7,6 +7,48 @@ import {
   fetchCiteTemplate,
 } from "../src/citations.js";
 
+const RULES = [
+  {
+    fixes: [
+      {
+        action: "omit",
+        field: "author",
+        operand: "巴哈姆特",
+      },
+    ],
+    host: "gnn.gamer.com.tw",
+  },
+  {
+    fixes: [
+      {
+        action: "omit",
+        field: "date",
+      },
+    ],
+    host: "opencritic.com",
+  },
+  {
+    fixes: [
+      {
+        action: "rstrip",
+        field: "title",
+        operand: " - Metacritic",
+      },
+    ],
+    host: "www.metacritic.com",
+  },
+  {
+    fixes: [
+      {
+        action: "preserve-source-query",
+        field: "url",
+        operand: ["l"],
+      },
+    ],
+    host: "store.steampowered.com",
+  },
+];
+
 test("buildCitoidUrl encodes the source URL", () => {
   assert.equal(
     buildCitoidUrl("https://example.test/a page?x=1&y=2"),
@@ -73,4 +115,89 @@ test("fetchCiteTemplate fetches Citoid data and formats the first item", async (
     text,
     "{{cite web|access-date=2026-05-24|title=Example|url=https://example.test/article}}",
   );
+});
+
+test("buildCiteTemplate removes Gamer author by host rule", () => {
+  const text = buildCiteTemplate(
+    {
+      creators: [
+        {
+          creatorType: "author",
+          name: "巴哈姆特",
+        },
+      ],
+      itemType: "webpage",
+      title: "GNN article",
+      url: "https://gnn.gamer.com.tw/detail.php?sn=123",
+    },
+    {
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.equal(text.includes("|author="), false);
+});
+
+test("buildCiteTemplate omits OpenCritic date by host rule", () => {
+  const text = buildCiteTemplate(
+    {
+      date: "2026-01-02",
+      itemType: "webpage",
+      title: "Review",
+      url: "https://opencritic.com/game/1/example",
+    },
+    {
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.equal(text.includes("|date="), false);
+});
+
+test("buildCiteTemplate strips Metacritic title suffix by host rule", () => {
+  const text = buildCiteTemplate(
+    {
+      itemType: "webpage",
+      title: "Example Reviews - Metacritic",
+      url: "https://www.metacritic.com/game/example/",
+    },
+    {
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.equal(text.includes("|title=Example Reviews|"), true);
+});
+
+test("fetchCiteTemplate restores Steam source query by host rule", async () => {
+  const text = await fetchCiteTemplate(
+    "https://store.steampowered.com/app/123/example/?l=schinese&utm_source=test",
+    {
+      fetcher() {
+        return {
+          async json() {
+            return [
+              {
+                itemType: "webpage",
+                title: "Example on Steam",
+                url: "https://store.steampowered.com/app/123/example/",
+              },
+            ];
+          },
+          ok: true,
+        };
+      },
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.equal(
+    text.includes("https://store.steampowered.com/app/123/example/?l=schinese"),
+    true,
+  );
+  assert.equal(text.includes("utm_source"), false);
 });

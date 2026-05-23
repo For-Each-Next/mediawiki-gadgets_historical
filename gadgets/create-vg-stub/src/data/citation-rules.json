@@ -1,0 +1,41 @@
+[
+  {
+    "host": "gnn.gamer.com.tw",
+    "fixes": [
+      {
+        "action": "omit",
+        "field": "author",
+        "operand": "巴哈姆特"
+      }
+    ]
+  },
+  {
+    "host": "opencritic.com",
+    "fixes": [
+      {
+        "action": "omit",
+        "field": "date"
+      }
+    ]
+  },
+  {
+    "host": "www.metacritic.com",
+    "fixes": [
+      {
+        "action": "rstrip",
+        "field": "title",
+        "operand": " - Metacritic"
+      }
+    ]
+  },
+  {
+    "host": "store.steampowered.com",
+    "fixes": [
+      {
+        "action": "preserve-source-query",
+        "field": "url",
+        "operand": ["l"]
+      }
+    ]
+  }
+]

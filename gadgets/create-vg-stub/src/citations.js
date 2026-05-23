@@ -5,6 +5,7 @@
  */
 
 const CITOID_ENDPOINT = "/api/rest_v1/data/citation/zotero/";
+const CITATION_RULES = getCitationRules();
 const DATE_PARTS_LENGTH = 10;
 
 /**
@@ -30,6 +31,7 @@ export async function fetchCiteTemplate(url, options = {}) {
 
   return buildCiteTemplate(getFirstCitation(await response.json()), {
     now: options.now,
+    rules: options.rules,
     url,
   });
 }
@@ -60,12 +62,28 @@ export function buildCitoidUrl(url) {
  * @returns {string} Citation template wikitext.
  */
 export function buildCiteTemplate(citation, options = {}) {
-  const values = buildCitationValues(citation, options);
+  const values = applyCitationRules(buildCitationValues(citation, options), {
+    rules: options.rules || CITATION_RULES,
+    sourceUrl: options.url,
+  });
   const params = Object.entries(values).filter(hasTemplateValue);
 
   return `{{${getTemplateName(citation.itemType)}${params
     .map(formatTemplateParam)
     .join("")}}}`;
+}
+
+/**
+ * Gets bundled citation cleanup rules.
+ *
+ * @returns {Array<object>} Site-specific citation cleanup rules.
+ */
+function getCitationRules() {
+  if (typeof __CREATE_VG_STUB_FIELD_DATA__ === "undefined") {
+    return [];
+  }
+
+  return __CREATE_VG_STUB_FIELD_DATA__["citation-rules"] || [];
 }
 
 /**
@@ -102,6 +120,228 @@ function buildCitationValues(citation, options) {
     url: citation.url || options.url,
     website: citation.websiteTitle || citation.publicationTitle,
   };
+}
+
+/**
+ * Applies site-specific cleanup rules to citation values.
+ *
+ * @param {object} values - Citation template values.
+ * @param {object} options - Rule matching options.
+ * @param {Array<object>} options.rules - Available cleanup rules.
+ * @param {string} [options.sourceUrl] - Original user-entered source URL.
+ * @returns {object} Cleaned citation template values.
+ */
+function applyCitationRules(values, options) {
+  return getMatchingRules(options.rules, options.sourceUrl || values.url).reduce(
+    applyCitationRule.bind(null, options.sourceUrl),
+    values,
+  );
+}
+
+/**
+ * Applies one site-specific cleanup rule.
+ *
+ * @param {string} sourceUrl - Original user-entered source URL.
+ * @param {object} values - Citation template values.
+ * @param {object} rule - Site-specific cleanup rule.
+ * @returns {object} Cleaned citation template values.
+ */
+function applyCitationRule(sourceUrl, values, rule) {
+  return (rule.fixes || []).reduce(applyFieldFix.bind(null, sourceUrl), values);
+}
+
+/**
+ * Applies a field fix to citation values.
+ *
+ * @param {string} sourceUrl - Original user-entered source URL.
+ * @param {object} values - Citation template values.
+ * @param {object} fix - Field fix definition.
+ * @param {string} fix.action - Field fix action.
+ * @param {string} fix.field - Citation value field.
+ * @param {string} [fix.operand] - Optional fix operand.
+ * @returns {object} Citation template values.
+ */
+function applyFieldFix(sourceUrl, values, fix) {
+  if (fix.action === "omit") {
+    return applyOmitFix(values, fix);
+  }
+
+  if (fix.action === "rstrip") {
+    return applyRstripFix(values, fix);
+  }
+
+  if (fix.action === "preserve-source-query") {
+    return applyPreserveSourceQueryFix(sourceUrl, values, fix);
+  }
+
+  return values;
+}
+
+/**
+ * Applies an omit fix to citation values.
+ *
+ * @param {object} values - Citation template values.
+ * @param {object} fix - Field fix definition.
+ * @param {string} fix.field - Citation value field.
+ * @param {string} [fix.operand] - Value that should be omitted.
+ * @returns {object} Citation template values.
+ */
+function applyOmitFix(values, fix) {
+  if (fix.operand != null && values[fix.field] !== fix.operand) {
+    return values;
+  }
+
+  return {
+    ...values,
+    [fix.field]: "",
+  };
+}
+
+/**
+ * Applies an rstrip fix to citation values.
+ *
+ * @param {object} values - Citation template values.
+ * @param {object} fix - Field fix definition.
+ * @param {string} fix.field - Citation value field.
+ * @param {string} fix.operand - Suffix to remove.
+ * @returns {object} Citation template values.
+ */
+function applyRstripFix(values, fix) {
+  return {
+    ...values,
+    [fix.field]: stripSuffix(values[fix.field], fix.operand),
+  };
+}
+
+/**
+ * Applies a preserve-source-query fix to citation values.
+ *
+ * @param {string} sourceUrl - Original user-entered source URL.
+ * @param {object} values - Citation template values.
+ * @param {object} fix - Field fix definition.
+ * @param {string} fix.field - Citation value field.
+ * @returns {object} Citation template values.
+ */
+function applyPreserveSourceQueryFix(sourceUrl, values, fix) {
+  return {
+    ...values,
+    [fix.field]: preserveSourceQuery(values[fix.field], sourceUrl, fix.operand),
+  };
+}
+
+/**
+ * Removes a suffix from a value when present.
+ *
+ * @param {string} value - Value to update.
+ * @param {string} suffix - Suffix to remove.
+ * @returns {string} Value without the suffix.
+ */
+function stripSuffix(value, suffix) {
+  if (value == null || suffix == null || !value.endsWith(suffix)) {
+    return value;
+  }
+
+  return value.slice(0, -suffix.length);
+}
+
+/**
+ * Preserves the original source query when Citoid omits it.
+ *
+ * @param {string} citationUrl - URL returned by Citoid.
+ * @param {string} sourceUrl - Original user-entered source URL.
+ * @param {Array<string>} [keys] - Query keys to preserve.
+ * @returns {string} URL with original query values restored when possible.
+ */
+function preserveSourceQuery(citationUrl, sourceUrl, keys) {
+  const citation = parseUrl(citationUrl);
+  const source = parseUrl(sourceUrl);
+
+  if (citation == null || source == null) {
+    return citationUrl;
+  }
+
+  if (source.search === "") {
+    return citationUrl;
+  }
+
+  getSourceQueryKeys(source, keys).forEach(
+    preserveSourceQueryKey.bind(null, citation, source),
+  );
+
+  return citation.toString();
+}
+
+/**
+ * Gets source query keys that should be preserved.
+ *
+ * @param {URL} source - Original source URL.
+ * @param {Array<string>} [keys] - Query keys to preserve.
+ * @returns {Array<string>} Query keys to preserve.
+ */
+function getSourceQueryKeys(source, keys) {
+  if (Array.isArray(keys)) {
+    return keys;
+  }
+
+  return Array.from(source.searchParams.keys());
+}
+
+/**
+ * Preserves one query value from the source URL.
+ *
+ * @param {URL} citation - Citation URL returned by Citoid.
+ * @param {URL} source - Original source URL.
+ * @param {string} key - Query key to preserve.
+ * @returns {void}
+ */
+function preserveSourceQueryKey(citation, source, key) {
+  if (citation.searchParams.has(key) || !source.searchParams.has(key)) {
+    return;
+  }
+
+  citation.searchParams.set(key, source.searchParams.get(key));
+}
+
+/**
+ * Gets cleanup rules matching a URL host.
+ *
+ * @param {Array<object>} rules - Available cleanup rules.
+ * @param {string} url - URL used to match cleanup rules.
+ * @returns {Array<object>} Matching cleanup rules.
+ */
+function getMatchingRules(rules, url) {
+  const parsedUrl = parseUrl(url);
+
+  if (parsedUrl == null) {
+    return [];
+  }
+
+  return rules.filter(isMatchingRule.bind(null, parsedUrl.hostname));
+}
+
+/**
+ * Checks whether a cleanup rule matches a host.
+ *
+ * @param {string} hostname - URL hostname.
+ * @param {object} rule - Site-specific cleanup rule.
+ * @returns {boolean} Whether the rule matches the host.
+ */
+function isMatchingRule(hostname, rule) {
+  return hostname === rule.host;
+}
+
+/**
+ * Parses a URL, returning null for invalid values.
+ *
+ * @param {string} url - URL to parse.
+ * @returns {URL|null} Parsed URL.
+ */
+function parseUrl(url) {
+  try {
+    return new URL(url);
+  } catch (_error) {
+    return null;
+  }
 }
 
 /**

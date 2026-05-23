@@ -143,24 +143,7 @@ export function buildStubText(params) {
  * @returns {string} Video game noun phrase.
  */
 function buildVideoGameText(params) {
-  return (
-    `${params.yearGenreMetadata.text}[[电子游戏]]` +
-    buildAttributionText(params.companyMetadata.text)
-  );
-}
-
-/**
- * Builds attribution text after the video game noun.
- *
- * @param {string} text - Company role text.
- * @returns {string} Attribution text.
- */
-function buildAttributionText(text) {
-  if (text === "") {
-    return "";
-  }
-
-  return `，${text}`;
+  return params.yearGenreMetadata.text + params.companyMetadata.text;
 }
 
 /**

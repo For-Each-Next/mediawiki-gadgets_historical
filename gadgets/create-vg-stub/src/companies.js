@@ -23,13 +23,29 @@ import {
  */
 export function buildCompanyMetadata(companies) {
   const references = getCompanyReferences(companies);
-  const roleText = buildAttributionRoleText(companies, references);
+  const text = buildAttributionText(
+    buildAttributionRoleText(companies, references),
+  );
 
   return {
     categories: uniqueValues(getReferenceValues(references.all, "categories")),
     stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
-    text: roleText,
+    text,
   };
+}
+
+/**
+ * Builds attribution text after the video game noun.
+ *
+ * @param {string} text - Company role text.
+ * @returns {string} Attribution text.
+ */
+function buildAttributionText(text) {
+  if (text === "") {
+    return "";
+  }
+
+  return `，${text}`;
 }
 
 /**

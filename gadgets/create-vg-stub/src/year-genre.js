@@ -21,7 +21,7 @@ import {
  * @param {object} values - Year and genre values.
  * @param {string} values.genres - Game genre text.
  * @param {string} values.year - Release year.
- * @returns {object} Text, categories, and stub tags.
+ * @returns {object} Video game text, categories, and stub tags.
  */
 export function buildYearGenreMetadata(values) {
   const genreReferences = getGenreReferences(values.genres);
@@ -43,7 +43,20 @@ export function buildYearGenreMetadata(values) {
 }
 
 /**
- * Builds the year and genre phrase for the intro sentence.
+ * Builds the year, genre, and video game phrase for the intro sentence.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @param {string} params.genres - Raw genre text.
+ * @param {object} params.yearReference - Matched year metadata.
+ * @returns {string} Year, genre, and video game phrase.
+ */
+function buildYearGenreText(params) {
+  return `${buildYearGenrePrefixText(params)}[[电子游戏]]`;
+}
+
+/**
+ * Builds the year and genre phrase before the video game link.
  *
  * @param {object} params - Normalized article parameters.
  * @param {Array<object>} params.genreReferences - Matched genre metadata.
@@ -51,7 +64,7 @@ export function buildYearGenreMetadata(values) {
  * @param {object} params.yearReference - Matched year metadata.
  * @returns {string} Year and genre phrase.
  */
-function buildYearGenreText(params) {
+function buildYearGenrePrefixText(params) {
   const yearText = params.yearReference.phrase;
   const genreText = buildGenreClassText(params);
   const text = `${yearText}${genreText}`;

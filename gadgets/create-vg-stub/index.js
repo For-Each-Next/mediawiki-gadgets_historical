@@ -1,28 +1,128 @@
-/* eslint-disable jsdoc/no-missing-syntax, jsdoc/require-jsdoc */
+/* eslint-disable */
 
-const FIELD_NAMES = [
-  ["name", "Name"],
-  ["year", "Year"],
-  ["genres", "Genres"],
-  ["developers", "Developers"],
-  ["publishers", "Publishers"],
-  ["platforms", "Platforms"],
+/**
+ * Describes a reusable article parameter input.
+ */
+class ArticleParameterField {
+  /**
+   * Creates article parameter field metadata.
+   *
+   * @param {string} key - Form key used by the dialog.
+   * @param {string} label - English label shown in the UI.
+   * @param {string} path - Normalized parameter path.
+   */
+  constructor(key, label, path) {
+    this.key = key;
+    this.label = label;
+    this.path = path;
+  }
+}
+
+/**
+ * Describes a group of related article parameter inputs.
+ */
+class ArticleParameterGroup {
+  /**
+   * Creates an article parameter group.
+   *
+   * @param {string} key - Stable group key.
+   * @param {string} label - English group heading.
+   * @param {Array<ArticleParameterField>} fields - Group field metadata.
+   */
+  constructor(key, label, fields) {
+    this.fields = fields;
+    this.key = key;
+    this.label = label;
+  }
+}
+
+/**
+ * Stores normalized video game article parameters.
+ */
+class VideoGameArticleParams {
+  /**
+   * Creates reusable video game article parameters.
+   *
+   * @param {object} form - Dialog form values.
+   * @param {string} form.developers - Developer names.
+   * @param {string} form.genres - Game genre text.
+   * @param {string} form.name - Game title.
+   * @param {string} form.platforms - Platform names.
+   * @param {string} form.publishers - Publisher names.
+   * @param {string} form.year - Release year.
+   */
+  constructor(form) {
+    this.companies = {
+      developers: form.developers,
+      publishers: form.publishers,
+    };
+    this.genres = form.genres;
+    this.name = form.name;
+    this.platforms = form.platforms;
+    this.year = form.year;
+  }
+}
+
+const ARTICLE_PARAMETER_GROUPS = [
+  new ArticleParameterGroup("titles", "Titles", [
+    new ArticleParameterField("name", "Name", "name"),
+  ]),
+  new ArticleParameterGroup("attribution", "Attribution", [
+    new ArticleParameterField("year", "Year", "year"),
+    new ArticleParameterField(
+      "developers",
+      "Developer(s)",
+      "companies.developers",
+    ),
+    new ArticleParameterField(
+      "publishers",
+      "Publisher(s)",
+      "companies.publishers",
+    ),
+    new ArticleParameterField("genres", "Genre(s)", "genres"),
+    new ArticleParameterField("platforms", "Platform(s)", "platforms"),
+  ]),
 ];
 
+/**
+ * Checks whether the current view is editing a missing page.
+ *
+ * @returns {boolean} Whether the current view is a new-page edit form.
+ */
 function isNewPageEdit() {
   return (
     mw.config.get("wgAction") === "edit" && mw.config.get("wgArticleId") === 0
   );
 }
 
-function buildStubText(values) {
+/**
+ * Builds the Chinese Wikipedia video game stub sentence.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {object} params.companies - Company-related parameters.
+ * @param {string} params.companies.developers - Developer names.
+ * @param {string} params.companies.publishers - Publisher names.
+ * @param {string} params.genres - Game genre text.
+ * @param {string} params.name - Game title.
+ * @param {string} params.platforms - Platform names.
+ * @param {string} params.year - Release year.
+ * @returns {string} Generated Chinese wikitext.
+ */
+function buildStubText(params) {
   return (
-    `《'''${values.name}'''》是${values.year}年${values.genres}类` +
-    `[[电子游戏]]，由${values.developers}开发、` +
-    `${values.publishers}发行。游戏对应${values.platforms}平台。`
+    `《'''${params.name}'''》是${params.year}年${params.genres}类` +
+    `[[电子游戏]]，由${params.companies.developers}开发、` +
+    `${params.companies.publishers}发行。` +
+    `游戏对应${params.platforms}平台。`
   );
 }
 
+/**
+ * Replaces the MediaWiki edit textarea with generated wikitext.
+ *
+ * @param {string} text - Generated wikitext to place in the editor.
+ * @returns {void}
+ */
 function writeEditText(text) {
   const textbox = document.getElementById("wpTextbox1");
 
@@ -31,10 +131,22 @@ function writeEditText(text) {
   textbox.focus();
 }
 
+/**
+ * Opens the mounted Codex dialog.
+ *
+ * @param {object} open - Vue reference controlling dialog visibility.
+ * @param {boolean} open.value - Current dialog visibility state.
+ * @returns {void}
+ */
 function openDialog(open) {
   open.value = true;
 }
 
+/**
+ * Creates the DOM host used by the Vue application.
+ *
+ * @returns {HTMLElement} Element appended to the document body.
+ */
 function createHost() {
   const host = document.createElement("div");
 
@@ -43,16 +155,68 @@ function createHost() {
   return host;
 }
 
+/**
+ * Creates empty form values keyed by input field name.
+ *
+ * @returns {object} Initial dialog form values.
+ */
 function createFormValues() {
-  return Object.fromEntries(FIELD_NAMES.map(([key]) => [key, ""]));
+  return Object.fromEntries(getArticleFields().map(getEmptyFieldValue));
 }
 
-function getField(field) {
-  const [key, label] = field;
-
-  return { key, label };
+/**
+ * Flattens article parameter groups into field metadata.
+ *
+ * @returns {Array<object>} Dialog field definitions.
+ */
+function getArticleFields() {
+  return ARTICLE_PARAMETER_GROUPS.flatMap(getGroupFields);
 }
 
+/**
+ * Gets the fields from an article parameter group.
+ *
+ * @param {object} group - Article parameter group.
+ * @param {Array<object>} group.fields - Field definitions in the group.
+ * @returns {Array<object>} Field definitions for the group.
+ */
+function getGroupFields(group) {
+  return group.fields;
+}
+
+/**
+ * Creates an empty value entry for a field tuple.
+ *
+ * @param {object} field - Dialog field definition.
+ * @param {string} field.key - Form key for the field.
+ * @returns {Array<string>} Field key paired with an empty string.
+ */
+function getEmptyFieldValue(field) {
+  return [field.key, ""];
+}
+
+/**
+ * Builds reusable article parameters from raw form values.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} form.developers - Developer names.
+ * @param {string} form.genres - Game genre text.
+ * @param {string} form.name - Game title.
+ * @param {string} form.platforms - Platform names.
+ * @param {string} form.publishers - Publisher names.
+ * @param {string} form.year - Release year.
+ * @returns {object} Normalized article parameters.
+ */
+function createArticleParams(form) {
+  return new VideoGameArticleParams(form);
+}
+
+/**
+ * Creates the Vue component definition for the Codex dialog.
+ *
+ * @param {object} Vue - ResourceLoader Vue module.
+ * @returns {object} Vue component options.
+ */
 function createDialogComponent(Vue) {
   const form = Vue.reactive(createFormValues());
   const open = Vue.ref(false);
@@ -63,21 +227,36 @@ function createDialogComponent(Vue) {
 
   return {
     methods: {
+      /**
+       * Closes the Codex dialog without writing text.
+       *
+       * @returns {void}
+       */
       closeDialog() {
         open.value = false;
       },
 
+      /**
+       * Inserts generated wikitext into the editor.
+       *
+       * @returns {void}
+       */
       insertText() {
-        writeEditText(buildStubText(form));
+        writeEditText(buildStubText(createArticleParams(form)));
         open.value = false;
       },
     },
+    /**
+     * Exposes dialog state and actions to the template.
+     *
+     * @returns {object} Component state consumed by the template.
+     */
     setup() {
       return {
         defaultAction: {
           label: "Cancel",
         },
-        fields: FIELD_NAMES.map(getField),
+        groups: ARTICLE_PARAMETER_GROUPS,
         form,
         open,
         primaryAction: {
@@ -95,23 +274,40 @@ function createDialogComponent(Vue) {
         @primary="insertText"
         @default="closeDialog"
       >
-        <cdx-field
-          v-for="field in fields"
-          :key="field.key"
+        <section
+          v-for="group in groups"
+          :key="group.key"
         >
-          <cdx-text-input v-model="form[field.key]" />
-          <template #label>{{ field.label }}</template>
-        </cdx-field>
+          <h3>{{ group.label }}</h3>
+          <cdx-field
+            v-for="field in group.fields"
+            :key="field.key"
+          >
+            <cdx-text-input v-model="form[field.key]" />
+            <template #label>{{ field.label }}</template>
+          </cdx-field>
+        </section>
       </cdx-dialog>
     `,
   };
 }
 
+/**
+ * Opens the dialog from the toolbox link click.
+ *
+ * @param {*} event - Browser event from the toolbox link.
+ * @returns {void}
+ */
 function handleToolboxClick(event) {
   event.preventDefault();
   window.createVgStubDialog.open();
 }
 
+/**
+ * Adds the dialog trigger link to the MediaWiki toolbox.
+ *
+ * @returns {void}
+ */
 function addToolboxLink() {
   const link = mw.util.addPortletLink(
     "p-tb",
@@ -123,6 +319,12 @@ function addToolboxLink() {
   link.addEventListener("click", handleToolboxClick);
 }
 
+/**
+ * Mounts the Codex dialog and registers the toolbox trigger.
+ *
+ * @param {Function} require - ResourceLoader module resolver.
+ * @returns {void}
+ */
 function init(require) {
   const Vue = require("vue");
   const Codex = require("@wikimedia/codex");

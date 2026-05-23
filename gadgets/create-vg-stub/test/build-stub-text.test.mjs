@@ -104,6 +104,35 @@ test("year alias uses two digits", async () => {
   assert.ok(text.startsWith("《'''Example'''》是2024年"));
 });
 
+test("company alias generates linked attribution, category, and stub tag", async () => {
+  const text = await buildStubText({
+    developers: "Square Enix",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "=",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("由[[史克威尔艾尼克斯]]开发及发行。"), true);
+  assert.equal(text.includes("[[Category:史克威爾艾尼克斯遊戲]]"), true);
+  assert.equal(text.includes("{{SquareEnix-stub}}"), true);
+});
+
+test("empty developers and publishers omit attribution", async () => {
+  const text = await buildStubText({
+    developers: "",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("，由"), false);
+  assert.equal(text.includes("[[电子游戏]]。游戏对应PC平台。"), true);
+});
+
 async function buildStubText(values) {
   const sandbox = await createSandbox();
 

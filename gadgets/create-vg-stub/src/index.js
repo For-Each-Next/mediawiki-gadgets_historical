@@ -60,6 +60,7 @@ class VideoGameArticleParams {
     this.name = form.name;
     this.platforms = form.platforms;
     this.year = form.year;
+    this.companyReferences = getCompanyReferences(this.companies);
     this.genreReferences = getGenreReferences(this.genres);
     this.yearReference = getYearReference(this.year);
   }
@@ -103,6 +104,7 @@ function isNewPageEdit() {
  * Builds the Chinese Wikipedia video game stub sentence.
  *
  * @param {object} params - Normalized article parameters.
+ * @param {object} params.companyReferences - Matched company metadata.
  * @param {object} params.companies - Company-related parameters.
  * @param {string} params.companies.developers - Developer names.
  * @param {string} params.companies.publishers - Publisher names.
@@ -116,13 +118,105 @@ function isNewPageEdit() {
 function buildStubText(params) {
   const intro =
     `《'''${params.name}'''》是${buildYearGenreText(params)}` +
-    `[[电子游戏]]，由${params.companies.developers}开发、` +
-    `${params.companies.publishers}发行。` +
+    `[[电子游戏]]${buildAttributionText(params)}。` +
     `游戏对应${params.platforms}平台。`;
 
   return [intro, buildCategoryText(params), buildStubTagText(params)]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * Builds developer and publisher attribution text.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {object} params.companyReferences - Matched company metadata.
+ * @param {object} params.companies - Company-related parameters.
+ * @returns {string} Attribution phrase.
+ */
+function buildAttributionText(params) {
+  const developers = buildCompanyListText(
+    params.companies.developers,
+    params.companyReferences.developers,
+  );
+  const publishers = buildCompanyListText(
+    getPublisherValue(params),
+    params.companyReferences.publishers,
+  );
+
+  if (developers === "" && publishers === "") {
+    return "";
+  }
+
+  if (developers !== "" && params.companies.publishers === "=") {
+    return `，由${developers}开发及发行`;
+  }
+
+  return `，由${buildCompanyRoleText(developers, publishers)}`;
+}
+
+/**
+ * Builds company role text from developer and publisher text.
+ *
+ * @param {string} developers - Developer wikitext.
+ * @param {string} publishers - Publisher wikitext.
+ * @returns {string} Company role text.
+ */
+function buildCompanyRoleText(developers, publishers) {
+  if (developers === "") {
+    return `${publishers}发行`;
+  }
+
+  if (publishers === "") {
+    return `${developers}开发`;
+  }
+
+  return `${developers}开发、${publishers}发行`;
+}
+
+/**
+ * Builds linked company text from raw values and matched metadata.
+ *
+ * @param {string} value - User-entered company values.
+ * @param {Array<object>} references - Matched company metadata.
+ * @returns {string} Company list wikitext.
+ */
+function buildCompanyListText(value, references) {
+  return splitFieldValues(value)
+    .map(buildCompanyText.bind(null, references))
+    .join("、");
+}
+
+/**
+ * Builds display text for one company value.
+ *
+ * @param {Array<object>} references - Matched company metadata.
+ * @param {string} value - User-entered company value.
+ * @returns {string} Company wikitext.
+ */
+function buildCompanyText(references, value) {
+  const reference = references.find((item) => item.source === value);
+
+  if (reference == null || reference.page == null) {
+    return value;
+  }
+
+  return buildPageText(reference.page);
+}
+
+/**
+ * Gets the publisher value, expanding the equality marker.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {object} params.companies - Company-related parameters.
+ * @returns {string} Publisher values.
+ */
+function getPublisherValue(params) {
+  if (params.companies.publishers === "=") {
+    return params.companies.developers;
+  }
+
+  return params.companies.publishers;
 }
 
 /**
@@ -155,7 +249,7 @@ function buildGenreText(params) {
 
   return buildLinkText(
     genreReference.page.title,
-    removeGameSuffix(genreReference.page.label),
+    getGenrePageLabel(genreReference),
   );
 }
 
@@ -168,6 +262,7 @@ function buildGenreText(params) {
  */
 function buildCategoryText(params) {
   const categories = [
+    ...getReferenceValues(params.companyReferences.all, "categories"),
     ...getReferenceValues(params.genreReferences, "categories"),
     ...params.yearReference.categories,
   ];
@@ -183,9 +278,12 @@ function buildCategoryText(params) {
  * @returns {string} Stub tag wikitext.
  */
 function buildStubTagText(params) {
-  return uniqueValues(getReferenceValues(params.genreReferences, "stubTags"))
-    .map(buildTemplateCall)
-    .join("\n");
+  const stubTags = [
+    ...getReferenceValues(params.companyReferences.all, "stubTags"),
+    ...getReferenceValues(params.genreReferences, "stubTags"),
+  ];
+
+  return uniqueValues(stubTags).map(buildTemplateCall).join("\n");
 }
 
 /**
@@ -217,6 +315,37 @@ function buildTemplateCall(template) {
  */
 function buildLinkText(title, label) {
   return `[[${title}|${label}]]`;
+}
+
+/**
+ * Builds page link text from page metadata.
+ *
+ * @param {object} page - Page metadata.
+ * @param {string} page.title - Page title.
+ * @param {string} [page.label] - Optional display label.
+ * @returns {string} Page link wikitext.
+ */
+function buildPageText(page) {
+  if (page.label == null) {
+    return `[[${page.title}]]`;
+  }
+
+  return buildLinkText(page.title, page.label);
+}
+
+/**
+ * Gets the display label for a genre page.
+ *
+ * @param {object} reference - Genre reference metadata.
+ * @param {object} reference.page - Genre page metadata.
+ * @returns {string} Genre page label.
+ */
+function getGenrePageLabel(reference) {
+  if (reference.page.label == null) {
+    return removeGameSuffix(reference.page.title);
+  }
+
+  return removeGameSuffix(reference.page.label);
 }
 
 /**
@@ -326,6 +455,39 @@ function getGroupFields(group) {
  */
 function getEmptyFieldValue(field) {
   return [field.key, ""];
+}
+
+/**
+ * Gets reference metadata for company parameters.
+ *
+ * @param {object} companies - Company-related parameters.
+ * @param {string} companies.developers - Developer names.
+ * @param {string} companies.publishers - Publisher names.
+ * @returns {object} Matched company metadata by role.
+ */
+function getCompanyReferences(companies) {
+  const developers = getCompanyRoleReferences(companies.developers);
+  const publishers = getCompanyRoleReferences(
+    companies.publishers === "=" ? companies.developers : companies.publishers,
+  );
+
+  return {
+    all: [...developers, ...publishers],
+    developers,
+    publishers,
+  };
+}
+
+/**
+ * Gets reference metadata for one company role.
+ *
+ * @param {string} value - User-entered company values.
+ * @returns {Array<object>} Matched company metadata.
+ */
+function getCompanyRoleReferences(value) {
+  return splitFieldValues(value)
+    .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.companies))
+    .filter(Boolean);
 }
 
 /**
@@ -441,6 +603,26 @@ function getYearLabel(fallback, definition) {
  */
 function getReferenceDefinition(definitions, value) {
   return getReferenceEntry(definitions, value).reference;
+}
+
+/**
+ * Gets one reference definition with its source value.
+ *
+ * @param {object} definitions - Reference definitions for a lookup field.
+ * @param {string} value - User-entered field item.
+ * @returns {object|undefined} Matched reference definition.
+ */
+function getSourceReference(definitions, value) {
+  const reference = getReferenceDefinition(definitions, value);
+
+  if (reference == null) {
+    return undefined;
+  }
+
+  return {
+    ...reference,
+    source: value,
+  };
 }
 
 /**

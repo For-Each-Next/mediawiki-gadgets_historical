@@ -5,6 +5,7 @@ import { minify } from "terser";
 
 const dataPaths = {
   genres: "data/genres.json",
+  years: "data/years.json",
 };
 const sourcePath = "index.js";
 const dataPlaceholder = "__CREATE_VG_STUB_FIELD_DATA__";

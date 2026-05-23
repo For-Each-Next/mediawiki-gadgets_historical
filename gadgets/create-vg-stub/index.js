@@ -61,6 +61,7 @@ class VideoGameArticleParams {
     this.platforms = form.platforms;
     this.year = form.year;
     this.genreReferences = getGenreReferences(this.genres);
+    this.yearReference = getYearReference(this.year);
   }
 }
 
@@ -109,11 +110,12 @@ function isNewPageEdit() {
  * @param {string} params.name - Game title.
  * @param {string} params.platforms - Platform names.
  * @param {string} params.year - Release year.
+ * @param {object} params.yearReference - Matched year metadata.
  * @returns {string} Generated Chinese wikitext.
  */
 function buildStubText(params) {
   const intro =
-    `《'''${params.name}'''》是${params.year}年${buildGenreText(params)}类` +
+    `《'''${params.name}'''》是${buildYearGenreText(params)}` +
     `[[电子游戏]]，由${params.companies.developers}开发、` +
     `${params.companies.publishers}发行。` +
     `游戏对应${params.platforms}平台。`;
@@ -121,6 +123,19 @@ function buildStubText(params) {
   return [intro, buildCategoryText(params), buildStubTagText(params)]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * Builds the year and genre phrase for the intro sentence.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @param {string} params.genres - Raw genre text.
+ * @param {object} params.yearReference - Matched year metadata.
+ * @returns {string} Year and genre phrase.
+ */
+function buildYearGenreText(params) {
+  return `${params.yearReference.phrase}${buildGenreText(params)}类`;
 }
 
 /**
@@ -152,9 +167,12 @@ function buildGenreText(params) {
  * @returns {string} Category wikitext.
  */
 function buildCategoryText(params) {
-  return uniqueValues(getReferenceValues(params.genreReferences, "categories"))
-    .map(buildCategoryLink)
-    .join("\n");
+  const categories = [
+    ...getReferenceValues(params.genreReferences, "categories"),
+    ...params.yearReference.categories,
+  ];
+
+  return uniqueValues(categories).map(buildCategoryLink).join("\n");
 }
 
 /**
@@ -320,6 +338,64 @@ function getGenreReferences(value) {
   return splitFieldValues(value)
     .map(getReferenceDefinition.bind(null, FIELD_REFERENCE_DATA.genres))
     .filter(Boolean);
+}
+
+/**
+ * Gets category and display metadata for a year value.
+ *
+ * @param {string} value - User-entered year value.
+ * @returns {object} Year phrase and categories.
+ */
+function getYearReference(value) {
+  const year = trimValue(value);
+
+  if (year === "") {
+    return {
+      categories: [],
+      phrase: "一款",
+    };
+  }
+
+  if (year === "~") {
+    return {
+      categories: ["未来电子游戏"],
+      phrase: "尚未推出的",
+    };
+  }
+
+  if (year.startsWith("~")) {
+    return getPlannedYearReference(year.slice(1));
+  }
+
+  return {
+    categories: getYearCategories(year),
+    phrase: `${year}年`,
+  };
+}
+
+/**
+ * Gets display and category metadata for a planned release year.
+ *
+ * @param {string} value - Planned release year.
+ * @returns {object} Planned year phrase and categories.
+ */
+function getPlannedYearReference(value) {
+  const year = trimValue(value);
+
+  return {
+    categories: uniqueValues(["未来电子游戏", ...getYearCategories(year)]),
+    phrase: `预定于${year}年推出的`,
+  };
+}
+
+/**
+ * Gets category titles for a year.
+ *
+ * @param {string} year - Release year.
+ * @returns {Array<string>} Year category titles.
+ */
+function getYearCategories(year) {
+  return FIELD_REFERENCE_DATA.years[year] || [];
 }
 
 /**

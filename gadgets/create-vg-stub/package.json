@@ -1,0 +1,34 @@
+{
+  "name": "create-vg-stub",
+  "version": "0.1.0",
+  "description": "Quickly create a video game stub on the Chinese Wikipedia.",
+  "private": true,
+  "license": "CC BY-SA 4.0",
+  "author": "For Each ... Next",
+  "type": "module",
+  "main": "./index.js",
+  "browser": "./index.js",
+  "files": [
+    "index.js",
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "mediawiki",
+    "gadget",
+    "wikipedia",
+    "zhwiki",
+    "video-games"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "npm run lint && node --check index.js",
+    "lint": "eslint index.js scripts",
+    "lint:fix": "eslint index.js scripts --fix",
+    "test": "node --test",
+    "prepublishOnly": "npm run check"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

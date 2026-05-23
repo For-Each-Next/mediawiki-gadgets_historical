@@ -9,4 +9,4 @@ wikitext for the Chinese Wikipedia.
 ## Scripts
 
 - `npm run check` validates the gadget entry file syntax.
-- `npm run build` reads `index.js` and writes the files in `dist/`.
+- `npm run build` reads `src/index.js` and writes the files in `dist/`.

@@ -4,8 +4,8 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { minify } from "terser";
 
-const dataPath = "data";
-const sourcePath = "index.js";
+const dataPath = "src/data";
+const sourcePath = "src/index.js";
 const dataPlaceholder = "__CREATE_VG_STUB_FIELD_DATA__";
 
 await mkdir("dist", { recursive: true });

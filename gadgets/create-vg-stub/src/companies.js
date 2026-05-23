@@ -15,7 +15,7 @@ import {
  * @param {object} companies - Company-related parameters.
  * @param {string} companies.developers - Developer names.
  * @param {string} companies.publishers - Publisher names.
- * @returns {object} Text, modifier text, categories, and stub tags.
+ * @returns {object} Text, categories, and stub tags.
  */
 export function buildCompanyMetadata(companies) {
   const references = getCompanyReferences(companies);
@@ -23,24 +23,9 @@ export function buildCompanyMetadata(companies) {
 
   return {
     categories: uniqueValues(getReferenceValues(references.all, "categories")),
-    modifierText: buildAttributionModifierText(roleText),
     stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
     text: roleText,
   };
-}
-
-/**
- * Builds attribution text as a noun modifier.
- *
- * @param {string} roleText - Company role text.
- * @returns {string} Attribution modifier text.
- */
-function buildAttributionModifierText(roleText) {
-  if (roleText === "") {
-    return "一款";
-  }
-
-  return `${roleText}的`;
 }
 
 /**

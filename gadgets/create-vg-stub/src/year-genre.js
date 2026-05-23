@@ -48,17 +48,33 @@ export function buildYearGenreMetadata(values) {
  * @returns {string} Year and genre phrase.
  */
 function buildYearGenreText(params) {
+  const yearText = params.yearReference.phrase;
+  const genreText = buildGenreClassText(params);
+  const text = `${yearText}${genreText}`;
+
+  if (text === "") {
+    return "一款";
+  }
+
+  return text;
+}
+
+/**
+ * Builds the genre class phrase.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @param {string} params.genres - Raw genre text.
+ * @returns {string} Genre class phrase.
+ */
+function buildGenreClassText(params) {
   const genreText = buildGenreText(params);
 
-  if (params.yearReference.phrase === "一款" && genreText === "") {
+  if (genreText === "") {
     return "";
   }
 
-  if (genreText === "") {
-    return params.yearReference.phrase;
-  }
-
-  return `${params.yearReference.phrase}${genreText}类`;
+  return `${genreText}类`;
 }
 
 /**
@@ -145,7 +161,7 @@ function getYearReference(value) {
   if (year === "") {
     return {
       categories: [],
-      phrase: "一款",
+      phrase: "",
     };
   }
 

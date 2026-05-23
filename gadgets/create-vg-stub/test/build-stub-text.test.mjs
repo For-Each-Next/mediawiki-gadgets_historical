@@ -37,7 +37,7 @@ test("genre alias ignores letter case", async () => {
   assert.equal(text.includes("{{Rpg-videogame-stub}}"), true);
 });
 
-test("empty year generates the indefinite article phrase", async () => {
+test("empty year omits the year phrase", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",
     genres: "RPG",
@@ -48,7 +48,7 @@ test("empty year generates the indefinite article phrase", async () => {
   });
 
   assert.ok(
-    text.startsWith("《'''Example'''》是一款[[電子角色扮演遊戲|角色扮演]]类"),
+    text.startsWith("《'''Example'''》是[[電子角色扮演遊戲|角色扮演]]类"),
   );
   assert.equal(text.includes("[[Category:2024年電子遊戲]]"), false);
 });
@@ -147,7 +147,7 @@ test("empty genre omits genre class suffix", async () => {
   assert.equal(text.includes("类[[电子游戏]]"), false);
 });
 
-test("empty year and genre use attribution as noun modifier", async () => {
+test("empty year and genre use the fallback article phrase", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",
     genres: "",
@@ -159,7 +159,7 @@ test("empty year and genre use attribution as noun modifier", async () => {
 
   assert.ok(
     text.startsWith(
-      "《'''Example'''》是由Foo Studio开发、Bar Games发行的[[电子游戏]]",
+      "《'''Example'''》是一款[[电子游戏]]，由Foo Studio开发、Bar Games发行",
     ),
   );
 });

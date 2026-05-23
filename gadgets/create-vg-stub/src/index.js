@@ -139,10 +139,6 @@ export function buildStubText(params) {
  * @returns {string} Video game noun phrase.
  */
 function buildVideoGameText(params) {
-  if (params.yearGenreMetadata.text === "") {
-    return `${params.companyMetadata.modifierText}[[电子游戏]]`;
-  }
-
   return (
     `${params.yearGenreMetadata.text}[[电子游戏]]` +
     buildAttributionText(params.companyMetadata.text)

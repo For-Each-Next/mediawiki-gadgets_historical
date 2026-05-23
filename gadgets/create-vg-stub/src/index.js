@@ -1,5 +1,9 @@
 /* eslint-disable */
 
+/**
+ * Mounts the create-vg-stub gadget and builds generated article wikitext.
+ */
+
 import { buildCompanyMetadata } from "./companies.js";
 import { buildYearGenreMetadata } from "./year-genre.js";
 import {

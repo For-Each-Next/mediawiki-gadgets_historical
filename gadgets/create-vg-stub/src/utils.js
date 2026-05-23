@@ -1,5 +1,9 @@
 /* eslint-disable */
 
+/**
+ * Provides shared formatting and reference lookup helpers for the gadget.
+ */
+
 export const FIELD_REFERENCE_DATA = __CREATE_VG_STUB_FIELD_DATA__;
 
 /**

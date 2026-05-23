@@ -1,5 +1,9 @@
 /* eslint-disable */
 
+/**
+ * Builds year and genre prose plus metadata for video game stubs.
+ */
+
 import {
   FIELD_REFERENCE_DATA,
   buildLinkText,

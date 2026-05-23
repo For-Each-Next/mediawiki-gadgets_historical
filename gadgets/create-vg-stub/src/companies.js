@@ -1,5 +1,9 @@
 /* eslint-disable */
 
+/**
+ * Builds company attribution text and metadata for video game stubs.
+ */
+
 import {
   FIELD_REFERENCE_DATA,
   buildPageText,

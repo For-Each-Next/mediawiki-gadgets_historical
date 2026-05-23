@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+
+*.log
+*.tgz
+
+.DS_Store
+.cache/
+.parcel-cache/
+.turbo/
+.vite/
+.npm/
+.pnpm-store/

@@ -1,5 +1,13 @@
 /* eslint-disable */
 
+import { buildCompanyMetadata } from "./companies.js";
+import { buildYearGenreMetadata } from "./year-genre.js";
+import {
+  buildCategoryLink,
+  buildTemplateCall,
+  uniqueValues,
+} from "./utils.js";
+
 /**
  * Describes a reusable article parameter input.
  */
@@ -56,17 +64,17 @@ class VideoGameArticleParams {
       developers: form.developers,
       publishers: form.publishers,
     };
+    this.companyMetadata = buildCompanyMetadata(this.companies);
     this.genres = form.genres;
     this.name = form.name;
     this.platforms = form.platforms;
     this.year = form.year;
-    this.companyReferences = getCompanyReferences(this.companies);
-    this.genreReferences = getGenreReferences(this.genres);
-    this.yearReference = getYearReference(this.year);
+    this.yearGenreMetadata = buildYearGenreMetadata({
+      genres: this.genres,
+      year: this.year,
+    });
   }
 }
-
-const FIELD_REFERENCE_DATA = __CREATE_VG_STUB_FIELD_DATA__;
 
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
@@ -104,21 +112,15 @@ function isNewPageEdit() {
  * Builds the Chinese Wikipedia video game stub sentence.
  *
  * @param {object} params - Normalized article parameters.
- * @param {object} params.companyReferences - Matched company metadata.
- * @param {object} params.companies - Company-related parameters.
- * @param {string} params.companies.developers - Developer names.
- * @param {string} params.companies.publishers - Publisher names.
- * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @param {object} params.companyMetadata - Company text and metadata.
  * @param {string} params.name - Game title.
  * @param {string} params.platforms - Platform names.
- * @param {string} params.year - Release year.
- * @param {object} params.yearReference - Matched year metadata.
+ * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Generated Chinese wikitext.
  */
-function buildStubText(params) {
+export function buildStubText(params) {
   const intro =
-    `《'''${params.name}'''》是${buildYearGenreText(params)}` +
-    `[[电子游戏]]${buildAttributionText(params)}。` +
+    `《'''${params.name}'''》是${buildVideoGameText(params)}。` +
     `游戏对应${params.platforms}平台。`;
 
   return [intro, buildCategoryText(params), buildStubTagText(params)]
@@ -127,256 +129,70 @@ function buildStubText(params) {
 }
 
 /**
- * Builds developer and publisher attribution text.
+ * Builds the video game noun phrase.
  *
  * @param {object} params - Normalized article parameters.
- * @param {object} params.companyReferences - Matched company metadata.
- * @param {object} params.companies - Company-related parameters.
- * @returns {string} Attribution phrase.
+ * @param {object} params.companyMetadata - Company text and metadata.
+ * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
+ * @returns {string} Video game noun phrase.
  */
-function buildAttributionText(params) {
-  const developers = buildCompanyListText(
-    params.companies.developers,
-    params.companyReferences.developers,
-  );
-  const publishers = buildCompanyListText(
-    getPublisherValue(params),
-    params.companyReferences.publishers,
-  );
+function buildVideoGameText(params) {
+  if (params.yearGenreMetadata.text === "") {
+    return `${params.companyMetadata.modifierText}[[电子游戏]]`;
+  }
 
-  if (developers === "" && publishers === "") {
+  return (
+    `${params.yearGenreMetadata.text}[[电子游戏]]` +
+    buildAttributionText(params.companyMetadata.text)
+  );
+}
+
+/**
+ * Builds attribution text after the video game noun.
+ *
+ * @param {string} text - Company role text.
+ * @returns {string} Attribution text.
+ */
+function buildAttributionText(text) {
+  if (text === "") {
     return "";
   }
 
-  if (developers !== "" && params.companies.publishers === "=") {
-    return `，由${developers}开发及发行`;
-  }
-
-  return `，由${buildCompanyRoleText(developers, publishers)}`;
-}
-
-/**
- * Builds company role text from developer and publisher text.
- *
- * @param {string} developers - Developer wikitext.
- * @param {string} publishers - Publisher wikitext.
- * @returns {string} Company role text.
- */
-function buildCompanyRoleText(developers, publishers) {
-  if (developers === "") {
-    return `${publishers}发行`;
-  }
-
-  if (publishers === "") {
-    return `${developers}开发`;
-  }
-
-  return `${developers}开发、${publishers}发行`;
-}
-
-/**
- * Builds linked company text from raw values and matched metadata.
- *
- * @param {string} value - User-entered company values.
- * @param {Array<object>} references - Matched company metadata.
- * @returns {string} Company list wikitext.
- */
-function buildCompanyListText(value, references) {
-  return splitFieldValues(value)
-    .map(buildCompanyText.bind(null, references))
-    .join("、");
-}
-
-/**
- * Builds display text for one company value.
- *
- * @param {Array<object>} references - Matched company metadata.
- * @param {string} value - User-entered company value.
- * @returns {string} Company wikitext.
- */
-function buildCompanyText(references, value) {
-  const reference = references.find((item) => item.source === value);
-
-  if (reference == null || reference.page == null) {
-    return value;
-  }
-
-  return buildPageText(reference.page);
-}
-
-/**
- * Gets the publisher value, expanding the equality marker.
- *
- * @param {object} params - Normalized article parameters.
- * @param {object} params.companies - Company-related parameters.
- * @returns {string} Publisher values.
- */
-function getPublisherValue(params) {
-  if (params.companies.publishers === "=") {
-    return params.companies.developers;
-  }
-
-  return params.companies.publishers;
-}
-
-/**
- * Builds the year and genre phrase for the intro sentence.
- *
- * @param {object} params - Normalized article parameters.
- * @param {Array<object>} params.genreReferences - Matched genre metadata.
- * @param {string} params.genres - Raw genre text.
- * @param {object} params.yearReference - Matched year metadata.
- * @returns {string} Year and genre phrase.
- */
-function buildYearGenreText(params) {
-  return `${params.yearReference.phrase}${buildGenreText(params)}类`;
-}
-
-/**
- * Builds genre-aware text for the genre phrase.
- *
- * @param {object} params - Normalized article parameters.
- * @param {Array<object>} params.genreReferences - Matched genre metadata.
- * @param {string} params.genres - Raw genre text.
- * @returns {string} Genre phrase wikitext.
- */
-function buildGenreText(params) {
-  const [genreReference] = params.genreReferences;
-
-  if (genreReference == null || genreReference.page == null) {
-    return params.genres;
-  }
-
-  return buildLinkText(
-    genreReference.page.title,
-    getGenrePageLabel(genreReference),
-  );
+  return `，${text}`;
 }
 
 /**
  * Builds category wikitext from accepted article metadata.
  *
  * @param {object} params - Normalized article parameters.
- * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @param {object} params.companyMetadata - Company text and metadata.
+ * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Category wikitext.
  */
 function buildCategoryText(params) {
-  const categories = [
-    ...getReferenceValues(params.companyReferences.all, "categories"),
-    ...getReferenceValues(params.genreReferences, "categories"),
-    ...params.yearReference.categories,
-  ];
-
-  return uniqueValues(categories).map(buildCategoryLink).join("\n");
+  return uniqueValues([
+    ...params.companyMetadata.categories,
+    ...params.yearGenreMetadata.categories,
+  ])
+    .map(buildCategoryLink)
+    .join("\n");
 }
 
 /**
  * Builds stub tag wikitext from accepted article metadata.
  *
  * @param {object} params - Normalized article parameters.
- * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @param {object} params.companyMetadata - Company text and metadata.
+ * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Stub tag wikitext.
  */
 function buildStubTagText(params) {
-  const stubTags = [
-    ...getReferenceValues(params.companyReferences.all, "stubTags"),
-    ...getReferenceValues(params.genreReferences, "stubTags"),
-  ];
-
-  return uniqueValues(stubTags).map(buildTemplateCall).join("\n");
-}
-
-/**
- * Builds a category link.
- *
- * @param {string} category - Category title without namespace.
- * @returns {string} Category wikitext.
- */
-function buildCategoryLink(category) {
-  return `[[Category:${category}]]`;
-}
-
-/**
- * Builds a template call.
- *
- * @param {string} template - Template title without braces.
- * @returns {string} Template wikitext.
- */
-function buildTemplateCall(template) {
-  return `{{${template}}}`;
-}
-
-/**
- * Builds wiki link text.
- *
- * @param {string} title - Link target.
- * @param {string} label - Link label.
- * @returns {string} Link wikitext.
- */
-function buildLinkText(title, label) {
-  return `[[${title}|${label}]]`;
-}
-
-/**
- * Builds page link text from page metadata.
- *
- * @param {object} page - Page metadata.
- * @param {string} page.title - Page title.
- * @param {string} [page.label] - Optional display label.
- * @returns {string} Page link wikitext.
- */
-function buildPageText(page) {
-  if (page.label == null) {
-    return `[[${page.title}]]`;
-  }
-
-  return buildLinkText(page.title, page.label);
-}
-
-/**
- * Gets the display label for a genre page.
- *
- * @param {object} reference - Genre reference metadata.
- * @param {object} reference.page - Genre page metadata.
- * @returns {string} Genre page label.
- */
-function getGenrePageLabel(reference) {
-  if (reference.page.label == null) {
-    return removeGameSuffix(reference.page.title);
-  }
-
-  return removeGameSuffix(reference.page.label);
-}
-
-/**
- * Removes Chinese video game suffixes from display labels.
- *
- * @param {string} value - Display label.
- * @returns {string} Display label without the game suffix.
- */
-function removeGameSuffix(value) {
-  return value.replace(/(?:[电電]子)?[游遊][戏戲]$/u, "");
-}
-
-/**
- * Gets an array property from matched reference definitions.
- *
- * @param {Array<object>} references - Matched reference definitions.
- * @param {string} key - Reference array key.
- * @returns {Array<string>} Flattened reference values.
- */
-function getReferenceValues(references, key) {
-  return references.flatMap((reference) => reference[key] || []);
-}
-
-/**
- * Removes duplicate values while preserving order.
- *
- * @param {Array<string>} values - Values to deduplicate.
- * @returns {Array<string>} Unique values.
- */
-function uniqueValues(values) {
-  return Array.from(new Set(values));
+  return uniqueValues([
+    ...params.companyMetadata.stubTags,
+    ...params.yearGenreMetadata.stubTags,
+  ])
+    .map(buildTemplateCall)
+    .join("\n");
 }
 
 /**
@@ -458,258 +274,6 @@ function getEmptyFieldValue(field) {
 }
 
 /**
- * Gets reference metadata for company parameters.
- *
- * @param {object} companies - Company-related parameters.
- * @param {string} companies.developers - Developer names.
- * @param {string} companies.publishers - Publisher names.
- * @returns {object} Matched company metadata by role.
- */
-function getCompanyReferences(companies) {
-  const developers = getCompanyRoleReferences(companies.developers);
-  const publishers = getCompanyRoleReferences(
-    companies.publishers === "=" ? companies.developers : companies.publishers,
-  );
-
-  return {
-    all: [...developers, ...publishers],
-    developers,
-    publishers,
-  };
-}
-
-/**
- * Gets reference metadata for one company role.
- *
- * @param {string} value - User-entered company values.
- * @returns {Array<object>} Matched company metadata.
- */
-function getCompanyRoleReferences(value) {
-  return splitFieldValues(value)
-    .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.companies))
-    .filter(Boolean);
-}
-
-/**
- * Gets reference metadata for the genre parameter.
- *
- * @param {string} value - User-entered genre value.
- * @returns {Array<object>} Matched linked pages, categories, and tags.
- */
-function getGenreReferences(value) {
-  return splitFieldValues(value)
-    .map(getReferenceDefinition.bind(null, FIELD_REFERENCE_DATA.genres))
-    .filter(Boolean);
-}
-
-/**
- * Gets category and display metadata for a year value.
- *
- * @param {string} value - User-entered year value.
- * @returns {object} Year phrase and categories.
- */
-function getYearReference(value) {
-  const year = trimValue(value);
-  const yearDefinition = getYearDefinition(year);
-
-  if (year === "") {
-    return {
-      categories: [],
-      phrase: "一款",
-    };
-  }
-
-  if (year === "~") {
-    return {
-      categories: ["未来电子游戏"],
-      phrase: "尚未推出的",
-    };
-  }
-
-  if (year.startsWith("~")) {
-    return getPlannedYearReference(year.slice(1));
-  }
-
-  return {
-    categories: getReferenceCategories(yearDefinition.reference),
-    phrase: `${getYearLabel(year, yearDefinition)}年`,
-  };
-}
-
-/**
- * Gets display and category metadata for a planned release year.
- *
- * @param {string} value - Planned release year.
- * @returns {object} Planned year phrase and categories.
- */
-function getPlannedYearReference(value) {
-  const year = trimValue(value);
-  const yearDefinition = getYearDefinition(year);
-
-  return {
-    categories: uniqueValues([
-      "未来电子游戏",
-      ...getReferenceCategories(yearDefinition.reference),
-    ]),
-    phrase: `预定于${getYearLabel(year, yearDefinition)}年推出的`,
-  };
-}
-
-/**
- * Gets reference metadata for a year.
- *
- * @param {string} year - Release year.
- * @returns {object} Matched year key and metadata.
- */
-function getYearDefinition(year) {
-  return getReferenceEntry(FIELD_REFERENCE_DATA.years, year);
-}
-
-/**
- * Gets categories from reference metadata.
- *
- * @param {object|undefined} reference - Reference metadata.
- * @returns {Array<string>} Category titles.
- */
-function getReferenceCategories(reference) {
-  if (reference == null) {
-    return [];
-  }
-
-  return reference.categories || [];
-}
-
-/**
- * Gets the canonical year label from a matched year entry.
- *
- * @param {string} fallback - Fallback year label.
- * @param {object} definition - Matched year key and metadata.
- * @returns {string} Canonical year label.
- */
-function getYearLabel(fallback, definition) {
-  if (definition.key == null) {
-    return fallback;
-  }
-
-  return definition.key;
-}
-
-/**
- * Gets one reference definition by canonical genre label or alias.
- *
- * @param {object} definitions - Reference definitions for a lookup field.
- * @param {string} value - User-entered field item.
- * @returns {object|undefined} Matched reference definition.
- */
-function getReferenceDefinition(definitions, value) {
-  return getReferenceEntry(definitions, value).reference;
-}
-
-/**
- * Gets one reference definition with its source value.
- *
- * @param {object} definitions - Reference definitions for a lookup field.
- * @param {string} value - User-entered field item.
- * @returns {object|undefined} Matched reference definition.
- */
-function getSourceReference(definitions, value) {
-  const reference = getReferenceDefinition(definitions, value);
-
-  if (reference == null) {
-    return undefined;
-  }
-
-  return {
-    ...reference,
-    source: value,
-  };
-}
-
-/**
- * Gets one reference entry by canonical label or alias.
- *
- * @param {object} definitions - Reference definitions for a lookup field.
- * @param {string} value - User-entered field item.
- * @returns {object} Matched reference key and definition.
- */
-function getReferenceEntry(definitions, value) {
-  if (definitions[value] != null) {
-    return {
-      key: value,
-      reference: definitions[value],
-    };
-  }
-
-  return getReferenceEntryByAlias(definitions, value);
-}
-
-/**
- * Gets one reference definition by alias.
- *
- * @param {object} definitions - Reference definitions for a lookup field.
- * @param {string} alias - User-entered alias.
- * @returns {object|undefined} Matched reference definition.
- */
-function getReferenceDefinitionByAlias(definitions, alias) {
-  return getReferenceEntryByAlias(definitions, alias).reference;
-}
-
-/**
- * Gets one reference entry by alias.
- *
- * @param {object} definitions - Reference definitions for a lookup field.
- * @param {string} alias - User-entered alias.
- * @returns {object} Matched reference key and definition.
- */
-function getReferenceEntryByAlias(definitions, alias) {
-  const normalizedAlias = normalizeAlias(alias);
-  const entry = Object.entries(definitions).find(([_key, definition]) =>
-    (definition.aliases || []).map(normalizeAlias).includes(normalizedAlias),
-  );
-
-  if (entry == null) {
-    return {};
-  }
-
-  const [key, reference] = entry;
-
-  return { key, reference };
-}
-
-/**
- * Normalizes an alias for case-insensitive matching.
- *
- * @param {string} alias - Alias text.
- * @returns {string} Normalized alias.
- */
-function normalizeAlias(alias) {
-  return alias.toLocaleLowerCase();
-}
-
-/**
- * Splits one user-entered field into reusable lookup values.
- *
- * @param {string} value - User-entered field value.
- * @returns {Array<string>} Individual lookup values.
- */
-function splitFieldValues(value) {
-  return value
-    .split(/[、,，;；/]+/u)
-    .map(trimValue)
-    .filter(Boolean);
-}
-
-/**
- * Trims a lookup value.
- *
- * @param {string} value - Raw lookup value.
- * @returns {string} Trimmed lookup value.
- */
-function trimValue(value) {
-  return value.trim();
-}
-
-/**
  * Builds reusable article parameters from raw form values.
  *
  * @param {object} form - Dialog form values.
@@ -721,7 +285,7 @@ function trimValue(value) {
  * @param {string} form.year - Release year.
  * @returns {object} Normalized article parameters.
  */
-function createArticleParams(form) {
+export function createArticleParams(form) {
   return new VideoGameArticleParams(form);
 }
 

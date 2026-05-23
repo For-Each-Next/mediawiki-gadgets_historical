@@ -133,11 +133,44 @@ test("empty developers and publishers omit attribution", async () => {
   assert.equal(text.includes("[[电子游戏]]。游戏对应PC平台。"), true);
 });
 
+test("empty genre omits genre class suffix", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    year: "2024",
+  });
+
+  assert.ok(text.startsWith("《'''Example'''》是2024年[[电子游戏]]"));
+  assert.equal(text.includes("类[[电子游戏]]"), false);
+});
+
+test("empty year and genre use attribution as noun modifier", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.ok(
+    text.startsWith(
+      "《'''Example'''》是由Foo Studio开发、Bar Games发行的[[电子游戏]]",
+    ),
+  );
+});
+
 async function buildStubText(values) {
   const sandbox = await createSandbox();
 
   return vm.runInContext(
-    `buildStubText(createArticleParams(${JSON.stringify(values)}))`,
+    `createVgStub.buildStubText(
+      createVgStub.createArticleParams(${JSON.stringify(values)})
+    )`,
     sandbox,
   );
 }

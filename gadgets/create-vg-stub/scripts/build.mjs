@@ -2,6 +2,7 @@
 
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
+import { build } from "esbuild";
 import { minify } from "terser";
 
 const dataPath = "src/data";
@@ -10,13 +11,9 @@ const dataPlaceholder = "__CREATE_VG_STUB_FIELD_DATA__";
 
 await mkdir("dist", { recursive: true });
 
-const source = await readFile(sourcePath, "utf8");
 const fieldReferenceData = await readFieldReferenceData();
-const builtSource = source.replace(
-  dataPlaceholder,
-  JSON.stringify(fieldReferenceData),
-);
-const { code } = await minify(builtSource, {
+const source = await bundleSource(fieldReferenceData);
+const { code } = await minify(source, {
   compress: {
     passes: 2,
   },
@@ -30,8 +27,30 @@ if (code == null) {
   throw new Error("Terser did not return minified code.");
 }
 
-await writeFile("dist/create_vg_stub.js", builtSource);
+await writeFile("dist/create_vg_stub.js", source);
 await writeFile("dist/create_vg_stub.min.js", code);
+
+/**
+ * Bundles the source modules into one browser script.
+ *
+ * @param {object} fieldReferenceData - Reference data to inline.
+ * @returns {Promise<string>} Bundled source.
+ */
+async function bundleSource(fieldReferenceData) {
+  const result = await build({
+    bundle: true,
+    define: {
+      [dataPlaceholder]: JSON.stringify(fieldReferenceData),
+    },
+    entryPoints: [sourcePath],
+    format: "iife",
+    globalName: "createVgStub",
+    logLevel: "silent",
+    write: false,
+  });
+
+  return result.outputFiles[0].text;
+}
 
 /**
  * Reads reference data that should be bundled into the gadget output.

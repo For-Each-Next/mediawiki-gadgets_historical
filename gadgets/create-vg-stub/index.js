@@ -60,8 +60,11 @@ class VideoGameArticleParams {
     this.name = form.name;
     this.platforms = form.platforms;
     this.year = form.year;
+    this.genreReferences = getGenreReferences(this.genres);
   }
 }
+
+const FIELD_REFERENCE_DATA = __CREATE_VG_STUB_FIELD_DATA__;
 
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
@@ -102,19 +105,131 @@ function isNewPageEdit() {
  * @param {object} params.companies - Company-related parameters.
  * @param {string} params.companies.developers - Developer names.
  * @param {string} params.companies.publishers - Publisher names.
- * @param {string} params.genres - Game genre text.
+ * @param {Array<object>} params.genreReferences - Matched genre metadata.
  * @param {string} params.name - Game title.
  * @param {string} params.platforms - Platform names.
  * @param {string} params.year - Release year.
  * @returns {string} Generated Chinese wikitext.
  */
 function buildStubText(params) {
-  return (
-    `《'''${params.name}'''》是${params.year}年${params.genres}类` +
+  const intro =
+    `《'''${params.name}'''》是${params.year}年${buildGenreText(params)}类` +
     `[[电子游戏]]，由${params.companies.developers}开发、` +
     `${params.companies.publishers}发行。` +
-    `游戏对应${params.platforms}平台。`
+    `游戏对应${params.platforms}平台。`;
+
+  return [intro, buildCategoryText(params), buildStubTagText(params)]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Builds genre-aware text for the genre phrase.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @param {string} params.genres - Raw genre text.
+ * @returns {string} Genre phrase wikitext.
+ */
+function buildGenreText(params) {
+  const [genreReference] = params.genreReferences;
+
+  if (genreReference == null || genreReference.page == null) {
+    return params.genres;
+  }
+
+  return buildLinkText(
+    genreReference.page.title,
+    removeGameSuffix(genreReference.page.label),
   );
+}
+
+/**
+ * Builds category wikitext from accepted article metadata.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @returns {string} Category wikitext.
+ */
+function buildCategoryText(params) {
+  return uniqueValues(getReferenceValues(params.genreReferences, "categories"))
+    .map(buildCategoryLink)
+    .join("\n");
+}
+
+/**
+ * Builds stub tag wikitext from accepted article metadata.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {Array<object>} params.genreReferences - Matched genre metadata.
+ * @returns {string} Stub tag wikitext.
+ */
+function buildStubTagText(params) {
+  return uniqueValues(getReferenceValues(params.genreReferences, "stubTags"))
+    .map(buildTemplateCall)
+    .join("\n");
+}
+
+/**
+ * Builds a category link.
+ *
+ * @param {string} category - Category title without namespace.
+ * @returns {string} Category wikitext.
+ */
+function buildCategoryLink(category) {
+  return `[[Category:${category}]]`;
+}
+
+/**
+ * Builds a template call.
+ *
+ * @param {string} template - Template title without braces.
+ * @returns {string} Template wikitext.
+ */
+function buildTemplateCall(template) {
+  return `{{${template}}}`;
+}
+
+/**
+ * Builds wiki link text.
+ *
+ * @param {string} title - Link target.
+ * @param {string} label - Link label.
+ * @returns {string} Link wikitext.
+ */
+function buildLinkText(title, label) {
+  return `[[${title}|${label}]]`;
+}
+
+/**
+ * Removes Chinese video game suffixes from display labels.
+ *
+ * @param {string} value - Display label.
+ * @returns {string} Display label without the game suffix.
+ */
+function removeGameSuffix(value) {
+  return value.replace(/(?:[电電]子)?[游遊][戏戲]$/u, "");
+}
+
+/**
+ * Gets an array property from matched reference definitions.
+ *
+ * @param {Array<object>} references - Matched reference definitions.
+ * @param {string} key - Reference array key.
+ * @returns {Array<string>} Flattened reference values.
+ */
+function getReferenceValues(references, key) {
+  return references.flatMap((reference) => reference[key] || []);
+}
+
+/**
+ * Removes duplicate values while preserving order.
+ *
+ * @param {Array<string>} values - Values to deduplicate.
+ * @returns {Array<string>} Unique values.
+ */
+function uniqueValues(values) {
+  return Array.from(new Set(values));
 }
 
 /**
@@ -193,6 +308,67 @@ function getGroupFields(group) {
  */
 function getEmptyFieldValue(field) {
   return [field.key, ""];
+}
+
+/**
+ * Gets reference metadata for the genre parameter.
+ *
+ * @param {string} value - User-entered genre value.
+ * @returns {Array<object>} Matched linked pages, categories, and tags.
+ */
+function getGenreReferences(value) {
+  return splitFieldValues(value)
+    .map(getReferenceDefinition.bind(null, FIELD_REFERENCE_DATA.genres))
+    .filter(Boolean);
+}
+
+/**
+ * Gets one reference definition by canonical genre label or alias.
+ *
+ * @param {object} definitions - Reference definitions for a lookup field.
+ * @param {string} value - User-entered field item.
+ * @returns {object|undefined} Matched reference definition.
+ */
+function getReferenceDefinition(definitions, value) {
+  return (
+    definitions[value] || getReferenceDefinitionByAlias(definitions, value)
+  );
+}
+
+/**
+ * Gets one reference definition by alias.
+ *
+ * @param {object} definitions - Reference definitions for a lookup field.
+ * @param {string} alias - User-entered alias.
+ * @returns {object|undefined} Matched reference definition.
+ */
+function getReferenceDefinitionByAlias(definitions, alias) {
+  return Object.values(definitions).find((definition) =>
+    (definition.aliases || []).includes(alias),
+  );
+}
+
+/**
+ * Splits one user-entered field into reusable lookup values.
+ *
+ * @param {string} value - User-entered field value.
+ * @returns {Array<string>} Individual lookup values.
+ */
+function splitFieldValues(value) {
+  return value
+    .split(/[、,，;；/]+/u)
+    .map(trimValue)
+    .filter(Boolean);
+}
+
+/**
+ * Trims a lookup value.
+ *
+ * @param {string} value - Raw lookup value.
+ * @returns {string} Trimmed lookup value.
+ */
+function trimValue(value) {
+  return value.trim();
 }
 
 /**

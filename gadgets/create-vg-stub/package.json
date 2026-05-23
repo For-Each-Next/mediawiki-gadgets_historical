@@ -9,6 +9,7 @@
   "main": "./index.js",
   "browser": "./index.js",
   "files": [
+    "data",
     "index.js",
     "dist",
     "README.md"

@@ -1,12 +1,10 @@
 /* eslint-disable */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { basename, extname } from "node:path";
 import { minify } from "terser";
 
-const dataPaths = {
-  genres: "data/genres.json",
-  years: "data/years.json",
-};
+const dataPath = "data";
 const sourcePath = "index.js";
 const dataPlaceholder = "__CREATE_VG_STUB_FIELD_DATA__";
 
@@ -41,22 +39,32 @@ await writeFile("dist/create_vg_stub.min.js", code);
  * @returns {Promise<object>} Field reference data grouped by field name.
  */
 async function readFieldReferenceData() {
+  const paths = await readdir(dataPath);
   const entries = await Promise.all(
-    Object.entries(dataPaths).map(readFieldReferenceEntry),
+    paths.filter(isJsonPath).map(readJsonData),
   );
 
   return Object.fromEntries(entries);
 }
 
 /**
- * Reads one reference data file.
+ * Gets whether a path points to a JSON file.
  *
- * @param {Array<string>} entry - Data name and file path.
+ * @param {string} path - Data file path.
+ * @returns {boolean} Whether the path points to JSON.
+ */
+function isJsonPath(path) {
+  return extname(path) === ".json";
+}
+
+/**
+ * Reads one JSON data file.
+ *
+ * @param {string} path - Data file path.
  * @returns {Promise<Array<object>>} Data name paired with parsed JSON.
  */
-async function readFieldReferenceEntry(entry) {
-  const [name, path] = entry;
-  const data = await readFile(path, "utf8");
+async function readJsonData(path) {
+  const data = await readFile(`${dataPath}/${path}`, "utf8");
 
-  return [name, JSON.parse(data)];
+  return [basename(path, ".json"), JSON.parse(data)];
 }

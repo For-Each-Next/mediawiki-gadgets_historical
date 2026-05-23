@@ -348,6 +348,7 @@ function getGenreReferences(value) {
  */
 function getYearReference(value) {
   const year = trimValue(value);
+  const yearDefinition = getYearDefinition(year);
 
   if (year === "") {
     return {
@@ -368,8 +369,8 @@ function getYearReference(value) {
   }
 
   return {
-    categories: getYearCategories(year),
-    phrase: `${year}年`,
+    categories: getReferenceCategories(yearDefinition.reference),
+    phrase: `${getYearLabel(year, yearDefinition)}年`,
   };
 }
 
@@ -381,21 +382,54 @@ function getYearReference(value) {
  */
 function getPlannedYearReference(value) {
   const year = trimValue(value);
+  const yearDefinition = getYearDefinition(year);
 
   return {
-    categories: uniqueValues(["未来电子游戏", ...getYearCategories(year)]),
-    phrase: `预定于${year}年推出的`,
+    categories: uniqueValues([
+      "未来电子游戏",
+      ...getReferenceCategories(yearDefinition.reference),
+    ]),
+    phrase: `预定于${getYearLabel(year, yearDefinition)}年推出的`,
   };
 }
 
 /**
- * Gets category titles for a year.
+ * Gets reference metadata for a year.
  *
  * @param {string} year - Release year.
- * @returns {Array<string>} Year category titles.
+ * @returns {object} Matched year key and metadata.
  */
-function getYearCategories(year) {
-  return FIELD_REFERENCE_DATA.years[year] || [];
+function getYearDefinition(year) {
+  return getReferenceEntry(FIELD_REFERENCE_DATA.years, year);
+}
+
+/**
+ * Gets categories from reference metadata.
+ *
+ * @param {object|undefined} reference - Reference metadata.
+ * @returns {Array<string>} Category titles.
+ */
+function getReferenceCategories(reference) {
+  if (reference == null) {
+    return [];
+  }
+
+  return reference.categories || [];
+}
+
+/**
+ * Gets the canonical year label from a matched year entry.
+ *
+ * @param {string} fallback - Fallback year label.
+ * @param {object} definition - Matched year key and metadata.
+ * @returns {string} Canonical year label.
+ */
+function getYearLabel(fallback, definition) {
+  if (definition.key == null) {
+    return fallback;
+  }
+
+  return definition.key;
 }
 
 /**
@@ -406,9 +440,25 @@ function getYearCategories(year) {
  * @returns {object|undefined} Matched reference definition.
  */
 function getReferenceDefinition(definitions, value) {
-  return (
-    definitions[value] || getReferenceDefinitionByAlias(definitions, value)
-  );
+  return getReferenceEntry(definitions, value).reference;
+}
+
+/**
+ * Gets one reference entry by canonical label or alias.
+ *
+ * @param {object} definitions - Reference definitions for a lookup field.
+ * @param {string} value - User-entered field item.
+ * @returns {object} Matched reference key and definition.
+ */
+function getReferenceEntry(definitions, value) {
+  if (definitions[value] != null) {
+    return {
+      key: value,
+      reference: definitions[value],
+    };
+  }
+
+  return getReferenceEntryByAlias(definitions, value);
 }
 
 /**
@@ -419,9 +469,39 @@ function getReferenceDefinition(definitions, value) {
  * @returns {object|undefined} Matched reference definition.
  */
 function getReferenceDefinitionByAlias(definitions, alias) {
-  return Object.values(definitions).find((definition) =>
-    (definition.aliases || []).includes(alias),
+  return getReferenceEntryByAlias(definitions, alias).reference;
+}
+
+/**
+ * Gets one reference entry by alias.
+ *
+ * @param {object} definitions - Reference definitions for a lookup field.
+ * @param {string} alias - User-entered alias.
+ * @returns {object} Matched reference key and definition.
+ */
+function getReferenceEntryByAlias(definitions, alias) {
+  const normalizedAlias = normalizeAlias(alias);
+  const entry = Object.entries(definitions).find(([_key, definition]) =>
+    (definition.aliases || []).map(normalizeAlias).includes(normalizedAlias),
   );
+
+  if (entry == null) {
+    return {};
+  }
+
+  const [key, reference] = entry;
+
+  return { key, reference };
+}
+
+/**
+ * Normalizes an alias for case-insensitive matching.
+ *
+ * @param {string} alias - Alias text.
+ * @returns {string} Normalized alias.
+ */
+function normalizeAlias(alias) {
+  return alias.toLocaleLowerCase();
 }
 
 /**

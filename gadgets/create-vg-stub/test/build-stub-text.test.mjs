@@ -178,14 +178,27 @@ test("separated genre, company, and platform values render as lists", async () =
     text.includes("2024年[[電子角色扮演遊戲|角色扮演]]、Action类[[电子游戏]]"),
     true,
   );
-  assert.equal(text.includes("由[[史克威尔艾尼克斯]]、Company B开发"), true);
-  assert.equal(text.includes("Bar Games、Company C发行"), true);
+  assert.equal(text.includes("由[[史克威尔艾尼克斯]]和Company B开发"), true);
+  assert.equal(text.includes("Bar Games和Company C发行"), true);
   assert.equal(text.includes("作品对应[[PlayStation 5]]、Switch平台。"), true);
   assert.equal(text.includes("[[Category:史克威爾艾尼克斯遊戲]]"), true);
   assert.equal(text.includes("[[Category:電子角色扮演遊戲]]"), true);
   assert.equal(text.includes("[[Category:PlayStation 5游戏]]"), true);
   assert.equal(text.includes("{{SquareEnix-stub}}"), true);
   assert.equal(text.includes("{{Rpg-videogame-stub}}"), true);
+});
+
+test("three or more companies render with enumeration separators", async () => {
+  const text = await buildStubText({
+    developers: "Company A, Company B, Company C",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("由Company A、Company B、Company C开发"), true);
 });
 
 test("empty platform omits the platform sentence", async () => {

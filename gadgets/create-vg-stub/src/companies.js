@@ -103,9 +103,23 @@ function buildCompanyRoleText(developers, publishers) {
  * @returns {string} Company list wikitext.
  */
 function buildCompanyListText(value, references) {
-  return splitFieldValues(value)
-    .map(buildCompanyText.bind(null, references))
-    .join("、");
+  return joinCompanyTextList(
+    splitFieldValues(value).map(buildCompanyText.bind(null, references)),
+  );
+}
+
+/**
+ * Joins company names for attribution prose.
+ *
+ * @param {Array<string>} values - Company name wikitext values.
+ * @returns {string} Joined company names.
+ */
+function joinCompanyTextList(values) {
+  if (values.length === 2) {
+    return values.join("和");
+  }
+
+  return values.join("、");
 }
 
 /**

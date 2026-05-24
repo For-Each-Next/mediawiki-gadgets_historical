@@ -160,7 +160,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[7],
       {
         compact: true,
-        placeholder: "Score",
+        placeholder: "Metascore",
       },
     ),
     new ArticleParameterField(
@@ -362,6 +362,7 @@ export function createDialogComponent(Vue, options) {
         },
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
+        getArticleField,
         getFieldPlaceholder: options.getFieldPlaceholder.bind(null, form),
         nameMarkets: NAME_MARKETS,
         open,
@@ -418,18 +419,20 @@ export function createDialogComponent(Vue, options) {
                       {{ market.label }}
                     </cdx-checkbox>
                   </div>
-                  <cdx-text-input
-                    v-model="row.name"
-                    placeholder="Name"
-                    style="margin-bottom: 8px;"
-                    @change="updateNameRow(group.nameGroupKey, index, 'name')"
-                  />
-                  <cdx-text-input
-                    v-model="row.sourceUrl"
-                    placeholder="Source URL"
-                    style="margin-bottom: 8px;"
-                    @change="updateNameRow(group.nameGroupKey, index, 'sourceUrl')"
-                  />
+                  <div
+                    style="display: flex; flex-direction: column; gap: 0; margin-bottom: 8px;"
+                  >
+                    <cdx-text-input
+                      v-model="row.name"
+                      placeholder="Name"
+                      @change="updateNameRow(group.nameGroupKey, index, 'name')"
+                    />
+                    <cdx-text-input
+                      v-model="row.sourceUrl"
+                      placeholder="Source URL"
+                      @change="updateNameRow(group.nameGroupKey, index, 'sourceUrl')"
+                    />
+                  </div>
                   <cdx-button
                     action="destructive"
                     weight="quiet"
@@ -452,7 +455,7 @@ export function createDialogComponent(Vue, options) {
                   :key="field.key"
                 >
                   <div
-                    v-if="field.compact"
+                    v-if="field.compact && field.key !== 'metacriticScore'"
                   >
                     <hr
                       v-if="field.breakBefore"
@@ -464,22 +467,38 @@ export function createDialogComponent(Vue, options) {
                     >
                       {{ field.heading }}
                     </div>
-                    <cdx-text-input
-                      v-model="form[field.key]"
-                      :placeholder="field.placeholder"
-                      style="margin-bottom: 6px;"
-                      @change="normalizeFieldValue(field)"
-                    />
-                    <cdx-text-input
-                      v-if="field.sourceField"
-                      v-model="form[field.sourceField.sourceKey]"
-                      placeholder="Source URL"
-                      style="margin-bottom: 6px;"
-                      @change="trimSourceValue(field.sourceField)"
-                    />
+                    <div
+                      style="display: grid; gap: 0; margin-bottom: 6px;"
+                    >
+                      <cdx-text-input
+                        v-model="form[field.key]"
+                        :placeholder="field.placeholder"
+                        @change="normalizeFieldValue(field)"
+                      />
+                      <template
+                        v-if="field.key === 'metacriticPlatform'"
+                      >
+                        <cdx-text-input
+                          v-model="form.metacriticScore"
+                          :placeholder="getArticleField('metacriticScore').placeholder"
+                          @change="normalizeFieldValue(getArticleField('metacriticScore'))"
+                        />
+                        <cdx-text-input
+                          v-model="form.metacriticScoreSourceUrl"
+                          placeholder="Source URL"
+                          @change="trimSourceValue(getArticleField('metacriticScore').sourceField)"
+                        />
+                      </template>
+                      <cdx-text-input
+                        v-if="field.sourceField"
+                        v-model="form[field.sourceField.sourceKey]"
+                        placeholder="Source URL"
+                        @change="trimSourceValue(field.sourceField)"
+                      />
+                    </div>
                   </div>
                   <cdx-field
-                    v-else
+                    v-else-if="!field.compact"
                   >
                   <hr
                     v-if="field.breakBefore"
@@ -491,25 +510,29 @@ export function createDialogComponent(Vue, options) {
                   >
                     {{ field.heading }}
                   </div>
-                  <cdx-text-input
-                    v-if="field.key === 'originalName'"
-                    v-model="form.originalLanguage"
-                    placeholder="Language code"
-                    @change="trimFormValue('originalLanguage')"
-                  />
-                  <cdx-text-input
-                    v-model="form[field.key]"
-                    :placeholder="getFieldPlaceholder(field) || field.placeholder"
-                    @change="normalizeFieldValue(field)"
-                    @paste="normalizePastedFieldValue(field, $event)"
-                  />
+                  <div
+                    style="display: grid; gap: 0;"
+                  >
+                    <cdx-text-input
+                      v-if="field.key === 'originalName'"
+                      v-model="form.originalLanguage"
+                      placeholder="Language code"
+                      @change="trimFormValue('originalLanguage')"
+                    />
+                    <cdx-text-input
+                      v-model="form[field.key]"
+                      :placeholder="getFieldPlaceholder(field) || field.placeholder"
+                      @change="normalizeFieldValue(field)"
+                      @paste="normalizePastedFieldValue(field, $event)"
+                    />
+                    <cdx-text-input
+                      v-if="field.sourceField"
+                      v-model="form[field.sourceField.sourceKey]"
+                      :placeholder="field.sourceField.label"
+                      @change="trimSourceValue(field.sourceField)"
+                    />
+                  </div>
                   <template #label>{{ field.label }}</template>
-                  <cdx-text-input
-                    v-if="field.sourceField"
-                    v-model="form[field.sourceField.sourceKey]"
-                    :placeholder="field.sourceField.label"
-                    @change="trimSourceValue(field.sourceField)"
-                  />
                   </cdx-field>
                 </template>
               </template>
@@ -570,6 +593,16 @@ function createNameRow(selectedMarkets = []) {
  */
 function getArticleFields() {
   return ARTICLE_PARAMETER_GROUPS.flatMap(getGroupFields);
+}
+
+/**
+ * Gets an article field definition by form key.
+ *
+ * @param {string} key - Form key for the field.
+ * @returns {object} Matching field definition.
+ */
+function getArticleField(key) {
+  return getArticleFields().find((field) => field.key === key);
 }
 
 /**

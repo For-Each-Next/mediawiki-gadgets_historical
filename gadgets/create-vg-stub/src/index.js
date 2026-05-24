@@ -474,6 +474,7 @@ export function createArticleParams(form) {
  * @returns {object} Vue component options.
  */
 function createDialogComponent(Vue) {
+  const activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
   const form = Vue.reactive(createFormValues());
   const sourceFetchState = Vue.reactive({
     error: "",
@@ -529,6 +530,7 @@ function createDialogComponent(Vue) {
      */
     setup() {
       return {
+        activeTab,
         defaultAction: {
           label: "Cancel",
         },
@@ -551,24 +553,34 @@ function createDialogComponent(Vue) {
         @primary="insertText"
         @default="closeDialog"
       >
-        <section
-          v-for="group in groups"
-          :key="group.key"
+        <cdx-tabs
+          v-model:active="activeTab"
+          framed
         >
-          <h3>{{ group.label }}</h3>
-          <cdx-field
-            v-for="field in group.fields"
-            :key="field.key"
+          <cdx-tab
+            v-for="group in groups"
+            :key="group.key"
+            :name="group.key"
+            :label="group.label"
           >
-            <cdx-text-input v-model="form[field.key]" />
-            <template #label>{{ field.label }}</template>
-            <cdx-text-input
-              v-if="field.sourceField"
-              v-model="form[field.sourceField.sourceKey]"
-              :placeholder="field.sourceField.label"
-            />
-          </cdx-field>
-        </section>
+            <div
+              style="padding-top: 12px;"
+            >
+              <cdx-field
+                v-for="field in group.fields"
+                :key="field.key"
+              >
+                <cdx-text-input v-model="form[field.key]" />
+                <template #label>{{ field.label }}</template>
+                <cdx-text-input
+                  v-if="field.sourceField"
+                  v-model="form[field.sourceField.sourceKey]"
+                  :placeholder="field.sourceField.label"
+                />
+              </cdx-field>
+            </div>
+          </cdx-tab>
+        </cdx-tabs>
         <p v-if="sourceFetchState.error">
           {{ sourceFetchState.error }}
         </p>
@@ -658,6 +670,8 @@ function init(require) {
   app.component("CdxDialog", Codex.CdxDialog);
   app.component("CdxButton", Codex.CdxButton);
   app.component("CdxField", Codex.CdxField);
+  app.component("CdxTab", Codex.CdxTab);
+  app.component("CdxTabs", Codex.CdxTabs);
   app.component("CdxTextArea", Codex.CdxTextArea);
   app.component("CdxTextInput", Codex.CdxTextInput);
   app.mount(createHost());

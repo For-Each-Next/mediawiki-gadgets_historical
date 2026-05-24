@@ -232,6 +232,46 @@ test("empty platform omits the platform sentence", async () => {
   );
 });
 
+test("aggregate scores render after platform text", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    metacriticPlatform: "PS5",
+    metacriticScore: "77",
+    name: "Example",
+    openCriticRecommend: "68",
+    platforms: "PS5",
+    publishers: "Bar Games",
+    sourceReferences: [
+      {
+        citation: "{{cite web|title=Metacritic source}}",
+        key: "metacriticScore",
+      },
+      {
+        citation: "{{cite web|title=OpenCritic source}}",
+        key: "openCriticRecommend",
+      },
+    ],
+    year: "",
+  });
+
+  assert.equal(
+    text.includes(
+      "作品对应[[PlayStation 5]]平台。游戏的[[Metacritic]]汇总得分为77/100" +
+        '（PlayStation 5版）<ref name=":1" />，' +
+        '[[OpenCritic]]评测推荐率为68%<ref name=":2" />。',
+    ),
+    true,
+  );
+  assert.equal(
+    text.includes(
+      '<ref name=":1">{{cite web|title=Metacritic source}}</ref>\n' +
+        '<ref name=":2">{{cite web|title=OpenCritic source}}</ref>',
+    ),
+    true,
+  );
+});
+
 test("original name renders as a langx title variant", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",

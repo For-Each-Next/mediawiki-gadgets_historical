@@ -15,11 +15,16 @@ class ArticleParameterField {
    * @param {string} label - English label shown in the UI.
    * @param {string} path - Normalized parameter path.
    * @param {object} [sourceField] - Optional source URL field metadata.
+   * @param {object} [options] - Field display options.
    */
-  constructor(key, label, path, sourceField) {
+  constructor(key, label, path, sourceField, options = {}) {
+    this.breakBefore = Boolean(options.breakBefore);
+    this.compact = Boolean(options.compact);
+    this.heading = options.heading;
     this.key = key;
     this.label = label;
     this.path = path;
+    this.placeholder = options.placeholder;
     this.sourceField = sourceField;
   }
 }
@@ -80,6 +85,16 @@ export const SOURCE_REFERENCE_FIELDS = [
     label: "Platform source URL",
     sourceKey: "platformsSourceUrl",
   },
+  {
+    key: "metacriticScore",
+    label: "Metacritic source URL",
+    sourceKey: "metacriticScoreSourceUrl",
+  },
+  {
+    key: "openCriticRecommend",
+    label: "OpenCritic source URL",
+    sourceKey: "openCriticRecommendSourceUrl",
+  },
 ];
 
 const MULTI_ITEM_FIELD_KEYS = ["developers", "publishers", "genres", "platforms"];
@@ -126,6 +141,39 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[1],
     ),
     new ArticleParameterField("sortKey", "Sort key", "sortKey"),
+    new ArticleParameterField(
+      "metacriticPlatform",
+      "Platform",
+      "scores.metacriticPlatform",
+      null,
+      {
+        breakBefore: true,
+        compact: true,
+        heading: "Metacritic score",
+        placeholder: "Platform",
+      },
+    ),
+    new ArticleParameterField(
+      "metacriticScore",
+      "Score",
+      "scores.metacriticScore",
+      SOURCE_REFERENCE_FIELDS[7],
+      {
+        compact: true,
+        placeholder: "Score",
+      },
+    ),
+    new ArticleParameterField(
+      "openCriticRecommend",
+      "Critics Recommend",
+      "scores.openCriticRecommend",
+      SOURCE_REFERENCE_FIELDS[8],
+      {
+        compact: true,
+        heading: "OpenCritic score",
+        placeholder: "Critics Recommend",
+      },
+    ),
   ]),
   new ArticleParameterGroup("attribution", "Attribution", [
     new ArticleParameterField(
@@ -399,10 +447,50 @@ export function createDialogComponent(Vue, options) {
               <template
                 v-else
               >
-                <cdx-field
+                <template
                   v-for="field in group.fields"
                   :key="field.key"
                 >
+                  <div
+                    v-if="field.compact"
+                  >
+                    <hr
+                      v-if="field.breakBefore"
+                      style="border: 0; border-top: 1px solid #eaecf0; margin: 16px 0 12px;"
+                    />
+                    <div
+                      v-if="field.heading"
+                      style="font-weight: 600; margin-bottom: 6px;"
+                    >
+                      {{ field.heading }}
+                    </div>
+                    <cdx-text-input
+                      v-model="form[field.key]"
+                      :placeholder="field.placeholder"
+                      style="margin-bottom: 6px;"
+                      @change="normalizeFieldValue(field)"
+                    />
+                    <cdx-text-input
+                      v-if="field.sourceField"
+                      v-model="form[field.sourceField.sourceKey]"
+                      placeholder="Source URL"
+                      style="margin-bottom: 6px;"
+                      @change="trimSourceValue(field.sourceField)"
+                    />
+                  </div>
+                  <cdx-field
+                    v-else
+                  >
+                  <hr
+                    v-if="field.breakBefore"
+                    style="border: 0; border-top: 1px solid #eaecf0; margin: 16px 0;"
+                  />
+                  <div
+                    v-if="field.heading"
+                    style="font-weight: 600; margin-bottom: 8px;"
+                  >
+                    {{ field.heading }}
+                  </div>
                   <cdx-text-input
                     v-if="field.key === 'originalName'"
                     v-model="form.originalLanguage"
@@ -411,7 +499,7 @@ export function createDialogComponent(Vue, options) {
                   />
                   <cdx-text-input
                     v-model="form[field.key]"
-                    :placeholder="getFieldPlaceholder(field)"
+                    :placeholder="getFieldPlaceholder(field) || field.placeholder"
                     @change="normalizeFieldValue(field)"
                     @paste="normalizePastedFieldValue(field, $event)"
                   />
@@ -422,7 +510,8 @@ export function createDialogComponent(Vue, options) {
                     :placeholder="field.sourceField.label"
                     @change="trimSourceValue(field.sourceField)"
                   />
-                </cdx-field>
+                  </cdx-field>
+                </template>
               </template>
             </div>
           </cdx-tab>

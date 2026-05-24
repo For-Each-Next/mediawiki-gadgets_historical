@@ -18,6 +18,7 @@ import {
   uniqueValues,
 } from "./utils.js";
 import {
+  buildAggScoresText,
   buildCompanyMetadata,
   buildDefaultSortKey,
   buildDefaultSortText,
@@ -38,7 +39,10 @@ class VideoGameArticleParams {
    * @param {string} form.developers - Developer names.
    * @param {string} form.englishName - English game title.
    * @param {string} form.genres - Game genre text.
+   * @param {string} form.metacriticPlatform - Metacritic platform.
+   * @param {string} form.metacriticScore - Metacritic score.
    * @param {string} form.name - Game title.
+   * @param {string} form.openCriticRecommend - OpenCritic recommendation rate.
    * @param {string} form.originalLanguage - Original title language code.
    * @param {string} form.originalName - Original game title.
    * @param {string} form.sortKey - Category sort key.
@@ -52,6 +56,13 @@ class VideoGameArticleParams {
   constructor(form) {
     this.sourceReferences = buildNamedSourceReferences(form.sourceReferences);
     this.sourceTags = buildSourceReferenceTags(this.sourceReferences);
+    this.aggScoresText = buildAggScoresText({
+      metacriticPlatform: form.metacriticPlatform || "",
+      metacriticScore: form.metacriticScore || "",
+      metacriticSourceTag: this.sourceTags.metacriticScore,
+      openCriticRecommend: form.openCriticRecommend || "",
+      openCriticSourceTag: this.sourceTags.openCriticRecommend,
+    });
     this.companies = {
       developers: form.developers,
       publishers: form.publishers,
@@ -121,6 +132,7 @@ function isNewPageEdit() {
  * Builds the Chinese Wikipedia video game stub sentence.
  *
  * @param {object} params - Normalized article parameters.
+ * @param {string} params.aggScoresText - Aggregate review score sentence.
  * @param {object} params.companyMetadata - Company text and metadata.
  * @param {string} params.defaultSortText - DEFAULTSORT wikitext.
  * @param {string} params.infoboxText - Infobox wikitext.
@@ -133,7 +145,8 @@ function isNewPageEdit() {
 export function buildStubText(params) {
   const intro =
     `${params.leadNameText}是${buildVideoGameText(params)}。` +
-    params.platformMetadata.text;
+    params.platformMetadata.text +
+    params.aggScoresText;
 
   return [
     params.infoboxText,

@@ -388,9 +388,13 @@ function createHost() {
  * @returns {object} Initial dialog form values.
  */
 function createFormValues() {
-  return Object.fromEntries(
+  return {
+    ...Object.fromEntries(
     [...getArticleFields(), ...SOURCE_REFERENCE_FIELDS].map(getEmptyFieldValue),
-  );
+    ),
+    name: getDefaultName(),
+    publishers: "=",
+  };
 }
 
 /**
@@ -435,6 +439,15 @@ function getEmptyFieldValue(field) {
  */
 function getFieldValueKey(field) {
   return field.sourceKey || field.key;
+}
+
+/**
+ * Gets the default article name from the current page title.
+ *
+ * @returns {string} Page title without a trailing disambiguation suffix.
+ */
+function getDefaultName() {
+  return mw.config.get("wgTitle").replace(/ \(.+?\)$/u, "");
 }
 
 /**

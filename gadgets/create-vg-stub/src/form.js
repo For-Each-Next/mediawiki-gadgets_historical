@@ -159,8 +159,8 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[6],
     ),
   ]),
-  new ArticleParameterGroup("officialNames", "Official names", [], "officialNames"),
-  new ArticleParameterGroup("commonNames", "Common names", [], "commonNames"),
+  new ArticleParameterGroup("officialNames", "Official", [], "officialNames"),
+  new ArticleParameterGroup("commonNames", "Common", [], "commonNames"),
 ];
 
 /**
@@ -353,6 +353,11 @@ export function createDialogComponent(Vue, options) {
                   style="border-bottom: 1px solid #eaecf0; margin-bottom: 16px; padding-bottom: 16px;"
                 >
                   <div
+                    style="font-weight: 600; margin-bottom: 8px;"
+                  >
+                    {{ group.label }} name {{ index + 1 }}
+                  </div>
+                  <div
                     style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px;"
                   >
                     <cdx-checkbox
@@ -363,20 +368,18 @@ export function createDialogComponent(Vue, options) {
                       {{ market.label }}
                     </cdx-checkbox>
                   </div>
-                  <cdx-field>
-                    <cdx-text-input
-                      v-model="row.name"
-                      @change="updateNameRow(group.nameGroupKey, index, 'name')"
-                    />
-                    <template #label>Name</template>
-                  </cdx-field>
-                  <cdx-field>
-                    <cdx-text-input
-                      v-model="row.sourceUrl"
-                      @change="updateNameRow(group.nameGroupKey, index, 'sourceUrl')"
-                    />
-                    <template #label>Source URL</template>
-                  </cdx-field>
+                  <cdx-text-input
+                    v-model="row.name"
+                    placeholder="Name"
+                    style="margin-bottom: 8px;"
+                    @change="updateNameRow(group.nameGroupKey, index, 'name')"
+                  />
+                  <cdx-text-input
+                    v-model="row.sourceUrl"
+                    placeholder="Source URL"
+                    style="margin-bottom: 8px;"
+                    @change="updateNameRow(group.nameGroupKey, index, 'sourceUrl')"
+                  />
                   <cdx-button
                     action="destructive"
                     weight="quiet"

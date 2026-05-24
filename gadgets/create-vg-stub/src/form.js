@@ -125,6 +125,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       "englishName",
       SOURCE_REFERENCE_FIELDS[1],
     ),
+    new ArticleParameterField("sortKey", "Sort key", "sortKey"),
   ]),
   new ArticleParameterGroup("attribution", "Attribution", [
     new ArticleParameterField(
@@ -168,6 +169,7 @@ const ARTICLE_PARAMETER_GROUPS = [
  * @param {object} Vue - ResourceLoader Vue module.
  * @param {object} options - Dialog options.
  * @param {string} options.defaultName - Default article title.
+ * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
  * @param {Function} options.onSubmit - Submit handler.
  * @returns {object} Vue component options.
  */
@@ -312,6 +314,7 @@ export function createDialogComponent(Vue, options) {
         },
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
+        getFieldPlaceholder: options.getFieldPlaceholder.bind(null, form),
         nameMarkets: NAME_MARKETS,
         open,
         primaryAction: {
@@ -408,6 +411,7 @@ export function createDialogComponent(Vue, options) {
                   />
                   <cdx-text-input
                     v-model="form[field.key]"
+                    :placeholder="getFieldPlaceholder(field)"
                     @change="normalizeFieldValue(field)"
                     @paste="normalizePastedFieldValue(field, $event)"
                   />
@@ -447,6 +451,7 @@ function createFormValues(defaultName) {
     officialNames: [createNameRow(["hans"]), createNameRow(["hant"])],
     originalLanguage: "ja",
     publishers: "=",
+    sortKey: "",
   };
 }
 

@@ -19,6 +19,8 @@ import {
 } from "./utils.js";
 import {
   buildCompanyMetadata,
+  buildDefaultSortKey,
+  buildDefaultSortText,
   buildInfoboxText,
   buildLeadNameText,
   buildPlatformMetadata,
@@ -39,6 +41,7 @@ class VideoGameArticleParams {
    * @param {string} form.name - Game title.
    * @param {string} form.originalLanguage - Original title language code.
    * @param {string} form.originalName - Original game title.
+   * @param {string} form.sortKey - Category sort key.
    * @param {Array<object>} [form.commonNames] - Common localized name rows.
    * @param {Array<object>} [form.officialNames] - Official localized name rows.
    * @param {string} form.platforms - Platform names.
@@ -58,6 +61,12 @@ class VideoGameArticleParams {
     });
     this.englishName = form.englishName || "";
     this.genres = form.genres;
+    this.defaultSortText = buildDefaultSortText({
+      english: form.englishName || "",
+      original: form.originalName || "",
+      sortKey: form.sortKey || "",
+      title: form.name,
+    });
     this.infoboxText = buildInfoboxText({
       commonNames: buildInfoboxNameRows(
         form.commonNames,
@@ -113,6 +122,7 @@ function isNewPageEdit() {
  *
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
+ * @param {string} params.defaultSortText - DEFAULTSORT wikitext.
  * @param {string} params.infoboxText - Infobox wikitext.
  * @param {string} params.leadNameText - Lead article name text.
  * @param {object} params.platformMetadata - Platform text and metadata.
@@ -271,13 +281,19 @@ function buildFullReferenceText(reference) {
  * @returns {string} Category wikitext.
  */
 function buildCategoryText(params) {
-  return uniqueValues([
+  const categoryText = uniqueValues([
     ...params.companyMetadata.categories,
     ...params.platformMetadata.categories,
     ...params.yearGenreMetadata.categories,
   ])
     .map(buildCategoryLink)
     .join("\n");
+
+  if (categoryText === "") {
+    return "";
+  }
+
+  return `${params.defaultSortText}\n${categoryText}`;
 }
 
 /**
@@ -339,6 +355,26 @@ function createHost() {
  */
 function getDefaultName() {
   return mw.config.get("wgTitle").replace(/ \(.+?\)$/u, "");
+}
+
+/**
+ * Gets placeholder text for one form field.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {object} field - Dialog field definition.
+ * @param {string} field.key - Form key for the field.
+ * @returns {string|undefined} Placeholder text.
+ */
+function getFieldPlaceholder(form, field) {
+  if (field.key !== "sortKey") {
+    return undefined;
+  }
+
+  return buildDefaultSortKey({
+    english: form.englishName,
+    original: form.originalName,
+    title: form.name,
+  });
 }
 
 /**
@@ -486,6 +522,7 @@ function init(require) {
   const Codex = require("@wikimedia/codex");
   const app = Vue.createMwApp(createDialogComponent(Vue, {
     defaultName: getDefaultName(),
+    getFieldPlaceholder,
     onSubmit: submitForm,
   }));
 

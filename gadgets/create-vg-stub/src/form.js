@@ -113,7 +113,6 @@ const NAME_MARKETS = [
 
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
-    new ArticleParameterField("name", "Name", "name"),
     new ArticleParameterField(
       "originalName",
       "Original name",

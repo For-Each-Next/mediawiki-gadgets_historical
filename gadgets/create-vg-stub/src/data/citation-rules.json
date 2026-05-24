@@ -1,5 +1,17 @@
 [
   {
+    "fixes": [
+      {
+        "action": "replace",
+        "field": "language",
+        "operand": {
+          "pattern": "-.+$",
+          "replacement": ""
+        }
+      }
+    ]
+  },
+  {
     "host": "gnn.gamer.com.tw",
     "fixes": [
       {
@@ -22,9 +34,12 @@
     "host": "www.metacritic.com",
     "fixes": [
       {
-        "action": "rstrip",
+        "action": "replace",
         "field": "title",
-        "operand": " - Metacritic"
+        "operand": {
+          "pattern": " - Metacritic$",
+          "replacement": ""
+        }
       }
     ]
   },

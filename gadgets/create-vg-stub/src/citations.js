@@ -242,7 +242,7 @@ function applyCitationRule(sourceUrl, values, rule) {
  * @param {object} fix - Field fix definition.
  * @param {string} fix.action - Field fix action.
  * @param {string} fix.field - Citation value field.
- * @param {string} [fix.operand] - Optional fix operand.
+ * @param {string|object} [fix.operand] - Optional fix operand.
  * @returns {object} Citation template values.
  */
 function applyFieldFix(sourceUrl, values, fix) {
@@ -250,8 +250,8 @@ function applyFieldFix(sourceUrl, values, fix) {
     return applyOmitFix(values, fix);
   }
 
-  if (fix.action === "rstrip") {
-    return applyRstripFix(values, fix);
+  if (fix.action === "replace") {
+    return applyReplaceFix(values, fix);
   }
 
   if (fix.action === "preserve-source-query") {
@@ -282,18 +282,20 @@ function applyOmitFix(values, fix) {
 }
 
 /**
- * Applies an rstrip fix to citation values.
+ * Applies a regular expression replacement fix to citation values.
  *
  * @param {object} values - Citation template values.
  * @param {object} fix - Field fix definition.
  * @param {string} fix.field - Citation value field.
- * @param {string} fix.operand - Suffix to remove.
+ * @param {object} fix.operand - Replace operand.
+ * @param {string} fix.operand.pattern - Regular expression pattern to replace.
+ * @param {string} [fix.operand.replacement] - Replacement value.
  * @returns {object} Citation template values.
  */
-function applyRstripFix(values, fix) {
+function applyReplaceFix(values, fix) {
   return {
     ...values,
-    [fix.field]: stripSuffix(values[fix.field], fix.operand),
+    [fix.field]: replacePattern(values[fix.field], fix),
   };
 }
 
@@ -314,18 +316,26 @@ function applyPreserveSourceQueryFix(sourceUrl, values, fix) {
 }
 
 /**
- * Removes a suffix from a value when present.
+ * Replaces a pattern in a value when possible.
  *
  * @param {string} value - Value to update.
- * @param {string} suffix - Suffix to remove.
- * @returns {string} Value without the suffix.
+ * @param {object} fix - Field fix definition.
+ * @param {object} fix.operand - Replace operand.
+ * @param {string} fix.operand.pattern - Regular expression pattern to replace.
+ * @param {string} [fix.operand.replacement] - Replacement value.
+ * @returns {string} Value with the pattern replaced.
  */
-function stripSuffix(value, suffix) {
-  if (value == null || suffix == null || !value.endsWith(suffix)) {
+function replacePattern(value, fix) {
+  const operand = fix.operand || {};
+
+  if (value == null || operand.pattern == null) {
     return value;
   }
 
-  return value.slice(0, -suffix.length);
+  return value.replace(
+    new RegExp(operand.pattern, "u"),
+    operand.replacement || "",
+  );
 }
 
 /**
@@ -394,13 +404,24 @@ function preserveSourceQueryKey(citation, source, key) {
  * @returns {Array<object>} Matching cleanup rules.
  */
 function getMatchingRules(rules, url) {
+  const globalRules = rules.filter(isGlobalRule);
   const parsedUrl = parseUrl(url);
 
   if (parsedUrl == null) {
-    return [];
+    return globalRules;
   }
 
   return rules.filter(isMatchingRule.bind(null, parsedUrl.hostname));
+}
+
+/**
+ * Checks whether a cleanup rule applies to all citations.
+ *
+ * @param {object} rule - Cleanup rule.
+ * @returns {boolean} Whether the rule is global.
+ */
+function isGlobalRule(rule) {
+  return rule.host == null;
 }
 
 /**
@@ -411,7 +432,7 @@ function getMatchingRules(rules, url) {
  * @returns {boolean} Whether the rule matches the host.
  */
 function isMatchingRule(hostname, rule) {
-  return hostname === rule.host;
+  return rule.host == null || hostname === rule.host;
 }
 
 /**

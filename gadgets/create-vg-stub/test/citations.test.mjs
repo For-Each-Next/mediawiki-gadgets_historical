@@ -11,6 +11,18 @@ const RULES = [
   {
     fixes: [
       {
+        action: "replace",
+        field: "language",
+        operand: {
+          pattern: "-.+$",
+          replacement: "",
+        },
+      },
+    ],
+  },
+  {
+    fixes: [
+      {
         action: "omit",
         field: "author",
         operand: "巴哈姆特",
@@ -30,9 +42,12 @@ const RULES = [
   {
     fixes: [
       {
-        action: "rstrip",
+        action: "replace",
         field: "title",
-        operand: " - Metacritic",
+        operand: {
+          pattern: " - Metacritic$",
+          replacement: "",
+        },
       },
     ],
     host: "www.metacritic.com",
@@ -81,6 +96,26 @@ test("buildCiteTemplate formats Zotero metadata as cite web", () => {
   assert.equal(
     text,
     "{{cite web|access-date=2026-05-24|author=Ada Lovelace|date=2025-01-02|language=en|title=Example {{!}} Title|url=https://example.test/article|website=Example Site}}",
+  );
+});
+
+test("buildCiteTemplate normalizes language subtags by rule", () => {
+  const text = buildCiteTemplate(
+    {
+      itemType: "webpage",
+      language: "zh-Hans-CN",
+      title: "Example",
+      url: "https://example.test/article",
+    },
+    {
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.equal(
+    text,
+    "{{cite web|access-date=2026-05-24|language=zh|title=Example|url=https://example.test/article}}",
   );
 });
 

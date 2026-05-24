@@ -121,6 +121,8 @@ const SOURCE_REFERENCE_FIELDS = [
   },
 ];
 
+const MULTI_ITEM_FIELD_KEYS = ["developers", "publishers", "genres", "platforms"];
+
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
     new ArticleParameterField("name", "Name", "name"),
@@ -451,6 +453,65 @@ function getDefaultName() {
 }
 
 /**
+ * Checks whether a field accepts multiple list items.
+ *
+ * @param {object} field - Dialog field definition.
+ * @param {string} field.key - Form key for the field.
+ * @returns {boolean} Whether the field accepts multiple items.
+ */
+function isMultiItemField(field) {
+  return MULTI_ITEM_FIELD_KEYS.includes(field.key);
+}
+
+/**
+ * Normalizes a pasted multiline field value.
+ *
+ * @param {string} value - Raw form field value.
+ * @returns {string} Normalized form field value.
+ */
+function normalizeMultilineFieldValue(value) {
+  if (!isMultilineFieldValue(value)) {
+    return normalizeEnglishListValue(value);
+  }
+
+  return normalizeEnglishListValue(value)
+    .split(/[\r\n]+/u)
+    .map(trimFieldValue)
+    .filter(Boolean)
+    .join(", ");
+}
+
+/**
+ * Normalizes English list endings in a field value.
+ *
+ * @param {string} value - Raw form field value.
+ * @returns {string} Normalized form field value.
+ */
+function normalizeEnglishListValue(value) {
+  return value.replace(/,\s+and\s+/giu, ", ").replace(/\s+and\s+/giu, ", ");
+}
+
+/**
+ * Checks whether a field value contains multiple lines.
+ *
+ * @param {string} value - Raw form field value.
+ * @returns {boolean} Whether the value is multiline.
+ */
+function isMultilineFieldValue(value) {
+  return /[\r\n]/u.test(value);
+}
+
+/**
+ * Trims leading and trailing whitespace from a field value.
+ *
+ * @param {string} value - Raw field item value.
+ * @returns {string} Trimmed field item value.
+ */
+function trimFieldValue(value) {
+  return value.trim();
+}
+
+/**
  * Builds reusable article parameters from raw form values.
  *
  * @param {object} form - Dialog form values.
@@ -522,6 +583,58 @@ function createDialogComponent(Vue) {
           sourceFetchState.loading = false;
         }
       },
+
+      /**
+       * Normalizes multiline article field values.
+       *
+       * @param {object} field - Article parameter field.
+       * @param {string} field.key - Form key for the field.
+       * @returns {void}
+       */
+      normalizeFieldValue(field) {
+        form[field.key] = trimFieldValue(form[field.key]);
+
+        if (!isMultiItemField(field)) {
+          return;
+        }
+
+        form[field.key] = normalizeMultilineFieldValue(form[field.key]);
+      },
+
+      /**
+       * Trims pasted source URL field values.
+       *
+       * @param {object} field - Source reference field.
+       * @param {string} field.sourceKey - Form key for the source URL.
+       * @returns {void}
+       */
+      trimSourceValue(field) {
+        form[field.sourceKey] = trimFieldValue(form[field.sourceKey]);
+      },
+
+      /**
+       * Normalizes pasted multiline article field values.
+       *
+       * @param {object} field - Article parameter field.
+       * @param {string} field.key - Form key for the field.
+       * @param {*} event - Clipboard paste event.
+       * @returns {void}
+       */
+      normalizePastedFieldValue(field, event) {
+        if (!isMultiItemField(field)) {
+          return;
+        }
+
+        const clipboardData = event.clipboardData || event.originalEvent.clipboardData;
+        const text = clipboardData.getData("text");
+
+        if (!isMultilineFieldValue(text)) {
+          return;
+        }
+
+        event.preventDefault();
+        form[field.key] = normalizeMultilineFieldValue(text);
+      },
     },
     /**
      * Exposes dialog state and actions to the template.
@@ -570,12 +683,17 @@ function createDialogComponent(Vue) {
                 v-for="field in group.fields"
                 :key="field.key"
               >
-                <cdx-text-input v-model="form[field.key]" />
+                <cdx-text-input
+                  v-model="form[field.key]"
+                  @change="normalizeFieldValue(field)"
+                  @paste="normalizePastedFieldValue(field, $event)"
+                />
                 <template #label>{{ field.label }}</template>
                 <cdx-text-input
                   v-if="field.sourceField"
                   v-model="form[field.sourceField.sourceKey]"
                   :placeholder="field.sourceField.label"
+                  @change="trimSourceValue(field.sourceField)"
                 />
               </cdx-field>
             </div>
@@ -624,7 +742,7 @@ function getEnteredSourceReferenceFields(form) {
  */
 async function fetchSourceReference(form, field) {
   return {
-    citation: await fetchCiteTemplate(form[field.sourceKey]),
+    citation: await fetchCiteTemplate(trimFieldValue(form[field.sourceKey])),
     key: field.key,
   };
 }

@@ -6,6 +6,7 @@
 
 import { buildCompanyMetadata } from "./companies.js";
 import { fetchCiteTemplate } from "./citations.js";
+import { buildLeadNameText } from "./lead-name.js";
 import { buildPlatformMetadata } from "./platforms.js";
 import { buildYearGenreMetadata } from "./year-genre.js";
 import {
@@ -61,8 +62,11 @@ class VideoGameArticleParams {
    *
    * @param {object} form - Dialog form values.
    * @param {string} form.developers - Developer names.
+   * @param {string} form.englishName - English game title.
    * @param {string} form.genres - Game genre text.
    * @param {string} form.name - Game title.
+   * @param {string} form.originalLanguage - Original title language code.
+   * @param {string} form.originalName - Original game title.
    * @param {string} form.platforms - Platform names.
    * @param {string} form.publishers - Publisher names.
    * @param {Array<object>} [form.sourceReferences] - Named source refs.
@@ -78,8 +82,18 @@ class VideoGameArticleParams {
     this.companyMetadata = buildCompanyMetadata(this.companies, {
       sourceTag: joinSourceTags(this.sourceTags, ["developers", "publishers"]),
     });
+    this.englishName = form.englishName || "";
     this.genres = form.genres;
+    this.leadNameText = buildLeadNameText({
+      englishName: this.englishName,
+      name: form.name,
+      originalLanguage: form.originalLanguage || "ja",
+      originalName: form.originalName || "",
+      sourceTags: this.sourceTags,
+    });
     this.name = form.name;
+    this.originalLanguage = form.originalLanguage;
+    this.originalName = form.originalName || "";
     this.platforms = form.platforms;
     this.platformMetadata = buildPlatformMetadata(this.platforms, {
       sourceTag: this.sourceTags.platforms,
@@ -94,6 +108,16 @@ class VideoGameArticleParams {
 }
 
 const SOURCE_REFERENCE_FIELDS = [
+  {
+    key: "originalName",
+    label: "Original name source URL",
+    sourceKey: "originalNameSourceUrl",
+  },
+  {
+    key: "englishName",
+    label: "English name source URL",
+    sourceKey: "englishNameSourceUrl",
+  },
   {
     key: "year",
     label: "Year source URL",
@@ -126,37 +150,49 @@ const MULTI_ITEM_FIELD_KEYS = ["developers", "publishers", "genres", "platforms"
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
     new ArticleParameterField("name", "Name", "name"),
+    new ArticleParameterField(
+      "originalName",
+      "Original name",
+      "originalName",
+      SOURCE_REFERENCE_FIELDS[0],
+    ),
+    new ArticleParameterField(
+      "englishName",
+      "English name",
+      "englishName",
+      SOURCE_REFERENCE_FIELDS[1],
+    ),
   ]),
   new ArticleParameterGroup("attribution", "Attribution", [
     new ArticleParameterField(
       "year",
       "Year",
       "year",
-      SOURCE_REFERENCE_FIELDS[0],
+      SOURCE_REFERENCE_FIELDS[2],
     ),
     new ArticleParameterField(
       "developers",
       "Developer(s)",
       "companies.developers",
-      SOURCE_REFERENCE_FIELDS[1],
+      SOURCE_REFERENCE_FIELDS[3],
     ),
     new ArticleParameterField(
       "publishers",
       "Publisher(s)",
       "companies.publishers",
-      SOURCE_REFERENCE_FIELDS[2],
+      SOURCE_REFERENCE_FIELDS[4],
     ),
     new ArticleParameterField(
       "genres",
       "Genre(s)",
       "genres",
-      SOURCE_REFERENCE_FIELDS[3],
+      SOURCE_REFERENCE_FIELDS[5],
     ),
     new ArticleParameterField(
       "platforms",
       "Platform(s)",
       "platforms",
-      SOURCE_REFERENCE_FIELDS[4],
+      SOURCE_REFERENCE_FIELDS[6],
     ),
   ]),
 ];
@@ -177,7 +213,7 @@ function isNewPageEdit() {
  *
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
- * @param {string} params.name - Game title.
+ * @param {string} params.leadNameText - Lead article name text.
  * @param {object} params.platformMetadata - Platform text and metadata.
  * @param {Array<object>} params.sourceReferences - Named source references.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
@@ -185,7 +221,7 @@ function isNewPageEdit() {
  */
 export function buildStubText(params) {
   const intro =
-    `《'''${params.name}'''》是${buildVideoGameText(params)}。` +
+    `${params.leadNameText}是${buildVideoGameText(params)}。` +
     params.platformMetadata.text;
 
   return [
@@ -395,6 +431,7 @@ function createFormValues() {
     [...getArticleFields(), ...SOURCE_REFERENCE_FIELDS].map(getEmptyFieldValue),
     ),
     name: getDefaultName(),
+    originalLanguage: "ja",
     publishers: "=",
   };
 }
@@ -613,6 +650,16 @@ function createDialogComponent(Vue) {
       },
 
       /**
+       * Trims one form value by key.
+       *
+       * @param {string} key - Form value key.
+       * @returns {void}
+       */
+      trimFormValue(key) {
+        form[key] = trimFieldValue(form[key]);
+      },
+
+      /**
        * Normalizes pasted multiline article field values.
        *
        * @param {object} field - Article parameter field.
@@ -683,6 +730,12 @@ function createDialogComponent(Vue) {
                 v-for="field in group.fields"
                 :key="field.key"
               >
+                <cdx-text-input
+                  v-if="field.key === 'originalName'"
+                  v-model="form.originalLanguage"
+                  placeholder="Language code"
+                  @change="trimFormValue('originalLanguage')"
+                />
                 <cdx-text-input
                   v-model="form[field.key]"
                   @change="normalizeFieldValue(field)"

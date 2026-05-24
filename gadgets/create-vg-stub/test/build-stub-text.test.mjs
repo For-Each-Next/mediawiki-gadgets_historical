@@ -221,6 +221,62 @@ test("empty platform omits the platform sentence", async () => {
   );
 });
 
+test("original name renders as a langx title variant", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    name: "Example",
+    originalLanguage: "ja",
+    originalName: "サンプル",
+    platforms: "",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.ok(
+    text.startsWith(
+      "《'''Example'''》（{{langx|ja|サンプル|label=none}}）是一款",
+    ),
+  );
+});
+
+test("English name renders as italic langx title variant", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    englishName: "Example Game",
+    genres: "",
+    name: "Example",
+    platforms: "",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.ok(
+    text.startsWith(
+      "《'''Example'''》（{{langx|en|Example Game|italic=yes|label=none}}）是一款",
+    ),
+  );
+});
+
+test("French original name renders as italic langx title variant", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    name: "Example",
+    originalLanguage: "fr",
+    originalName: "Exemple",
+    platforms: "",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.ok(
+    text.startsWith(
+      "《'''Example'''》（{{langx|fr|Exemple|italic=yes|label=none}}）是一款",
+    ),
+  );
+});
+
 test("source references render named refs and a references block", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",
@@ -229,6 +285,10 @@ test("source references render named refs and a references block", async () => {
     platforms: "PC",
     publishers: "Bar Games",
     sourceReferences: [
+      {
+        citation: "{{cite web|title=Original source}}",
+        key: "originalName",
+      },
       {
         citation: "{{cite web|title=Year source}}",
         key: "year",
@@ -251,26 +311,29 @@ test("source references render named refs and a references block", async () => {
       },
     ],
     year: "",
+    originalName: "サンプル",
   });
 
   assert.equal(
     text.includes(
-      "《'''Example'''》是一款[[电子游戏]]" +
-        '<ref name=":1" /><ref name=":4" />，' +
+      "《'''Example'''》（{{langx|ja|サンプル|label=none}}" +
+        '<ref name=":1" />）是一款[[电子游戏]]' +
+        '<ref name=":2" /><ref name=":5" />，' +
         "由Foo Studio开发、Bar Games发行" +
-        '<ref name=":2" /><ref name=":3" />。' +
-        '作品对应PC平台<ref name=":5" />。',
+        '<ref name=":3" /><ref name=":4" />。' +
+        '作品对应PC平台<ref name=":6" />。',
     ),
     true,
   );
   assert.equal(
     text.includes(
       "== 参考文献 ==\n\n<references>\n" +
-        '<ref name=":1">{{cite web|title=Year source}}</ref>\n' +
-        '<ref name=":2">{{cite web|title=Developer source}}</ref>\n' +
-        '<ref name=":3">{{cite web|title=Publisher source}}</ref>\n' +
-        '<ref name=":4">{{cite web|title=Genre source}}</ref>\n' +
-        '<ref name=":5">{{cite web|title=Platform source}}</ref>\n' +
+        '<ref name=":1">{{cite web|title=Original source}}</ref>\n' +
+        '<ref name=":2">{{cite web|title=Year source}}</ref>\n' +
+        '<ref name=":3">{{cite web|title=Developer source}}</ref>\n' +
+        '<ref name=":4">{{cite web|title=Publisher source}}</ref>\n' +
+        '<ref name=":5">{{cite web|title=Genre source}}</ref>\n' +
+        '<ref name=":6">{{cite web|title=Platform source}}</ref>\n' +
         "</references>",
     ),
     true,

@@ -6,6 +6,7 @@
 
 import { buildCompanyMetadata } from "./companies.js";
 import { fetchCiteTemplate } from "./citations.js";
+import { buildInfoboxText } from "./infobox.js";
 import { buildLeadNameText } from "./lead-name.js";
 import { buildPlatformMetadata } from "./platforms.js";
 import { buildYearGenreMetadata } from "./year-genre.js";
@@ -45,11 +46,13 @@ class ArticleParameterGroup {
    * @param {string} key - Stable group key.
    * @param {string} label - English group heading.
    * @param {Array<ArticleParameterField>} fields - Group field metadata.
+   * @param {string} [nameGroupKey] - Localized name row form key.
    */
-  constructor(key, label, fields) {
+  constructor(key, label, fields, nameGroupKey) {
     this.fields = fields;
     this.key = key;
     this.label = label;
+    this.nameGroupKey = nameGroupKey;
   }
 }
 
@@ -67,6 +70,8 @@ class VideoGameArticleParams {
    * @param {string} form.name - Game title.
    * @param {string} form.originalLanguage - Original title language code.
    * @param {string} form.originalName - Original game title.
+   * @param {Array<object>} [form.commonNames] - Common localized name rows.
+   * @param {Array<object>} [form.officialNames] - Official localized name rows.
    * @param {string} form.platforms - Platform names.
    * @param {string} form.publishers - Publisher names.
    * @param {Array<object>} [form.sourceReferences] - Named source refs.
@@ -84,6 +89,22 @@ class VideoGameArticleParams {
     });
     this.englishName = form.englishName || "";
     this.genres = form.genres;
+    this.infoboxText = buildInfoboxText({
+      commonNames: buildInfoboxNameRows(
+        form.commonNames,
+        this.sourceTags,
+        "commonNames",
+      ),
+      englishName: this.englishName,
+      name: form.name,
+      officialNames: buildInfoboxNameRows(
+        form.officialNames,
+        this.sourceTags,
+        "officialNames",
+      ),
+      originalLanguage: form.originalLanguage || "ja",
+      originalName: form.originalName || "",
+    });
     this.leadNameText = buildLeadNameText({
       englishName: this.englishName,
       name: form.name,
@@ -146,6 +167,32 @@ const SOURCE_REFERENCE_FIELDS = [
 ];
 
 const MULTI_ITEM_FIELD_KEYS = ["developers", "publishers", "genres", "platforms"];
+const NAME_MARKETS = [
+  {
+    key: "ww",
+    label: "WW",
+  },
+  {
+    key: "hans",
+    label: "Hans",
+  },
+  {
+    key: "hant",
+    label: "Hant",
+  },
+  {
+    key: "cn",
+    label: "CN",
+  },
+  {
+    key: "tw",
+    label: "TW",
+  },
+  {
+    key: "hk",
+    label: "HK",
+  },
+];
 
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
@@ -195,6 +242,8 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[6],
     ),
   ]),
+  new ArticleParameterGroup("officialNames", "Official names", [], "officialNames"),
+  new ArticleParameterGroup("commonNames", "Common names", [], "commonNames"),
 ];
 
 /**
@@ -213,6 +262,7 @@ function isNewPageEdit() {
  *
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
+ * @param {string} params.infoboxText - Infobox wikitext.
  * @param {string} params.leadNameText - Lead article name text.
  * @param {object} params.platformMetadata - Platform text and metadata.
  * @param {Array<object>} params.sourceReferences - Named source references.
@@ -225,6 +275,7 @@ export function buildStubText(params) {
     params.platformMetadata.text;
 
   return [
+    params.infoboxText,
     intro,
     buildReferencesText(params.sourceReferences),
     buildCategoryText(params),
@@ -280,6 +331,32 @@ function buildSourceReferenceTags(references) {
  */
 function buildSourceReferenceTagEntry(reference) {
   return [reference.key, buildReferenceTag(reference.name)];
+}
+
+/**
+ * Builds localized infobox name rows with generated source tags.
+ *
+ * @param {Array<object>} rows - Localized name rows.
+ * @param {object} sourceTags - Source reference tags keyed by field.
+ * @param {string} key - Localized name group key.
+ * @returns {Array<object>} Localized name rows with reference tags.
+ */
+function buildInfoboxNameRows(rows, sourceTags, key) {
+  return (rows || []).map((row, index) => ({
+    ...row,
+    ref: sourceTags[buildNameSourceReferenceKey(key, index)] || "",
+  }));
+}
+
+/**
+ * Builds a source reference key for one localized name row.
+ *
+ * @param {string} key - Localized name group key.
+ * @param {number} index - Row index.
+ * @returns {string} Source reference key.
+ */
+function buildNameSourceReferenceKey(key, index) {
+  return `${key}.${index}`;
 }
 
 /**
@@ -430,9 +507,30 @@ function createFormValues() {
     ...Object.fromEntries(
     [...getArticleFields(), ...SOURCE_REFERENCE_FIELDS].map(getEmptyFieldValue),
     ),
+    commonNames: [createNameRow(), createNameRow()],
     name: getDefaultName(),
+    officialNames: [createNameRow(["hans"]), createNameRow(["hant"])],
     originalLanguage: "ja",
     publishers: "=",
+  };
+}
+
+/**
+ * Creates one localized name row.
+ *
+ * @param {Array<string>} [selectedMarkets] - Initially selected market codes.
+ * @returns {object} Localized name row.
+ */
+function createNameRow(selectedMarkets = []) {
+  return {
+    ...Object.fromEntries(
+      NAME_MARKETS.map((market) => [
+        market.key,
+        selectedMarkets.includes(market.key),
+      ]),
+    ),
+    name: "",
+    sourceUrl: "",
   };
 }
 
@@ -546,6 +644,27 @@ function isMultilineFieldValue(value) {
  */
 function trimFieldValue(value) {
   return value.trim();
+}
+
+/**
+ * Gets source reference fields for localized name rows with URLs.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<object>} Entered localized name source fields.
+ */
+function getEnteredNameSourceReferenceFields(form) {
+  return ["officialNames", "commonNames"].flatMap((key) =>
+    form[key]
+      .map((row, index) => ({
+        key: buildNameSourceReferenceKey(key, index),
+        name: row.name,
+        sourceUrl: row.sourceUrl,
+      }))
+      .filter((field) =>
+        Boolean(trimFieldValue(field.name)) &&
+          Boolean(trimFieldValue(field.sourceUrl)),
+      ),
+  );
 }
 
 /**
@@ -682,6 +801,39 @@ function createDialogComponent(Vue) {
         event.preventDefault();
         form[field.key] = normalizeMultilineFieldValue(text);
       },
+
+      /**
+       * Trims a localized name row value.
+       *
+       * @param {string} key - Localized name group key.
+       * @param {number} index - Row index.
+       * @param {string} field - Row field key.
+       * @returns {void}
+       */
+      updateNameRow(key, index, field) {
+        form[key][index][field] = trimFieldValue(form[key][index][field]);
+      },
+
+      /**
+       * Appends a blank localized name row.
+       *
+       * @param {string} key - Localized name group key.
+       * @returns {void}
+       */
+      addNameRow(key) {
+        form[key].push(createNameRow());
+      },
+
+      /**
+       * Removes a localized name row.
+       *
+       * @param {string} key - Localized name group key.
+       * @param {number} index - Row index.
+       * @returns {void}
+       */
+      removeNameRow(key, index) {
+        form[key].splice(index, 1);
+      },
     },
     /**
      * Exposes dialog state and actions to the template.
@@ -696,6 +848,7 @@ function createDialogComponent(Vue) {
         },
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
+        nameMarkets: NAME_MARKETS,
         open,
         primaryAction: {
           actionType: "progressive",
@@ -726,29 +879,80 @@ function createDialogComponent(Vue) {
             <div
               style="padding-top: 12px;"
             >
-              <cdx-field
-                v-for="field in group.fields"
-                :key="field.key"
+              <template
+                v-if="group.nameGroupKey"
               >
-                <cdx-text-input
-                  v-if="field.key === 'originalName'"
-                  v-model="form.originalLanguage"
-                  placeholder="Language code"
-                  @change="trimFormValue('originalLanguage')"
-                />
-                <cdx-text-input
-                  v-model="form[field.key]"
-                  @change="normalizeFieldValue(field)"
-                  @paste="normalizePastedFieldValue(field, $event)"
-                />
-                <template #label>{{ field.label }}</template>
-                <cdx-text-input
-                  v-if="field.sourceField"
-                  v-model="form[field.sourceField.sourceKey]"
-                  :placeholder="field.sourceField.label"
-                  @change="trimSourceValue(field.sourceField)"
-                />
-              </cdx-field>
+                <div
+                  v-for="(row, index) in form[group.nameGroupKey]"
+                  :key="index"
+                  style="border-bottom: 1px solid #eaecf0; margin-bottom: 16px; padding-bottom: 16px;"
+                >
+                  <div
+                    style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px;"
+                  >
+                    <cdx-checkbox
+                      v-for="market in nameMarkets"
+                      :key="market.key"
+                      v-model="row[market.key]"
+                    >
+                      {{ market.label }}
+                    </cdx-checkbox>
+                  </div>
+                  <cdx-field>
+                    <cdx-text-input
+                      v-model="row.name"
+                      @change="updateNameRow(group.nameGroupKey, index, 'name')"
+                    />
+                    <template #label>Name</template>
+                  </cdx-field>
+                  <cdx-field>
+                    <cdx-text-input
+                      v-model="row.sourceUrl"
+                      @change="updateNameRow(group.nameGroupKey, index, 'sourceUrl')"
+                    />
+                    <template #label>Source URL</template>
+                  </cdx-field>
+                  <cdx-button
+                    action="destructive"
+                    weight="quiet"
+                    @click="removeNameRow(group.nameGroupKey, index)"
+                  >
+                    Remove
+                  </cdx-button>
+                </div>
+                <cdx-button
+                  @click="addNameRow(group.nameGroupKey)"
+                >
+                  Add
+                </cdx-button>
+              </template>
+              <template
+                v-else
+              >
+                <cdx-field
+                  v-for="field in group.fields"
+                  :key="field.key"
+                >
+                  <cdx-text-input
+                    v-if="field.key === 'originalName'"
+                    v-model="form.originalLanguage"
+                    placeholder="Language code"
+                    @change="trimFormValue('originalLanguage')"
+                  />
+                  <cdx-text-input
+                    v-model="form[field.key]"
+                    @change="normalizeFieldValue(field)"
+                    @paste="normalizePastedFieldValue(field, $event)"
+                  />
+                  <template #label>{{ field.label }}</template>
+                  <cdx-text-input
+                    v-if="field.sourceField"
+                    v-model="form[field.sourceField.sourceKey]"
+                    :placeholder="field.sourceField.label"
+                    @change="trimSourceValue(field.sourceField)"
+                  />
+                </cdx-field>
+              </template>
             </div>
           </cdx-tab>
         </cdx-tabs>
@@ -779,9 +983,12 @@ async function fetchSourceReferences(form) {
  * @returns {Array<object>} Entered source reference fields.
  */
 function getEnteredSourceReferenceFields(form) {
-  return SOURCE_REFERENCE_FIELDS.filter((field) =>
-    Boolean(form[field.sourceKey].trim()),
-  );
+  return [
+    ...SOURCE_REFERENCE_FIELDS.filter((field) =>
+      Boolean(form[field.sourceKey].trim()),
+    ),
+    ...getEnteredNameSourceReferenceFields(form),
+  ];
 }
 
 /**
@@ -790,14 +997,32 @@ function getEnteredSourceReferenceFields(form) {
  * @param {object} form - Dialog form values.
  * @param {object} field - Source reference field.
  * @param {string} field.key - Source reference section key.
- * @param {string} field.sourceKey - Form key for the source URL.
+ * @param {string} [field.sourceKey] - Form key for the source URL.
+ * @param {string} [field.sourceUrl] - Source URL.
  * @returns {Promise<object>} Source reference data.
  */
 async function fetchSourceReference(form, field) {
   return {
-    citation: await fetchCiteTemplate(trimFieldValue(form[field.sourceKey])),
+    citation: await fetchCiteTemplate(getSourceReferenceUrl(form, field)),
     key: field.key,
   };
+}
+
+/**
+ * Gets the URL for one source reference field.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {object} field - Source reference field.
+ * @param {string} [field.sourceKey] - Form key for the source URL.
+ * @param {string} [field.sourceUrl] - Source URL.
+ * @returns {string} Trimmed source URL.
+ */
+function getSourceReferenceUrl(form, field) {
+  if (field.sourceKey != null) {
+    return trimFieldValue(form[field.sourceKey]);
+  }
+
+  return trimFieldValue(field.sourceUrl);
 }
 
 /**
@@ -840,6 +1065,7 @@ function init(require) {
 
   app.component("CdxDialog", Codex.CdxDialog);
   app.component("CdxButton", Codex.CdxButton);
+  app.component("CdxCheckbox", Codex.CdxCheckbox);
   app.component("CdxField", Codex.CdxField);
   app.component("CdxTab", Codex.CdxTab);
   app.component("CdxTabs", Codex.CdxTabs);

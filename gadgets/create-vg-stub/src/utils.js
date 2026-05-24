@@ -4,7 +4,16 @@
  * Provides shared formatting and reference lookup helpers for the gadget.
  */
 
-export const FIELD_REFERENCE_DATA = __CREATE_VG_STUB_FIELD_DATA__;
+export const FIELD_REFERENCE_DATA =
+  typeof __CREATE_VG_STUB_FIELD_DATA__ === "undefined"
+    ? {}
+    : __CREATE_VG_STUB_FIELD_DATA__;
+
+/**
+ * Template parameter key/value tuple.
+ *
+ * @typedef {[string|number, *]} TemplateParam
+ */
 
 /**
  * Builds a category link.
@@ -24,6 +33,86 @@ export function buildCategoryLink(category) {
  */
 export function buildTemplateCall(template) {
   return `{{${template}}}`;
+}
+
+/**
+ * Builds template wikitext from parameter entries.
+ *
+ * @param {string} name - Template name.
+ * @param {Array<TemplateParam>} params - Template parameter entries.
+ * @param {string} [style] - Template layout style.
+ * @returns {string} Template wikitext.
+ */
+export function buildTemplateText(name, params, style = "inline") {
+  const entries = params.filter(hasTemplateParamValue);
+
+  if (style === "block") {
+    return buildBlockTemplateText(name, entries);
+  }
+
+  return buildInlineTemplateText(name, entries);
+}
+
+/**
+ * Builds inline template wikitext.
+ *
+ * @param {string} name - Template name.
+ * @param {Array<TemplateParam>} entries - Template parameter entries.
+ * @returns {string} Inline template wikitext.
+ */
+function buildInlineTemplateText(name, entries) {
+  return `{{${name}${entries.map(buildInlineTemplateParam).join("")}}}`;
+}
+
+/**
+ * Builds block template wikitext.
+ *
+ * @param {string} name - Template name.
+ * @param {Array<TemplateParam>} entries - Template parameter entries.
+ * @returns {string} Block template wikitext.
+ */
+function buildBlockTemplateText(name, entries) {
+  return `{{${name}\n${entries.map(buildBlockTemplateParam).join("\n")}\n}}`;
+}
+
+/**
+ * Builds one inline template parameter.
+ *
+ * @param {TemplateParam} entry - Template parameter entry.
+ * @returns {string} Inline template parameter.
+ */
+function buildInlineTemplateParam(entry) {
+  const [key, value] = entry;
+
+  if (typeof key === "number") {
+    return `|${value}`;
+  }
+
+  return `|${key}=${value}`;
+}
+
+/**
+ * Builds one block template parameter.
+ *
+ * @param {TemplateParam} entry - Template parameter entry.
+ * @returns {string} Block template parameter.
+ */
+function buildBlockTemplateParam(entry) {
+  const [key, value] = entry;
+
+  return `| ${key} = ${value}`;
+}
+
+/**
+ * Checks whether a template parameter should be emitted.
+ *
+ * @param {TemplateParam} entry - Template parameter entry.
+ * @returns {boolean} Whether the value should be emitted.
+ */
+function hasTemplateParamValue(entry) {
+  const [_key, value] = entry;
+
+  return value != null;
 }
 
 /**

@@ -201,3 +201,41 @@ test("fetchCiteTemplate restores Steam source query by host rule", async () => {
   );
   assert.equal(text.includes("utm_source"), false);
 });
+
+test("fetchCiteTemplate caches generated citation templates", async () => {
+  const values = new Map();
+  let fetchCount = 0;
+  const storage = {
+    getItem(key) {
+      return values.get(key) || null;
+    },
+    setItem(key, value) {
+      values.set(key, value);
+    },
+  };
+  const options = {
+    fetcher() {
+      fetchCount += 1;
+
+      return {
+        async json() {
+          return [
+            {
+              itemType: "webpage",
+              title: "Cached",
+              url: "https://example.test/cached",
+            },
+          ];
+        },
+        ok: true,
+      };
+    },
+    now: new Date("2026-05-24T00:00:00Z"),
+    storage,
+  };
+  const first = await fetchCiteTemplate("https://example.test/cached", options);
+  const second = await fetchCiteTemplate("https://example.test/cached", options);
+
+  assert.equal(first, second);
+  assert.equal(fetchCount, 1);
+});

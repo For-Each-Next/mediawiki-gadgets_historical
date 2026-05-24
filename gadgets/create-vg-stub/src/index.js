@@ -24,11 +24,13 @@ class ArticleParameterField {
    * @param {string} key - Form key used by the dialog.
    * @param {string} label - English label shown in the UI.
    * @param {string} path - Normalized parameter path.
+   * @param {object} [sourceField] - Optional source URL field metadata.
    */
-  constructor(key, label, path) {
+  constructor(key, label, path, sourceField) {
     this.key = key;
     this.label = label;
     this.path = path;
+    this.sourceField = sourceField;
   }
 }
 
@@ -63,52 +65,98 @@ class VideoGameArticleParams {
    * @param {string} form.name - Game title.
    * @param {string} form.platforms - Platform names.
    * @param {string} form.publishers - Publisher names.
-   * @param {string} form.citation - Citation template wikitext.
+   * @param {Array<object>} [form.sourceReferences] - Named source refs.
    * @param {string} form.year - Release year.
    */
   constructor(form) {
-    this.citation = form.citation;
+    this.sourceReferences = buildNamedSourceReferences(form.sourceReferences);
+    this.sourceTags = buildSourceReferenceTags(this.sourceReferences);
     this.companies = {
       developers: form.developers,
       publishers: form.publishers,
     };
-    this.companyMetadata = buildCompanyMetadata(this.companies);
+    this.companyMetadata = buildCompanyMetadata(this.companies, {
+      sourceTag: joinSourceTags(this.sourceTags, ["developers", "publishers"]),
+    });
     this.genres = form.genres;
     this.name = form.name;
     this.platforms = form.platforms;
-    this.platformMetadata = buildPlatformMetadata(this.platforms);
+    this.platformMetadata = buildPlatformMetadata(this.platforms, {
+      sourceTag: this.sourceTags.platforms,
+    });
     this.year = form.year;
     this.yearGenreMetadata = buildYearGenreMetadata({
       genres: this.genres,
+      sourceTag: joinSourceTags(this.sourceTags, ["year", "genres"]),
       year: this.year,
     });
   }
 }
+
+const SOURCE_REFERENCE_FIELDS = [
+  {
+    key: "year",
+    label: "Year source URL",
+    sourceKey: "yearSourceUrl",
+  },
+  {
+    key: "developers",
+    label: "Developer source URL",
+    sourceKey: "developersSourceUrl",
+  },
+  {
+    key: "publishers",
+    label: "Publisher source URL",
+    sourceKey: "publishersSourceUrl",
+  },
+  {
+    key: "genres",
+    label: "Genre source URL",
+    sourceKey: "genresSourceUrl",
+  },
+  {
+    key: "platforms",
+    label: "Platform source URL",
+    sourceKey: "platformsSourceUrl",
+  },
+];
 
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
     new ArticleParameterField("name", "Name", "name"),
   ]),
   new ArticleParameterGroup("attribution", "Attribution", [
-    new ArticleParameterField("year", "Year", "year"),
+    new ArticleParameterField(
+      "year",
+      "Year",
+      "year",
+      SOURCE_REFERENCE_FIELDS[0],
+    ),
     new ArticleParameterField(
       "developers",
       "Developer(s)",
       "companies.developers",
+      SOURCE_REFERENCE_FIELDS[1],
     ),
     new ArticleParameterField(
       "publishers",
       "Publisher(s)",
       "companies.publishers",
+      SOURCE_REFERENCE_FIELDS[2],
     ),
-    new ArticleParameterField("genres", "Genre(s)", "genres"),
-    new ArticleParameterField("platforms", "Platform(s)", "platforms"),
+    new ArticleParameterField(
+      "genres",
+      "Genre(s)",
+      "genres",
+      SOURCE_REFERENCE_FIELDS[3],
+    ),
+    new ArticleParameterField(
+      "platforms",
+      "Platform(s)",
+      "platforms",
+      SOURCE_REFERENCE_FIELDS[4],
+    ),
   ]),
-];
-
-const CITATION_PARAMETER_FIELDS = [
-  new ArticleParameterField("citationUrl", "URL", "citationUrl"),
-  new ArticleParameterField("citation", "Citation template", "citation"),
 ];
 
 /**
@@ -129,18 +177,18 @@ function isNewPageEdit() {
  * @param {object} params.companyMetadata - Company text and metadata.
  * @param {string} params.name - Game title.
  * @param {object} params.platformMetadata - Platform text and metadata.
+ * @param {Array<object>} params.sourceReferences - Named source references.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Generated Chinese wikitext.
  */
 export function buildStubText(params) {
   const intro =
-    `《'''${params.name}'''》是${buildVideoGameText(params)}` +
-    `${buildCitationReferenceText(params.citation)}。` +
+    `《'''${params.name}'''》是${buildVideoGameText(params)}。` +
     params.platformMetadata.text;
 
   return [
     intro,
-    buildReferencesText(params.citation),
+    buildReferencesText(params.sourceReferences),
     buildCategoryText(params),
     buildStubTagText(params),
   ]
@@ -149,31 +197,72 @@ export function buildStubText(params) {
 }
 
 /**
- * Builds reference wikitext for one generated citation template.
+ * Builds named source references.
  *
- * @param {string} citation - Citation template wikitext.
- * @returns {string} Reference wikitext, or an empty string.
+ * @param {Array<object>} [references] - Source references.
+ * @returns {Array<object>} Source references with generated names.
  */
-function buildCitationReferenceText(citation) {
-  if (citation == null || citation.trim() === "") {
-    return "";
-  }
-
-  return `<ref>${citation.trim()}</ref>`;
+function buildNamedSourceReferences(references) {
+  return (references || []).map(buildNamedSourceReference);
 }
 
 /**
- * Builds the references section for generated citations.
+ * Builds one named source reference.
  *
- * @param {string} citation - Citation template wikitext.
- * @returns {string} References section, or an empty string.
+ * @param {object} reference - Source reference.
+ * @param {string} reference.citation - Citation template wikitext.
+ * @param {string} reference.key - Source reference section key.
+ * @param {number} index - Source reference index.
+ * @returns {object} Named source reference.
  */
-function buildReferencesText(citation) {
-  if (citation == null || citation.trim() === "") {
-    return "";
-  }
+function buildNamedSourceReference(reference, index) {
+  return {
+    ...reference,
+    name: reference.name || `:${index + 1}`,
+  };
+}
 
-  return "== 参考资料 ==\n{{reflist}}";
+/**
+ * Builds source reference tags keyed by article section.
+ *
+ * @param {Array<object>} references - Named source references.
+ * @returns {object} Source reference tags keyed by section.
+ */
+function buildSourceReferenceTags(references) {
+  return Object.fromEntries(references.map(buildSourceReferenceTagEntry));
+}
+
+/**
+ * Builds one source reference tag entry.
+ *
+ * @param {object} reference - Named source reference.
+ * @param {string} reference.key - Source reference section key.
+ * @param {string} reference.name - Reference name.
+ * @returns {Array<string>} Source reference tag entry.
+ */
+function buildSourceReferenceTagEntry(reference) {
+  return [reference.key, buildReferenceTag(reference.name)];
+}
+
+/**
+ * Joins source reference tags for one article module.
+ *
+ * @param {object} tags - Source reference tags keyed by field.
+ * @param {Array<string>} keys - Source reference keys to join.
+ * @returns {string} Joined source reference tags.
+ */
+function joinSourceTags(tags, keys) {
+  return keys.map((key) => tags[key] || "").join("");
+}
+
+/**
+ * Builds a named reference invocation.
+ *
+ * @param {string} name - Reference name.
+ * @returns {string} Named reference invocation.
+ */
+function buildReferenceTag(name) {
+  return `<ref name="${name}" />`;
 }
 
 /**
@@ -181,11 +270,40 @@ function buildReferencesText(citation) {
  *
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
+ * @param {Array<object>} params.sourceReferences - Named source references.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Video game noun phrase.
  */
 function buildVideoGameText(params) {
   return params.yearGenreMetadata.text + params.companyMetadata.text;
+}
+
+/**
+ * Builds the references section for generated citations.
+ *
+ * @param {Array<object>} references - Named source references.
+ * @returns {string} References section, or an empty string.
+ */
+function buildReferencesText(references) {
+  if (references.length === 0) {
+    return "";
+  }
+
+  return `== 参考文献 ==\n\n<references>\n${references
+    .map(buildFullReferenceText)
+    .join("\n")}\n</references>`;
+}
+
+/**
+ * Builds one full named reference.
+ *
+ * @param {object} reference - Named source reference.
+ * @param {string} reference.citation - Citation template wikitext.
+ * @param {string} reference.name - Reference name.
+ * @returns {string} Full named reference wikitext.
+ */
+function buildFullReferenceText(reference) {
+  return `<ref name="${reference.name}">${reference.citation}</ref>`;
 }
 
 /**
@@ -271,9 +389,7 @@ function createHost() {
  */
 function createFormValues() {
   return Object.fromEntries(
-    [...getArticleFields(), ...CITATION_PARAMETER_FIELDS].map(
-      getEmptyFieldValue,
-    ),
+    [...getArticleFields(), ...SOURCE_REFERENCE_FIELDS].map(getEmptyFieldValue),
   );
 }
 
@@ -301,11 +417,24 @@ function getGroupFields(group) {
  * Creates an empty value entry for a field tuple.
  *
  * @param {object} field - Dialog field definition.
- * @param {string} field.key - Form key for the field.
+ * @param {string} [field.key] - Form key for the field.
+ * @param {string} [field.sourceKey] - Form key for the source URL.
  * @returns {Array<string>} Field key paired with an empty string.
  */
 function getEmptyFieldValue(field) {
-  return [field.key, ""];
+  return [getFieldValueKey(field), ""];
+}
+
+/**
+ * Gets the form value key for one field.
+ *
+ * @param {object} field - Dialog field definition.
+ * @param {string} [field.key] - Form key for article fields.
+ * @param {string} [field.sourceKey] - Form key for source URL fields.
+ * @returns {string} Form value key.
+ */
+function getFieldValueKey(field) {
+  return field.sourceKey || field.key;
 }
 
 /**
@@ -317,6 +446,7 @@ function getEmptyFieldValue(field) {
  * @param {string} form.name - Game title.
  * @param {string} form.platforms - Platform names.
  * @param {string} form.publishers - Publisher names.
+ * @param {Array<object>} [form.sourceReferences] - Named source refs.
  * @param {string} form.year - Release year.
  * @returns {object} Normalized article parameters.
  */
@@ -332,7 +462,7 @@ export function createArticleParams(form) {
  */
 function createDialogComponent(Vue) {
   const form = Vue.reactive(createFormValues());
-  const citationFetchState = Vue.reactive({
+  const sourceFetchState = Vue.reactive({
     error: "",
     loading: false,
   });
@@ -356,28 +486,26 @@ function createDialogComponent(Vue) {
       /**
        * Inserts generated wikitext into the editor.
        *
-       * @returns {void}
+       * @returns {Promise<void>} Resolves after generated text is written.
        */
-      insertText() {
-        writeEditText(buildStubText(createArticleParams(form)));
-        open.value = false;
-      },
-
-      /**
-       * Fetches citation metadata for the entered URL.
-       *
-       * @returns {Promise<void>} Resolves after citation text is updated.
-       */
-      async fetchCitation() {
-        citationFetchState.error = "";
-        citationFetchState.loading = true;
+      async insertText() {
+        sourceFetchState.error = "";
+        sourceFetchState.loading = true;
 
         try {
-          form.citation = await fetchCiteTemplate(form.citationUrl);
+          writeEditText(
+            buildStubText(
+              createArticleParams({
+                ...form,
+                sourceReferences: await fetchSourceReferences(form),
+              }),
+            ),
+          );
+          open.value = false;
         } catch (error) {
-          citationFetchState.error = error.message;
+          sourceFetchState.error = error.message;
         } finally {
-          citationFetchState.loading = false;
+          sourceFetchState.loading = false;
         }
       },
     },
@@ -391,19 +519,14 @@ function createDialogComponent(Vue) {
         defaultAction: {
           label: "Cancel",
         },
-        citationFields: CITATION_PARAMETER_FIELDS,
-        citationFetchState,
-        fetchCitationAction: {
-          actionType: "progressive",
-          label: "Fetch",
-        },
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
         open,
         primaryAction: {
           actionType: "progressive",
-          label: "Insert",
+          label: sourceFetchState.loading ? "Fetching" : "Insert",
         },
+        sourceFetchState,
       };
     },
     template: `
@@ -426,31 +549,58 @@ function createDialogComponent(Vue) {
           >
             <cdx-text-input v-model="form[field.key]" />
             <template #label>{{ field.label }}</template>
+            <cdx-text-input
+              v-if="field.sourceField"
+              v-model="form[field.sourceField.sourceKey]"
+              :placeholder="field.sourceField.label"
+            />
           </cdx-field>
         </section>
-        <section>
-          <h3>Citation</h3>
-          <cdx-field>
-            <cdx-text-input v-model="form.citationUrl" />
-            <template #label>{{ citationFields[0].label }}</template>
-          </cdx-field>
-          <cdx-button
-            :action="fetchCitationAction.actionType"
-            :disabled="citationFetchState.loading"
-            @click="fetchCitation"
-          >
-            {{ citationFetchState.loading ? "Fetching" : fetchCitationAction.label }}
-          </cdx-button>
-          <cdx-field>
-            <cdx-text-area v-model="form.citation" />
-            <template #label>{{ citationFields[1].label }}</template>
-          </cdx-field>
-          <p v-if="citationFetchState.error">
-            {{ citationFetchState.error }}
-          </p>
-        </section>
+        <p v-if="sourceFetchState.error">
+          {{ sourceFetchState.error }}
+        </p>
       </cdx-dialog>
     `,
+  };
+}
+
+/**
+ * Fetches citations for entered source URLs.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Promise<Array<object>>} Source reference data.
+ */
+async function fetchSourceReferences(form) {
+  const entries = getEnteredSourceReferenceFields(form);
+
+  return Promise.all(entries.map(fetchSourceReference.bind(null, form)));
+}
+
+/**
+ * Gets source fields with entered URLs.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<object>} Entered source reference fields.
+ */
+function getEnteredSourceReferenceFields(form) {
+  return SOURCE_REFERENCE_FIELDS.filter((field) =>
+    Boolean(form[field.sourceKey].trim()),
+  );
+}
+
+/**
+ * Fetches one source reference citation.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {object} field - Source reference field.
+ * @param {string} field.key - Source reference section key.
+ * @param {string} field.sourceKey - Form key for the source URL.
+ * @returns {Promise<object>} Source reference data.
+ */
+async function fetchSourceReference(form, field) {
+  return {
+    citation: await fetchCiteTemplate(form[field.sourceKey]),
+    key: field.key,
   };
 }
 

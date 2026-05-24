@@ -17,16 +17,18 @@ import {
  * Builds display and metadata for platform values.
  *
  * @param {string} value - Platform values.
+ * @param {object} [options] - Platform formatting options.
+ * @param {string} [options.sourceTag] - Source reference tag.
  * @returns {object} Text, categories, and stub tags.
  */
-export function buildPlatformMetadata(value) {
+export function buildPlatformMetadata(value, options = {}) {
   const references = getPlatformReferences(value);
   const platformListText = buildPlatformListText(value, references);
 
   return {
     categories: uniqueValues(getReferenceValues(references, "categories")),
     stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
-    text: buildPlatformSentenceText(platformListText),
+    text: buildPlatformSentenceText(platformListText, options.sourceTag || ""),
   };
 }
 
@@ -34,14 +36,15 @@ export function buildPlatformMetadata(value) {
  * Builds the platform sentence.
  *
  * @param {string} text - Platform list wikitext.
+ * @param {string} sourceTag - Source reference tag.
  * @returns {string} Platform sentence, or an empty string.
  */
-function buildPlatformSentenceText(text) {
+function buildPlatformSentenceText(text, sourceTag) {
   if (text === "") {
     return "";
   }
 
-  return `作品对应${text}平台。`;
+  return `作品对应${text}平台${sourceTag}。`;
 }
 
 /**

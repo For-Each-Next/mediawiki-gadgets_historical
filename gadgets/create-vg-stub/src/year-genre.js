@@ -20,6 +20,7 @@ import {
  *
  * @param {object} values - Year and genre values.
  * @param {string} values.genres - Game genre text.
+ * @param {string} [values.sourceTag] - Source reference tag.
  * @param {string} values.year - Release year.
  * @returns {object} Video game text, categories, and stub tags.
  */
@@ -29,6 +30,7 @@ export function buildYearGenreMetadata(values) {
   const text = buildYearGenreText({
     genreReferences,
     genres: values.genres,
+    sourceTag: values.sourceTag || "",
     yearReference,
   });
 
@@ -48,11 +50,12 @@ export function buildYearGenreMetadata(values) {
  * @param {object} params - Normalized article parameters.
  * @param {Array<object>} params.genreReferences - Matched genre metadata.
  * @param {string} params.genres - Raw genre text.
+ * @param {string} params.sourceTag - Source reference tag.
  * @param {object} params.yearReference - Matched year metadata.
  * @returns {string} Year, genre, and video game phrase.
  */
 function buildYearGenreText(params) {
-  return `${buildYearGenrePrefixText(params)}[[电子游戏]]`;
+  return `${buildYearGenrePrefixText(params)}[[电子游戏]]${params.sourceTag}`;
 }
 
 /**

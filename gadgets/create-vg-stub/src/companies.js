@@ -19,12 +19,15 @@ import {
  * @param {object} companies - Company-related parameters.
  * @param {string} companies.developers - Developer names.
  * @param {string} companies.publishers - Publisher names.
+ * @param {object} [options] - Company formatting options.
+ * @param {string} [options.sourceTag] - Source reference tag.
  * @returns {object} Text, categories, and stub tags.
  */
-export function buildCompanyMetadata(companies) {
+export function buildCompanyMetadata(companies, options = {}) {
   const references = getCompanyReferences(companies);
   const text = buildAttributionText(
     buildAttributionRoleText(companies, references),
+    options.sourceTag || "",
   );
 
   return {
@@ -38,14 +41,15 @@ export function buildCompanyMetadata(companies) {
  * Builds attribution text after the video game noun.
  *
  * @param {string} text - Company role text.
+ * @param {string} sourceTag - Source reference tag.
  * @returns {string} Attribution text.
  */
-function buildAttributionText(text) {
+function buildAttributionText(text, sourceTag) {
   if (text === "") {
     return "";
   }
 
-  return `，${text}`;
+  return `，${text}${sourceTag}`;
 }
 
 /**

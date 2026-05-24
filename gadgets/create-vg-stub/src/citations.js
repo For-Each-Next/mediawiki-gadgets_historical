@@ -5,6 +5,7 @@
  */
 
 const CITOID_ENDPOINT = "/api/rest_v1/data/citation/zotero/";
+const CITATION_CACHE_PREFIX = "create-vg-stub:citoid:";
 const CITATION_RULES = getCitationRules();
 const DATE_PARTS_LENGTH = 10;
 
@@ -15,9 +16,16 @@ const DATE_PARTS_LENGTH = 10;
  * @param {object} [options] - Fetch and formatting options.
  * @param {Function} [options.fetcher] - Fetch implementation.
  * @param {Date} [options.now] - Date used for access-date.
+ * @param {object} [options.storage] - Storage implementation for cache.
  * @returns {Promise<string>} Generated citation template wikitext.
  */
 export async function fetchCiteTemplate(url, options = {}) {
+  const cachedTemplate = getCachedCiteTemplate(url, options);
+
+  if (cachedTemplate != null) {
+    return cachedTemplate;
+  }
+
   const fetcher = options.fetcher || fetch;
   const response = await fetcher(buildCitoidUrl(url), {
     headers: {
@@ -29,11 +37,15 @@ export async function fetchCiteTemplate(url, options = {}) {
     throw new Error(`Citoid request failed: HTTP ${response.status}`);
   }
 
-  return buildCiteTemplate(getFirstCitation(await response.json()), {
+  const citeTemplate = buildCiteTemplate(getFirstCitation(await response.json()), {
     now: options.now,
     rules: options.rules,
     url,
   });
+
+  setCachedCiteTemplate(url, citeTemplate, options);
+
+  return citeTemplate;
 }
 
 /**
@@ -50,6 +62,78 @@ export function buildCitoidUrl(url) {
   }
 
   return `${CITOID_ENDPOINT}${encodeURIComponent(trimmedUrl)}`;
+}
+
+/**
+ * Gets a cached cite template for a URL.
+ *
+ * @param {string} url - Source URL.
+ * @param {object} options - Fetch and formatting options.
+ * @param {object} [options.storage] - Storage implementation for cache.
+ * @returns {string|undefined} Cached cite template.
+ */
+function getCachedCiteTemplate(url, options) {
+  const storage = getCitationCacheStorage(options);
+
+  if (storage == null) {
+    return undefined;
+  }
+
+  try {
+    return storage.getItem(buildCitationCacheKey(url)) || undefined;
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+/**
+ * Stores a generated cite template for a URL.
+ *
+ * @param {string} url - Source URL.
+ * @param {string} citeTemplate - Generated cite template.
+ * @param {object} options - Fetch and formatting options.
+ * @param {object} [options.storage] - Storage implementation for cache.
+ * @returns {void}
+ */
+function setCachedCiteTemplate(url, citeTemplate, options) {
+  const storage = getCitationCacheStorage(options);
+
+  if (storage == null) {
+    return;
+  }
+
+  try {
+    storage.setItem(buildCitationCacheKey(url), citeTemplate);
+  } catch (_error) {}
+}
+
+/**
+ * Gets the citation cache storage implementation.
+ *
+ * @param {object} options - Fetch and formatting options.
+ * @param {object} [options.storage] - Storage implementation for cache.
+ * @returns {object|undefined} Storage implementation.
+ */
+function getCitationCacheStorage(options) {
+  if (options.storage != null) {
+    return options.storage;
+  }
+
+  if (typeof localStorage === "undefined") {
+    return undefined;
+  }
+
+  return localStorage;
+}
+
+/**
+ * Builds the cache key for one source URL.
+ *
+ * @param {string} url - Source URL.
+ * @returns {string} Cache key.
+ */
+function buildCitationCacheKey(url) {
+  return `${CITATION_CACHE_PREFIX}${url.trim()}`;
 }
 
 /**

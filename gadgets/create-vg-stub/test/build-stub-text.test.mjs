@@ -221,6 +221,62 @@ test("empty platform omits the platform sentence", async () => {
   );
 });
 
+test("source references render named refs and a references block", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    sourceReferences: [
+      {
+        citation: "{{cite web|title=Year source}}",
+        key: "year",
+      },
+      {
+        citation: "{{cite web|title=Developer source}}",
+        key: "developers",
+      },
+      {
+        citation: "{{cite web|title=Publisher source}}",
+        key: "publishers",
+      },
+      {
+        citation: "{{cite web|title=Genre source}}",
+        key: "genres",
+      },
+      {
+        citation: "{{cite web|title=Platform source}}",
+        key: "platforms",
+      },
+    ],
+    year: "",
+  });
+
+  assert.equal(
+    text.includes(
+      "《'''Example'''》是一款[[电子游戏]]" +
+        '<ref name=":1" /><ref name=":4" />，' +
+        "由Foo Studio开发、Bar Games发行" +
+        '<ref name=":2" /><ref name=":3" />。' +
+        '作品对应PC平台<ref name=":5" />。',
+    ),
+    true,
+  );
+  assert.equal(
+    text.includes(
+      "== 参考文献 ==\n\n<references>\n" +
+        '<ref name=":1">{{cite web|title=Year source}}</ref>\n' +
+        '<ref name=":2">{{cite web|title=Developer source}}</ref>\n' +
+        '<ref name=":3">{{cite web|title=Publisher source}}</ref>\n' +
+        '<ref name=":4">{{cite web|title=Genre source}}</ref>\n' +
+        '<ref name=":5">{{cite web|title=Platform source}}</ref>\n' +
+        "</references>",
+    ),
+    true,
+  );
+});
+
 async function buildStubText(values) {
   const sandbox = await createSandbox();
 

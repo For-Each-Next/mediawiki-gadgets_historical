@@ -4,7 +4,7 @@
  * Builds video game infobox wikitext.
  */
 
-import { buildTemplateText } from "./utils.js";
+import { buildTemplateText } from "../utils.js";
 
 const NAME_MARKETS = ["ww", "hans", "hant", "cn", "tw", "hk"];
 

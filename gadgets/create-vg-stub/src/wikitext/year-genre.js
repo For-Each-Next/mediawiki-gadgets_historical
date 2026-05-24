@@ -13,7 +13,7 @@ import {
   splitFieldValues,
   trimValue,
   uniqueValues,
-} from "./utils.js";
+} from "../utils.js";
 
 /**
  * Builds display and metadata for year and genre values.

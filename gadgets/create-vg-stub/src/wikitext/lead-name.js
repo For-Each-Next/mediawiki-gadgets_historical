@@ -4,7 +4,7 @@
  * Builds the lead article name for video game stubs.
  */
 
-import { buildTemplateText } from "./utils.js";
+import { buildTemplateText } from "../utils.js";
 
 const ITALIC_LANGUAGE_CODES = new Set(["en", "fr"]);
 

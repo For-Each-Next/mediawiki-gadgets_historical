@@ -4,7 +4,6 @@
  * Mounts the create-vg-stub gadget and builds generated article wikitext.
  */
 
-import { buildCompanyMetadata } from "./companies.js";
 import { fetchCiteTemplate } from "./citations.js";
 import {
   buildNameSourceReferenceKey,
@@ -13,15 +12,18 @@ import {
   SOURCE_REFERENCE_FIELDS,
   trimFieldValue,
 } from "./form.js";
-import { buildInfoboxText } from "./infobox.js";
-import { buildLeadNameText } from "./lead-name.js";
-import { buildPlatformMetadata } from "./platforms.js";
-import { buildYearGenreMetadata } from "./year-genre.js";
 import {
   buildCategoryLink,
   buildTemplateCall,
   uniqueValues,
 } from "./utils.js";
+import {
+  buildCompanyMetadata,
+  buildInfoboxText,
+  buildLeadNameText,
+  buildPlatformMetadata,
+  buildYearGenreMetadata,
+} from "./wikitext/index.js";
 
 /**
  * Stores normalized video game article parameters.

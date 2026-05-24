@@ -11,7 +11,7 @@ import {
   getSourceReference,
   splitFieldValues,
   uniqueValues,
-} from "./utils.js";
+} from "../utils.js";
 
 /**
  * Builds display and metadata for platform values.

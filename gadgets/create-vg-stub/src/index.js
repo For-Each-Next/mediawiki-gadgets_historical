@@ -307,9 +307,15 @@ function buildStubTagText(params) {
  */
 function writeEditText(text) {
   const textbox = document.getElementById("wpTextbox1");
+  const $textbox = $(textbox);
 
-  textbox.value = text;
-  $(textbox).trigger("input").trigger("change");
+  if (typeof $textbox.textSelection === "function") {
+    $textbox.textSelection("setContents", text);
+  } else {
+    textbox.value = text;
+  }
+
+  $textbox.trigger("input").trigger("change");
   textbox.focus();
 }
 
@@ -496,5 +502,10 @@ function init(require) {
 }
 
 if (isNewPageEdit()) {
-  mw.loader.using(["mediawiki.util", "vue", "@wikimedia/codex"]).then(init);
+  mw.loader.using([
+    "mediawiki.util",
+    "jquery.textSelection",
+    "vue",
+    "@wikimedia/codex",
+  ]).then(init);
 }

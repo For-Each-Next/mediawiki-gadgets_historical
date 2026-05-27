@@ -97,7 +97,12 @@ export const SOURCE_REFERENCE_FIELDS = [
   },
 ];
 
-const MULTI_ITEM_FIELD_KEYS = ["developers", "publishers", "genres", "platforms"];
+const MULTI_ITEM_FIELD_KEYS = [
+  "developers",
+  "publishers",
+  "genres",
+  "platforms",
+];
 const NAME_GROUP_KEYS = ["officialNames", "commonNames"];
 const NAME_MARKETS = [
   {
@@ -305,7 +310,8 @@ export function createDialogComponent(Vue, options) {
           return;
         }
 
-        const clipboardData = event.clipboardData || event.originalEvent.clipboardData;
+        const clipboardData =
+          event.clipboardData || event.originalEvent.clipboardData;
         const text = clipboardData.getData("text");
 
         if (!isMultilineFieldValue(text)) {
@@ -373,178 +379,545 @@ export function createDialogComponent(Vue, options) {
         sourceFetchState,
       };
     },
-    template: `
-      <cdx-dialog
-        v-model:open="open"
-        title="Create video game stub"
-        :primary-action="primaryAction"
-        :default-action="defaultAction"
-        @primary="submitForm"
-        @default="closeDialog"
-      >
-        <cdx-tabs
-          v-model:active="activeTab"
-          framed
-        >
-          <cdx-tab
-            v-for="group in groups"
-            :key="group.key"
-            :name="group.key"
-            :label="group.label"
-          >
-            <div
-              style="padding-top: 12px;"
-            >
-              <template
-                v-if="group.nameGroupKey"
-              >
-                <div
-                  v-for="(row, index) in form[group.nameGroupKey]"
-                  :key="index"
-                  style="border-bottom: 1px solid #eaecf0; margin-bottom: 16px; padding-bottom: 16px;"
-                >
-                  <div
-                    style="font-weight: 600; margin-bottom: 8px;"
-                  >
-                    {{ group.label }} name {{ index + 1 }}
-                  </div>
-                  <div
-                    style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px;"
-                  >
-                    <cdx-checkbox
-                      v-for="market in nameMarkets"
-                      :key="market.key"
-                      v-model="row[market.key]"
-                    >
-                      {{ market.label }}
-                    </cdx-checkbox>
-                  </div>
-                  <div
-                    style="display: flex; flex-direction: column; gap: 0; margin-bottom: 8px;"
-                  >
-                    <cdx-text-input
-                      v-model="row.name"
-                      placeholder="Name"
-                      @change="updateNameRow(group.nameGroupKey, index, 'name')"
-                    />
-                    <cdx-text-input
-                      v-model="row.sourceUrl"
-                      placeholder="Source URL"
-                      @change="updateNameRow(group.nameGroupKey, index, 'sourceUrl')"
-                    />
-                  </div>
-                  <cdx-button
-                    action="destructive"
-                    weight="quiet"
-                    @click="removeNameRow(group.nameGroupKey, index)"
-                  >
-                    Remove
-                  </cdx-button>
-                </div>
-                <cdx-button
-                  @click="addNameRow(group.nameGroupKey)"
-                >
-                  Add
-                </cdx-button>
-              </template>
-              <template
-                v-else
-              >
-                <template
-                  v-for="field in group.fields"
-                  :key="field.key"
-                >
-                  <div
-                    v-if="field.compact && field.key !== 'metacriticScore'"
-                  >
-                    <hr
-                      v-if="field.breakBefore"
-                      style="border: 0; border-top: 1px solid #eaecf0; margin: 16px 0 12px;"
-                    />
-                    <div
-                      v-if="field.heading"
-                      style="font-weight: 600; margin-bottom: 6px;"
-                    >
-                      {{ field.heading }}
-                    </div>
-                    <div
-                      style="display: grid; gap: 0; margin-bottom: 6px;"
-                    >
-                      <cdx-text-input
-                        v-model="form[field.key]"
-                        :placeholder="field.placeholder"
-                        @change="normalizeFieldValue(field)"
-                      />
-                      <template
-                        v-if="field.key === 'metacriticPlatform'"
-                      >
-                        <cdx-text-input
-                          v-model="form.metacriticScore"
-                          :placeholder="getArticleField('metacriticScore').placeholder"
-                          @change="normalizeFieldValue(getArticleField('metacriticScore'))"
-                        />
-                        <cdx-text-input
-                          v-model="form.metacriticScoreSourceUrl"
-                          placeholder="Source URL"
-                          @change="trimSourceValue(getArticleField('metacriticScore').sourceField)"
-                        />
-                      </template>
-                      <cdx-text-input
-                        v-if="field.sourceField"
-                        v-model="form[field.sourceField.sourceKey]"
-                        placeholder="Source URL"
-                        @change="trimSourceValue(field.sourceField)"
-                      />
-                    </div>
-                  </div>
-                  <cdx-field
-                    v-else-if="!field.compact"
-                  >
-                  <hr
-                    v-if="field.breakBefore"
-                    style="border: 0; border-top: 1px solid #eaecf0; margin: 16px 0;"
-                  />
-                  <div
-                    v-if="field.heading"
-                    style="font-weight: 600; margin-bottom: 8px;"
-                  >
-                    {{ field.heading }}
-                  </div>
-                  <div
-                    style="display: grid; gap: 0;"
-                  >
-                    <cdx-text-input
-                      v-if="field.key === 'originalName'"
-                      v-model="form.originalLanguage"
-                      placeholder="Language code"
-                      @change="trimFormValue('originalLanguage')"
-                    />
-                    <cdx-text-input
-                      v-model="form[field.key]"
-                      :placeholder="getFieldPlaceholder(field) || field.placeholder"
-                      @change="normalizeFieldValue(field)"
-                      @paste="normalizePastedFieldValue(field, $event)"
-                    />
-                    <cdx-text-input
-                      v-if="field.sourceField"
-                      v-model="form[field.sourceField.sourceKey]"
-                      :placeholder="field.sourceField.label"
-                      @change="trimSourceValue(field.sourceField)"
-                    />
-                  </div>
-                  <template #label>{{ field.label }}</template>
-                  </cdx-field>
-                </template>
-              </template>
-            </div>
-          </cdx-tab>
-        </cdx-tabs>
-        <p v-if="sourceFetchState.error">
-          {{ sourceFetchState.error }}
-        </p>
-      </cdx-dialog>
-    `,
+    template: createDialogTemplate(),
   };
+}
+
+/**
+ * Creates the Vue dialog template as a serialized markup tree.
+ *
+ * @returns {string} Dialog template markup.
+ */
+function createDialogTemplate() {
+  return renderTemplate(createDialogTemplateRoot());
+}
+
+/**
+ * Creates the root Codex dialog template node.
+ *
+ * @returns {object} Root dialog template node.
+ */
+function createDialogTemplateRoot() {
+  return createElement(
+    "cdx-dialog",
+    {
+      "v-bind:default-action": "defaultAction",
+      "v-bind:primary-action": "primaryAction",
+      "v-model:open": "open",
+      "v-on:default": "closeDialog",
+      "v-on:primary": "submitForm",
+      title: "Create video game stub",
+    },
+    [
+      createTabsTemplate(),
+      createElement(
+        "p",
+        {
+          "v-if": "sourceFetchState.error",
+        },
+        [createText("{{ sourceFetchState.error }}")],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the tab container template node.
+ *
+ * @returns {object} Tab container template node.
+ */
+function createTabsTemplate() {
+  return createElement(
+    "cdx-tabs",
+    {
+      framed: "",
+      "v-model:active": "activeTab",
+    },
+    [
+      createElement(
+        "cdx-tab",
+        {
+          "v-bind:key": "group.key",
+          "v-bind:label": "group.label",
+          "v-bind:name": "group.key",
+          "v-for": "group in groups",
+        },
+        [
+          createElement(
+            "div",
+            {
+              style: {
+                paddingTop: "12px",
+              },
+            },
+            [createNameGroupTemplate(), createFieldGroupTemplate()],
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the localized name group template node.
+ *
+ * @returns {object} Localized name group template node.
+ */
+function createNameGroupTemplate() {
+  return createElement(
+    "template",
+    {
+      "v-if": "group.nameGroupKey",
+    },
+    [
+      createNameRowTemplate(),
+      createElement(
+        "cdx-button",
+        {
+          "v-on:click": "addNameRow(group.nameGroupKey)",
+        },
+        [createText("Add")],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates a localized name row template node.
+ *
+ * @returns {object} Localized name row template node.
+ */
+function createNameRowTemplate() {
+  return createElement(
+    "div",
+    {
+      "v-bind:key": "index",
+      "v-for": "(row, index) in form[group.nameGroupKey]",
+      style: {
+        borderBottom: "1px solid #eaecf0",
+        marginBottom: "16px",
+        paddingBottom: "16px",
+      },
+    },
+    [
+      createElement(
+        "div",
+        {
+          style: {
+            fontWeight: "600",
+            marginBottom: "8px",
+          },
+        },
+        [createText("{{ group.label }} name {{ index + 1 }}")],
+      ),
+      createNameMarketTemplate(),
+      createNameInputTemplate(),
+      createElement(
+        "cdx-button",
+        {
+          action: "destructive",
+          "v-on:click": "removeNameRow(group.nameGroupKey, index)",
+          weight: "quiet",
+        },
+        [createText("Remove")],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the localized name market checkbox group template node.
+ *
+ * @returns {object} Localized name market checkbox group node.
+ */
+function createNameMarketTemplate() {
+  return createElement(
+    "div",
+    {
+      style: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "12px",
+        marginBottom: "8px",
+      },
+    },
+    [
+      createElement(
+        "cdx-checkbox",
+        {
+          "v-bind:key": "market.key",
+          "v-for": "market in nameMarkets",
+          "v-model": "row[market.key]",
+        },
+        [createText("{{ market.label }}")],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the localized name text input group template node.
+ *
+ * @returns {object} Localized name text input group node.
+ */
+function createNameInputTemplate() {
+  return createElement(
+    "div",
+    {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "0",
+        marginBottom: "8px",
+      },
+    },
+    [
+      createElement("cdx-text-input", {
+        placeholder: "Name",
+        "v-model": "row.name",
+        "v-on:change": "updateNameRow(group.nameGroupKey, index, 'name')",
+      }),
+      createElement("cdx-text-input", {
+        placeholder: "Source URL",
+        "v-model": "row.sourceUrl",
+        "v-on:change": "updateNameRow(group.nameGroupKey, index, 'sourceUrl')",
+      }),
+    ],
+  );
+}
+
+/**
+ * Creates the article field group template node.
+ *
+ * @returns {object} Article field group template node.
+ */
+function createFieldGroupTemplate() {
+  return createElement(
+    "template",
+    {
+      "v-else": "",
+    },
+    [
+      createElement(
+        "template",
+        {
+          "v-bind:key": "field.key",
+          "v-for": "field in group.fields",
+        },
+        [createCompactFieldTemplate(), createStandardFieldTemplate()],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates a compact article field template node.
+ *
+ * @returns {object} Compact article field template node.
+ */
+function createCompactFieldTemplate() {
+  return createElement(
+    "div",
+    {
+      "v-if": "field.compact && field.key !== 'metacriticScore'",
+    },
+    [
+      createFieldSeparatorTemplate("16px 0 12px"),
+      createFieldHeadingTemplate("6px"),
+      createElement(
+        "div",
+        {
+          style: {
+            display: "grid",
+            gap: "0",
+            marginBottom: "6px",
+          },
+        },
+        [
+          createElement("cdx-text-input", {
+            "v-bind:placeholder": "field.placeholder",
+            "v-model": "form[field.key]",
+            "v-on:change": "normalizeFieldValue(field)",
+          }),
+          createMetacriticScoreTemplate(),
+          createElement("cdx-text-input", {
+            placeholder: "Source URL",
+            "v-if": "field.sourceField",
+            "v-model": "form[field.sourceField.sourceKey]",
+            "v-on:change": "trimSourceValue(field.sourceField)",
+          }),
+        ],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the Metacritic score companion fields template node.
+ *
+ * @returns {object} Metacritic companion fields template node.
+ */
+function createMetacriticScoreTemplate() {
+  return createElement(
+    "template",
+    {
+      "v-if": "field.key === 'metacriticPlatform'",
+    },
+    [
+      createElement("cdx-text-input", {
+        "v-bind:placeholder": "getArticleField('metacriticScore').placeholder",
+        "v-model": "form.metacriticScore",
+        "v-on:change":
+          "normalizeFieldValue(getArticleField('metacriticScore'))",
+      }),
+      createElement("cdx-text-input", {
+        placeholder: "Source URL",
+        "v-model": "form.metacriticScoreSourceUrl",
+        "v-on:change":
+          "trimSourceValue(getArticleField('metacriticScore').sourceField)",
+      }),
+    ],
+  );
+}
+
+/**
+ * Creates a standard article field template node.
+ *
+ * @returns {object} Standard article field template node.
+ */
+function createStandardFieldTemplate() {
+  return createElement(
+    "cdx-field",
+    {
+      "v-else-if": "!field.compact",
+    },
+    [
+      createFieldSeparatorTemplate("16px 0"),
+      createFieldHeadingTemplate("8px"),
+      createElement(
+        "div",
+        {
+          style: {
+            display: "grid",
+            gap: "0",
+          },
+        },
+        [
+          createOriginalLanguageTemplate(),
+          createElement("cdx-text-input", {
+            "v-bind:placeholder":
+              "getFieldPlaceholder(field) || field.placeholder",
+            "v-model": "form[field.key]",
+            "v-on:change": "normalizeFieldValue(field)",
+            "v-on:paste": "normalizePastedFieldValue(field, $event)",
+          }),
+          createElement("cdx-text-input", {
+            "v-bind:placeholder": "field.sourceField.label",
+            "v-if": "field.sourceField",
+            "v-model": "form[field.sourceField.sourceKey]",
+            "v-on:change": "trimSourceValue(field.sourceField)",
+          }),
+        ],
+      ),
+      createElement(
+        "template",
+        {
+          "v-slot:label": "",
+        },
+        [createText("{{ field.label }}")],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the original language input template node.
+ *
+ * @returns {object} Original language input template node.
+ */
+function createOriginalLanguageTemplate() {
+  return createElement("cdx-text-input", {
+    placeholder: "Language code",
+    "v-if": "field.key === 'originalName'",
+    "v-model": "form.originalLanguage",
+    "v-on:change": "trimFormValue('originalLanguage')",
+  });
+}
+
+/**
+ * Creates a field separator template node.
+ *
+ * @param {string} margin - CSS margin value.
+ * @returns {object} Field separator template node.
+ */
+function createFieldSeparatorTemplate(margin) {
+  return createElement("hr", {
+    style: {
+      border: "0",
+      borderTop: "1px solid #eaecf0",
+      margin,
+    },
+    "v-if": "field.breakBefore",
+  });
+}
+
+/**
+ * Creates a field heading template node.
+ *
+ * @param {string} marginBottom - CSS margin-bottom value.
+ * @returns {object} Field heading template node.
+ */
+function createFieldHeadingTemplate(marginBottom) {
+  return createElement(
+    "div",
+    {
+      style: {
+        fontWeight: "600",
+        marginBottom,
+      },
+      "v-if": "field.heading",
+    },
+    [createText("{{ field.heading }}")],
+  );
+}
+
+/**
+ * Creates a template element object with attributes and children.
+ *
+ * @param {string} tagName - Tag name.
+ * @param {object} [attributes] - Element attributes.
+ * @param {Array<object|string>} [children] - Child nodes.
+ * @returns {object} Created template element object.
+ */
+function createElement(tagName, attributes = {}, children = []) {
+  return {
+    attributes,
+    children,
+    tagName,
+  };
+}
+
+/**
+ * Creates a template text node.
+ *
+ * @param {string} value - Text content.
+ * @returns {string} Created text node.
+ */
+function createText(value) {
+  return value;
+}
+
+/**
+ * Serializes a template node to markup.
+ *
+ * @param {object} node - Template node.
+ * @returns {string} Template markup.
+ */
+function renderTemplate(node) {
+  return renderElement(node);
+}
+
+/**
+ * Serializes a template child node to markup.
+ *
+ * @param {object|string} node - Template child node.
+ * @returns {string} Template child markup.
+ */
+function renderNode(node) {
+  if (typeof node === "string") {
+    return node;
+  }
+
+  return renderElement(node);
+}
+
+/**
+ * Serializes a template element object to markup.
+ *
+ * @param {object} element - Template element object.
+ * @param {object} element.attributes - Element attributes.
+ * @param {Array<object|string>} element.children - Child nodes.
+ * @param {string} element.tagName - Tag name.
+ * @returns {string} Element markup.
+ */
+function renderElement(element) {
+  const attributes = renderAttributes(element.attributes);
+  const children = element.children.map(renderNode).join("");
+
+  if (element.tagName === "hr") {
+    return `<${element.tagName}${attributes}>`;
+  }
+
+  return `<${element.tagName}${attributes}>${children}</${element.tagName}>`;
+}
+
+/**
+ * Serializes element attributes to markup.
+ *
+ * @param {object} attributes - Element attributes.
+ * @returns {string} Attribute markup.
+ */
+function renderAttributes(attributes) {
+  return Object.entries(attributes).map(renderAttribute).join("");
+}
+
+/**
+ * Serializes one element attribute to markup.
+ *
+ * @param {Array<string|object>} entry - Attribute name and value.
+ * @returns {string} Attribute markup.
+ */
+function renderAttribute(entry) {
+  const [name, value] = entry;
+  const renderedValue = name === "style" ? renderStyle(value) : value;
+
+  if (renderedValue === "") {
+    return ` ${name}`;
+  }
+
+  return ` ${name}="${escapeAttribute(renderedValue)}"`;
+}
+
+/**
+ * Serializes a style declaration object.
+ *
+ * @param {object} style - Style declaration object.
+ * @returns {string} Style declaration text.
+ */
+function renderStyle(style) {
+  return `${Object.entries(style).map(renderStyleDeclaration).join("; ")};`;
+}
+
+/**
+ * Serializes one style declaration.
+ *
+ * @param {Array<string>} entry - Style property and value.
+ * @returns {string} Style declaration text.
+ */
+function renderStyleDeclaration(entry) {
+  const [name, value] = entry;
+
+  return `${toKebabCase(name)}: ${value}`;
+}
+
+/**
+ * Converts a camelCase JavaScript name to a kebab-case CSS name.
+ *
+ * @param {string} value - JavaScript property name.
+ * @returns {string} CSS property name.
+ */
+function toKebabCase(value) {
+  return value.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
+}
+
+/**
+ * Escapes an attribute value for template markup.
+ *
+ * @param {string} value - Raw attribute value.
+ * @returns {string} Escaped attribute value.
+ */
+function escapeAttribute(value) {
+  return value.replace(/&/gu, "&amp;").replace(/"/gu, "&quot;");
 }
 
 /**
@@ -556,7 +929,9 @@ export function createDialogComponent(Vue, options) {
 function createFormValues(defaultName) {
   return {
     ...Object.fromEntries(
-    [...getArticleFields(), ...SOURCE_REFERENCE_FIELDS].map(getEmptyFieldValue),
+      [...getArticleFields(), ...SOURCE_REFERENCE_FIELDS].map(
+        getEmptyFieldValue,
+      ),
     ),
     commonNames: [createNameRow(), createNameRow()],
     name: defaultName,
@@ -713,8 +1088,9 @@ export function getEnteredNameSourceReferenceFields(form) {
         name: row.name,
         sourceUrl: row.sourceUrl,
       }))
-      .filter((field) =>
-        Boolean(trimFieldValue(field.name)) &&
+      .filter(
+        (field) =>
+          Boolean(trimFieldValue(field.name)) &&
           Boolean(trimFieldValue(field.sourceUrl)),
       ),
   );

@@ -12,7 +12,7 @@ export const FIELD_REFERENCE_DATA =
 /**
  * Template parameter key/value tuple.
  *
- * @typedef {[string|number, *]} TemplateParam
+ * @typedef {[string|number|null, *]} TemplateParam
  */
 
 /**
@@ -99,6 +99,10 @@ function buildInlineTemplateParam(entry) {
  */
 function buildBlockTemplateParam(entry) {
   const [key, value] = entry;
+
+  if (key == null) {
+    return `| ${value}`;
+  }
 
   return `| ${key} = ${value}`;
 }

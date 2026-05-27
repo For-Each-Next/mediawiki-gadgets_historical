@@ -3,7 +3,8 @@ import test from "node:test";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
-const EXAMPLE_INFOBOX = "{{Infobox VG\n| title = Example\n}}";
+const EXAMPLE_HEADER =
+  "{{NoteTA-lite\n| G1 = Games\n}}\n\n{{Infobox VG\n| title = Example\n}}";
 
 test("RPG genre alias generates linked genre, category, and stub tag", async () => {
   const text = await buildStubText({
@@ -17,7 +18,7 @@ test("RPG genre alias generates linked genre, category, and stub tag", async () 
 
   assert.equal(
     text,
-    `${EXAMPLE_INFOBOX}\n\n` +
+    `${EXAMPLE_HEADER}\n\n` +
       "《'''Example'''》是2024年[[電子角色扮演遊戲|角色扮演]]类" +
       "[[电子游戏]]，由Foo Studio开发、Bar Games发行。作品对应PC平台。" +
       "\n\n{{DEFAULTSORT:Example}}\n[[Category:電子角色扮演遊戲]]" +
@@ -52,7 +53,7 @@ test("empty year omits the year phrase", async () => {
 
   assert.ok(
     text.startsWith(
-      `${EXAMPLE_INFOBOX}\n\n` +
+      `${EXAMPLE_HEADER}\n\n` +
         "《'''Example'''》是[[電子角色扮演遊戲|角色扮演]]类",
     ),
   );
@@ -71,7 +72,7 @@ test("unknown future year generates the future category", async () => {
 
   assert.ok(
     text.startsWith(
-      `${EXAMPLE_INFOBOX}\n\n` +
+      `${EXAMPLE_HEADER}\n\n` +
         "《'''Example'''》是尚未推出的[[電子角色扮演遊戲|角色扮演]]类",
     ),
   );
@@ -90,7 +91,7 @@ test("planned year generates future and year categories", async () => {
 
   assert.ok(
     text.startsWith(
-      `${EXAMPLE_INFOBOX}\n\n` +
+      `${EXAMPLE_HEADER}\n\n` +
         "《'''Example'''》是预定于2025年推出的[[電子角色扮演遊戲|角色扮演]]类",
     ),
   );
@@ -109,7 +110,7 @@ test("year alias uses two digits", async () => {
   });
 
   assert.equal(text.includes("[[Category:2024年電子遊戲]]"), true);
-  assert.ok(text.startsWith(`${EXAMPLE_INFOBOX}\n\n《'''Example'''》是2024年`));
+  assert.ok(text.startsWith(`${EXAMPLE_HEADER}\n\n《'''Example'''》是2024年`));
 });
 
 test("company alias generates linked attribution, category, and stub tag", async () => {
@@ -152,7 +153,9 @@ test("empty genre omits genre class suffix", async () => {
   });
 
   assert.ok(
-    text.startsWith(`${EXAMPLE_INFOBOX}\n\n《'''Example'''》是2024年[[电子游戏]]`),
+    text.startsWith(
+      `${EXAMPLE_HEADER}\n\n《'''Example'''》是2024年[[电子游戏]]`,
+    ),
   );
   assert.equal(text.includes("类[[电子游戏]]"), false);
 });
@@ -169,7 +172,7 @@ test("empty year and genre use the fallback article phrase", async () => {
 
   assert.ok(
     text.startsWith(
-      `${EXAMPLE_INFOBOX}\n\n` +
+      `${EXAMPLE_HEADER}\n\n` +
         "《'''Example'''》是一款[[电子游戏]]，由Foo Studio开发、Bar Games发行",
     ),
   );
@@ -286,7 +289,8 @@ test("original name renders as a langx title variant", async () => {
 
   assert.ok(
     text.startsWith(
-      "{{Infobox VG\n| title = Example\n| japanese = サンプル\n}}\n\n" +
+      "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
+        "{{Infobox VG\n| title = Example\n| japanese = サンプル\n}}\n\n" +
         "《'''Example'''》（{{langx|ja|サンプル|label=none}}）是一款",
     ),
   );
@@ -305,7 +309,8 @@ test("English name renders as italic langx title variant", async () => {
 
   assert.ok(
     text.startsWith(
-      "{{Infobox VG\n| title = Example\n| english = Example Game\n}}\n\n" +
+      "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
+        "{{Infobox VG\n| title = Example\n| english = Example Game\n}}\n\n" +
         "《'''Example'''》（{{langx|en|Example Game|italic=yes|label=none}}）是一款",
     ),
   );
@@ -325,7 +330,8 @@ test("French original name renders as italic langx title variant", async () => {
 
   assert.ok(
     text.startsWith(
-      "{{Infobox VG\n| title = Example\n| original = fr:Exemple\n}}\n\n" +
+      "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
+        "{{Infobox VG\n| title = Example\n| original = fr:Exemple\n}}\n\n" +
         "《'''Example'''》（{{langx|fr|Exemple|italic=yes|label=none}}）是一款",
     ),
   );
@@ -406,7 +412,9 @@ test("explicit sort key renders above the first category", async () => {
   });
 
   assert.equal(
-    text.includes("\n\n{{DEFAULTSORT:Custom Key}}\n[[Category:電子角色扮演遊戲]]"),
+    text.includes(
+      "\n\n{{DEFAULTSORT:Custom Key}}\n[[Category:電子角色扮演遊戲]]",
+    ),
     true,
   );
 });
@@ -438,7 +446,11 @@ test("official name rows render vgn refs in the infobox", async () => {
 
   assert.equal(
     text.startsWith(
-      "{{Infobox VG\n" +
+      "{{NoteTA-lite\n" +
+        "| G1 = Games\n" +
+        "| zh-cn:Official; zh-tw:Official;\n" +
+        "}}\n\n" +
+        "{{Infobox VG\n" +
         "| title = Example\n" +
         '| official = {{vgn|ww:Official<ref name=":1" />|hans:Official<ref name=":1" />|hant:Official<ref name=":1" />}}\n' +
         "}}\n\n",

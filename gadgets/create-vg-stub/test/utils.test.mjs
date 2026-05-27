@@ -51,3 +51,17 @@ test("buildTemplateText builds block templates", () => {
     "{{langx\n| 1 = ja\n| 2 = タイトル\n| italic = yes\n}}",
   );
 });
+
+test("buildTemplateText builds raw block parameters", () => {
+  assert.equal(
+    buildTemplateText(
+      "NoteTA-lite",
+      [
+        ["G1", "Games"],
+        [null, "zh-cn:简体名; zh-tw:繁體名;"],
+      ],
+      "block",
+    ),
+    "{{NoteTA-lite\n| G1 = Games\n| zh-cn:简体名; zh-tw:繁體名;\n}}",
+  );
+});

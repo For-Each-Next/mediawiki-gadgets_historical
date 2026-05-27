@@ -24,6 +24,7 @@ import {
   buildDefaultSortText,
   buildInfoboxText,
   buildLeadNameText,
+  buildNoteTaText,
   buildPlatformMetadata,
   buildYearGenreMetadata,
 } from "./wikitext/index.js";
@@ -72,6 +73,9 @@ class VideoGameArticleParams {
     });
     this.englishName = form.englishName || "";
     this.genres = form.genres;
+    this.noteTaText = buildNoteTaText({
+      officialNames: form.officialNames,
+    });
     this.defaultSortText = buildDefaultSortText({
       english: form.englishName || "",
       original: form.originalName || "",
@@ -137,6 +141,7 @@ function isNewPageEdit() {
  * @param {string} params.defaultSortText - DEFAULTSORT wikitext.
  * @param {string} params.infoboxText - Infobox wikitext.
  * @param {string} params.leadNameText - Lead article name text.
+ * @param {string} params.noteTaText - NoteTA-lite wikitext.
  * @param {object} params.platformMetadata - Platform text and metadata.
  * @param {Array<object>} params.sourceReferences - Named source references.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
@@ -149,6 +154,7 @@ export function buildStubText(params) {
     params.aggScoresText;
 
   return [
+    params.noteTaText,
     params.infoboxText,
     intro,
     buildReferencesText(params.sourceReferences),

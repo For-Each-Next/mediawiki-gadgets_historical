@@ -345,14 +345,13 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
-       * Removes a localized name row.
+       * Removes localized name rows without a name or source URL.
        *
        * @param {string} key - Localized name group key.
-       * @param {number} index - Row index.
        * @returns {void}
        */
-      removeNameRow(key, index) {
-        form[key].splice(index, 1);
+      removeBlankNameRows(key) {
+        form[key] = form[key].filter(hasEnteredNameRowValue);
       },
     },
     /**
@@ -469,14 +468,39 @@ function createNameGroupTemplate() {
     {
       "v-if": "group.nameGroupKey",
     },
+    [createNameRowTemplate(), createNameActionsTemplate()],
+  );
+}
+
+/**
+ * Creates localized name row action buttons.
+ *
+ * @returns {object} Localized name action button group node.
+ */
+function createNameActionsTemplate() {
+  return createElement(
+    "div",
+    {
+      style: {
+        display: "flex",
+        gap: "8px",
+      },
+    },
     [
-      createNameRowTemplate(),
       createElement(
         "cdx-button",
         {
           "v-on:click": "addNameRow(group.nameGroupKey)",
         },
         [createText("Add")],
+      ),
+      createElement(
+        "cdx-button",
+        {
+          weight: "quiet",
+          "v-on:click": "removeBlankNameRows(group.nameGroupKey)",
+        },
+        [createText("Remove blank")],
       ),
     ],
   );
@@ -512,15 +536,6 @@ function createNameRowTemplate() {
       ),
       createNameMarketTemplate(),
       createNameInputTemplate(),
-      createElement(
-        "cdx-button",
-        {
-          action: "destructive",
-          "v-on:click": "removeNameRow(group.nameGroupKey, index)",
-          weight: "quiet",
-        },
-        [createText("Remove")],
-      ),
     ],
   );
 }
@@ -959,6 +974,20 @@ function createNameRow(selectedMarkets = []) {
     name: "",
     sourceUrl: "",
   };
+}
+
+/**
+ * Checks whether a localized name row has entered text.
+ *
+ * @param {object} row - Localized name row.
+ * @param {string} row.name - Localized name value.
+ * @param {string} row.sourceUrl - Localized name source URL.
+ * @returns {boolean} Whether the row should be kept.
+ */
+function hasEnteredNameRowValue(row) {
+  return (
+    Boolean(trimFieldValue(row.name)) || Boolean(trimFieldValue(row.sourceUrl))
+  );
 }
 
 /**

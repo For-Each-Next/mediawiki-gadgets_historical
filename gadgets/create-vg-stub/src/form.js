@@ -130,7 +130,6 @@ const NAME_MARKETS = [
     label: "HK",
   },
 ];
-
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
     new ArticleParameterField(
@@ -490,14 +489,15 @@ function createNameActionsTemplate() {
       createElement(
         "cdx-button",
         {
+          action: "progressive",
           "v-on:click": "addNameRow(group.nameGroupKey)",
+          weight: "primary",
         },
         [createText("Add")],
       ),
       createElement(
         "cdx-button",
         {
-          weight: "quiet",
           "v-on:click": "removeBlankNameRows(group.nameGroupKey)",
         },
         [createText("Remove blank")],

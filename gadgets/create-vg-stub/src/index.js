@@ -11,7 +11,7 @@ import {
   getEnteredNameSourceReferenceFields,
   SOURCE_REFERENCE_FIELDS,
   trimFieldValue,
-} from "./form.js";
+} from "./form/index.js";
 import {
   buildCategoryLink,
   buildTemplateCall,
@@ -28,6 +28,8 @@ import {
   buildPlatformMetadata,
   buildYearGenreMetadata,
 } from "./wikitext/index.js";
+
+const MOVE_TEXT_STORAGE_KEY = "create-vg-stub-move-text";
 
 /**
  * Stores normalized video game article parameters.
@@ -436,20 +438,28 @@ async function submitForm(form, sourceFetchState, closeDialog) {
   sourceFetchState.loading = true;
 
   try {
-    writeEditText(
-      buildStubText(
-        createArticleParams({
-          ...form,
-          sourceReferences: await fetchSourceReferences(form),
-        }),
-      ),
-    );
+    writeEditText(await buildStubTextFromForm(form));
     closeDialog();
   } catch (error) {
     sourceFetchState.error = error.message;
   } finally {
     sourceFetchState.loading = false;
   }
+}
+
+/**
+ * Builds generated wikitext from dialog form values.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Promise<string>} Generated stub wikitext.
+ */
+async function buildStubTextFromForm(form) {
+  return buildStubText(
+    createArticleParams({
+      ...form,
+      sourceReferences: await fetchSourceReferences(form),
+    }),
+  );
 }
 
 /**
@@ -541,6 +551,114 @@ function addToolboxLink() {
 }
 
 /**
+ * Generates current form data and opens it in a target new-page edit form.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} title - Target page title.
+ * @param {object} sourceFetchState - Source fetch status state.
+ * @returns {Promise<void>} Resolves after generated text is stored.
+ */
+async function openTargetPage(form, title, sourceFetchState) {
+  sourceFetchState.error = "";
+  const targetTitle = trimFieldValue(title);
+
+  if (targetTitle === "") {
+    return;
+  }
+
+  sourceFetchState.loading = true;
+
+  try {
+    sessionStorage.setItem(
+      MOVE_TEXT_STORAGE_KEY,
+      JSON.stringify({
+        form: {
+          ...form,
+          name: targetTitle,
+        },
+        text: await buildStubTextFromForm({
+          ...form,
+          name: targetTitle,
+        }),
+        title: targetTitle,
+      }),
+    );
+    window.location.href = mw.util.getUrl(targetTitle, {
+      action: "edit",
+      redlink: "1",
+    });
+  } catch (error) {
+    sourceFetchState.error = error.message;
+    sourceFetchState.loading = false;
+  }
+}
+
+/**
+ * Restores moved stub text into the target new-page editor.
+ *
+ * @returns {void}
+ */
+function restoreMovedEditText() {
+  const pending = getMovedEdit();
+
+  if (pending == null) {
+    return;
+  }
+
+  writeEditText(pending.text);
+  sessionStorage.removeItem(MOVE_TEXT_STORAGE_KEY);
+}
+
+/**
+ * Gets pending moved form values for the current page.
+ *
+ * @returns {object|undefined} Pending moved form values.
+ */
+function getMovedForm() {
+  return getMovedEdit()?.form;
+}
+
+/**
+ * Gets pending moved edit data for the current page.
+ *
+ * @returns {object|undefined} Pending moved edit data.
+ */
+function getMovedEdit() {
+  const item = sessionStorage.getItem(MOVE_TEXT_STORAGE_KEY);
+
+  if (item == null) {
+    return undefined;
+  }
+
+  const pending = JSON.parse(item);
+
+  if (normalizePageTitle(pending.title) !== normalizePageTitle(getPageName())) {
+    return undefined;
+  }
+
+  return pending;
+}
+
+/**
+ * Gets the current full page name.
+ *
+ * @returns {string} Current full page name.
+ */
+function getPageName() {
+  return mw.config.get("wgPageName").replace(/_/gu, " ");
+}
+
+/**
+ * Normalizes page title text for comparison.
+ *
+ * @param {string} title - Page title text.
+ * @returns {string} Normalized page title text.
+ */
+function normalizePageTitle(title) {
+  return trimFieldValue(title).replace(/_/gu, " ");
+}
+
+/**
  * Mounts the Codex dialog and registers the toolbox trigger.
  *
  * @param {Function} require - ResourceLoader module resolver.
@@ -552,6 +670,8 @@ function init(require) {
   const app = Vue.createMwApp(createDialogComponent(Vue, {
     defaultName: getDefaultName(),
     getFieldPlaceholder,
+    initialForm: getMovedForm(),
+    onMoveTarget: openTargetPage,
     onSubmit: submitForm,
   }));
 
@@ -565,6 +685,7 @@ function init(require) {
   app.component("CdxTextInput", Codex.CdxTextInput);
   app.mount(createHost());
   addToolboxLink();
+  restoreMovedEditText();
 }
 
 if (isNewPageEdit()) {

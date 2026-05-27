@@ -4,6 +4,17 @@
  * Builds the create-vg-stub dialog form.
  */
 
+import {
+  clearFormHistory,
+  deleteFormHistoryEntry,
+  readFormDraft,
+  readFormDraftEntry,
+  readFormHistory,
+  replaceFormValues,
+  saveFormDraft,
+  saveFormHistory,
+} from "./history.js";
+
 /**
  * Describes a reusable article parameter input.
  */
@@ -222,17 +233,32 @@ const ARTICLE_PARAMETER_GROUPS = [
  * @param {object} options - Dialog options.
  * @param {string} options.defaultName - Default article title.
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
+ * @param {object} [options.initialForm] - Initial form values.
+ * @param {Function} options.onMoveTarget - New-page target opener.
  * @param {Function} options.onSubmit - Submit handler.
  * @returns {object} Vue component options.
  */
 export function createDialogComponent(Vue, options) {
   const activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
   const form = Vue.reactive(createFormValues(options.defaultName));
+  const historyEntries = Vue.ref(readFormHistoryEntries());
+  const historyOpen = Vue.ref(false);
+  const moveTarget = Vue.ref(options.defaultName);
+  const moveOpen = Vue.ref(false);
   const sourceFetchState = Vue.reactive({
     error: "",
     loading: false,
   });
   const open = Vue.ref(false);
+  const initialForm = options.initialForm || readFormDraft();
+
+  if (initialForm != null) {
+    replaceFormValues(form, initialForm);
+  }
+
+  Vue.watch(form, saveFormDraft, {
+    deep: true,
+  });
 
   window.createVgStubDialog = {
     open: openDialog.bind(null, open),
@@ -255,7 +281,91 @@ export function createDialogComponent(Vue, options) {
        * @returns {Promise<void>} Resolves after generated text is written.
        */
       async submitForm() {
+        saveCurrentFormHistory(form, form.name);
+        historyEntries.value = readFormHistoryEntries();
         await options.onSubmit(form, sourceFetchState, this.closeDialog);
+      },
+
+      /**
+       * Opens the form history dialog.
+       *
+       * @returns {void}
+       */
+      openHistoryDialog() {
+        historyEntries.value = readFormHistoryEntries();
+        historyOpen.value = true;
+      },
+
+      /**
+       * Closes the form history dialog.
+       *
+       * @returns {void}
+       */
+      closeHistoryDialog() {
+        historyOpen.value = false;
+      },
+
+      /**
+       * Fills the current form from a history entry.
+       *
+       * @param {object} entry - History entry.
+       * @param {object} entry.form - Stored form values.
+       * @returns {void}
+       */
+      fillHistoryEntry(entry) {
+        replaceFormValues(form, entry.form);
+        historyOpen.value = false;
+      },
+
+      /**
+       * Deletes one history entry.
+       *
+       * @param {string} id - History entry ID.
+       * @returns {void}
+       */
+      deleteHistoryEntry(id) {
+        deleteFormHistoryEntry(id);
+        historyEntries.value = readFormHistoryEntries();
+      },
+
+      /**
+       * Clears all form history entries.
+       *
+       * @returns {void}
+       */
+      clearHistory() {
+        clearFormHistory();
+        historyEntries.value = readFormHistoryEntries();
+      },
+
+      /**
+       * Opens the move target dialog.
+       *
+       * @returns {void}
+       */
+      openMoveDialog() {
+        moveTarget.value = form.name;
+        moveOpen.value = true;
+      },
+
+      /**
+       * Closes the move target dialog.
+       *
+       * @returns {void}
+       */
+      closeMoveDialog() {
+        moveOpen.value = false;
+      },
+
+      /**
+       * Generates current data and opens it in the target page editor.
+       *
+       * @returns {Promise<void>} Resolves after navigation starts.
+       */
+      async submitMoveTarget() {
+        saveCurrentFormHistory(form, moveTarget.value);
+        historyEntries.value = readFormHistoryEntries();
+        await options.onMoveTarget(form, moveTarget.value, sourceFetchState);
       },
 
       /**
@@ -361,19 +471,16 @@ export function createDialogComponent(Vue, options) {
     setup() {
       return {
         activeTab,
-        defaultAction: {
-          label: "Cancel",
-        },
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
         getArticleField,
         getFieldPlaceholder: options.getFieldPlaceholder.bind(null, form),
+        historyEntries,
+        historyOpen,
+        moveOpen,
+        moveTarget,
         nameMarkets: NAME_MARKETS,
         open,
-        primaryAction: {
-          actionType: "progressive",
-          label: sourceFetchState.loading ? "Fetching" : "Insert",
-        },
         sourceFetchState,
       };
     },
@@ -382,12 +489,42 @@ export function createDialogComponent(Vue, options) {
 }
 
 /**
+ * Saves the current form data with a target page title.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} page - Target page title.
+ * @returns {void}
+ */
+function saveCurrentFormHistory(form, page) {
+  saveFormHistory(
+    {
+      ...form,
+      name: page,
+    },
+    page,
+  );
+}
+
+/**
+ * Reads explicit history entries plus the temporary draft.
+ *
+ * @returns {Array<object>} Form history manager entries.
+ */
+function readFormHistoryEntries() {
+  return [readFormDraftEntry(), ...readFormHistory()].filter(Boolean);
+}
+
+/**
  * Creates the Vue dialog template as a serialized markup tree.
  *
  * @returns {string} Dialog template markup.
  */
 function createDialogTemplate() {
-  return renderTemplate(createDialogTemplateRoot());
+  return renderTemplate([
+    createDialogTemplateRoot(),
+    createMoveDialogTemplate(),
+    createHistoryDialogTemplate(),
+  ]);
 }
 
 /**
@@ -399,11 +536,7 @@ function createDialogTemplateRoot() {
   return createElement(
     "cdx-dialog",
     {
-      "v-bind:default-action": "defaultAction",
-      "v-bind:primary-action": "primaryAction",
       "v-model:open": "open",
-      "v-on:default": "closeDialog",
-      "v-on:primary": "submitForm",
       title: "Create video game stub",
     },
     [
@@ -415,7 +548,320 @@ function createDialogTemplateRoot() {
         },
         [createText("{{ sourceFetchState.error }}")],
       ),
+      createMainDialogFooterTemplate(),
     ],
+  );
+}
+
+/**
+ * Creates the main dialog footer actions.
+ *
+ * @returns {object} Dialog footer template node.
+ */
+function createMainDialogFooterTemplate() {
+  return createElement(
+    "template",
+    {
+      "v-slot:footer": "",
+    },
+    [
+      createSplitActionFooterTemplate(
+        createElement(
+          "cdx-button",
+          {
+            "v-bind:disabled": "sourceFetchState.loading",
+            "v-on:click": "openHistoryDialog",
+          },
+          [createText("History")],
+        ),
+        [
+          createElement(
+            "cdx-button",
+            {
+              "v-on:click": "closeDialog",
+            },
+            [createText("Cancel")],
+          ),
+          createElement(
+            "cdx-button",
+            {
+              "v-bind:disabled": "sourceFetchState.loading",
+              "v-on:click": "openMoveDialog",
+            },
+            [createText("Move")],
+          ),
+          createElement(
+            "cdx-button",
+            {
+              action: "progressive",
+              "v-bind:disabled": "sourceFetchState.loading",
+              "v-on:click": "submitForm",
+              weight: "primary",
+            },
+            [
+              createText(
+                "{{ sourceFetchState.loading ? 'Fetching' : 'Insert' }}",
+              ),
+            ],
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates a dialog action footer with one left-aligned action.
+ *
+ * @param {object} leadingAction - Left-aligned footer action node.
+ * @param {Array<object>} actions - Right-aligned footer action nodes.
+ * @returns {object} Dialog action footer node.
+ */
+function createSplitActionFooterTemplate(leadingAction, actions) {
+  return createElement(
+    "div",
+    {
+      style: {
+        alignItems: "center",
+        display: "flex",
+        justifyContent: "space-between",
+        width: "100%",
+      },
+    },
+    [
+      leadingAction,
+      createActionFooterTemplate(actions, {
+        width: "auto",
+      }),
+    ],
+  );
+}
+
+/**
+ * Creates the form history dialog.
+ *
+ * @returns {object} History dialog template node.
+ */
+function createHistoryDialogTemplate() {
+  return createElement(
+    "cdx-dialog",
+    {
+      "v-model:open": "historyOpen",
+      title: "Form history",
+    },
+    [
+      createElement(
+        "p",
+        {
+          "v-if": "historyEntries.length === 0",
+        },
+        [createText("No saved form history.")],
+      ),
+      createHistoryEntryListTemplate(),
+      createHistoryDialogFooterTemplate(),
+    ],
+  );
+}
+
+/**
+ * Creates the history entry list.
+ *
+ * @returns {object} History entry list template node.
+ */
+function createHistoryEntryListTemplate() {
+  return createElement(
+    "div",
+    {
+      "v-if": "historyEntries.length > 0",
+      style: {
+        display: "grid",
+        gap: "8px",
+      },
+    },
+    [createHistoryEntryTemplate()],
+  );
+}
+
+/**
+ * Creates one history entry row.
+ *
+ * @returns {object} History entry row template node.
+ */
+function createHistoryEntryTemplate() {
+  return createElement(
+    "div",
+    {
+      "v-bind:key": "entry.id",
+      "v-for": "(entry, index) in historyEntries",
+      style: {
+        alignItems: "center",
+        borderBottom: "1px solid #eaecf0",
+        display: "grid",
+        gap: "8px",
+        gridTemplateColumns: "1fr auto auto",
+        padding: "8px 0",
+      },
+    },
+    [
+      createElement(
+        "div",
+        {},
+        [
+          createElement("div", {}, [
+            createText("{{ index + 1 }}. {{ entry.page }}"),
+          ]),
+          createElement(
+            "div",
+            {
+              style: {
+                color: "#54595d",
+                fontSize: "12px",
+              },
+            },
+            [createText("{{ entry.savedAt }}")],
+          ),
+        ],
+      ),
+      createElement(
+        "cdx-button",
+        {
+          "v-on:click": "fillHistoryEntry(entry)",
+        },
+        [createText("Fill")],
+      ),
+      createElement(
+        "cdx-button",
+        {
+          "v-if": "!entry.temporary",
+          "v-on:click": "deleteHistoryEntry(entry.id)",
+        },
+        [createText("Delete")],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the history dialog footer actions.
+ *
+ * @returns {object} History dialog footer template node.
+ */
+function createHistoryDialogFooterTemplate() {
+  return createElement(
+    "template",
+    {
+      "v-slot:footer": "",
+    },
+    [
+      createActionFooterTemplate([
+        createElement(
+          "cdx-button",
+          {
+            "v-bind:disabled": "historyEntries.length === 0",
+            "v-on:click": "clearHistory",
+          },
+          [createText("Clear")],
+        ),
+        createElement(
+          "cdx-button",
+          {
+            "v-on:click": "closeHistoryDialog",
+          },
+          [createText("Close")],
+        ),
+      ]),
+    ],
+  );
+}
+
+/**
+ * Creates the move target dialog.
+ *
+ * @returns {object} Move dialog template node.
+ */
+function createMoveDialogTemplate() {
+  return createElement(
+    "cdx-dialog",
+    {
+      "v-model:open": "moveOpen",
+      title: "Move stub text",
+    },
+    [
+      createElement("cdx-text-input", {
+        placeholder: "Target page title",
+        "v-model": "moveTarget",
+      }),
+      createElement(
+        "p",
+        {
+          "v-if": "sourceFetchState.error",
+        },
+        [createText("{{ sourceFetchState.error }}")],
+      ),
+      createMoveDialogFooterTemplate(),
+    ],
+  );
+}
+
+/**
+ * Creates the move dialog footer actions.
+ *
+ * @returns {object} Move dialog footer template node.
+ */
+function createMoveDialogFooterTemplate() {
+  return createElement(
+    "template",
+    {
+      "v-slot:footer": "",
+    },
+    [
+      createActionFooterTemplate([
+        createElement(
+          "cdx-button",
+          {
+            "v-on:click": "closeMoveDialog",
+          },
+          [createText("Cancel")],
+        ),
+        createElement(
+          "cdx-button",
+          {
+            action: "progressive",
+            "v-bind:disabled": "sourceFetchState.loading",
+            "v-on:click": "submitMoveTarget",
+            weight: "primary",
+          },
+          [
+            createText(
+              "{{ sourceFetchState.loading ? 'Fetching' : 'Open target page' }}",
+            ),
+          ],
+        ),
+      ]),
+    ],
+  );
+}
+
+/**
+ * Creates a dialog action footer.
+ *
+ * @param {Array<object>} actions - Footer action button nodes.
+ * @param {object} [style] - Extra footer style properties.
+ * @returns {object} Dialog action footer node.
+ */
+function createActionFooterTemplate(actions, style = {}) {
+  return createElement(
+    "div",
+    {
+      style: {
+        display: "flex",
+        gap: "8px",
+        justifyContent: "flex-end",
+        width: "100%",
+        ...style,
+      },
+    },
+    actions,
   );
 }
 
@@ -825,10 +1271,14 @@ function createText(value) {
 /**
  * Serializes a template node to markup.
  *
- * @param {object} node - Template node.
+ * @param {object|Array<object>} node - Template node.
  * @returns {string} Template markup.
  */
 function renderTemplate(node) {
+  if (Array.isArray(node)) {
+    return node.map(renderNode).join("");
+  }
+
   return renderElement(node);
 }
 

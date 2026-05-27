@@ -22,7 +22,7 @@ test("RPG genre alias generates linked genre, category, and stub tag", async () 
       "《'''Example'''》是2024年[[電子角色扮演遊戲|角色扮演]]类" +
       "[[电子游戏]]，由Foo Studio开发、Bar Games发行。作品对应PC平台。" +
       "\n\n{{DEFAULTSORT:Example}}\n[[Category:電子角色扮演遊戲]]" +
-      "\n[[Category:2024年電子遊戲]]\n\n{{Rpg-videogame-stub}}",
+      "\n[[Category:2024年電子遊戲]]\n\n{{rpg-videogame-stub}}",
   );
 });
 
@@ -38,7 +38,7 @@ test("genre alias ignores letter case", async () => {
 
   assert.equal(text.includes("[[電子角色扮演遊戲|角色扮演]]"), true);
   assert.equal(text.includes("[[Category:電子角色扮演遊戲]]"), true);
-  assert.equal(text.includes("{{Rpg-videogame-stub}}"), true);
+  assert.equal(text.includes("{{rpg-videogame-stub}}"), true);
 });
 
 test("empty year omits the year phrase", async () => {
@@ -189,17 +189,27 @@ test("separated genre, company, and platform values render as lists", async () =
   });
 
   assert.equal(
-    text.includes("2024年[[電子角色扮演遊戲|角色扮演]]、Action类[[电子游戏]]"),
+    text.includes(
+      "2024年[[電子角色扮演遊戲|角色扮演]]、[[动作游戏|动作]]类[[电子游戏]]",
+    ),
     true,
   );
   assert.equal(text.includes("由[[史克威尔艾尼克斯]]和Company B开发"), true);
   assert.equal(text.includes("Bar Games和Company C发行"), true);
-  assert.equal(text.includes("作品对应[[PlayStation 5]]、Switch平台。"), true);
+  assert.equal(
+    text.includes("作品对应[[PlayStation 5]]、[[任天堂Switch]]平台。"),
+    true,
+  );
   assert.equal(text.includes("[[Category:史克威爾艾尼克斯遊戲]]"), true);
   assert.equal(text.includes("[[Category:電子角色扮演遊戲]]"), true);
+  assert.equal(text.includes("[[Category:动作游戏]]"), true);
   assert.equal(text.includes("[[Category:PlayStation 5游戏]]"), true);
+  assert.equal(text.includes("[[Category:任天堂Switch游戏]]"), true);
   assert.equal(text.includes("{{SquareEnix-stub}}"), true);
-  assert.equal(text.includes("{{Rpg-videogame-stub}}"), true);
+  assert.equal(text.includes("{{PlayStation-stub}}"), true);
+  assert.equal(text.includes("{{Nintendo-stub}}"), true);
+  assert.equal(text.includes("{{rpg-videogame-stub}}"), true);
+  assert.equal(text.includes("{{action-videogame-stub}}"), true);
 });
 
 test("three or more companies render with enumeration separators", async () => {

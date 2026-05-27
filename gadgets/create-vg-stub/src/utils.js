@@ -201,9 +201,9 @@ export function trimValue(value) {
 }
 
 /**
- * Gets one reference definition by canonical key or alias.
+ * Gets one reference definition by key or alias.
  *
- * @param {object} definitions - Reference definitions for a lookup field.
+ * @param {object|Array<object>} definitions - Reference definitions for a lookup field.
  * @param {string} value - User-entered field item.
  * @returns {object|undefined} Matched reference definition.
  */
@@ -214,7 +214,7 @@ export function getReferenceDefinition(definitions, value) {
 /**
  * Gets one reference definition with its source value.
  *
- * @param {object} definitions - Reference definitions for a lookup field.
+ * @param {object|Array<object>} definitions - Reference definitions for a lookup field.
  * @param {string} value - User-entered field item.
  * @returns {object|undefined} Matched reference definition.
  */
@@ -232,34 +232,19 @@ export function getSourceReference(definitions, value) {
 }
 
 /**
- * Gets one reference entry by canonical key or alias.
+ * Gets one reference entry by key or alias.
  *
- * @param {object} definitions - Reference definitions for a lookup field.
+ * @param {object|Array<object>} definitions - Reference definitions for a lookup field.
  * @param {string} value - User-entered field item.
  * @returns {object} Matched reference key and definition.
  */
 export function getReferenceEntry(definitions, value) {
-  if (definitions[value] != null) {
-    return {
-      key: value,
-      reference: definitions[value],
-    };
-  }
-
-  return getReferenceEntryByAlias(definitions, value);
-}
-
-/**
- * Gets one reference entry by alias.
- *
- * @param {object} definitions - Reference definitions for a lookup field.
- * @param {string} alias - User-entered alias.
- * @returns {object} Matched reference key and definition.
- */
-function getReferenceEntryByAlias(definitions, alias) {
-  const normalizedAlias = normalizeAlias(alias);
-  const entry = Object.entries(definitions).find(([_key, definition]) =>
-    (definition.aliases || []).map(normalizeAlias).includes(normalizedAlias),
+  const entries = getReferenceEntries(definitions);
+  const normalizedValue = normalizeAlias(value);
+  const entry = entries.find(
+    ([key, definition]) =>
+      normalizeAlias(key) === normalizedValue ||
+      (definition.aliases || []).map(normalizeAlias).includes(normalizedValue),
   );
 
   if (entry == null) {
@@ -269,6 +254,34 @@ function getReferenceEntryByAlias(definitions, alias) {
   const [key, reference] = entry;
 
   return { key, reference };
+}
+
+/**
+ * Gets reference entries from an array or keyed object.
+ *
+ * @param {object|Array<object>} definitions - Reference definitions for a lookup field.
+ * @returns {Array<Array<string|object>>} Reference key and definition pairs.
+ */
+function getReferenceEntries(definitions) {
+  if (Array.isArray(definitions)) {
+    return definitions.map((definition) => [
+      getReferenceKey(definition),
+      definition,
+    ]);
+  }
+
+  return Object.entries(definitions || {});
+}
+
+/**
+ * Gets the canonical key from one array reference definition.
+ *
+ * @param {object} definition - Reference definition.
+ * @param {Array<string>} [definition.aliases] - Reference aliases.
+ * @returns {string|undefined} Reference key.
+ */
+function getReferenceKey(definition) {
+  return definition.aliases?.[0];
 }
 
 /**

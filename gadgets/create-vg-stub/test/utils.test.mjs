@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTemplateText } from "../src/utils.js";
+import { buildTemplateText, getReferenceEntry } from "../src/utils.js";
 
 test("buildTemplateText builds inline positional parameters by default", () => {
   assert.equal(
@@ -63,5 +63,30 @@ test("buildTemplateText builds raw block parameters", () => {
       "block",
     ),
     "{{NoteTA-lite\n| G1 = Games\n| zh-cn:简体名; zh-tw:繁體名;\n}}",
+  );
+});
+
+test("getReferenceEntry matches array entries by alias", () => {
+  assert.deepEqual(
+    getReferenceEntry(
+      [
+        {
+          aliases: ["ps5", "PS5", "PlayStation 5"],
+          page: {
+            title: "PlayStation 5",
+          },
+        },
+      ],
+      "playstation 5",
+    ),
+    {
+      key: "ps5",
+      reference: {
+        aliases: ["ps5", "PS5", "PlayStation 5"],
+        page: {
+          title: "PlayStation 5",
+        },
+      },
+    },
   );
 });

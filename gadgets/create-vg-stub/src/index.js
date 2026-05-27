@@ -128,8 +128,18 @@ class VideoGameArticleParams {
  */
 function isNewPageEdit() {
   return (
-    mw.config.get("wgAction") === "edit" && mw.config.get("wgArticleId") === 0
+    isEditAction(mw.config.get("wgAction")) && mw.config.get("wgArticleId") === 0
   );
+}
+
+/**
+ * Checks whether an action can show a new-page edit form.
+ *
+ * @param {string} action - MediaWiki action.
+ * @returns {boolean} Whether the action edits or submits page text.
+ */
+function isEditAction(action) {
+  return action === "edit" || action === "submit";
 }
 
 /**

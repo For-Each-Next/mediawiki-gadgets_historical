@@ -29,6 +29,22 @@ export function readFormDraft() {
 }
 
 /**
+ * Reads the current form draft when it belongs to the given page.
+ *
+ * @param {string} page - Current page title.
+ * @returns {object|undefined} Stored draft form values.
+ */
+export function readFormDraftForPage(page) {
+  const draft = readFormDraft();
+
+  if (draft == null || normalizePage(draft.name) !== normalizePage(page)) {
+    return undefined;
+  }
+
+  return draft;
+}
+
+/**
  * Reads the current form draft as a history-style entry.
  *
  * @returns {object|undefined} Draft history entry.

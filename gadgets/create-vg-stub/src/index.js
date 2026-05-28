@@ -23,8 +23,8 @@ import {
 import {
   clearFormHistory,
   deleteFormHistoryEntry,
-  readFormDraft,
   readFormDraftEntry,
+  readFormDraftForPage,
   readFormHistory,
   saveFormDraft,
   saveFormHistory,
@@ -832,16 +832,17 @@ function init(require) {
   const Codex = require("@wikimedia/codex");
   const categoryStore = createCategoryCacheStore();
   const citationStore = createCitationStore();
+  const defaultName = getDefaultName();
 
   addDialogStyles();
 
   const app = Vue.createMwApp(
     createDialogComponent(Vue, {
       citationPrefetchDelay: CITATION_PREFETCH_DELAY,
-      defaultName: getDefaultName(),
+      defaultName,
       getHistoryEntries: readFormHistoryEntries,
       getFieldPlaceholder,
-      initialForm: getMovedForm() || readFormDraft(),
+      initialForm: getMovedForm() || readFormDraftForPage(defaultName),
       onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
         refreshFormCategoryRows(
           form,

@@ -5,8 +5,8 @@
         "action": "replace",
         "field": "language",
         "operand": {
-          "pattern": "-.+$",
-          "replacement": ""
+          "pattern": "^(?!zh(?:-|$))([a-z]+)-.+$",
+          "replacement": "$1"
         }
       }
     ]
@@ -34,6 +34,11 @@
     "host": "www.metacritic.com",
     "fixes": [
       {
+        "action": "set",
+        "field": "website",
+        "operand": "Metacritic"
+      },
+      {
         "action": "replace",
         "field": "title",
         "operand": {
@@ -46,6 +51,22 @@
   {
     "host": "store.steampowered.com",
     "fixes": [
+      {
+        "action": "set",
+        "field": "website",
+        "operand": "Steam"
+      },
+      {
+        "action": "set-from-source-query",
+        "field": "language",
+        "operand": {
+          "key": "l",
+          "values": {
+            "schinese": "zh-Hans",
+            "tchinese": "zh-Hant"
+          }
+        }
+      },
       {
         "action": "preserve-source-query",
         "field": "url",

@@ -212,7 +212,7 @@ function applyCitationRule(sourceUrl, values, rule) {
  * @param {object} fix - Field fix definition.
  * @param {string} fix.action - Field fix action.
  * @param {string} fix.field - Citation value field.
- * @param {string|object} [fix.operand] - Optional fix operand.
+ * @param {string|object|Array<string>} [fix.operand] - Optional fix operand.
  * @returns {object} Citation template values.
  */
 function applyFieldFix(sourceUrl, values, fix) {
@@ -222,6 +222,14 @@ function applyFieldFix(sourceUrl, values, fix) {
 
   if (fix.action === "replace") {
     return applyReplaceFix(values, fix);
+  }
+
+  if (fix.action === "set") {
+    return applySetFix(values, fix);
+  }
+
+  if (fix.action === "set-from-source-query") {
+    return applySetFromSourceQueryFix(sourceUrl, values, fix);
   }
 
   if (fix.action === "preserve-source-query") {
@@ -266,6 +274,55 @@ function applyReplaceFix(values, fix) {
   return {
     ...values,
     [fix.field]: replacePattern(values[fix.field], fix),
+  };
+}
+
+/**
+ * Applies a static value fix to citation values.
+ *
+ * @param {object} values - Citation template values.
+ * @param {object} fix - Field fix definition.
+ * @param {string} fix.field - Citation value field.
+ * @param {string} fix.operand - Replacement value.
+ * @returns {object} Citation template values.
+ */
+function applySetFix(values, fix) {
+  return {
+    ...values,
+    [fix.field]: fix.operand,
+  };
+}
+
+/**
+ * Maps a source URL query value to a citation value.
+ *
+ * @param {string} sourceUrl - Original user-entered source URL.
+ * @param {object} values - Citation template values.
+ * @param {object} fix - Field fix definition.
+ * @param {string} fix.field - Citation value field.
+ * @param {object} fix.operand - Query mapping operand.
+ * @param {string} fix.operand.key - Query key to read.
+ * @param {object} fix.operand.values - Citation values keyed by query value.
+ * @returns {object} Citation template values.
+ */
+function applySetFromSourceQueryFix(sourceUrl, values, fix) {
+  const source = parseUrl(sourceUrl);
+  const operand = fix.operand || {};
+
+  if (source == null || operand.key == null || operand.values == null) {
+    return values;
+  }
+
+  const queryValue = source.searchParams.get(operand.key);
+  const fieldValue = operand.values[queryValue];
+
+  if (fieldValue == null) {
+    return values;
+  }
+
+  return {
+    ...values,
+    [fix.field]: fieldValue,
   };
 }
 

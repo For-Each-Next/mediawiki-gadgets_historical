@@ -14,8 +14,8 @@ const RULES = [
         action: "replace",
         field: "language",
         operand: {
-          pattern: "-.+$",
-          replacement: "",
+          pattern: "^(?!zh(?:-|$))([a-z]+)-.+$",
+          replacement: "$1",
         },
       },
     ],
@@ -42,6 +42,11 @@ const RULES = [
   {
     fixes: [
       {
+        action: "set",
+        field: "website",
+        operand: "Metacritic",
+      },
+      {
         action: "replace",
         field: "title",
         operand: {
@@ -54,6 +59,22 @@ const RULES = [
   },
   {
     fixes: [
+      {
+        action: "set",
+        field: "website",
+        operand: "Steam",
+      },
+      {
+        action: "set-from-source-query",
+        field: "language",
+        operand: {
+          key: "l",
+          values: {
+            schinese: "zh-Hans",
+            tchinese: "zh-Hant",
+          },
+        },
+      },
       {
         action: "preserve-source-query",
         field: "url",
@@ -99,11 +120,11 @@ test("buildCiteTemplate formats Zotero metadata as cite web", () => {
   );
 });
 
-test("buildCiteTemplate normalizes language subtags by rule", () => {
+test("buildCiteTemplate normalizes non-Chinese language subtags by rule", () => {
   const text = buildCiteTemplate(
     {
       itemType: "webpage",
-      language: "zh-Hans-CN",
+      language: "en-US",
       title: "Example",
       url: "https://example.test/article",
     },
@@ -115,7 +136,27 @@ test("buildCiteTemplate normalizes language subtags by rule", () => {
 
   assert.equal(
     text,
-    "{{cite web|access-date=2026-05-24|language=zh|title=Example|url=https://example.test/article}}",
+    "{{cite web|access-date=2026-05-24|language=en|title=Example|url=https://example.test/article}}",
+  );
+});
+
+test("buildCiteTemplate preserves Chinese language subtags by rule", () => {
+  const text = buildCiteTemplate(
+    {
+      itemType: "webpage",
+      language: "zh-Hans",
+      title: "Example",
+      url: "https://example.test/article",
+    },
+    {
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.equal(
+    text,
+    "{{cite web|access-date=2026-05-24|language=zh-Hans|title=Example|url=https://example.test/article}}",
   );
 });
 
@@ -205,6 +246,7 @@ test("buildCiteTemplate strips Metacritic title suffix by host rule", () => {
   );
 
   assert.equal(text.includes("|title=Example Reviews|"), true);
+  assert.equal(text.includes("|website=Metacritic"), true);
 });
 
 test("fetchCiteTemplate restores Steam source query by host rule", async () => {
@@ -234,7 +276,35 @@ test("fetchCiteTemplate restores Steam source query by host rule", async () => {
     text.includes("https://store.steampowered.com/app/123/example/?l=schinese"),
     true,
   );
+  assert.equal(text.includes("|language=zh-Hans"), true);
+  assert.equal(text.includes("|website=Steam"), true);
   assert.equal(text.includes("utm_source"), false);
+});
+
+test("fetchCiteTemplate maps Steam Traditional Chinese query language", async () => {
+  const text = await fetchCiteTemplate(
+    "https://store.steampowered.com/app/123/example/?l=tchinese",
+    {
+      fetcher() {
+        return {
+          async json() {
+            return [
+              {
+                itemType: "webpage",
+                title: "Example on Steam",
+                url: "https://store.steampowered.com/app/123/example/",
+              },
+            ];
+          },
+          ok: true,
+        };
+      },
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.equal(text.includes("|language=zh-Hant"), true);
 });
 
 test("fetchCiteTemplate caches generated citation templates", async () => {

@@ -63,12 +63,12 @@ class ArticleParameterGroup {
 export const SOURCE_REFERENCE_FIELDS = [
   {
     key: "originalName",
-    label: "Original name source URL",
+    label: "Original title source URL",
     sourceKey: "originalNameSourceUrl",
   },
   {
     key: "englishName",
-    label: "English name source URL",
+    label: "English title source URL",
     sourceKey: "englishNameSourceUrl",
   },
   {
@@ -150,13 +150,13 @@ const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
     new ArticleParameterField(
       "originalName",
-      "Original name",
+      "Original title",
       "originalName",
       SOURCE_REFERENCE_FIELDS[0],
     ),
     new ArticleParameterField(
       "englishName",
-      "English name",
+      "English title",
       "englishName",
       SOURCE_REFERENCE_FIELDS[1],
     ),
@@ -169,7 +169,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       {
         breakBefore: true,
         compact: true,
-        heading: "Metacritic score",
+        heading: "MC score",
         placeholder: "Platform",
       },
     ),
@@ -190,7 +190,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[9],
       {
         compact: true,
-        heading: "OpenCritic score",
+        heading: "OC score",
         placeholder: "Critics Recommend",
       },
     ),
@@ -198,13 +198,13 @@ const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("attribution", "Attribution", [
     new ArticleParameterField(
       "developers",
-      "Developer(s)",
+      "Dev",
       "companies.developers",
       SOURCE_REFERENCE_FIELDS[3],
     ),
     new ArticleParameterField(
       "publishers",
-      "Publisher(s)",
+      "Pub",
       "companies.publishers",
       SOURCE_REFERENCE_FIELDS[4],
     ),
@@ -216,7 +216,7 @@ const ARTICLE_PARAMETER_GROUPS = [
     ),
     new ArticleParameterField(
       "platforms",
-      "Platform(s)",
+      "Plat",
       "platforms",
       SOURCE_REFERENCE_FIELDS[7],
     ),
@@ -228,7 +228,7 @@ const ARTICLE_PARAMETER_GROUPS = [
     ),
     new ArticleParameterField(
       "genres",
-      "Genre(s)",
+      "Genre",
       "genres",
       SOURCE_REFERENCE_FIELDS[6],
     ),
@@ -1046,13 +1046,6 @@ function createNameRowTemplate() {
       "v-for": "(row, index) in form[group.nameGroupKey]",
     },
     [
-      createElement(
-        "div",
-        {
-          class: "create-vg-stub-field-label",
-        },
-        [createText("{{ group.label }} name {{ index + 1 }}")],
-      ),
       createElement(
         "div",
         {

@@ -40,12 +40,12 @@ const DIALOG_CSS = `
 .create-vg-stub-field-row,
 .create-vg-stub-name-row {
   display: grid;
-  grid-template-columns: minmax(96px, 20%) minmax(0, 1fr);
   gap: 12px;
   align-items: center;
 }
 
 .create-vg-stub-field-row {
+  grid-template-columns: 4rem minmax(0, 1fr);
   margin-bottom: 12px;
 }
 
@@ -62,6 +62,7 @@ const DIALOG_CSS = `
 
 .create-vg-stub-name-row {
   border-bottom: 1px solid #eaecf0;
+  grid-template-columns: minmax(0, 1fr);
   margin-bottom: 16px;
   padding-bottom: 16px;
 }

@@ -21,6 +21,7 @@ test("RPG genre alias generates linked genre, category, and stub tag", async () 
     `${EXAMPLE_HEADER}\n\n` +
       "《'''Example'''》是2024年[[電子角色扮演遊戲|角色扮演]]类" +
       "[[电子游戏]]，由Foo Studio开发、Bar Games发行。作品对应PC平台。" +
+      "\n\n{{Portal bar|电子游戏}}" +
       "\n\n{{DEFAULTSORT:Example}}\n[[Category:電子角色扮演遊戲]]" +
       "\n[[Category:2024年電子遊戲]]\n\n{{rpg-videogame-stub}}",
   );
@@ -482,7 +483,8 @@ test("explicit sort key renders above the first category", async () => {
 
   assert.equal(
     text.includes(
-      "\n\n{{DEFAULTSORT:Custom Key}}\n[[Category:電子角色扮演遊戲]]",
+      "\n\n{{Portal bar|电子游戏}}\n\n" +
+        "{{DEFAULTSORT:Custom Key}}\n[[Category:電子角色扮演遊戲]]",
     ),
     true,
   );

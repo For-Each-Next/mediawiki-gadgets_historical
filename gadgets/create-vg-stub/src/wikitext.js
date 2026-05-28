@@ -5,7 +5,10 @@
  */
 
 import { buildCategoryText, buildStubTagText } from "./categories.js";
-import { buildReferencesText } from "./fragments/index.js";
+import {
+  buildPortalBarText,
+  buildReferencesText,
+} from "./fragments/index.js";
 
 /**
  * Builds the Chinese Wikipedia video game stub article text.
@@ -32,6 +35,7 @@ export function buildArticleWikitext(params) {
     params.infoboxText,
     intro,
     buildReferencesText(params.sourceReferences),
+    buildPortalBarText(),
     buildCategoryText(params),
     buildStubTagText(params),
   ]

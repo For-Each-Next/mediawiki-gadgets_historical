@@ -972,9 +972,7 @@ function createTabsTemplate() {
           createElement(
             "div",
             {
-              style: {
-                paddingTop: "12px",
-              },
+              class: "create-vg-stub-tab-panel",
             },
             [createNameGroupTemplate(), createFieldGroupTemplate()],
           ),
@@ -1043,27 +1041,25 @@ function createNameRowTemplate() {
   return createElement(
     "div",
     {
+      class: "create-vg-stub-name-row",
       "v-bind:key": "index",
       "v-for": "(row, index) in form[group.nameGroupKey]",
-      style: {
-        borderBottom: "1px solid #eaecf0",
-        marginBottom: "16px",
-        paddingBottom: "16px",
-      },
     },
     [
       createElement(
         "div",
         {
-          style: {
-            fontWeight: "600",
-            marginBottom: "8px",
-          },
+          class: "create-vg-stub-field-label",
         },
         [createText("{{ group.label }} name {{ index + 1 }}")],
       ),
-      createNameMarketTemplate(),
-      createNameInputTemplate(),
+      createElement(
+        "div",
+        {
+          class: "create-vg-stub-name-controls",
+        },
+        [createNameMarketTemplate(), createNameInputTemplate()],
+      ),
     ],
   );
 }
@@ -1107,12 +1103,7 @@ function createNameInputTemplate() {
   return createElement(
     "div",
     {
-      style: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "0",
-        marginBottom: "8px",
-      },
+      class: "create-vg-stub-field-controls",
     },
     [
       createElement("cdx-text-input", {
@@ -1141,10 +1132,8 @@ function createNameInputTemplate() {
  */
 function createSourceUrlInputTemplate(options) {
   const attributes = {
+    class: "create-vg-stub-source-url",
     rows: "1",
-    style: {
-      resize: "vertical",
-    },
     "v-model": options.model,
     "v-on:change": options.change,
   };
@@ -1191,19 +1180,22 @@ function createCompactFieldTemplate() {
   return createElement(
     "div",
     {
+      class: "create-vg-stub-field-row",
       "v-if": "field.compact && field.key !== 'metacriticScore'",
     },
     [
-      createFieldSeparatorTemplate("16px 0 12px"),
-      createFieldHeadingTemplate("6px"),
+      createFieldSeparatorTemplate("compact"),
       createElement(
         "div",
         {
-          style: {
-            display: "grid",
-            gap: "0",
-            marginBottom: "6px",
-          },
+          class: "create-vg-stub-field-label",
+        },
+        [createText("{{ field.heading || field.label }}")],
+      ),
+      createElement(
+        "div",
+        {
+          class: "create-vg-stub-field-controls",
         },
         [
           createElement("cdx-text-input", {
@@ -1266,20 +1258,24 @@ function createMetacriticScoreTemplate() {
  */
 function createStandardFieldTemplate() {
   return createElement(
-    "cdx-field",
+    "div",
     {
+      class: "create-vg-stub-field-row",
       "v-else-if": "!field.compact",
     },
     [
-      createFieldSeparatorTemplate("16px 0"),
-      createFieldHeadingTemplate("8px"),
+      createFieldSeparatorTemplate(),
       createElement(
         "div",
         {
-          style: {
-            display: "grid",
-            gap: "0",
-          },
+          class: "create-vg-stub-field-label",
+        },
+        [createText("{{ field.label }}")],
+      ),
+      createElement(
+        "div",
+        {
+          class: "create-vg-stub-field-controls",
         },
         [
           createOriginalLanguageTemplate(),
@@ -1306,13 +1302,6 @@ function createStandardFieldTemplate() {
           ),
         ],
       ),
-      createElement(
-        "template",
-        {
-          "v-slot:label": "",
-        },
-        [createText("{{ field.label }}")],
-      ),
     ],
   );
 }
@@ -1334,38 +1323,19 @@ function createOriginalLanguageTemplate() {
 /**
  * Creates a field separator template node.
  *
- * @param {string} margin - CSS margin value.
+ * @param {string} [variant] - Separator display variant.
  * @returns {object} Field separator template node.
  */
-function createFieldSeparatorTemplate(margin) {
+function createFieldSeparatorTemplate(variant) {
   return createElement("hr", {
-    style: {
-      border: "0",
-      borderTop: "1px solid #eaecf0",
-      margin,
-    },
+    class: [
+      "create-vg-stub-field-separator",
+      variant === "compact" ? "create-vg-stub-field-separator-compact" : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
     "v-if": "field.breakBefore",
   });
-}
-
-/**
- * Creates a field heading template node.
- *
- * @param {string} marginBottom - CSS margin-bottom value.
- * @returns {object} Field heading template node.
- */
-function createFieldHeadingTemplate(marginBottom) {
-  return createElement(
-    "div",
-    {
-      style: {
-        fontWeight: "600",
-        marginBottom,
-      },
-      "v-if": "field.heading",
-    },
-    [createText("{{ field.heading }}")],
-  );
 }
 
 /**

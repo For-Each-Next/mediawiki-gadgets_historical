@@ -32,6 +32,67 @@ import {
 
 const MOVE_TEXT_STORAGE_KEY = "create-vg-stub-move-text";
 const CITATION_PREFETCH_DELAY = 800;
+const DIALOG_CSS = `
+.create-vg-stub-tab-panel {
+  padding-top: 12px;
+}
+
+.create-vg-stub-field-row,
+.create-vg-stub-name-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 20%) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.create-vg-stub-field-row {
+  margin-bottom: 12px;
+}
+
+.create-vg-stub-field-separator {
+  border: 0;
+  border-top: 1px solid #eaecf0;
+  grid-column: 1 / -1;
+  margin: 16px 0;
+}
+
+.create-vg-stub-field-separator-compact {
+  margin: 16px 0 12px;
+}
+
+.create-vg-stub-name-row {
+  border-bottom: 1px solid #eaecf0;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+}
+
+.create-vg-stub-field-label {
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.create-vg-stub-field-controls,
+.create-vg-stub-name-controls {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.create-vg-stub-source-url textarea,
+textarea.create-vg-stub-source-url {
+  height: 32px;
+  min-height: 32px;
+  resize: vertical;
+}
+
+@media (max-width: 640px) {
+  .create-vg-stub-field-row,
+  .create-vg-stub-name-row {
+    grid-template-columns: 1fr;
+  }
+}
+`;
 
 /**
  * Stores normalized video game article parameters.
@@ -381,6 +442,15 @@ function createHost() {
   document.body.append(host);
 
   return host;
+}
+
+/**
+ * Adds dialog styles to the current page.
+ *
+ * @returns {void}
+ */
+function addDialogStyles() {
+  mw.util.addCSS(DIALOG_CSS);
 }
 
 /**
@@ -764,6 +834,9 @@ function init(require) {
   const Vue = require("vue");
   const Codex = require("@wikimedia/codex");
   const citationStore = createCitationStore();
+
+  addDialogStyles();
+
   const app = Vue.createMwApp(createDialogComponent(Vue, {
     citationPrefetchDelay: CITATION_PREFETCH_DELAY,
     defaultName: getDefaultName(),

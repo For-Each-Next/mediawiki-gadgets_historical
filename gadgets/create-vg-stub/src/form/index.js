@@ -5,6 +5,11 @@
  */
 
 import {
+  createManualCategoryRow,
+  resetCategoryRow as resetCategoryReviewRow,
+  updateCategoryRowCategory,
+} from "../categories.js";
+import {
   clearFormHistory,
   deleteFormHistoryEntry,
   readFormDraft,
@@ -51,8 +56,10 @@ class ArticleParameterGroup {
    * @param {string} label - English group heading.
    * @param {Array<ArticleParameterField>} fields - Group field metadata.
    * @param {string} [nameGroupKey] - Localized name row form key.
+   * @param {object} [options] - Group display options.
    */
-  constructor(key, label, fields, nameGroupKey) {
+  constructor(key, label, fields, nameGroupKey, options = {}) {
+    this.categoryReview = Boolean(options.categoryReview);
     this.fields = fields;
     this.key = key;
     this.label = label;
@@ -166,15 +173,9 @@ const ARTICLE_PARAMETER_GROUPS = [
         placeholder: "Localized title",
       },
     ),
-    new ArticleParameterField(
-      "sortKey",
-      "Sort key",
-      "sortKey",
-      null,
-      {
-        placeholder: "Leave blank to use the generated value",
-      },
-    ),
+    new ArticleParameterField("sortKey", "Sort key", "sortKey", null, {
+      placeholder: "Leave blank to use the generated value",
+    }),
     new ArticleParameterField(
       "metacriticPlatform",
       "Platform",
@@ -267,6 +268,9 @@ const ARTICLE_PARAMETER_GROUPS = [
   ]),
   new ArticleParameterGroup("officialNames", "Official", [], "officialNames"),
   new ArticleParameterGroup("commonNames", "Common", [], "commonNames"),
+  new ArticleParameterGroup("categories", "Categories", [], null, {
+    categoryReview: true,
+  }),
 ];
 
 /**
@@ -278,6 +282,7 @@ const ARTICLE_PARAMETER_GROUPS = [
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
  * @param {object} [options.initialForm] - Initial form values.
  * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
+ * @param {Function} options.onCategoryRowsRefresh - Category refresh handler.
  * @param {Function} options.onMoveTarget - New-page target opener.
  * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
  * @param {Function} options.onSubmit - Submit handler.
@@ -286,6 +291,10 @@ const ARTICLE_PARAMETER_GROUPS = [
 export function createDialogComponent(Vue, options) {
   const activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
   const form = Vue.reactive(createFormValues(options.defaultName));
+  const categoryState = Vue.reactive({
+    error: "",
+    loading: false,
+  });
   const historyEntries = Vue.ref(readFormHistoryEntries());
   const historyOpen = Vue.ref(false);
   const moveTarget = Vue.ref(options.defaultName);
@@ -303,13 +312,22 @@ export function createDialogComponent(Vue, options) {
 
   const queueCitationPrefetch = createCitationPrefetchQueue(options);
 
-  Vue.watch(form, (currentForm) => {
-    saveFormDraft(currentForm);
-    queueCitationPrefetch(currentForm);
-  }, {
-    deep: true,
-  });
+  Vue.watch(
+    form,
+    (currentForm) => {
+      saveFormDraft(currentForm);
+      queueCitationPrefetch(currentForm);
+    },
+    {
+      deep: true,
+    },
+  );
   queueCitationPrefetch(form);
+  Vue.watch(activeTab, (tab) => {
+    if (tab === "categories") {
+      refreshCategoryRows();
+    }
+  });
 
   window.createVgStubDialog = {
     open: openDialog.bind(null, open),
@@ -332,6 +350,7 @@ export function createDialogComponent(Vue, options) {
        * @returns {Promise<void>} Resolves after generated text is written.
        */
       async submitForm() {
+        await refreshCategoryRows();
         saveCurrentFormHistory(form, form.name);
         historyEntries.value = readFormHistoryEntries();
         await options.onSubmit(form, sourceFetchState, this.closeDialog);
@@ -414,6 +433,7 @@ export function createDialogComponent(Vue, options) {
        * @returns {Promise<void>} Resolves after navigation starts.
        */
       async submitMoveTarget() {
+        await refreshCategoryRows();
         saveCurrentFormHistory(form, moveTarget.value);
         historyEntries.value = readFormHistoryEntries();
         await options.onMoveTarget(form, moveTarget.value, sourceFetchState);
@@ -513,6 +533,61 @@ export function createDialogComponent(Vue, options) {
       removeBlankNameRows(key) {
         form[key] = form[key].filter(hasEnteredNameRowValue);
       },
+
+      /**
+       * Refreshes generated category rows.
+       *
+       * @returns {Promise<void>} Resolves after category rows are refreshed.
+       */
+      async refreshCategoryRows() {
+        await refreshCategoryRows();
+      },
+
+      /**
+       * Rebuilds category rows, bypassing the stored category query cache.
+       *
+       * @returns {Promise<void>} Resolves after category rows are rebuilt.
+       */
+      async rebuildCategoryRows() {
+        await refreshCategoryRows({
+          bypassCache: true,
+        });
+      },
+
+      /**
+       * Adds one manual category row.
+       *
+       * @returns {void}
+       */
+      addCategoryRow() {
+        form.categoryRows.push(createManualCategoryRow());
+      },
+
+      /**
+       * Resets one generated category row to its automatic value.
+       *
+       * @param {number} index - Category row index.
+       * @returns {void}
+       */
+      resetCategoryRow(index) {
+        form.categoryRows[index] = resetCategoryReviewRow(
+          form.categoryRows[index],
+        );
+      },
+
+      /**
+       * Updates one category row title and its modified marker.
+       *
+       * @param {number} index - Category row index.
+       * @param {string} category - New category title.
+       * @returns {void}
+       */
+      updateCategoryRowCategory(index, category) {
+        form.categoryRows[index] = updateCategoryRowCategory(
+          form.categoryRows[index],
+          category,
+        );
+      },
     },
     /**
      * Exposes dialog state and actions to the template.
@@ -522,6 +597,7 @@ export function createDialogComponent(Vue, options) {
     setup() {
       return {
         activeTab,
+        categoryState,
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
         getArticleField,
@@ -537,6 +613,15 @@ export function createDialogComponent(Vue, options) {
     },
     template: createDialogTemplate(),
   };
+
+  /**
+   * Refreshes category rows through the owning module.
+   *
+   * @returns {Promise<void>} Resolves after rows are refreshed.
+   */
+  async function refreshCategoryRows(refreshOptions) {
+    await options.onCategoryRowsRefresh(form, categoryState, refreshOptions);
+  }
 }
 
 /**
@@ -817,25 +902,21 @@ function createHistoryEntryTemplate() {
       },
     },
     [
-      createElement(
-        "div",
-        {},
-        [
-          createElement("div", {}, [
-            createText("{{ index + 1 }}. {{ entry.page }}"),
-          ]),
-          createElement(
-            "div",
-            {
-              style: {
-                color: "#54595d",
-                fontSize: "12px",
-              },
+      createElement("div", {}, [
+        createElement("div", {}, [
+          createText("{{ index + 1 }}. {{ entry.page }}"),
+        ]),
+        createElement(
+          "div",
+          {
+            style: {
+              color: "#54595d",
+              fontSize: "12px",
             },
-            [createText("{{ entry.savedAt }}")],
-          ),
-        ],
-      ),
+          },
+          [createText("{{ entry.savedAt }}")],
+        ),
+      ]),
       createElement(
         "cdx-button",
         {
@@ -1006,9 +1087,117 @@ function createTabsTemplate() {
             {
               class: "create-vg-stub-tab-panel",
             },
-            [createNameGroupTemplate(), createFieldGroupTemplate()],
+            [
+              createCategoryGroupTemplate(),
+              createNameGroupTemplate(),
+              createFieldGroupTemplate(),
+            ],
           ),
         ],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the category review grid template node.
+ *
+ * @returns {object} Category review grid node.
+ */
+function createCategoryGroupTemplate() {
+  return createElement(
+    "template",
+    {
+      "v-if": "group.categoryReview",
+    },
+    [
+      createElement(
+        "div",
+        {
+          class: "create-vg-stub-category-grid",
+        },
+        [createCategoryRowTemplate()],
+      ),
+      createElement(
+        "p",
+        {
+          class: "create-vg-stub-error",
+          "v-if": "categoryState.error",
+        },
+        [createText("{{ categoryState.error }}")],
+      ),
+      createActionFooterTemplate([
+        createElement(
+          "cdx-button",
+          {
+            "v-bind:disabled": "categoryState.loading",
+            "v-on:click": "addCategoryRow",
+          },
+          [createText("Add")],
+        ),
+        createElement(
+          "cdx-button",
+          {
+            action: "progressive",
+            "v-bind:disabled": "categoryState.loading",
+            "v-on:click": "refreshCategoryRows",
+          },
+          [
+            createText(
+              "{{ categoryState.loading ? 'Checking' : 'Check categories' }}",
+            ),
+          ],
+        ),
+        createElement(
+          "cdx-button",
+          {
+            action: "progressive",
+            "v-bind:disabled": "categoryState.loading",
+            "v-on:click": "rebuildCategoryRows",
+            weight: "primary",
+          },
+          [
+            createText(
+              "{{ categoryState.loading ? 'Rebuilding' : 'Rebuild' }}",
+            ),
+          ],
+        ),
+      ]),
+    ],
+  );
+}
+
+/**
+ * Creates category row template nodes.
+ *
+ * @returns {object} Category rows template node.
+ */
+function createCategoryRowTemplate() {
+  return createElement(
+    "template",
+    {
+      "v-bind:key": "index",
+      "v-for": "(row, index) in form.categoryRows",
+    },
+    [
+      createElement("cdx-checkbox", {
+        "v-model": "row.enabled",
+      }),
+      createElement("cdx-text-input", {
+        readonly: "",
+        "v-model": "row.source",
+      }),
+      createElement("cdx-text-input", {
+        "v-bind:model-value": "row.category",
+        "v-on:update:model-value": "updateCategoryRowCategory(index, $event)",
+      }),
+      createElement(
+        "cdx-button",
+        {
+          "v-bind:disabled": "row.source === 'manual'",
+          "v-on:click": "resetCategoryRow(index)",
+        },
+        [createText("↺")],
       ),
     ],
   );
@@ -1181,7 +1370,7 @@ function createFieldGroupTemplate() {
   return createElement(
     "template",
     {
-      "v-else": "",
+      "v-if": "!group.categoryReview && !group.nameGroupKey",
     },
     [
       createElement(
@@ -1518,6 +1707,7 @@ function createFormValues(defaultName) {
         getEmptyFieldValue,
       ),
     ),
+    categoryRows: [],
     commonNames: [createNameRow(), createNameRow()],
     name: defaultName,
     officialNames: [createNameRow(["hans"]), createNameRow(["hant"])],

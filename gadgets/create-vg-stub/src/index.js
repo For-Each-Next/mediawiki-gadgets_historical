@@ -4,6 +4,11 @@
  * Mounts the create-vg-stub gadget and builds generated article wikitext.
  */
 
+import {
+  buildFallbackCategoryRows,
+  buildCategoryLinks,
+  buildCategoryRows,
+} from "./categories.js";
 import { fetchCiteTemplate } from "./citations.js";
 import {
   buildNameSourceReferenceKey,
@@ -13,11 +18,7 @@ import {
   splitSourceUrls,
   trimFieldValue,
 } from "./form/index.js";
-import {
-  buildCategoryLink,
-  buildTemplateCall,
-  uniqueValues,
-} from "./utils.js";
+import { buildTemplateCall, uniqueValues } from "./utils.js";
 import {
   buildAggScoresText,
   buildCompanyMetadata,
@@ -31,6 +32,7 @@ import {
 } from "./wikitext/index.js";
 
 const MOVE_TEXT_STORAGE_KEY = "create-vg-stub-move-text";
+const CATEGORY_CACHE_STORAGE_PREFIX = "create-vg-stub-category-cache:";
 const CITATION_PREFETCH_DELAY = 800;
 const DIALOG_CSS = `
 .create-vg-stub-tab-panel {
@@ -87,6 +89,17 @@ textarea.create-vg-stub-source-url {
   resize: vertical;
 }
 
+.create-vg-stub-category-grid {
+  display: grid;
+  grid-template-columns: auto minmax(5rem, 0.6fr) minmax(12rem, 1.6fr) auto;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.create-vg-stub-error {
+  color: #d73333;
+}
+
 @media (max-width: 640px) {
   .create-vg-stub-field-row,
   .create-vg-stub-name-row {
@@ -114,6 +127,7 @@ class VideoGameArticleParams {
    * @param {string} form.originalName - Original game title.
    * @param {string} form.sortKey - Category sort key.
    * @param {Array<object>} [form.commonNames] - Common localized name rows.
+   * @param {Array<object>} [form.categoryRows] - Reviewed category rows.
    * @param {Array<object>} [form.officialNames] - Official localized name rows.
    * @param {string} form.platforms - Platform names.
    * @param {string} form.publishers - Publisher names.
@@ -192,6 +206,7 @@ class VideoGameArticleParams {
       sourceTag: joinSourceTags(this.sourceTags, ["year", "genres"]),
       year: this.year,
     });
+    this.categoryRows = form.categoryRows || [];
   }
 }
 
@@ -202,7 +217,8 @@ class VideoGameArticleParams {
  */
 function isNewPageEdit() {
   return (
-    isEditAction(mw.config.get("wgAction")) && mw.config.get("wgArticleId") === 0
+    isEditAction(mw.config.get("wgAction")) &&
+    mw.config.get("wgArticleId") === 0
   );
 }
 
@@ -378,19 +394,27 @@ function buildFullReferenceText(reference) {
  * @returns {string} Category wikitext.
  */
 function buildCategoryText(params) {
-  const categoryText = uniqueValues([
-    ...params.companyMetadata.categories,
-    ...params.platformSeriesMetadata.categories,
-    ...params.yearGenreMetadata.categories,
-  ])
-    .map(buildCategoryLink)
-    .join("\n");
+  const categoryText = getCategoryLinks(params).join("\n");
 
   if (categoryText === "") {
     return "";
   }
 
   return `${params.defaultSortText}\n${categoryText}`;
+}
+
+/**
+ * Gets category links from reviewed rows or generated metadata.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @returns {Array<string>} Category links.
+ */
+function getCategoryLinks(params) {
+  if (params.categoryRows.length > 0) {
+    return buildCategoryLinks(params.categoryRows);
+  }
+
+  return buildCategoryLinks(buildFallbackCategoryRows(params));
 }
 
 /**
@@ -543,6 +567,48 @@ async function buildStubTextFromForm(form, citationStore) {
 }
 
 /**
+ * Refreshes reviewed category rows from current generated metadata.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {object} categoryState - Category refresh status state.
+ * @param {object} categoryCache - Category resolution cache.
+ * @returns {Promise<void>} Resolves after category rows are refreshed.
+ */
+async function refreshFormCategoryRows(
+  form,
+  categoryState,
+  categoryStore,
+  options = {},
+) {
+  categoryState.error = "";
+  categoryState.loading = true;
+
+  try {
+    if (options.bypassCache) {
+      categoryStore.clear();
+    }
+
+    form.categoryRows = await buildCategoryRows(
+      form,
+      createArticleParams({
+        ...form,
+        categoryRows: [],
+      }),
+      form.categoryRows,
+      {
+        bypassCache: options.bypassCache,
+        cache: categoryStore.cache,
+      },
+    );
+    categoryStore.save();
+  } catch (error) {
+    categoryState.error = error.message;
+  } finally {
+    categoryState.loading = false;
+  }
+}
+
+/**
  * Fetches citations for entered source URLs.
  *
  * @param {object} form - Dialog form values.
@@ -639,6 +705,82 @@ function createCitationStore() {
       this.fetch(url).catch(() => {});
     },
   };
+}
+
+/**
+ * Creates a per-page category resolution cache backed by localStorage.
+ *
+ * @returns {object} Category cache store.
+ */
+function createCategoryCacheStore() {
+  const storageKey = `${CATEGORY_CACHE_STORAGE_PREFIX}${getPageName()}`;
+  const cache = readJsonStorage(storageKey) || {};
+
+  return {
+    cache,
+
+    /**
+     * Clears cached category resolutions for the current page.
+     *
+     * @returns {void}
+     */
+    clear() {
+      Object.keys(cache).forEach((key) => {
+        delete cache[key];
+      });
+      removeStorageItem(storageKey);
+    },
+
+    /**
+     * Saves cached category resolutions for the current page.
+     *
+     * @returns {void}
+     */
+    save() {
+      writeJsonStorage(storageKey, cache);
+    },
+  };
+}
+
+/**
+ * Reads a JSON value from localStorage.
+ *
+ * @param {string} key - Storage key.
+ * @returns {object|undefined} Stored value.
+ */
+function readJsonStorage(key) {
+  try {
+    const value = localStorage.getItem(key);
+
+    return value == null ? undefined : JSON.parse(value);
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+/**
+ * Writes a JSON value to localStorage.
+ *
+ * @param {string} key - Storage key.
+ * @param {object} value - Value to store.
+ * @returns {void}
+ */
+function writeJsonStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (_error) {}
+}
+
+/**
+ * Removes one value from localStorage.
+ *
+ * @param {string} key - Storage key.
+ * @returns {void}
+ */
+function removeStorageItem(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (_error) {}
 }
 
 /**
@@ -801,7 +943,9 @@ function getMovedEdit() {
 
   const pending = JSON.parse(item);
 
-  if (normalizePageTitle(pending.title) !== normalizePageTitle(getPageName())) {
+  if (
+    normalizePageTitle(pending.title) !== normalizePageTitle(getPageName())
+  ) {
     return undefined;
   }
 
@@ -836,19 +980,29 @@ function normalizePageTitle(title) {
 function init(require) {
   const Vue = require("vue");
   const Codex = require("@wikimedia/codex");
+  const categoryStore = createCategoryCacheStore();
   const citationStore = createCitationStore();
 
   addDialogStyles();
 
-  const app = Vue.createMwApp(createDialogComponent(Vue, {
-    citationPrefetchDelay: CITATION_PREFETCH_DELAY,
-    defaultName: getDefaultName(),
-    getFieldPlaceholder,
-    initialForm: getMovedForm(),
-    onMoveTarget: (...args) => openTargetPage(...args, citationStore),
-    onSourceUrlChange: (url) => citationStore.prefetch(url),
-    onSubmit: (...args) => submitForm(...args, citationStore),
-  }));
+  const app = Vue.createMwApp(
+    createDialogComponent(Vue, {
+      citationPrefetchDelay: CITATION_PREFETCH_DELAY,
+      defaultName: getDefaultName(),
+      getFieldPlaceholder,
+      initialForm: getMovedForm(),
+      onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
+        refreshFormCategoryRows(
+          form,
+          categoryState,
+          categoryStore,
+          refreshOptions,
+        ),
+      onMoveTarget: (...args) => openTargetPage(...args, citationStore),
+      onSourceUrlChange: (url) => citationStore.prefetch(url),
+      onSubmit: (...args) => submitForm(...args, citationStore),
+    }),
+  );
 
   app.component("CdxDialog", Codex.CdxDialog);
   app.component("CdxButton", Codex.CdxButton);
@@ -864,10 +1018,12 @@ function init(require) {
 }
 
 if (isNewPageEdit()) {
-  mw.loader.using([
-    "mediawiki.util",
-    "jquery.textSelection",
-    "vue",
-    "@wikimedia/codex",
-  ]).then(init);
+  mw.loader
+    .using([
+      "mediawiki.util",
+      "jquery.textSelection",
+      "vue",
+      "@wikimedia/codex",
+    ])
+    .then(init);
 }

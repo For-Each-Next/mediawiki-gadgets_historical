@@ -6,6 +6,7 @@
 
 import {
   FIELD_REFERENCE_DATA,
+  buildTemplateCall,
   getSourceReference,
   splitFieldValues,
   uniqueValues,
@@ -157,6 +158,54 @@ export function buildFallbackCategoryRows(params) {
  */
 export function buildCategoryLinks(rows) {
   return rows.filter(isRenderableCategoryRow).map(buildCategoryLink);
+}
+
+/**
+ * Builds category wikitext from accepted article metadata.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {string} params.defaultSortText - DEFAULTSORT wikitext.
+ * @param {Array<object>} params.categoryRows - Reviewed category rows.
+ * @returns {string} Category wikitext.
+ */
+export function buildCategoryText(params) {
+  const categoryText = getCategoryLinks(params).join("\n");
+
+  if (categoryText === "") {
+    return "";
+  }
+
+  return `${params.defaultSortText}\n${categoryText}`;
+}
+
+/**
+ * Gets category links from reviewed rows or generated metadata.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @returns {Array<string>} Category links.
+ */
+export function getCategoryLinks(params) {
+  if (params.categoryRows.length > 0) {
+    return buildCategoryLinks(params.categoryRows);
+  }
+
+  return buildCategoryLinks(buildFallbackCategoryRows(params));
+}
+
+/**
+ * Builds stub tag wikitext from accepted article metadata.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @returns {string} Stub tag wikitext.
+ */
+export function buildStubTagText(params) {
+  return uniqueValues([
+    ...params.companyMetadata.stubTags,
+    ...params.platformSeriesMetadata.stubTags,
+    ...params.yearGenreMetadata.stubTags,
+  ])
+    .map(buildTemplateCall)
+    .join("\n");
 }
 
 /**

@@ -5,20 +5,32 @@
  */
 
 import {
-  buildFallbackCategoryRows,
-  buildCategoryLinks,
   buildCategoryRows,
+  buildCategoryText,
+  buildStubTagText,
+  createManualCategoryRow,
+  resetCategoryRow,
+  updateCategoryRowCategory,
 } from "./categories.js";
 import { fetchCiteTemplate } from "./citations.js";
 import {
+  addDialogStyles,
   buildNameSourceReferenceKey,
   createDialogComponent,
   getEnteredNameSourceReferenceFields,
   SOURCE_REFERENCE_FIELDS,
   splitSourceUrls,
   trimFieldValue,
-} from "./form/index.js";
-import { buildTemplateCall, uniqueValues } from "./utils.js";
+} from "./interface.js";
+import {
+  clearFormHistory,
+  deleteFormHistoryEntry,
+  readFormDraft,
+  readFormDraftEntry,
+  readFormHistory,
+  saveFormDraft,
+  saveFormHistory,
+} from "./history.js";
 import {
   buildAggScoresText,
   buildCompanyMetadata,
@@ -34,79 +46,6 @@ import {
 const MOVE_TEXT_STORAGE_KEY = "create-vg-stub-move-text";
 const CATEGORY_CACHE_STORAGE_PREFIX = "create-vg-stub-category-cache:";
 const CITATION_PREFETCH_DELAY = 800;
-const DIALOG_CSS = `
-.create-vg-stub-tab-panel {
-  padding-top: 12px;
-}
-
-.create-vg-stub-field-row,
-.create-vg-stub-name-row {
-  display: grid;
-  gap: 12px;
-  align-items: center;
-}
-
-.create-vg-stub-field-row {
-  grid-template-columns: 4rem minmax(0, 1fr);
-  margin-bottom: 12px;
-}
-
-.create-vg-stub-field-separator {
-  border: 0;
-  border-top: 1px solid #eaecf0;
-  grid-column: 1 / -1;
-  margin: 16px 0;
-}
-
-.create-vg-stub-field-separator-compact {
-  margin: 16px 0 12px;
-}
-
-.create-vg-stub-name-row {
-  border-bottom: 1px solid #eaecf0;
-  grid-template-columns: minmax(0, 1fr);
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-}
-
-.create-vg-stub-field-label {
-  font-weight: 600;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.create-vg-stub-field-controls,
-.create-vg-stub-name-controls {
-  display: grid;
-  gap: 0;
-  min-width: 0;
-}
-
-.create-vg-stub-source-url textarea,
-textarea.create-vg-stub-source-url {
-  height: 32px;
-  min-height: 32px;
-  resize: vertical;
-}
-
-.create-vg-stub-category-grid {
-  display: grid;
-  grid-template-columns: auto minmax(5rem, 0.6fr) minmax(12rem, 1.6fr) auto;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
-.create-vg-stub-error {
-  color: #d73333;
-}
-
-@media (max-width: 640px) {
-  .create-vg-stub-field-row,
-  .create-vg-stub-name-row {
-    grid-template-columns: 1fr;
-  }
-}
-`;
 
 /**
  * Stores normalized video game article parameters.
@@ -385,58 +324,6 @@ function buildFullReferenceText(reference) {
 }
 
 /**
- * Builds category wikitext from accepted article metadata.
- *
- * @param {object} params - Normalized article parameters.
- * @param {object} params.companyMetadata - Company text and metadata.
- * @param {object} params.platformSeriesMetadata - Platform and series text and metadata.
- * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
- * @returns {string} Category wikitext.
- */
-function buildCategoryText(params) {
-  const categoryText = getCategoryLinks(params).join("\n");
-
-  if (categoryText === "") {
-    return "";
-  }
-
-  return `${params.defaultSortText}\n${categoryText}`;
-}
-
-/**
- * Gets category links from reviewed rows or generated metadata.
- *
- * @param {object} params - Normalized article parameters.
- * @returns {Array<string>} Category links.
- */
-function getCategoryLinks(params) {
-  if (params.categoryRows.length > 0) {
-    return buildCategoryLinks(params.categoryRows);
-  }
-
-  return buildCategoryLinks(buildFallbackCategoryRows(params));
-}
-
-/**
- * Builds stub tag wikitext from accepted article metadata.
- *
- * @param {object} params - Normalized article parameters.
- * @param {object} params.companyMetadata - Company text and metadata.
- * @param {object} params.platformSeriesMetadata - Platform and series text and metadata.
- * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
- * @returns {string} Stub tag wikitext.
- */
-function buildStubTagText(params) {
-  return uniqueValues([
-    ...params.companyMetadata.stubTags,
-    ...params.platformSeriesMetadata.stubTags,
-    ...params.yearGenreMetadata.stubTags,
-  ])
-    .map(buildTemplateCall)
-    .join("\n");
-}
-
-/**
  * Replaces the MediaWiki edit textarea with generated wikitext.
  *
  * @param {string} text - Generated wikitext to place in the editor.
@@ -467,15 +354,6 @@ function createHost() {
   document.body.append(host);
 
   return host;
-}
-
-/**
- * Adds dialog styles to the current page.
- *
- * @returns {void}
- */
-function addDialogStyles() {
-  mw.util.addCSS(DIALOG_CSS);
 }
 
 /**
@@ -606,6 +484,32 @@ async function refreshFormCategoryRows(
   } finally {
     categoryState.loading = false;
   }
+}
+
+/**
+ * Saves the current form data with a target page title.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} page - Target page title.
+ * @returns {void}
+ */
+function saveCurrentFormHistory(form, page) {
+  saveFormHistory(
+    {
+      ...form,
+      name: page,
+    },
+    page,
+  );
+}
+
+/**
+ * Reads explicit history entries plus the temporary draft.
+ *
+ * @returns {Array<object>} Form history manager entries.
+ */
+function readFormHistoryEntries() {
+  return [readFormDraftEntry(), ...readFormHistory()].filter(Boolean);
 }
 
 /**
@@ -989,8 +893,9 @@ function init(require) {
     createDialogComponent(Vue, {
       citationPrefetchDelay: CITATION_PREFETCH_DELAY,
       defaultName: getDefaultName(),
+      getHistoryEntries: readFormHistoryEntries,
       getFieldPlaceholder,
-      initialForm: getMovedForm(),
+      initialForm: getMovedForm() || readFormDraft(),
       onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
         refreshFormCategoryRows(
           form,
@@ -998,9 +903,16 @@ function init(require) {
           categoryStore,
           refreshOptions,
         ),
+      onClearHistory: clearFormHistory,
+      onCreateCategoryRow: createManualCategoryRow,
+      onDeleteHistoryEntry: deleteFormHistoryEntry,
+      onFormChange: saveFormDraft,
       onMoveTarget: (...args) => openTargetPage(...args, citationStore),
+      onResetCategoryRow: resetCategoryRow,
       onSourceUrlChange: (url) => citationStore.prefetch(url),
       onSubmit: (...args) => submitForm(...args, citationStore),
+      onSubmitHistory: saveCurrentFormHistory,
+      onUpdateCategoryRowCategory: updateCategoryRowCategory,
     }),
   );
 

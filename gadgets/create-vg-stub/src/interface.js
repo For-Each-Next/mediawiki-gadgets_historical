@@ -4,21 +4,79 @@
  * Builds the create-vg-stub dialog form.
  */
 
-import {
-  createManualCategoryRow,
-  resetCategoryRow as resetCategoryReviewRow,
-  updateCategoryRowCategory,
-} from "../categories.js";
-import {
-  clearFormHistory,
-  deleteFormHistoryEntry,
-  readFormDraft,
-  readFormDraftEntry,
-  readFormHistory,
-  replaceFormValues,
-  saveFormDraft,
-  saveFormHistory,
-} from "./history.js";
+const DIALOG_CSS = `
+.create-vg-stub-tab-panel {
+  padding-top: 12px;
+}
+
+.create-vg-stub-field-row,
+.create-vg-stub-name-row {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+}
+
+.create-vg-stub-field-row {
+  grid-template-columns: 4rem minmax(0, 1fr);
+  margin-bottom: 12px;
+}
+
+.create-vg-stub-field-separator {
+  border: 0;
+  border-top: 1px solid #eaecf0;
+  grid-column: 1 / -1;
+  margin: 16px 0;
+}
+
+.create-vg-stub-field-separator-compact {
+  margin: 16px 0 12px;
+}
+
+.create-vg-stub-name-row {
+  border-bottom: 1px solid #eaecf0;
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+}
+
+.create-vg-stub-field-label {
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.create-vg-stub-field-controls,
+.create-vg-stub-name-controls {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.create-vg-stub-source-url textarea,
+textarea.create-vg-stub-source-url {
+  height: 32px;
+  min-height: 32px;
+  resize: vertical;
+}
+
+.create-vg-stub-category-grid {
+  display: grid;
+  grid-template-columns: auto minmax(5rem, 0.6fr) minmax(12rem, 1.6fr) auto;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.create-vg-stub-error {
+  color: #d73333;
+}
+
+@media (max-width: 640px) {
+  .create-vg-stub-field-row,
+  .create-vg-stub-name-row {
+    grid-template-columns: 1fr;
+  }
+}
+`;
 
 /**
  * Describes a reusable article parameter input.
@@ -274,6 +332,15 @@ const ARTICLE_PARAMETER_GROUPS = [
 ];
 
 /**
+ * Adds dialog styles to the current page.
+ *
+ * @returns {void}
+ */
+export function addDialogStyles() {
+  mw.util.addCSS(DIALOG_CSS);
+}
+
+/**
  * Creates the Vue component definition for the Codex dialog.
  *
  * @param {object} Vue - ResourceLoader Vue module.
@@ -282,10 +349,18 @@ const ARTICLE_PARAMETER_GROUPS = [
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
  * @param {object} [options.initialForm] - Initial form values.
  * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
+ * @param {Function} options.getHistoryEntries - Form history entry provider.
  * @param {Function} options.onCategoryRowsRefresh - Category refresh handler.
+ * @param {Function} options.onClearHistory - Form history clear handler.
+ * @param {Function} options.onCreateCategoryRow - Category row factory.
+ * @param {Function} options.onDeleteHistoryEntry - Form history delete handler.
+ * @param {Function} options.onFormChange - Form change handler.
  * @param {Function} options.onMoveTarget - New-page target opener.
+ * @param {Function} options.onResetCategoryRow - Category row reset handler.
  * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
  * @param {Function} options.onSubmit - Submit handler.
+ * @param {Function} options.onSubmitHistory - Form history submit handler.
+ * @param {Function} options.onUpdateCategoryRowCategory - Category title update handler.
  * @returns {object} Vue component options.
  */
 export function createDialogComponent(Vue, options) {
@@ -295,7 +370,7 @@ export function createDialogComponent(Vue, options) {
     error: "",
     loading: false,
   });
-  const historyEntries = Vue.ref(readFormHistoryEntries());
+  const historyEntries = Vue.ref(options.getHistoryEntries());
   const historyOpen = Vue.ref(false);
   const moveTarget = Vue.ref(options.defaultName);
   const moveOpen = Vue.ref(false);
@@ -304,7 +379,7 @@ export function createDialogComponent(Vue, options) {
     loading: false,
   });
   const open = Vue.ref(false);
-  const initialForm = options.initialForm || readFormDraft();
+  const initialForm = options.initialForm;
 
   if (initialForm != null) {
     replaceFormValues(form, initialForm);
@@ -315,7 +390,7 @@ export function createDialogComponent(Vue, options) {
   Vue.watch(
     form,
     (currentForm) => {
-      saveFormDraft(currentForm);
+      options.onFormChange(currentForm);
       queueCitationPrefetch(currentForm);
     },
     {
@@ -351,8 +426,8 @@ export function createDialogComponent(Vue, options) {
        */
       async submitForm() {
         await refreshCategoryRows();
-        saveCurrentFormHistory(form, form.name);
-        historyEntries.value = readFormHistoryEntries();
+        options.onSubmitHistory(form, form.name);
+        historyEntries.value = options.getHistoryEntries();
         await options.onSubmit(form, sourceFetchState, this.closeDialog);
       },
 
@@ -362,7 +437,7 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       openHistoryDialog() {
-        historyEntries.value = readFormHistoryEntries();
+        historyEntries.value = options.getHistoryEntries();
         historyOpen.value = true;
       },
 
@@ -394,8 +469,8 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       deleteHistoryEntry(id) {
-        deleteFormHistoryEntry(id);
-        historyEntries.value = readFormHistoryEntries();
+        options.onDeleteHistoryEntry(id);
+        historyEntries.value = options.getHistoryEntries();
       },
 
       /**
@@ -404,8 +479,8 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       clearHistory() {
-        clearFormHistory();
-        historyEntries.value = readFormHistoryEntries();
+        options.onClearHistory();
+        historyEntries.value = options.getHistoryEntries();
       },
 
       /**
@@ -434,8 +509,8 @@ export function createDialogComponent(Vue, options) {
        */
       async submitMoveTarget() {
         await refreshCategoryRows();
-        saveCurrentFormHistory(form, moveTarget.value);
-        historyEntries.value = readFormHistoryEntries();
+        options.onSubmitHistory(form, moveTarget.value);
+        historyEntries.value = options.getHistoryEntries();
         await options.onMoveTarget(form, moveTarget.value, sourceFetchState);
       },
 
@@ -560,7 +635,7 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       addCategoryRow() {
-        form.categoryRows.push(createManualCategoryRow());
+        form.categoryRows.push(options.onCreateCategoryRow());
       },
 
       /**
@@ -570,9 +645,7 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       resetCategoryRow(index) {
-        form.categoryRows[index] = resetCategoryReviewRow(
-          form.categoryRows[index],
-        );
+        form.categoryRows[index] = options.onResetCategoryRow(form.categoryRows[index]);
       },
 
       /**
@@ -583,7 +656,7 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       updateCategoryRowCategory(index, category) {
-        form.categoryRows[index] = updateCategoryRowCategory(
+        form.categoryRows[index] = options.onUpdateCategoryRowCategory(
           form.categoryRows[index],
           category,
         );
@@ -622,23 +695,6 @@ export function createDialogComponent(Vue, options) {
   async function refreshCategoryRows(refreshOptions) {
     await options.onCategoryRowsRefresh(form, categoryState, refreshOptions);
   }
-}
-
-/**
- * Saves the current form data with a target page title.
- *
- * @param {object} form - Dialog form values.
- * @param {string} page - Target page title.
- * @returns {void}
- */
-function saveCurrentFormHistory(form, page) {
-  saveFormHistory(
-    {
-      ...form,
-      name: page,
-    },
-    page,
-  );
 }
 
 /**
@@ -702,15 +758,6 @@ function getEnteredSourceUrls(form) {
  */
 function uniqueFieldValues(values) {
   return [...new Set(values.map(trimFieldValue))];
-}
-
-/**
- * Reads explicit history entries plus the temporary draft.
- *
- * @returns {Array<object>} Form history manager entries.
- */
-function readFormHistoryEntries() {
-  return [readFormDraftEntry(), ...readFormHistory()].filter(Boolean);
 }
 
 /**
@@ -1913,6 +1960,30 @@ export function getEnteredNameSourceReferenceFields(form) {
  */
 export function buildNameSourceReferenceKey(key, index) {
   return `${key}.${index}`;
+}
+
+/**
+ * Replaces a reactive form object with received form values.
+ *
+ * @param {object} form - Reactive form object.
+ * @param {object} values - Received form values.
+ * @returns {void}
+ */
+function replaceFormValues(form, values) {
+  Object.keys(form).forEach((key) => {
+    delete form[key];
+  });
+  Object.assign(form, cloneValue(values));
+}
+
+/**
+ * Clones a plain JSON-compatible value.
+ *
+ * @param {*} value - Value to clone.
+ * @returns {*} Cloned value.
+ */
+function cloneValue(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 /**

@@ -150,20 +150,6 @@ export function clearFormHistory() {
 }
 
 /**
- * Replaces a reactive form object with stored form values.
- *
- * @param {object} form - Reactive form object.
- * @param {object} values - Stored form values.
- * @returns {void}
- */
-export function replaceFormValues(form, values) {
-  Object.keys(form).forEach((key) => {
-    delete form[key];
-  });
-  Object.assign(form, cloneValue(values));
-}
-
-/**
  * Creates one form history entry.
  *
  * @param {object} form - Dialog form values.

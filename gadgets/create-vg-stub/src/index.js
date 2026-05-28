@@ -37,7 +37,9 @@ import {
   buildLeadNameText,
   buildNoteTaText,
 } from "./fragments/index.js";
+import { buildEditSummary } from "./edit-summary.js";
 import { fetchEnwikiMetadata } from "./crosswiki.js";
+import { countGeneratedProseSinographs } from "./prose-count.js";
 import {
   buildCompanyMetadata,
   buildPlatformSeriesMetadata,
@@ -291,6 +293,23 @@ function writeEditText(text) {
 }
 
 /**
+ * Replaces the MediaWiki edit summary with generated text.
+ *
+ * @param {string} summary - Generated edit summary.
+ * @returns {void}
+ */
+function writeEditSummary(summary) {
+  const summaryInput = document.getElementById("wpSummary");
+
+  if (summaryInput == null) {
+    return;
+  }
+
+  summaryInput.value = summary;
+  $(summaryInput).trigger("input").trigger("change");
+}
+
+/**
  * Creates the DOM host used by the Vue application.
  *
  * @returns {HTMLElement} Element appended to the document body.
@@ -372,7 +391,10 @@ async function submitForm(form, sourceFetchState, closeDialog, citationStore) {
   sourceFetchState.loading = true;
 
   try {
-    writeEditText(await buildStubTextFromForm(form, citationStore));
+    const stub = await buildStubFromForm(form, citationStore);
+
+    writeEditText(stub.text);
+    writeEditSummary(buildEditSummary(createEditSummaryMetadata(form, stub)));
     closeDialog();
   } catch (error) {
     sourceFetchState.error = error.message;
@@ -389,12 +411,59 @@ async function submitForm(form, sourceFetchState, closeDialog, citationStore) {
  * @returns {Promise<string>} Generated stub wikitext.
  */
 async function buildStubTextFromForm(form, citationStore) {
-  return buildStubText(
-    createArticleParams({
-      ...form,
-      sourceReferences: await fetchSourceReferences(form, citationStore),
-    }),
-  );
+  return (await buildStubFromForm(form, citationStore)).text;
+}
+
+/**
+ * Builds generated wikitext and metadata from dialog form values.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {object} citationStore - Citation fetch/cache store.
+ * @returns {Promise<object>} Generated stub text and article parameters.
+ */
+async function buildStubFromForm(form, citationStore) {
+  const params = createArticleParams({
+    ...form,
+    sourceReferences: await fetchSourceReferences(form, citationStore),
+  });
+
+  return {
+    params,
+    text: buildStubText(params),
+  };
+}
+
+/**
+ * Creates edit summary metadata from dialog form values.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} form.englishName - English game title.
+ * @param {string} form.originalName - Original game title.
+ * @param {string} form.wikidataId - Wikidata item ID.
+ * @param {string} form.year - Release year.
+ * @param {object} stub - Generated stub data.
+ * @param {object} stub.params - Article parameters.
+ * @returns {object} Edit summary metadata.
+ */
+function createEditSummaryMetadata(form, stub) {
+  return {
+    displayName: getEditSummaryDisplayName(form),
+    proseSinographs: countGeneratedProseSinographs(stub.params),
+    wikidataId: trimFieldValue(form.wikidataId),
+    year: trimFieldValue(form.year),
+  };
+}
+
+/**
+ * Gets the title shown in the edit summary Wikidata link.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} form.englishName - English game title.
+ * @param {string} form.originalName - Original game title.
+ * @returns {string} Summary display title.
+ */
+function getEditSummaryDisplayName(form) {
+  return trimFieldValue(form.originalName) || trimFieldValue(form.englishName);
 }
 
 /**
@@ -734,20 +803,18 @@ async function openTargetPage(form, title, sourceFetchState, citationStore) {
   sourceFetchState.loading = true;
 
   try {
+    const targetForm = {
+      ...form,
+      name: targetTitle,
+    };
+    const stub = await buildStubFromForm(targetForm, citationStore);
+
     sessionStorage.setItem(
       MOVE_TEXT_STORAGE_KEY,
       JSON.stringify({
-        form: {
-          ...form,
-          name: targetTitle,
-        },
-        text: await buildStubTextFromForm(
-          {
-            ...form,
-            name: targetTitle,
-          },
-          citationStore,
-        ),
+        form: targetForm,
+        text: stub.text,
+        summaryMetadata: createEditSummaryMetadata(targetForm, stub),
         title: targetTitle,
       }),
     );
@@ -774,6 +841,7 @@ function restoreMovedEditText() {
   }
 
   writeEditText(pending.text);
+  writeEditSummary(buildEditSummary(pending.summaryMetadata || {}));
   sessionStorage.removeItem(MOVE_TEXT_STORAGE_KEY);
 }
 

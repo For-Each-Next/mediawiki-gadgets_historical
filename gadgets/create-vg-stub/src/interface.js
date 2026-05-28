@@ -61,9 +61,26 @@ textarea.create-vg-stub-source-url {
 
 .create-vg-stub-category-grid {
   display: grid;
-  grid-template-columns: auto minmax(5rem, 0.6fr) minmax(12rem, 1.6fr) auto auto;
+  grid-template-columns: auto minmax(4.2rem, 0.35fr) minmax(12rem, 1.6fr) auto auto;
   gap: 4px;
   margin-bottom: 12px;
+}
+
+.create-vg-stub-category-status {
+  align-items: center;
+  align-self: center;
+  background: #f8f9fa;
+  border: 1px solid #a2a9b1;
+  border-radius: 2px;
+  color: #202122;
+  display: inline-flex;
+  font-size: 0.875em;
+  font-weight: 600;
+  height: 28px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 28px;
+  padding: 0 6px;
 }
 
 .create-vg-stub-error {
@@ -661,6 +678,16 @@ export function createDialogComponent(Vue, options) {
           category,
         );
       },
+
+      /**
+       * Formats a category row source as a compact badge label.
+       *
+       * @param {string} source - Category row source.
+       * @returns {string} Compact source label.
+       */
+      formatCategorySourceLabel(source) {
+        return formatCategorySourceLabel(source);
+      },
     },
     /**
      * Exposes dialog state and actions to the template.
@@ -695,6 +722,27 @@ export function createDialogComponent(Vue, options) {
   async function refreshCategoryRows(refreshOptions) {
     await options.onCategoryRowsRefresh(form, categoryState, refreshOptions);
   }
+}
+
+/**
+ * Formats a category row source as a compact badge label.
+ *
+ * @param {string} source - Category row source.
+ * @returns {string} Compact source label.
+ */
+function formatCategorySourceLabel(source) {
+  const value = String(source || "").trim();
+  const modified = value.endsWith("†");
+  const base = modified ? value.replace(/\s*†$/u, "") : value;
+  const labels = {
+    found: "Found",
+    known: "Data",
+    manual: "Manual",
+    suggested: "Built",
+  };
+  const label = labels[base] || base;
+
+  return modified ? `${label}†` : label;
 }
 
 /**
@@ -1230,10 +1278,14 @@ function createCategoryRowTemplate() {
       createElement("cdx-checkbox", {
         "v-model": "row.enabled",
       }),
-      createElement("cdx-text-input", {
-        readonly: "",
-        "v-model": "row.source",
-      }),
+      createElement(
+        "span",
+        {
+          class: "create-vg-stub-category-status",
+          "v-bind:title": "row.source",
+        },
+        [createText("{{ formatCategorySourceLabel(row.source) }}")],
+      ),
       createElement("cdx-text-input", {
         "v-bind:model-value": "row.category",
         "v-on:update:model-value": "updateCategoryRowCategory(index, $event)",

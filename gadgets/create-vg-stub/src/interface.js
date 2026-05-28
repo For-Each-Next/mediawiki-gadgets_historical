@@ -61,7 +61,7 @@ textarea.create-vg-stub-source-url {
 
 .create-vg-stub-category-grid {
   display: grid;
-  grid-template-columns: auto minmax(5rem, 0.6fr) minmax(12rem, 1.6fr) auto;
+  grid-template-columns: auto minmax(5rem, 0.6fr) minmax(12rem, 1.6fr) auto auto;
   gap: 4px;
   margin-bottom: 12px;
 }
@@ -1246,6 +1246,11 @@ function createCategoryRowTemplate() {
         },
         [createText("↺")],
       ),
+      createElement("cdx-checkbox", {
+        "v-bind:disabled": "!row.stubTag",
+        "v-bind:title": "row.stubTag",
+        "v-model": "row.stubTagEnabled",
+      }),
     ],
   );
 }

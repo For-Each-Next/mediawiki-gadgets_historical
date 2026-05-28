@@ -8,6 +8,7 @@ import {
   FIELD_REFERENCE_DATA,
   buildTemplateCall,
   getSourceReference,
+  getWikilinkValue,
   splitLookupFieldValues,
   uniqueValues,
 } from "./utils.js";
@@ -57,6 +58,7 @@ export function resetCategoryRow(row) {
     category: row.originalCategory,
     source,
     status: source === SOURCE_FITTING ? CATEGORY_STATUS.unchecked : row.status,
+    stubTagEnabled: row.originalStubTagEnabled,
   });
 }
 
@@ -137,14 +139,26 @@ export function buildFallbackCategoryRows(params) {
       ...buildSourceCategoryRows(
         SOURCE_DATA,
         params.companyMetadata.categories,
+        {
+          stubTagEnabled: true,
+          stubTags: params.companyMetadata.stubTags,
+        },
       ),
       ...buildSourceCategoryRows(
         SOURCE_DATA,
         params.platformSeriesMetadata.categories,
+        {
+          stubTagEnabled: true,
+          stubTags: params.platformSeriesMetadata.stubTags,
+        },
       ),
       ...buildSourceCategoryRows(
         SOURCE_DATA,
         params.yearGenreMetadata.categories,
+        {
+          stubTagEnabled: true,
+          stubTags: params.yearGenreMetadata.stubTags,
+        },
       ),
     ].map(normalizeCategoryRow),
   );
@@ -199,13 +213,27 @@ export function getCategoryLinks(params) {
  * @returns {string} Stub tag wikitext.
  */
 export function buildStubTagText(params) {
-  return uniqueValues([
-    ...params.companyMetadata.stubTags,
-    ...params.platformSeriesMetadata.stubTags,
-    ...params.yearGenreMetadata.stubTags,
-  ])
+  return uniqueValues(getStubTags(params))
     .map(buildTemplateCall)
     .join("\n");
+}
+
+/**
+ * Gets accepted stub tags from reviewed rows or generated metadata.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @returns {Array<string>} Stub tag template titles.
+ */
+function getStubTags(params) {
+  const rows =
+    params.categoryRows.length > 0
+      ? params.categoryRows
+      : buildFallbackCategoryRows(params);
+
+  return rows
+    .filter(isRenderableStubTagRow)
+    .map((row) => row.stubTag)
+    .filter(Boolean);
 }
 
 /**
@@ -253,14 +281,24 @@ export async function resolveCategoryRows(rows, options = {}) {
 async function buildGeneratedCategoryRows(form, params, options) {
   const companyRows = buildCompanyCategoryRows(form);
   const seriesRows = buildSeriesCategoryRows(form.series);
+  const platformStubTagEnabled =
+    splitLookupFieldValues(form.platforms || "").length === 1;
   const metadataRows = [
     ...buildSourceCategoryRows(
       SOURCE_DATA,
       params.platformSeriesMetadata.categories,
+      {
+        stubTagEnabled: platformStubTagEnabled,
+        stubTags: params.platformSeriesMetadata.stubTags,
+      },
     ),
     ...buildSourceCategoryRows(
       SOURCE_DATA,
       params.yearGenreMetadata.categories,
+      {
+        stubTagEnabled: true,
+        stubTags: params.yearGenreMetadata.stubTags,
+      },
     ),
   ];
   const resolutions = await resolveCategories(
@@ -288,12 +326,16 @@ async function buildGeneratedCategoryRows(form, params, options) {
  * @returns {Array<object>} Company category rows.
  */
 function buildCompanyCategoryRows(form) {
-  const companies = uniqueValues([
-    ...splitLookupFieldValues(form.developers || ""),
-    ...splitLookupFieldValues(getPublisherValue(form) || ""),
-  ]);
+  const developers = splitLookupFieldValues(form.developers || "");
+  const publishers = splitLookupFieldValues(getPublisherValue(form) || "");
+  const sharedCompanies = getSharedValues(developers, publishers);
+  const companies = uniqueValues([...developers, ...publishers]);
 
-  return companies.flatMap(buildCompanyCategoryRowsForValue);
+  return companies.flatMap((company) =>
+    buildCompanyCategoryRowsForValue(company, {
+      stubTagEnabled: sharedCompanies.includes(normalizeValueKey(company)),
+    }),
+  );
 }
 
 /**
@@ -302,14 +344,17 @@ function buildCompanyCategoryRows(form) {
  * @param {string} company - Company value.
  * @returns {Array<object>} Category rows.
  */
-function buildCompanyCategoryRowsForValue(company) {
+function buildCompanyCategoryRowsForValue(company, options = {}) {
   const reference = getSourceReference(
     FIELD_REFERENCE_DATA.companies,
     company,
   );
 
   if (reference != null && (reference.categories || []).length > 0) {
-    return buildSourceCategoryRows(SOURCE_DATA, reference.categories);
+    return buildSourceCategoryRows(SOURCE_DATA, reference.categories, {
+      stubTagEnabled: options.stubTagEnabled,
+      stubTags: reference.stubTags,
+    });
   }
 
   return [
@@ -355,6 +400,31 @@ function getPublisherValue(form) {
   }
 
   return form.publishers;
+}
+
+/**
+ * Gets normalized values present in both input lists.
+ *
+ * @param {Array<string>} values - Primary values.
+ * @param {Array<string>} candidates - Candidate values.
+ * @returns {Array<string>} Shared normalized values.
+ */
+function getSharedValues(values, candidates) {
+  const candidateKeys = candidates.map(normalizeValueKey);
+
+  return values.map(normalizeValueKey).filter((value) =>
+    candidateKeys.includes(value),
+  );
+}
+
+/**
+ * Normalizes a user field value for comparison.
+ *
+ * @param {string} value - Field value.
+ * @returns {string} Normalized comparison key.
+ */
+function normalizeValueKey(value) {
+  return getWikilinkValue(value).toLocaleLowerCase();
 }
 
 /**
@@ -418,15 +488,22 @@ function getDisambiguationBaseTitle(title) {
  *
  * @param {string} source - Category source label.
  * @param {Array<string>} categories - Category titles.
+ * @param {object} [options] - Stub tag options.
+ * @param {boolean} [options.stubTagEnabled] - Whether stub tags default on.
+ * @param {Array<string>} [options.stubTags] - Corresponding stub tags.
  * @returns {Array<object>} Category rows.
  */
-function buildSourceCategoryRows(source, categories) {
-  return (categories || []).map((category) =>
-    createCategoryRow({
+function buildSourceCategoryRows(source, categories, options = {}) {
+  return (categories || []).map((category, index) => {
+    const stubTag = options.stubTags?.[index] || "";
+
+    return createCategoryRow({
       category,
       source,
-    }),
-  );
+      stubTag,
+      stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
+    });
+  });
 }
 
 /**
@@ -535,6 +612,9 @@ function applyCategoryResolution(row, resolutions) {
  * @param {boolean} [values.enabled] - Whether the row should render.
  * @param {string} [values.originalCategory] - Original generated category.
  * @param {string} [values.source] - Category source label.
+ * @param {string} [values.stubTag] - Corresponding stub tag title.
+ * @param {boolean} [values.stubTagEnabled] - Whether to render the stub tag.
+ * @param {boolean} [values.originalStubTagEnabled] - Original stub tag state.
  * @returns {object} Category review row.
  */
 function createCategoryRow(values = {}) {
@@ -544,6 +624,9 @@ function createCategoryRow(values = {}) {
     originalCategory: values.category || "",
     source: "",
     status: CATEGORY_STATUS.unchecked,
+    stubTag: "",
+    stubTagEnabled: false,
+    originalStubTagEnabled: values.stubTagEnabled === true,
     ...values,
   });
 }
@@ -567,6 +650,12 @@ function normalizeCategoryRow(row) {
     originalCategory,
     source,
     status: trimValue(row.status),
+    stubTag: trimValue(row.stubTag),
+    stubTagEnabled: row.stubTagEnabled === true,
+    originalStubTagEnabled:
+      row.originalStubTagEnabled == null
+        ? row.stubTagEnabled === true
+        : row.originalStubTagEnabled === true,
   };
 }
 
@@ -640,6 +729,10 @@ function mergePreviousGeneratedRows(generatedRows, previousRows) {
       ...row,
       category: previous.category,
       enabled: previous.enabled,
+      stubTagEnabled:
+        previous.stubTagEnabled == null
+          ? row.stubTagEnabled
+          : previous.stubTagEnabled,
     };
   });
 }
@@ -673,7 +766,7 @@ function shouldCheckCategoryRow(row) {
   return (
     normalizeCategoryTitle(row.category) !== "" &&
     normalizeCategoryKey(row.category) !==
-      normalizeCategoryKey(row.originalCategory)
+    normalizeCategoryKey(row.originalCategory)
   );
 }
 
@@ -698,7 +791,7 @@ function hasSameGeneratedRow(row, previous) {
   return (
     getBaseSource(row.source) === getBaseSource(previous.source) &&
     normalizeCategoryKey(row.originalCategory) ===
-      normalizeCategoryKey(previous.originalCategory)
+    normalizeCategoryKey(previous.originalCategory)
   );
 }
 
@@ -723,6 +816,20 @@ function getBaseSource(source) {
  */
 function isRenderableCategoryRow(row) {
   return row.enabled !== false && normalizeCategoryTitle(row.category) !== "";
+}
+
+/**
+ * Checks whether a row should render a stub tag.
+ *
+ * @param {object} row - Category review row.
+ * @returns {boolean} Whether the row's stub tag should render.
+ */
+function isRenderableStubTagRow(row) {
+  return (
+    isRenderableCategoryRow(row) &&
+    row.stubTagEnabled === true &&
+    trimValue(row.stubTag) !== ""
+  );
 }
 
 /**

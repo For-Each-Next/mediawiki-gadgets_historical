@@ -4,6 +4,7 @@ import {
   buildCategoryLinks,
   buildCategoryRows,
   buildFallbackCategoryRows,
+  buildStubTagText,
   createManualCategoryRow,
   resolveCategoryRows,
   resetGeneratedCategoryRows,
@@ -14,12 +15,15 @@ test("buildFallbackCategoryRows keeps generated metadata categories", () => {
   const rows = buildFallbackCategoryRows({
     companyMetadata: {
       categories: ["公司游戏"],
+      stubTags: ["company-stub"],
     },
     platformSeriesMetadata: {
       categories: ["平台游戏"],
+      stubTags: ["platform-stub"],
     },
     yearGenreMetadata: {
       categories: ["公司游戏", "类型游戏"],
+      stubTags: ["genre-stub"],
     },
   });
 
@@ -30,6 +34,37 @@ test("buildFallbackCategoryRows keeps generated metadata categories", () => {
       ["known", "平台游戏", ""],
       ["known", "类型游戏", ""],
     ],
+  );
+});
+
+test("buildStubTagText renders only checked category row stub tags", () => {
+  assert.equal(
+    buildStubTagText({
+      categoryRows: [
+        {
+          category: "公司游戏",
+          enabled: true,
+          stubTag: "company-stub",
+          stubTagEnabled: false,
+        },
+        {
+          category: "类型游戏",
+          enabled: true,
+          stubTag: "genre-stub",
+          stubTagEnabled: true,
+        },
+        {
+          category: "平台游戏",
+          enabled: false,
+          stubTag: "platform-stub",
+          stubTagEnabled: true,
+        },
+      ],
+      companyMetadata: emptyMetadata(),
+      platformSeriesMetadata: emptyMetadata(),
+      yearGenreMetadata: emptyMetadata(),
+    }),
+    "{{genre-stub}}",
   );
 });
 
@@ -110,6 +145,92 @@ test("buildCategoryRows generates company categories from wikilink display text"
     [
       [false, "suggested", "Foo Studio游戏", ""],
       [false, "suggested", "Bar Games游戏", ""],
+    ],
+  );
+});
+
+test("buildCategoryRows checks a platform stub tag only for one platform", async () => {
+  const rows = await buildCategoryRows(
+    {
+      developers: "",
+      platforms: "PS5",
+      publishers: "",
+      series: "",
+    },
+    emptyParams({
+      platformSeriesCategories: ["PlayStation 5游戏"],
+      platformSeriesStubTags: ["PlayStation-stub"],
+    }),
+    [],
+    {
+      fetcher: createCategoryFetcher({
+        "PlayStation 5游戏": "PlayStation 5游戏",
+      }),
+    },
+  );
+
+  assert.deepEqual(
+    rows.map((row) => [row.category, row.stubTag, row.stubTagEnabled]),
+    [["PlayStation 5游戏", "PlayStation-stub", true]],
+  );
+});
+
+test("buildCategoryRows unchecks platform stub tags for multiple platforms", async () => {
+  const rows = await buildCategoryRows(
+    {
+      developers: "",
+      platforms: "PS5, Switch",
+      publishers: "",
+      series: "",
+    },
+    emptyParams({
+      platformSeriesCategories: ["PlayStation 5游戏", "任天堂Switch游戏"],
+      platformSeriesStubTags: ["PlayStation-stub", "Nintendo-stub"],
+    }),
+    [],
+    {
+      fetcher: createCategoryFetcher({
+        "PlayStation 5游戏": "PlayStation 5游戏",
+        任天堂Switch游戏: "任天堂Switch游戏",
+      }),
+    },
+  );
+
+  assert.deepEqual(
+    rows.map((row) => [row.category, row.stubTag, row.stubTagEnabled]),
+    [
+      ["PlayStation 5游戏", "PlayStation-stub", false],
+      ["任天堂Switch游戏", "Nintendo-stub", false],
+    ],
+  );
+});
+
+test("buildCategoryRows always checks genre stub tags", async () => {
+  const rows = await buildCategoryRows(
+    {
+      developers: "",
+      platforms: "",
+      publishers: "",
+      series: "",
+    },
+    emptyParams({
+      yearGenreCategories: ["动作游戏", "2026年电子游戏"],
+      yearGenreStubTags: ["action-videogame-stub"],
+    }),
+    [],
+    {
+      fetcher: createCategoryFetcher({
+        "2026年电子游戏": "2026年电子游戏",
+        动作游戏: "动作游戏",
+      }),
+    },
+  );
+
+  assert.deepEqual(
+    rows.map((row) => [row.category, row.stubTag, row.stubTagEnabled]),
+    [
+      ["动作游戏", "action-videogame-stub", true],
+      ["2026年电子游戏", "", false],
     ],
   );
 });
@@ -208,8 +329,11 @@ test("resetGeneratedCategoryRows resets generated rows but keeps manual rows", (
         category: "改后分类",
         enabled: false,
         originalCategory: "Foo Studio游戏",
+        originalStubTagEnabled: true,
         source: "suggested †",
         status: "Not exists",
+        stubTag: "Foo-stub",
+        stubTagEnabled: false,
       },
       {
         category: "手动分类",
@@ -224,6 +348,25 @@ test("resetGeneratedCategoryRows resets generated rows but keeps manual rows", (
       [true, "manual", "手动分类", "OK"],
     ],
   );
+});
+
+test("resetCategoryRow restores the generated stub tag checkbox state", () => {
+  const row = updateCategoryRowCategory(
+    {
+      category: "Foo Studio游戏",
+      originalCategory: "Foo Studio游戏",
+      originalStubTagEnabled: true,
+      source: "suggested",
+      stubTag: "Foo-stub",
+      stubTagEnabled: false,
+    },
+    "改后分类",
+  );
+
+  const reset = resetGeneratedCategoryRows([row])[0];
+
+  assert.equal(reset.category, "Foo Studio游戏");
+  assert.equal(reset.stubTagEnabled, true);
 });
 
 test("updateCategoryRowCategory updates the modified marker immediately", () => {
@@ -280,13 +423,23 @@ function emptyParams(options = {}) {
   return {
     companyMetadata: {
       categories: [],
+      stubTags: [],
     },
     platformSeriesMetadata: {
       categories: options.platformSeriesCategories || [],
+      stubTags: options.platformSeriesStubTags || [],
     },
     yearGenreMetadata: {
       categories: options.yearGenreCategories || [],
+      stubTags: options.yearGenreStubTags || [],
     },
+  };
+}
+
+function emptyMetadata() {
+  return {
+    categories: [],
+    stubTags: [],
   };
 }
 

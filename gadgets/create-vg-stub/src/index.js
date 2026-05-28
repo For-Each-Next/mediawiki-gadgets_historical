@@ -25,7 +25,7 @@ import {
   buildInfoboxText,
   buildLeadNameText,
   buildNoteTaText,
-  buildPlatformMetadata,
+  buildPlatformSeriesMetadata,
   buildYearGenreMetadata,
 } from "./wikitext/index.js";
 
@@ -53,6 +53,7 @@ class VideoGameArticleParams {
    * @param {Array<object>} [form.officialNames] - Official localized name rows.
    * @param {string} form.platforms - Platform names.
    * @param {string} form.publishers - Publisher names.
+   * @param {string} form.series - Series name.
    * @param {Array<object>} [form.sourceReferences] - Named source refs.
    * @param {string} form.year - Release year.
    */
@@ -111,9 +112,16 @@ class VideoGameArticleParams {
     this.originalLanguage = form.originalLanguage;
     this.originalName = form.originalName || "";
     this.platforms = form.platforms;
-    this.platformMetadata = buildPlatformMetadata(this.platforms, {
-      sourceTag: this.sourceTags.platforms,
-    });
+    this.platformSeriesMetadata = buildPlatformSeriesMetadata(
+      {
+        platforms: this.platforms,
+        series: form.series || "",
+      },
+      {
+        platformSourceTag: this.sourceTags.platforms,
+        seriesSourceTag: this.sourceTags.series,
+      },
+    );
     this.year = form.year;
     this.yearGenreMetadata = buildYearGenreMetadata({
       genres: this.genres,
@@ -154,7 +162,7 @@ function isEditAction(action) {
  * @param {string} params.infoboxText - Infobox wikitext.
  * @param {string} params.leadNameText - Lead article name text.
  * @param {string} params.noteTaText - NoteTA-lite wikitext.
- * @param {object} params.platformMetadata - Platform text and metadata.
+ * @param {object} params.platformSeriesMetadata - Platform and series text and metadata.
  * @param {Array<object>} params.sourceReferences - Named source references.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Generated Chinese wikitext.
@@ -162,7 +170,7 @@ function isEditAction(action) {
 export function buildStubText(params) {
   const intro =
     `${params.leadNameText}是${buildVideoGameText(params)}。` +
-    params.platformMetadata.text +
+    params.platformSeriesMetadata.text +
     params.aggScoresText;
 
   return [
@@ -307,14 +315,14 @@ function buildFullReferenceText(reference) {
  *
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
- * @param {object} params.platformMetadata - Platform text and metadata.
+ * @param {object} params.platformSeriesMetadata - Platform and series text and metadata.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Category wikitext.
  */
 function buildCategoryText(params) {
   const categoryText = uniqueValues([
     ...params.companyMetadata.categories,
-    ...params.platformMetadata.categories,
+    ...params.platformSeriesMetadata.categories,
     ...params.yearGenreMetadata.categories,
   ])
     .map(buildCategoryLink)
@@ -332,14 +340,14 @@ function buildCategoryText(params) {
  *
  * @param {object} params - Normalized article parameters.
  * @param {object} params.companyMetadata - Company text and metadata.
- * @param {object} params.platformMetadata - Platform text and metadata.
+ * @param {object} params.platformSeriesMetadata - Platform and series text and metadata.
  * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
  * @returns {string} Stub tag wikitext.
  */
 function buildStubTagText(params) {
   return uniqueValues([
     ...params.companyMetadata.stubTags,
-    ...params.platformMetadata.stubTags,
+    ...params.platformSeriesMetadata.stubTags,
     ...params.yearGenreMetadata.stubTags,
   ])
     .map(buildTemplateCall)
@@ -417,6 +425,7 @@ function getFieldPlaceholder(form, field) {
  * @param {string} form.name - Game title.
  * @param {string} form.platforms - Platform names.
  * @param {string} form.publishers - Publisher names.
+ * @param {string} form.series - Series name.
  * @param {Array<object>} [form.sourceReferences] - Named source refs.
  * @param {string} form.year - Release year.
  * @returns {object} Normalized article parameters.

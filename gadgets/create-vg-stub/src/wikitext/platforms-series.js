@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 /**
- * Builds platform prose and metadata for video game stubs.
+ * Builds platform and series prose and metadata for video game stubs.
  */
 
 import {
@@ -10,41 +10,75 @@ import {
   getReferenceValues,
   getSourceReference,
   splitFieldValues,
+  trimValue,
   uniqueValues,
 } from "../utils.js";
 
 /**
- * Builds display and metadata for platform values.
+ * Builds display and metadata for platform and series values.
  *
- * @param {string} value - Platform values.
+ * @param {object} values - Platform and series values.
+ * @param {string} values.platforms - Platform values.
+ * @param {string} values.series - Series name.
  * @param {object} [options] - Platform formatting options.
- * @param {string} [options.sourceTag] - Source reference tag.
+ * @param {string} [options.platformSourceTag] - Platform source reference tag.
+ * @param {string} [options.seriesSourceTag] - Series source reference tag.
  * @returns {object} Text, categories, and stub tags.
  */
-export function buildPlatformMetadata(value, options = {}) {
-  const references = getPlatformReferences(value);
-  const platformListText = buildPlatformListText(value, references);
+export function buildPlatformSeriesMetadata(values, options = {}) {
+  const references = getPlatformReferences(values.platforms);
+  const platformListText = buildPlatformListText(values.platforms, references);
 
   return {
     categories: uniqueValues(getReferenceValues(references, "categories")),
     stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
-    text: buildPlatformSentenceText(platformListText, options.sourceTag || ""),
+    text: buildPlatformSeriesSentenceText(
+      platformListText,
+      trimValue(values.series || ""),
+      options.platformSourceTag || "",
+      options.seriesSourceTag || "",
+    ),
   };
 }
 
 /**
- * Builds the platform sentence.
+ * Builds the platform and series sentence.
  *
- * @param {string} text - Platform list wikitext.
- * @param {string} sourceTag - Source reference tag.
+ * @param {string} platformText - Platform list wikitext.
+ * @param {string} series - Series name.
+ * @param {string} platformSourceTag - Platform source reference tag.
+ * @param {string} seriesSourceTag - Series source reference tag.
  * @returns {string} Platform sentence, or an empty string.
  */
-function buildPlatformSentenceText(text, sourceTag) {
-  if (text === "") {
+function buildPlatformSeriesSentenceText(
+  platformText,
+  series,
+  platformSourceTag,
+  seriesSourceTag,
+) {
+  if (platformText === "") {
     return "";
   }
 
-  return `作品对应${text}平台${sourceTag}。`;
+  return (
+    `作品对应${platformText}平台${platformSourceTag}` +
+    `${buildSeriesText(series, seriesSourceTag)}。`
+  );
+}
+
+/**
+ * Builds the series phrase.
+ *
+ * @param {string} series - Series name.
+ * @param {string} sourceTag - Series source reference tag.
+ * @returns {string} Series phrase, or an empty string.
+ */
+function buildSeriesText(series, sourceTag) {
+  if (series === "") {
+    return "";
+  }
+
+  return `，属于「《${series}》系列」${sourceTag}`;
 }
 
 /**

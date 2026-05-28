@@ -87,6 +87,11 @@ export const SOURCE_REFERENCE_FIELDS = [
     sourceKey: "publishersSourceUrl",
   },
   {
+    key: "series",
+    label: "Series source URL",
+    sourceKey: "seriesSourceUrl",
+  },
+  {
     key: "genres",
     label: "Genre source URL",
     sourceKey: "genresSourceUrl",
@@ -172,7 +177,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       "metacriticScore",
       "Score",
       "scores.metacriticScore",
-      SOURCE_REFERENCE_FIELDS[7],
+      SOURCE_REFERENCE_FIELDS[8],
       {
         compact: true,
         placeholder: "Metascore",
@@ -182,7 +187,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       "openCriticRecommend",
       "Critics Recommend",
       "scores.openCriticRecommend",
-      SOURCE_REFERENCE_FIELDS[8],
+      SOURCE_REFERENCE_FIELDS[9],
       {
         compact: true,
         heading: "OpenCritic score",
@@ -204,10 +209,16 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[4],
     ),
     new ArticleParameterField(
+      "series",
+      "Series",
+      "series",
+      SOURCE_REFERENCE_FIELDS[5],
+    ),
+    new ArticleParameterField(
       "platforms",
       "Platform(s)",
       "platforms",
-      SOURCE_REFERENCE_FIELDS[6],
+      SOURCE_REFERENCE_FIELDS[7],
     ),
     new ArticleParameterField(
       "year",
@@ -219,7 +230,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       "genres",
       "Genre(s)",
       "genres",
-      SOURCE_REFERENCE_FIELDS[5],
+      SOURCE_REFERENCE_FIELDS[6],
     ),
   ]),
   new ArticleParameterGroup("officialNames", "Official", [], "officialNames"),

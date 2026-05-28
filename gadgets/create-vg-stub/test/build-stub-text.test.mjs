@@ -245,6 +245,47 @@ test("empty platform omits the platform sentence", async () => {
   );
 });
 
+test("series renders after platform text", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    series: "Example",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("作品对应PC平台，属于「《Example》系列」。"), true);
+});
+
+test("series source reference renders after series text", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    series: "Example",
+    sourceReferences: [
+      {
+        citation: "{{cite web|title=Series source}}",
+        key: "series",
+      },
+    ],
+    year: "2024",
+  });
+
+  assert.equal(
+    text.includes('作品对应PC平台，属于「《Example》系列」<ref name=":1" />。'),
+    true,
+  );
+  assert.equal(
+    text.includes('<ref name=":1">{{cite web|title=Series source}}</ref>'),
+    true,
+  );
+});
+
 test("aggregate scores render after platform text", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",

@@ -483,7 +483,7 @@ async function fetchSourceReferences(form) {
 function getEnteredSourceReferenceFields(form) {
   return [
     ...SOURCE_REFERENCE_FIELDS.filter((field) =>
-      Boolean(form[field.sourceKey].trim()),
+      Boolean(trimFieldValue(form[field.sourceKey])),
     ),
     ...getEnteredNameSourceReferenceFields(form),
   ];

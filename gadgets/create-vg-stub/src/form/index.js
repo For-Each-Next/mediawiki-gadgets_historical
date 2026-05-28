@@ -1546,11 +1546,15 @@ function isMultilineFieldValue(value) {
 /**
  * Trims leading and trailing whitespace from a field value.
  *
- * @param {string} value - Raw field item value.
+ * @param {*} value - Raw field item value.
  * @returns {string} Trimmed field item.
  */
 export function trimFieldValue(value) {
-  return value.trim();
+  if (value == null) {
+    return "";
+  }
+
+  return String(value).trim();
 }
 
 /**

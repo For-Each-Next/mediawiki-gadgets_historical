@@ -48,6 +48,69 @@ test("live source and name row updates trim values", () => {
   assert.equal(moveTarget.value, "Target page");
 });
 
+test("enwiki lookup fills wikidata and blank English title", async () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      async onEnwikiTitleChange(title) {
+        assert.equal(title, "Example Game");
+
+        return {
+          title: "Example Game",
+          wikidataId: "Q123",
+        };
+      },
+    }),
+  );
+  const { form } = component.setup();
+
+  form.enwikiTitle = "Example Game";
+  await component.methods.updateEnwikiTitle();
+
+  assert.equal(form.wikidataId, "Q123");
+  assert.equal(form.englishName, "Example Game");
+});
+
+test("enwiki lookup preserves an entered English title", async () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      async onEnwikiTitleChange() {
+        return {
+          title: "Fetched title",
+          wikidataId: "Q123",
+        };
+      },
+    }),
+  );
+  const { form } = component.setup();
+
+  form.enwikiTitle = "Example Game";
+  form.englishName = "Entered title";
+  await component.methods.updateEnwikiTitle();
+
+  assert.equal(form.wikidataId, "Q123");
+  assert.equal(form.englishName, "Entered title");
+});
+
+test("enwiki lookup ignores failed metadata fetches", async () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      async onEnwikiTitleChange() {
+        throw new Error("Nope");
+      },
+    }),
+  );
+  const { form } = component.setup();
+
+  form.enwikiTitle = "Example Game";
+  await component.methods.updateEnwikiTitle();
+
+  assert.equal(form.wikidataId, "");
+  assert.equal(form.englishName, "");
+});
+
 function createVueStub() {
   return {
     reactive(value) {
@@ -60,7 +123,7 @@ function createVueStub() {
   };
 }
 
-function createOptionsStub() {
+function createOptionsStub(options = {}) {
   return {
     defaultName: "Example",
     getFieldPlaceholder() {},
@@ -77,5 +140,6 @@ function createOptionsStub() {
     onSubmit() {},
     onSubmitHistory() {},
     onUpdateCategoryRowCategory() {},
+    ...options,
   };
 }

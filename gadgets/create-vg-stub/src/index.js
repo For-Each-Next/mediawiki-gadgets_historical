@@ -37,6 +37,7 @@ import {
   buildLeadNameText,
   buildNoteTaText,
 } from "./fragments/index.js";
+import { fetchEnwikiMetadata } from "./crosswiki.js";
 import {
   buildCompanyMetadata,
   buildPlatformSeriesMetadata,
@@ -320,6 +321,12 @@ function getDefaultName() {
  * @returns {string|undefined} Placeholder text.
  */
 function getFieldPlaceholder(form, field) {
+  if (field.key === "wikidataId") {
+    return trimFieldValue(form.enwikiTitle) === ""
+      ? "Enter enwiki title first"
+      : "No connected Wikidata item";
+  }
+
   if (field.key !== "sortKey") {
     return undefined;
   }
@@ -853,6 +860,7 @@ function init(require) {
       onClearHistory: clearFormHistory,
       onCreateCategoryRow: createManualCategoryRow,
       onDeleteHistoryEntry: deleteFormHistoryEntry,
+      onEnwikiTitleChange: fetchEnwikiMetadata,
       onFormChange: saveFormDraft,
       onMoveTarget: (...args) => openTargetPage(...args, citationStore),
       onResetCategoryRow: resetCategoryRow,

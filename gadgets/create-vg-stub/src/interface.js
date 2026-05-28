@@ -17,7 +17,7 @@ const DIALOG_CSS = `
 }
 
 .create-vg-stub-field-row {
-  grid-template-columns: 4rem minmax(0, 1fr);
+  grid-template-columns: 5.75rem minmax(0, 1fr);
   margin-bottom: 12px;
 }
 
@@ -116,6 +116,7 @@ class ArticleParameterField {
     this.label = label;
     this.path = path;
     this.placeholder = options.placeholder;
+    this.readonly = Boolean(options.readonly);
     this.sourceField = sourceField;
   }
 }
@@ -231,11 +232,31 @@ const NAME_MARKETS = [
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
     new ArticleParameterField(
+      "enwikiTitle",
+      "Enwiki",
+      "enwikiTitle",
+      null,
+      {
+        placeholder: "Page title in English Wikipedia",
+      },
+    ),
+    new ArticleParameterField(
+      "wikidataId",
+      "Wikidata",
+      "wikidataId",
+      null,
+      {
+        placeholder: "Q?????",
+        readonly: true,
+      },
+    ),
+    new ArticleParameterField(
       "originalName",
       "Original title",
       "originalName",
       SOURCE_REFERENCE_FIELDS[0],
       {
+        breakBefore: true,
         placeholder: "Native title",
       },
     ),
@@ -373,6 +394,7 @@ export function addDialogStyles() {
  * @param {Function} options.onDeleteHistoryEntry - Form history delete handler.
  * @param {Function} options.onFormChange - Form change handler.
  * @param {Function} options.onMoveTarget - New-page target opener.
+ * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
  * @param {Function} options.onResetCategoryRow - Category row reset handler.
  * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
  * @param {Function} options.onSubmit - Submit handler.
@@ -391,6 +413,7 @@ export function createDialogComponent(Vue, options) {
   const historyOpen = Vue.ref(false);
   const moveTarget = Vue.ref(options.defaultName);
   const moveOpen = Vue.ref(false);
+  const enwikiLookupSerial = Vue.ref(0);
   const sourceFetchState = Vue.reactive({
     error: "",
     loading: false,
@@ -572,6 +595,10 @@ export function createDialogComponent(Vue, options) {
        */
       updateFieldValue(field, value) {
         form[field.key] = normalizeArticleFieldValue(field, value);
+
+        if (field.key === "enwikiTitle") {
+          refreshEnwikiMetadata();
+        }
       },
 
       /**
@@ -604,6 +631,15 @@ export function createDialogComponent(Vue, options) {
        */
       updateFormValue(key, value) {
         form[key] = trimFieldValue(value);
+      },
+
+      /**
+       * Refreshes English Wikipedia metadata after the enwiki title changes.
+       *
+       * @returns {Promise<void>} Resolves after metadata is refreshed.
+       */
+      async updateEnwikiTitle() {
+        await refreshEnwikiMetadata();
       },
 
       /**
@@ -771,6 +807,41 @@ export function createDialogComponent(Vue, options) {
    */
   async function refreshCategoryRows(refreshOptions) {
     await options.onCategoryRowsRefresh(form, categoryState, refreshOptions);
+  }
+
+  /**
+   * Refreshes form values derived from the English Wikipedia title.
+   *
+   * @returns {Promise<void>} Resolves after the lookup is handled.
+   */
+  async function refreshEnwikiMetadata() {
+    const title = trimFieldValue(form.enwikiTitle);
+    const serial = enwikiLookupSerial.value + 1;
+
+    enwikiLookupSerial.value = serial;
+    form.wikidataId = "";
+
+    if (title === "" || options.onEnwikiTitleChange == null) {
+      return;
+    }
+
+    let metadata;
+
+    try {
+      metadata = await options.onEnwikiTitleChange(title);
+    } catch (_error) {
+      metadata = {};
+    }
+
+    if (serial !== enwikiLookupSerial.value) {
+      return;
+    }
+
+    form.wikidataId = trimFieldValue(metadata.wikidataId);
+
+    if (trimFieldValue(form.englishName) === "") {
+      form.englishName = trimFieldValue(metadata.title);
+    }
   }
 }
 
@@ -1663,6 +1734,7 @@ function createStandardFieldTemplate() {
           createElement("cdx-text-input", {
             "v-bind:placeholder":
               "getFieldPlaceholder(field) || field.placeholder",
+            "v-bind:readonly": "field.readonly",
             "v-bind:model-value": "form[field.key]",
             "v-on:change": "normalizeFieldValue(field)",
             "v-on:paste": "normalizePastedFieldValue(field, $event)",

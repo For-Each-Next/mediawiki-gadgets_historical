@@ -30,6 +30,7 @@ import {
 } from "./wikitext/index.js";
 
 const MOVE_TEXT_STORAGE_KEY = "create-vg-stub-move-text";
+const CITATION_PREFETCH_DELAY = 800;
 
 /**
  * Stores normalized video game article parameters.
@@ -440,14 +441,15 @@ export function createArticleParams(form) {
  * @param {object} form - Dialog form values.
  * @param {object} sourceFetchState - Source fetch status state.
  * @param {Function} closeDialog - Dialog close callback.
+ * @param {object} citationStore - Citation fetch/cache store.
  * @returns {Promise<void>} Resolves after generated text is written.
  */
-async function submitForm(form, sourceFetchState, closeDialog) {
+async function submitForm(form, sourceFetchState, closeDialog, citationStore) {
   sourceFetchState.error = "";
   sourceFetchState.loading = true;
 
   try {
-    writeEditText(await buildStubTextFromForm(form));
+    writeEditText(await buildStubTextFromForm(form, citationStore));
     closeDialog();
   } catch (error) {
     sourceFetchState.error = error.message;
@@ -460,13 +462,14 @@ async function submitForm(form, sourceFetchState, closeDialog) {
  * Builds generated wikitext from dialog form values.
  *
  * @param {object} form - Dialog form values.
+ * @param {object} citationStore - Citation fetch/cache store.
  * @returns {Promise<string>} Generated stub wikitext.
  */
-async function buildStubTextFromForm(form) {
+async function buildStubTextFromForm(form, citationStore) {
   return buildStubText(
     createArticleParams({
       ...form,
-      sourceReferences: await fetchSourceReferences(form),
+      sourceReferences: await fetchSourceReferences(form, citationStore),
     }),
   );
 }
@@ -475,12 +478,15 @@ async function buildStubTextFromForm(form) {
  * Fetches citations for entered source URLs.
  *
  * @param {object} form - Dialog form values.
+ * @param {object} citationStore - Citation fetch/cache store.
  * @returns {Promise<Array<object>>} Source reference data.
  */
-async function fetchSourceReferences(form) {
+async function fetchSourceReferences(form, citationStore) {
   const entries = getEnteredSourceReferenceFields(form);
 
-  return Promise.all(entries.map(fetchSourceReference.bind(null, form)));
+  return Promise.all(
+    entries.map(fetchSourceReference.bind(null, form, citationStore)),
+  );
 }
 
 /**
@@ -502,17 +508,92 @@ function getEnteredSourceReferenceFields(form) {
  * Fetches one source reference citation.
  *
  * @param {object} form - Dialog form values.
+ * @param {object} citationStore - Citation fetch/cache store.
  * @param {object} field - Source reference field.
  * @param {string} field.key - Source reference section key.
  * @param {string} [field.sourceKey] - Form key for the source URL.
  * @param {string} [field.sourceUrl] - Source URL.
  * @returns {Promise<object>} Source reference data.
  */
-async function fetchSourceReference(form, field) {
+async function fetchSourceReference(form, citationStore, field) {
   return {
-    citation: await fetchCiteTemplate(getSourceReferenceUrl(form, field)),
+    citation: await citationStore.fetch(getSourceReferenceUrl(form, field)),
     key: field.key,
   };
+}
+
+/**
+ * Creates a shared citation fetch/cache store.
+ *
+ * @returns {object} Citation store.
+ */
+function createCitationStore() {
+  const cache = {};
+  const pending = {};
+
+  return {
+    /**
+     * Fetches citation wikitext, reusing cached or in-flight requests.
+     *
+     * @param {string} url - Source URL.
+     * @returns {Promise<string>} Citation template wikitext.
+     */
+    fetch(url) {
+      const key = getCitationStoreKey(url);
+
+      if (cache[key] != null) {
+        return Promise.resolve(cache[key]);
+      }
+
+      if (pending[key] == null) {
+        pending[key] = fetchCiteTemplate(key, { cache }).finally(() => {
+          delete pending[key];
+        });
+      }
+
+      return pending[key];
+    },
+
+    /**
+     * Starts a background citation fetch for a source URL.
+     *
+     * @param {string} url - Source URL.
+     * @returns {void}
+     */
+    prefetch(url) {
+      if (!isPrefetchableSourceUrl(url)) {
+        return;
+      }
+
+      this.fetch(url).catch(() => {});
+    },
+  };
+}
+
+/**
+ * Gets a normalized citation store key.
+ *
+ * @param {string} url - Source URL.
+ * @returns {string} Citation store key.
+ */
+function getCitationStoreKey(url) {
+  return trimFieldValue(url);
+}
+
+/**
+ * Checks whether a URL is complete enough for background citation fetching.
+ *
+ * @param {string} url - Source URL.
+ * @returns {boolean} Whether the URL should be prefetched.
+ */
+function isPrefetchableSourceUrl(url) {
+  try {
+    const parsed = new URL(getCitationStoreKey(url));
+
+    return ["http:", "https:"].includes(parsed.protocol);
+  } catch (_error) {
+    return false;
+  }
 }
 
 /**
@@ -565,9 +646,10 @@ function addToolboxLink() {
  * @param {object} form - Dialog form values.
  * @param {string} title - Target page title.
  * @param {object} sourceFetchState - Source fetch status state.
+ * @param {object} citationStore - Citation fetch/cache store.
  * @returns {Promise<void>} Resolves after generated text is stored.
  */
-async function openTargetPage(form, title, sourceFetchState) {
+async function openTargetPage(form, title, sourceFetchState, citationStore) {
   sourceFetchState.error = "";
   const targetTitle = trimFieldValue(title);
 
@@ -585,10 +667,13 @@ async function openTargetPage(form, title, sourceFetchState) {
           ...form,
           name: targetTitle,
         },
-        text: await buildStubTextFromForm({
-          ...form,
-          name: targetTitle,
-        }),
+        text: await buildStubTextFromForm(
+          {
+            ...form,
+            name: targetTitle,
+          },
+          citationStore,
+        ),
         title: targetTitle,
       }),
     );
@@ -676,12 +761,15 @@ function normalizePageTitle(title) {
 function init(require) {
   const Vue = require("vue");
   const Codex = require("@wikimedia/codex");
+  const citationStore = createCitationStore();
   const app = Vue.createMwApp(createDialogComponent(Vue, {
+    citationPrefetchDelay: CITATION_PREFETCH_DELAY,
     defaultName: getDefaultName(),
     getFieldPlaceholder,
     initialForm: getMovedForm(),
-    onMoveTarget: openTargetPage,
-    onSubmit: submitForm,
+    onMoveTarget: (...args) => openTargetPage(...args, citationStore),
+    onSourceUrlChange: (url) => citationStore.prefetch(url),
+    onSubmit: (...args) => submitForm(...args, citationStore),
   }));
 
   app.component("CdxDialog", Codex.CdxDialog);

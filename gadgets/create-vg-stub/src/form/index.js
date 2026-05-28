@@ -245,7 +245,9 @@ const ARTICLE_PARAMETER_GROUPS = [
  * @param {string} options.defaultName - Default article title.
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
  * @param {object} [options.initialForm] - Initial form values.
+ * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
  * @param {Function} options.onMoveTarget - New-page target opener.
+ * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
  * @param {Function} options.onSubmit - Submit handler.
  * @returns {object} Vue component options.
  */
@@ -267,9 +269,15 @@ export function createDialogComponent(Vue, options) {
     replaceFormValues(form, initialForm);
   }
 
-  Vue.watch(form, saveFormDraft, {
+  const queueCitationPrefetch = createCitationPrefetchQueue(options);
+
+  Vue.watch(form, (currentForm) => {
+    saveFormDraft(currentForm);
+    queueCitationPrefetch(currentForm);
+  }, {
     deep: true,
   });
+  queueCitationPrefetch(form);
 
   window.createVgStubDialog = {
     open: openDialog.bind(null, open),
@@ -514,6 +522,67 @@ function saveCurrentFormHistory(form, page) {
     },
     page,
   );
+}
+
+/**
+ * Creates a debounced citation prefetch queue.
+ *
+ * @param {object} options - Dialog options.
+ * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
+ * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
+ * @returns {Function} Citation prefetch queue function.
+ */
+function createCitationPrefetchQueue(options) {
+  let lastUrlsKey = null;
+  let timer = null;
+
+  return (form) => {
+    if (options.onSourceUrlChange == null) {
+      return;
+    }
+
+    const urls = getEnteredSourceUrls(form);
+    const urlsKey = JSON.stringify(urls);
+
+    if (urlsKey === lastUrlsKey) {
+      return;
+    }
+
+    lastUrlsKey = urlsKey;
+
+    if (timer != null) {
+      clearTimeout(timer);
+    }
+
+    timer = setTimeout(() => {
+      urls.forEach(options.onSourceUrlChange);
+    }, options.citationPrefetchDelay || 0);
+  };
+}
+
+/**
+ * Gets all currently entered source URLs.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<string>} Entered source URLs.
+ */
+function getEnteredSourceUrls(form) {
+  return uniqueFieldValues([
+    ...SOURCE_REFERENCE_FIELDS.map((field) => form[field.sourceKey]),
+    ...NAME_GROUP_KEYS.flatMap((key) =>
+      (form[key] || []).map((row) => row.sourceUrl),
+    ),
+  ]).filter(Boolean);
+}
+
+/**
+ * Gets unique trimmed field values.
+ *
+ * @param {Array<*>} values - Raw field values.
+ * @returns {Array<string>} Unique trimmed values.
+ */
+function uniqueFieldValues(values) {
+  return [...new Set(values.map(trimFieldValue))];
 }
 
 /**

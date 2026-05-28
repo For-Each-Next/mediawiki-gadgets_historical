@@ -568,9 +568,11 @@ function createCitationPrefetchQueue(options) {
  */
 function getEnteredSourceUrls(form) {
   return uniqueFieldValues([
-    ...SOURCE_REFERENCE_FIELDS.map((field) => form[field.sourceKey]),
+    ...SOURCE_REFERENCE_FIELDS.flatMap((field) =>
+      splitSourceUrls(form[field.sourceKey]),
+    ),
     ...NAME_GROUP_KEYS.flatMap((key) =>
-      (form[key] || []).map((row) => row.sourceUrl),
+      (form[key] || []).flatMap((row) => splitSourceUrls(row.sourceUrl)),
     ),
   ]).filter(Boolean);
 }
@@ -1118,13 +1120,42 @@ function createNameInputTemplate() {
         "v-model": "row.name",
         "v-on:change": "updateNameRow(group.nameGroupKey, index, 'name')",
       }),
-      createElement("cdx-text-input", {
+      createSourceUrlInputTemplate({
         placeholder: "Source URL",
-        "v-model": "row.sourceUrl",
-        "v-on:change": "updateNameRow(group.nameGroupKey, index, 'sourceUrl')",
+        model: "row.sourceUrl",
+        change: "updateNameRow(group.nameGroupKey, index, 'sourceUrl')",
       }),
     ],
   );
+}
+
+/**
+ * Creates a source URL textarea template node.
+ *
+ * @param {object} options - Source URL field options.
+ * @param {string} options.change - Change handler expression.
+ * @param {string} options.model - Vue model expression.
+ * @param {string} options.placeholder - Placeholder text or expression.
+ * @param {boolean} [options.bindPlaceholder] - Whether placeholder is a Vue binding.
+ * @returns {object} Source URL textarea node.
+ */
+function createSourceUrlInputTemplate(options) {
+  const attributes = {
+    rows: "1",
+    style: {
+      resize: "vertical",
+    },
+    "v-model": options.model,
+    "v-on:change": options.change,
+  };
+
+  if (options.bindPlaceholder) {
+    attributes["v-bind:placeholder"] = options.placeholder;
+  } else {
+    attributes.placeholder = options.placeholder;
+  }
+
+  return createElement("cdx-text-area", attributes);
 }
 
 /**
@@ -1181,12 +1212,19 @@ function createCompactFieldTemplate() {
             "v-on:change": "normalizeFieldValue(field)",
           }),
           createMetacriticScoreTemplate(),
-          createElement("cdx-text-input", {
-            placeholder: "Source URL",
-            "v-if": "field.sourceField",
-            "v-model": "form[field.sourceField.sourceKey]",
-            "v-on:change": "trimSourceValue(field.sourceField)",
-          }),
+          createElement(
+            "template",
+            {
+              "v-if": "field.sourceField",
+            },
+            [
+              createSourceUrlInputTemplate({
+                placeholder: "Source URL",
+                model: "form[field.sourceField.sourceKey]",
+                change: "trimSourceValue(field.sourceField)",
+              }),
+            ],
+          ),
         ],
       ),
     ],
@@ -1211,10 +1249,10 @@ function createMetacriticScoreTemplate() {
         "v-on:change":
           "normalizeFieldValue(getArticleField('metacriticScore'))",
       }),
-      createElement("cdx-text-input", {
+      createSourceUrlInputTemplate({
         placeholder: "Source URL",
-        "v-model": "form.metacriticScoreSourceUrl",
-        "v-on:change":
+        model: "form.metacriticScoreSourceUrl",
+        change:
           "trimSourceValue(getArticleField('metacriticScore').sourceField)",
       }),
     ],
@@ -1252,12 +1290,20 @@ function createStandardFieldTemplate() {
             "v-on:change": "normalizeFieldValue(field)",
             "v-on:paste": "normalizePastedFieldValue(field, $event)",
           }),
-          createElement("cdx-text-input", {
-            "v-bind:placeholder": "field.sourceField.label",
-            "v-if": "field.sourceField",
-            "v-model": "form[field.sourceField.sourceKey]",
-            "v-on:change": "trimSourceValue(field.sourceField)",
-          }),
+          createElement(
+            "template",
+            {
+              "v-if": "field.sourceField",
+            },
+            [
+              createSourceUrlInputTemplate({
+                bindPlaceholder: true,
+                placeholder: "field.sourceField.label",
+                model: "form[field.sourceField.sourceKey]",
+                change: "trimSourceValue(field.sourceField)",
+              }),
+            ],
+          ),
         ],
       ),
       createElement(
@@ -1638,6 +1684,19 @@ export function trimFieldValue(value) {
 }
 
 /**
+ * Splits a source URL field into one trimmed URL per nonblank line.
+ *
+ * @param {*} value - Raw source URL field value.
+ * @returns {Array<string>} Source URLs.
+ */
+export function splitSourceUrls(value) {
+  return trimFieldValue(value)
+    .split(/[\r\n]+/u)
+    .map(trimFieldValue)
+    .filter(Boolean);
+}
+
+/**
  * Gets source reference fields for localized name rows with URLs.
  *
  * @param {object} form - Dialog form values.
@@ -1645,12 +1704,14 @@ export function trimFieldValue(value) {
  */
 export function getEnteredNameSourceReferenceFields(form) {
   return NAME_GROUP_KEYS.flatMap((key) =>
-    form[key]
-      .map((row, index) => ({
-        key: buildNameSourceReferenceKey(key, index),
-        name: row.name,
-        sourceUrl: row.sourceUrl,
-      }))
+    (form[key] || [])
+      .flatMap((row, index) =>
+        splitSourceUrls(row.sourceUrl).map((sourceUrl) => ({
+          key: buildNameSourceReferenceKey(key, index),
+          name: row.name,
+          sourceUrl,
+        })),
+      )
       .filter(
         (field) =>
           Boolean(trimFieldValue(field.name)) &&

@@ -10,6 +10,7 @@ import {
   createDialogComponent,
   getEnteredNameSourceReferenceFields,
   SOURCE_REFERENCE_FIELDS,
+  splitSourceUrls,
   trimFieldValue,
 } from "./form/index.js";
 import {
@@ -219,19 +220,13 @@ function buildNamedSourceReference(reference, index) {
  * @returns {object} Source reference tags keyed by section.
  */
 function buildSourceReferenceTags(references) {
-  return Object.fromEntries(references.map(buildSourceReferenceTagEntry));
-}
+  return references.reduce((tags, reference) => {
+    tags[reference.key] = `${tags[reference.key] || ""}${buildReferenceTag(
+      reference.name,
+    )}`;
 
-/**
- * Builds one source reference tag entry.
- *
- * @param {object} reference - Named source reference.
- * @param {string} reference.key - Source reference section key.
- * @param {string} reference.name - Reference name.
- * @returns {Array<string>} Source reference tag entry.
- */
-function buildSourceReferenceTagEntry(reference) {
-  return [reference.key, buildReferenceTag(reference.name)];
+    return tags;
+  }, {});
 }
 
 /**
@@ -497,8 +492,11 @@ async function fetchSourceReferences(form, citationStore) {
  */
 function getEnteredSourceReferenceFields(form) {
   return [
-    ...SOURCE_REFERENCE_FIELDS.filter((field) =>
-      Boolean(trimFieldValue(form[field.sourceKey])),
+    ...SOURCE_REFERENCE_FIELDS.flatMap((field) =>
+      splitSourceUrls(form[field.sourceKey]).map((sourceUrl) => ({
+        ...field,
+        sourceUrl,
+      })),
     ),
     ...getEnteredNameSourceReferenceFields(form),
   ];
@@ -606,11 +604,15 @@ function isPrefetchableSourceUrl(url) {
  * @returns {string} Trimmed source URL.
  */
 function getSourceReferenceUrl(form, field) {
+  if (field.sourceUrl != null) {
+    return trimFieldValue(field.sourceUrl);
+  }
+
   if (field.sourceKey != null) {
     return trimFieldValue(form[field.sourceKey]);
   }
 
-  return trimFieldValue(field.sourceUrl);
+  return "";
 }
 
 /**

@@ -84,16 +84,50 @@ export function readFormHistory() {
  *
  * @param {object} form - Dialog form values.
  * @param {string} page - Page title associated with the snapshot.
+ * @param {object} [citations] - Citation cache keyed by source URL.
  * @returns {void}
  */
-export function saveFormHistory(form, page) {
-  const entry = createFormHistoryEntry(form, page);
+export function saveFormHistory(form, page, citations = {}) {
+  const entry = createFormHistoryEntry(form, page, citations);
   const entries = [
     entry,
     ...readFormHistory().filter((item) => item.id !== entry.id),
   ].slice(0, HISTORY_LIMIT);
 
   writeFormHistory(entries);
+}
+
+/**
+ * Gets citation cache data for a form history page.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} page - Page title associated with the snapshot.
+ * @returns {object} Citation cache keyed by source URL.
+ */
+export function getFormHistoryCitations(form, page) {
+  return getFormHistoryEntry(form, page)?.citations || {};
+}
+
+/**
+ * Updates citation cache data for a form history page.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} page - Page title associated with the snapshot.
+ * @param {object} citations - Citation cache keyed by source URL.
+ * @returns {void}
+ */
+export function updateFormHistoryCitations(form, page, citations) {
+  const entry = getFormHistoryEntry(form, page);
+
+  if (entry == null) {
+    return;
+  }
+
+  entry.citations = cloneValue(citations);
+  writeFormHistory([
+    entry,
+    ...readFormHistory().filter((item) => item.id !== entry.id),
+  ]);
 }
 
 /**
@@ -134,17 +168,32 @@ export function replaceFormValues(form, values) {
  *
  * @param {object} form - Dialog form values.
  * @param {string} page - Page title associated with the snapshot.
+ * @param {object} citations - Citation cache keyed by source URL.
  * @returns {object} History entry.
  */
-function createFormHistoryEntry(form, page) {
+function createFormHistoryEntry(form, page, citations) {
   const snapshot = cloneValue(form);
 
   return {
+    citations: cloneValue(citations),
     form: snapshot,
     id: createHistoryEntryId(snapshot, page),
     page: normalizePage(page) || normalizePage(snapshot.name) || "(untitled)",
     savedAt: new Date().toLocaleString(),
   };
+}
+
+/**
+ * Gets one form history entry.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} page - Page title associated with the snapshot.
+ * @returns {object|undefined} Stored history entry.
+ */
+function getFormHistoryEntry(form, page) {
+  const id = createHistoryEntryId(form, page);
+
+  return readFormHistory().find((entry) => entry.id === id);
 }
 
 /**

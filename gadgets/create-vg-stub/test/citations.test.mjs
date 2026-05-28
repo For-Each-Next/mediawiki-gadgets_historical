@@ -238,17 +238,10 @@ test("fetchCiteTemplate restores Steam source query by host rule", async () => {
 });
 
 test("fetchCiteTemplate caches generated citation templates", async () => {
-  const values = new Map();
+  const cache = {};
   let fetchCount = 0;
-  const storage = {
-    getItem(key) {
-      return values.get(key) || null;
-    },
-    setItem(key, value) {
-      values.set(key, value);
-    },
-  };
   const options = {
+    cache,
     fetcher() {
       fetchCount += 1;
 
@@ -266,7 +259,6 @@ test("fetchCiteTemplate caches generated citation templates", async () => {
       };
     },
     now: new Date("2026-05-24T00:00:00Z"),
-    storage,
   };
   const first = await fetchCiteTemplate("https://example.test/cached", options);
   const second = await fetchCiteTemplate("https://example.test/cached", options);

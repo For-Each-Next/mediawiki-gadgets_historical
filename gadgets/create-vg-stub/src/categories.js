@@ -5,11 +5,7 @@
  */
 
 import {
-  FIELD_REFERENCE_DATA,
   buildTemplateCall,
-  getSourceReference,
-  getWikilinkValue,
-  splitLookupFieldValues,
   uniqueValues,
 } from "./utils.js";
 
@@ -107,11 +103,7 @@ export async function buildCategoryRows(
   previousRows = [],
   options = {},
 ) {
-  const generatedRows = await buildGeneratedCategoryRows(
-    form,
-    params,
-    options,
-  );
+  const generatedRows = await buildGeneratedCategoryRows(params, options);
   const mergedGeneratedRows = mergePreviousGeneratedRows(
     generatedRows,
     previousRows,
@@ -273,16 +265,22 @@ export async function resolveCategoryRows(rows, options = {}) {
 /**
  * Builds generated category rows.
  *
- * @param {object} form - Dialog form values.
  * @param {object} params - Normalized article parameters.
  * @param {object} options - API options.
  * @returns {Promise<Array<object>>} Generated category rows.
  */
-async function buildGeneratedCategoryRows(form, params, options) {
-  const companyRows = buildCompanyCategoryRows(form);
-  const seriesRows = buildSeriesCategoryRows(form.series);
+async function buildGeneratedCategoryRows(params, options) {
+  const companyRows = buildCategoryItems(
+    params.companyMetadata.categoryItems,
+    {
+      source: SOURCE_DATA,
+    },
+  );
+  const seriesRows = (params.platformSeriesMetadata.categoryPlans || []).map(
+    createCategoryPlan,
+  );
   const platformStubTagEnabled =
-    splitLookupFieldValues(form.platforms || "").length === 1;
+    params.platformSeriesMetadata.platformCount === 1;
   const metadataRows = [
     ...buildSourceCategoryRows(
       SOURCE_DATA,
@@ -320,170 +318,6 @@ async function buildGeneratedCategoryRows(form, params, options) {
 }
 
 /**
- * Builds company category rows from company values.
- *
- * @param {object} form - Dialog form values.
- * @returns {Array<object>} Company category rows.
- */
-function buildCompanyCategoryRows(form) {
-  const developers = splitLookupFieldValues(form.developers || "");
-  const publishers = splitLookupFieldValues(getPublisherValue(form) || "");
-  const sharedCompanies = getSharedValues(developers, publishers);
-  const companies = uniqueValues([...developers, ...publishers]);
-
-  return companies.flatMap((company) =>
-    buildCompanyCategoryRowsForValue(company, {
-      stubTagEnabled: sharedCompanies.includes(normalizeValueKey(company)),
-    }),
-  );
-}
-
-/**
- * Builds category rows for one company value.
- *
- * @param {string} company - Company value.
- * @returns {Array<object>} Category rows.
- */
-function buildCompanyCategoryRowsForValue(company, options = {}) {
-  const reference = getSourceReference(
-    FIELD_REFERENCE_DATA.companies,
-    company,
-  );
-
-  if (reference != null && (reference.categories || []).length > 0) {
-    return buildSourceCategoryRows(SOURCE_DATA, reference.categories, {
-      stubTagEnabled: options.stubTagEnabled,
-      stubTags: reference.stubTags,
-    });
-  }
-
-  return [
-    createCategoryPlan({
-      candidates: buildCompanyCategoryCandidates(company),
-      fallback: `${getDisambiguationBaseTitle(company)}游戏`,
-    }),
-  ];
-}
-
-/**
- * Builds series category rows.
- *
- * @param {string} series - Series value.
- * @returns {Array<object>} Series category rows.
- */
-function buildSeriesCategoryRows(series) {
-  return splitLookupFieldValues(series || "").map(buildSeriesCategoryRow);
-}
-
-/**
- * Builds one series category row.
- *
- * @param {string} series - Series value.
- * @returns {object} Series category row.
- */
-function buildSeriesCategoryRow(series) {
-  return createCategoryPlan({
-    candidates: buildSeriesCategoryCandidates(series),
-    fallback: `${series}电子游戏`,
-  });
-}
-
-/**
- * Gets publisher values, expanding the equality marker.
- *
- * @param {object} form - Dialog form values.
- * @returns {string} Publisher values.
- */
-function getPublisherValue(form) {
-  if (form.publishers === "=") {
-    return form.developers;
-  }
-
-  return form.publishers;
-}
-
-/**
- * Gets normalized values present in both input lists.
- *
- * @param {Array<string>} values - Primary values.
- * @param {Array<string>} candidates - Candidate values.
- * @returns {Array<string>} Shared normalized values.
- */
-function getSharedValues(values, candidates) {
-  const candidateKeys = candidates.map(normalizeValueKey);
-
-  return values.map(normalizeValueKey).filter((value) =>
-    candidateKeys.includes(value),
-  );
-}
-
-/**
- * Normalizes a user field value for comparison.
- *
- * @param {string} value - Field value.
- * @returns {string} Normalized comparison key.
- */
-function normalizeValueKey(value) {
-  return getWikilinkValue(value).toLocaleLowerCase();
-}
-
-/**
- * Builds company category candidates.
- *
- * @param {string} company - Company value.
- * @returns {Array<string>} Candidate category titles.
- */
-function buildCompanyCategoryCandidates(company) {
-  return uniqueValues(
-    [company, getDisambiguationBaseTitle(company)].flatMap(
-      buildCompanyTitleCategoryCandidates,
-    ),
-  );
-}
-
-/**
- * Builds company category candidates for one title variant.
- *
- * @param {string} title - Company title.
- * @returns {Array<string>} Candidate category titles.
- */
-function buildCompanyTitleCategoryCandidates(title) {
-  return [`${title}电子游戏`, `${title}游戏`, title];
-}
-
-/**
- * Builds series category candidates.
- *
- * @param {string} title - Series title.
- * @returns {Array<string>} Candidate category titles.
- */
-function buildSeriesCategoryCandidates(title) {
-  return uniqueValues(
-    [`${title}系列`, title].flatMap(buildSeriesTitleCandidates),
-  );
-}
-
-/**
- * Builds series category candidates for one title variant.
- *
- * @param {string} title - Series title.
- * @returns {Array<string>} Candidate category titles.
- */
-function buildSeriesTitleCandidates(title) {
-  return [`${title}电子游戏`, `${title}游戏`, title];
-}
-
-/**
- * Removes a trailing disambiguation bracket from a title.
- *
- * @param {string} title - Title.
- * @returns {string} Base title.
- */
-function getDisambiguationBaseTitle(title) {
-  return title.replace(/\s*\([^()]+\)\s*$/u, "");
-}
-
-/**
  * Builds rows for one generated category source.
  *
  * @param {string} source - Category source label.
@@ -502,6 +336,27 @@ function buildSourceCategoryRows(source, categories, options = {}) {
       source,
       stubTag,
       stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
+    });
+  });
+}
+
+/**
+ * Builds category rows and lookup plans from sector category items.
+ *
+ * @param {Array<object>} items - Sector category rows or lookup plans.
+ * @param {object} [options] - Category row options.
+ * @param {string} [options.source] - Category row source label.
+ * @returns {Array<object>} Category rows or lookup plans.
+ */
+function buildCategoryItems(items = [], options = {}) {
+  return items.map((item) => {
+    if (Array.isArray(item.candidates)) {
+      return createCategoryPlan(item);
+    }
+
+    return createCategoryRow({
+      source: options.source,
+      ...item,
     });
   });
 }

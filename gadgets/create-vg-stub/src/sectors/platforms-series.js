@@ -11,6 +11,7 @@ import {
   getSourceReference,
   isWikilinkValue,
   splitFieldValues,
+  splitLookupFieldValues,
   trimValue,
   uniqueValues,
 } from "../utils.js";
@@ -32,6 +33,8 @@ export function buildPlatformSeriesMetadata(values, options = {}) {
 
   return {
     categories: uniqueValues(getReferenceValues(references, "categories")),
+    categoryPlans: buildSeriesCategoryPlans(values.series || ""),
+    platformCount: splitLookupFieldValues(values.platforms || "").length,
     stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
     text: buildPlatformSeriesSentenceText(
       platformListText,
@@ -126,4 +129,49 @@ function getPlatformReferences(value) {
   return splitFieldValues(value)
     .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.platforms))
     .filter(Boolean);
+}
+
+/**
+ * Builds series category lookup plans.
+ *
+ * @param {string} series - Series value.
+ * @returns {Array<object>} Series category lookup plans.
+ */
+function buildSeriesCategoryPlans(series) {
+  return splitLookupFieldValues(series || "").map(buildSeriesCategoryPlan);
+}
+
+/**
+ * Builds one series category lookup plan.
+ *
+ * @param {string} series - Series value.
+ * @returns {object} Series category lookup plan.
+ */
+function buildSeriesCategoryPlan(series) {
+  return {
+    candidates: buildSeriesCategoryCandidates(series),
+    fallback: `${series}电子游戏`,
+  };
+}
+
+/**
+ * Builds series category candidates.
+ *
+ * @param {string} title - Series title.
+ * @returns {Array<string>} Candidate category titles.
+ */
+function buildSeriesCategoryCandidates(title) {
+  return uniqueValues(
+    [`${title}系列`, title].flatMap(buildSeriesTitleCandidates),
+  );
+}
+
+/**
+ * Builds series category candidates for one title variant.
+ *
+ * @param {string} title - Series title.
+ * @returns {Array<string>} Candidate category titles.
+ */
+function buildSeriesTitleCandidates(title) {
+  return [`${title}电子游戏`, `${title}游戏`, title];
 }

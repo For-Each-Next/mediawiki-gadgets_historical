@@ -7,10 +7,12 @@
 import {
   FIELD_REFERENCE_DATA,
   buildPageText,
+  getWikilinkValue,
   getReferenceValues,
   getSourceReference,
   isWikilinkValue,
   splitFieldValues,
+  splitLookupFieldValues,
   uniqueValues,
 } from "../utils.js";
 
@@ -32,6 +34,7 @@ export function buildCompanyMetadata(companies, options = {}) {
   );
 
   return {
+    categoryItems: buildCompanyCategoryItems(companies),
     categories: uniqueValues(getReferenceValues(references.all, "categories")),
     stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
     text,
@@ -160,6 +163,118 @@ function getPublisherValue(companies) {
   }
 
   return companies.publishers;
+}
+
+/**
+ * Builds category rows and lookup plans for company values.
+ *
+ * @param {object} companies - Company-related parameters.
+ * @returns {Array<object>} Company category items.
+ */
+function buildCompanyCategoryItems(companies) {
+  const developers = splitLookupFieldValues(companies.developers || "");
+  const publishers = splitLookupFieldValues(getPublisherValue(companies) || "");
+  const sharedCompanies = getSharedValues(developers, publishers);
+  const values = uniqueValues([...developers, ...publishers]);
+
+  return values.flatMap((company) =>
+    buildCompanyCategoryItemsForValue(company, {
+      stubTagEnabled: sharedCompanies.includes(normalizeValueKey(company)),
+    }),
+  );
+}
+
+/**
+ * Builds category items for one company value.
+ *
+ * @param {string} company - Company value.
+ * @param {object} [options] - Category item options.
+ * @param {boolean} [options.stubTagEnabled] - Whether stub tags default on.
+ * @returns {Array<object>} Company category items.
+ */
+function buildCompanyCategoryItemsForValue(company, options = {}) {
+  const reference = getSourceReference(
+    FIELD_REFERENCE_DATA.companies,
+    company,
+  );
+
+  if (reference != null && (reference.categories || []).length > 0) {
+    return reference.categories.map((category, index) => {
+      const stubTag = reference.stubTags?.[index] || "";
+
+      return {
+        category,
+        stubTag,
+        stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
+      };
+    });
+  }
+
+  return [
+    {
+      candidates: buildCompanyCategoryCandidates(company),
+      fallback: `${getDisambiguationBaseTitle(company)}游戏`,
+    },
+  ];
+}
+
+/**
+ * Gets normalized values present in both input lists.
+ *
+ * @param {Array<string>} values - Primary values.
+ * @param {Array<string>} candidates - Candidate values.
+ * @returns {Array<string>} Shared normalized values.
+ */
+function getSharedValues(values, candidates) {
+  const candidateKeys = candidates.map(normalizeValueKey);
+
+  return values.map(normalizeValueKey).filter((value) =>
+    candidateKeys.includes(value),
+  );
+}
+
+/**
+ * Normalizes a user field value for comparison.
+ *
+ * @param {string} value - Field value.
+ * @returns {string} Normalized comparison key.
+ */
+function normalizeValueKey(value) {
+  return getWikilinkValue(value).toLocaleLowerCase();
+}
+
+/**
+ * Builds company category candidates.
+ *
+ * @param {string} company - Company value.
+ * @returns {Array<string>} Candidate category titles.
+ */
+function buildCompanyCategoryCandidates(company) {
+  return uniqueValues(
+    [company, getDisambiguationBaseTitle(company)].flatMap(
+      buildCompanyTitleCategoryCandidates,
+    ),
+  );
+}
+
+/**
+ * Builds company category candidates for one title variant.
+ *
+ * @param {string} title - Company title.
+ * @returns {Array<string>} Candidate category titles.
+ */
+function buildCompanyTitleCategoryCandidates(title) {
+  return [`${title}电子游戏`, `${title}游戏`, title];
+}
+
+/**
+ * Removes a trailing disambiguation bracket from a title.
+ *
+ * @param {string} title - Title.
+ * @returns {string} Base title.
+ */
+function getDisambiguationBaseTitle(title) {
+  return title.replace(/\s*\([^()]+\)\s*$/u, "");
 }
 
 /**

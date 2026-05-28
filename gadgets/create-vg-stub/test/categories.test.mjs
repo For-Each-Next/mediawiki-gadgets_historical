@@ -10,6 +10,8 @@ import {
   resetGeneratedCategoryRows,
   updateCategoryRowCategory,
 } from "../src/categories.js";
+import { buildCompanyMetadata } from "../src/sectors/companies.js";
+import { buildPlatformSeriesMetadata } from "../src/sectors/platforms-series.js";
 
 test("buildFallbackCategoryRows keeps generated metadata categories", () => {
   const rows = buildFallbackCategoryRows({
@@ -85,13 +87,14 @@ test("buildCategoryLinks omits unchecked rows", () => {
 });
 
 test("buildCategoryRows fetches company categories from API", async () => {
+  const form = {
+    developers: "日本开发",
+    publishers: "",
+    series: "",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "日本开发",
-      publishers: "",
-      series: "",
-    },
-    emptyParams(),
+    form,
+    paramsFromForm(form),
     [],
     {
       fetcher: createCategoryFetcher({
@@ -107,13 +110,14 @@ test("buildCategoryRows fetches company categories from API", async () => {
 });
 
 test("buildCategoryRows falls back to unchecked suggested company categories", async () => {
+  const form = {
+    developers: "Foo Studio",
+    publishers: "",
+    series: "",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "Foo Studio",
-      publishers: "",
-      series: "",
-    },
-    emptyParams(),
+    form,
+    paramsFromForm(form),
     [],
     {
       fetcher: createCategoryFetcher({}),
@@ -127,13 +131,14 @@ test("buildCategoryRows falls back to unchecked suggested company categories", a
 });
 
 test("buildCategoryRows generates company categories from wikilink display text", async () => {
+  const form = {
+    developers: "[[Foo, Inc.|Foo Studio]], [[Bar Games]]",
+    publishers: "",
+    series: "",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "[[Foo, Inc.|Foo Studio]], [[Bar Games]]",
-      publishers: "",
-      series: "",
-    },
-    emptyParams(),
+    form,
+    paramsFromForm(form),
     [],
     {
       fetcher: createCategoryFetcher({}),
@@ -150,14 +155,15 @@ test("buildCategoryRows generates company categories from wikilink display text"
 });
 
 test("buildCategoryRows checks a platform stub tag only for one platform", async () => {
+  const form = {
+    developers: "",
+    platforms: "PS5",
+    publishers: "",
+    series: "",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "",
-      platforms: "PS5",
-      publishers: "",
-      series: "",
-    },
-    emptyParams({
+    form,
+    paramsFromForm(form, {
       platformSeriesCategories: ["PlayStation 5游戏"],
       platformSeriesStubTags: ["PlayStation-stub"],
     }),
@@ -176,14 +182,15 @@ test("buildCategoryRows checks a platform stub tag only for one platform", async
 });
 
 test("buildCategoryRows unchecks platform stub tags for multiple platforms", async () => {
+  const form = {
+    developers: "",
+    platforms: "PS5, Switch",
+    publishers: "",
+    series: "",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "",
-      platforms: "PS5, Switch",
-      publishers: "",
-      series: "",
-    },
-    emptyParams({
+    form,
+    paramsFromForm(form, {
       platformSeriesCategories: ["PlayStation 5游戏", "任天堂Switch游戏"],
       platformSeriesStubTags: ["PlayStation-stub", "Nintendo-stub"],
     }),
@@ -237,13 +244,14 @@ test("buildCategoryRows always checks genre stub tags", async () => {
 
 test("buildCategoryRows checks all generated candidates in one request", async () => {
   const fetchedTitles = [];
+  const form = {
+    developers: "日本开发",
+    publishers: "",
+    series: "塞尔达传说",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "日本开发",
-      publishers: "",
-      series: "塞尔达传说",
-    },
-    emptyParams({
+    form,
+    paramsFromForm(form, {
       platformSeriesCategories: ["PlayStation 5游戏"],
       yearGenreCategories: ["2026年电子游戏"],
     }),
@@ -292,13 +300,14 @@ test("buildCategoryRows preserves manual rows and edited generated rows", async 
     ...createManualCategoryRow(),
     category: "手动分类",
   };
+  const form = {
+    developers: "Foo Studio",
+    publishers: "",
+    series: "",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "Foo Studio",
-      publishers: "",
-      series: "",
-    },
-    emptyParams(),
+    form,
+    paramsFromForm(form),
     [
       {
         category: "改后分类",
@@ -432,6 +441,24 @@ function emptyParams(options = {}) {
     yearGenreMetadata: {
       categories: options.yearGenreCategories || [],
       stubTags: options.yearGenreStubTags || [],
+    },
+  };
+}
+
+function paramsFromForm(form, options = {}) {
+  return {
+    ...emptyParams(options),
+    companyMetadata: buildCompanyMetadata({
+      developers: form.developers || "",
+      publishers: form.publishers || "",
+    }),
+    platformSeriesMetadata: {
+      ...buildPlatformSeriesMetadata({
+        platforms: form.platforms || "",
+        series: form.series || "",
+      }),
+      categories: options.platformSeriesCategories || [],
+      stubTags: options.platformSeriesStubTags || [],
     },
   };
 }

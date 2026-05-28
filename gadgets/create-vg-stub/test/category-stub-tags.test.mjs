@@ -17,16 +17,18 @@ globalThis.__CREATE_VG_STUB_FIELD_DATA__ = {
 };
 
 const { buildCategoryRows } = await import("../src/categories.js");
+const { buildCompanyMetadata } = await import("../src/sectors/companies.js");
 
 test("buildCategoryRows checks company stub tags for shared developers and publishers", async () => {
+  const form = {
+    developers: "Foo Studio",
+    platforms: "",
+    publishers: "Foo Studio, Bar Games",
+    series: "",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "Foo Studio",
-      platforms: "",
-      publishers: "Foo Studio, Bar Games",
-      series: "",
-    },
-    emptyParams(),
+    form,
+    paramsFromForm(form),
     [],
     {
       fetcher: createCategoryFetcher({
@@ -46,14 +48,15 @@ test("buildCategoryRows checks company stub tags for shared developers and publi
 });
 
 test("buildCategoryRows checks company stub tags when publisher is the equality marker", async () => {
+  const form = {
+    developers: "Foo Studio, Bar Games",
+    platforms: "",
+    publishers: "=",
+    series: "",
+  };
   const rows = await buildCategoryRows(
-    {
-      developers: "Foo Studio, Bar Games",
-      platforms: "",
-      publishers: "=",
-      series: "",
-    },
-    emptyParams(),
+    form,
+    paramsFromForm(form),
     [],
     {
       fetcher: createCategoryFetcher({
@@ -86,6 +89,16 @@ function emptyParams() {
       categories: [],
       stubTags: [],
     },
+  };
+}
+
+function paramsFromForm(form) {
+  return {
+    ...emptyParams(),
+    companyMetadata: buildCompanyMetadata({
+      developers: form.developers,
+      publishers: form.publishers,
+    }),
   };
 }
 

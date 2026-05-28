@@ -6,8 +6,6 @@
 
 import {
   buildCategoryRows,
-  buildCategoryText,
-  buildStubTagText,
   createManualCategoryRow,
   resetCategoryRow,
   updateCategoryRowCategory,
@@ -33,15 +31,18 @@ import {
 } from "./history.js";
 import {
   buildAggScoresText,
-  buildCompanyMetadata,
   buildDefaultSortKey,
   buildDefaultSortText,
   buildInfoboxText,
   buildLeadNameText,
   buildNoteTaText,
+} from "./fragments/index.js";
+import {
+  buildCompanyMetadata,
   buildPlatformSeriesMetadata,
   buildYearGenreMetadata,
-} from "./wikitext/index.js";
+} from "./sectors/index.js";
+import { buildArticleWikitext } from "./wikitext.js";
 
 const MOVE_TEXT_STORAGE_KEY = "create-vg-stub-move-text";
 const CATEGORY_CACHE_STORAGE_PREFIX = "create-vg-stub-category-cache:";
@@ -172,7 +173,7 @@ function isEditAction(action) {
 }
 
 /**
- * Builds the Chinese Wikipedia video game stub sentence.
+ * Builds the Chinese Wikipedia video game stub article text.
  *
  * @param {object} params - Normalized article parameters.
  * @param {string} params.aggScoresText - Aggregate review score sentence.
@@ -187,21 +188,7 @@ function isEditAction(action) {
  * @returns {string} Generated Chinese wikitext.
  */
 export function buildStubText(params) {
-  const intro =
-    `${params.leadNameText}是${buildVideoGameText(params)}。` +
-    params.platformSeriesMetadata.text +
-    params.aggScoresText;
-
-  return [
-    params.noteTaText,
-    params.infoboxText,
-    intro,
-    buildReferencesText(params.sourceReferences),
-    buildCategoryText(params),
-    buildStubTagText(params),
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  return buildArticleWikitext(params);
 }
 
 /**
@@ -280,47 +267,6 @@ function joinSourceTags(tags, keys) {
  */
 function buildReferenceTag(name) {
   return `<ref name="${name}" />`;
-}
-
-/**
- * Builds the video game noun phrase.
- *
- * @param {object} params - Normalized article parameters.
- * @param {object} params.companyMetadata - Company text and metadata.
- * @param {Array<object>} params.sourceReferences - Named source references.
- * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
- * @returns {string} Video game noun phrase.
- */
-function buildVideoGameText(params) {
-  return params.yearGenreMetadata.text + params.companyMetadata.text;
-}
-
-/**
- * Builds the references section for generated citations.
- *
- * @param {Array<object>} references - Named source references.
- * @returns {string} References section, or an empty string.
- */
-function buildReferencesText(references) {
-  if (references.length === 0) {
-    return "";
-  }
-
-  return `== 参考文献 ==\n\n<references>\n${references
-    .map(buildFullReferenceText)
-    .join("\n")}\n</references>`;
-}
-
-/**
- * Builds one full named reference.
- *
- * @param {object} reference - Named source reference.
- * @param {string} reference.citation - Citation template wikitext.
- * @param {string} reference.name - Reference name.
- * @returns {string} Full named reference wikitext.
- */
-function buildFullReferenceText(reference) {
-  return `<ref name="${reference.name}">${reference.citation}</ref>`;
 }
 
 /**

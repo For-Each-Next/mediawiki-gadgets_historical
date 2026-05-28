@@ -520,6 +520,16 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
+       * Updates the move target title from live input.
+       *
+       * @param {string} value - Raw input value.
+       * @returns {void}
+       */
+      updateMoveTarget(value) {
+        moveTarget.value = trimFieldValue(value);
+      },
+
+      /**
        * Generates current data and opens it in the target page editor.
        *
        * @returns {Promise<void>} Resolves after navigation starts.
@@ -539,13 +549,7 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       normalizeFieldValue(field) {
-        form[field.key] = trimFieldValue(form[field.key]);
-
-        if (!isMultiItemField(field)) {
-          return;
-        }
-
-        form[field.key] = normalizeMultilineFieldValue(form[field.key]);
+        form[field.key] = normalizeArticleFieldValue(field, form[field.key]);
       },
 
       /**
@@ -560,6 +564,28 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
+       * Updates one article field from live input.
+       *
+       * @param {object} field - Article parameter field.
+       * @param {string} value - Raw input value.
+       * @returns {void}
+       */
+      updateFieldValue(field, value) {
+        form[field.key] = normalizeArticleFieldValue(field, value);
+      },
+
+      /**
+       * Updates one source URL field from live input.
+       *
+       * @param {object} field - Source reference field.
+       * @param {string} value - Raw input value.
+       * @returns {void}
+       */
+      updateSourceValue(field, value) {
+        form[field.sourceKey] = trimFieldValue(value);
+      },
+
+      /**
        * Trims one form value by key.
        *
        * @param {string} key - Form value key.
@@ -567,6 +593,17 @@ export function createDialogComponent(Vue, options) {
        */
       trimFormValue(key) {
         form[key] = trimFieldValue(form[key]);
+      },
+
+      /**
+       * Updates one form value by key from live input.
+       *
+       * @param {string} key - Form value key.
+       * @param {string} value - Raw input value.
+       * @returns {void}
+       */
+      updateFormValue(key, value) {
+        form[key] = trimFieldValue(value);
       },
 
       /**
@@ -591,7 +628,7 @@ export function createDialogComponent(Vue, options) {
         }
 
         event.preventDefault();
-        form[field.key] = normalizeMultilineFieldValue(text);
+        form[field.key] = normalizeArticleFieldValue(field, text);
       },
 
       /**
@@ -604,6 +641,19 @@ export function createDialogComponent(Vue, options) {
        */
       updateNameRow(key, index, field) {
         form[key][index][field] = trimFieldValue(form[key][index][field]);
+      },
+
+      /**
+       * Updates a localized name row value from live input.
+       *
+       * @param {string} key - Localized name group key.
+       * @param {number} index - Row index.
+       * @param {string} field - Row field key.
+       * @param {string} value - Raw input value.
+       * @returns {void}
+       */
+      updateNameRowValue(key, index, field, value) {
+        form[key][index][field] = trimFieldValue(value);
       },
 
       /**
@@ -675,7 +725,7 @@ export function createDialogComponent(Vue, options) {
       updateCategoryRowCategory(index, category) {
         form.categoryRows[index] = options.onUpdateCategoryRowCategory(
           form.categoryRows[index],
-          category,
+          trimFieldValue(category),
         );
       },
 
@@ -1079,7 +1129,8 @@ function createMoveDialogTemplate() {
     [
       createElement("cdx-text-input", {
         placeholder: "Target page title",
-        "v-model": "moveTarget",
+        "v-bind:model-value": "moveTarget",
+        "v-on:update:model-value": "updateMoveTarget($event)",
       }),
       createElement(
         "p",
@@ -1426,13 +1477,17 @@ function createNameInputTemplate() {
     [
       createElement("cdx-text-input", {
         placeholder: "Title",
-        "v-model": "row.name",
+        "v-bind:model-value": "row.name",
         "v-on:change": "updateNameRow(group.nameGroupKey, index, 'name')",
+        "v-on:update:model-value":
+          "updateNameRowValue(group.nameGroupKey, index, 'name', $event)",
       }),
       createSourceUrlInputTemplate({
         placeholder: "Source URLs",
         model: "row.sourceUrl",
         change: "updateNameRow(group.nameGroupKey, index, 'sourceUrl')",
+        update:
+          "updateNameRowValue(group.nameGroupKey, index, 'sourceUrl', $event)",
       }),
     ],
   );
@@ -1445,6 +1500,7 @@ function createNameInputTemplate() {
  * @param {string} options.change - Change handler expression.
  * @param {string} options.model - Vue model expression.
  * @param {string} options.placeholder - Placeholder text or expression.
+ * @param {string} options.update - Input update handler expression.
  * @param {boolean} [options.bindPlaceholder] - Whether placeholder is a Vue binding.
  * @returns {object} Source URL textarea node.
  */
@@ -1452,8 +1508,9 @@ function createSourceUrlInputTemplate(options) {
   const attributes = {
     class: "create-vg-stub-source-url",
     rows: "1",
-    "v-model": options.model,
+    "v-bind:model-value": options.model,
     "v-on:change": options.change,
+    "v-on:update:model-value": options.update,
   };
 
   if (options.bindPlaceholder) {
@@ -1518,8 +1575,9 @@ function createCompactFieldTemplate() {
         [
           createElement("cdx-text-input", {
             "v-bind:placeholder": "field.placeholder",
-            "v-model": "form[field.key]",
+            "v-bind:model-value": "form[field.key]",
             "v-on:change": "normalizeFieldValue(field)",
+            "v-on:update:model-value": "updateFieldValue(field, $event)",
           }),
           createMetacriticScoreTemplate(),
           createElement(
@@ -1532,6 +1590,7 @@ function createCompactFieldTemplate() {
                 placeholder: "Source URLs",
                 model: "form[field.sourceField.sourceKey]",
                 change: "trimSourceValue(field.sourceField)",
+                update: "updateSourceValue(field.sourceField, $event)",
               }),
             ],
           ),
@@ -1555,15 +1614,19 @@ function createMetacriticScoreTemplate() {
     [
       createElement("cdx-text-input", {
         "v-bind:placeholder": "getArticleField('metacriticScore').placeholder",
-        "v-model": "form.metacriticScore",
+        "v-bind:model-value": "form.metacriticScore",
         "v-on:change":
           "normalizeFieldValue(getArticleField('metacriticScore'))",
+        "v-on:update:model-value":
+          "updateFieldValue(getArticleField('metacriticScore'), $event)",
       }),
       createSourceUrlInputTemplate({
         placeholder: "Source URLs",
         model: "form.metacriticScoreSourceUrl",
         change:
           "trimSourceValue(getArticleField('metacriticScore').sourceField)",
+        update:
+          "updateSourceValue(getArticleField('metacriticScore').sourceField, $event)",
       }),
     ],
   );
@@ -1600,9 +1663,10 @@ function createStandardFieldTemplate() {
           createElement("cdx-text-input", {
             "v-bind:placeholder":
               "getFieldPlaceholder(field) || field.placeholder",
-            "v-model": "form[field.key]",
+            "v-bind:model-value": "form[field.key]",
             "v-on:change": "normalizeFieldValue(field)",
             "v-on:paste": "normalizePastedFieldValue(field, $event)",
+            "v-on:update:model-value": "updateFieldValue(field, $event)",
           }),
           createElement(
             "template",
@@ -1614,6 +1678,7 @@ function createStandardFieldTemplate() {
                 placeholder: "Source URLs",
                 model: "form[field.sourceField.sourceKey]",
                 change: "trimSourceValue(field.sourceField)",
+                update: "updateSourceValue(field.sourceField, $event)",
               }),
             ],
           ),
@@ -1632,8 +1697,9 @@ function createOriginalLanguageTemplate() {
   return createElement("cdx-text-input", {
     placeholder: "Original title language code",
     "v-if": "field.key === 'originalName'",
-    "v-model": "form.originalLanguage",
+    "v-bind:model-value": "form.originalLanguage",
     "v-on:change": "trimFormValue('originalLanguage')",
+    "v-on:update:model-value": "updateFormValue('originalLanguage', $event)",
   });
 }
 
@@ -1917,6 +1983,40 @@ function getFieldValueKey(field) {
  */
 function isMultiItemField(field) {
   return MULTI_ITEM_FIELD_KEYS.includes(field.key);
+}
+
+/**
+ * Normalizes an article field value for live form input.
+ *
+ * @param {object} field - Dialog field definition.
+ * @param {string} field.key - Form key for the field.
+ * @param {*} value - Raw form field value.
+ * @returns {string} Normalized form field value.
+ */
+function normalizeArticleFieldValue(field, value) {
+  const trimmed = trimFieldValue(value);
+
+  if (field.key === "year") {
+    return normalizeYearValue(trimmed);
+  }
+
+  if (isMultiItemField(field)) {
+    return normalizeMultilineFieldValue(trimmed);
+  }
+
+  return trimmed;
+}
+
+/**
+ * Converts a full date-like value to a bare year.
+ *
+ * @param {string} value - Trimmed form field value.
+ * @returns {string} Year field value.
+ */
+function normalizeYearValue(value) {
+  const match = value.match(/\b\d{4}\b/u);
+
+  return match == null ? value : match[0];
 }
 
 /**

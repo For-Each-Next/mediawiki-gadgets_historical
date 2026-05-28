@@ -9,3 +9,4 @@ export { buildDefaultSortKey, buildDefaultSortText } from "./defaultsort.js";
 export { buildInfoboxText } from "./infobox.js";
 export { buildLeadNameText } from "./lead-name.js";
 export { buildNoteTaText } from "./noteta.js";
+export { buildReferencesText } from "./references.js";

@@ -456,7 +456,7 @@ test("source references render named refs and a references block", async () => {
   );
   assert.equal(
     text.includes(
-      "== 参考文献 ==\n\n<references>\n" +
+      "== 参考文献 ==\n\n<references responsive>\n" +
         '<ref name=":1">{{cite web|title=Original source}}</ref>\n' +
         '<ref name=":2">{{cite web|title=Year source}}</ref>\n' +
         '<ref name=":3">{{cite web|title=Developer source}}</ref>\n' +
@@ -528,7 +528,7 @@ test("official name rows render vgn refs in the infobox", async () => {
   );
   assert.equal(
     text.includes(
-      '== 参考文献 ==\n\n<references>\n<ref name=":1">{{cite web|title=Official source}}</ref>\n</references>',
+      '== 参考文献 ==\n\n<references responsive>\n<ref name=":1">{{cite web|title=Official source}}</ref>\n</references>',
     ),
     true,
   );

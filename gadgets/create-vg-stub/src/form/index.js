@@ -192,12 +192,6 @@ const ARTICLE_PARAMETER_GROUPS = [
   ]),
   new ArticleParameterGroup("attribution", "Attribution", [
     new ArticleParameterField(
-      "year",
-      "Year",
-      "year",
-      SOURCE_REFERENCE_FIELDS[2],
-    ),
-    new ArticleParameterField(
       "developers",
       "Developer(s)",
       "companies.developers",
@@ -210,16 +204,22 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[4],
     ),
     new ArticleParameterField(
-      "genres",
-      "Genre(s)",
-      "genres",
-      SOURCE_REFERENCE_FIELDS[5],
-    ),
-    new ArticleParameterField(
       "platforms",
       "Platform(s)",
       "platforms",
       SOURCE_REFERENCE_FIELDS[6],
+    ),
+    new ArticleParameterField(
+      "year",
+      "Year",
+      "year",
+      SOURCE_REFERENCE_FIELDS[2],
+    ),
+    new ArticleParameterField(
+      "genres",
+      "Genre(s)",
+      "genres",
+      SOURCE_REFERENCE_FIELDS[5],
     ),
   ]),
   new ArticleParameterGroup("officialNames", "Official", [], "officialNames"),

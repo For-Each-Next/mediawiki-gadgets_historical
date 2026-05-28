@@ -210,15 +210,34 @@ export function splitLookupFieldValues(value) {
  */
 export function getWikilinkValue(value) {
   const item = trimValue(value);
-  const match = getWikilinkMatch(item);
+  const parts = getWikilinkParts(item);
+
+  if (parts == null) {
+    return item;
+  }
+
+  return parts.label || parts.target;
+}
+
+/**
+ * Gets the target and display label from a whole wikilink field item.
+ *
+ * @param {string} value - Field item text.
+ * @returns {object|null} Wikilink target and display label.
+ */
+export function getWikilinkParts(value) {
+  const match = getWikilinkMatch(trimValue(value));
 
   if (match == null) {
-    return item;
+    return null;
   }
 
   const [target, label] = splitWikilinkParts(match[1]);
 
-  return trimValue(label || target);
+  return {
+    label: trimValue(label),
+    target: trimValue(target),
+  };
 }
 
 /**

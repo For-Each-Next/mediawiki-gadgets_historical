@@ -6,9 +6,11 @@
 
 import {
   FIELD_REFERENCE_DATA,
+  buildLinkText,
   buildPageText,
   getReferenceValues,
   getSourceReference,
+  getWikilinkParts,
   isWikilinkValue,
   splitFieldValues,
   splitLookupFieldValues,
@@ -30,15 +32,16 @@ import {
 export function buildPlatformSeriesMetadata(values, options = {}) {
   const references = getPlatformReferences(values.platforms);
   const platformListText = buildPlatformListText(values.platforms, references);
+  const series = normalizeSeriesValue(values.series || "");
 
   return {
     categories: uniqueValues(getReferenceValues(references, "categories")),
-    categoryPlans: buildSeriesCategoryPlans(values.series || ""),
+    categoryPlans: buildSeriesCategoryPlans(series),
     platformCount: splitLookupFieldValues(values.platforms || "").length,
     stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
     text: buildPlatformSeriesSentenceText(
       platformListText,
-      trimValue(values.series || ""),
+      series,
       options.platformSourceTag || "",
       options.seriesSourceTag || "",
     ),
@@ -82,7 +85,62 @@ function buildSeriesText(series, sourceTag) {
     return "";
   }
 
-  return `，属于「《${series}》系列」${sourceTag}`;
+  return `，属于「${buildSeriesDisplayText(series)}」${sourceTag}`;
+}
+
+/**
+ * Builds the series display text.
+ *
+ * @param {string} series - Normalized series name.
+ * @returns {string} Series display wikitext.
+ */
+function buildSeriesDisplayText(series) {
+  if (!isWikilinkValue(series)) {
+    return `《${series}》系列`;
+  }
+
+  const parts = getWikilinkParts(series);
+  const label = parts.label || parts.target;
+
+  if (parts.label === "") {
+    return buildLinkText(`${parts.target}系列`, `《${label}》系列`);
+  }
+
+  return buildLinkText(parts.target, `《${label}》系列`);
+}
+
+/**
+ * Normalizes a user-entered series value before prose and lookup use it.
+ *
+ * @param {string} series - Raw series name.
+ * @returns {string} Normalized series name.
+ */
+function normalizeSeriesValue(series) {
+  const value = trimValue(series);
+
+  if (!isWikilinkValue(value)) {
+    return trimSeriesSuffix(value);
+  }
+
+  const parts = getWikilinkParts(value);
+  const target = trimSeriesSuffix(parts.target);
+  const label = trimSeriesSuffix(parts.label);
+
+  if (label === "") {
+    return `[[${target}]]`;
+  }
+
+  return buildLinkText(target, label);
+}
+
+/**
+ * Trims a redundant Chinese series suffix from one value.
+ *
+ * @param {string} value - Raw series value.
+ * @returns {string} Series value without a trailing suffix.
+ */
+function trimSeriesSuffix(value) {
+  return trimValue(value).replace(/系列$/u, "");
 }
 
 /**

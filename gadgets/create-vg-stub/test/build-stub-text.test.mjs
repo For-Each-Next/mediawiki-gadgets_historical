@@ -278,6 +278,55 @@ test("series renders after platform text", async () => {
   assert.equal(text.includes("作品对应PC平台，属于「《Example》系列」。"), true);
 });
 
+test("linked series renders as a linked series title", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    series: "[[最終幻想]]",
+    year: "2024",
+  });
+
+  assert.equal(
+    text.includes("作品对应PC平台，属于「[[最終幻想系列|《最終幻想》系列]]」。"),
+    true,
+  );
+});
+
+test("piped series link preserves target and trims label suffix", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    series: "[[test|幻想系列]]",
+    year: "2024",
+  });
+
+  assert.equal(
+    text.includes("作品对应PC平台，属于「[[test|《幻想》系列]]」。"),
+    true,
+  );
+});
+
+test("series suffix is trimmed before rendering", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    series: "最終幻想系列",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("作品对应PC平台，属于「《最終幻想》系列」。"), true);
+  assert.equal(text.includes("最終幻想系列系列"), false);
+});
+
 test("series source reference renders after series text", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",

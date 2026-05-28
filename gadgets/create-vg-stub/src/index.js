@@ -476,11 +476,13 @@ function getFieldPlaceholder(form, field) {
     return undefined;
   }
 
-  return buildDefaultSortKey({
+  const sortKey = buildDefaultSortKey({
     english: form.englishName,
     original: form.originalName,
     title: form.name,
   });
+
+  return `Leave blank to use ${sortKey}`;
 }
 
 /**

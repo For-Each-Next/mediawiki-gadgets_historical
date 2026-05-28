@@ -63,52 +63,52 @@ class ArticleParameterGroup {
 export const SOURCE_REFERENCE_FIELDS = [
   {
     key: "originalName",
-    label: "Original title source URL",
+    label: "Original title source URLs",
     sourceKey: "originalNameSourceUrl",
   },
   {
     key: "englishName",
-    label: "English title source URL",
+    label: "English title source URLs",
     sourceKey: "englishNameSourceUrl",
   },
   {
     key: "year",
-    label: "Year source URL",
+    label: "Year source URLs",
     sourceKey: "yearSourceUrl",
   },
   {
     key: "developers",
-    label: "Developer source URL",
+    label: "Dev source URLs",
     sourceKey: "developersSourceUrl",
   },
   {
     key: "publishers",
-    label: "Publisher source URL",
+    label: "Pub source URLs",
     sourceKey: "publishersSourceUrl",
   },
   {
     key: "series",
-    label: "Series source URL",
+    label: "Series source URLs",
     sourceKey: "seriesSourceUrl",
   },
   {
     key: "genres",
-    label: "Genre source URL",
+    label: "Genre source URLs",
     sourceKey: "genresSourceUrl",
   },
   {
     key: "platforms",
-    label: "Platform source URL",
+    label: "Plat source URLs",
     sourceKey: "platformsSourceUrl",
   },
   {
     key: "metacriticScore",
-    label: "Metacritic source URL",
+    label: "MC score source URLs",
     sourceKey: "metacriticScoreSourceUrl",
   },
   {
     key: "openCriticRecommend",
-    label: "OpenCritic source URL",
+    label: "OC score source URLs",
     sourceKey: "openCriticRecommendSourceUrl",
   },
 ];
@@ -153,14 +153,28 @@ const ARTICLE_PARAMETER_GROUPS = [
       "Original title",
       "originalName",
       SOURCE_REFERENCE_FIELDS[0],
+      {
+        placeholder: "Native title",
+      },
     ),
     new ArticleParameterField(
       "englishName",
       "English title",
       "englishName",
       SOURCE_REFERENCE_FIELDS[1],
+      {
+        placeholder: "Localized title",
+      },
     ),
-    new ArticleParameterField("sortKey", "Sort key", "sortKey"),
+    new ArticleParameterField(
+      "sortKey",
+      "Sort key",
+      "sortKey",
+      null,
+      {
+        placeholder: "Leave blank to use the generated value",
+      },
+    ),
     new ArticleParameterField(
       "metacriticPlatform",
       "Platform",
@@ -180,7 +194,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[8],
       {
         compact: true,
-        placeholder: "Metascore",
+        placeholder: "Score",
       },
     ),
     new ArticleParameterField(
@@ -191,7 +205,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       {
         compact: true,
         heading: "OC score",
-        placeholder: "Critics Recommend",
+        placeholder: "Recommend rate",
       },
     ),
   ]),
@@ -201,36 +215,54 @@ const ARTICLE_PARAMETER_GROUPS = [
       "Dev",
       "companies.developers",
       SOURCE_REFERENCE_FIELDS[3],
+      {
+        placeholder: "Names",
+      },
     ),
     new ArticleParameterField(
       "publishers",
       "Pub",
       "companies.publishers",
       SOURCE_REFERENCE_FIELDS[4],
+      {
+        placeholder: "Names",
+      },
     ),
     new ArticleParameterField(
       "series",
       "Series",
       "series",
       SOURCE_REFERENCE_FIELDS[5],
+      {
+        placeholder: "Title",
+      },
     ),
     new ArticleParameterField(
       "platforms",
       "Plat",
       "platforms",
       SOURCE_REFERENCE_FIELDS[7],
+      {
+        placeholder: "Names",
+      },
     ),
     new ArticleParameterField(
       "year",
       "Year",
       "year",
       SOURCE_REFERENCE_FIELDS[2],
+      {
+        placeholder: "YYYY",
+      },
     ),
     new ArticleParameterField(
       "genres",
       "Genre",
       "genres",
       SOURCE_REFERENCE_FIELDS[6],
+      {
+        placeholder: "Names",
+      },
     ),
   ]),
   new ArticleParameterGroup("officialNames", "Official", [], "officialNames"),
@@ -1100,12 +1132,12 @@ function createNameInputTemplate() {
     },
     [
       createElement("cdx-text-input", {
-        placeholder: "Name",
+        placeholder: "Title",
         "v-model": "row.name",
         "v-on:change": "updateNameRow(group.nameGroupKey, index, 'name')",
       }),
       createSourceUrlInputTemplate({
-        placeholder: "Source URL",
+        placeholder: "Source URLs",
         model: "row.sourceUrl",
         change: "updateNameRow(group.nameGroupKey, index, 'sourceUrl')",
       }),
@@ -1204,7 +1236,7 @@ function createCompactFieldTemplate() {
             },
             [
               createSourceUrlInputTemplate({
-                placeholder: "Source URL",
+                placeholder: "Source URLs",
                 model: "form[field.sourceField.sourceKey]",
                 change: "trimSourceValue(field.sourceField)",
               }),
@@ -1235,7 +1267,7 @@ function createMetacriticScoreTemplate() {
           "normalizeFieldValue(getArticleField('metacriticScore'))",
       }),
       createSourceUrlInputTemplate({
-        placeholder: "Source URL",
+        placeholder: "Source URLs",
         model: "form.metacriticScoreSourceUrl",
         change:
           "trimSourceValue(getArticleField('metacriticScore').sourceField)",
@@ -1286,8 +1318,7 @@ function createStandardFieldTemplate() {
             },
             [
               createSourceUrlInputTemplate({
-                bindPlaceholder: true,
-                placeholder: "field.sourceField.label",
+                placeholder: "Source URLs",
                 model: "form[field.sourceField.sourceKey]",
                 change: "trimSourceValue(field.sourceField)",
               }),
@@ -1306,7 +1337,7 @@ function createStandardFieldTemplate() {
  */
 function createOriginalLanguageTemplate() {
   return createElement("cdx-text-input", {
-    placeholder: "Language code",
+    placeholder: "Original title language code",
     "v-if": "field.key === 'originalName'",
     "v-model": "form.originalLanguage",
     "v-on:change": "trimFormValue('originalLanguage')",

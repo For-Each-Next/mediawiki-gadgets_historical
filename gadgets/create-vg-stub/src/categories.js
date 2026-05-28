@@ -8,7 +8,7 @@ import {
   FIELD_REFERENCE_DATA,
   buildTemplateCall,
   getSourceReference,
-  splitFieldValues,
+  splitLookupFieldValues,
   uniqueValues,
 } from "./utils.js";
 
@@ -289,8 +289,8 @@ async function buildGeneratedCategoryRows(form, params, options) {
  */
 function buildCompanyCategoryRows(form) {
   const companies = uniqueValues([
-    ...splitFieldValues(form.developers || ""),
-    ...splitFieldValues(getPublisherValue(form) || ""),
+    ...splitLookupFieldValues(form.developers || ""),
+    ...splitLookupFieldValues(getPublisherValue(form) || ""),
   ]);
 
   return companies.flatMap(buildCompanyCategoryRowsForValue);
@@ -327,7 +327,7 @@ function buildCompanyCategoryRowsForValue(company) {
  * @returns {Array<object>} Series category rows.
  */
 function buildSeriesCategoryRows(series) {
-  return splitFieldValues(series || "").map(buildSeriesCategoryRow);
+  return splitLookupFieldValues(series || "").map(buildSeriesCategoryRow);
 }
 
 /**

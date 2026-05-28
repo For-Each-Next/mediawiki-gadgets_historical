@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTemplateText, getReferenceEntry } from "../src/utils.js";
+import {
+  buildTemplateText,
+  getReferenceEntry,
+  getWikilinkValue,
+  splitFieldValues,
+  splitLookupFieldValues,
+} from "../src/utils.js";
 
 test("buildTemplateText builds inline positional parameters by default", () => {
   assert.equal(
@@ -88,5 +94,24 @@ test("getReferenceEntry matches array entries by alias", () => {
         },
       },
     },
+  );
+});
+
+test("getWikilinkValue uses piped display text", () => {
+  assert.equal(getWikilinkValue("[[target|text]]"), "text");
+  assert.equal(getWikilinkValue("[[article]]"), "article");
+});
+
+test("splitFieldValues preserves wikilinks and does not split their commas", () => {
+  assert.deepEqual(
+    splitFieldValues("[[aaa|comma, example]], [[ccc]]"),
+    ["[[aaa|comma, example]]", "[[ccc]]"],
+  );
+});
+
+test("splitLookupFieldValues uses wikilink display values", () => {
+  assert.deepEqual(
+    splitLookupFieldValues("[[aaa|comma, example]], [[ccc]]"),
+    ["comma, example", "ccc"],
   );
 });

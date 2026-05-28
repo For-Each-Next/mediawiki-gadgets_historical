@@ -9,6 +9,7 @@ import {
   buildPageText,
   getReferenceValues,
   getSourceReference,
+  isWikilinkValue,
   splitFieldValues,
   uniqueValues,
 } from "../utils.js";
@@ -134,6 +135,10 @@ function joinCompanyTextList(values) {
  * @returns {string} Company wikitext.
  */
 function buildCompanyText(references, value) {
+  if (isWikilinkValue(value)) {
+    return value;
+  }
+
   const reference = references.find((item) => item.source === value);
 
   if (reference == null || reference.page == null) {

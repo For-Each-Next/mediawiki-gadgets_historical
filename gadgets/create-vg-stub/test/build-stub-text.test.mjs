@@ -225,6 +225,24 @@ test("three or more companies render with enumeration separators", async () => {
   assert.equal(text.includes("由Company A、Company B、Company C开发"), true);
 });
 
+test("entered wikilinks are preserved in generated prose", async () => {
+  const text = await buildStubText({
+    developers: "[[Foo, Inc.|Foo Studio]]",
+    genres: "[[Action game|Action]]",
+    name: "Example",
+    platforms: "[[PC game|PC]]",
+    publishers: "",
+    year: "2024",
+  });
+
+  assert.equal(
+    text.includes(
+      "《'''Example'''》是2024年[[Action game|Action]]类[[电子游戏]]，由[[Foo, Inc.|Foo Studio]]开发。作品对应[[PC game|PC]]平台。",
+    ),
+    true,
+  );
+});
+
 test("empty platform omits the platform sentence", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",

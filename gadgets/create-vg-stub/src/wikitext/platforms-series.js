@@ -9,6 +9,7 @@ import {
   buildPageText,
   getReferenceValues,
   getSourceReference,
+  isWikilinkValue,
   splitFieldValues,
   trimValue,
   uniqueValues,
@@ -102,6 +103,10 @@ function buildPlatformListText(value, references) {
  * @returns {string} Platform wikitext.
  */
 function buildPlatformText(references, value) {
+  if (isWikilinkValue(value)) {
+    return value;
+  }
+
   const reference = references.find((item) => item.source === value);
 
   if (reference == null || reference.page == null) {

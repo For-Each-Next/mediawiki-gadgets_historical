@@ -184,10 +184,130 @@ export function joinFieldValues(value) {
  * @returns {Array<string>} Individual lookup values.
  */
 export function splitFieldValues(value) {
-  return value
-    .split(/[、,，;；/\r\n]+/u)
+  return splitDelimitedFieldValue(value)
     .map(trimValue)
     .filter(Boolean);
+}
+
+/**
+ * Splits one user-entered field into category/lookup values.
+ *
+ * @param {string} value - User-entered field value.
+ * @returns {Array<string>} Individual values with wikilinks normalized.
+ */
+export function splitLookupFieldValues(value) {
+  return splitDelimitedFieldValue(value)
+    .map(getWikilinkValue)
+    .map(trimValue)
+    .filter(Boolean);
+}
+
+/**
+ * Gets the value represented by a whole wikilink field item.
+ *
+ * @param {string} value - Field item text.
+ * @returns {string} Display text for piped links, or target text otherwise.
+ */
+export function getWikilinkValue(value) {
+  const item = trimValue(value);
+  const match = getWikilinkMatch(item);
+
+  if (match == null) {
+    return item;
+  }
+
+  const [target, label] = splitWikilinkParts(match[1]);
+
+  return trimValue(label || target);
+}
+
+/**
+ * Checks whether a field item is a whole wikilink.
+ *
+ * @param {string} value - Field item text.
+ * @returns {boolean} Whether the item is a wikilink.
+ */
+export function isWikilinkValue(value) {
+  return getWikilinkMatch(trimValue(value)) != null;
+}
+
+/**
+ * Matches a whole wikilink field item.
+ *
+ * @param {string} value - Field item text.
+ * @returns {RegExpMatchArray|null} Wikilink match.
+ */
+function getWikilinkMatch(value) {
+  return value.match(/^\[\[([^\[\]\r\n]+)\]\]$/u);
+}
+
+/**
+ * Splits a delimited field without splitting inside wikilinks.
+ *
+ * @param {string} value - User-entered field value.
+ * @returns {Array<string>} Raw field items.
+ */
+function splitDelimitedFieldValue(value) {
+  const text = value == null ? "" : String(value);
+  const items = [];
+  let item = "";
+  let inWikilink = false;
+
+  for (let index = 0; index < text.length; index++) {
+    const pair = text.slice(index, index + 2);
+
+    if (pair === "[[") {
+      inWikilink = true;
+      item += pair;
+      index++;
+      continue;
+    }
+
+    if (pair === "]]" && inWikilink) {
+      inWikilink = false;
+      item += pair;
+      index++;
+      continue;
+    }
+
+    if (!inWikilink && isFieldValueSeparator(text[index])) {
+      items.push(item);
+      item = "";
+      continue;
+    }
+
+    item += text[index];
+  }
+
+  items.push(item);
+
+  return items;
+}
+
+/**
+ * Splits wikilink internals into target and display label.
+ *
+ * @param {string} value - Text inside a wikilink.
+ * @returns {Array<string>} Target and optional label.
+ */
+function splitWikilinkParts(value) {
+  const separatorIndex = value.indexOf("|");
+
+  if (separatorIndex === -1) {
+    return [value, ""];
+  }
+
+  return [value.slice(0, separatorIndex), value.slice(separatorIndex + 1)];
+}
+
+/**
+ * Checks whether a character separates field values.
+ *
+ * @param {string} character - One input character.
+ * @returns {boolean} Whether the character is a field separator.
+ */
+function isFieldValueSeparator(character) {
+  return /[、,，;；/\r\n]/u.test(character);
 }
 
 /**
@@ -240,7 +360,7 @@ export function getSourceReference(definitions, value) {
  */
 export function getReferenceEntry(definitions, value) {
   const entries = getReferenceEntries(definitions);
-  const normalizedValue = normalizeAlias(value);
+  const normalizedValue = normalizeAlias(getWikilinkValue(value));
   const entry = entries.find(
     ([key, definition]) =>
       normalizeAlias(key) === normalizedValue ||

@@ -91,6 +91,29 @@ test("buildCategoryRows falls back to unchecked suggested company categories", a
   );
 });
 
+test("buildCategoryRows generates company categories from wikilink display text", async () => {
+  const rows = await buildCategoryRows(
+    {
+      developers: "[[Foo, Inc.|Foo Studio]], [[Bar Games]]",
+      publishers: "",
+      series: "",
+    },
+    emptyParams(),
+    [],
+    {
+      fetcher: createCategoryFetcher({}),
+    },
+  );
+
+  assert.deepEqual(
+    rows.map((row) => [row.enabled, row.source, row.category, row.status]),
+    [
+      [false, "suggested", "Foo Studio游戏", ""],
+      [false, "suggested", "Bar Games游戏", ""],
+    ],
+  );
+});
+
 test("buildCategoryRows checks all generated candidates in one request", async () => {
   const fetchedTitles = [];
   const rows = await buildCategoryRows(

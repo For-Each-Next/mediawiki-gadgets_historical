@@ -10,6 +10,7 @@ import {
   getReferenceDefinition,
   getReferenceEntry,
   getReferenceValues,
+  isWikilinkValue,
   splitFieldValues,
   trimValue,
   uniqueValues,
@@ -116,6 +117,10 @@ function buildGenreText(params) {
  * @returns {string} Genre item wikitext.
  */
 function buildGenreItemText(value) {
+  if (isWikilinkValue(value)) {
+    return value;
+  }
+
   const genreReference = getReferenceDefinition(
     FIELD_REFERENCE_DATA.genres,
     value,

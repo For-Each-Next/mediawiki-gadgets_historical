@@ -71,6 +71,27 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
   assert.equal(form.englishName, "Example Game");
 });
 
+test("enwiki lookup removes disambiguation from blank English title", async () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      async onEnwikiTitleChange() {
+        return {
+          title: "Example Game (video game)",
+          wikidataId: "Q123",
+        };
+      },
+    }),
+  );
+  const { form } = component.setup();
+
+  form.enwikiTitle = "Example Game (video game)";
+  await component.methods.updateEnwikiTitle();
+
+  assert.equal(form.wikidataId, "Q123");
+  assert.equal(form.englishName, "Example Game");
+});
+
 test("enwiki lookup preserves an entered English title", async () => {
   const component = createDialogComponent(
     createVueStub(),

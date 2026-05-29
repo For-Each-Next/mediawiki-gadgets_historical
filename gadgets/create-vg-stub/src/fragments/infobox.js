@@ -28,7 +28,7 @@ export function buildInfoboxText(params) {
       ["title", normalizeValue(params.name)],
       ["original", buildOriginalNameText(params)],
       ["japanese", buildJapaneseNameText(params)],
-      ["english", normalizeValue(params.englishName)],
+      ["english", buildEnglishNameText(params)],
       ["official", buildVgnText(params.officialNames)],
       ["common", buildVgnText(params.commonNames)],
     ],
@@ -48,7 +48,12 @@ function buildOriginalNameText(params) {
   const language = normalizeValue(params.originalLanguage);
   const name = normalizeValue(params.originalName);
 
-  if (name == null || language == null || language === "ja") {
+  if (
+    name == null ||
+    language == null ||
+    language === "ja" ||
+    isSameBaseTitle(name, params.name)
+  ) {
     return undefined;
   }
 
@@ -68,6 +73,10 @@ function buildJapaneseNameText(params) {
   const japaneseName = normalizeValue(params.japaneseName);
 
   if (japaneseName != null) {
+    if (isSameBaseTitle(japaneseName, params.name)) {
+      return undefined;
+    }
+
     return japaneseName;
   }
 
@@ -75,7 +84,23 @@ function buildJapaneseNameText(params) {
     return undefined;
   }
 
-  return normalizeValue(params.originalName);
+  const originalName = normalizeValue(params.originalName);
+
+  return isSameBaseTitle(originalName, params.name) ? undefined : originalName;
+}
+
+/**
+ * Builds the English title parameter.
+ *
+ * @param {object} params - Infobox parameters.
+ * @param {string} [params.englishName] - English title.
+ * @param {string} params.name - Article title.
+ * @returns {string|undefined} English title parameter.
+ */
+function buildEnglishNameText(params) {
+  const englishName = normalizeValue(params.englishName);
+
+  return isSameBaseTitle(englishName, params.name) ? undefined : englishName;
 }
 
 /**
@@ -151,4 +176,30 @@ function normalizeValue(value) {
   const trimmedValue = String(value).trim();
 
   return trimmedValue === "" ? undefined : trimmedValue;
+}
+
+/**
+ * Checks whether a title value duplicates the article's base title.
+ *
+ * @param {string} value - Title value.
+ * @param {string} articleTitle - Article title.
+ * @returns {boolean} Whether the titles are equivalent.
+ */
+function isSameBaseTitle(value, articleTitle) {
+  if (value == null) {
+    return false;
+  }
+
+  return normalizeTitleForComparison(value) ===
+    normalizeTitleForComparison(articleTitle);
+}
+
+/**
+ * Normalizes a title for duplicate-name comparisons.
+ *
+ * @param {string} title - Title text.
+ * @returns {string} Normalized title.
+ */
+function normalizeTitleForComparison(title) {
+  return String(title || "").trim().replace(/ \(.+?\)$/u, "");
 }

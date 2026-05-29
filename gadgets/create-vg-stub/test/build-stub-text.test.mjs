@@ -473,6 +473,49 @@ test("English name renders as italic langx title variant", async () => {
   );
 });
 
+test("English name matching base page title omits langx title variant", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    englishName: "Example Game",
+    genres: "",
+    name: "Example Game (video game)",
+    platforms: "",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.ok(
+    text.startsWith(
+      "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
+        "{{Infobox VG\n| title = Example Game (video game)\n}}\n\n" +
+        "《'''Example Game (video game)'''》是一款",
+    ),
+  );
+  assert.equal(text.includes("{{langx|en|Example Game"), false);
+});
+
+test("original name matching base page title omits langx title variant", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    name: "Example Game (video game)",
+    originalLanguage: "en",
+    originalName: "Example Game",
+    platforms: "",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.ok(
+    text.startsWith(
+      "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
+        "{{Infobox VG\n| title = Example Game (video game)\n}}\n\n" +
+        "《'''Example Game (video game)'''》是一款",
+    ),
+  );
+  assert.equal(text.includes("{{langx|en|Example Game"), false);
+});
+
 test("French original name renders as italic langx title variant", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",

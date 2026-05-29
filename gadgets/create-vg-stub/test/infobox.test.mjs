@@ -35,6 +35,33 @@ test("buildInfoboxText renders non-Japanese original names with language code", 
   );
 });
 
+test("buildInfoboxText omits title params matching base page title", () => {
+  assert.equal(
+    buildInfoboxText({
+      englishName: "Example Game",
+      name: "Example Game (video game)",
+      originalLanguage: "en",
+      originalName: "Example Game",
+    }),
+    "{{Infobox VG\n" +
+      "| title = Example Game (video game)\n" +
+      "}}",
+  );
+});
+
+test("buildInfoboxText omits Japanese title matching base page title", () => {
+  assert.equal(
+    buildInfoboxText({
+      name: "Example Game (video game)",
+      originalLanguage: "ja",
+      originalName: "Example Game",
+    }),
+    "{{Infobox VG\n" +
+      "| title = Example Game (video game)\n" +
+      "}}",
+  );
+});
+
 test("buildInfoboxText renders official and common vgn names", () => {
   assert.equal(
     buildInfoboxText({

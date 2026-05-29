@@ -840,7 +840,7 @@ export function createDialogComponent(Vue, options) {
     form.wikidataId = trimFieldValue(metadata.wikidataId);
 
     if (trimFieldValue(form.englishName) === "") {
-      form.englishName = trimFieldValue(metadata.title);
+      form.englishName = getBasePageTitle(metadata.title);
     }
   }
 }
@@ -2141,6 +2141,16 @@ export function trimFieldValue(value) {
   }
 
   return String(value).trim();
+}
+
+/**
+ * Removes a trailing parenthesized disambiguator from a page title.
+ *
+ * @param {string} title - Page title.
+ * @returns {string} Base page title.
+ */
+function getBasePageTitle(title) {
+  return trimFieldValue(title).replace(/ \(.+?\)$/u, "");
 }
 
 /**

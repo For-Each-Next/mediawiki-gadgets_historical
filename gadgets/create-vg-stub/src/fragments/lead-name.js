@@ -35,6 +35,10 @@ export function buildLeadNameText(params) {
  */
 function buildVariantNameText(params) {
   if (params.originalName !== "") {
+    if (isSameBaseTitle(params.originalName, params.name)) {
+      return "";
+    }
+
     return buildVariantNameVariantText({
       code: params.originalLanguage,
       name: params.originalName,
@@ -43,6 +47,10 @@ function buildVariantNameText(params) {
   }
 
   if (params.englishName !== "") {
+    if (isSameBaseTitle(params.englishName, params.name)) {
+      return "";
+    }
+
     return buildVariantNameVariantText({
       code: "en",
       name: params.englishName,
@@ -93,4 +101,26 @@ function buildLangxTemplate(language, text) {
  */
 function buildLangxItalicParam(language) {
   return ITALIC_LANGUAGE_CODES.has(language) ? "yes" : undefined;
+}
+
+/**
+ * Checks whether a variant name duplicates the article's base title.
+ *
+ * @param {string} variantName - Original or English title.
+ * @param {string} articleTitle - Article title.
+ * @returns {boolean} Whether the names are equivalent.
+ */
+function isSameBaseTitle(variantName, articleTitle) {
+  return normalizeTitleForComparison(variantName) ===
+    normalizeTitleForComparison(articleTitle);
+}
+
+/**
+ * Normalizes a title for duplicate-name comparisons.
+ *
+ * @param {string} title - Title text.
+ * @returns {string} Normalized title.
+ */
+function normalizeTitleForComparison(title) {
+  return String(title || "").trim().replace(/ \(.+?\)$/u, "");
 }

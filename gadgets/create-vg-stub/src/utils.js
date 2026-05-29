@@ -289,7 +289,7 @@ function splitDelimitedFieldValue(value) {
       continue;
     }
 
-    if (!inWikilink && isFieldValueSeparator(text[index])) {
+    if (!inWikilink && isFieldValueSeparator(text, index)) {
       items.push(item);
       item = "";
       continue;
@@ -322,11 +322,29 @@ function splitWikilinkParts(value) {
 /**
  * Checks whether a character separates field values.
  *
- * @param {string} character - One input character.
+ * @param {string} text - Full input text.
+ * @param {number} index - Character index.
  * @returns {boolean} Whether the character is a field separator.
  */
-function isFieldValueSeparator(character) {
-  return /[、,，;；/\r\n]/u.test(character);
+function isFieldValueSeparator(text, index) {
+  const character = text[index];
+
+  if (character === "/") {
+    return isSpacedSlash(text, index);
+  }
+
+  return /[、,，;；\r\n]/u.test(character);
+}
+
+/**
+ * Checks whether a slash is being used as a spaced field separator.
+ *
+ * @param {string} text - Full input text.
+ * @param {number} index - Slash index.
+ * @returns {boolean} Whether the slash is a spaced separator.
+ */
+function isSpacedSlash(text, index) {
+  return /\s/u.test(text[index - 1] || "") || /\s/u.test(text[index + 1] || "");
 }
 
 /**

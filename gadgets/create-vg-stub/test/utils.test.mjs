@@ -109,6 +109,17 @@ test("splitFieldValues preserves wikilinks and does not split their commas", () 
   );
 });
 
+test("splitFieldValues preserves unspaced slashes inside names", () => {
+  assert.deepEqual(
+    splitFieldValues("PlayStation 5, Windows, Xbox Series X/S"),
+    ["PlayStation 5", "Windows", "Xbox Series X/S"],
+  );
+});
+
+test("splitFieldValues splits spaced slash separators", () => {
+  assert.deepEqual(splitFieldValues("PC / Switch"), ["PC", "Switch"]);
+});
+
 test("splitLookupFieldValues uses wikilink display values", () => {
   assert.deepEqual(
     splitLookupFieldValues("[[aaa|comma, example]], [[ccc]]"),

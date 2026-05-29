@@ -213,6 +213,31 @@ test("separated genre, company, and platform values render as lists", async () =
   assert.equal(text.includes("{{action-videogame-stub}}"), true);
 });
 
+test("Xbox Series slash platform value stays one platform", async () => {
+  const text = await buildStubText({
+    name: "Example",
+    platforms: "PlayStation 5, Windows, Xbox Series X/S",
+    year: "",
+  });
+
+  assert.equal(
+    text.includes(
+      "作品对应[[PlayStation 5]]、[[Windows]]、[[Xbox Series X/S]]平台。",
+    ),
+    true,
+  );
+});
+
+test("Xbox Series shorthand aliases match Xbox Series X/S", async () => {
+  const text = await buildStubText({
+    name: "Example",
+    platforms: "XS",
+    year: "",
+  });
+
+  assert.equal(text.includes("作品对应[[Xbox Series X/S]]平台。"), true);
+});
+
 test("three or more companies render with enumeration separators", async () => {
   const text = await buildStubText({
     developers: "Company A, Company B, Company C",

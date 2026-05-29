@@ -33,6 +33,17 @@ export async function fetchCiteTemplate(url, options = {}) {
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      const citeTemplate = await buildFallbackCiteWebTemplate(url, {
+        fetcher,
+        now: options.now,
+      });
+
+      setCachedCiteTemplate(url, citeTemplate, options);
+
+      return citeTemplate;
+    }
+
     throw new Error(`Citoid request failed: HTTP ${response.status}`);
   }
 
@@ -125,6 +136,108 @@ export function buildCiteTemplate(citation, options = {}) {
   return `{{${getTemplateName(citation.itemType)}${params
     .map(formatTemplateParam)
     .join("")}}}`;
+}
+
+/**
+ * Builds a minimal cite web template when Citoid cannot resolve a URL.
+ *
+ * @param {string} url - Source URL.
+ * @param {object} [options] - Formatting options.
+ * @param {Function} [options.fetcher] - Fetch implementation.
+ * @param {Date} [options.now] - Date used for access-date.
+ * @returns {Promise<string>} Generated cite web template wikitext.
+ */
+async function buildFallbackCiteWebTemplate(url, options = {}) {
+  const trimmedUrl = normalizeCitationCacheKey(url);
+
+  return buildCiteTemplate(
+    {
+      itemType: "webpage",
+      title: await fetchFallbackTitle(trimmedUrl, options),
+      url: trimmedUrl,
+      websiteTitle: getFallbackWebsiteTitle(url),
+    },
+    {
+      now: options.now,
+      rules: [],
+      url,
+    },
+  );
+}
+
+/**
+ * Fetches the source page title for a fallback citation.
+ *
+ * @param {string} url - Source URL.
+ * @param {object} options - Fetch options.
+ * @param {Function} [options.fetcher] - Fetch implementation.
+ * @returns {Promise<string>} Page title, or the URL when unavailable.
+ */
+async function fetchFallbackTitle(url, options) {
+  const fetcher = options.fetcher || fetch;
+
+  try {
+    const response = await fetcher(url, {
+      headers: {
+        accept: "text/html",
+      },
+    });
+
+    if (!response.ok) {
+      return url;
+    }
+
+    return extractHtmlTitle(await response.text()) || url;
+  } catch (_error) {
+    return url;
+  }
+}
+
+/**
+ * Extracts a document title from HTML text.
+ *
+ * @param {string} html - HTML source.
+ * @returns {string} Extracted title, or an empty string.
+ */
+function extractHtmlTitle(html) {
+  const match = String(html || "").match(/<title\b[^>]*>([\s\S]*?)<\/title>/iu);
+
+  if (match == null) {
+    return "";
+  }
+
+  return decodeHtmlEntities(match[1].replace(/\s+/gu, " ").trim());
+}
+
+/**
+ * Decodes common HTML entities from title text.
+ *
+ * @param {string} text - Encoded title text.
+ * @returns {string} Decoded title text.
+ */
+function decodeHtmlEntities(text) {
+  return text
+    .replace(/&#(\d+);/gu, (_match, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([\da-f]+);/giu, (_match, code) =>
+      String.fromCodePoint(Number.parseInt(code, 16)),
+    )
+    .replace(/&quot;/gu, '"')
+    .replace(/&apos;/gu, "'")
+    .replace(/&amp;/gu, "&")
+    .replace(/&lt;/gu, "<")
+    .replace(/&gt;/gu, ">");
+}
+
+/**
+ * Gets a website title for a fallback citation from the source URL hostname.
+ *
+ * @param {string} url - Source URL.
+ * @returns {string} Source URL hostname, or an empty string.
+ */
+function getFallbackWebsiteTitle(url) {
+  const parsedUrl = parseUrl(normalizeCitationCacheKey(url));
+
+  return (parsedUrl?.hostname || "").replace(/^www\./u, "");
 }
 
 /**

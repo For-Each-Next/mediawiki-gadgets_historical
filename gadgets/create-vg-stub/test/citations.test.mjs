@@ -193,6 +193,56 @@ test("fetchCiteTemplate fetches Citoid data and formats the first item", async (
   );
 });
 
+test("fetchCiteTemplate falls back to source page title on Citoid 404", async () => {
+  const requests = [];
+  const text = await fetchCiteTemplate(
+    " https://www.example.test/missing?page=1 ",
+    {
+      async fetcher(url, options) {
+        requests.push([url, options]);
+
+        if (url.startsWith("/api/rest_v1/")) {
+          return {
+            ok: false,
+            status: 404,
+          };
+        }
+
+        return {
+          async text() {
+            return "<!doctype html><title> Missing &amp; Found | Example </title>";
+          },
+          ok: true,
+        };
+      },
+      now: new Date("2026-05-24T00:00:00Z"),
+    },
+  );
+
+  assert.deepEqual(requests, [
+    [
+      "/api/rest_v1/data/citation/zotero/https%3A%2F%2Fwww.example.test%2Fmissing%3Fpage%3D1",
+      {
+        headers: {
+          accept: "application/json",
+        },
+      },
+    ],
+    [
+      "https://www.example.test/missing?page=1",
+      {
+        headers: {
+          accept: "text/html",
+        },
+      },
+    ],
+  ]);
+  assert.equal(
+    text,
+    "{{cite web|access-date=2026-05-24|title=Missing & Found {{!}} Example|url=https://www.example.test/missing?page=1|website=example.test}}",
+  );
+});
+
 test("buildCiteTemplate removes Gamer author by host rule", () => {
   const text = buildCiteTemplate(
     {

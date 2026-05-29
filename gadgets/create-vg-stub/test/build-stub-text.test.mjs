@@ -42,6 +42,19 @@ test("genre alias ignores letter case", async () => {
   assert.equal(text.includes("{{rpg-videogame-stub}}"), true);
 });
 
+test("platform genre alias generates platform game metadata", async () => {
+  const text = await buildStubText({
+    genres: "platform",
+    name: "Example",
+    platforms: "PC",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("2024年[[平台游戏|平台]]类[[电子游戏]]"), true);
+  assert.equal(text.includes("[[Category:平台游戏]]"), true);
+  assert.equal(text.includes("{{platform-videogame-stub}}"), true);
+});
+
 test("empty year omits the year phrase", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",

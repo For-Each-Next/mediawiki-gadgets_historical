@@ -9,15 +9,15 @@
  *
  * @param {object} metadata - Edit summary metadata.
  * @param {string} metadata.displayName - Summary display title.
+ * @param {string} metadata.enwikiTitle - English Wikipedia page title.
  * @param {number} metadata.proseSinographs - Prose length in sinographs.
- * @param {string} metadata.wikidataId - Wikidata item ID.
  * @param {string} metadata.year - Release year.
  * @returns {string} Generated edit summary.
  */
 export function buildEditSummary(metadata) {
   return [
     "🎮",
-    buildWikidataSummaryText(metadata.wikidataId, metadata.displayName),
+    buildNameSummaryText(metadata.displayName, metadata.enwikiTitle),
     buildYearSummaryText(metadata.year),
     buildProseCountText(metadata.proseSinographs),
     "🎮",
@@ -58,19 +58,23 @@ function buildProseCountText(count) {
 }
 
 /**
- * Builds the Wikidata item link for an edit summary.
+ * Builds the game title text for an edit summary.
  *
- * @param {string} wikidataId - Wikidata item ID.
  * @param {string} displayName - Summary display title.
- * @returns {string} Wikidata summary text.
+ * @param {string} enwikiTitle - English Wikipedia page title.
+ * @returns {string} Game title summary text.
  */
-function buildWikidataSummaryText(wikidataId, displayName) {
-  const value = String(wikidataId || "").trim();
+function buildNameSummaryText(displayName, enwikiTitle) {
   const label = String(displayName || "").trim();
+  const title = String(enwikiTitle || "").trim();
 
-  if (!/^Q\d+$/u.test(value) || label === "") {
+  if (label === "") {
     return "";
   }
 
-  return `[[d:${value}|${label}]]`;
+  if (title === "") {
+    return label;
+  }
+
+  return `[[en:${title}|${label}]]`;
 }

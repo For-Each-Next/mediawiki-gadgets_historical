@@ -340,6 +340,10 @@ function getDefaultName() {
  * @returns {string|undefined} Placeholder text.
  */
 function getFieldPlaceholder(form, field) {
+  if (field.key === "name") {
+    return getDefaultName();
+  }
+
   if (field.key === "wikidataId") {
     return trimFieldValue(form.enwikiTitle) === ""
       ? "Enter enwiki title first"
@@ -350,13 +354,69 @@ function getFieldPlaceholder(form, field) {
     return undefined;
   }
 
+  const normalizedForm = normalizeArticleForm(form);
   const sortKey = buildDefaultSortKey({
-    english: form.englishName,
-    original: form.originalName,
-    title: form.name,
+    english: normalizedForm.englishName,
+    original: normalizedForm.originalName,
+    title: normalizedForm.name,
   });
 
-  return `Leave blank to use ${sortKey}`;
+  return sortKey;
+}
+
+/**
+ * Builds a small live wikitext preview for one dialog field.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} previewKey - Shared preview group key.
+ * @returns {string} Preview wikitext, or an empty string.
+ */
+function getFieldPreview(form, previewKey) {
+  try {
+    return getArticleParamsFieldPreview(createArticleParams(form), previewKey);
+  } catch (_error) {
+    return "";
+  }
+}
+
+/**
+ * Selects the generated wikitext fragment represented by one field.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @param {string} key - Preview group key.
+ * @returns {string} Preview wikitext, or an empty string.
+ */
+function getArticleParamsFieldPreview(params, key) {
+  if (key === "names") {
+    return params.leadNameText;
+  }
+
+  if (key === "score") {
+    return params.aggScoresText;
+  }
+
+  if (key === "attribution") {
+    return buildAttributionPreviewText(params);
+  }
+
+  return "";
+}
+
+/**
+ * Builds the combined attribution preview sentence.
+ *
+ * @param {object} params - Normalized article parameters.
+ * @returns {string} Attribution preview wikitext.
+ */
+function buildAttributionPreviewText(params) {
+  const introText = `${params.yearGenreMetadata.text}${params.companyMetadata.text}`;
+  const platformText = params.platformSeriesMetadata.text;
+
+  if (introText === "") {
+    return platformText;
+  }
+
+  return `……是${introText}。${platformText}`;
 }
 
 /**
@@ -374,7 +434,71 @@ function getFieldPlaceholder(form, field) {
  * @returns {object} Normalized article parameters.
  */
 export function createArticleParams(form) {
-  return new VideoGameArticleParams(form);
+  return new VideoGameArticleParams(normalizeArticleForm(form));
+}
+
+/**
+ * Normalizes form values needed by article builders.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} form.name - User-entered article title.
+ * @returns {object} Form values with builder fallbacks applied.
+ */
+function normalizeArticleForm(form) {
+  const originalTitle = parsePrefixedValue(
+    form.originalName,
+    form.originalLanguage || "ja",
+  );
+  const metacriticScore = parsePrefixedValue(
+    form.metacriticScore,
+    form.metacriticPlatform || "",
+  );
+
+  return {
+    ...form,
+    metacriticPlatform: metacriticScore.prefix,
+    metacriticScore: metacriticScore.value,
+    name: trimFieldValue(form.name) || getDefaultNameFallback(),
+    originalLanguage: originalTitle.prefix || "ja",
+    originalName: originalTitle.value,
+  };
+}
+
+/**
+ * Parses compact prefixed field values like "ja:タイトル".
+ *
+ * @param {*} value - Raw field value.
+ * @param {string} defaultPrefix - Prefix used when none is entered.
+ * @returns {object} Parsed prefix and value.
+ */
+function parsePrefixedValue(value, defaultPrefix) {
+  const text = trimFieldValue(value);
+  const match = text.match(/^([^:\s][^:]*):(.*)$/u);
+
+  if (match == null) {
+    return {
+      prefix: trimFieldValue(defaultPrefix),
+      value: text,
+    };
+  }
+
+  return {
+    prefix: trimFieldValue(match[1]),
+    value: trimFieldValue(match[2]),
+  };
+}
+
+/**
+ * Gets the current page title when MediaWiki globals are available.
+ *
+ * @returns {string} Default article title, or an empty string.
+ */
+function getDefaultNameFallback() {
+  if (typeof mw === "undefined") {
+    return "";
+  }
+
+  return getDefaultName();
 }
 
 /**
@@ -917,6 +1041,7 @@ function init(require) {
       defaultName,
       getHistoryEntries: readFormHistoryEntries,
       getFieldPlaceholder,
+      getFieldPreview,
       initialForm: getMovedForm() || readFormDraftForPage(defaultName),
       onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
         refreshFormCategoryRows(

@@ -432,12 +432,84 @@ test("aggregate scores render after platform text", async () => {
   );
 });
 
+test("compact Metacritic score parses platform and score", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    metacriticScore: "PS5:77",
+    name: "Example",
+    platforms: "PS5",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.equal(
+    text.includes(
+      "游戏的[[Metacritic]]汇总得分为77/100（PlayStation 5版）。",
+    ),
+    true,
+  );
+});
+
 test("original name renders as a langx title variant", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",
     genres: "",
     name: "Example",
     originalLanguage: "ja",
+    originalName: "サンプル",
+    platforms: "",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.ok(
+    text.startsWith(
+      "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
+        "{{Infobox VG\n| title = Example\n| japanese = サンプル\n}}\n\n" +
+        "《'''Example'''》（{{langx|ja|サンプル|label=none}}）是一款",
+    ),
+  );
+});
+
+test("compact original name parses language prefix", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    name: "Example",
+    originalName: "en:Example Game",
+    platforms: "",
+    publishers: "Bar Games",
+    year: "",
+  });
+
+  assert.ok(
+    text.startsWith(
+      "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
+        "{{Infobox VG\n| title = Example\n| original = en:Example Game\n}}\n\n" +
+        "《'''Example'''》（{{langx|en|Example Game|italic=yes|label=none}}）是一款",
+    ),
+  );
+});
+
+test("compact original name prefix is ignored by default sort", async () => {
+  const text = await buildStubText({
+    genres: "RPG",
+    name: "Example",
+    originalName: "en:Example Game",
+    platforms: "",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("{{DEFAULTSORT:Example Game}}"), true);
+  assert.equal(text.includes("{{DEFAULTSORT:En Example Game}}"), false);
+});
+
+test("bare original name defaults to Japanese", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "",
+    name: "Example",
     originalName: "サンプル",
     platforms: "",
     publishers: "Bar Games",

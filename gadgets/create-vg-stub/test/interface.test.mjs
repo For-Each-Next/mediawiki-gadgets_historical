@@ -17,6 +17,8 @@ test("live field updates trim values and normalize full dates to years", () => {
   const component = createDialogComponent(createVueStub(), createOptionsStub());
   const { form } = component.setup();
 
+  assert.equal(form.name, "");
+
   component.methods.updateFieldValue({ key: "year" }, " May 2023 ");
   assert.equal(form.year, "2023");
 
@@ -72,6 +74,32 @@ test("live source and name row updates trim values", () => {
   assert.equal(form.yearSourceUrl, "https://example.test");
   assert.equal(form.officialNames[0].name, "簡体名");
   assert.equal(moveTarget.value, "Target page");
+});
+
+test("field preview callback receives live form and preview key", () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      getFieldPreview(form, previewKey) {
+        return `${previewKey}: ${form.name || "Example"}`;
+      },
+    }),
+  );
+  const { getFieldPreview } = component.setup();
+
+  assert.equal(
+    getFieldPreview({ key: "englishName", previewKey: "names" }),
+    "names: Example",
+  );
+  assert.equal(getFieldPreview({ key: "genres" }), "genres: Example");
+  assert.equal(
+    component.template.includes("create-vg-stub-wikitext-preview"),
+    true,
+  );
+  assert.equal(
+    component.template.includes("Wikidata: {{ getWikidataText() }}"),
+    true,
+  );
 });
 
 test("enwiki lookup fills wikidata and blank English title", async () => {

@@ -54,9 +54,23 @@ const DIALOG_CSS = `
 
 .create-vg-stub-source-url textarea,
 textarea.create-vg-stub-source-url {
+  font-size: 12px;
   height: 32px;
   min-height: 32px;
   resize: vertical;
+}
+
+.create-vg-stub-wikitext-preview {
+  color: #72777d;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.create-vg-stub-field-note {
+  margin: -8px 0 12px;
 }
 
 .create-vg-stub-category-grid {
@@ -107,6 +121,7 @@ class ArticleParameterField {
    * @param {string} path - Normalized parameter path.
    * @param {object} [sourceField] - Optional source URL field metadata.
    * @param {object} [options] - Field display options.
+   * @param {string} [options.previewKey] - Shared preview group key.
    */
   constructor(key, label, path, sourceField, options = {}) {
     this.breakBefore = Boolean(options.breakBefore);
@@ -116,6 +131,7 @@ class ArticleParameterField {
     this.label = label;
     this.path = path;
     this.placeholder = options.placeholder;
+    this.previewKey = options.previewKey;
     this.readonly = Boolean(options.readonly);
     this.sourceField = sourceField;
   }
@@ -240,24 +256,17 @@ const ARTICLE_PARAMETER_GROUPS = [
         placeholder: "Page title in English Wikipedia",
       },
     ),
-    new ArticleParameterField(
-      "wikidataId",
-      "Wikidata",
-      "wikidataId",
-      null,
-      {
-        placeholder: "Q?????",
-        readonly: true,
-      },
-    ),
+    new ArticleParameterField("name", "Title", "name", null, {
+      breakBefore: true,
+      placeholder: "Leave blank to use the page title",
+    }),
     new ArticleParameterField(
       "originalName",
       "Original title",
       "originalName",
       SOURCE_REFERENCE_FIELDS[0],
       {
-        breakBefore: true,
-        placeholder: "Native title",
+        placeholder: "ja:タイトル or en:Title",
       },
     ),
     new ArticleParameterField(
@@ -267,31 +276,22 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[1],
       {
         placeholder: "Localized title",
+        previewKey: "names",
       },
     ),
     new ArticleParameterField("sortKey", "Sort key", "sortKey", null, {
       placeholder: "Leave blank to use the generated value",
     }),
     new ArticleParameterField(
-      "metacriticPlatform",
-      "Platform",
-      "scores.metacriticPlatform",
-      null,
-      {
-        breakBefore: true,
-        compact: true,
-        heading: "MC score",
-        placeholder: "Platform",
-      },
-    ),
-    new ArticleParameterField(
       "metacriticScore",
       "Score",
       "scores.metacriticScore",
       SOURCE_REFERENCE_FIELDS[8],
       {
+        breakBefore: true,
         compact: true,
-        placeholder: "Score",
+        heading: "MC score",
+        placeholder: "ps4:95 or 95",
       },
     ),
     new ArticleParameterField(
@@ -303,6 +303,7 @@ const ARTICLE_PARAMETER_GROUPS = [
         compact: true,
         heading: "OC score",
         placeholder: "Recommend rate",
+        previewKey: "score",
       },
     ),
   ]),
@@ -359,6 +360,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       SOURCE_REFERENCE_FIELDS[6],
       {
         placeholder: "Names",
+        previewKey: "attribution",
       },
     ),
   ]),
@@ -387,6 +389,7 @@ export function addDialogStyles() {
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
  * @param {object} [options.initialForm] - Initial form values.
  * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
+ * @param {Function} [options.getFieldPreview] - Field wikitext preview builder.
  * @param {Function} options.getHistoryEntries - Form history entry provider.
  * @param {Function} options.onCategoryRowsRefresh - Category refresh handler.
  * @param {Function} options.onClearHistory - Form history clear handler.
@@ -466,7 +469,7 @@ export function createDialogComponent(Vue, options) {
        */
       async submitForm() {
         await refreshCategoryRows();
-        options.onSubmitHistory(form, form.name);
+        options.onSubmitHistory(form, getCurrentTitle());
         historyEntries.value = options.getHistoryEntries();
         await options.onSubmit(form, sourceFetchState, this.closeDialog);
       },
@@ -529,7 +532,7 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       openMoveDialog() {
-        moveTarget.value = form.name;
+        moveTarget.value = getCurrentTitle();
         moveOpen.value = true;
       },
 
@@ -659,7 +662,7 @@ export function createDialogComponent(Vue, options) {
           event.clipboardData || event.originalEvent.clipboardData;
         const text = clipboardData.getData("text");
 
-        if (!isMultilineFieldValue(text)) {
+        if (!hasFirstLevelFieldSeparator(text)) {
           return;
         }
 
@@ -788,6 +791,8 @@ export function createDialogComponent(Vue, options) {
         form,
         getArticleField,
         getFieldPlaceholder: options.getFieldPlaceholder.bind(null, form),
+        getFieldPreview,
+        getWikidataText,
         historyEntries,
         historyOpen,
         moveOpen,
@@ -807,6 +812,44 @@ export function createDialogComponent(Vue, options) {
    */
   async function refreshCategoryRows(refreshOptions) {
     await options.onCategoryRowsRefresh(form, categoryState, refreshOptions);
+  }
+
+  /**
+   * Gets the entered title, falling back to the current page title.
+   *
+   * @returns {string} Current article title.
+   */
+  function getCurrentTitle() {
+    return trimFieldValue(form.name) || options.defaultName;
+  }
+
+  /**
+   * Builds a small wikitext preview for one field.
+   *
+   * @param {object} field - Article parameter field.
+   * @returns {string} Preview wikitext, or an empty string.
+   */
+  function getFieldPreview(field) {
+    if (options.getFieldPreview == null) {
+      return "";
+    }
+
+    return options.getFieldPreview(form, field.previewKey || field.key) || "";
+  }
+
+  /**
+   * Gets the Wikidata note text.
+   *
+   * @returns {string} Wikidata ID or lookup status text.
+   */
+  function getWikidataText() {
+    return (
+      form.wikidataId ||
+      options.getFieldPlaceholder(form, {
+        key: "wikidataId",
+      }) ||
+      ""
+    );
   }
 
   /**
@@ -1611,7 +1654,12 @@ function createFieldGroupTemplate() {
           "v-bind:key": "field.key",
           "v-for": "field in group.fields",
         },
-        [createCompactFieldTemplate(), createStandardFieldTemplate()],
+        [
+          createCompactFieldTemplate(),
+          createStandardFieldTemplate(),
+          createWikidataNoteTemplate(),
+          createFieldPreviewTemplate(),
+        ],
       ),
     ],
   );
@@ -1627,7 +1675,7 @@ function createCompactFieldTemplate() {
     "div",
     {
       class: "create-vg-stub-field-row",
-      "v-if": "field.compact && field.key !== 'metacriticScore'",
+      "v-if": "field.compact",
     },
     [
       createFieldSeparatorTemplate("compact"),
@@ -1650,7 +1698,6 @@ function createCompactFieldTemplate() {
             "v-on:change": "normalizeFieldValue(field)",
             "v-on:update:model-value": "updateFieldValue(field, $event)",
           }),
-          createMetacriticScoreTemplate(),
           createElement(
             "template",
             {
@@ -1667,38 +1714,6 @@ function createCompactFieldTemplate() {
           ),
         ],
       ),
-    ],
-  );
-}
-
-/**
- * Creates the Metacritic score companion fields template node.
- *
- * @returns {object} Metacritic companion fields template node.
- */
-function createMetacriticScoreTemplate() {
-  return createElement(
-    "template",
-    {
-      "v-if": "field.key === 'metacriticPlatform'",
-    },
-    [
-      createElement("cdx-text-input", {
-        "v-bind:placeholder": "getArticleField('metacriticScore').placeholder",
-        "v-bind:model-value": "form.metacriticScore",
-        "v-on:change":
-          "normalizeFieldValue(getArticleField('metacriticScore'))",
-        "v-on:update:model-value":
-          "updateFieldValue(getArticleField('metacriticScore'), $event)",
-      }),
-      createSourceUrlInputTemplate({
-        placeholder: "Source URLs",
-        model: "form.metacriticScoreSourceUrl",
-        change:
-          "trimSourceValue(getArticleField('metacriticScore').sourceField)",
-        update:
-          "updateSourceValue(getArticleField('metacriticScore').sourceField, $event)",
-      }),
     ],
   );
 }
@@ -1730,7 +1745,6 @@ function createStandardFieldTemplate() {
           class: "create-vg-stub-field-controls",
         },
         [
-          createOriginalLanguageTemplate(),
           createElement("cdx-text-input", {
             "v-bind:placeholder":
               "getFieldPlaceholder(field) || field.placeholder",
@@ -1761,18 +1775,38 @@ function createStandardFieldTemplate() {
 }
 
 /**
- * Creates the original language input template node.
+ * Creates the Wikidata note template node after the Enwiki title field.
  *
- * @returns {object} Original language input template node.
+ * @returns {object} Wikidata note template node.
  */
-function createOriginalLanguageTemplate() {
-  return createElement("cdx-text-input", {
-    placeholder: "Original title language code",
-    "v-if": "field.key === 'originalName'",
-    "v-bind:model-value": "form.originalLanguage",
-    "v-on:change": "trimFormValue('originalLanguage')",
-    "v-on:update:model-value": "updateFormValue('originalLanguage', $event)",
-  });
+function createWikidataNoteTemplate() {
+  return createElement(
+    "div",
+    {
+      class: "create-vg-stub-wikitext-preview create-vg-stub-field-note",
+      "v-if": "field.key === 'enwikiTitle'",
+    },
+    [createText("Wikidata: {{ getWikidataText() }}")],
+  );
+}
+
+/**
+ * Creates the wikitext preview template node for one article field.
+ *
+ * @param {string} [fieldExpression] - Vue expression resolving to a field.
+ * @returns {object} Wikitext preview template node.
+ */
+function createFieldPreviewTemplate(fieldExpression = "field") {
+  const previewExpression = `getFieldPreview(${fieldExpression})`;
+
+  return createElement(
+    "div",
+    {
+      class: "create-vg-stub-wikitext-preview create-vg-stub-field-note",
+      "v-if": `${fieldExpression}.previewKey && ${previewExpression}`,
+    },
+    [createText(`{{ ${previewExpression} }}`)],
+  );
 }
 
 /**
@@ -1951,9 +1985,8 @@ function createFormValues(defaultName) {
     ),
     categoryRows: [],
     commonNames: [createNameRow(), createNameRow()],
-    name: defaultName,
+    name: "",
     officialNames: [createNameRow(["hans"]), createNameRow(["hant"])],
-    originalLanguage: "ja",
     publishers: "=",
     sortKey: "",
   };

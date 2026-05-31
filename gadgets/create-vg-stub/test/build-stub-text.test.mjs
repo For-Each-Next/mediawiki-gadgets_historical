@@ -316,6 +316,21 @@ test("empty platform omits the platform sentence", async () => {
   );
 });
 
+test("series renders without platform text", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "RPG",
+    name: "Example",
+    platforms: "",
+    publishers: "Bar Games",
+    series: "Example",
+    year: "2024",
+  });
+
+  assert.equal(text.includes("作品属于「《Example》系列」。"), true);
+  assert.equal(text.includes("作品对应"), false);
+});
+
 test("series renders after platform text", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",
@@ -328,6 +343,23 @@ test("series renders after platform text", async () => {
   });
 
   assert.equal(text.includes("作品对应PC平台，属于「《Example》系列」。"), true);
+});
+
+test("separated series values render as a list", async () => {
+  const text = await buildStubText({
+    developers: "Foo Studio",
+    genres: "RPG",
+    name: "Example",
+    platforms: "PC",
+    publishers: "Bar Games",
+    series: "乐高, 地平线",
+    year: "2024",
+  });
+
+  assert.equal(
+    text.includes("作品对应PC平台，属于「《乐高》系列」和「《地平线》系列」。"),
+    true,
+  );
 });
 
 test("linked series renders as a linked series title", async () => {

@@ -32,7 +32,7 @@ import {
 export function buildPlatformSeriesMetadata(values, options = {}) {
   const references = getPlatformReferences(values.platforms);
   const platformListText = buildPlatformListText(values.platforms, references);
-  const series = normalizeSeriesValue(values.series || "");
+  const series = normalizeSeriesValues(values.series || "");
 
   return {
     categories: uniqueValues(getReferenceValues(references, "categories")),
@@ -52,7 +52,7 @@ export function buildPlatformSeriesMetadata(values, options = {}) {
  * Builds the platform and series sentence.
  *
  * @param {string} platformText - Platform list wikitext.
- * @param {string} series - Series name.
+ * @param {Array<string>} series - Series names.
  * @param {string} platformSourceTag - Platform source reference tag.
  * @param {string} seriesSourceTag - Series source reference tag.
  * @returns {string} Platform sentence, or an empty string.
@@ -63,8 +63,12 @@ function buildPlatformSeriesSentenceText(
   platformSourceTag,
   seriesSourceTag,
 ) {
-  if (platformText === "") {
+  if (platformText === "" && series.length === 0) {
     return "";
+  }
+
+  if (platformText === "") {
+    return `作品属于${buildSeriesListText(series)}${seriesSourceTag}。`;
   }
 
   return (
@@ -76,16 +80,32 @@ function buildPlatformSeriesSentenceText(
 /**
  * Builds the series phrase.
  *
- * @param {string} series - Series name.
+ * @param {Array<string>} series - Series names.
  * @param {string} sourceTag - Series source reference tag.
  * @returns {string} Series phrase, or an empty string.
  */
 function buildSeriesText(series, sourceTag) {
-  if (series === "") {
+  if (series.length === 0) {
     return "";
   }
 
-  return `，属于「${buildSeriesDisplayText(series)}」${sourceTag}`;
+  return `，属于${buildSeriesListText(series)}${sourceTag}`;
+}
+
+/**
+ * Builds the series display list.
+ *
+ * @param {Array<string>} series - Normalized series names.
+ * @returns {string} Series display wikitext.
+ */
+function buildSeriesListText(series) {
+  const values = series.map((value) => `「${buildSeriesDisplayText(value)}」`);
+
+  if (values.length === 2) {
+    return values.join("和");
+  }
+
+  return values.join("、");
 }
 
 /**
@@ -111,6 +131,16 @@ function buildSeriesDisplayText(series) {
 
 /**
  * Normalizes a user-entered series value before prose and lookup use it.
+ *
+ * @param {string} series - Raw series names.
+ * @returns {Array<string>} Normalized series names.
+ */
+function normalizeSeriesValues(series) {
+  return splitFieldValues(series).map(normalizeSeriesValue);
+}
+
+/**
+ * Normalizes one user-entered series value before prose and lookup use it.
  *
  * @param {string} series - Raw series name.
  * @returns {string} Normalized series name.
@@ -192,11 +222,13 @@ function getPlatformReferences(value) {
 /**
  * Builds series category lookup plans.
  *
- * @param {string} series - Series value.
+ * @param {Array<string>} series - Series values.
  * @returns {Array<object>} Series category lookup plans.
  */
 function buildSeriesCategoryPlans(series) {
-  return splitLookupFieldValues(series || "").map(buildSeriesCategoryPlan);
+  return series
+    .flatMap((value) => splitLookupFieldValues(value))
+    .map(buildSeriesCategoryPlan);
 }
 
 /**

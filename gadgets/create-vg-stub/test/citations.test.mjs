@@ -78,6 +78,10 @@ const RULES = [
         operand: "Steam",
       },
       {
+        action: "omit",
+        field: "website",
+      },
+      {
         action: "set-from-source-query",
         field: "language",
         operand: {
@@ -342,6 +346,7 @@ test("fetchCiteTemplate restores Steam source query by host rule", async () => {
                 itemType: "webpage",
                 title: "Example on Steam",
                 url: "https://store.steampowered.com/app/123/example/",
+                websiteTitle: "store.steampowered.com",
               },
             ];
           },
@@ -358,8 +363,9 @@ test("fetchCiteTemplate restores Steam source query by host rule", async () => {
     true,
   );
   assert.equal(text.includes("|language=zh-Hans"), true);
+  assert.equal(text.includes("|publisher="), false);
   assert.equal(text.includes("|via=Steam"), true);
-  assert.equal(text.includes("|website=Steam"), false);
+  assert.equal(text.includes("|website="), false);
   assert.equal(text.includes("utm_source"), false);
 });
 
@@ -387,6 +393,36 @@ test("fetchCiteTemplate maps Steam Traditional Chinese query language", async ()
   );
 
   assert.equal(text.includes("|language=zh-Hant"), true);
+});
+
+test("fetchCiteTemplate avoids direct Steam fallback fetches", async () => {
+  const requests = [];
+  const text = await fetchCiteTemplate(
+    "https://store.steampowered.com/app/123/example/?l=schinese",
+    {
+      fetcher(url, options) {
+        requests.push([url, options]);
+
+        return {
+          ok: false,
+          status: 404,
+        };
+      },
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.deepEqual(
+    requests.map((request) => request[0]),
+    [
+      "/api/rest_v1/data/citation/zotero/https%3A%2F%2Fstore.steampowered.com%2Fapp%2F123%2Fexample%2F%3Fl%3Dschinese",
+    ],
+  );
+  assert.equal(
+    text,
+    "{{cite web|access-date=2026-05-24|language=zh-Hans|title=https://store.steampowered.com/app/123/example/?l=schinese|url=https://store.steampowered.com/app/123/example/?l=schinese|via=Steam}}",
+  );
 });
 
 test("fetchCiteTemplate caches generated citation templates", async () => {

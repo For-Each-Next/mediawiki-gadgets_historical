@@ -83,6 +83,10 @@
         "operand": "Steam"
       },
       {
+        "action": "omit",
+        "field": "website"
+      },
+      {
         "action": "set-from-source-query",
         "field": "language",
         "operand": {

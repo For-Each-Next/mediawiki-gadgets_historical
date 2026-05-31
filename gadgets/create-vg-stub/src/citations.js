@@ -37,6 +37,7 @@ export async function fetchCiteTemplate(url, options = {}) {
       const citeTemplate = await buildFallbackCiteWebTemplate(url, {
         fetcher,
         now: options.now,
+        rules: options.rules,
       });
 
       setCachedCiteTemplate(url, citeTemplate, options);
@@ -153,16 +154,28 @@ async function buildFallbackCiteWebTemplate(url, options = {}) {
   return buildCiteTemplate(
     {
       itemType: "webpage",
-      title: await fetchFallbackTitle(trimmedUrl, options),
+      title: isSteamUrl(trimmedUrl)
+        ? trimmedUrl
+        : await fetchFallbackTitle(trimmedUrl, options),
       url: trimmedUrl,
       websiteTitle: getFallbackWebsiteTitle(url),
     },
     {
       now: options.now,
-      rules: [],
+      rules: options.rules || CITATION_RULES,
       url,
     },
   );
+}
+
+/**
+ * Checks whether a source URL is on Steam.
+ *
+ * @param {string} url - Source URL.
+ * @returns {boolean} Whether the source is a Steam URL.
+ */
+function isSteamUrl(url) {
+  return parseUrl(url)?.hostname === "store.steampowered.com";
 }
 
 /**

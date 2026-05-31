@@ -76,7 +76,7 @@ test("live source and name row updates trim values", () => {
   assert.equal(moveTarget.value, "Target page");
 });
 
-test("Steam helper fills official localized name rows", async () => {
+test("Steam helper stages official localized name choices", async () => {
   const component = createDialogComponent(
     createVueStub(),
     createOptionsStub({
@@ -102,10 +102,26 @@ test("Steam helper fills official localized name rows", async () => {
       },
     }),
   );
-  const { form } = component.setup();
+  const { fetchedSteamNameRows, form, formatSteamNameSuggestion } =
+    component.setup();
 
   component.methods.updateSteamUrl(" https://store.steampowered.com/app/123/example/ ");
   await component.methods.addSteamNames();
+
+  assert.deepEqual(
+    fetchedSteamNameRows.value.map((row) => [row.name, row.sourceUrl]),
+    [
+      ["简体名", "https://store.steampowered.com/app/123/example/?l=schinese"],
+      ["繁體名", "https://store.steampowered.com/app/123/example/?l=tchinese"],
+    ],
+  );
+  assert.equal(
+    formatSteamNameSuggestion(fetchedSteamNameRows.value),
+    "Hans: 简体名 | Hant: 繁體名",
+  );
+  assert.deepEqual(form.localizedNames.map((row) => row.name), [""]);
+
+  component.methods.applySteamNameChoice("both");
 
   assert.deepEqual(
     form.localizedNames.slice(0, 2).map((row) => [
@@ -131,6 +147,67 @@ test("Steam helper fills official localized name rows", async () => {
         "https://store.steampowered.com/app/123/example/?l=tchinese",
       ],
     ],
+  );
+  assert.deepEqual(fetchedSteamNameRows.value, []);
+});
+
+test("Steam helper can merge or blank fetched localized names", async () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      async onSteamNamesFetch() {
+        return [
+          {
+            hans: true,
+            name: "相同名",
+            official: true,
+            sourceUrl:
+              "https://store.steampowered.com/app/123/example/?l=schinese",
+          },
+          {
+            hant: true,
+            name: "相同名",
+            official: true,
+            sourceUrl:
+              "https://store.steampowered.com/app/123/example/?l=tchinese",
+          },
+        ];
+      },
+    }),
+  );
+  const { form } = component.setup();
+
+  component.methods.updateSteamUrl("https://store.steampowered.com/app/123/example/");
+  await component.methods.addSteamNames();
+  component.methods.applySteamNameChoice("merge");
+
+  assert.deepEqual(
+    form.localizedNames[0],
+    {
+      cn: false,
+      hans: true,
+      hant: true,
+      hk: false,
+      name: "相同名",
+      official: true,
+      sourceUrl:
+        "https://store.steampowered.com/app/123/example/?l=schinese\n" +
+        "https://store.steampowered.com/app/123/example/?l=tchinese",
+      tw: false,
+      ww: false,
+    },
+  );
+
+  await component.methods.addSteamNames();
+  component.methods.applySteamNameChoice("other");
+
+  assert.equal(form.localizedNames[1].name, "");
+  assert.equal(form.localizedNames[1].hans, true);
+  assert.equal(form.localizedNames[1].hant, true);
+  assert.equal(
+    form.localizedNames[1].sourceUrl,
+    "https://store.steampowered.com/app/123/example/?l=schinese\n" +
+      "https://store.steampowered.com/app/123/example/?l=tchinese",
   );
 });
 

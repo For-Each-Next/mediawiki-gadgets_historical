@@ -64,6 +64,20 @@ const DIALOG_CSS = `
   margin-bottom: 16px;
 }
 
+.create-vg-stub-steam-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.create-vg-stub-steam-suggestion {
+  color: #54595d;
+  font-size: 12px;
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+}
+
 .create-vg-stub-source-url textarea,
 textarea.create-vg-stub-source-url {
   font-size: 12px;
@@ -261,6 +275,32 @@ const NAME_MARKETS = [
     label: "HK",
   },
 ];
+const STEAM_NAME_CHOICES = [
+  {
+    key: "none",
+    label: "None",
+  },
+  {
+    key: "hans",
+    label: "Hans",
+  },
+  {
+    key: "hant",
+    label: "Hant",
+  },
+  {
+    key: "both",
+    label: "Both",
+  },
+  {
+    key: "merge",
+    label: "Merge same",
+  },
+  {
+    key: "other",
+    label: "Other name",
+  },
+];
 const ARTICLE_PARAMETER_GROUPS = [
   new ArticleParameterGroup("titles", "Titles", [
     new ArticleParameterField(
@@ -432,6 +472,7 @@ export function createDialogComponent(Vue, options) {
   const moveTarget = Vue.ref(options.defaultName);
   const moveOpen = Vue.ref(false);
   const enwikiLookupSerial = Vue.ref(0);
+  const fetchedSteamNameRows = Vue.ref([]);
   const steamUrl = Vue.ref("");
   const sourceFetchState = Vue.reactive({
     error: "",
@@ -735,12 +776,13 @@ export function createDialogComponent(Vue, options) {
        */
       updateSteamUrl(value) {
         steamUrl.value = trimFieldValue(value);
+        fetchedSteamNameRows.value = [];
       },
 
       /**
-       * Fetches Steam names and appends them as official localized names.
+       * Fetches Steam names and stores them as helper suggestions.
        *
-       * @returns {Promise<void>} Resolves after rows are appended.
+       * @returns {Promise<void>} Resolves after rows are fetched.
        */
       async addSteamNames() {
         if (options.onSteamNamesFetch == null) {
@@ -753,18 +795,34 @@ export function createDialogComponent(Vue, options) {
         try {
           const rows = await options.onSteamNamesFetch(steamUrl.value);
 
-          if (form.localizedNames.every((row) => !hasEnteredNameRowValue(row))) {
-            form.localizedNames.splice(0, form.localizedNames.length);
-          }
-
-          rows.forEach((row) => {
-            fillNameRow(form.localizedNames, row);
-          });
+          fetchedSteamNameRows.value = rows;
         } catch (error) {
           sourceFetchState.error = error.message;
         } finally {
           sourceFetchState.loading = false;
         }
+      },
+
+      /**
+       * Applies one Steam name helper suggestion choice.
+       *
+       * @param {string} choice - Steam helper choice key.
+       * @returns {void}
+       */
+      applySteamNameChoice(choice) {
+        if (choice !== "none") {
+          if (form.localizedNames.every((row) => !hasEnteredNameRowValue(row))) {
+            form.localizedNames.splice(0, form.localizedNames.length);
+          }
+
+          buildSteamNameChoiceRows(fetchedSteamNameRows.value, choice).forEach(
+            (row) => {
+              fillNameRow(form.localizedNames, row);
+            },
+          );
+        }
+
+        fetchedSteamNameRows.value = [];
       },
 
       /**
@@ -851,6 +909,8 @@ export function createDialogComponent(Vue, options) {
         categoryState,
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
+        fetchedSteamNameRows,
+        formatSteamNameSuggestion,
         getArticleField,
         getFieldPlaceholder: options.getFieldPlaceholder.bind(null, form),
         getFieldPreview,
@@ -862,6 +922,7 @@ export function createDialogComponent(Vue, options) {
         nameMarkets: NAME_MARKETS,
         open,
         sourceFetchState,
+        steamNameChoices: STEAM_NAME_CHOICES,
         steamUrl,
       };
     },
@@ -1580,6 +1641,32 @@ function createSteamNameHelperTemplate() {
         },
         [createText("Add Steam names")],
       ),
+      createElement(
+        "div",
+        {
+          class: "create-vg-stub-steam-suggestion",
+          "v-if": "fetchedSteamNameRows.length",
+        },
+        [createText("{{ formatSteamNameSuggestion(fetchedSteamNameRows) }}")],
+      ),
+      createElement(
+        "div",
+        {
+          class: "create-vg-stub-steam-actions",
+          "v-if": "fetchedSteamNameRows.length",
+        },
+        [
+          createElement(
+            "cdx-button",
+            {
+              "v-bind:key": "choice.key",
+              "v-for": "choice in steamNameChoices",
+              "v-on:click": "applySteamNameChoice(choice.key)",
+            },
+            [createText("{{ choice.label }}")],
+          ),
+        ],
+      ),
     ],
   );
 }
@@ -2127,6 +2214,119 @@ function createNameRowFromValues(values) {
   return {
     ...createNameRow(getNameRowSelectedMarkets(values)),
     ...values,
+  };
+}
+
+/**
+ * Formats fetched Steam names with market labels.
+ *
+ * @param {Array<object>} rows - Fetched Steam name rows.
+ * @returns {string} Labeled Steam name suggestion text.
+ */
+function formatSteamNameSuggestion(rows) {
+  return rows.map(formatSteamNameSuggestionRow).join(" | ");
+}
+
+/**
+ * Formats one fetched Steam name row with its market label.
+ *
+ * @param {object} row - Fetched Steam name row.
+ * @returns {string} Labeled Steam name suggestion item.
+ */
+function formatSteamNameSuggestionRow(row) {
+  return `${formatSteamNameMarkets(row)}: ${row.name}`;
+}
+
+/**
+ * Formats selected Steam name markets.
+ *
+ * @param {object} row - Fetched Steam name row.
+ * @returns {string} Market label.
+ */
+function formatSteamNameMarkets(row) {
+  return getNameRowSelectedMarkets(row)
+    .map(formatSteamNameMarket)
+    .join("/");
+}
+
+/**
+ * Formats one Steam name market key.
+ *
+ * @param {string} market - Market key.
+ * @returns {string} Market label.
+ */
+function formatSteamNameMarket(market) {
+  const item = NAME_MARKETS.find((entry) => entry.key === market);
+
+  return item?.label || market;
+}
+
+/**
+ * Builds localized name rows from a Steam helper choice.
+ *
+ * @param {Array<object>} rows - Fetched Steam name rows.
+ * @param {string} choice - Steam helper choice key.
+ * @returns {Array<object>} Localized name rows to apply.
+ */
+function buildSteamNameChoiceRows(rows, choice) {
+  const hans = findSteamNameRow(rows, "hans");
+  const hant = findSteamNameRow(rows, "hant");
+
+  if (choice === "hans") {
+    return hans == null ? [] : [hans];
+  }
+
+  if (choice === "hant") {
+    return hant == null ? [] : [hant];
+  }
+
+  if (choice === "both") {
+    return [hans, hant].filter(Boolean);
+  }
+
+  if (choice === "merge") {
+    return [mergeSteamNameRows(hans, hant, false)].filter(Boolean);
+  }
+
+  if (choice === "other") {
+    return [mergeSteamNameRows(hans, hant, true)].filter(Boolean);
+  }
+
+  return [];
+}
+
+/**
+ * Finds one fetched Steam name row by market.
+ *
+ * @param {Array<object>} rows - Fetched Steam name rows.
+ * @param {string} market - Market key.
+ * @returns {object|undefined} Matching row.
+ */
+function findSteamNameRow(rows, market) {
+  return rows.find((row) => getNameRowSelectedMarkets(row).includes(market));
+}
+
+/**
+ * Merges fetched Steam rows into one localized name row.
+ *
+ * @param {object} hans - Simplified Chinese Steam row.
+ * @param {object} hant - Traditional Chinese Steam row.
+ * @param {boolean} blankName - Whether to leave the name blank for manual entry.
+ * @returns {object|undefined} Merged localized name row.
+ */
+function mergeSteamNameRows(hans, hant, blankName) {
+  const rows = [hans, hant].filter(Boolean);
+
+  if (rows.length === 0) {
+    return undefined;
+  }
+
+  return {
+    hans: Boolean(hans),
+    hant: Boolean(hant),
+    name: blankName ? "" : trimFieldValue(hans?.name || hant?.name),
+    official: true,
+    sourceUrl: rows.map((row) => row.sourceUrl).filter(Boolean).join("\n"),
   };
 }
 

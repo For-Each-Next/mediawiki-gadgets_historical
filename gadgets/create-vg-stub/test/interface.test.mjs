@@ -64,7 +64,7 @@ test("live source and name row updates trim values", () => {
     " https://example.test ",
   );
   component.methods.updateNameRowValue(
-    "officialNames",
+    "localizedNames",
     0,
     "name",
     " 簡体名 ",
@@ -72,8 +72,66 @@ test("live source and name row updates trim values", () => {
   component.methods.updateMoveTarget(" Target page ");
 
   assert.equal(form.yearSourceUrl, "https://example.test");
-  assert.equal(form.officialNames[0].name, "簡体名");
+  assert.equal(form.localizedNames[0].name, "簡体名");
   assert.equal(moveTarget.value, "Target page");
+});
+
+test("Steam helper fills official localized name rows", async () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      async onSteamNamesFetch(url) {
+        assert.equal(url, "https://store.steampowered.com/app/123/example/");
+
+        return [
+          {
+            hans: true,
+            name: "简体名",
+            official: true,
+            sourceUrl:
+              "https://store.steampowered.com/app/123/example/?l=schinese",
+          },
+          {
+            hant: true,
+            name: "繁體名",
+            official: true,
+            sourceUrl:
+              "https://store.steampowered.com/app/123/example/?l=tchinese",
+          },
+        ];
+      },
+    }),
+  );
+  const { form } = component.setup();
+
+  component.methods.updateSteamUrl(" https://store.steampowered.com/app/123/example/ ");
+  await component.methods.addSteamNames();
+
+  assert.deepEqual(
+    form.localizedNames.slice(0, 2).map((row) => [
+      row.official,
+      row.hans,
+      row.hant,
+      row.name,
+      row.sourceUrl,
+    ]),
+    [
+      [
+        true,
+        true,
+        false,
+        "简体名",
+        "https://store.steampowered.com/app/123/example/?l=schinese",
+      ],
+      [
+        true,
+        false,
+        true,
+        "繁體名",
+        "https://store.steampowered.com/app/123/example/?l=tchinese",
+      ],
+    ],
+  );
 });
 
 test("field preview callback receives live form and preview key", () => {

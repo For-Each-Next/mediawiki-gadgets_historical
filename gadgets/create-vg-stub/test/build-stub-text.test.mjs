@@ -752,6 +752,49 @@ test("official name rows render vgn refs in the infobox", async () => {
   );
 });
 
+test("localized name rows split official and common infobox names", async () => {
+  const text = await buildStubText({
+    developers: "",
+    genres: "",
+    localizedNames: [
+      {
+        hans: true,
+        name: "Official",
+        official: true,
+        sourceUrl: "https://example.test/official",
+      },
+      {
+        name: "Common",
+        sourceUrl: "https://example.test/common",
+        ww: true,
+      },
+    ],
+    name: "Example",
+    platforms: "",
+    publishers: "",
+    sourceReferences: [
+      {
+        citation: "{{cite web|title=Official source}}",
+        key: "localizedNames.0",
+      },
+      {
+        citation: "{{cite web|title=Common source}}",
+        key: "localizedNames.1",
+      },
+    ],
+    year: "",
+  });
+
+  assert.equal(
+    text.includes('| official = {{vgn|hans:Official<ref name=":1" />}}'),
+    true,
+  );
+  assert.equal(
+    text.includes('| common = {{vgn|ww:Common<ref name=":2" />}}'),
+    true,
+  );
+});
+
 async function buildStubText(values) {
   const sandbox = await createSandbox();
 

@@ -247,7 +247,10 @@ function buildSourceReferenceTags(references) {
 function buildInfoboxNameRows(rows, sourceTags, key) {
   return (rows || []).map((row, index) => ({
     ...row,
-    ref: sourceTags[buildNameSourceReferenceKey(key, index)] || "",
+    ref:
+      sourceTags[row.sourceKey] ||
+      sourceTags[buildNameSourceReferenceKey(key, index)] ||
+      "",
   }));
 }
 
@@ -453,15 +456,46 @@ function normalizeArticleForm(form) {
     form.metacriticScore,
     form.metacriticPlatform || "",
   );
+  const localizedNames = getLocalizedNameRows(form);
 
   return {
     ...form,
+    commonNames: localizedNames.filter((row) => !row.official),
     metacriticPlatform: metacriticScore.prefix,
     metacriticScore: metacriticScore.value,
     name: trimFieldValue(form.name) || getDefaultNameFallback(),
+    officialNames: localizedNames.filter((row) => row.official),
     originalLanguage: originalTitle.prefix || "ja",
     originalName: originalTitle.value,
   };
+}
+
+/**
+ * Gets merged localized name rows, preserving source reference keys.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<object>} Localized name rows.
+ */
+function getLocalizedNameRows(form) {
+  if (Array.isArray(form.localizedNames)) {
+    return form.localizedNames.map((row, index) => ({
+      ...row,
+      sourceKey: buildNameSourceReferenceKey("localizedNames", index),
+    }));
+  }
+
+  return [
+    ...(form.officialNames || []).map((row, index) => ({
+      ...row,
+      official: true,
+      sourceKey: buildNameSourceReferenceKey("officialNames", index),
+    })),
+    ...(form.commonNames || []).map((row, index) => ({
+      ...row,
+      official: false,
+      sourceKey: buildNameSourceReferenceKey("commonNames", index),
+    })),
+  ];
 }
 
 /**
@@ -588,6 +622,126 @@ function createEditSummaryMetadata(form, stub) {
  */
 function getEditSummaryDisplayName(form) {
   return trimFieldValue(form.originalName) || trimFieldValue(form.englishName);
+}
+
+/**
+ * Fetches official Steam names through generated citations.
+ *
+ * @param {string} sourceUrl - Steam store app URL.
+ * @param {object} citationStore - Citation fetch/cache store.
+ * @returns {Promise<Array<object>>} Localized official name rows.
+ */
+async function fetchSteamNameRows(sourceUrl, citationStore) {
+  getSteamAppId(sourceUrl);
+  const rows = await Promise.all(
+    [
+      {
+        language: "schinese",
+        markets: ["hans"],
+      },
+      {
+        language: "tchinese",
+        markets: ["hant"],
+      },
+    ].map((item) => fetchSteamNameRow(sourceUrl, item, citationStore)),
+  );
+
+  return rows.filter(Boolean);
+}
+
+/**
+ * Fetches one localized Steam name row through generated citation wikitext.
+ *
+ * @param {string} sourceUrl - Steam store app URL.
+ * @param {object} item - Steam language metadata.
+ * @param {object} citationStore - Citation fetch/cache store.
+ * @returns {Promise<object|undefined>} Localized name row.
+ */
+async function fetchSteamNameRow(sourceUrl, item, citationStore) {
+  const localizedUrl = buildSteamLocalizedSourceUrl(sourceUrl, item.language);
+  const citation = await citationStore.fetch(localizedUrl);
+  const name = cleanSteamNameTitle(getTemplateParam(citation, "title"));
+
+  if (name === "") {
+    return undefined;
+  }
+
+  return {
+    markets: item.markets,
+    name,
+    official: true,
+    sourceUrl: localizedUrl,
+  };
+}
+
+/**
+ * Gets a Steam app ID from a store URL.
+ *
+ * @param {string} sourceUrl - Steam store app URL.
+ * @returns {string} Steam app ID.
+ */
+function getSteamAppId(sourceUrl) {
+  const match = trimFieldValue(sourceUrl).match(/\/app\/(\d+)(?:[/?#]|$)/u);
+
+  if (match == null) {
+    throw new Error("Enter a Steam app URL.");
+  }
+
+  return match[1];
+}
+
+/**
+ * Builds a Steam appdetails API URL.
+ *
+ * @param {string} appId - Steam app ID.
+ * @param {string} language - Steam language key.
+ * @returns {string} Steam appdetails API URL.
+ */
+function buildSteamLocalizedSourceUrl(sourceUrl, language) {
+  const url = new URL(trimFieldValue(sourceUrl));
+
+  url.searchParams.set("l", language);
+
+  return url.toString();
+}
+
+/**
+ * Gets a named template parameter from generated citation wikitext.
+ *
+ * @param {string} template - Citation template wikitext.
+ * @param {string} key - Template parameter key.
+ * @returns {string} Template parameter value.
+ */
+function getTemplateParam(template, key) {
+  const match = String(template).match(new RegExp(
+    `(?:^|\\|)\\s*${escapeRegExp(key)}\\s*=\\s*([^|}]*)`,
+    "u",
+  ));
+
+  return trimFieldValue(match?.[1] || "");
+}
+
+/**
+ * Escapes text for use inside a regular expression.
+ *
+ * @param {string} text - Raw text.
+ * @returns {string} Escaped text.
+ */
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+/**
+ * Cleans a Steam citation title into the displayed game name.
+ *
+ * @param {string} title - Citation title.
+ * @returns {string} Game name.
+ */
+function cleanSteamNameTitle(title) {
+  return trimFieldValue(title)
+    .replace(/^Steam - /u, "")
+    .replace(/^Steam 上的 /u, "")
+    .replace(/ on Steam$/u, "");
 }
 
 /**
@@ -1058,6 +1212,7 @@ function init(require) {
       onMoveTarget: (...args) => openTargetPage(...args, citationStore),
       onResetCategoryRow: resetCategoryRow,
       onSourceUrlChange: (url) => citationStore.prefetch(url),
+      onSteamNamesFetch: (url) => fetchSteamNameRows(url, citationStore),
       onSubmit: (...args) => submitForm(...args, citationStore),
       onSubmitHistory: saveCurrentFormHistory,
       onUpdateCategoryRowCategory: updateCategoryRowCategory,

@@ -52,6 +52,13 @@ const DIALOG_CSS = `
   min-width: 0;
 }
 
+.create-vg-stub-steam-helper {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 16px;
+}
+
 .create-vg-stub-source-url textarea,
 textarea.create-vg-stub-source-url {
   font-size: 12px;
@@ -104,6 +111,10 @@ textarea.create-vg-stub-source-url {
 @media (max-width: 640px) {
   .create-vg-stub-field-row,
   .create-vg-stub-name-row {
+    grid-template-columns: 1fr;
+  }
+
+  .create-vg-stub-steam-helper {
     grid-template-columns: 1fr;
   }
 }
@@ -218,7 +229,7 @@ const MULTI_ITEM_FIELD_KEYS = [
   "genres",
   "platforms",
 ];
-const NAME_GROUP_KEYS = ["officialNames", "commonNames"];
+const NAME_GROUP_KEYS = ["localizedNames", "officialNames", "commonNames"];
 const NAME_MARKETS = [
   {
     key: "ww",
@@ -364,8 +375,7 @@ const ARTICLE_PARAMETER_GROUPS = [
       },
     ),
   ]),
-  new ArticleParameterGroup("officialNames", "Official", [], "officialNames"),
-  new ArticleParameterGroup("commonNames", "Common", [], "commonNames"),
+  new ArticleParameterGroup("localizedNames", "Names", [], "localizedNames"),
   new ArticleParameterGroup("categories", "Categories", [], null, {
     categoryReview: true,
   }),
@@ -417,6 +427,7 @@ export function createDialogComponent(Vue, options) {
   const moveTarget = Vue.ref(options.defaultName);
   const moveOpen = Vue.ref(false);
   const enwikiLookupSerial = Vue.ref(0);
+  const steamUrl = Vue.ref("");
   const sourceFetchState = Vue.reactive({
     error: "",
     loading: false,
@@ -706,6 +717,46 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
+       * Updates the Steam helper URL.
+       *
+       * @param {string} value - Raw Steam URL.
+       * @returns {void}
+       */
+      updateSteamUrl(value) {
+        steamUrl.value = trimFieldValue(value);
+      },
+
+      /**
+       * Fetches Steam names and appends them as official localized names.
+       *
+       * @returns {Promise<void>} Resolves after rows are appended.
+       */
+      async addSteamNames() {
+        if (options.onSteamNamesFetch == null) {
+          return;
+        }
+
+        sourceFetchState.error = "";
+        sourceFetchState.loading = true;
+
+        try {
+          const rows = await options.onSteamNamesFetch(steamUrl.value);
+
+          if (form.localizedNames.every((row) => !hasEnteredNameRowValue(row))) {
+            form.localizedNames.splice(0, form.localizedNames.length);
+          }
+
+          rows.forEach((row) => {
+            fillNameRow(form.localizedNames, row);
+          });
+        } catch (error) {
+          sourceFetchState.error = error.message;
+        } finally {
+          sourceFetchState.loading = false;
+        }
+      },
+
+      /**
        * Removes localized name rows without a name or source URL.
        *
        * @param {string} key - Localized name group key.
@@ -800,6 +851,7 @@ export function createDialogComponent(Vue, options) {
         nameMarkets: NAME_MARKETS,
         open,
         sourceFetchState,
+        steamUrl,
       };
     },
     template: createDialogTemplate(),
@@ -1483,7 +1535,40 @@ function createNameGroupTemplate() {
     {
       "v-if": "group.nameGroupKey",
     },
-    [createNameRowTemplate(), createNameActionsTemplate()],
+    [
+      createSteamNameHelperTemplate(),
+      createNameRowTemplate(),
+      createNameActionsTemplate(),
+    ],
+  );
+}
+
+/**
+ * Creates the Steam localized name helper template node.
+ *
+ * @returns {object} Steam helper template node.
+ */
+function createSteamNameHelperTemplate() {
+  return createElement(
+    "div",
+    {
+      class: "create-vg-stub-steam-helper",
+    },
+    [
+      createElement("cdx-text-input", {
+        placeholder: "Steam app URL",
+        "v-bind:model-value": "steamUrl",
+        "v-on:update:model-value": "updateSteamUrl($event)",
+      }),
+      createElement(
+        "cdx-button",
+        {
+          "v-bind:disabled": "sourceFetchState.loading",
+          "v-on:click": "addSteamNames",
+        },
+        [createText("Add Steam names")],
+      ),
+    ],
   );
 }
 
@@ -1564,6 +1649,13 @@ function createNameMarketTemplate() {
       },
     },
     [
+      createElement(
+        "cdx-checkbox",
+        {
+          "v-model": "row.official",
+        },
+        [createText("Official")],
+      ),
       createElement(
         "cdx-checkbox",
         {
@@ -1984,9 +2076,8 @@ function createFormValues(defaultName) {
       ),
     ),
     categoryRows: [],
-    commonNames: [createNameRow(), createNameRow()],
+    localizedNames: [createNameRow()],
     name: "",
-    officialNames: [createNameRow(["hans"]), createNameRow(["hant"])],
     publishers: "=",
     sortKey: "",
   };
@@ -1996,9 +2087,11 @@ function createFormValues(defaultName) {
  * Creates one localized name row.
  *
  * @param {Array<string>} [selectedMarkets] - Initially selected market codes.
+ * @param {object} [options] - Initial row options.
+ * @param {boolean} [options.official] - Whether the row is official.
  * @returns {object} Localized name row.
  */
-function createNameRow(selectedMarkets = []) {
+function createNameRow(selectedMarkets = [], options = {}) {
   return {
     ...Object.fromEntries(
       NAME_MARKETS.map((market) => [
@@ -2007,8 +2100,57 @@ function createNameRow(selectedMarkets = []) {
       ]),
     ),
     name: "",
+    official: Boolean(options.official),
     sourceUrl: "",
   };
+}
+
+/**
+ * Creates one localized name row from fetched helper values.
+ *
+ * @param {object} values - Localized name values.
+ * @returns {object} Localized name row.
+ */
+function createNameRowFromValues(values) {
+  return {
+    ...createNameRow(getNameRowSelectedMarkets(values)),
+    ...values,
+  };
+}
+
+/**
+ * Gets selected market keys from a row-like object.
+ *
+ * @param {object} values - Localized name values.
+ * @returns {Array<string>} Selected market keys.
+ */
+function getNameRowSelectedMarkets(values) {
+  return values.markets || NAME_MARKETS
+    .filter((market) => values[market.key])
+    .map((market) => market.key);
+}
+
+/**
+ * Fills a matching empty name row or appends a new one.
+ *
+ * @param {Array<object>} rows - Existing localized name rows.
+ * @param {object} values - Localized name values.
+ * @returns {void}
+ */
+function fillNameRow(rows, values) {
+  const selectedMarkets = getNameRowSelectedMarkets(values);
+  const matchingRow = rows.find((row) => (
+    !hasEnteredNameRowValue(row) &&
+    Boolean(row.official) === Boolean(values.official) &&
+    selectedMarkets.every((market) => row[market])
+  ));
+
+  if (matchingRow == null) {
+    rows.push(createNameRowFromValues(values));
+    return;
+  }
+
+  Object.assign(matchingRow, createNameRowFromValues(values));
 }
 
 /**
@@ -2235,7 +2377,35 @@ function replaceFormValues(form, values) {
   Object.keys(form).forEach((key) => {
     delete form[key];
   });
-  Object.assign(form, cloneValue(values));
+  Object.assign(form, normalizeReceivedFormValues(values));
+}
+
+/**
+ * Normalizes received form values for the current dialog shape.
+ *
+ * @param {object} values - Received form values.
+ * @returns {object} Normalized form values.
+ */
+function normalizeReceivedFormValues(values) {
+  const normalized = cloneValue(values);
+
+  if (normalized.localizedNames == null) {
+    normalized.localizedNames = [
+      ...(normalized.officialNames || []).map((row) => ({
+        ...row,
+        official: true,
+      })),
+      ...(normalized.commonNames || []).map((row) => ({
+        ...row,
+        official: false,
+      })),
+    ];
+  }
+
+  delete normalized.officialNames;
+  delete normalized.commonNames;
+
+  return normalized;
 }
 
 /**

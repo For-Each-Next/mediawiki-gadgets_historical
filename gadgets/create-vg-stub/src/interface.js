@@ -484,6 +484,12 @@ export function createDialogComponent(Vue, options) {
        * @returns {Promise<void>} Resolves after generated text is written.
        */
       async submitForm() {
+        if (activeTab.value !== "categories") {
+          activeTab.value = "categories";
+          await refreshCategoryRows();
+          return;
+        }
+
         await refreshCategoryRows();
         options.onSubmitHistory(form, getCurrentTitle());
         historyEntries.value = options.getHistoryEntries();

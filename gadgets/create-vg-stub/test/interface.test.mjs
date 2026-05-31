@@ -160,6 +160,63 @@ test("field preview callback receives live form and preview key", () => {
   );
 });
 
+test("submit from another tab switches to category review first", async () => {
+  let refreshCount = 0;
+  let submitCount = 0;
+  let historyCount = 0;
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      onCategoryRowsRefresh() {
+        refreshCount += 1;
+      },
+      onSubmit() {
+        submitCount += 1;
+      },
+      onSubmitHistory() {
+        historyCount += 1;
+      },
+    }),
+  );
+  const { activeTab } = component.setup();
+
+  assert.equal(activeTab.value, "titles");
+  await component.methods.submitForm();
+
+  assert.equal(activeTab.value, "categories");
+  assert.equal(refreshCount, 1);
+  assert.equal(submitCount, 0);
+  assert.equal(historyCount, 0);
+});
+
+test("submit from category review inserts text", async () => {
+  let refreshCount = 0;
+  let submitCount = 0;
+  let historyCount = 0;
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      onCategoryRowsRefresh() {
+        refreshCount += 1;
+      },
+      onSubmit() {
+        submitCount += 1;
+      },
+      onSubmitHistory() {
+        historyCount += 1;
+      },
+    }),
+  );
+  const { activeTab } = component.setup();
+
+  activeTab.value = "categories";
+  await component.methods.submitForm();
+
+  assert.equal(refreshCount, 1);
+  assert.equal(submitCount, 1);
+  assert.equal(historyCount, 1);
+});
+
 test("enwiki lookup fills wikidata and blank English title", async () => {
   const component = createDialogComponent(
     createVueStub(),

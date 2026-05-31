@@ -27,6 +27,32 @@ test("live field updates trim values and normalize full dates to years", () => {
   assert.equal(form.englishName, "Example");
 });
 
+test("live multi-item updates preserve standalone and", () => {
+  const component = createDialogComponent(createVueStub(), createOptionsStub());
+  const { form } = component.setup();
+
+  component.methods.updateFieldValue({ key: "genres" }, " Hack and slash ");
+  assert.equal(form.genres, "Hack and slash");
+
+  component.methods.updateFieldValue(
+    { key: "genres" },
+    "Action, adventure, and puzzle",
+  );
+  assert.equal(form.genres, "Action, adventure, and puzzle");
+
+  component.methods.updateFieldValue(
+    { key: "developers" },
+    "Foo Studio and Bar Studio",
+  );
+  assert.equal(form.developers, "Foo Studio and Bar Studio");
+
+  component.methods.updateFieldValue(
+    { key: "developers" },
+    "Tom, Jerry and Mary; Spike Studio",
+  );
+  assert.equal(form.developers, "Tom, Jerry and Mary; Spike Studio");
+});
+
 test("live source and name row updates trim values", () => {
   const component = createDialogComponent(createVueStub(), createOptionsStub());
   const { form, moveTarget } = component.setup();

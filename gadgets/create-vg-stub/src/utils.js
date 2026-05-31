@@ -268,6 +268,7 @@ function getWikilinkMatch(value) {
  */
 function splitDelimitedFieldValue(value) {
   const text = value == null ? "" : String(value);
+  const firstLevelOnly = hasFirstLevelFieldSeparator(text);
   const items = [];
   let item = "";
   let inWikilink = false;
@@ -289,7 +290,7 @@ function splitDelimitedFieldValue(value) {
       continue;
     }
 
-    if (!inWikilink && isFieldValueSeparator(text, index)) {
+    if (!inWikilink && isFieldValueSeparator(text, index, firstLevelOnly)) {
       items.push(item);
       item = "";
       continue;
@@ -301,6 +302,38 @@ function splitDelimitedFieldValue(value) {
   items.push(item);
 
   return items;
+}
+
+/**
+ * Checks whether a field has a first-level separator outside wikilinks.
+ *
+ * @param {string} text - Full input text.
+ * @returns {boolean} Whether the field uses first-level item separators.
+ */
+function hasFirstLevelFieldSeparator(text) {
+  let inWikilink = false;
+
+  for (let index = 0; index < text.length; index++) {
+    const pair = text.slice(index, index + 2);
+
+    if (pair === "[[") {
+      inWikilink = true;
+      index++;
+      continue;
+    }
+
+    if (pair === "]]" && inWikilink) {
+      inWikilink = false;
+      index++;
+      continue;
+    }
+
+    if (!inWikilink && /[;；\r\n]/u.test(text[index])) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -324,10 +357,15 @@ function splitWikilinkParts(value) {
  *
  * @param {string} text - Full input text.
  * @param {number} index - Character index.
+ * @param {boolean} firstLevelOnly - Whether to ignore weaker separators.
  * @returns {boolean} Whether the character is a field separator.
  */
-function isFieldValueSeparator(text, index) {
+function isFieldValueSeparator(text, index, firstLevelOnly) {
   const character = text[index];
+
+  if (firstLevelOnly) {
+    return /[;；\r\n]/u.test(character);
+  }
 
   if (character === "/") {
     return isSpacedSlash(text, index);

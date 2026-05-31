@@ -2092,41 +2092,31 @@ function normalizeYearValue(value) {
 }
 
 /**
- * Normalizes a pasted multiline field value.
+ * Normalizes pasted field values with first-level separators.
  *
  * @param {string} value - Raw form field value.
  * @returns {string} Normalized form field value.
  */
 function normalizeMultilineFieldValue(value) {
-  if (!isMultilineFieldValue(value)) {
-    return normalizeEnglishListValue(value);
+  if (!hasFirstLevelFieldSeparator(value)) {
+    return value;
   }
 
-  return normalizeEnglishListValue(value)
-    .split(/[\r\n]+/u)
+  return value
+    .split(/\s*[;；]\s*|[\r\n]+/u)
     .map(trimFieldValue)
     .filter(Boolean)
-    .join(", ");
-}
-
-/**
- * Normalizes English list endings in a field value.
- *
- * @param {string} value - Raw form field value.
- * @returns {string} Normalized form field value.
- */
-function normalizeEnglishListValue(value) {
-  return value.replace(/,\s+and\s+/giu, ", ").replace(/\s+and\s+/giu, ", ");
+    .join("; ");
 }
 
 /**
  * Checks whether a field value contains multiple lines.
  *
  * @param {string} value - Raw form field value.
- * @returns {boolean} Whether the value is multiline.
+ * @returns {boolean} Whether the value has a first-level separator.
  */
-function isMultilineFieldValue(value) {
-  return /[\r\n]/u.test(value);
+function hasFirstLevelFieldSeparator(value) {
+  return /[;；\r\n]/u.test(value);
 }
 
 /**

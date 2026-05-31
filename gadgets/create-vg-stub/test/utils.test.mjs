@@ -97,6 +97,23 @@ test("getReferenceEntry matches array entries by alias", () => {
   );
 });
 
+test("getReferenceEntry treats standalone and as normal alias text", () => {
+  assert.deepEqual(
+    getReferenceEntry(
+      [
+        {
+          aliases: ["hack-and-slash", "Hack and slash"],
+          page: {
+            title: "砍殺遊戲",
+          },
+        },
+      ],
+      "Hack slash",
+    ),
+    {},
+  );
+});
+
 test("getWikilinkValue uses piped display text", () => {
   assert.equal(getWikilinkValue("[[target|text]]"), "text");
   assert.equal(getWikilinkValue("[[article]]"), "article");
@@ -106,6 +123,20 @@ test("splitFieldValues preserves wikilinks and does not split their commas", () 
   assert.deepEqual(
     splitFieldValues("[[aaa|comma, example]], [[ccc]]"),
     ["[[aaa|comma, example]]", "[[ccc]]"],
+  );
+});
+
+test("splitFieldValues uses semicolon as a first-level separator", () => {
+  assert.deepEqual(
+    splitFieldValues("Tom, Jerry and Mary; Spike Studio"),
+    ["Tom, Jerry and Mary", "Spike Studio"],
+  );
+});
+
+test("splitFieldValues uses newlines as first-level separators", () => {
+  assert.deepEqual(
+    splitFieldValues("Tom, Jerry and Mary\nSpike Studio"),
+    ["Tom, Jerry and Mary", "Spike Studio"],
   );
 });
 

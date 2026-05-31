@@ -5,6 +5,15 @@
  */
 
 const DIALOG_CSS = `
+.create-vg-stub-dialog.cdx-dialog {
+  max-width: inherit;
+}
+
+.create-vg-stub-dialog .cdx-dialog__dialog {
+  max-width: min(96vw, 960px);
+  width: min(96vw, 960px);
+}
+
 .create-vg-stub-tab-panel {
   padding-top: 12px;
 }
@@ -1046,6 +1055,7 @@ function createDialogTemplateRoot() {
   return createElement(
     "cdx-dialog",
     {
+      class: "create-vg-stub-dialog",
       "v-model:open": "open",
       title: "Create video game stub",
     },

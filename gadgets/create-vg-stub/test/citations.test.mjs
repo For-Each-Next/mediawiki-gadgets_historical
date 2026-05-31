@@ -23,6 +23,19 @@ const RULES = [
   {
     fixes: [
       {
+        action: "replace",
+        field: "title",
+        operand: {
+          pattern: " - Game Informer$",
+          replacement: "",
+        },
+      },
+    ],
+    host: "www.gameinformer.com",
+  },
+  {
+    fixes: [
+      {
         action: "omit",
         field: "author",
         operand: "巴哈姆特",
@@ -61,7 +74,7 @@ const RULES = [
     fixes: [
       {
         action: "set",
-        field: "website",
+        field: "via",
         operand: "Steam",
       },
       {
@@ -299,6 +312,24 @@ test("buildCiteTemplate strips Metacritic title suffix by host rule", () => {
   assert.equal(text.includes("|website=Metacritic"), true);
 });
 
+test("buildCiteTemplate strips Game Informer title suffix by host rule", () => {
+  const text = buildCiteTemplate(
+    {
+      itemType: "webpage",
+      title: "Example Preview - Game Informer",
+      url: "https://www.gameinformer.com/preview/example",
+      websiteTitle: "Game Informer",
+    },
+    {
+      now: new Date("2026-05-24T00:00:00Z"),
+      rules: RULES,
+    },
+  );
+
+  assert.equal(text.includes("|title=Example Preview|"), true);
+  assert.equal(text.includes(" - Game Informer"), false);
+});
+
 test("fetchCiteTemplate restores Steam source query by host rule", async () => {
   const text = await fetchCiteTemplate(
     "https://store.steampowered.com/app/123/example/?l=schinese&utm_source=test",
@@ -327,7 +358,8 @@ test("fetchCiteTemplate restores Steam source query by host rule", async () => {
     true,
   );
   assert.equal(text.includes("|language=zh-Hans"), true);
-  assert.equal(text.includes("|website=Steam"), true);
+  assert.equal(text.includes("|via=Steam"), true);
+  assert.equal(text.includes("|website=Steam"), false);
   assert.equal(text.includes("utm_source"), false);
 });
 

@@ -142,6 +142,20 @@ test("company alias generates linked attribution, category, and stub tag", async
   assert.equal(text.includes("{{SquareEnix-stub}}"), true);
 });
 
+test("Warner Bros. Games alias uses interactive entertainment category", async () => {
+  const text = await buildStubText({
+    developers: "",
+    genres: "",
+    name: "Example",
+    platforms: "",
+    publishers: "Warner Bros. Games",
+    year: "",
+  });
+
+  assert.equal(text.includes("[[Category:華納兄弟互動娛樂遊戲]]"), true);
+  assert.equal(text.includes("[[Category:華納兄弟遊戲遊戲]]"), false);
+});
+
 test("empty developers and publishers omit attribution", async () => {
   const text = await buildStubText({
     developers: "",

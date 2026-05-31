@@ -12,6 +12,32 @@
     ]
   },
   {
+    "host": "gameinformer.com",
+    "fixes": [
+      {
+        "action": "replace",
+        "field": "title",
+        "operand": {
+          "pattern": " - Game Informer$",
+          "replacement": ""
+        }
+      }
+    ]
+  },
+  {
+    "host": "www.gameinformer.com",
+    "fixes": [
+      {
+        "action": "replace",
+        "field": "title",
+        "operand": {
+          "pattern": " - Game Informer$",
+          "replacement": ""
+        }
+      }
+    ]
+  },
+  {
     "host": "gnn.gamer.com.tw",
     "fixes": [
       {
@@ -53,7 +79,7 @@
     "fixes": [
       {
         "action": "set",
-        "field": "website",
+        "field": "via",
         "operand": "Steam"
       },
       {

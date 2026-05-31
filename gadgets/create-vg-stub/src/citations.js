@@ -285,6 +285,7 @@ function buildCitationValues(citation, options) {
     publisher: citation.publisher,
     title: citation.title,
     url: citation.url || options.url,
+    via: citation.via,
     website: citation.websiteTitle || citation.publicationTitle,
   };
 }

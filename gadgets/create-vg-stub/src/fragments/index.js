@@ -8,6 +8,7 @@ export { buildAggScoresText } from "./agg-scores.js";
 export { buildDefaultSortKey, buildDefaultSortText } from "./defaultsort.js";
 export { buildInfoboxText } from "./infobox.js";
 export { buildLeadNameText } from "./lead-name.js";
+export { buildNavboxText } from "./navboxes.js";
 export { buildNoteTaText } from "./noteta.js";
-export { buildPortalBarText } from "./portal-bar.js";
+export { buildFooterTemplateText } from "./portal-bar.js";
 export { buildReferencesText } from "./references.js";

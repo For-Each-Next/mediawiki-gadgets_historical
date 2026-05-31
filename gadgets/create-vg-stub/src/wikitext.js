@@ -6,7 +6,7 @@
 
 import { buildCategoryText, buildStubTagText } from "./categories.js";
 import {
-  buildPortalBarText,
+  buildFooterTemplateText,
   buildReferencesText,
 } from "./fragments/index.js";
 
@@ -18,6 +18,7 @@ import {
  * @param {object} params.companyMetadata - Company text and metadata.
  * @param {string} params.infoboxText - Infobox wikitext.
  * @param {string} params.leadNameText - Lead article name text.
+ * @param {string} params.navboxText - Series navbox wikitext.
  * @param {string} params.noteTaText - NoteTA-lite wikitext.
  * @param {object} params.platformSeriesMetadata - Platform and series text and metadata.
  * @param {Array<object>} params.sourceReferences - Named source references.
@@ -35,7 +36,8 @@ export function buildArticleWikitext(params) {
     params.infoboxText,
     intro,
     buildReferencesText(params.sourceReferences),
-    buildPortalBarText(),
+    params.navboxText,
+    buildFooterTemplateText(),
     buildCategoryText(params),
     buildStubTagText(params),
   ]

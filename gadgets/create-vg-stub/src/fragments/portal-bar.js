@@ -1,14 +1,14 @@
 /* eslint-disable */
 
 /**
- * Builds portal bar wikitext for video game stubs.
+ * Builds footer maintenance templates for video game stubs.
  */
 
 /**
- * Builds the video game portal bar.
+ * Builds the video game portal bar and authority control templates.
  *
- * @returns {string} Portal bar wikitext.
+ * @returns {string} Footer template wikitext.
  */
-export function buildPortalBarText() {
-  return "{{Portal bar|电子游戏}}";
+export function buildFooterTemplateText() {
+  return "{{Portal bar|电子游戏}}\n{{Authority control}}";
 }

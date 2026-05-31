@@ -35,6 +35,7 @@ import {
   buildDefaultSortText,
   buildInfoboxText,
   buildLeadNameText,
+  buildNavboxText,
   buildNoteTaText,
 } from "./fragments/index.js";
 import { buildEditSummary } from "./edit-summary.js";
@@ -65,6 +66,7 @@ class VideoGameArticleParams {
    * @param {string} form.metacriticPlatform - Metacritic platform.
    * @param {string} form.metacriticScore - Metacritic score.
    * @param {string} form.name - Game title.
+   * @param {string} form.navboxText - Series navbox wikitext.
    * @param {string} form.openCriticRecommend - OpenCritic recommendation rate.
    * @param {string} form.originalLanguage - Original title language code.
    * @param {string} form.originalName - Original game title.
@@ -130,6 +132,7 @@ class VideoGameArticleParams {
       sourceTags: this.sourceTags,
     });
     this.name = form.name;
+    this.navboxText = form.navboxText || "";
     this.originalLanguage = form.originalLanguage;
     this.originalName = form.originalName || "";
     this.platforms = form.platforms;
@@ -580,9 +583,14 @@ async function buildStubTextFromForm(form, citationStore) {
  * @returns {Promise<object>} Generated stub text and article parameters.
  */
 async function buildStubFromForm(form, citationStore) {
+  const [sourceReferences, navboxText] = await Promise.all([
+    fetchSourceReferences(form, citationStore),
+    buildNavboxText(form.series),
+  ]);
   const params = createArticleParams({
     ...form,
-    sourceReferences: await fetchSourceReferences(form, citationStore),
+    navboxText,
+    sourceReferences,
   });
 
   return {

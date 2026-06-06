@@ -4,13 +4,14 @@ import test from "node:test";
 import {
   TALK_PAGE_BANNER,
   addTalkPageBanner,
-  buildPostSaveActions,
+  buildPreSaveActions,
   buildRedirectTitles,
   connectWikidataSitelink,
   createRedirect,
   fetchExistingPageTitles,
-  runPostSaveActions,
-} from "../src/post-save.js";
+  movePage,
+  runSelectedActions,
+} from "../src/pre-save.js";
 import { EDIT_SUMMARY_SUFFIX } from "../src/edit-summary.js";
 
 test("TALK_PAGE_BANNER is built in block template format", () => {
@@ -41,9 +42,9 @@ test("buildRedirectTitles returns unique localized aliases", () => {
   );
 });
 
-test("buildPostSaveActions includes interwiki, redirects, and talk banner", () => {
+test("buildPreSaveActions includes interwiki, redirects, and talk banner", () => {
   assert.deepEqual(
-    buildPostSaveActions({
+    buildPreSaveActions({
       form: {
         localizedNames: [{ name: "示例遊戲" }],
         wikidataId: " Q123 ",
@@ -58,8 +59,8 @@ test("buildPostSaveActions includes interwiki, redirects, and talk banner", () =
   );
 });
 
-test("buildPostSaveActions hints existing redirects and unchecks them", () => {
-  const actions = buildPostSaveActions(
+test("buildPreSaveActions hints existing redirects and unchecks them", () => {
+  const actions = buildPreSaveActions(
     {
       form: {
         localizedNames: [
@@ -201,7 +202,7 @@ test("addTalkPageBanner skips an existing video game banner", async () => {
   assert.equal(calls.length, 1);
 });
 
-test("runPostSaveActions only runs selected rows", async () => {
+test("runSelectedActions only runs selected rows", async () => {
   const calls = [];
   const api = createApiStub(calls);
   const actions = [
@@ -217,7 +218,7 @@ test("runPostSaveActions only runs selected rows", async () => {
     },
   ];
 
-  await runPostSaveActions(
+  const result = await runSelectedActions(
     actions,
     {
       api,
@@ -228,13 +229,14 @@ test("runPostSaveActions only runs selected rows", async () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0][2].title, "Created");
   assert.equal(actions[1].selected, false);
+  assert.equal(result.title, "Target");
 });
 
-test("runPostSaveActions uses the Wikidata API for interwiki edits", async () => {
+test("runSelectedActions uses the Wikidata API for interwiki edits", async () => {
   const localCalls = [];
   const wikidataCalls = [];
 
-  await runPostSaveActions(
+  await runSelectedActions(
     [
       {
         selected: true,
@@ -251,6 +253,115 @@ test("runPostSaveActions uses the Wikidata API for interwiki edits", async () =>
 
   assert.equal(localCalls.length, 0);
   assert.equal(wikidataCalls[0][2].action, "wbsetsitelink");
+});
+
+test("movePage can leave or suppress the source redirect", async () => {
+  const calls = [];
+  const api = createApiStub(calls);
+
+  await movePage(api, "Old", "New", {
+    leaveRedirect: true,
+  });
+  await movePage(api, "Old 2", "New 2", {
+    leaveRedirect: false,
+  });
+
+  assert.deepEqual(calls[0][2], {
+    action: "move",
+    from: "Old",
+    reason: `Rename to [[New]] ${EDIT_SUMMARY_SUFFIX}`,
+    to: "New",
+  });
+  assert.equal(calls[1][2].noredirect, true);
+});
+
+test("runSelectedActions moves first and targets the final title", async () => {
+  const localCalls = [];
+  const wikidataCalls = [];
+  const actions = [
+    {
+      redirectTitle: "New",
+      selected: true,
+      type: "redirect",
+    },
+    {
+      redirectTitle: "Alias",
+      selected: true,
+      type: "redirect",
+    },
+    {
+      selected: true,
+      type: "interwiki",
+      wikidataId: "Q123",
+    },
+  ];
+
+  const result = await runSelectedActions(actions, {
+    api: createApiStub(localCalls),
+    move: {
+      enabled: true,
+      leaveRedirect: false,
+      to: "New",
+    },
+    title: "Old",
+    wikidataApi: createApiStub(wikidataCalls),
+  });
+
+  assert.equal(localCalls[0][2].action, "move");
+  assert.equal(localCalls[1][2].title, "Alias");
+  assert.equal(localCalls[1][2].text, "#REDIRECT [[New]]");
+  assert.equal(wikidataCalls[0][2].linktitle, "New");
+  assert.equal(actions[0].selected, false);
+  assert.equal(result.title, "New");
+});
+
+test("runSelectedActions reports a completed move before later edits", async () => {
+  const calls = [];
+  let movedTitle = "";
+  const api = {
+    async get() {
+      return {
+        query: {
+          pages: {},
+        },
+      };
+    },
+    async postWithToken(_token, params) {
+      calls.push(params);
+
+      if (params.action === "edit") {
+        throw new Error("Edit failed");
+      }
+    },
+  };
+
+  await assert.rejects(
+    runSelectedActions(
+      [
+        {
+          redirectTitle: "Alias",
+          selected: true,
+          type: "redirect",
+        },
+      ],
+      {
+        api,
+        move: {
+          enabled: true,
+          leaveRedirect: true,
+          to: "New",
+        },
+        onMoveComplete(title) {
+          movedTitle = title;
+        },
+        title: "Old",
+      },
+    ),
+    /Edit failed/u,
+  );
+
+  assert.equal(calls[0].action, "move");
+  assert.equal(movedTitle, "New");
 });
 
 function createApiStub(calls, getResponse = { query: { pages: {} } }) {

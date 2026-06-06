@@ -492,6 +492,7 @@ export function addDialogStyles() {
  * @param {Function} options.onFormChange - Form change handler.
  * @param {Function} options.onMoveTarget - New-page target opener.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
+ * @param {Function} options.onPreSavePrepare - Follow-up action builder.
  * @param {Function} options.onResetCategoryRow - Category row reset handler.
  * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
  * @param {Function} options.onSubmit - Submit handler.
@@ -510,6 +511,11 @@ export function createDialogComponent(Vue, options) {
   const historyOpen = Vue.ref(false);
   const moveTarget = Vue.ref(options.defaultName);
   const moveOpen = Vue.ref(false);
+  const preSaveLeaveRedirect = Vue.ref(true);
+  const preSaveMoveEnabled = Vue.ref(false);
+  const preSaveMoveTitle = Vue.ref(options.defaultName);
+  const preSaveOpen = Vue.ref(false);
+  const preSaveActions = Vue.reactive([]);
   const enwikiLookupSerial = Vue.ref(0);
   const fetchedSteamNameRows = Vue.ref([]);
   const steamUrl = Vue.ref("");
@@ -559,9 +565,9 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
-       * Submits form data to the owning module.
+       * Opens the pre-save checklist after category review.
        *
-       * @returns {Promise<void>} Resolves after generated text is written.
+       * @returns {Promise<void>} Resolves after checklist preparation.
        */
       async submitForm() {
         if (activeTab.value !== "categories") {
@@ -571,9 +577,45 @@ export function createDialogComponent(Vue, options) {
         }
 
         await refreshCategoryRows();
+        sourceFetchState.error = "";
+        sourceFetchState.loading = true;
+        preSaveMoveTitle.value = getCurrentTitle();
+        preSaveOpen.value = true;
+
+        try {
+          const actions = await options.onPreSavePrepare(
+            form,
+            getCurrentTitle(),
+          );
+
+          preSaveActions.splice(0, preSaveActions.length, ...actions);
+        } catch (error) {
+          sourceFetchState.error = error.message || String(error);
+        } finally {
+          sourceFetchState.loading = false;
+        }
+      },
+
+      /**
+       * Saves the article after confirming the pre-save fixes.
+       *
+       * @returns {Promise<void>} Resolves after save submission starts.
+       */
+      async confirmSubmit() {
         options.onSubmitHistory(form, getCurrentTitle());
         historyEntries.value = options.getHistoryEntries();
-        await options.onSubmit(form, sourceFetchState, this.closeDialog);
+        await options.onSubmit(form, sourceFetchState, this.closeDialog, {
+          actions: preSaveActions,
+          move: {
+            enabled: preSaveMoveEnabled.value,
+            leaveRedirect: preSaveLeaveRedirect.value,
+            to: trimFieldValue(preSaveMoveTitle.value),
+          },
+        });
+
+        if (sourceFetchState.error === "") {
+          preSaveOpen.value = false;
+        }
       },
 
       /**
@@ -960,6 +1002,11 @@ export function createDialogComponent(Vue, options) {
         moveTarget,
         nameMarkets: NAME_MARKETS,
         open,
+        preSaveLeaveRedirect,
+        preSaveMoveEnabled,
+        preSaveMoveTitle,
+        preSaveOpen,
+        preSaveActions,
         sourceFetchState,
         steamNameChoices: STEAM_NAME_CHOICES,
         steamUrl,
@@ -1049,54 +1096,6 @@ export function createDialogComponent(Vue, options) {
       form.englishName = getBasePageTitle(metadata.title);
     }
   }
-}
-
-/**
- * Creates the post-save checklist component.
- *
- * @param {object} Vue - ResourceLoader Vue module.
- * @param {object} options - Dialog options.
- * @param {Array<object>} options.actions - Selectable post-save actions.
- * @param {Function} options.onRun - Selected action runner.
- * @returns {object} Vue component options.
- */
-export function createPostSaveDialogComponent(Vue, options) {
-  const actions = Vue.reactive(options.actions);
-  const error = Vue.ref("");
-  const loading = Vue.ref(false);
-  const open = Vue.ref(true);
-
-  return {
-    methods: {
-      closeDialog() {
-        open.value = false;
-        options.onClose();
-      },
-
-      async runActions() {
-        error.value = "";
-        loading.value = true;
-
-        try {
-          await options.onRun(actions);
-          open.value = false;
-        } catch (runError) {
-          error.value = runError.message || String(runError);
-        } finally {
-          loading.value = false;
-        }
-      },
-    },
-    setup() {
-      return {
-        actions,
-        error,
-        loading,
-        open,
-      };
-    },
-    template: createPostSaveDialogTemplate(),
-  };
 }
 
 /**
@@ -1191,88 +1190,124 @@ function uniqueFieldValues(values) {
 function createDialogTemplate() {
   return renderTemplate([
     createDialogTemplateRoot(),
+    createPreSaveDialogTemplate(),
     createMoveDialogTemplate(),
     createHistoryDialogTemplate(),
   ]);
 }
 
 /**
- * Creates the post-save checklist template.
+ * Creates the pre-save fixes dialog.
  *
- * @returns {string} Dialog template markup.
+ * @returns {object} Pre-save fixes dialog template node.
  */
-function createPostSaveDialogTemplate() {
-  return renderTemplate([
-    createElement(
-      "cdx-dialog",
-      {
-        class: "create-vg-stub-dialog",
-        "v-model:open": "open",
-        title: "Finish creating video game article",
-      },
-      [
-        createElement("p", {}, [
-          createText("Select the follow-up edits to make."),
-        ]),
-        createElement(
-          "div",
-          {
-            style: {
-              display: "grid",
-              gap: "12px",
+function createPreSaveDialogTemplate() {
+  return createElement(
+    "cdx-dialog",
+    {
+      "v-model:open": "preSaveOpen",
+      title: "Pre-save fixes",
+    },
+    [
+      createElement("p", {}, [
+        createText(
+          "Choose fixes to run after the article is submitted. The generated text will use the final title.",
+        ),
+      ]),
+      createElement(
+        "cdx-checkbox",
+        {
+          "v-model": "preSaveMoveEnabled",
+        },
+        [createText("Move page after submit")],
+      ),
+      createElement(
+        "div",
+        {
+          "v-if": "preSaveMoveEnabled",
+          style: {
+            display: "grid",
+            gap: "8px",
+            marginLeft: "28px",
+          },
+        },
+        [
+          createElement("cdx-text-input", {
+            placeholder: "Final article title",
+            "v-model": "preSaveMoveTitle",
+          }),
+          createElement(
+            "cdx-checkbox",
+            {
+              "v-model": "preSaveLeaveRedirect",
             },
+            [createText("Leave a redirect from the current title")],
+          ),
+        ],
+      ),
+      createElement(
+        "div",
+        {
+          style: {
+            display: "grid",
+            gap: "8px",
+            marginTop: "12px",
           },
-          [
+        },
+        [
+          createElement(
+            "cdx-checkbox",
+            {
+              "v-bind:key": "action.id",
+              "v-for": "action in preSaveActions",
+              "v-model": "action.selected",
+            },
+            [createText("{{ action.label }}")],
+          ),
+        ],
+      ),
+      createElement(
+        "p",
+        {
+          class: "create-vg-stub-error",
+          "v-if": "sourceFetchState.error",
+        },
+        [createText("{{ sourceFetchState.error }}")],
+      ),
+      createElement(
+        "template",
+        {
+          "v-slot:footer": "",
+        },
+        [
+          createActionFooterTemplate([
             createElement(
-              "cdx-checkbox",
+              "cdx-button",
               {
-                "v-bind:key": "action.id",
-                "v-for": "action in actions",
-                "v-model": "action.selected",
+                "v-bind:disabled": "sourceFetchState.loading",
+                "v-on:click": "preSaveOpen = false",
               },
-              [createText("{{ action.label }}")],
+              [createText("Back")],
             ),
-          ],
-        ),
-        createElement(
-          "p",
-          {
-            class: "create-vg-stub-error",
-            "v-if": "error",
-          },
-          [createText("{{ error }}")],
-        ),
-        createElement(
-          "template",
-          {
-            "v-slot:footer": "",
-          },
-          [
-            createActionFooterTemplate([
-              createElement(
-                "cdx-button",
-                {
-                  "v-bind:disabled": "loading",
-                  "v-on:click": "closeDialog",
-                },
-                [createText("Skip")],
-              ),
-              createElement(
-                "cdx-button",
-                {
-                  action: "progressive",
-                  "v-bind:disabled": "loading",
-                  "v-on:click": "runActions",
-                  weight: "primary",
-                },
-                [createText("{{ loading ? 'Saving' : 'Run selected' }}")],
-              ),
-            ]),
-          ],
-        ),
-      ],
-    ),
-  ]);
+            createElement(
+              "cdx-button",
+              {
+                action: "progressive",
+                "v-bind:disabled": "sourceFetchState.loading",
+                "v-on:click": "confirmSubmit",
+                weight: "primary",
+              },
+              [
+                createText(
+                  "{{ sourceFetchState.loading ? 'Saving' : 'Save' }}",
+                ),
+              ],
+            ),
+          ]),
+        ],
+      ),
+    ],
+  );
 }
 
 /**

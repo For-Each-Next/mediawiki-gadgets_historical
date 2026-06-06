@@ -1,7 +1,7 @@
 /* eslint-disable */
 
 /**
- * Builds and runs optional tasks after a generated article is saved.
+ * Builds the pre-save checklist and runs its selected follow-up actions.
  */
 
 import { addEditSummarySuffix } from "./edit-summary.js";
@@ -17,16 +17,16 @@ export const TALK_PAGE_BANNER = buildTemplateText(
 );
 
 /**
- * Builds the selectable post-save action rows.
+ * Builds the selectable pre-save action rows.
  *
- * @param {object} pending - Stored post-save data.
- * @param {object} pending.form - Submitted dialog form.
- * @param {string} pending.title - Saved article title.
+ * @param {object} selection - Current pre-save selection data.
+ * @param {object} selection.form - Submitted dialog form.
+ * @param {string} selection.title - Article title.
  * @returns {Array<object>} Selectable action rows.
  */
-export function buildPostSaveActions(pending, existingRedirectTitles = []) {
-  const form = pending.form || {};
-  const title = normalizeTitle(pending.title);
+export function buildPreSaveActions(selection, existingRedirectTitles = []) {
+  const form = selection.form || {};
+  const title = normalizeTitle(selection.title);
   const existingKeys = new Set(existingRedirectTitles.map(normalizeTitleKey));
   const actions = [];
 
@@ -118,29 +118,87 @@ export async function fetchExistingPageTitles(api, titles) {
 }
 
 /**
- * Runs selected post-save actions in order.
+ * Runs selected follow-up actions in order.
  *
  * @param {Array<object>} actions - Action rows.
  * @param {object} options - Execution options.
  * @param {object} options.api - MediaWiki API client.
+ * @param {object} [options.move] - Optional page move settings.
+ * @param {boolean} options.move.enabled - Whether to move the page.
+ * @param {boolean} options.move.leaveRedirect - Whether to leave a redirect.
+ * @param {string} options.move.to - Destination page title.
+ * @param {Function} [options.onMoveComplete] - Successful move callback.
  * @param {object} [options.wikidataApi] - Wikidata API client.
  * @param {string} options.title - Saved article title.
- * @returns {Promise<Array<object>>} Completed action rows.
+ * @returns {Promise<object>} Completed action rows and final title.
  */
-export async function runPostSaveActions(actions, options) {
+export async function runSelectedActions(actions, options) {
   const completed = [];
+  const originalTitle = normalizeTitle(options.title);
+  const moveTitle = normalizeTitle(options.move?.to);
+  const shouldMove =
+    options.move?.enabled === true &&
+    moveTitle !== "" &&
+    normalizeTitleKey(moveTitle) !== normalizeTitleKey(originalTitle);
+  const finalTitle = shouldMove ? moveTitle : originalTitle;
+
+  if (shouldMove) {
+    await movePage(options.api, originalTitle, finalTitle, {
+      leaveRedirect: options.move.leaveRedirect,
+    });
+    options.onMoveComplete?.(finalTitle);
+  }
 
   for (const action of actions.filter((item) => item.selected)) {
-    await runPostSaveAction(action, options);
+    if (
+      action.type === "redirect" &&
+      normalizeTitleKey(action.redirectTitle) === normalizeTitleKey(finalTitle)
+    ) {
+      action.selected = false;
+      continue;
+    }
+
+    await runSelectedAction(action, {
+      ...options,
+      title: finalTitle,
+    });
     action.selected = false;
     completed.push(action);
   }
 
-  return completed;
+  return {
+    completed,
+    title: finalTitle,
+  };
 }
 
 /**
- * Runs one post-save action.
+ * Moves the saved article before running follow-up edits.
+ *
+ * @param {object} api - MediaWiki API client.
+ * @param {string} from - Current page title.
+ * @param {string} to - Destination page title.
+ * @param {object} options - Move options.
+ * @param {boolean} options.leaveRedirect - Whether to leave a redirect.
+ * @returns {Promise<void>} Resolves after the page is moved.
+ */
+export async function movePage(api, from, to, options) {
+  const params = {
+    action: "move",
+    from,
+    reason: addEditSummarySuffix(`Rename to [[${to}]]`),
+    to,
+  };
+
+  if (!options.leaveRedirect) {
+    params.noredirect = true;
+  }
+
+  await api.postWithToken("csrf", params);
+}
+
+/**
+ * Runs one selected follow-up action.
  *
  * @param {object} action - Action row.
  * @param {object} options - Execution options.
@@ -149,7 +207,7 @@ export async function runPostSaveActions(actions, options) {
  * @param {string} options.title - Saved article title.
  * @returns {Promise<void>} Resolves after the action succeeds.
  */
-async function runPostSaveAction(action, options) {
+async function runSelectedAction(action, options) {
   if (action.type === "interwiki") {
     await connectWikidataSitelink(
       options.wikidataApi || options.api,

@@ -281,6 +281,9 @@ test("submit from another tab switches to category review first", async () => {
       onSubmitHistory() {
         historyCount += 1;
       },
+      async onPreSavePrepare() {
+        return [];
+      },
     }),
   );
   const { activeTab } = component.setup();
@@ -294,7 +297,7 @@ test("submit from another tab switches to category review first", async () => {
   assert.equal(historyCount, 0);
 });
 
-test("submit from category review inserts text", async () => {
+test("submit from category review opens pre-save fixes", async () => {
   let refreshCount = 0;
   let submitCount = 0;
   let historyCount = 0;
@@ -312,14 +315,66 @@ test("submit from category review inserts text", async () => {
       },
     }),
   );
-  const { activeTab } = component.setup();
+  const { activeTab, preSaveOpen } = component.setup();
 
   activeTab.value = "categories";
   await component.methods.submitForm();
 
   assert.equal(refreshCount, 1);
-  assert.equal(submitCount, 1);
-  assert.equal(historyCount, 1);
+  assert.equal(preSaveOpen.value, true);
+  assert.equal(submitCount, 0);
+  assert.equal(historyCount, 0);
+});
+
+test("pre-save fixes pass the final move title before saving", async () => {
+  let submitted;
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      onSubmit(_form, _state, _close, preSave) {
+        submitted = preSave;
+      },
+      async onPreSavePrepare() {
+        return [
+          {
+            id: "talk-banner",
+            label: "Add talk banner",
+            selected: true,
+          },
+        ];
+      },
+    }),
+  );
+  const state = component.setup();
+
+  state.activeTab.value = "categories";
+  await component.methods.submitForm();
+  state.preSaveMoveEnabled.value = true;
+  state.preSaveMoveTitle.value = " 中文名 ";
+  state.preSaveLeaveRedirect.value = false;
+  await component.methods.confirmSubmit();
+
+  assert.deepEqual(submitted, {
+    actions: [
+      {
+        id: "talk-banner",
+        label: "Add talk banner",
+        selected: true,
+      },
+    ],
+    move: {
+      enabled: true,
+      leaveRedirect: false,
+      to: "中文名",
+    },
+  });
+  assert.equal(state.preSaveOpen.value, false);
+  assert.equal(
+    component.template.includes("The generated text will use the final title."),
+    true,
+  );
+  assert.equal(component.template.includes("{{ action.label }}"), true);
+  assert.equal(component.template.includes("'Save'"), true);
 });
 
 test("enwiki lookup fills wikidata and blank English title", async () => {
@@ -431,6 +486,9 @@ function createOptionsStub(options = {}) {
     onDeleteHistoryEntry() {},
     onFormChange() {},
     onMoveTarget() {},
+    async onPreSavePrepare() {
+      return [];
+    },
     onResetCategoryRow() {},
     onSubmit() {},
     onSubmitHistory() {},

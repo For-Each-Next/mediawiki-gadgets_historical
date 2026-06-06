@@ -15,7 +15,6 @@ import {
   addDialogStyles,
   buildNameSourceReferenceKey,
   createDialogComponent,
-  createPostSaveDialogComponent,
   getEnteredNameSourceReferenceFields,
   SOURCE_REFERENCE_FIELDS,
   splitSourceUrls,
@@ -43,11 +42,11 @@ import { buildEditSummary } from "./edit-summary.js";
 import { fetchEnwikiMetadata } from "./crosswiki.js";
 import { countGeneratedProseSinographs } from "./prose-count.js";
 import {
-  buildPostSaveActions,
+  buildPreSaveActions,
   buildRedirectTitles,
   fetchExistingPageTitles,
-  runPostSaveActions,
-} from "./post-save.js";
+  runSelectedActions,
+} from "./pre-save.js";
 import {
   buildCompanyMetadata,
   buildPlatformSeriesMetadata,
@@ -56,7 +55,7 @@ import {
 import { buildArticleWikitext } from "./wikitext.js";
 
 const MOVE_TEXT_STORAGE_KEY = "create-vg-stub-move-text";
-const POST_SAVE_STORAGE_KEY = "create-vg-stub-post-save";
+const PENDING_SAVE_STORAGE_KEY = "create-vg-stub-pending-save";
 const CATEGORY_CACHE_STORAGE_PREFIX = "create-vg-stub-category-cache:";
 const CITATION_PREFETCH_DELAY = 800;
 
@@ -547,24 +546,55 @@ function getDefaultNameFallback() {
 }
 
 /**
- * Inserts generated wikitext from dialog form values.
+ * Generates wikitext and submits the MediaWiki edit form.
  *
  * @param {object} form - Dialog form values.
  * @param {object} sourceFetchState - Source fetch status state.
  * @param {Function} closeDialog - Dialog close callback.
+ * @param {object} preSave - Configured pre-save fixes.
  * @param {object} citationStore - Citation fetch/cache store.
- * @returns {Promise<void>} Resolves after generated text is written.
+ * @returns {Promise<void>} Resolves after save submission starts.
  */
-async function submitForm(form, sourceFetchState, closeDialog, citationStore) {
+async function submitForm(
+  form,
+  sourceFetchState,
+  closeDialog,
+  preSave,
+  citationStore,
+) {
   sourceFetchState.error = "";
   sourceFetchState.loading = true;
 
   try {
-    const stub = await buildStubFromForm(form, citationStore);
+    const moveTitle = trimFieldValue(preSave?.move?.to);
+    const shouldMove =
+      preSave?.move?.enabled === true &&
+      moveTitle !== "" &&
+      normalizePageTitle(moveTitle) !== normalizePageTitle(getPageName());
+    const submittedForm = shouldMove
+      ? {
+          ...form,
+          name: moveTitle,
+        }
+      : form;
+    const stub = await buildStubFromForm(submittedForm, citationStore);
 
     writeEditText(stub.text);
-    writeEditSummary(buildEditSummary(createEditSummaryMetadata(form, stub)));
-    storePostSaveData(form, getPageName());
+    writeEditSummary(
+      buildEditSummary(createEditSummaryMetadata(submittedForm, stub)),
+    );
+    storePendingSaveData(submittedForm, getPageName(), {
+      actions: preSave.actions,
+      move: shouldMove
+        ? {
+            ...preSave.move,
+            to: moveTitle,
+          }
+        : {
+            enabled: false,
+          },
+    });
+    submitEditForm();
     closeDialog();
   } catch (error) {
     sourceFetchState.error = error.message;
@@ -574,29 +604,48 @@ async function submitForm(form, sourceFetchState, closeDialog, citationStore) {
 }
 
 /**
- * Stores optional tasks to show after the article save succeeds.
+ * Stores the selected follow-up tasks for the saved article.
  *
  * @param {object} form - Submitted dialog form.
  * @param {string} title - Article title.
+ * @param {object} [preSave] - Configured pre-save fixes.
  * @returns {void}
  */
-function storePostSaveData(form, title) {
+function storePendingSaveData(form, title, preSave = {}) {
   sessionStorage.setItem(
-    POST_SAVE_STORAGE_KEY,
+    PENDING_SAVE_STORAGE_KEY,
     JSON.stringify({
       form,
+      actions: preSave.actions,
+      move: preSave.move,
       title,
     }),
   );
 }
 
 /**
- * Reads pending tasks when the current page is the newly saved article.
+ * Submits the MediaWiki edit form through its save button.
  *
- * @returns {object|undefined} Pending post-save data.
+ * @returns {void}
  */
-function getPostSaveData() {
-  const item = sessionStorage.getItem(POST_SAVE_STORAGE_KEY);
+export function submitEditForm() {
+  const editForm = document.getElementById("editform");
+  const saveButton = document.getElementById("wpSave");
+
+  if (editForm == null || saveButton == null) {
+    throw new Error("MediaWiki save form is unavailable.");
+  }
+
+  editForm.requestSubmit(saveButton);
+}
+
+/**
+ * Reads pending follow-up tasks for the newly saved article.
+ *
+ * @returns {object|undefined} Pending selected actions.
+ */
+function getPendingSaveData() {
+  const item = sessionStorage.getItem(PENDING_SAVE_STORAGE_KEY);
 
   if (item == null) {
     return undefined;
@@ -613,7 +662,7 @@ function getPostSaveData() {
 
     return pending;
   } catch (_error) {
-    sessionStorage.removeItem(POST_SAVE_STORAGE_KEY);
+    sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
     return undefined;
   }
 }
@@ -1272,6 +1321,21 @@ function init(require) {
       onEnwikiTitleChange: fetchEnwikiMetadata,
       onFormChange: saveFormDraft,
       onMoveTarget: (...args) => openTargetPage(...args, citationStore),
+      async onPreSavePrepare(form, title) {
+        const redirectTitles = buildRedirectTitles(form, title);
+        const existingRedirectTitles = await fetchExistingPageTitles(
+          new mw.Api(),
+          redirectTitles,
+        );
+
+        return buildPreSaveActions(
+          {
+            form,
+            title,
+          },
+          existingRedirectTitles,
+        );
+      },
       onResetCategoryRow: resetCategoryRow,
       onSourceUrlChange: (url) => citationStore.prefetch(url),
       onSteamNamesFetch: (url) => fetchSteamNameRows(url, citationStore),
@@ -1295,51 +1359,37 @@ function init(require) {
 }
 
 /**
- * Mounts the post-save checklist on the newly created article.
+ * Runs the preselected follow-up actions on the newly created article.
  *
  * @param {Function} require - ResourceLoader module resolver.
  * @returns {void}
  */
-async function initPostSave(require) {
-  const pending = getPostSaveData();
+async function runPendingSaveActions(require) {
+  const pending = getPendingSaveData();
 
   if (pending == null) {
     return;
   }
 
-  const Vue = require("vue");
-  const Codex = require("@wikimedia/codex");
   const api = new mw.Api();
-  const redirectTitles = buildRedirectTitles(pending.form || {}, pending.title);
-  const existingRedirectTitles = await fetchExistingPageTitles(
+  let currentTitle = pending.title;
+  const result = await runSelectedActions(pending.actions || [], {
     api,
-    redirectTitles,
-  );
-  const actions = buildPostSaveActions(pending, existingRedirectTitles);
-  const app = Vue.createMwApp(
-    createPostSaveDialogComponent(Vue, {
-      actions,
-      onClose() {
-        sessionStorage.removeItem(POST_SAVE_STORAGE_KEY);
-      },
-      async onRun(selectedActions) {
-        await runPostSaveActions(selectedActions, {
-          api,
-          title: pending.title,
-          wikidataApi: new mw.ForeignApi(
-            "https://www.wikidata.org/w/api.php",
-          ),
-        });
-        sessionStorage.removeItem(POST_SAVE_STORAGE_KEY);
-      },
-    }),
-  );
+    move: pending.move,
+    onMoveComplete(title) {
+      currentTitle = title;
+    },
+    title: currentTitle,
+    wikidataApi: new mw.ForeignApi("https://www.wikidata.org/w/api.php"),
+  });
 
-  addDialogStyles();
-  app.component("CdxDialog", Codex.CdxDialog);
-  app.component("CdxButton", Codex.CdxButton);
-  app.component("CdxCheckbox", Codex.CdxCheckbox);
-  app.mount(createHost());
+  sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
+
+  if (
+    normalizePageTitle(result.title) !== normalizePageTitle(getPageName())
+  ) {
+    window.location.href = mw.util.getUrl(result.title);
+  }
 }
 
 if (isNewPageEdit()) {
@@ -1354,15 +1404,13 @@ if (isNewPageEdit()) {
 } else if (
   mw.config.get("wgAction") === "view" &&
   mw.config.get("wgArticleId") !== 0 &&
-  getPostSaveData() != null
+  getPendingSaveData() != null
 ) {
   mw.loader
     .using([
       "mediawiki.api",
       "mediawiki.ForeignApi",
       "mediawiki.util",
-      "vue",
-      "@wikimedia/codex",
     ])
-    .then(initPostSave);
+    .then(runPendingSaveActions);
 }

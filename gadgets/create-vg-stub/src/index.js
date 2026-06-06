@@ -15,6 +15,7 @@ import {
   addDialogStyles,
   buildNameSourceReferenceKey,
   createDialogComponent,
+  createPostSaveDialogComponent,
   getEnteredNameSourceReferenceFields,
   SOURCE_REFERENCE_FIELDS,
   splitSourceUrls,
@@ -42,6 +43,12 @@ import { buildEditSummary } from "./edit-summary.js";
 import { fetchEnwikiMetadata } from "./crosswiki.js";
 import { countGeneratedProseSinographs } from "./prose-count.js";
 import {
+  buildPostSaveActions,
+  buildRedirectTitles,
+  fetchExistingPageTitles,
+  runPostSaveActions,
+} from "./post-save.js";
+import {
   buildCompanyMetadata,
   buildPlatformSeriesMetadata,
   buildYearGenreMetadata,
@@ -49,6 +56,7 @@ import {
 import { buildArticleWikitext } from "./wikitext.js";
 
 const MOVE_TEXT_STORAGE_KEY = "create-vg-stub-move-text";
+const POST_SAVE_STORAGE_KEY = "create-vg-stub-post-save";
 const CATEGORY_CACHE_STORAGE_PREFIX = "create-vg-stub-category-cache:";
 const CITATION_PREFETCH_DELAY = 800;
 
@@ -556,11 +564,57 @@ async function submitForm(form, sourceFetchState, closeDialog, citationStore) {
 
     writeEditText(stub.text);
     writeEditSummary(buildEditSummary(createEditSummaryMetadata(form, stub)));
+    storePostSaveData(form, getPageName());
     closeDialog();
   } catch (error) {
     sourceFetchState.error = error.message;
   } finally {
     sourceFetchState.loading = false;
+  }
+}
+
+/**
+ * Stores optional tasks to show after the article save succeeds.
+ *
+ * @param {object} form - Submitted dialog form.
+ * @param {string} title - Article title.
+ * @returns {void}
+ */
+function storePostSaveData(form, title) {
+  sessionStorage.setItem(
+    POST_SAVE_STORAGE_KEY,
+    JSON.stringify({
+      form,
+      title,
+    }),
+  );
+}
+
+/**
+ * Reads pending tasks when the current page is the newly saved article.
+ *
+ * @returns {object|undefined} Pending post-save data.
+ */
+function getPostSaveData() {
+  const item = sessionStorage.getItem(POST_SAVE_STORAGE_KEY);
+
+  if (item == null) {
+    return undefined;
+  }
+
+  try {
+    const pending = JSON.parse(item);
+
+    if (
+      normalizePageTitle(pending.title) !== normalizePageTitle(getPageName())
+    ) {
+      return undefined;
+    }
+
+    return pending;
+  } catch (_error) {
+    sessionStorage.removeItem(POST_SAVE_STORAGE_KEY);
+    return undefined;
   }
 }
 
@@ -1240,6 +1294,54 @@ function init(require) {
   restoreMovedEditText();
 }
 
+/**
+ * Mounts the post-save checklist on the newly created article.
+ *
+ * @param {Function} require - ResourceLoader module resolver.
+ * @returns {void}
+ */
+async function initPostSave(require) {
+  const pending = getPostSaveData();
+
+  if (pending == null) {
+    return;
+  }
+
+  const Vue = require("vue");
+  const Codex = require("@wikimedia/codex");
+  const api = new mw.Api();
+  const redirectTitles = buildRedirectTitles(pending.form || {}, pending.title);
+  const existingRedirectTitles = await fetchExistingPageTitles(
+    api,
+    redirectTitles,
+  );
+  const actions = buildPostSaveActions(pending, existingRedirectTitles);
+  const app = Vue.createMwApp(
+    createPostSaveDialogComponent(Vue, {
+      actions,
+      onClose() {
+        sessionStorage.removeItem(POST_SAVE_STORAGE_KEY);
+      },
+      async onRun(selectedActions) {
+        await runPostSaveActions(selectedActions, {
+          api,
+          title: pending.title,
+          wikidataApi: new mw.ForeignApi(
+            "https://www.wikidata.org/w/api.php",
+          ),
+        });
+        sessionStorage.removeItem(POST_SAVE_STORAGE_KEY);
+      },
+    }),
+  );
+
+  addDialogStyles();
+  app.component("CdxDialog", Codex.CdxDialog);
+  app.component("CdxButton", Codex.CdxButton);
+  app.component("CdxCheckbox", Codex.CdxCheckbox);
+  app.mount(createHost());
+}
+
 if (isNewPageEdit()) {
   mw.loader
     .using([
@@ -1249,4 +1351,18 @@ if (isNewPageEdit()) {
       "@wikimedia/codex",
     ])
     .then(init);
+} else if (
+  mw.config.get("wgAction") === "view" &&
+  mw.config.get("wgArticleId") !== 0 &&
+  getPostSaveData() != null
+) {
+  mw.loader
+    .using([
+      "mediawiki.api",
+      "mediawiki.ForeignApi",
+      "mediawiki.util",
+      "vue",
+      "@wikimedia/codex",
+    ])
+    .then(initPostSave);
 }

@@ -1052,6 +1052,54 @@ export function createDialogComponent(Vue, options) {
 }
 
 /**
+ * Creates the post-save checklist component.
+ *
+ * @param {object} Vue - ResourceLoader Vue module.
+ * @param {object} options - Dialog options.
+ * @param {Array<object>} options.actions - Selectable post-save actions.
+ * @param {Function} options.onRun - Selected action runner.
+ * @returns {object} Vue component options.
+ */
+export function createPostSaveDialogComponent(Vue, options) {
+  const actions = Vue.reactive(options.actions);
+  const error = Vue.ref("");
+  const loading = Vue.ref(false);
+  const open = Vue.ref(true);
+
+  return {
+    methods: {
+      closeDialog() {
+        open.value = false;
+        options.onClose();
+      },
+
+      async runActions() {
+        error.value = "";
+        loading.value = true;
+
+        try {
+          await options.onRun(actions);
+          open.value = false;
+        } catch (runError) {
+          error.value = runError.message || String(runError);
+        } finally {
+          loading.value = false;
+        }
+      },
+    },
+    setup() {
+      return {
+        actions,
+        error,
+        loading,
+        open,
+      };
+    },
+    template: createPostSaveDialogTemplate(),
+  };
+}
+
+/**
  * Formats a category row source as a compact badge label.
  *
  * @param {string} source - Category row source.
@@ -1145,6 +1193,85 @@ function createDialogTemplate() {
     createDialogTemplateRoot(),
     createMoveDialogTemplate(),
     createHistoryDialogTemplate(),
+  ]);
+}
+
+/**
+ * Creates the post-save checklist template.
+ *
+ * @returns {string} Dialog template markup.
+ */
+function createPostSaveDialogTemplate() {
+  return renderTemplate([
+    createElement(
+      "cdx-dialog",
+      {
+        class: "create-vg-stub-dialog",
+        "v-model:open": "open",
+        title: "Finish creating video game article",
+      },
+      [
+        createElement("p", {}, [
+          createText("Select the follow-up edits to make."),
+        ]),
+        createElement(
+          "div",
+          {
+            style: {
+              display: "grid",
+              gap: "12px",
+            },
+          },
+          [
+            createElement(
+              "cdx-checkbox",
+              {
+                "v-bind:key": "action.id",
+                "v-for": "action in actions",
+                "v-model": "action.selected",
+              },
+              [createText("{{ action.label }}")],
+            ),
+          ],
+        ),
+        createElement(
+          "p",
+          {
+            class: "create-vg-stub-error",
+            "v-if": "error",
+          },
+          [createText("{{ error }}")],
+        ),
+        createElement(
+          "template",
+          {
+            "v-slot:footer": "",
+          },
+          [
+            createActionFooterTemplate([
+              createElement(
+                "cdx-button",
+                {
+                  "v-bind:disabled": "loading",
+                  "v-on:click": "closeDialog",
+                },
+                [createText("Skip")],
+              ),
+              createElement(
+                "cdx-button",
+                {
+                  action: "progressive",
+                  "v-bind:disabled": "loading",
+                  "v-on:click": "runActions",
+                  weight: "primary",
+                },
+                [createText("{{ loading ? 'Saving' : 'Run selected' }}")],
+              ),
+            ]),
+          ],
+        ),
+      ],
+    ),
   ]);
 }
 

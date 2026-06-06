@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach } from "node:test";
 
-import { createDialogComponent } from "../src/interface.js";
+import {
+  StyleSheet,
+  createDialogComponent,
+} from "../src/interface.js";
 
 const originalWindow = globalThis.window;
 
@@ -11,6 +14,31 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.window = originalWindow;
+});
+
+test("StyleSheet serializes selector arrays and nested media rules", () => {
+  const styles = new StyleSheet()
+    .add([".example", ".example-alt"], {
+      fontSize: "12px",
+    })
+    .media("(max-width: 640px)", (sheet) => {
+      sheet.add(".example", {
+        fontSize: "10px",
+      });
+    });
+
+  assert.equal(
+    styles.toString(),
+    ".example,\n" +
+      ".example-alt {\n" +
+      "  font-size: 12px;\n" +
+      "}\n\n" +
+      "@media (max-width: 640px) {\n" +
+      "  .example {\n" +
+      "    font-size: 10px;\n" +
+      "  }\n" +
+      "}",
+  );
 });
 
 test("live field updates trim values and normalize full dates to years", () => {

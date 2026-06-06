@@ -4,140 +4,179 @@
  * Builds the create-vg-stub dialog form.
  */
 
-const DIALOG_CSS = `
-.create-vg-stub-dialog.cdx-dialog {
-  max-width: min(96vw, 960px);
-  width: min(96vw, 960px);
-}
-
-.create-vg-stub-tab-panel {
-  padding-top: 12px;
-}
-
-.create-vg-stub-field-row,
-.create-vg-stub-name-row {
-  display: grid;
-  gap: 12px;
-  align-items: center;
-}
-
-.create-vg-stub-field-row {
-  grid-template-columns: 5.75rem minmax(0, 1fr);
-  margin-bottom: 12px;
-}
-
-.create-vg-stub-field-separator {
-  border: 0;
-  border-top: 1px solid #eaecf0;
-  grid-column: 1 / -1;
-  margin: 16px 0;
-}
-
-.create-vg-stub-field-separator-compact {
-  margin: 16px 0 12px;
-}
-
-.create-vg-stub-name-row {
-  border-bottom: 1px solid #eaecf0;
-  grid-template-columns: minmax(0, 1fr);
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-}
-
-.create-vg-stub-field-label {
-  font-weight: 600;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.create-vg-stub-field-controls,
-.create-vg-stub-name-controls {
-  display: grid;
-  gap: 0;
-  min-width: 0;
-}
-
-.create-vg-stub-steam-helper {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  margin-bottom: 16px;
-}
-
-.create-vg-stub-steam-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  grid-column: 1 / -1;
-}
-
-.create-vg-stub-steam-suggestion {
-  color: #54595d;
-  font-size: 12px;
-  grid-column: 1 / -1;
-  overflow-wrap: anywhere;
-}
-
-.create-vg-stub-source-url textarea,
-textarea.create-vg-stub-source-url {
-  font-size: 12px;
-  height: 32px;
-  min-height: 32px;
-  resize: vertical;
-}
-
-.create-vg-stub-wikitext-preview {
-  color: #72777d;
-  font-family: monospace;
-  font-size: 12px;
-  line-height: 1.35;
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-}
-
-.create-vg-stub-field-note {
-  margin: -8px 0 12px;
-}
-
-.create-vg-stub-category-grid {
-  display: grid;
-  grid-template-columns: auto minmax(4.2rem, 0.35fr) minmax(12rem, 1.6fr) auto auto;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
-.create-vg-stub-category-status {
-  align-items: center;
-  align-self: center;
-  background: #f8f9fa;
-  border: 1px solid #a2a9b1;
-  border-radius: 2px;
-  color: #202122;
-  display: inline-flex;
-  font-size: 0.875em;
-  font-weight: 600;
-  height: 28px;
-  justify-content: center;
-  line-height: 1;
-  min-width: 28px;
-  padding: 0 6px;
-}
-
-.create-vg-stub-error {
-  color: #d73333;
-}
-
-@media (max-width: 640px) {
-  .create-vg-stub-field-row,
-  .create-vg-stub-name-row {
-    grid-template-columns: 1fr;
+export class StyleSheet {
+  constructor() {
+    this.rules = [];
   }
 
-  .create-vg-stub-steam-helper {
-    grid-template-columns: 1fr;
+  /**
+   * Adds one CSS rule.
+   *
+   * @param {string|Array<string>} selectors - Rule selector or selectors.
+   * @param {object} declarations - CSS declarations.
+   * @returns {StyleSheet} Current stylesheet.
+   */
+  add(selectors, declarations) {
+    this.rules.push({
+      declarations,
+      selectors: Array.isArray(selectors) ? selectors : [selectors],
+      type: "rule",
+    });
+
+    return this;
+  }
+
+  /**
+   * Adds a nested media query.
+   *
+   * @param {string} condition - Media query condition.
+   * @param {Function} buildRules - Nested rule builder.
+   * @returns {StyleSheet} Current stylesheet.
+   */
+  media(condition, buildRules) {
+    const sheet = new StyleSheet();
+
+    buildRules(sheet);
+    this.rules.push({
+      condition,
+      rules: sheet.rules,
+      type: "media",
+    });
+
+    return this;
+  }
+
+  /**
+   * Serializes the stylesheet.
+   *
+   * @returns {string} Stylesheet text.
+   */
+  toString() {
+    return renderStyleRules(this.rules);
   }
 }
-`;
+
+const DIALOG_CSS = new StyleSheet()
+  .add(".create-vg-stub-dialog.cdx-dialog", {
+    maxWidth: "min(96vw, 960px)",
+    width: "min(96vw, 960px)",
+  })
+  .add(".create-vg-stub-tab-panel", {
+    paddingTop: "12px",
+  })
+  .add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
+    alignItems: "center",
+    display: "grid",
+    gap: "12px",
+  })
+  .add(".create-vg-stub-field-row", {
+    gridTemplateColumns: "5.75rem minmax(0, 1fr)",
+    marginBottom: "12px",
+  })
+  .add(".create-vg-stub-field-separator", {
+    border: "0",
+    borderTop: "1px solid #eaecf0",
+    gridColumn: "1 / -1",
+    margin: "16px 0",
+  })
+  .add(".create-vg-stub-field-separator-compact", {
+    margin: "16px 0 12px",
+  })
+  .add(".create-vg-stub-name-row", {
+    borderBottom: "1px solid #eaecf0",
+    gridTemplateColumns: "minmax(0, 1fr)",
+    marginBottom: "16px",
+    paddingBottom: "16px",
+  })
+  .add(".create-vg-stub-field-label", {
+    fontWeight: "600",
+    lineHeight: "1.35",
+    overflowWrap: "anywhere",
+  })
+  .add(
+    [".create-vg-stub-field-controls", ".create-vg-stub-name-controls"],
+    {
+      display: "grid",
+      gap: "0",
+      minWidth: "0",
+    },
+  )
+  .add(".create-vg-stub-steam-helper", {
+    display: "grid",
+    gap: "8px",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    marginBottom: "16px",
+  })
+  .add(".create-vg-stub-steam-actions", {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    gridColumn: "1 / -1",
+  })
+  .add(".create-vg-stub-steam-suggestion", {
+    color: "#54595d",
+    fontSize: "12px",
+    gridColumn: "1 / -1",
+    overflowWrap: "anywhere",
+  })
+  .add(
+    [
+      ".create-vg-stub-source-url textarea",
+      "textarea.create-vg-stub-source-url",
+    ],
+    {
+      fontSize: "12px",
+      height: "32px",
+      minHeight: "32px",
+      resize: "vertical",
+    },
+  )
+  .add(".create-vg-stub-wikitext-preview", {
+    color: "#72777d",
+    fontFamily: "monospace",
+    fontSize: "12px",
+    lineHeight: "1.35",
+    marginTop: "4px",
+    overflowWrap: "anywhere",
+  })
+  .add(".create-vg-stub-field-note", {
+    margin: "-8px 0 12px",
+  })
+  .add(".create-vg-stub-category-grid", {
+    display: "grid",
+    gap: "4px",
+    gridTemplateColumns:
+      "auto minmax(4.2rem, 0.35fr) minmax(12rem, 1.6fr) auto auto",
+    marginBottom: "12px",
+  })
+  .add(".create-vg-stub-category-status", {
+    alignItems: "center",
+    alignSelf: "center",
+    background: "#f8f9fa",
+    border: "1px solid #a2a9b1",
+    borderRadius: "2px",
+    color: "#202122",
+    display: "inline-flex",
+    fontSize: "0.875em",
+    fontWeight: "600",
+    height: "28px",
+    justifyContent: "center",
+    lineHeight: "1",
+    minWidth: "28px",
+    padding: "0 6px",
+  })
+  .add(".create-vg-stub-error", {
+    color: "#d73333",
+  })
+  .media("(max-width: 640px)", (sheet) => {
+    sheet.add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
+      gridTemplateColumns: "1fr",
+    });
+    sheet.add(".create-vg-stub-steam-helper", {
+      gridTemplateColumns: "1fr",
+    });
+  })
+  .toString();
 
 /**
  * Describes a reusable article parameter input.
@@ -2127,6 +2166,50 @@ function renderAttribute(entry) {
  */
 function renderStyle(style) {
   return `${Object.entries(style).map(renderStyleDeclaration).join("; ")};`;
+}
+
+/**
+ * Serializes a stylesheet rule object.
+ *
+ * @param {Array<object>} rules - Structured CSS rules.
+ * @returns {string} Stylesheet text.
+ */
+export function renderStyleRules(rules) {
+  return rules.map(renderStyleRule).join("\n\n");
+}
+
+/**
+ * Serializes one stylesheet rule or nested at-rule.
+ *
+ * @param {object} rule - Structured CSS rule.
+ * @returns {string} Stylesheet rule text.
+ */
+function renderStyleRule(rule) {
+  if (rule.type === "media") {
+    return `@media ${rule.condition} {\n${indentStyleText(
+      renderStyleRules(rule.rules),
+    )}\n}`;
+  }
+
+  const selector = rule.selectors.join(",\n");
+  const body = Object.entries(rule.declarations)
+    .map(([name, value]) => `  ${toKebabCase(name)}: ${value};`)
+    .join("\n");
+
+  return `${selector} {\n${body}\n}`;
+}
+
+/**
+ * Indents nested stylesheet text.
+ *
+ * @param {string} text - Stylesheet text.
+ * @returns {string} Indented stylesheet text.
+ */
+function indentStyleText(text) {
+  return text
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
 }
 
 /**

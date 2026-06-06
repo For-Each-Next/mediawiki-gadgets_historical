@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { build } from "esbuild";
 import { minify } from "terser";
+import { formatMinifiedOutput } from "../../../build.config.js";
 
 const dataPath = "src/data";
 const sourcePath = "src/index.js";
@@ -28,7 +29,7 @@ if (code == null) {
 }
 
 await writeFile("dist/create_vg_stub.js", source);
-await writeFile("dist/create_vg_stub.min.js", code);
+await writeFile("dist/create_vg_stub.min.js", formatMinifiedOutput(code));
 
 /**
  * Bundles the source modules into one browser script.

@@ -15,7 +15,7 @@ test("buildEditSummary renders year and enwiki title metadata", () => {
       proseSinographs: 59,
       year: "2026",
     }),
-    `[[:w:en:Example Game|サンプル]] ([[2026年電子遊戲界|2026]]) <59 sinographs> ${EDIT_SUMMARY_SUFFIX}`,
+    `[[:w:en:Example Game|サンプル]] ([[2026年電子遊戲界|2026]]) [59 sinographs] ${EDIT_SUMMARY_SUFFIX}`,
   );
 });
 
@@ -27,7 +27,7 @@ test("buildEditSummary renders plain title without enwiki metadata", () => {
       proseSinographs: 59,
       year: "2026",
     }),
-    `サンプル ([[2026年電子遊戲界|2026]]) <59 sinographs> ${EDIT_SUMMARY_SUFFIX}`,
+    `サンプル ([[2026年電子遊戲界|2026]]) [59 sinographs] ${EDIT_SUMMARY_SUFFIX}`,
   );
 });
 

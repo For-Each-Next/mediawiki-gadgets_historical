@@ -68,7 +68,7 @@ function buildProseCountText(count) {
     return "";
   }
 
-  return `<${Math.round(count)} sinographs>`;
+  return `[${Math.round(count)} sinographs]`;
 }
 
 /**

@@ -710,6 +710,7 @@ async function buildStubFromForm(form, citationStore) {
  * @param {string} form.englishName - English game title.
  * @param {string} form.enwikiTitle - English Wikipedia page title.
  * @param {string} form.originalName - Original game title.
+ * @param {string} form.wikidataId - Wikidata entity ID.
  * @param {string} form.year - Release year.
  * @param {object} stub - Generated stub data.
  * @param {object} stub.params - Article parameters.
@@ -720,6 +721,7 @@ function createEditSummaryMetadata(form, stub) {
     displayName: getEditSummaryDisplayName(form),
     enwikiTitle: trimFieldValue(form.enwikiTitle),
     proseSinographs: countGeneratedProseSinographs(stub.params),
+    wikidataId: trimFieldValue(form.wikidataId),
     year: trimFieldValue(form.year),
   };
 }

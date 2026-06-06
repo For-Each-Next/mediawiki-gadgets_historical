@@ -14,12 +14,17 @@ export const EDIT_SUMMARY_SUFFIX =
  * @param {string} metadata.displayName - Summary display title.
  * @param {string} metadata.enwikiTitle - English Wikipedia page title.
  * @param {number} metadata.proseSinographs - Prose length in sinographs.
+ * @param {string} metadata.wikidataId - Wikidata entity ID.
  * @param {string} metadata.year - Release year.
  * @returns {string} Generated edit summary.
  */
 export function buildEditSummary(metadata) {
   return [
-    buildNameSummaryText(metadata.displayName, metadata.enwikiTitle),
+    buildNameSummaryText(
+      metadata.displayName,
+      metadata.wikidataId,
+      metadata.enwikiTitle,
+    ),
     buildYearSummaryText(metadata.year),
     buildProseCountText(metadata.proseSinographs),
     EDIT_SUMMARY_SUFFIX,
@@ -75,15 +80,21 @@ function buildProseCountText(count) {
  * Builds the game title text for an edit summary.
  *
  * @param {string} displayName - Summary display title.
+ * @param {string} wikidataId - Wikidata entity ID.
  * @param {string} enwikiTitle - English Wikipedia page title.
  * @returns {string} Game title summary text.
  */
-function buildNameSummaryText(displayName, enwikiTitle) {
+function buildNameSummaryText(displayName, wikidataId, enwikiTitle) {
   const label = String(displayName || "").trim();
+  const entityId = String(wikidataId || "").trim();
   const title = String(enwikiTitle || "").trim();
 
   if (label === "") {
     return "";
+  }
+
+  if (entityId !== "") {
+    return `[[:d:${entityId}|${label}]]`;
   }
 
   if (title === "") {

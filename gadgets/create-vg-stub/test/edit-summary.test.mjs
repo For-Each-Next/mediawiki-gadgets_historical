@@ -7,12 +7,26 @@ import {
   buildEditSummary,
 } from "../src/edit-summary.js";
 
-test("buildEditSummary renders year and enwiki title metadata", () => {
+test("buildEditSummary prefers Wikidata title metadata", () => {
   assert.equal(
     buildEditSummary({
       displayName: "サンプル",
       enwikiTitle: "Example Game",
       proseSinographs: 59,
+      wikidataId: "Q123",
+      year: "2026",
+    }),
+    `[[:d:Q123|サンプル]] ([[2026年電子遊戲界|2026]]) [59 sinographs] ${EDIT_SUMMARY_SUFFIX}`,
+  );
+});
+
+test("buildEditSummary falls back to enwiki title metadata", () => {
+  assert.equal(
+    buildEditSummary({
+      displayName: "サンプル",
+      enwikiTitle: "Example Game",
+      proseSinographs: 59,
+      wikidataId: "",
       year: "2026",
     }),
     `[[:w:en:Example Game|サンプル]] ([[2026年電子遊戲界|2026]]) [59 sinographs] ${EDIT_SUMMARY_SUFFIX}`,
@@ -25,6 +39,7 @@ test("buildEditSummary renders plain title without enwiki metadata", () => {
       displayName: "サンプル",
       enwikiTitle: "",
       proseSinographs: 59,
+      wikidataId: "",
       year: "2026",
     }),
     `サンプル ([[2026年電子遊戲界|2026]]) [59 sinographs] ${EDIT_SUMMARY_SUFFIX}`,
@@ -37,6 +52,7 @@ test("buildEditSummary omits unavailable metadata", () => {
       displayName: "",
       enwikiTitle: "",
       proseSinographs: 0,
+      wikidataId: "",
       year: "",
     }),
     EDIT_SUMMARY_SUFFIX,

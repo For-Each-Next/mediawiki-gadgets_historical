@@ -511,7 +511,6 @@ export function createDialogComponent(Vue, options) {
   const historyOpen = Vue.ref(false);
   const moveTarget = Vue.ref(options.defaultName);
   const moveOpen = Vue.ref(false);
-  const preSaveLeaveRedirect = Vue.ref(true);
   const preSaveMoveEnabled = Vue.ref(false);
   const preSaveMoveTitle = Vue.ref(options.defaultName);
   const preSaveOpen = Vue.ref(false);
@@ -523,7 +522,7 @@ export function createDialogComponent(Vue, options) {
     error: "",
     loading: false,
   });
-  const open = Vue.ref(false);
+  const open = Vue.ref(options.initialOpen === true);
   const initialForm = options.initialForm;
 
   if (initialForm != null) {
@@ -583,12 +582,19 @@ export function createDialogComponent(Vue, options) {
         preSaveOpen.value = true;
 
         try {
-          const actions = await options.onPreSavePrepare(
+          const prepared = await options.onPreSavePrepare(
             form,
             getCurrentTitle(),
           );
 
-          preSaveActions.splice(0, preSaveActions.length, ...actions);
+          preSaveActions.splice(
+            0,
+            preSaveActions.length,
+            ...(prepared.actions || []),
+          );
+          preSaveMoveEnabled.value = prepared.move?.enabled === true;
+          preSaveMoveTitle.value =
+            trimFieldValue(prepared.move?.to) || getCurrentTitle();
         } catch (error) {
           sourceFetchState.error = error.message || String(error);
         } finally {
@@ -604,12 +610,28 @@ export function createDialogComponent(Vue, options) {
       async confirmSubmit() {
         options.onSubmitHistory(form, getCurrentTitle());
         historyEntries.value = options.getHistoryEntries();
+
+        const moveTitle = trimFieldValue(preSaveMoveTitle.value);
+
+        if (
+          preSaveMoveEnabled.value &&
+          moveTitle !== "" &&
+          moveTitle !== getCurrentTitle()
+        ) {
+          await options.onMoveTarget(form, moveTitle, sourceFetchState);
+
+          if (sourceFetchState.error === "") {
+            preSaveOpen.value = false;
+          }
+
+          return;
+        }
+
         await options.onSubmit(form, sourceFetchState, this.closeDialog, {
           actions: preSaveActions,
           move: {
-            enabled: preSaveMoveEnabled.value,
-            leaveRedirect: preSaveLeaveRedirect.value,
-            to: trimFieldValue(preSaveMoveTitle.value),
+            enabled: false,
+            to: getCurrentTitle(),
           },
         });
 
@@ -1002,7 +1024,6 @@ export function createDialogComponent(Vue, options) {
         moveTarget,
         nameMarkets: NAME_MARKETS,
         open,
-        preSaveLeaveRedirect,
         preSaveMoveEnabled,
         preSaveMoveTitle,
         preSaveOpen,
@@ -1219,7 +1240,7 @@ function createPreSaveDialogTemplate() {
         {
           "v-model": "preSaveMoveEnabled",
         },
-        [createText("Move page after submit")],
+        [createText("Use this title before saving")],
       ),
       createElement(
         "div",
@@ -1236,13 +1257,6 @@ function createPreSaveDialogTemplate() {
             placeholder: "Final article title",
             "v-model": "preSaveMoveTitle",
           }),
-          createElement(
-            "cdx-checkbox",
-            {
-              "v-model": "preSaveLeaveRedirect",
-            },
-            [createText("Leave a redirect from the current title")],
-          ),
         ],
       ),
       createElement(
@@ -1299,7 +1313,7 @@ function createPreSaveDialogTemplate() {
               },
               [
                 createText(
-                  "{{ sourceFetchState.loading ? 'Saving' : 'Save' }}",
+                  "{{ sourceFetchState.loading ? 'Working' : (preSaveMoveEnabled ? 'Continue' : 'Save') }}",
                 ),
               ],
             ),

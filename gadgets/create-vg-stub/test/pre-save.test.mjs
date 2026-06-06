@@ -6,6 +6,7 @@ import {
   addTalkPageBanner,
   buildPreSaveActions,
   buildRedirectTitles,
+  buildTitleFix,
   connectWikidataSitelink,
   createRedirect,
   fetchExistingPageTitles,
@@ -91,6 +92,46 @@ test("buildPreSaveActions hints existing redirects and unchecks them", () => {
       ],
     ],
   );
+});
+
+test("buildTitleFix defaults an English title to the first Chinese name", () => {
+  assert.deepEqual(
+    buildTitleFix(
+      {
+        localizedNames: [
+          { hant: true, name: " 示例遊戲 " },
+          { hans: true, name: "示例游戏" },
+        ],
+      },
+      "Example Game",
+    ),
+    {
+      enabled: true,
+      to: "示例遊戲",
+    },
+  );
+});
+
+test("buildTitleFix stays disabled for a Chinese title", () => {
+  assert.deepEqual(
+    buildTitleFix(
+      {
+        localizedNames: [{ hans: true, name: "示例游戏" }],
+      },
+      "示例遊戲",
+    ),
+    {
+      enabled: false,
+      to: "示例遊戲",
+    },
+  );
+});
+
+test("buildTitleFix stays disabled without a Chinese name", () => {
+  assert.deepEqual(buildTitleFix({}, "Example Game"), {
+    enabled: false,
+    to: "Example Game",
+  });
 });
 
 test("fetchExistingPageTitles returns only existing pages", async () => {

@@ -66,6 +66,24 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
 }
 
 /**
+ * Builds the default title fix for an English-titled article.
+ *
+ * @param {object} form - Submitted dialog form.
+ * @param {string} articleTitle - Current article title.
+ * @returns {object} Default page move settings.
+ */
+export function buildTitleFix(form, articleTitle) {
+  const title = normalizeTitle(articleTitle);
+  const chineseTitle = buildRedirectTitles(form, title)[0] || "";
+  const enabled = isEnglishTitle(title) && chineseTitle !== "";
+
+  return {
+    enabled,
+    to: enabled ? chineseTitle : title,
+  };
+}
+
+/**
  * Gets unique localized aliases suitable for redirect pages.
  *
  * @param {object} form - Submitted dialog form.
@@ -329,4 +347,16 @@ function isChineseNameRow(row) {
   );
 
   return hasChineseMarket || /\p{Script=Han}/u.test(normalizeTitle(row.name));
+}
+
+/**
+ * Checks whether a title uses Latin text without Han characters.
+ *
+ * @param {string} title - Article title.
+ * @returns {boolean} Whether the title appears to be English.
+ */
+function isEnglishTitle(title) {
+  return (
+    /\p{Script=Latin}/u.test(title) && !/\p{Script=Han}/u.test(title)
+  );
 }

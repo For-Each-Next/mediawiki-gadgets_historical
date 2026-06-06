@@ -44,6 +44,7 @@ import { countGeneratedProseSinographs } from "./prose-count.js";
 import {
   buildPreSaveActions,
   buildRedirectTitles,
+  buildTitleFix,
   fetchExistingPageTitles,
   runSelectedActions,
 } from "./pre-save.js";
@@ -1235,15 +1236,6 @@ function restoreMovedEditText() {
 }
 
 /**
- * Gets pending moved form values for the current page.
- *
- * @returns {object|undefined} Pending moved form values.
- */
-function getMovedForm() {
-  return getMovedEdit()?.form;
-}
-
-/**
  * Gets pending moved edit data for the current page.
  *
  * @returns {object|undefined} Pending moved edit data.
@@ -1297,6 +1289,7 @@ function init(require) {
   const categoryStore = createCategoryCacheStore();
   const citationStore = createCitationStore();
   const defaultName = getDefaultName();
+  const movedEdit = getMovedEdit();
 
   addDialogStyles();
 
@@ -1307,7 +1300,8 @@ function init(require) {
       getHistoryEntries: readFormHistoryEntries,
       getFieldPlaceholder,
       getFieldPreview,
-      initialForm: getMovedForm() || readFormDraftForPage(defaultName),
+      initialForm: movedEdit?.form || readFormDraftForPage(defaultName),
+      initialOpen: movedEdit != null,
       onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
         refreshFormCategoryRows(
           form,
@@ -1328,13 +1322,16 @@ function init(require) {
           redirectTitles,
         );
 
-        return buildPreSaveActions(
-          {
-            form,
-            title,
-          },
-          existingRedirectTitles,
-        );
+        return {
+          actions: buildPreSaveActions(
+            {
+              form,
+              title,
+            },
+            existingRedirectTitles,
+          ),
+          move: buildTitleFix(form, title),
+        };
       },
       onResetCategoryRow: resetCategoryRow,
       onSourceUrlChange: (url) => citationStore.prefetch(url),

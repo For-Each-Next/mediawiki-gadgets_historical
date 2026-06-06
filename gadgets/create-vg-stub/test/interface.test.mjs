@@ -41,6 +41,22 @@ test("StyleSheet serializes selector arrays and nested media rules", () => {
   );
 });
 
+test("moved editing sessions open the refilled form automatically", () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      initialForm: {
+        name: "中文名",
+      },
+      initialOpen: true,
+    }),
+  );
+  const { form, open } = component.setup();
+
+  assert.equal(open.value, true);
+  assert.equal(form.name, "中文名");
+});
+
 test("live field updates trim values and normalize full dates to years", () => {
   const component = createDialogComponent(createVueStub(), createOptionsStub());
   const { form } = component.setup();
@@ -282,7 +298,9 @@ test("submit from another tab switches to category review first", async () => {
         historyCount += 1;
       },
       async onPreSavePrepare() {
-        return [];
+        return {
+          actions: [],
+        };
       },
     }),
   );
@@ -326,22 +344,32 @@ test("submit from category review opens pre-save fixes", async () => {
   assert.equal(historyCount, 0);
 });
 
-test("pre-save fixes pass the final move title before saving", async () => {
+test("pre-save title choice moves the editing session before saving", async () => {
   let submitted;
+  let moved;
   const component = createDialogComponent(
     createVueStub(),
     createOptionsStub({
+      onMoveTarget(_form, title) {
+        moved = title;
+      },
       onSubmit(_form, _state, _close, preSave) {
         submitted = preSave;
       },
       async onPreSavePrepare() {
-        return [
-          {
-            id: "talk-banner",
-            label: "Add talk banner",
-            selected: true,
+        return {
+          actions: [
+            {
+              id: "talk-banner",
+              label: "Add talk banner",
+              selected: true,
+            },
+          ],
+          move: {
+            enabled: true,
+            to: "預設中文名",
           },
-        ];
+        };
       },
     }),
   );
@@ -349,32 +377,55 @@ test("pre-save fixes pass the final move title before saving", async () => {
 
   state.activeTab.value = "categories";
   await component.methods.submitForm();
-  state.preSaveMoveEnabled.value = true;
+  assert.equal(state.preSaveMoveEnabled.value, true);
+  assert.equal(state.preSaveMoveTitle.value, "預設中文名");
   state.preSaveMoveTitle.value = " 中文名 ";
-  state.preSaveLeaveRedirect.value = false;
   await component.methods.confirmSubmit();
 
-  assert.deepEqual(submitted, {
-    actions: [
-      {
-        id: "talk-banner",
-        label: "Add talk banner",
-        selected: true,
-      },
-    ],
-    move: {
-      enabled: true,
-      leaveRedirect: false,
-      to: "中文名",
-    },
-  });
+  assert.equal(moved, "中文名");
+  assert.equal(submitted, undefined);
   assert.equal(state.preSaveOpen.value, false);
   assert.equal(
     component.template.includes("The generated text will use the final title."),
     true,
   );
   assert.equal(component.template.includes("{{ action.label }}"), true);
-  assert.equal(component.template.includes("'Save'"), true);
+  assert.equal(component.template.includes("'Continue'"), true);
+});
+
+test("pre-save title choice can be declined to keep the Latin title", async () => {
+  let submitted;
+  let moveCount = 0;
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      onMoveTarget() {
+        moveCount += 1;
+      },
+      onSubmit(_form, _state, _close, preSave) {
+        submitted = preSave;
+      },
+      async onPreSavePrepare() {
+        return {
+          actions: [],
+          move: {
+            enabled: true,
+            to: "中文名",
+          },
+        };
+      },
+    }),
+  );
+  const state = component.setup();
+
+  state.activeTab.value = "categories";
+  await component.methods.submitForm();
+  state.preSaveMoveEnabled.value = false;
+  await component.methods.confirmSubmit();
+
+  assert.equal(moveCount, 0);
+  assert.equal(submitted.move.enabled, false);
+  assert.equal(submitted.move.to, "Example");
 });
 
 test("enwiki lookup fills wikidata and blank English title", async () => {
@@ -487,7 +538,9 @@ function createOptionsStub(options = {}) {
     onFormChange() {},
     onMoveTarget() {},
     async onPreSavePrepare() {
-      return [];
+      return {
+        actions: [],
+      };
     },
     onResetCategoryRow() {},
     onSubmit() {},

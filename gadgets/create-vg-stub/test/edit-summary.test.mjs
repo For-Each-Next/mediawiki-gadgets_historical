@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildEditSummary } from "../src/edit-summary.js";
+import {
+  EDIT_SUMMARY_SUFFIX,
+  addEditSummarySuffix,
+  buildEditSummary,
+} from "../src/edit-summary.js";
 
 test("buildEditSummary renders year and enwiki title metadata", () => {
   assert.equal(
@@ -11,7 +15,7 @@ test("buildEditSummary renders year and enwiki title metadata", () => {
       proseSinographs: 59,
       year: "2026",
     }),
-    "🎮 [[en:Example Game|サンプル]] ([[2026年電子遊戲界|2026]]) <59 sinographs> 🎮",
+    `[[:w:en:Example Game|サンプル]] ([[2026年電子遊戲界|2026]]) <59 sinographs> ${EDIT_SUMMARY_SUFFIX}`,
   );
 });
 
@@ -23,7 +27,7 @@ test("buildEditSummary renders plain title without enwiki metadata", () => {
       proseSinographs: 59,
       year: "2026",
     }),
-    "🎮 サンプル ([[2026年電子遊戲界|2026]]) <59 sinographs> 🎮",
+    `サンプル ([[2026年電子遊戲界|2026]]) <59 sinographs> ${EDIT_SUMMARY_SUFFIX}`,
   );
 });
 
@@ -35,6 +39,13 @@ test("buildEditSummary omits unavailable metadata", () => {
       proseSinographs: 0,
       year: "",
     }),
-    "🎮 🎮",
+    EDIT_SUMMARY_SUFFIX,
+  );
+});
+
+test("addEditSummarySuffix adds the linked gadget marker", () => {
+  assert.equal(
+    addEditSummarySuffix("Create redirect"),
+    `Create redirect ${EDIT_SUMMARY_SUFFIX}`,
   );
 });

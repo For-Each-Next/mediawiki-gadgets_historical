@@ -4,6 +4,9 @@
  * Builds edit summaries for generated video game stubs.
  */
 
+export const EDIT_SUMMARY_SUFFIX =
+  "[[:m:User:For_Each_..._Next/global.js/create_vg_stub.js|🎮]]";
+
 /**
  * Builds a generated-stub edit summary.
  *
@@ -16,12 +19,23 @@
  */
 export function buildEditSummary(metadata) {
   return [
-    "🎮",
     buildNameSummaryText(metadata.displayName, metadata.enwikiTitle),
     buildYearSummaryText(metadata.year),
     buildProseCountText(metadata.proseSinographs),
-    "🎮",
+    EDIT_SUMMARY_SUFFIX,
   ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Adds gadget attribution to an edit summary.
+ *
+ * @param {string} summary - Edit summary text.
+ * @returns {string} Attributed edit summary.
+ */
+export function addEditSummarySuffix(summary) {
+  return [String(summary || "").trim(), EDIT_SUMMARY_SUFFIX]
     .filter(Boolean)
     .join(" ");
 }
@@ -76,5 +90,5 @@ function buildNameSummaryText(displayName, enwikiTitle) {
     return label;
   }
 
-  return `[[en:${title}|${label}]]`;
+  return `[[:w:en:${title}|${label}]]`;
 }

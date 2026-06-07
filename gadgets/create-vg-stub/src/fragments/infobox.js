@@ -25,6 +25,7 @@ export function buildInfoboxText(params) {
   return buildTemplateText(
     "Infobox VG",
     [
+      ["onlysourced", "no"],
       ["title", normalizeValue(params.name)],
       ["original", buildOriginalNameText(params)],
       ["japanese", buildJapaneseNameText(params)],

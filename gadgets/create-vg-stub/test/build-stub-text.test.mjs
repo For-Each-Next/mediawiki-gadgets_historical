@@ -4,7 +4,8 @@ import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
 const EXAMPLE_HEADER =
-  "{{NoteTA-lite\n| G1 = Games\n}}\n\n{{Infobox VG\n| title = Example\n}}";
+  "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
+  "{{Infobox VG\n| onlysourced = no\n| title = Example\n}}";
 
 test("RPG genre alias generates linked genre, category, and stub tag", async () => {
   const text = await buildStubText({
@@ -513,7 +514,8 @@ test("original name renders as a langx title variant", async () => {
   assert.ok(
     text.startsWith(
       "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
-        "{{Infobox VG\n| title = Example\n| japanese = サンプル\n}}\n\n" +
+        "{{Infobox VG\n| onlysourced = no\n| title = Example\n" +
+        "| japanese = サンプル\n}}\n\n" +
         "《'''Example'''》（{{langx|ja|サンプル|label=none}}）是一款",
     ),
   );
@@ -533,7 +535,8 @@ test("compact original name parses language prefix", async () => {
   assert.ok(
     text.startsWith(
       "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
-        "{{Infobox VG\n| title = Example\n| original = en:Example Game\n}}\n\n" +
+        "{{Infobox VG\n| onlysourced = no\n| title = Example\n" +
+        "| original = en:Example Game\n}}\n\n" +
         "《'''Example'''》（{{langx|en|Example Game|italic=yes|label=none}}）是一款",
     ),
   );
@@ -566,7 +569,8 @@ test("bare original name defaults to Japanese", async () => {
   assert.ok(
     text.startsWith(
       "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
-        "{{Infobox VG\n| title = Example\n| japanese = サンプル\n}}\n\n" +
+        "{{Infobox VG\n| onlysourced = no\n| title = Example\n" +
+        "| japanese = サンプル\n}}\n\n" +
         "《'''Example'''》（{{langx|ja|サンプル|label=none}}）是一款",
     ),
   );
@@ -586,7 +590,8 @@ test("English name renders as italic langx title variant", async () => {
   assert.ok(
     text.startsWith(
       "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
-        "{{Infobox VG\n| title = Example\n| english = Example Game\n}}\n\n" +
+        "{{Infobox VG\n| onlysourced = no\n| title = Example\n" +
+        "| english = Example Game\n}}\n\n" +
         "《'''Example'''》（{{langx|en|Example Game|italic=yes|label=none}}）是一款",
     ),
   );
@@ -606,7 +611,8 @@ test("English name matching base page title omits langx title variant", async ()
   assert.ok(
     text.startsWith(
       "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
-        "{{Infobox VG\n| title = Example Game (video game)\n}}\n\n" +
+        "{{Infobox VG\n| onlysourced = no\n" +
+        "| title = Example Game (video game)\n}}\n\n" +
         "《'''Example Game (video game)'''》是一款",
     ),
   );
@@ -628,7 +634,8 @@ test("original name matching base page title omits langx title variant", async (
   assert.ok(
     text.startsWith(
       "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
-        "{{Infobox VG\n| title = Example Game (video game)\n}}\n\n" +
+        "{{Infobox VG\n| onlysourced = no\n" +
+        "| title = Example Game (video game)\n}}\n\n" +
         "《'''Example Game (video game)'''》是一款",
     ),
   );
@@ -650,7 +657,8 @@ test("French original name renders as italic langx title variant", async () => {
   assert.ok(
     text.startsWith(
       "{{NoteTA-lite\n| G1 = Games\n}}\n\n" +
-        "{{Infobox VG\n| title = Example\n| original = fr:Exemple\n}}\n\n" +
+        "{{Infobox VG\n| onlysourced = no\n| title = Example\n" +
+        "| original = fr:Exemple\n}}\n\n" +
         "《'''Example'''》（{{langx|fr|Exemple|italic=yes|label=none}}）是一款",
     ),
   );
@@ -774,6 +782,7 @@ test("official name rows render vgn refs in the infobox", async () => {
         "| zh-cn:Official; zh-tw:Official;\n" +
         "}}\n\n" +
         "{{Infobox VG\n" +
+        "| onlysourced = no\n" +
         "| title = Example\n" +
         '| official = {{vgn|ww:Official<ref name=":1" />|hans:Official<ref name=":1" />|hant:Official<ref name=":1" />}}\n' +
         "}}\n\n",

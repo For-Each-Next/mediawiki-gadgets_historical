@@ -315,6 +315,40 @@ test("submit from another tab switches to category review first", async () => {
   assert.equal(historyCount, 0);
 });
 
+test("fill and submit use separate popup actions", async () => {
+  let fillCount = 0;
+  let submitCount = 0;
+  let historyCount = 0;
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      onFill() {
+        fillCount += 1;
+      },
+      onSubmit() {
+        submitCount += 1;
+      },
+      onSubmitHistory() {
+        historyCount += 1;
+      },
+    }),
+  );
+  const { activeTab } = component.setup();
+
+  await component.methods.fillForm();
+  assert.equal(activeTab.value, "categories");
+  assert.equal(fillCount, 0);
+
+  await component.methods.fillForm();
+  assert.equal(fillCount, 1);
+  assert.equal(submitCount, 0);
+  assert.equal(historyCount, 1);
+  assert.equal(component.template.includes('v-on:click="fillForm"'), true);
+  assert.equal(component.template.includes("'Fill'"), true);
+  assert.equal(component.template.includes('v-on:click="submitForm"'), true);
+  assert.equal(component.template.includes("'Submit'"), true);
+});
+
 test("submit from category review opens pre-save fixes", async () => {
   let refreshCount = 0;
   let submitCount = 0;
@@ -536,6 +570,7 @@ function createOptionsStub(options = {}) {
     onCreateCategoryRow() {},
     onDeleteHistoryEntry() {},
     onFormChange() {},
+    onFill() {},
     onMoveTarget() {},
     async onPreSavePrepare() {
       return {

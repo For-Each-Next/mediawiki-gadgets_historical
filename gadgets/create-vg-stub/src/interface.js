@@ -492,6 +492,7 @@ export function addDialogStyles() {
  * @param {Function} options.onFormChange - Form change handler.
  * @param {Function} options.onMoveTarget - New-page target opener.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
+ * @param {Function} options.onFill - Editor fill handler.
  * @param {Function} options.onPreSavePrepare - Follow-up action builder.
  * @param {Function} options.onResetCategoryRow - Category row reset handler.
  * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
@@ -561,6 +562,24 @@ export function createDialogComponent(Vue, options) {
        */
       closeDialog() {
         open.value = false;
+      },
+
+      /**
+       * Fills the MediaWiki editor after category review without submitting it.
+       *
+       * @returns {Promise<void>} Resolves after generated text is inserted.
+       */
+      async fillForm() {
+        if (activeTab.value !== "categories") {
+          activeTab.value = "categories";
+          await refreshCategoryRows();
+          return;
+        }
+
+        await refreshCategoryRows();
+        options.onSubmitHistory(form, getCurrentTitle());
+        historyEntries.value = options.getHistoryEntries();
+        await options.onFill(form, sourceFetchState, this.closeDialog);
       },
 
       /**
@@ -1393,12 +1412,25 @@ function createMainDialogFooterTemplate() {
             {
               action: "progressive",
               "v-bind:disabled": "sourceFetchState.loading",
+              "v-on:click": "fillForm",
+            },
+            [
+              createText(
+                "{{ sourceFetchState.loading ? 'Fetching' : 'Fill' }}",
+              ),
+            ],
+          ),
+          createElement(
+            "cdx-button",
+            {
+              action: "progressive",
+              "v-bind:disabled": "sourceFetchState.loading",
               "v-on:click": "submitForm",
               weight: "primary",
             },
             [
               createText(
-                "{{ sourceFetchState.loading ? 'Fetching' : 'Insert' }}",
+                "{{ sourceFetchState.loading ? 'Fetching' : 'Submit' }}",
               ),
             ],
           ),

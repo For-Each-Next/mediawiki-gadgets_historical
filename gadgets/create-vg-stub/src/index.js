@@ -547,6 +547,30 @@ function getDefaultNameFallback() {
 }
 
 /**
+ * Generates wikitext and fills the MediaWiki edit form without submitting it.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {object} sourceFetchState - Source fetch status state.
+ * @param {Function} closeDialog - Dialog close callback.
+ * @param {object} citationStore - Citation fetch/cache store.
+ * @returns {Promise<void>} Resolves after generated text is inserted.
+ */
+async function fillForm(form, sourceFetchState, closeDialog, citationStore) {
+  sourceFetchState.error = "";
+  sourceFetchState.loading = true;
+
+  try {
+    await writeGeneratedStub(form, citationStore);
+    sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
+    closeDialog();
+  } catch (error) {
+    sourceFetchState.error = error.message;
+  } finally {
+    sourceFetchState.loading = false;
+  }
+}
+
+/**
  * Generates wikitext and submits the MediaWiki edit form.
  *
  * @param {object} form - Dialog form values.
@@ -578,12 +602,7 @@ async function submitForm(
           name: moveTitle,
         }
       : form;
-    const stub = await buildStubFromForm(submittedForm, citationStore);
-
-    writeEditText(stub.text);
-    writeEditSummary(
-      buildEditSummary(createEditSummaryMetadata(submittedForm, stub)),
-    );
+    await writeGeneratedStub(submittedForm, citationStore);
     storePendingSaveData(submittedForm, getPageName(), {
       actions: preSave.actions,
       move: shouldMove
@@ -602,6 +621,20 @@ async function submitForm(
   } finally {
     sourceFetchState.loading = false;
   }
+}
+
+/**
+ * Generates and writes article text and its edit summary.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {object} citationStore - Citation fetch/cache store.
+ * @returns {Promise<void>} Resolves after the editor is filled.
+ */
+async function writeGeneratedStub(form, citationStore) {
+  const stub = await buildStubFromForm(form, citationStore);
+
+  writeEditText(stub.text);
+  writeEditSummary(buildEditSummary(createEditSummaryMetadata(form, stub)));
 }
 
 /**
@@ -1315,6 +1348,7 @@ function init(require) {
       onCreateCategoryRow: createManualCategoryRow,
       onDeleteHistoryEntry: deleteFormHistoryEntry,
       onEnwikiTitleChange: fetchEnwikiMetadata,
+      onFill: (...args) => fillForm(...args, citationStore),
       onFormChange: saveFormDraft,
       onMoveTarget: (...args) => openTargetPage(...args, citationStore),
       async onPreSavePrepare(form, title) {

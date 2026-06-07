@@ -137,11 +137,14 @@ function getPlatformLabel(platform) {
     value,
   );
 
-  if (reference == null || reference.page == null) {
+  if (reference == null) {
     return value;
   }
 
-  return reference.page.label || reference.page.title;
+  return reference.label ||
+    reference.page?.label ||
+    reference.page?.title ||
+    value;
 }
 
 /**

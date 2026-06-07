@@ -1724,6 +1724,12 @@
   },
   {
     "aliases": [
+      "PC"
+    ],
+    "label": "PC"
+  },
+  {
+    "aliases": [
       "ps1",
       "PlayStation 1",
       "PlayStation",

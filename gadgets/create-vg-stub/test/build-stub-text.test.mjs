@@ -499,6 +499,22 @@ test("compact Metacritic score parses platform and score", async () => {
   );
 });
 
+test("Metacritic platform code normalizes lowercase PC", async () => {
+  const text = await buildStubText({
+    metacriticScore: "pc:77",
+    name: "Example",
+    platforms: "",
+    year: "",
+  });
+
+  assert.equal(
+    text.includes("游戏的[[Metacritic]]汇总得分为77/100（PC版）。"),
+    true,
+  );
+  assert.equal(text.includes("[[Category:"), false);
+  assert.equal(text.includes("-stub}}"), false);
+});
+
 test("original name renders as a langx title variant", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",

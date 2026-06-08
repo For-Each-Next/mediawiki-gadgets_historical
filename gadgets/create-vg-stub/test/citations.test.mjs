@@ -1,3 +1,7 @@
+/**
+ * Tests citation URL fetching and template formatting.
+ */
+
 import assert from "node:assert/strict";
 import test from "node:test";
 

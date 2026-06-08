@@ -1,3 +1,7 @@
+/**
+ * Tests shared formatting and lookup utilities.
+ */
+
 import assert from "node:assert/strict";
 import test from "node:test";
 

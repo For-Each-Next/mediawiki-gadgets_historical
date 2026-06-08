@@ -1,5 +1,9 @@
 /* eslint-disable */
 
+/**
+ * Bundles and minifies the create-vg-stub gadget for publishing.
+ */
+
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { build } from "esbuild";

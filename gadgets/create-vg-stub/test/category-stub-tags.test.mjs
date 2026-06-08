@@ -1,3 +1,7 @@
+/**
+ * Tests category row stub-tag defaults.
+ */
+
 import assert from "node:assert/strict";
 import test from "node:test";
 

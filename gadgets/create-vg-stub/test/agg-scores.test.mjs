@@ -1,3 +1,7 @@
+/**
+ * Tests aggregate review score prose rendering.
+ */
+
 import assert from "node:assert/strict";
 import test from "node:test";
 

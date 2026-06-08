@@ -1,3 +1,7 @@
+/**
+ * Tests create-vg-stub dialog behavior.
+ */
+
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach } from "node:test";
 

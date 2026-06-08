@@ -1,3 +1,7 @@
+/**
+ * Tests generated gadget output formatting.
+ */
+
 /* eslint-disable */
 
 import assert from "node:assert/strict";

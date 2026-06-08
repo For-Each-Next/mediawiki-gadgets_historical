@@ -1,3 +1,7 @@
+/**
+ * Configures ESLint rules and globals for the gadget workspace.
+ */
+
 import jsdoc from "eslint-plugin-jsdoc";
 
 const browserGlobals = {

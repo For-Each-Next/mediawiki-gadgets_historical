@@ -1,3 +1,7 @@
+/**
+ * Tests video game infobox wikitext generation.
+ */
+
 import assert from "node:assert/strict";
 import test from "node:test";
 

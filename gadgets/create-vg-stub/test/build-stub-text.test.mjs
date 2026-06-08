@@ -1,3 +1,7 @@
+/**
+ * Tests end-to-end generated video game stub wikitext.
+ */
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";

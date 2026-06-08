@@ -1,5 +1,9 @@
 /* eslint-disable */
 
+/**
+ * Formats shared build output for MediaWiki gadget publishing.
+ */
+
 export const minifiedOutput = {
   prefix: "/* <nowiki> */",
   suffix: "/* </nowiki> */",

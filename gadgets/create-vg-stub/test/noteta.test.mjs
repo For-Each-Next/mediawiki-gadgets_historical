@@ -1,3 +1,7 @@
+/**
+ * Tests NoteTA-lite conversion wikitext generation.
+ */
+
 import assert from "node:assert/strict";
 import test from "node:test";
 

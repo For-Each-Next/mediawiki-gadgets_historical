@@ -146,6 +146,10 @@ export async function fetchExistingPageTitles(api, titles) {
  * @param {boolean} options.move.leaveRedirect - Whether to leave a redirect.
  * @param {string} options.move.to - Destination page title.
  * @param {Function} [options.onMoveComplete] - Successful move callback.
+ * @param {Function} [options.onMoveStart] - Move start callback.
+ * @param {Function} [options.onActionComplete] - Action success callback.
+ * @param {Function} [options.onActionSkipped] - Action skipped callback.
+ * @param {Function} [options.onActionStart] - Action start callback.
  * @param {object} [options.wikidataApi] - Wikidata API client.
  * @param {string} options.title - Saved article title.
  * @returns {Promise<object>} Completed action rows and final title.
@@ -161,6 +165,7 @@ export async function runSelectedActions(actions, options) {
   const finalTitle = shouldMove ? moveTitle : originalTitle;
 
   if (shouldMove) {
+    options.onMoveStart?.(finalTitle);
     await movePage(options.api, originalTitle, finalTitle, {
       leaveRedirect: options.move.leaveRedirect,
     });
@@ -173,15 +178,18 @@ export async function runSelectedActions(actions, options) {
       normalizeTitleKey(action.redirectTitle) === normalizeTitleKey(finalTitle)
     ) {
       action.selected = false;
+      options.onActionSkipped?.(action);
       continue;
     }
 
+    options.onActionStart?.(action);
     await runSelectedAction(action, {
       ...options,
       title: finalTitle,
     });
     action.selected = false;
     completed.push(action);
+    options.onActionComplete?.(action);
   }
 
   return {

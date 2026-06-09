@@ -409,6 +409,32 @@ test("runSelectedActions reports a completed move before later edits", async () 
   assert.equal(movedTitle, "New");
 });
 
+test("runSelectedActions reports live action progress", async () => {
+  const events = [];
+  const action = {
+    id: "redirect:Alias",
+    redirectTitle: "Alias",
+    selected: true,
+    type: "redirect",
+  };
+
+  await runSelectedActions([action], {
+    api: createApiStub([]),
+    onActionComplete(item) {
+      events.push(["complete", item.id]);
+    },
+    onActionStart(item) {
+      events.push(["start", item.id]);
+    },
+    title: "Target",
+  });
+
+  assert.deepEqual(events, [
+    ["start", "redirect:Alias"],
+    ["complete", "redirect:Alias"],
+  ]);
+});
+
 function createApiStub(calls, getResponse = { query: { pages: {} } }) {
   return {
     async get(params) {

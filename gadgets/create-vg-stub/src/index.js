@@ -52,6 +52,14 @@ import {
   fetchExistingPageTitles,
   runSelectedActions,
 } from "./pre-save.js";
+import { addMissingPageEditTrigger } from "./page-trigger.js";
+import {
+  createSaveProgress,
+  readSaveProgress,
+  renderSaveProgress,
+  storeSaveProgress,
+  updateSaveProgress,
+} from "./save-progress.js";
 import {
   buildCompanyMetadata,
   buildPlatformSeriesMetadata,
@@ -176,6 +184,18 @@ class VideoGameArticleParams {
 function isNewPageEdit() {
   return (
     isEditAction(mw.config.get("wgAction")) &&
+    mw.config.get("wgArticleId") === 0
+  );
+}
+
+/**
+ * Checks whether the current view displays a missing page.
+ *
+ * @returns {boolean} Whether the current action views an uncreated page.
+ */
+function isMissingPageView() {
+  return (
+    mw.config.get("wgAction") === "view" &&
     mw.config.get("wgArticleId") === 0
   );
 }
@@ -606,8 +626,11 @@ async function submitForm(
           name: moveTitle,
         }
       : form;
-    await writeGeneratedStub(submittedForm, citationStore);
-    storePendingSaveData(submittedForm, getPageName(), {
+    const stub = await buildStubFromForm(submittedForm, citationStore);
+    const summary = buildEditSummary(
+      createEditSummaryMetadata(submittedForm, stub),
+    );
+    const pending = {
       actions: preSave.actions,
       move: shouldMove
         ? {
@@ -617,13 +640,108 @@ async function submitForm(
         : {
             enabled: false,
           },
+    };
+
+    storePendingSaveData(submittedForm, getPageName(), {
+      actions: pending.actions,
+      move: pending.move,
     });
-    submitEditForm();
+    startSaveProgress(getPageName(), pending);
+
+    if (document.getElementById("editform") == null) {
+      await new mw.Api().postWithToken("csrf", {
+        action: "edit",
+        createonly: true,
+        summary,
+        text: stub.text,
+        title: getPageName(),
+      });
+      setSaveProgressStep("save", "complete");
+      window.location.href = mw.util.getUrl(getPageName());
+    } else {
+      writeEditText(stub.text);
+      writeEditSummary(summary);
+      submitEditForm();
+    }
+
     closeDialog();
   } catch (error) {
+    failSaveProgress(error);
     sourceFetchState.error = error.message;
   } finally {
     sourceFetchState.loading = false;
+  }
+}
+
+/**
+ * Starts and renders persistent save progress.
+ *
+ * @param {string} title - Submitted article title.
+ * @param {object} pending - Pending follow-up actions.
+ * @returns {void}
+ */
+function startSaveProgress(title, pending) {
+  const progress = createSaveProgress(
+    title,
+    pending.actions || [],
+    pending.move || {},
+  );
+
+  storeSaveProgress(updateSaveProgress(progress, "save", "running"));
+  renderStoredSaveProgress();
+}
+
+/**
+ * Updates and renders one save progress row.
+ *
+ * @param {string} id - Progress row ID.
+ * @param {string} status - New status.
+ * @returns {void}
+ */
+function setSaveProgressStep(id, status) {
+  const progress = readSaveProgress();
+
+  if (progress == null) {
+    return;
+  }
+
+  storeSaveProgress(updateSaveProgress(progress, id, status));
+  renderStoredSaveProgress();
+}
+
+/**
+ * Stores a progress failure and keeps the layer visible.
+ *
+ * @param {Error} error - Save error.
+ * @returns {void}
+ */
+function failSaveProgress(error) {
+  const progress = readSaveProgress();
+
+  if (progress == null) {
+    return;
+  }
+
+  progress.error = error.message || String(error);
+  const running = progress.steps.find((step) => step.status === "running");
+  const failed = running == null
+    ? progress
+    : updateSaveProgress(progress, running.id, "failed");
+
+  storeSaveProgress(failed);
+  renderSaveProgress(failed);
+}
+
+/**
+ * Renders stored save progress when available.
+ *
+ * @returns {void}
+ */
+function renderStoredSaveProgress() {
+  const progress = readSaveProgress();
+
+  if (progress != null) {
+    renderSaveProgress(progress);
   }
 }
 
@@ -1210,6 +1328,10 @@ function addToolboxLink() {
   );
 
   link.addEventListener("click", handleToolboxClick);
+
+  if (isMissingPageView()) {
+    addMissingPageEditTrigger(document, handleToolboxClick);
+  }
 }
 
 /**
@@ -1354,7 +1476,15 @@ function init(require) {
       onCreateCategoryRow: createManualCategoryRow,
       onDeleteHistoryEntry: deleteFormHistoryEntry,
       onEnwikiTitleChange: fetchEnwikiMetadata,
-      onFill: (...args) => fillForm(...args, citationStore),
+      onFill: isMissingPageView()
+        ? (form, sourceFetchState) =>
+            openTargetPage(
+              form,
+              getPageName(),
+              sourceFetchState,
+              citationStore,
+            )
+        : (...args) => fillForm(...args, citationStore),
       onFormChange: saveFormDraft,
       onMoveTarget: (...args) => openTargetPage(...args, citationStore),
       onPrepareCompanyCategory: prepareCompanyCategoryText,
@@ -1396,6 +1526,7 @@ function init(require) {
   app.component("CdxTextInput", Codex.CdxTextInput);
   app.mount(createHost());
   addToolboxLink();
+  renderStoredSaveProgress();
   restoreMovedEditText();
 }
 
@@ -1412,30 +1543,51 @@ async function runPendingSaveActions(require) {
     return;
   }
 
-  const api = new mw.Api();
-  let currentTitle = pending.title;
-  const result = await runSelectedActions(pending.actions || [], {
-    api,
-    move: pending.move,
-    onMoveComplete(title) {
-      currentTitle = title;
-    },
-    title: currentTitle,
-    wikidataApi: new mw.ForeignApi("https://www.wikidata.org/w/api.php"),
-  });
+  setSaveProgressStep("save", "complete");
 
-  sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
+  try {
+    const api = new mw.Api();
+    let currentTitle = pending.title;
+    const result = await runSelectedActions(pending.actions || [], {
+      api,
+      move: pending.move,
+      onActionComplete(action) {
+        setSaveProgressStep(action.id, "complete");
+      },
+      onActionSkipped(action) {
+        setSaveProgressStep(action.id, "skipped");
+      },
+      onActionStart(action) {
+        setSaveProgressStep(action.id, "running");
+      },
+      onMoveComplete(title) {
+        currentTitle = title;
+        setSaveProgressStep("move", "complete");
+      },
+      onMoveStart() {
+        setSaveProgressStep("move", "running");
+      },
+      title: currentTitle,
+      wikidataApi: new mw.ForeignApi("https://www.wikidata.org/w/api.php"),
+    });
 
-  if (
-    normalizePageTitle(result.title) !== normalizePageTitle(getPageName())
-  ) {
-    window.location.href = mw.util.getUrl(result.title);
+    sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
+
+    if (
+      normalizePageTitle(result.title) !== normalizePageTitle(getPageName())
+    ) {
+      window.location.href = mw.util.getUrl(result.title);
+    }
+  } catch (error) {
+    failSaveProgress(error);
   }
 }
 
-if (isNewPageEdit()) {
+if (isNewPageEdit() || isMissingPageView()) {
   mw.loader
     .using([
+      "mediawiki.api",
+      "mediawiki.ForeignApi",
       "mediawiki.util",
       "jquery.textSelection",
       "vue",

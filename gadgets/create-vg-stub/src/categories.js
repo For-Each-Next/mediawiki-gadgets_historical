@@ -372,6 +372,7 @@ function buildCategoryItems(items = [], options = {}) {
 function createCategoryPlan(values) {
   return {
     candidates: uniqueValues(values.candidates || []),
+    company: values.company || "",
     fallback: values.fallback,
   };
 }
@@ -410,6 +411,7 @@ function resolveCategoryPlans(items, resolutions) {
     if (resolution != null) {
       return createCategoryRow({
         category: resolution.category,
+        company: item.company,
         source: SOURCE_FETCH,
         status: resolution.status,
       });
@@ -417,6 +419,7 @@ function resolveCategoryPlans(items, resolutions) {
 
     return createCategoryRow({
       category: item.fallback,
+      company: item.company,
       enabled: false,
       source: SOURCE_FITTING,
       status: CATEGORY_STATUS.unchecked,
@@ -464,6 +467,7 @@ function applyCategoryResolution(row, resolutions) {
  *
  * @param {object} values - Row values.
  * @param {string} [values.category] - Category title without namespace.
+ * @param {string} [values.company] - Company page title for category creation.
  * @param {boolean} [values.enabled] - Whether the row should render.
  * @param {string} [values.originalCategory] - Original generated category.
  * @param {string} [values.source] - Category source label.
@@ -501,6 +505,7 @@ function normalizeCategoryRow(row) {
 
   return {
     category,
+    company: trimValue(row.company),
     enabled: row.enabled !== false,
     originalCategory,
     source,

@@ -150,10 +150,16 @@ test("buildCategoryRows generates company categories from wikilink display text"
   );
 
   assert.deepEqual(
-    rows.map((row) => [row.enabled, row.source, row.category, row.status]),
+    rows.map((row) => [
+      row.enabled,
+      row.source,
+      row.category,
+      row.company,
+      row.status,
+    ]),
     [
-      [false, "suggested", "Foo Studio游戏", ""],
-      [false, "suggested", "Bar Games游戏", ""],
+      [false, "suggested", "Foo Studio游戏", "Foo, Inc.", ""],
+      [false, "suggested", "Bar Games游戏", "Bar Games", ""],
     ],
   );
 });

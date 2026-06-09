@@ -124,6 +124,103 @@ test("live source and name row updates trim values", () => {
   assert.equal(moveTarget.value, "Target page");
 });
 
+test("company category helper opens, edits, and saves only company rows", async () => {
+  const saved = [];
+  const refreshes = [];
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      onCategoryRowsRefresh(_form, _state, options) {
+        refreshes.push(options);
+      },
+      async onPrepareCompanyCategory(row) {
+        return `Text for ${row.company}`;
+      },
+      async onSaveCompanyCategory(category, text) {
+        saved.push([category, text]);
+      },
+    }),
+  );
+  const { companyCategoryOpen, companyCategoryState } = component.setup();
+  const companyRow = {
+    category: "Foo Studio游戏",
+    company: "Foo Studio",
+    status: "",
+  };
+
+  assert.equal(component.methods.canCreateCompanyCategory(companyRow), true);
+  assert.equal(
+    component.methods.canCreateCompanyCategory({
+      category: "动作游戏",
+      status: "Not exists",
+    }),
+    false,
+  );
+  assert.equal(
+    component.methods.canCreateCompanyCategory({
+      ...companyRow,
+      status: "OK",
+    }),
+    false,
+  );
+
+  await component.methods.openCompanyCategory(companyRow);
+  assert.equal(companyCategoryOpen.value, true);
+  assert.equal(companyCategoryState.text, "Text for Foo Studio");
+
+  companyCategoryState.text += "\nEdited";
+  await component.methods.saveCompanyCategory();
+
+  assert.deepEqual(saved, [
+    ["Foo Studio游戏", "Text for Foo Studio\nEdited"],
+  ]);
+  assert.deepEqual(refreshes, [{ bypassCache: true }]);
+  assert.equal(companyCategoryOpen.value, false);
+  assert.equal(
+    component.template.includes("Create Category:"),
+    true,
+  );
+});
+
+test("category viewer opens for existing company and other category rows", () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      getCategoryPageUrl(category) {
+        return `/wiki/Category:${category}`;
+      },
+    }),
+  );
+  const { categoryViewOpen, categoryViewState } = component.setup();
+
+  component.methods.openCategoryView({
+    category: "Foo Studio游戏",
+    company: "Foo Studio",
+    status: "OK",
+  });
+
+  assert.equal(categoryViewOpen.value, true);
+  assert.equal(categoryViewState.category, "Foo Studio游戏");
+  assert.equal(
+    categoryViewState.url,
+    "/wiki/Category:Foo Studio游戏",
+  );
+
+  component.methods.closeCategoryView();
+  assert.equal(categoryViewOpen.value, false);
+
+  component.methods.openCategoryView({
+    category: "动作游戏",
+    status: "OK",
+  });
+  assert.equal(categoryViewState.url, "/wiki/Category:动作游戏");
+  assert.equal(component.template.includes(">View</cdx-button>"), true);
+  assert.equal(
+    component.template.includes('v-bind:src="categoryViewState.url"'),
+    true,
+  );
+});
+
 test("Steam helper stages official localized name choices", async () => {
   const component = createDialogComponent(
     createVueStub(),
@@ -565,6 +662,9 @@ function createVueStub() {
 function createOptionsStub(options = {}) {
   return {
     defaultName: "Example",
+    getCategoryPageUrl(category) {
+      return `/wiki/Category:${category}`;
+    },
     getFieldPlaceholder() {},
     getHistoryEntries() {
       return [];
@@ -576,12 +676,14 @@ function createOptionsStub(options = {}) {
     onFormChange() {},
     onFill() {},
     onMoveTarget() {},
+    onPrepareCompanyCategory() {},
     async onPreSavePrepare() {
       return {
         actions: [],
       };
     },
     onResetCategoryRow() {},
+    onSaveCompanyCategory() {},
     onSubmit() {},
     onSubmitHistory() {},
     onUpdateCategoryRowCategory() {},

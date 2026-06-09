@@ -7,12 +7,12 @@
 import {
   FIELD_REFERENCE_DATA,
   buildPageText,
+  getWikilinkParts,
   getWikilinkValue,
   getReferenceValues,
   getSourceReference,
   isWikilinkValue,
   splitFieldValues,
-  splitLookupFieldValues,
   uniqueValues,
 } from "../utils.js";
 
@@ -172,16 +172,55 @@ function getPublisherValue(companies) {
  * @returns {Array<object>} Company category items.
  */
 function buildCompanyCategoryItems(companies) {
-  const developers = splitLookupFieldValues(companies.developers || "");
-  const publishers = splitLookupFieldValues(getPublisherValue(companies) || "");
+  const developers = buildCompanyLookupValues(companies.developers || "");
+  const publishers = buildCompanyLookupValues(getPublisherValue(companies) || "");
   const sharedCompanies = getSharedValues(developers, publishers);
-  const values = uniqueValues([...developers, ...publishers]);
+  const values = uniqueCompanyLookupValues([...developers, ...publishers]);
 
   return values.flatMap((company) =>
-    buildCompanyCategoryItemsForValue(company, {
-      stubTagEnabled: sharedCompanies.includes(normalizeValueKey(company)),
+    buildCompanyCategoryItemsForValue(company.lookup, {
+      company: company.title,
+      stubTagEnabled: sharedCompanies.includes(normalizeValueKey(company.lookup)),
     }),
   );
+}
+
+/**
+ * Builds company lookup and link-target values from one form field.
+ *
+ * @param {string} value - Company field value.
+ * @returns {Array<object>} Company lookup values.
+ */
+function buildCompanyLookupValues(value) {
+  return splitFieldValues(value).map((company) => {
+    const parts = getWikilinkParts(company);
+
+    return {
+      lookup: getWikilinkValue(company),
+      title: parts?.target || getWikilinkValue(company),
+    };
+  });
+}
+
+/**
+ * Deduplicates company values by lookup title.
+ *
+ * @param {Array<object>} values - Company lookup values.
+ * @returns {Array<object>} Unique company lookup values.
+ */
+function uniqueCompanyLookupValues(values) {
+  const seen = new Set();
+
+  return values.filter((value) => {
+    const key = normalizeValueKey(value.lookup);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
@@ -189,6 +228,7 @@ function buildCompanyCategoryItems(companies) {
  *
  * @param {string} company - Company value.
  * @param {object} [options] - Category item options.
+ * @param {string} [options.company] - Company page title.
  * @param {boolean} [options.stubTagEnabled] - Whether stub tags default on.
  * @returns {Array<object>} Company category items.
  */
@@ -204,6 +244,7 @@ function buildCompanyCategoryItemsForValue(company, options = {}) {
 
       return {
         category,
+        company: reference.page?.title || options.company || company,
         stubTag,
         stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
       };
@@ -213,6 +254,7 @@ function buildCompanyCategoryItemsForValue(company, options = {}) {
   return [
     {
       candidates: buildCompanyCategoryCandidates(company),
+      company: reference?.page?.title || options.company || company,
       fallback: `${getDisambiguationBaseTitle(company)}游戏`,
     },
   ];
@@ -226,11 +268,13 @@ function buildCompanyCategoryItemsForValue(company, options = {}) {
  * @returns {Array<string>} Shared normalized values.
  */
 function getSharedValues(values, candidates) {
-  const candidateKeys = candidates.map(normalizeValueKey);
-
-  return values.map(normalizeValueKey).filter((value) =>
-    candidateKeys.includes(value),
+  const candidateKeys = candidates.map((value) =>
+    normalizeValueKey(value.lookup),
   );
+
+  return values
+    .map((value) => normalizeValueKey(value.lookup))
+    .filter((value) => candidateKeys.includes(value));
 }
 
 /**

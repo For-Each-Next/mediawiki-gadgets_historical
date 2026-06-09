@@ -61,6 +61,15 @@ const DIALOG_CSS = new StyleSheet()
     maxWidth: "min(96vw, 960px)",
     width: "min(96vw, 960px)",
   })
+  .add(".create-vg-stub-category-view-dialog.cdx-dialog", {
+    maxWidth: "min(96vw, 960px)",
+    width: "min(96vw, 960px)",
+  })
+  .add(".create-vg-stub-category-view", {
+    border: "1px solid #a2a9b1",
+    height: "70vh",
+    width: "100%",
+  })
   .add(".create-vg-stub-tab-panel", {
     paddingTop: "12px",
   })
@@ -146,7 +155,7 @@ const DIALOG_CSS = new StyleSheet()
     display: "grid",
     gap: "4px",
     gridTemplateColumns:
-      "auto minmax(4.2rem, 0.35fr) minmax(12rem, 1.6fr) auto auto",
+      "auto minmax(4.2rem, 0.35fr) minmax(12rem, 1.6fr) auto auto auto",
     marginBottom: "12px",
   })
   .add(".create-vg-stub-category-status", {
@@ -164,6 +173,9 @@ const DIALOG_CSS = new StyleSheet()
     lineHeight: "1",
     minWidth: "28px",
     padding: "0 6px",
+  })
+  .add(".create-vg-stub-company-category-text textarea", {
+    fontFamily: "monospace",
   })
   .add(".create-vg-stub-error", {
     color: "#d73333",
@@ -481,6 +493,7 @@ export function addDialogStyles() {
  * @param {object} options - Dialog options.
  * @param {string} options.defaultName - Default article title.
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
+ * @param {Function} options.getCategoryPageUrl - Category page URL builder.
  * @param {object} [options.initialForm] - Initial form values.
  * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
  * @param {Function} [options.getFieldPreview] - Field wikitext preview builder.
@@ -491,6 +504,8 @@ export function addDialogStyles() {
  * @param {Function} options.onDeleteHistoryEntry - Form history delete handler.
  * @param {Function} options.onFormChange - Form change handler.
  * @param {Function} options.onMoveTarget - New-page target opener.
+ * @param {Function} options.onPrepareCompanyCategory - Company category text builder.
+ * @param {Function} options.onSaveCompanyCategory - Company category save handler.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
  * @param {Function} options.onFill - Editor fill handler.
  * @param {Function} options.onPreSavePrepare - Follow-up action builder.
@@ -507,6 +522,19 @@ export function createDialogComponent(Vue, options) {
   const categoryState = Vue.reactive({
     error: "",
     loading: false,
+  });
+  const companyCategoryOpen = Vue.ref(false);
+  const companyCategoryState = Vue.reactive({
+    category: "",
+    company: "",
+    error: "",
+    loading: false,
+    text: "",
+  });
+  const categoryViewOpen = Vue.ref(false);
+  const categoryViewState = Vue.reactive({
+    category: "",
+    url: "",
   });
   const historyEntries = Vue.ref(options.getHistoryEntries());
   const historyOpen = Vue.ref(false);
@@ -1011,6 +1039,99 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
+       * Opens a prefilled editor for one missing company category.
+       *
+       * @param {object} row - Company category review row.
+       * @returns {Promise<void>} Resolves after the category text is prepared.
+       */
+      async openCompanyCategory(row) {
+        Object.assign(companyCategoryState, {
+          category: row.category,
+          company: row.company,
+          error: "",
+          loading: true,
+          text: "",
+        });
+        companyCategoryOpen.value = true;
+
+        try {
+          companyCategoryState.text =
+            await options.onPrepareCompanyCategory(row);
+        } catch (error) {
+          companyCategoryState.error = error.message || String(error);
+        } finally {
+          companyCategoryState.loading = false;
+        }
+      },
+
+      /**
+       * Closes the company category editor.
+       *
+       * @returns {void}
+       */
+      closeCompanyCategory() {
+        companyCategoryOpen.value = false;
+      },
+
+      /**
+       * Saves the company category and refreshes category status.
+       *
+       * @returns {Promise<void>} Resolves after the category is saved.
+       */
+      async saveCompanyCategory() {
+        companyCategoryState.error = "";
+        companyCategoryState.loading = true;
+
+        try {
+          await options.onSaveCompanyCategory(
+            companyCategoryState.category,
+            companyCategoryState.text,
+          );
+          companyCategoryOpen.value = false;
+          await refreshCategoryRows({
+            bypassCache: true,
+          });
+        } catch (error) {
+          companyCategoryState.error = error.message || String(error);
+        } finally {
+          companyCategoryState.loading = false;
+        }
+      },
+
+      /**
+       * Checks whether a category row supports the company helper.
+       *
+       * @param {object} row - Category review row.
+       * @returns {boolean} Whether the helper should be shown.
+       */
+      canCreateCompanyCategory(row) {
+        return trimFieldValue(row.company) !== "" && row.status !== "OK";
+      },
+
+      /**
+       * Opens one category page in the viewer dialog.
+       *
+       * @param {object} row - Category review row.
+       * @returns {void}
+       */
+      openCategoryView(row) {
+        categoryViewState.category = trimFieldValue(row.category);
+        categoryViewState.url = options.getCategoryPageUrl(
+          categoryViewState.category,
+        );
+        categoryViewOpen.value = true;
+      },
+
+      /**
+       * Closes the category page viewer.
+       *
+       * @returns {void}
+       */
+      closeCategoryView() {
+        categoryViewOpen.value = false;
+      },
+
+      /**
        * Formats a category row source as a compact badge label.
        *
        * @param {string} source - Category row source.
@@ -1029,6 +1150,10 @@ export function createDialogComponent(Vue, options) {
       return {
         activeTab,
         categoryState,
+        categoryViewOpen,
+        categoryViewState,
+        companyCategoryOpen,
+        companyCategoryState,
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
         fetchedSteamNameRows,
@@ -1231,9 +1356,115 @@ function createDialogTemplate() {
   return renderTemplate([
     createDialogTemplateRoot(),
     createPreSaveDialogTemplate(),
+    createCompanyCategoryDialogTemplate(),
+    createCategoryViewDialogTemplate(),
     createMoveDialogTemplate(),
     createHistoryDialogTemplate(),
   ]);
+}
+
+/**
+ * Creates the category page viewer dialog.
+ *
+ * @returns {object} Category viewer dialog template node.
+ */
+function createCategoryViewDialogTemplate() {
+  return createElement(
+    "cdx-dialog",
+    {
+      class: "create-vg-stub-category-view-dialog",
+      "v-bind:title": "'Category:' + categoryViewState.category",
+      "v-model:open": "categoryViewOpen",
+    },
+    [
+      createElement("iframe", {
+        class: "create-vg-stub-category-view",
+        "v-bind:src": "categoryViewState.url",
+        "v-bind:title": "'Category:' + categoryViewState.category",
+      }),
+      createElement(
+        "template",
+        {
+          "v-slot:footer": "",
+        },
+        [
+          createActionFooterTemplate([
+            createElement(
+              "cdx-button",
+              {
+                "v-on:click": "closeCategoryView",
+              },
+              [createText("Close")],
+            ),
+          ]),
+        ],
+      ),
+    ],
+  );
+}
+
+/**
+ * Creates the missing company category editor dialog.
+ *
+ * @returns {object} Company category dialog template node.
+ */
+function createCompanyCategoryDialogTemplate() {
+  return createElement(
+    "cdx-dialog",
+    {
+      "v-bind:title": "'Create Category:' + companyCategoryState.category",
+      "v-model:open": "companyCategoryOpen",
+    },
+    [
+      createElement("cdx-text-area", {
+        class: "create-vg-stub-company-category-text",
+        rows: "10",
+        "v-bind:disabled": "companyCategoryState.loading",
+        "v-model": "companyCategoryState.text",
+      }),
+      createElement(
+        "p",
+        {
+          class: "create-vg-stub-error",
+          "v-if": "companyCategoryState.error",
+        },
+        [createText("{{ companyCategoryState.error }}")],
+      ),
+      createElement(
+        "template",
+        {
+          "v-slot:footer": "",
+        },
+        [
+          createActionFooterTemplate([
+            createElement(
+              "cdx-button",
+              {
+                "v-bind:disabled": "companyCategoryState.loading",
+                "v-on:click": "closeCompanyCategory",
+              },
+              [createText("Cancel")],
+            ),
+            createElement(
+              "cdx-button",
+              {
+                action: "progressive",
+                "v-bind:disabled":
+                  "companyCategoryState.loading || !companyCategoryState.text.trim()",
+                "v-on:click": "saveCompanyCategory",
+                weight: "primary",
+              },
+              [
+                createText(
+                  "{{ companyCategoryState.loading ? 'Working' : 'Save' }}",
+                ),
+              ],
+            ),
+          ]),
+        ],
+      ),
+    ],
+  );
 }
 
 /**
@@ -1835,6 +2066,25 @@ function createCategoryRowTemplate() {
         },
         [createText("↺")],
       ),
+      createElement(
+        "cdx-button",
+        {
+          "v-if": "canCreateCompanyCategory(row)",
+          "v-on:click": "openCompanyCategory(row)",
+        },
+        [createText("Create")],
+      ),
+      createElement(
+        "cdx-button",
+        {
+          "v-else-if": "row.category",
+          "v-on:click": "openCategoryView(row)",
+        },
+        [createText("View")],
+      ),
+      createElement("span", {
+        "v-else": "",
+      }),
       createElement("cdx-checkbox", {
         "v-bind:disabled": "!row.stubTag",
         "v-bind:title": "row.stubTag",

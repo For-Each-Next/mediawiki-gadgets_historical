@@ -12,6 +12,10 @@ import {
 } from "./categories.js";
 import { fetchCiteTemplate } from "./citations.js";
 import {
+  prepareCompanyCategoryText,
+  saveCompanyCategory,
+} from "./company-category-helper.js";
+import {
   addDialogStyles,
   buildNameSourceReferenceKey,
   createDialogComponent,
@@ -1332,6 +1336,8 @@ function init(require) {
     createDialogComponent(Vue, {
       citationPrefetchDelay: CITATION_PREFETCH_DELAY,
       defaultName,
+      getCategoryPageUrl: (category) =>
+        mw.util.getUrl(`Category:${category}`),
       getHistoryEntries: readFormHistoryEntries,
       getFieldPlaceholder,
       getFieldPreview,
@@ -1351,6 +1357,7 @@ function init(require) {
       onFill: (...args) => fillForm(...args, citationStore),
       onFormChange: saveFormDraft,
       onMoveTarget: (...args) => openTargetPage(...args, citationStore),
+      onPrepareCompanyCategory: prepareCompanyCategoryText,
       async onPreSavePrepare(form, title) {
         const redirectTitles = buildRedirectTitles(form, title);
         const existingRedirectTitles = await fetchExistingPageTitles(
@@ -1370,6 +1377,7 @@ function init(require) {
         };
       },
       onResetCategoryRow: resetCategoryRow,
+      onSaveCompanyCategory: saveCompanyCategory,
       onSourceUrlChange: (url) => citationStore.prefetch(url),
       onSteamNamesFetch: (url) => fetchSteamNameRows(url, citationStore),
       onSubmit: (...args) => submitForm(...args, citationStore),

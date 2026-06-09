@@ -8,6 +8,20 @@
   "type": "module",
   "main": "./src/index.js",
   "browser": "./src/index.js",
+  "gadgetBuild": {
+    "globalName": "createVgStub",
+    "outputName": "create_vg_stub",
+    "defines": {
+      "__CREATE_VG_STUB_FIELD_DATA__": {
+        "jsonDirectory": "src/data"
+      }
+    },
+    "userscript": {
+      "match": [
+        "https://zh.wikipedia.org/*"
+      ]
+    }
+  },
   "files": [
     "dist",
     "README.md",
@@ -21,18 +35,14 @@
     "video-games"
   ],
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node ../../scripts/build-gadget.mjs",
     "check": "npm run lint && node --check src/index.js",
-    "lint": "eslint src scripts",
-    "lint:fix": "eslint src scripts --fix",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "test": "node --test",
     "prepublishOnly": "npm run check"
   },
   "engines": {
     "node": ">=20"
-  },
-  "devDependencies": {
-    "esbuild": "^0.28.0",
-    "terser": "^5.48.0"
   }
 }

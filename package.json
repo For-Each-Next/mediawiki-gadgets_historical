@@ -16,9 +16,11 @@
     "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "eslint": "^9.0.0",
     "eslint-plugin-jsdoc": "^50.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "terser": "^5.48.0"
   },
   "engines": {
     "node": ">=20"

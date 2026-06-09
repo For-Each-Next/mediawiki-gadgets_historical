@@ -2,11 +2,28 @@
 
 JavaScript development workspace for MediaWiki gadgets.
 
-## UI language
+These gadgets are intended for personal use, so their user interfaces
+are written in English and do not provide Chinese localization. Though,
+gadgets may still generate Chinese wikitext for use on the Chinese
+Wikipedia.
 
-These gadgets are intended for personal use, so their user interfaces are
-written in English and do not provide Chinese localization. Though, gadgets may
-still generate Chinese wikitext for use on the Chinese Wikipedia.
+## Building
+
+Install dependencies, then build every gadget workspace:
+
+```sh
+npm install
+npm run build
+```
+
+Gadgets use the shared `scripts/build-gadget.mjs` builder. Each gadget
+package defines a `build` script that invokes it and a `gadgetBuild`
+object in `package.json` with its global name, output filename,
+userscript matches, and any build-time data definitions.
+
+The shared builder writes an unminified MediaWiki script, a minified
+MediaWiki script, and an installable Tampermonkey userscript to the
+gadget's `dist` directory.
 
 ## Copyright and licensing
 

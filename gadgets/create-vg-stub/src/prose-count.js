@@ -9,6 +9,7 @@
  *
  * @param {object} params - Article prose parameters.
  * @param {string} params.aggScoresText - Aggregate review score sentence.
+ * @param {string} params.additionalProseText - User-entered appended prose.
  * @param {object} params.companyMetadata - Company metadata.
  * @param {string} params.companyMetadata.text - Company prose text.
  * @param {object} params.platformSeriesMetadata - Platform and series metadata.
@@ -49,7 +50,8 @@ function buildGeneratedProseText(params) {
   return (
     `是${params.yearGenreMetadata.text}${params.companyMetadata.text}。` +
     params.platformSeriesMetadata.text +
-    params.aggScoresText
+    params.aggScoresText +
+    (params.additionalProseText || "")
   );
 }
 
@@ -106,4 +108,3 @@ function getLatinPhrasePattern() {
 function getNumberPattern() {
   return /\b\d+(?:[./:-]\d+)*(?:%)?\b/gu;
 }
-

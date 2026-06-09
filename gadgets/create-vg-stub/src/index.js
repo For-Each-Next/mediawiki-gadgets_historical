@@ -80,6 +80,7 @@ class VideoGameArticleParams {
    * Creates reusable video game article parameters.
    *
    * @param {object} form - Dialog form values.
+   * @param {string} form.additionalProse - User-entered appended prose.
    * @param {string} form.developers - Developer names.
    * @param {string} form.englishName - English game title.
    * @param {string} form.genres - Game genre text.
@@ -110,6 +111,10 @@ class VideoGameArticleParams {
       openCriticRecommend: form.openCriticRecommend || "",
       openCriticSourceTag: this.sourceTags.openCriticRecommend,
     });
+    this.additionalProseText = buildAdditionalProseText(
+      form.additionalProse,
+      this.sourceTags.additionalProse,
+    );
     this.companies = {
       developers: form.developers,
       publishers: form.publishers,
@@ -177,6 +182,19 @@ class VideoGameArticleParams {
 }
 
 /**
+ * Builds user-entered prose with its source reference tags.
+ *
+ * @param {string} prose - User-entered prose.
+ * @param {string} sourceTag - Generated source reference tags.
+ * @returns {string} Appended prose wikitext.
+ */
+function buildAdditionalProseText(prose, sourceTag) {
+  const text = trimFieldValue(prose);
+
+  return text === "" ? "" : `${text}${sourceTag || ""}`;
+}
+
+/**
  * Checks whether the current view is editing a missing page.
  *
  * @returns {boolean} Whether the current view is a new-page edit form.
@@ -215,6 +233,7 @@ function isEditAction(action) {
  *
  * @param {object} params - Normalized article parameters.
  * @param {string} params.aggScoresText - Aggregate review score sentence.
+ * @param {string} params.additionalProseText - User-entered appended prose.
  * @param {object} params.companyMetadata - Company text and metadata.
  * @param {string} params.defaultSortText - DEFAULTSORT wikitext.
  * @param {string} params.infoboxText - Infobox wikitext.

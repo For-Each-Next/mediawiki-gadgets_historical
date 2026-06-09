@@ -38,3 +38,23 @@ test("countGeneratedProseSinographs excludes title, infobox, references, and cat
     24,
   );
 });
+
+test("countGeneratedProseSinographs includes additional prose", () => {
+  assert.equal(
+    countGeneratedProseSinographs({
+      additionalProseText:
+        '遊戲採用手繪美術風格。<ref name="additional" />',
+      aggScoresText: "",
+      companyMetadata: {
+        text: "",
+      },
+      platformSeriesMetadata: {
+        text: "",
+      },
+      yearGenreMetadata: {
+        text: "冒险类[[电子游戏]]",
+      },
+    }),
+    18,
+  );
+});

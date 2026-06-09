@@ -202,6 +202,7 @@ class ArticleParameterField {
    * @param {string} path - Normalized parameter path.
    * @param {object} [sourceField] - Optional source URL field metadata.
    * @param {object} [options] - Field display options.
+   * @param {boolean} [options.multiline] - Whether to use a textarea.
    * @param {string} [options.previewKey] - Shared preview group key.
    */
   constructor(key, label, path, sourceField, options = {}) {
@@ -210,6 +211,7 @@ class ArticleParameterField {
     this.heading = options.heading;
     this.key = key;
     this.label = label;
+    this.multiline = Boolean(options.multiline);
     this.path = path;
     this.placeholder = options.placeholder;
     this.previewKey = options.previewKey;
@@ -290,6 +292,11 @@ export const SOURCE_REFERENCE_FIELDS = [
     key: "openCriticRecommend",
     label: "OC score source URLs",
     sourceKey: "openCriticRecommendSourceUrl",
+  },
+  {
+    key: "additionalProse",
+    label: "Additional prose source URLs",
+    sourceKey: "additionalProseSourceUrl",
   },
 ];
 
@@ -468,6 +475,18 @@ const ARTICLE_PARAMETER_GROUPS = [
       {
         placeholder: "Names",
         previewKey: "attribution",
+      },
+    ),
+  ]),
+  new ArticleParameterGroup("prose", "Prose", [
+    new ArticleParameterField(
+      "additionalProse",
+      "Additional prose",
+      "additionalProse",
+      SOURCE_REFERENCE_FIELDS[10],
+      {
+        multiline: true,
+        placeholder: "Text appended after the generated prose",
       },
     ),
   ]),
@@ -2433,15 +2452,39 @@ function createStandardFieldTemplate() {
           class: "create-vg-stub-field-controls",
         },
         [
-          createElement("cdx-text-input", {
-            "v-bind:placeholder":
-              "getFieldPlaceholder(field) || field.placeholder",
-            "v-bind:readonly": "field.readonly",
-            "v-bind:model-value": "form[field.key]",
-            "v-on:change": "normalizeFieldValue(field)",
-            "v-on:paste": "normalizePastedFieldValue(field, $event)",
-            "v-on:update:model-value": "updateFieldValue(field, $event)",
-          }),
+          createElement(
+            "template",
+            {
+              "v-if": "field.multiline",
+            },
+            [
+              createElement("cdx-text-area", {
+                rows: "5",
+                "v-bind:placeholder":
+                  "getFieldPlaceholder(field) || field.placeholder",
+                "v-bind:model-value": "form[field.key]",
+                "v-on:change": "normalizeFieldValue(field)",
+                "v-on:update:model-value": "updateFieldValue(field, $event)",
+              }),
+            ],
+          ),
+          createElement(
+            "template",
+            {
+              "v-else": "",
+            },
+            [
+              createElement("cdx-text-input", {
+                "v-bind:placeholder":
+                  "getFieldPlaceholder(field) || field.placeholder",
+                "v-bind:readonly": "field.readonly",
+                "v-bind:model-value": "form[field.key]",
+                "v-on:change": "normalizeFieldValue(field)",
+                "v-on:paste": "normalizePastedFieldValue(field, $event)",
+                "v-on:update:model-value": "updateFieldValue(field, $event)",
+              }),
+            ],
+          ),
           createElement(
             "template",
             {

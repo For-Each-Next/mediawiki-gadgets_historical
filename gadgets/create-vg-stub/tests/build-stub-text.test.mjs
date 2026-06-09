@@ -747,6 +747,40 @@ test("source references render named refs and a references block", async () => {
   );
 });
 
+test("additional prose renders after generated prose with source references", async () => {
+  const text = await buildStubText({
+    additionalProse: "遊戲採用手繪美術風格，並以探索作為主要玩法。",
+    developers: "Foo Studio",
+    genres: "冒险",
+    name: "Example",
+    platforms: "PC",
+    publishers: "",
+    sourceReferences: [
+      {
+        citation: "{{cite web|title=Additional prose source}}",
+        key: "additionalProse",
+      },
+    ],
+    year: "2024",
+  });
+
+  assert.equal(
+    text.includes(
+      "作品对应PC平台。\n\n" +
+        "遊戲採用手繪美術風格，並以探索作為主要玩法。" +
+        '<ref name=":1" />\n\n' +
+        "== 参考文献 ==",
+    ),
+    true,
+  );
+  assert.equal(
+    text.includes(
+      '<ref name=":1">{{cite web|title=Additional prose source}}</ref>',
+    ),
+    true,
+  );
+});
+
 test("explicit sort key renders above the first category", async () => {
   const text = await buildStubText({
     developers: "Foo Studio",

@@ -15,6 +15,7 @@ import {
  *
  * @param {object} params - Normalized article parameters.
  * @param {string} params.aggScoresText - Aggregate review score sentence.
+ * @param {string} params.additionalProseText - User-entered appended prose.
  * @param {object} params.companyMetadata - Company text and metadata.
  * @param {string} params.infoboxText - Infobox wikitext.
  * @param {string} params.leadNameText - Lead article name text.
@@ -35,6 +36,7 @@ export function buildArticleWikitext(params) {
     params.noteTaText,
     params.infoboxText,
     intro,
+    params.additionalProseText,
     buildReferencesText(params.sourceReferences),
     params.navboxText,
     buildFooterTemplateText(),

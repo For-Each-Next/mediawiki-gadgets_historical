@@ -124,6 +124,18 @@ test("live source and name row updates trim values", () => {
   assert.equal(moveTarget.value, "Target page");
 });
 
+test("additional prose uses a textarea and source URL field", () => {
+  const component = createDialogComponent(createVueStub(), createOptionsStub());
+  const { form, getArticleField } = component.setup();
+  const field = getArticleField("additionalProse");
+
+  assert.equal(form.additionalProse, "");
+  assert.equal(form.additionalProseSourceUrl, "");
+  assert.equal(field.multiline, true);
+  assert.equal(field.sourceField.sourceKey, "additionalProseSourceUrl");
+  assert.equal(field.placeholder, "Text appended after the generated prose");
+});
+
 test("company category helper opens, edits, and saves only company rows", async () => {
   const saved = [];
   const refreshes = [];

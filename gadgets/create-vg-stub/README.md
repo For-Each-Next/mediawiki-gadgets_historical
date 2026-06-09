@@ -16,6 +16,8 @@ Chinese Wikipedia.
 Run `npm run build`, then copy the contents of `dist/create_vg_stub.js` to your
 MediaWiki user JavaScript page.
 
+Alternatively, install `dist/create_vg_stub.user.js` in Tampermonkey.
+
 ## Usage
 
 1. Open an English Wikipedia article about a video game. A recently released

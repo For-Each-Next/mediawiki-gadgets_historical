@@ -54,6 +54,7 @@ import {
 } from "./pre-save.js";
 import { addMissingPageEditTrigger } from "./page-trigger.js";
 import {
+  SAVE_PROGRESS_STORAGE_KEY,
   createSaveProgress,
   readSaveProgress,
   renderSaveProgress,
@@ -1691,11 +1692,14 @@ async function runPendingSaveActions(require) {
     });
 
     sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
+    sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
 
     if (
       normalizePageTitle(result.title) !== normalizePageTitle(getPageName())
     ) {
       window.location.href = mw.util.getUrl(result.title);
+    } else {
+      window.location.reload();
     }
   } catch (error) {
     failSaveProgress(error);

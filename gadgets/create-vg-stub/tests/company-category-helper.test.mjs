@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   buildCompanyCategoryText,
   prepareCompanyCategoryText,
+  saveCategoryPage,
   saveCompanyCategory,
 } from "../src/company-category-helper.js";
 import { EDIT_SUMMARY_SUFFIX } from "../src/edit-summary.js";
@@ -83,6 +84,34 @@ test("saveCompanyCategory creates the category without overwriting", async () =>
         summary: `Create company video game category ${EDIT_SUMMARY_SUFFIX}`,
         text: "Category text",
         title: "Category:Foo Studio游戏",
+      },
+    ],
+  ]);
+});
+
+test("saveCategoryPage creates a generic category without overwriting", async () => {
+  const calls = [];
+
+  await saveCategoryPage(
+    "动作游戏",
+    "Category text",
+    undefined,
+    {
+      async postWithToken(token, params) {
+        calls.push([token, params]);
+      },
+    },
+  );
+
+  assert.deepEqual(calls, [
+    [
+      "csrf",
+      {
+        action: "edit",
+        createonly: true,
+        summary: `Create video game category ${EDIT_SUMMARY_SUFFIX}`,
+        text: "Category text",
+        title: "Category:动作游戏",
       },
     ],
   ]);

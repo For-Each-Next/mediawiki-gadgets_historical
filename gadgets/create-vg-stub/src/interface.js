@@ -188,7 +188,8 @@ const DIALOG_CSS = new StyleSheet()
   .add(".create-vg-stub-navbox-grid", {
     display: "grid",
     gap: "4px",
-    gridTemplateColumns: "minmax(4.2rem, 0.35fr) minmax(0, 1fr) auto auto",
+    gridTemplateColumns:
+      "auto minmax(4.2rem, 0.35fr) minmax(0, 1fr) auto auto",
     marginBottom: "12px",
   })
   .media("(max-width: 640px)", (sheet) => {
@@ -543,7 +544,9 @@ export function addDialogStyles() {
  * @param {Function} options.onMoveTarget - New-page target opener.
  * @param {Function} options.onPrepareCompanyCategory - Company category text builder.
  * @param {Function} options.onPrepareReview - Review report builder.
+ * @param {Function} options.onSaveCategory - Category page save handler.
  * @param {Function} options.onSaveCompanyCategory - Company category save handler.
+ * @param {Function} options.onSaveNavbox - Navbox template save handler.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
  * @param {Function} options.onFill - Editor fill handler.
  * @param {Function} options.onPreSavePrepare - Follow-up action builder.
@@ -572,6 +575,13 @@ export function createDialogComponent(Vue, options) {
     error: "",
     loading: false,
     text: "",
+  });
+  const navboxCreateOpen = Vue.ref(false);
+  const navboxCreateState = Vue.reactive({
+    error: "",
+    loading: false,
+    text: "",
+    title: "",
   });
   const categoryViewOpen = Vue.ref(false);
   const categoryViewState = Vue.reactive({
@@ -1097,6 +1107,23 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
+       * Checks one edited navbox row after its textbox loses focus.
+       *
+       * @param {number} index - Navbox row index.
+       * @param {Event} event - Text input blur event.
+       * @returns {Promise<void>} Resolves after the textbox is updated.
+       */
+      async checkNavboxRow(index, event) {
+        const value = event?.target?.value;
+
+        if (value != null) {
+          this.updateNavboxRow(index, value);
+        }
+
+        await this.checkNavboxRows();
+      },
+
+      /**
        * Opens an existing navbox template.
        *
        * @param {object} row - Navbox review row.
@@ -1110,16 +1137,51 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
-       * Opens a missing navbox template edit form.
+       * Opens the missing navbox template editor.
        *
        * @param {object} row - Navbox review row.
        * @returns {void}
        */
       createNavbox(row) {
-        openPageView(
-          `Create Template:${row.title}`,
-          options.getTemplatePageUrl(row.title, true),
-        );
+        Object.assign(navboxCreateState, {
+          error: "",
+          loading: false,
+          text: "",
+          title: row.title,
+        });
+        navboxCreateOpen.value = true;
+      },
+
+      /**
+       * Closes the navbox template editor.
+       *
+       * @returns {void}
+       */
+      closeNavboxCreate() {
+        navboxCreateOpen.value = false;
+      },
+
+      /**
+       * Saves the navbox template and refreshes its status.
+       *
+       * @returns {Promise<void>} Resolves after the template is saved.
+       */
+      async saveNavbox() {
+        navboxCreateState.error = "";
+        navboxCreateState.loading = true;
+
+        try {
+          await options.onSaveNavbox(
+            navboxCreateState.title,
+            navboxCreateState.text,
+          );
+          navboxCreateOpen.value = false;
+          await refreshNavboxRows(true, false);
+        } catch (error) {
+          navboxCreateState.error = error.message || String(error);
+        } finally {
+          navboxCreateState.loading = false;
+        }
       },
 
       /**
@@ -1147,20 +1209,49 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
-       * Opens a prefilled editor for one missing company category.
+       * Checks one edited category after its textbox loses focus.
        *
-       * @param {object} row - Company category review row.
+       * @param {number} index - Category row index.
+       * @param {Event} event - Text input blur event.
+       * @returns {Promise<void>} Resolves after the textbox is updated.
+       */
+      async checkCategoryRow(index, event) {
+        const value = event?.target?.value;
+
+        if (value != null) {
+          this.updateCategoryRowCategory(index, value);
+        }
+
+        await refreshCategoryRows({
+          bypassCache: true,
+        });
+
+        if (value != null && form.categoryRows[index] != null) {
+          form.categoryRows[index].category = trimFieldValue(value);
+        }
+      },
+
+      /**
+       * Opens an editor for one missing category.
+       *
+       * @param {object} row - Category review row.
        * @returns {Promise<void>} Resolves after the category text is prepared.
        */
-      async openCompanyCategory(row) {
+      async openCategoryCreate(row) {
         Object.assign(companyCategoryState, {
-          category: row.category,
-          company: row.company,
+          category: trimFieldValue(row.category),
+          company: trimFieldValue(row.company),
           error: "",
-          loading: true,
+          loading: false,
           text: "",
         });
         companyCategoryOpen.value = true;
+
+        if (companyCategoryState.company === "") {
+          return;
+        }
+
+        companyCategoryState.loading = true;
 
         try {
           companyCategoryState.text =
@@ -1182,7 +1273,7 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
-       * Saves the company category and refreshes category status.
+       * Saves the category and refreshes category status.
        *
        * @returns {Promise<void>} Resolves after the category is saved.
        */
@@ -1191,7 +1282,11 @@ export function createDialogComponent(Vue, options) {
         companyCategoryState.loading = true;
 
         try {
-          await options.onSaveCompanyCategory(
+          const save = companyCategoryState.company === ""
+            ? options.onSaveCategory
+            : options.onSaveCompanyCategory;
+
+          await save(
             companyCategoryState.category,
             companyCategoryState.text,
           );
@@ -1214,6 +1309,16 @@ export function createDialogComponent(Vue, options) {
        */
       canCreateCompanyCategory(row) {
         return trimFieldValue(row.company) !== "" && row.status !== "OK";
+      },
+
+      /**
+       * Checks whether a category row can be created.
+       *
+       * @param {object} row - Category review row.
+       * @returns {boolean} Whether the category editor should be shown.
+       */
+      canCreateCategory(row) {
+        return trimFieldValue(row.category) !== "" && row.status !== "OK";
       },
 
       /**
@@ -1298,6 +1403,8 @@ export function createDialogComponent(Vue, options) {
         moveOpen,
         moveTarget,
         nameMarkets: NAME_MARKETS,
+        navboxCreateOpen,
+        navboxCreateState,
         open,
         reviewState,
         preSaveMoveEnabled,
@@ -1353,8 +1460,28 @@ export function createDialogComponent(Vue, options) {
       return;
     }
 
-    form.navboxRows = (await options.onPrepareReview(form, rebuild))
+    const rows = (await options.onPrepareReview(form, rebuild))
       .map(createNavboxRow);
+
+    if (!rebuild && Array.isArray(form.navboxRows)) {
+      form.navboxRows.splice(
+        0,
+        form.navboxRows.length,
+        ...rows.map((row, index) => {
+          const current = form.navboxRows[index];
+
+          if (current == null) {
+            return row;
+          }
+
+          Object.assign(current, row);
+          return current;
+        }),
+      );
+      return;
+    }
+
+    form.navboxRows = rows;
   }
 
   /**
@@ -1538,10 +1665,74 @@ function createDialogTemplate() {
     createDialogTemplateRoot(),
     createPreSaveDialogTemplate(),
     createCompanyCategoryDialogTemplate(),
+    createNavboxDialogTemplate(),
     createCategoryViewDialogTemplate(),
     createMoveDialogTemplate(),
     createHistoryDialogTemplate(),
   ]);
+}
+
+/**
+ * Creates the missing navbox template editor dialog.
+ *
+ * @returns {object} Navbox template dialog node.
+ */
+function createNavboxDialogTemplate() {
+  return createElement(
+    "cdx-dialog",
+    {
+      "v-bind:title": "'Create Template:' + navboxCreateState.title",
+      "v-model:open": "navboxCreateOpen",
+    },
+    [
+      createElement("cdx-text-area", {
+        rows: "10",
+        "v-bind:disabled": "navboxCreateState.loading",
+        "v-model": "navboxCreateState.text",
+      }),
+      createElement(
+        "p",
+        {
+          class: "create-vg-stub-error",
+          "v-if": "navboxCreateState.error",
+        },
+        [createText("{{ navboxCreateState.error }}")],
+      ),
+      createElement(
+        "template",
+        {
+          "v-slot:footer": "",
+        },
+        [
+          createActionFooterTemplate([
+            createElement(
+              "cdx-button",
+              {
+                "v-bind:disabled": "navboxCreateState.loading",
+                "v-on:click": "closeNavboxCreate",
+              },
+              [createText("Cancel")],
+            ),
+            createElement(
+              "cdx-button",
+              {
+                action: "progressive",
+                "v-bind:disabled":
+                  "navboxCreateState.loading || !navboxCreateState.text.trim()",
+                "v-on:click": "saveNavbox",
+                weight: "primary",
+              },
+              [
+                createText(
+                  "{{ navboxCreateState.loading ? 'Working' : 'Save' }}",
+                ),
+              ],
+            ),
+          ]),
+        ],
+      ),
+    ],
+  );
 }
 
 /**
@@ -2192,18 +2383,6 @@ function createCategoryGroupTemplate() {
           "cdx-button",
           {
             "v-bind:disabled": "categoryState.loading",
-            "v-on:click": "refreshCategoryRows",
-          },
-          [
-            createText(
-              "{{ categoryState.loading ? 'Checking' : 'Check' }}",
-            ),
-          ],
-        ),
-        createElement(
-          "cdx-button",
-          {
-            "v-bind:disabled": "categoryState.loading",
             "v-on:click": "rebuildCategoryRows",
           },
           [
@@ -2242,6 +2421,9 @@ function createNavboxReviewTemplate() {
               "v-for": "(navbox, index) in form.navboxRows || []",
             },
             [
+              createElement("cdx-checkbox", {
+                "v-model": "navbox.enabled",
+              }),
               createElement(
                 "span",
                 {
@@ -2251,8 +2433,8 @@ function createNavboxReviewTemplate() {
                 [createText("{{ formatNavboxStatusLabel(navbox.status) }}")],
               ),
               createElement("cdx-text-input", {
-                "v-bind:model-value": "navbox.text",
-                "v-on:update:model-value": "updateNavboxRow(index, $event)",
+                "v-model": "navbox.text",
+                "v-on:blur": "checkNavboxRow(index, $event)",
               }),
               createElement(
                 "cdx-button",
@@ -2291,18 +2473,6 @@ function createNavboxReviewTemplate() {
             "v-on:click": "addNavboxRow",
           },
           [createText("Add navbox")],
-        ),
-        createElement(
-          "cdx-button",
-          {
-            "v-bind:disabled": "reviewState.loading",
-            "v-on:click": "checkNavboxRows",
-          },
-          [
-            createText(
-              "{{ reviewState.loading ? 'Checking' : 'Check' }}",
-            ),
-          ],
         ),
         createElement(
           "cdx-button",
@@ -2354,8 +2524,8 @@ function createCategoryRowTemplate() {
         [createText("{{ formatCategorySourceLabel(row.source) }}")],
       ),
       createElement("cdx-text-input", {
-        "v-bind:model-value": "row.category",
-        "v-on:update:model-value": "updateCategoryRowCategory(index, $event)",
+        "v-model": "row.category",
+        "v-on:blur": "checkCategoryRow(index, $event)",
       }),
       createElement(
         "cdx-button",
@@ -2368,8 +2538,8 @@ function createCategoryRowTemplate() {
       createElement(
         "cdx-button",
         {
-          "v-if": "canCreateCompanyCategory(row)",
-          "v-on:click": "openCompanyCategory(row)",
+          "v-if": "canCreateCategory(row)",
+          "v-on:click": "openCategoryCreate(row)",
         },
         [createText("Create")],
       ),
@@ -3515,6 +3685,7 @@ function createNavboxRow(value = "") {
   const text = trimFieldValue(value?.text ?? value);
 
   return {
+    enabled: value?.enabled !== false,
     status: value?.status || "",
     text,
     title: value?.title || getNavboxTitle(text),

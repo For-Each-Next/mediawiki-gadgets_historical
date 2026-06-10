@@ -45,6 +45,100 @@ export async function buildNavboxText(seriesNames, options = {}) {
 }
 
 /**
+ * Builds navbox wikitext from selected review rows.
+ *
+ * @param {Array<object|string>} rows - Reviewed navbox rows.
+ * @returns {string} Selected navbox wikitext.
+ */
+export function buildReviewedNavboxText(rows) {
+  return rows
+    .filter((row) => row?.enabled !== false)
+    .map((row) => trimValue(row?.text ?? row))
+    .filter(Boolean)
+    .map((text) => text.startsWith("{{") ? text : buildTemplateCall(text))
+    .join("\n");
+}
+
+/**
+ * Resolves reviewed navbox rows through conversion and redirects.
+ *
+ * @param {Array<object|string>} values - Reviewed navbox rows.
+ * @param {object} [options] - API options.
+ * @param {Function} [options.fetcher] - Fetch implementation.
+ * @returns {Promise<Array<object>>} Resolved navbox rows.
+ */
+export async function resolveReviewedNavboxRows(values, options = {}) {
+  const rows = values.map(createReviewedNavboxRow);
+  const titles = uniqueValues(rows.map((row) => row.title).filter(Boolean));
+
+  if (titles.length === 0) {
+    return rows;
+  }
+
+  const resolutions = await resolveTemplates(titles, options);
+
+  return rows.map((row) => {
+    const resolution = resolutions[normalizeTemplateKey(row.title)];
+    const title = resolution?.template || row.title;
+
+    return {
+      ...row,
+      status: resolution?.exists ? "OK" : "Not exists",
+      text: replaceTemplateTitle(row.text, title),
+      title,
+    };
+  });
+}
+
+/**
+ * Creates one normalized reviewed navbox row.
+ *
+ * @param {object|string} value - Existing row or navbox wikitext.
+ * @returns {object} Reviewed navbox row.
+ */
+function createReviewedNavboxRow(value) {
+  const text = trimValue(value?.text ?? value);
+  const title = getTemplateCallTitle(text);
+
+  return {
+    enabled: value?.enabled !== false,
+    status: "",
+    text,
+    title,
+  };
+}
+
+/**
+ * Gets a template title from a template call.
+ *
+ * @param {string} text - Template call wikitext.
+ * @returns {string} Template title without namespace.
+ */
+function getTemplateCallTitle(text) {
+  const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
+
+  return normalizeTemplateTitle(match?.[1] || text);
+}
+
+/**
+ * Replaces a template call title while retaining its parameters.
+ *
+ * @param {string} text - Template call wikitext.
+ * @param {string} title - Resolved template title.
+ * @returns {string} Updated template call.
+ */
+function replaceTemplateTitle(text, title) {
+  if (!text.trimStart().startsWith("{{")) {
+    return title;
+  }
+
+  return text.replace(
+    /^(\{\{\s*)(?:Template:)?([^|}]+)/iu,
+    `$1${title}`,
+  );
+}
+
+/**
  * Builds series navbox lookup plans.
  *
  * @param {string|Array<string>} seriesNames - User-entered series names.

@@ -143,8 +143,8 @@ test("review exposes editable navboxes and subtle prose length", async () => {
       getProseSinographs(form) {
         return form.additionalProse === "" ? 24 : 51;
       },
-      async onPrepareReview() {
-        return ["{{Foo series}}"];
+      async onPrepareReview(form) {
+        return form.navboxRows || ["{{Foo series}}"];
       },
     }),
   );
@@ -157,17 +157,22 @@ test("review exposes editable navboxes and subtle prose length", async () => {
   await component.methods.fillForm();
   assert.deepEqual(form.navboxRows, [
     {
+      enabled: true,
       status: "",
       text: "{{Foo series}}",
       title: "Foo series",
     },
   ]);
+  form.navboxRows[0].enabled = false;
+  await component.methods.checkNavboxRows();
+  assert.equal(form.navboxRows[0].enabled, false);
   component.methods.updateNavboxRow(0, "{{Edited series}}");
   component.methods.addNavboxRow();
   component.methods.updateNavboxRow(1, "{{Manual navbox}}");
   component.methods.removeNavboxRow(0);
   assert.deepEqual(form.navboxRows, [
     {
+      enabled: true,
       status: "",
       text: "{{Manual navbox}}",
       title: "Manual navbox",
@@ -179,13 +184,32 @@ test("review exposes editable navboxes and subtle prose length", async () => {
   assert.equal(component.template.includes("Add category"), true);
   assert.equal(component.template.includes("Add navbox"), true);
   assert.equal(component.template.includes("Navboxes"), true);
+  assert.equal(component.template.includes('v-model="navbox.enabled"'), true);
+  assert.equal(
+    component.template.includes('v-model="row.category"'),
+    true,
+  );
+  assert.equal(
+    component.template.includes('v-on:blur="checkCategoryRow(index, $event)"'),
+    true,
+  );
+  assert.equal(
+    component.template.includes('v-model="navbox.text"'),
+    true,
+  );
+  assert.equal(
+    component.template.includes('v-on:blur="checkNavboxRow(index, $event)"'),
+    true,
+  );
+  assert.equal(
+    component.template.includes('v-on:click="checkNavboxRows"'),
+    false,
+  );
   assert.equal(component.template.includes("Footer:"), false);
   for (const action of [
     "addCategoryRow",
-    "refreshCategoryRows",
     "rebuildCategoryRows",
     "addNavboxRow",
-    "checkNavboxRows",
     "rebuildNavboxRows",
   ]) {
     const button = component.template.match(
@@ -197,12 +221,25 @@ test("review exposes editable navboxes and subtle prose length", async () => {
   }
 });
 
-test("navbox review shows status and opens view or create pages", () => {
+test("navbox review shows status and opens view or create dialogs", async () => {
+  const saved = [];
   const component = createDialogComponent(
     createVueStub(),
-    createOptionsStub(),
+    createOptionsStub({
+      async onPrepareReview(form) {
+        return form.navboxRows || [];
+      },
+      async onSaveNavbox(title, text) {
+        saved.push([title, text]);
+      },
+    }),
   );
-  const { categoryViewOpen, categoryViewState } = component.setup();
+  const {
+    categoryViewOpen,
+    categoryViewState,
+    navboxCreateOpen,
+    navboxCreateState,
+  } = component.setup();
 
   assert.equal(component.methods.formatNavboxStatusLabel("OK"), "OK");
   assert.equal(
@@ -221,14 +258,94 @@ test("navbox review shows status and opens view or create pages", () => {
   component.methods.createNavbox({
     title: "Missing series",
   });
-  assert.equal(categoryViewState.title, "Create Template:Missing series");
-  assert.equal(
-    categoryViewState.url,
-    "/wiki/Template:Missing series?action=edit",
-  );
+  assert.equal(navboxCreateOpen.value, true);
+  assert.equal(navboxCreateState.title, "Missing series");
+  assert.equal(navboxCreateState.text, "");
+
+  navboxCreateState.text = "{{Navbox}}";
+  await component.methods.saveNavbox();
+  assert.deepEqual(saved, [["Missing series", "{{Navbox}}"]]);
+  assert.equal(navboxCreateOpen.value, false);
+  assert.equal(component.template.includes("Create Template:"), true);
+  assert.equal(component.template.includes('v-model="navboxCreateState.text"'), true);
 });
 
-test("company category helper opens, edits, and saves only company rows", async () => {
+test("navbox checks replace textbox text with the resolved page title", async () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      async onPrepareReview(form) {
+        return form.navboxRows.map((row) => ({
+          ...row,
+          status: "OK",
+          text: "{{最终幻想系列}}",
+          title: "最终幻想系列",
+        }));
+      },
+    }),
+  );
+  const { form } = component.setup();
+  const row = {
+    enabled: true,
+    status: "",
+    text: "{{最終幻想系列}}",
+    title: "最終幻想系列",
+  };
+
+  form.navboxRows = [row];
+  await component.methods.checkNavboxRow.call(component.methods, 0, {
+    target: {
+      value: "{{最終幻想系列}}",
+    },
+  });
+
+  assert.equal(form.navboxRows[0], row);
+  assert.equal(row.text, "{{最终幻想系列}}");
+  assert.equal(row.title, "最终幻想系列");
+  assert.equal(row.status, "OK");
+});
+
+test("category checks preserve manually entered textbox text", async () => {
+  const refreshes = [];
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      onCategoryRowsRefresh(form, _state, options) {
+        refreshes.push(options);
+        Object.assign(form.categoryRows[0], {
+          category: ".22口径长步枪弹口径枪械",
+          status: "OK",
+        });
+      },
+      onUpdateCategoryRowCategory(row, category) {
+        return {
+          ...row,
+          category,
+        };
+      },
+    }),
+  );
+  const { form } = component.setup();
+  const row = {
+    category: ".22 LR口徑槍械",
+    enabled: true,
+    source: "manual",
+    status: "",
+  };
+
+  form.categoryRows = [row];
+  await component.methods.checkCategoryRow.call(component.methods, 0, {
+    target: {
+      value: ".22 LR口徑槍械",
+    },
+  });
+
+  assert.equal(form.categoryRows[0].category, ".22 LR口徑槍械");
+  assert.equal(form.categoryRows[0].status, "OK");
+  assert.deepEqual(refreshes, [{ bypassCache: true }]);
+});
+
+test("category helper opens and saves missing category rows", async () => {
   const saved = [];
   const refreshes = [];
   const component = createDialogComponent(
@@ -241,7 +358,10 @@ test("company category helper opens, edits, and saves only company rows", async 
         return `Text for ${row.company}`;
       },
       async onSaveCompanyCategory(category, text) {
-        saved.push([category, text]);
+        saved.push(["company", category, text]);
+      },
+      async onSaveCategory(category, text) {
+        saved.push(["category", category, text]);
       },
     }),
   );
@@ -268,7 +388,7 @@ test("company category helper opens, edits, and saves only company rows", async 
     false,
   );
 
-  await component.methods.openCompanyCategory(companyRow);
+  await component.methods.openCategoryCreate(companyRow);
   assert.equal(companyCategoryOpen.value, true);
   assert.equal(companyCategoryState.text, "Text for Foo Studio");
 
@@ -276,12 +396,28 @@ test("company category helper opens, edits, and saves only company rows", async 
   await component.methods.saveCompanyCategory();
 
   assert.deepEqual(saved, [
-    ["Foo Studio游戏", "Text for Foo Studio\nEdited"],
+    ["company", "Foo Studio游戏", "Text for Foo Studio\nEdited"],
   ]);
   assert.deepEqual(refreshes, [{ bypassCache: true }]);
   assert.equal(companyCategoryOpen.value, false);
   assert.equal(
     component.template.includes("Create Category:"),
+    true,
+  );
+
+  await component.methods.openCategoryCreate({
+    category: "动作游戏",
+    status: "Not exists",
+  });
+  assert.equal(companyCategoryState.text, "");
+  companyCategoryState.text = "Category text";
+  await component.methods.saveCompanyCategory();
+  assert.deepEqual(saved.at(-1), ["category", "动作游戏", "Category text"]);
+  assert.equal(
+    component.methods.canCreateCategory({
+      category: "动作游戏",
+      status: "Not exists",
+    }),
     true,
   );
 });
@@ -791,7 +927,9 @@ function createOptionsStub(options = {}) {
       };
     },
     onResetCategoryRow() {},
+    onSaveCategory() {},
     onSaveCompanyCategory() {},
+    onSaveNavbox() {},
     onSubmit() {},
     onSubmitHistory() {},
     onUpdateCategoryRowCategory() {},

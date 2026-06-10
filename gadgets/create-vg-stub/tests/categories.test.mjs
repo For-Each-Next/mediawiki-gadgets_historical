@@ -438,6 +438,25 @@ test("resolveCategoryRows follows category redirect targets", async () => {
   assert.equal(rows[0].category, "新分類");
 });
 
+test("resolveCategoryRows follows ordinary redirected category pages", async () => {
+  const rows = await resolveCategoryRows(
+    [
+      {
+        category: ".22 LR口徑槍械",
+        source: "manual added",
+      },
+    ],
+    {
+      fetcher: createOrdinaryRedirectCategoryFetcher({
+        ".22 LR口徑槍械": ".22 LR口径枪械",
+      }),
+    },
+  );
+
+  assert.equal(rows[0].category, ".22 LR口径枪械");
+  assert.equal(rows[0].status, "OK");
+});
+
 function emptyParams(options = {}) {
   return {
     companyMetadata: {
@@ -542,6 +561,35 @@ function createRedirectCategoryFetcher(redirects) {
       json: async () => ({
         query: {
           pages,
+        },
+      }),
+    };
+  };
+}
+
+function createOrdinaryRedirectCategoryFetcher(redirects) {
+  return async (url) => {
+    const titles = new URL(url, "https://zh.wikipedia.org").searchParams
+      .get("titles")
+      .split("|")
+      .map((title) => title.replace(/^Category:/u, ""));
+    const redirectItems = titles
+      .filter((title) => redirects[title] != null)
+      .map((title) => ({
+        from: `Category:${title}`,
+        to: `Category:${redirects[title]}`,
+      }));
+    const pages = titles.map((title, index) => ({
+      pageid: index + 1,
+      title: `Category:${redirects[title] || title}`,
+    }));
+
+    return {
+      ok: true,
+      json: async () => ({
+        query: {
+          pages,
+          redirects: redirectItems,
         },
       }),
     };

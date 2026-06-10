@@ -5,7 +5,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildNavboxText } from "../src/fragments/navboxes.js";
+import {
+  buildNavboxText,
+  buildReviewedNavboxText,
+  resolveReviewedNavboxRows,
+} from "../src/fragments/navboxes.js";
 
 test("buildNavboxText uses the first existing series navbox candidate", async () => {
   const text = await buildNavboxText("Foo", {
@@ -42,7 +46,102 @@ test("buildNavboxText handles multiple series and omits missing navboxes", async
   assert.equal(text, "{{Foo系列电子游戏}}\n{{Bar系列}}");
 });
 
-function createTemplateFetcher(existingTitles, converted = []) {
+test("buildReviewedNavboxText omits unchecked review rows", () => {
+  assert.equal(
+    buildReviewedNavboxText([
+      { enabled: true, text: "{{Foo series}}" },
+      { enabled: false, text: "{{Bar series}}" },
+      { text: " Baz series " },
+    ]),
+    "{{Foo series}}\n{{Baz series}}",
+  );
+});
+
+test("buildReviewedNavboxText wraps bare textbox titles in template braces", () => {
+  assert.equal(
+    buildReviewedNavboxText([
+      { text: "最终幻想系列" },
+      { text: "{{Foo series|state=collapsed}}" },
+    ]),
+    "{{最终幻想系列}}\n{{Foo series|state=collapsed}}",
+  );
+});
+
+test("resolveReviewedNavboxRows applies converted titles and preserves parameters", async () => {
+  const rows = await resolveReviewedNavboxRows(
+    [{ enabled: false, text: "{{电子游戏系列|state=collapsed}}" }],
+    {
+      fetcher: createTemplateFetcher(
+        ["Template:電子遊戲系列"],
+        [
+          {
+            from: "Template:电子游戏系列",
+            to: "Template:電子遊戲系列",
+          },
+        ],
+      ),
+    },
+  );
+
+  assert.deepEqual(rows, [
+    {
+      enabled: false,
+      status: "OK",
+      text: "{{電子遊戲系列|state=collapsed}}",
+      title: "電子遊戲系列",
+    },
+  ]);
+});
+
+test("resolveReviewedNavboxRows follows template redirects", async () => {
+  const rows = await resolveReviewedNavboxRows(
+    ["{{Old series}}"],
+    {
+      fetcher: createTemplateFetcher(
+        ["Template:New series"],
+        [],
+        [
+          {
+            from: "Template:Old series",
+            to: "Template:New series",
+          },
+        ],
+      ),
+    },
+  );
+
+  assert.equal(rows[0].status, "OK");
+  assert.equal(rows[0].text, "{{New series}}");
+  assert.equal(rows[0].title, "New series");
+});
+
+test("resolveReviewedNavboxRows replaces a bare textbox title", async () => {
+  const rows = await resolveReviewedNavboxRows(
+    ["最終幻想系列"],
+    {
+      fetcher: createTemplateFetcher(
+        ["Template:最终幻想系列"],
+        [
+          {
+            from: "Template:最終幻想系列",
+            to: "Template:最终幻想系列",
+          },
+        ],
+      ),
+    },
+  );
+
+  assert.deepEqual(rows, [
+    {
+      enabled: true,
+      status: "OK",
+      text: "最终幻想系列",
+      title: "最终幻想系列",
+    },
+  ]);
+});
+
+function createTemplateFetcher(existingTitles, converted = [], redirects = []) {
   return async function fetcher(url, options) {
     assert.equal(options.headers.accept, "application/json");
 
@@ -51,8 +150,10 @@ function createTemplateFetcher(existingTitles, converted = []) {
       .split("|");
     const resolvedTitles = titles.map((title) => {
       const conversion = converted.find((item) => item.from === title);
+      const convertedTitle = conversion?.to || title;
+      const redirect = redirects.find((item) => item.from === convertedTitle);
 
-      return conversion?.to || title;
+      return redirect?.to || convertedTitle;
     });
 
     return {
@@ -61,6 +162,7 @@ function createTemplateFetcher(existingTitles, converted = []) {
         return {
           query: {
             converted,
+            redirects,
             pages: resolvedTitles.map((title) => ({
               missing: existingTitles.includes(title) ? undefined : true,
               title,

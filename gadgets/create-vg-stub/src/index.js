@@ -13,6 +13,7 @@ import {
 import { fetchCiteTemplate } from "./citations.js";
 import {
   prepareCompanyCategoryText,
+  saveCategoryPage,
   saveCompanyCategory,
 } from "./company-category-helper.js";
 import {
@@ -41,6 +42,8 @@ import {
   buildLeadNameText,
   buildNavboxText,
   buildNoteTaText,
+  buildReviewedNavboxText,
+  resolveReviewedNavboxRows,
 } from "./fragments/index.js";
 import { buildEditSummary } from "./edit-summary.js";
 import { fetchEnwikiMetadata } from "./crosswiki.js";
@@ -53,6 +56,7 @@ import {
   runSelectedActions,
 } from "./pre-save.js";
 import { addMissingPageEditTrigger } from "./page-trigger.js";
+import { saveNavboxTemplate } from "./navbox-helper.js";
 import {
   SAVE_PROGRESS_STORAGE_KEY,
   createSaveProgress,
@@ -925,10 +929,7 @@ async function getFormNavboxText(form) {
     return buildNavboxText(form.series);
   }
 
-  return form.navboxRows
-    .map((row) => trimFieldValue(row?.text ?? row))
-    .filter(Boolean)
-    .join("\n");
+  return buildReviewedNavboxText(form.navboxRows);
 }
 
 /**
@@ -939,41 +940,12 @@ async function getFormNavboxText(form) {
  * @returns {Promise<Array<object>>} Checked navbox rows.
  */
 async function prepareNavboxRows(form, rebuild) {
-  const texts =
+  const values =
     rebuild || !Array.isArray(form.navboxRows)
       ? (await buildNavboxText(form.series)).split("\n").filter(Boolean)
-      : form.navboxRows.map((row) => row?.text ?? row);
-  const rows = texts.map(buildNavboxReviewRow);
-  const titles = rows.map((row) => `Template:${row.title}`);
-  const existing = new Set(
-    (await fetchExistingPageTitles(new mw.Api(), titles)).map(normalizePageTitle),
-  );
+      : form.navboxRows;
 
-  return rows.map((row) => ({
-    ...row,
-    status: existing.has(normalizePageTitle(`Template:${row.title}`))
-      ? "OK"
-      : "Not exists",
-  }));
-}
-
-/**
- * Builds one navbox review row from entered wikitext.
- *
- * @param {*} value - Navbox wikitext.
- * @returns {object} Navbox row.
- */
-function buildNavboxReviewRow(value) {
-  const text = trimFieldValue(value);
-  const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
-  const title = trimFieldValue(match?.[1] || text)
-    .replace(/^Template:/iu, "");
-
-  return {
-    status: "",
-    text,
-    title,
-  };
+  return resolveReviewedNavboxRows(values);
 }
 
 /**
@@ -1153,7 +1125,7 @@ async function refreshFormCategoryRows(
       categoryStore.clear();
     }
 
-    form.categoryRows = await buildCategoryRows(
+    const rows = await buildCategoryRows(
       form,
       createArticleParams({
         ...form,
@@ -1164,6 +1136,20 @@ async function refreshFormCategoryRows(
         bypassCache: options.bypassCache,
         cache: categoryStore.cache,
       },
+    );
+    form.categoryRows.splice(
+      0,
+      form.categoryRows.length,
+      ...rows.map((row, index) => {
+        const current = form.categoryRows[index];
+
+        if (current == null) {
+          return row;
+        }
+
+        Object.assign(current, row);
+        return current;
+      }),
     );
     categoryStore.save();
   } catch (error) {
@@ -1626,7 +1612,9 @@ function init(require) {
         };
       },
       onResetCategoryRow: resetCategoryRow,
+      onSaveCategory: saveCategoryPage,
       onSaveCompanyCategory: saveCompanyCategory,
+      onSaveNavbox: saveNavboxTemplate,
       onSourceUrlChange: (url) => citationStore.prefetch(url),
       onSteamNamesFetch: (url) => fetchSteamNameRows(url, citationStore),
       onSubmit: (...args) => submitForm(...args, citationStore),

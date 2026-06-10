@@ -63,10 +63,33 @@ export async function saveCompanyCategory(
   text,
   api = new mw.Api(),
 ) {
+  return saveCategoryPage(
+    category,
+    text,
+    "Create company video game category",
+    api,
+  );
+}
+
+/**
+ * Creates a category page.
+ *
+ * @param {string} category - Category title without namespace.
+ * @param {string} text - Category page wikitext.
+ * @param {string} [summary] - Edit summary before the gadget suffix.
+ * @param {object} [api] - MediaWiki API client.
+ * @returns {Promise<void>} Resolves after the category is saved.
+ */
+export async function saveCategoryPage(
+  category,
+  text,
+  summary = "Create video game category",
+  api = new mw.Api(),
+) {
   await api.postWithToken("csrf", {
     action: "edit",
     createonly: true,
-    summary: addEditSummarySuffix("Create company video game category"),
+    summary: addEditSummarySuffix(summary),
     text,
     title: `${CATEGORY_NAMESPACE}${category}`,
   });

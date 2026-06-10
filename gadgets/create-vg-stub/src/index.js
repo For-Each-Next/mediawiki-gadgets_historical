@@ -1472,10 +1472,7 @@ async function openTargetPage(form, title, sourceFetchState, citationStore) {
   sourceFetchState.loading = true;
 
   try {
-    const targetForm = {
-      ...form,
-      name: targetTitle,
-    };
+    const targetForm = { ...form, name: targetTitle };
     const stub = await buildStubFromForm(targetForm, citationStore);
 
     sessionStorage.setItem(
@@ -1614,16 +1611,18 @@ function init(require) {
           new mw.Api(),
           redirectTitles,
         );
+        const actions = buildPreSaveActions(
+          {
+            form,
+            title,
+          },
+          existingRedirectTitles,
+        );
+        const move = buildTitleFix(form, title);
 
         return {
-          actions: buildPreSaveActions(
-            {
-              form,
-              title,
-            },
-            existingRedirectTitles,
-          ),
-          move: buildTitleFix(form, title),
+          actions,
+          move,
         };
       },
       onResetCategoryRow: resetCategoryRow,

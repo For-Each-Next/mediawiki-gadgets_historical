@@ -118,7 +118,8 @@ export function renderSaveProgress(progress, documentRef = document) {
     layer.id = "create-vg-stub-save-progress";
     Object.assign(layer.style, {
       alignItems: "center",
-      background: "rgb(0 0 0 / 45%)",
+      background:
+        "var(--background-color-backdrop-light, rgb(0 0 0 / 45%))",
       display: "flex",
       inset: "0",
       justifyContent: "center",
@@ -142,17 +143,17 @@ export function renderSaveProgress(progress, documentRef = document) {
     )
     .join("");
   const error = progress.error
-    ? `<p style="color:#b32424">${escapeHtml(progress.error)}</p>`
+    ? `<p style="color:var(--color-error,#b32424)">${escapeHtml(progress.error)}</p>`
     : "";
   const complete = progress.steps.every((step) =>
     ["complete", "skipped"].includes(step.status),
   );
   const closeButton = complete
-    ? '<button type="button" data-action="close" style="float:right">Close</button>'
+    ? '<button type="button" data-action="close" style="background:var(--background-color-interactive-subtle,#f8f9fa);border:1px solid var(--border-color-base,#a2a9b1);color:var(--color-base,#202122);float:right">Close</button>'
     : "";
 
   layer.innerHTML =
-    '<div style="background:#fff;border-radius:4px;box-shadow:0 2px 8px rgb(0 0 0 / 30%);max-width:min(90vw,640px);padding:24px;width:100%">' +
+    '<div style="background:var(--background-color-base,#fff);border:1px solid var(--border-color-base,#a2a9b1);border-radius:4px;box-shadow:var(--box-shadow-drop-medium,0 2px 8px rgb(0 0 0 / 30%));color:var(--color-base,#202122);max-width:min(90vw,640px);padding:24px;width:100%">' +
     closeButton +
     `<h2>${complete ? "Article creation complete" : "Creating article"}</h2>` +
     `<ol style="display:grid;gap:8px;padding-left:24px">${rows}</ol>` +

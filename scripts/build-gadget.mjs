@@ -7,6 +7,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, extname, resolve } from "node:path";
 import { build } from "esbuild";
+import { format } from "prettier";
 import { minify } from "terser";
 import { formatMinifiedOutput } from "../build.config.js";
 
@@ -46,6 +47,11 @@ const minifyOptions = {
     mangle: true,
 };
 const { code } = await minify(source, minifyOptions);
+const userscript = await formatUserscript(
+    source,
+    packageMetadata,
+    config.userscript,
+);
 
 if (code == null) {
     throw new Error("Terser did not return minified code.");
@@ -57,10 +63,7 @@ await Promise.all([
         resolve(outputDirectory, `${outputName}.min.js`),
         formatMinifiedOutput(code),
     ),
-    writeFile(
-        resolve(outputDirectory, `${outputName}.user.js`),
-        formatUserscript(source, packageMetadata, config.userscript),
-    ),
+    writeFile(resolve(outputDirectory, `${outputName}.user.js`), userscript),
 ]);
 
 /**
@@ -141,9 +144,9 @@ function isJsonPath(path) {
  * @param {string} source - Bundled gadget source.
  * @param {object} metadata - Package metadata.
  * @param {object} [userscriptConfig] - Userscript configuration.
- * @returns {string} Installable userscript source.
+ * @returns {Promise<string>} Installable userscript source.
  */
-function formatUserscript(source, metadata, userscriptConfig = {}) {
+async function formatUserscript(source, metadata, userscriptConfig = {}) {
     const header = [
         "// ==UserScript==",
         formatUserscriptMetadata(
@@ -172,7 +175,9 @@ function formatUserscript(source, metadata, userscriptConfig = {}) {
         "// ==/UserScript==",
     ].join("\n");
 
-    return `${header}\n\n${formatUserscriptBootstrap(source)}`;
+    return format(`${header}\n\n${formatUserscriptBootstrap(source)}`, {
+        parser: "babel",
+    });
 }
 
 /**

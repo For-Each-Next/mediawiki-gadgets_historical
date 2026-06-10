@@ -30,13 +30,13 @@ export function buildArticleWikitext(params) {
   const intro =
     `${params.leadNameText}是${buildVideoGameText(params)}。` +
     params.platformSeriesMetadata.text +
-    params.aggScoresText;
+    params.aggScoresText +
+    params.additionalProseText;
 
   return [
     params.noteTaText,
     params.infoboxText,
     intro,
-    params.additionalProseText,
     buildReferencesText(params.sourceReferences),
     params.navboxText,
     buildFooterTemplateText(),

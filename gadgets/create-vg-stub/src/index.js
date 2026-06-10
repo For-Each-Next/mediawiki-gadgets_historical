@@ -191,7 +191,15 @@ class VideoGameArticleParams {
 function buildAdditionalProseText(prose, sourceTag) {
   const text = trimFieldValue(prose);
 
-  return text === "" ? "" : `${text}${sourceTag || ""}`;
+  if (text === "") {
+    return "";
+  }
+
+  const reference = sourceTag || "";
+
+  return text.endsWith("。")
+    ? `${text.slice(0, -1)}${reference}。`
+    : `${text}${reference}`;
 }
 
 /**

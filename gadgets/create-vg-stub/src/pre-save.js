@@ -48,7 +48,7 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
       exists,
       label: exists
         ? `Redirect: ${redirectTitle} (page already exists)`
-        : `Redirect other Chinese name: ${redirectTitle} -> ${title}`,
+        : `Redirect name: ${redirectTitle} -> ${title}`,
       redirectTitle,
       selected: !exists,
       type: "redirect",
@@ -74,7 +74,7 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
  */
 export function buildTitleFix(form, articleTitle) {
   const title = normalizeTitle(articleTitle);
-  const chineseTitle = buildRedirectTitles(form, title)[0] || "";
+  const chineseTitle = buildChineseRedirectTitles(form, title)[0] || "";
   const enabled = isEnglishTitle(title) && chineseTitle !== "";
 
   return {
@@ -93,9 +93,9 @@ export function buildTitleFix(form, articleTitle) {
 export function buildRedirectTitles(form, articleTitle) {
   const targetKey = normalizeTitleKey(articleTitle);
   const names = [
-    ...(form.localizedNames || []).filter(isChineseNameRow).map((row) => row.name),
-    ...(form.officialNames || []).filter(isChineseNameRow).map((row) => row.name),
-    ...(form.commonNames || []).filter(isChineseNameRow).map((row) => row.name),
+    getOriginalName(form.originalName),
+    form.englishName,
+    ...getChineseNames(form),
   ];
   const seen = new Set();
 
@@ -111,6 +111,55 @@ export function buildRedirectTitles(form, articleTitle) {
       seen.add(key);
       return true;
     });
+}
+
+/**
+ * Gets unique Chinese aliases suitable for a page move.
+ *
+ * @param {object} form - Submitted dialog form.
+ * @param {string} articleTitle - Saved article title.
+ * @returns {Array<string>} Chinese page titles.
+ */
+function buildChineseRedirectTitles(form, articleTitle) {
+  const targetKey = normalizeTitleKey(articleTitle);
+  const seen = new Set();
+
+  return getChineseNames(form)
+    .map(normalizeTitle)
+    .filter((title) => {
+      const key = normalizeTitleKey(title);
+
+      if (key === "" || key === targetKey || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+}
+
+/**
+ * Gets entered Chinese localized names.
+ *
+ * @param {object} form - Submitted dialog form.
+ * @returns {Array<string>} Chinese name values.
+ */
+function getChineseNames(form) {
+  return [
+    ...(form.localizedNames || []).filter(isChineseNameRow).map((row) => row.name),
+    ...(form.officialNames || []).filter(isChineseNameRow).map((row) => row.name),
+    ...(form.commonNames || []).filter(isChineseNameRow).map((row) => row.name),
+  ];
+}
+
+/**
+ * Removes a compact language prefix from an original title.
+ *
+ * @param {*} value - Original title field value.
+ * @returns {string} Original title without its language prefix.
+ */
+function getOriginalName(value) {
+  return normalizeTitle(value).replace(/^[a-z]{2,3}(?:-[a-z0-9]+)*:\s*/iu, "");
 }
 
 /**

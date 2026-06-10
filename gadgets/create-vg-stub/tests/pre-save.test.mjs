@@ -47,6 +47,20 @@ test("buildRedirectTitles returns unique localized aliases", () => {
   );
 });
 
+test("buildRedirectTitles includes original and English names", () => {
+  assert.deepEqual(
+    buildRedirectTitles(
+      {
+        englishName: "Example Game",
+        localizedNames: [{ hans: true, name: "示例游戏" }],
+        originalName: "ja:サンプルゲーム",
+      },
+      "示例遊戲",
+    ),
+    ["サンプルゲーム", "Example Game", "示例游戏"],
+  );
+});
+
 test("buildPreSaveActions includes interwiki, redirects, and talk banner", () => {
   assert.deepEqual(
     buildPreSaveActions({
@@ -92,7 +106,7 @@ test("buildPreSaveActions hints existing redirects and unchecks them", () => {
         "示例游戏",
         false,
         true,
-        "Redirect other Chinese name: 示例游戏 -> Example",
+        "Redirect name: 示例游戏 -> Example",
       ],
     ],
   );
@@ -102,10 +116,12 @@ test("buildTitleFix defaults an English title to the first Chinese name", () => 
   assert.deepEqual(
     buildTitleFix(
       {
+        englishName: "Example Game",
         localizedNames: [
           { hant: true, name: " 示例遊戲 " },
           { hans: true, name: "示例游戏" },
         ],
+        originalName: "ja:サンプルゲーム",
       },
       "Example Game",
     ),

@@ -136,6 +136,98 @@ test("additional prose uses a textarea and source URL field", () => {
   assert.equal(field.placeholder, "Text appended after the generated prose");
 });
 
+test("review exposes editable navboxes and subtle prose length", async () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub({
+      getProseSinographs(form) {
+        return form.additionalProse === "" ? 24 : 51;
+      },
+      async onPrepareReview() {
+        return ["{{Foo series}}"];
+      },
+    }),
+  );
+  const { form } = component.setup();
+
+  assert.equal(component.methods.getProseSinographs(), 24);
+  form.additionalProse = "補充文字";
+  assert.equal(component.methods.getProseSinographs(), 51);
+
+  await component.methods.fillForm();
+  assert.deepEqual(form.navboxRows, [
+    {
+      status: "",
+      text: "{{Foo series}}",
+      title: "Foo series",
+    },
+  ]);
+  component.methods.updateNavboxRow(0, "{{Edited series}}");
+  component.methods.addNavboxRow();
+  component.methods.updateNavboxRow(1, "{{Manual navbox}}");
+  component.methods.removeNavboxRow(0);
+  assert.deepEqual(form.navboxRows, [
+    {
+      status: "",
+      text: "{{Manual navbox}}",
+      title: "Manual navbox",
+    },
+  ]);
+
+  assert.equal(component.template.includes("Prose length:"), true);
+  assert.equal(component.template.includes("create-vg-stub-prose-length"), true);
+  assert.equal(component.template.includes("Add category"), true);
+  assert.equal(component.template.includes("Add navbox"), true);
+  assert.equal(component.template.includes("Navboxes"), true);
+  assert.equal(component.template.includes("Footer:"), false);
+  for (const action of [
+    "addCategoryRow",
+    "refreshCategoryRows",
+    "rebuildCategoryRows",
+    "addNavboxRow",
+    "checkNavboxRows",
+    "rebuildNavboxRows",
+  ]) {
+    const button = component.template.match(
+      new RegExp(`<cdx-button[^>]*v-on:click="${action}"[^>]*>`, "u"),
+    )?.[0];
+
+    assert.equal(button?.includes('action="progressive"'), false);
+    assert.equal(button?.includes('weight="primary"'), false);
+  }
+});
+
+test("navbox review shows status and opens view or create pages", () => {
+  const component = createDialogComponent(
+    createVueStub(),
+    createOptionsStub(),
+  );
+  const { categoryViewOpen, categoryViewState } = component.setup();
+
+  assert.equal(component.methods.formatNavboxStatusLabel("OK"), "OK");
+  assert.equal(
+    component.methods.formatNavboxStatusLabel("Not exists"),
+    "Missing",
+  );
+  assert.equal(component.methods.formatNavboxStatusLabel(""), "Unchecked");
+
+  component.methods.openNavboxView({
+    title: "Example series",
+  });
+  assert.equal(categoryViewOpen.value, true);
+  assert.equal(categoryViewState.title, "Template:Example series");
+  assert.equal(categoryViewState.url, "/wiki/Template:Example series");
+
+  component.methods.createNavbox({
+    title: "Missing series",
+  });
+  assert.equal(categoryViewState.title, "Create Template:Missing series");
+  assert.equal(
+    categoryViewState.url,
+    "/wiki/Template:Missing series?action=edit",
+  );
+});
+
 test("company category helper opens, edits, and saves only company rows", async () => {
   const saved = [];
   const refreshes = [];
@@ -212,7 +304,7 @@ test("category viewer opens for existing company and other category rows", () =>
   });
 
   assert.equal(categoryViewOpen.value, true);
-  assert.equal(categoryViewState.category, "Foo Studio游戏");
+  assert.equal(categoryViewState.title, "Category:Foo Studio游戏");
   assert.equal(
     categoryViewState.url,
     "/wiki/Category:Foo Studio游戏",
@@ -394,21 +486,13 @@ test("field preview callback receives live form and preview key", () => {
   );
 });
 
-test("submit from another tab switches to category review first", async () => {
+test("submit opens pre-save fixes without changing tabs", async () => {
   let refreshCount = 0;
-  let submitCount = 0;
-  let historyCount = 0;
   const component = createDialogComponent(
     createVueStub(),
     createOptionsStub({
       onCategoryRowsRefresh() {
         refreshCount += 1;
-      },
-      onSubmit() {
-        submitCount += 1;
-      },
-      onSubmitHistory() {
-        historyCount += 1;
       },
       async onPreSavePrepare() {
         return {
@@ -417,15 +501,14 @@ test("submit from another tab switches to category review first", async () => {
       },
     }),
   );
-  const { activeTab } = component.setup();
+  const { activeTab, preSaveOpen } = component.setup();
 
   assert.equal(activeTab.value, "titles");
   await component.methods.submitForm();
 
-  assert.equal(activeTab.value, "categories");
+  assert.equal(activeTab.value, "titles");
   assert.equal(refreshCount, 1);
-  assert.equal(submitCount, 0);
-  assert.equal(historyCount, 0);
+  assert.equal(preSaveOpen.value, true);
 });
 
 test("fill and submit use separate popup actions", async () => {
@@ -446,12 +529,6 @@ test("fill and submit use separate popup actions", async () => {
       },
     }),
   );
-  const { activeTab } = component.setup();
-
-  await component.methods.fillForm();
-  assert.equal(activeTab.value, "categories");
-  assert.equal(fillCount, 0);
-
   await component.methods.fillForm();
   assert.equal(fillCount, 1);
   assert.equal(submitCount, 0);
@@ -460,9 +537,19 @@ test("fill and submit use separate popup actions", async () => {
   assert.equal(component.template.includes("'Fill'"), true);
   assert.equal(component.template.includes('v-on:click="submitForm"'), true);
   assert.equal(component.template.includes("'Submit'"), true);
+  assert.equal(
+    component.template.indexOf(">Move<") <
+      component.template.indexOf('v-on:click="fillForm"'),
+    true,
+  );
+  assert.equal(
+    component.template.indexOf('v-on:click="fillForm"') <
+      component.template.indexOf('v-on:click="submitForm"'),
+    true,
+  );
 });
 
-test("submit from category review opens pre-save fixes", async () => {
+test("submit from review opens pre-save fixes", async () => {
   let refreshCount = 0;
   let submitCount = 0;
   let historyCount = 0;
@@ -482,7 +569,7 @@ test("submit from category review opens pre-save fixes", async () => {
   );
   const { activeTab, preSaveOpen } = component.setup();
 
-  activeTab.value = "categories";
+  activeTab.value = "review";
   await component.methods.submitForm();
 
   assert.equal(refreshCount, 1);
@@ -522,7 +609,7 @@ test("pre-save title choice moves the editing session before saving", async () =
   );
   const state = component.setup();
 
-  state.activeTab.value = "categories";
+  state.activeTab.value = "review";
   await component.methods.submitForm();
   assert.equal(state.preSaveMoveEnabled.value, true);
   assert.equal(state.preSaveMoveTitle.value, "預設中文名");
@@ -565,7 +652,7 @@ test("pre-save title choice can be declined to keep the Latin title", async () =
   );
   const state = component.setup();
 
-  state.activeTab.value = "categories";
+  state.activeTab.value = "review";
   await component.methods.submitForm();
   state.preSaveMoveEnabled.value = false;
   await component.methods.confirmSubmit();
@@ -674,8 +761,14 @@ function createVueStub() {
 function createOptionsStub(options = {}) {
   return {
     defaultName: "Example",
+    getProseSinographs() {
+      return 0;
+    },
     getCategoryPageUrl(category) {
       return `/wiki/Category:${category}`;
+    },
+    getTemplatePageUrl(template, edit) {
+      return `/wiki/Template:${template}${edit ? "?action=edit" : ""}`;
     },
     getFieldPlaceholder() {},
     getHistoryEntries() {
@@ -689,6 +782,9 @@ function createOptionsStub(options = {}) {
     onFill() {},
     onMoveTarget() {},
     onPrepareCompanyCategory() {},
+    async onPrepareReview() {
+      return [];
+    },
     async onPreSavePrepare() {
       return {
         actions: [],

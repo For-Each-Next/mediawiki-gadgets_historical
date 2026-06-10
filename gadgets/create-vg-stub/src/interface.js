@@ -66,7 +66,7 @@ const DIALOG_CSS = new StyleSheet()
     width: "min(96vw, 960px)",
   })
   .add(".create-vg-stub-category-view", {
-    border: "1px solid #a2a9b1",
+    border: "1px solid var(--border-color-base, #a2a9b1)",
     height: "70vh",
     width: "100%",
   })
@@ -84,7 +84,7 @@ const DIALOG_CSS = new StyleSheet()
   })
   .add(".create-vg-stub-field-separator", {
     border: "0",
-    borderTop: "1px solid #eaecf0",
+    borderTop: "1px solid var(--border-color-subtle, #eaecf0)",
     gridColumn: "1 / -1",
     margin: "16px 0",
   })
@@ -92,7 +92,7 @@ const DIALOG_CSS = new StyleSheet()
     margin: "16px 0 12px",
   })
   .add(".create-vg-stub-name-row", {
-    borderBottom: "1px solid #eaecf0",
+    borderBottom: "1px solid var(--border-color-subtle, #eaecf0)",
     gridTemplateColumns: "minmax(0, 1fr)",
     marginBottom: "16px",
     paddingBottom: "16px",
@@ -123,7 +123,7 @@ const DIALOG_CSS = new StyleSheet()
     gridColumn: "1 / -1",
   })
   .add(".create-vg-stub-steam-suggestion", {
-    color: "#54595d",
+    color: "var(--color-subtle, #54595d)",
     fontSize: "12px",
     gridColumn: "1 / -1",
     overflowWrap: "anywhere",
@@ -141,7 +141,7 @@ const DIALOG_CSS = new StyleSheet()
     },
   )
   .add(".create-vg-stub-wikitext-preview", {
-    color: "#72777d",
+    color: "var(--color-subtle, #72777d)",
     fontFamily: "monospace",
     fontSize: "12px",
     lineHeight: "1.35",
@@ -161,10 +161,10 @@ const DIALOG_CSS = new StyleSheet()
   .add(".create-vg-stub-category-status", {
     alignItems: "center",
     alignSelf: "center",
-    background: "#f8f9fa",
-    border: "1px solid #a2a9b1",
+    background: "var(--background-color-neutral-subtle, #f8f9fa)",
+    border: "1px solid var(--border-color-base, #a2a9b1)",
     borderRadius: "2px",
-    color: "#202122",
+    color: "var(--color-base, #202122)",
     display: "inline-flex",
     fontSize: "0.875em",
     fontWeight: "600",
@@ -178,7 +178,18 @@ const DIALOG_CSS = new StyleSheet()
     fontFamily: "monospace",
   })
   .add(".create-vg-stub-error", {
-    color: "#d73333",
+    color: "var(--color-error, #d73333)",
+  })
+  .add(".create-vg-stub-prose-length", {
+    color: "var(--color-subtle, #54595d)",
+    fontSize: "12px",
+    margin: "4px 0 12px",
+  })
+  .add(".create-vg-stub-navbox-grid", {
+    display: "grid",
+    gap: "4px",
+    gridTemplateColumns: "minmax(4.2rem, 0.35fr) minmax(0, 1fr) auto auto",
+    marginBottom: "12px",
   })
   .media("(max-width: 640px)", (sheet) => {
     sheet.add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
@@ -478,22 +489,27 @@ const ARTICLE_PARAMETER_GROUPS = [
       },
     ),
   ]),
-  new ArticleParameterGroup("prose", "Prose", [
-    new ArticleParameterField(
-      "additionalProse",
-      "Additional prose",
-      "additionalProse",
-      SOURCE_REFERENCE_FIELDS[10],
-      {
-        multiline: true,
-        placeholder: "Text appended after the generated prose",
-      },
-    ),
-  ]),
   new ArticleParameterGroup("localizedNames", "Names", [], "localizedNames"),
-  new ArticleParameterGroup("categories", "Categories", [], null, {
-    categoryReview: true,
-  }),
+  new ArticleParameterGroup(
+    "review",
+    "Review",
+    [
+      new ArticleParameterField(
+        "additionalProse",
+        "Additional prose",
+        "additionalProse",
+        SOURCE_REFERENCE_FIELDS[10],
+        {
+          multiline: true,
+          placeholder: "Text appended after the generated prose",
+        },
+      ),
+    ],
+    null,
+    {
+      categoryReview: true,
+    },
+  ),
 ];
 
 /**
@@ -512,7 +528,9 @@ export function addDialogStyles() {
  * @param {object} options - Dialog options.
  * @param {string} options.defaultName - Default article title.
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
+ * @param {Function} options.getProseSinographs - Prose length calculator.
  * @param {Function} options.getCategoryPageUrl - Category page URL builder.
+ * @param {Function} options.getTemplatePageUrl - Template page URL builder.
  * @param {object} [options.initialForm] - Initial form values.
  * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
  * @param {Function} [options.getFieldPreview] - Field wikitext preview builder.
@@ -524,6 +542,7 @@ export function addDialogStyles() {
  * @param {Function} options.onFormChange - Form change handler.
  * @param {Function} options.onMoveTarget - New-page target opener.
  * @param {Function} options.onPrepareCompanyCategory - Company category text builder.
+ * @param {Function} options.onPrepareReview - Review report builder.
  * @param {Function} options.onSaveCompanyCategory - Company category save handler.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
  * @param {Function} options.onFill - Editor fill handler.
@@ -542,6 +561,10 @@ export function createDialogComponent(Vue, options) {
     error: "",
     loading: false,
   });
+  const reviewState = Vue.reactive({
+    error: "",
+    loading: false,
+  });
   const companyCategoryOpen = Vue.ref(false);
   const companyCategoryState = Vue.reactive({
     category: "",
@@ -552,7 +575,7 @@ export function createDialogComponent(Vue, options) {
   });
   const categoryViewOpen = Vue.ref(false);
   const categoryViewState = Vue.reactive({
-    category: "",
+    title: "",
     url: "",
   });
   const historyEntries = Vue.ref(options.getHistoryEntries());
@@ -591,8 +614,8 @@ export function createDialogComponent(Vue, options) {
   );
   queueCitationPrefetch(form);
   Vue.watch(activeTab, (tab) => {
-    if (tab === "categories") {
-      refreshCategoryRows();
+    if (tab === "review") {
+      refreshReview();
     }
   });
 
@@ -612,36 +635,24 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
-       * Fills the MediaWiki editor after category review without submitting it.
+       * Fills the MediaWiki editor after review without submitting it.
        *
        * @returns {Promise<void>} Resolves after generated text is inserted.
        */
       async fillForm() {
-        if (activeTab.value !== "categories") {
-          activeTab.value = "categories";
-          await refreshCategoryRows();
-          return;
-        }
-
-        await refreshCategoryRows();
+        await refreshReview();
         options.onSubmitHistory(form, getCurrentTitle());
         historyEntries.value = options.getHistoryEntries();
         await options.onFill(form, sourceFetchState, this.closeDialog);
       },
 
       /**
-       * Opens the pre-save checklist after category review.
+       * Opens the pre-save checklist after review.
        *
        * @returns {Promise<void>} Resolves after checklist preparation.
        */
       async submitForm() {
-        if (activeTab.value !== "categories") {
-          activeTab.value = "categories";
-          await refreshCategoryRows();
-          return;
-        }
-
-        await refreshCategoryRows();
+        await refreshReview();
         sourceFetchState.error = "";
         sourceFetchState.loading = true;
         preSaveMoveTitle.value = getCurrentTitle();
@@ -1034,6 +1045,84 @@ export function createDialogComponent(Vue, options) {
       },
 
       /**
+       * Appends a blank navbox row.
+       *
+       * @returns {void}
+       */
+      addNavboxRow() {
+        ensureNavboxRows(form).push(createNavboxRow());
+      },
+
+      /**
+       * Updates one navbox row.
+       *
+       * @param {number} index - Navbox row index.
+       * @param {string} navbox - Navbox wikitext.
+       * @returns {void}
+       */
+      updateNavboxRow(index, navbox) {
+        const row = ensureNavboxRows(form)[index];
+
+        row.text = navbox;
+        row.title = getNavboxTitle(navbox);
+        row.status = "";
+      },
+
+      /**
+       * Removes one navbox row.
+       *
+       * @param {number} index - Navbox row index.
+       * @returns {void}
+       */
+      removeNavboxRow(index) {
+        ensureNavboxRows(form).splice(index, 1);
+      },
+
+      /**
+       * Regenerates navbox rows from the current series field.
+       *
+       * @returns {Promise<void>} Resolves after suggestions are refreshed.
+       */
+      async rebuildNavboxRows() {
+        await refreshNavboxRows(true, true);
+      },
+
+      /**
+       * Checks the current navbox rows.
+       *
+       * @returns {Promise<void>} Resolves after statuses are refreshed.
+       */
+      async checkNavboxRows() {
+        await refreshNavboxRows(true, false);
+      },
+
+      /**
+       * Opens an existing navbox template.
+       *
+       * @param {object} row - Navbox review row.
+       * @returns {void}
+       */
+      openNavboxView(row) {
+        openPageView(
+          `Template:${row.title}`,
+          options.getTemplatePageUrl(row.title, false),
+        );
+      },
+
+      /**
+       * Opens a missing navbox template edit form.
+       *
+       * @param {object} row - Navbox review row.
+       * @returns {void}
+       */
+      createNavbox(row) {
+        openPageView(
+          `Create Template:${row.title}`,
+          options.getTemplatePageUrl(row.title, true),
+        );
+      },
+
+      /**
        * Resets one generated category row to its automatic value.
        *
        * @param {number} index - Category row index.
@@ -1134,11 +1223,12 @@ export function createDialogComponent(Vue, options) {
        * @returns {void}
        */
       openCategoryView(row) {
-        categoryViewState.category = trimFieldValue(row.category);
-        categoryViewState.url = options.getCategoryPageUrl(
-          categoryViewState.category,
+        const category = trimFieldValue(row.category);
+
+        openPageView(
+          `Category:${category}`,
+          options.getCategoryPageUrl(category),
         );
-        categoryViewOpen.value = true;
       },
 
       /**
@@ -1158,6 +1248,28 @@ export function createDialogComponent(Vue, options) {
        */
       formatCategorySourceLabel(source) {
         return formatCategorySourceLabel(source);
+      },
+
+      /**
+       * Formats a navbox existence status as a compact badge.
+       *
+       * @param {string} status - Navbox existence status.
+       * @returns {string} Compact status label.
+       */
+      formatNavboxStatusLabel(status) {
+        return {
+          "Not exists": "Missing",
+          OK: "OK",
+        }[status] || "Unchecked";
+      },
+
+      /**
+       * Gets the current generated prose length.
+       *
+       * @returns {number} Hanzi-equivalent sinograph count.
+       */
+      getProseSinographs() {
+        return options.getProseSinographs(form);
       },
     },
     /**
@@ -1187,6 +1299,7 @@ export function createDialogComponent(Vue, options) {
         moveTarget,
         nameMarkets: NAME_MARKETS,
         open,
+        reviewState,
         preSaveMoveEnabled,
         preSaveMoveTitle,
         preSaveOpen,
@@ -1206,6 +1319,55 @@ export function createDialogComponent(Vue, options) {
    */
   async function refreshCategoryRows(refreshOptions) {
     await options.onCategoryRowsRefresh(form, categoryState, refreshOptions);
+  }
+
+  /**
+   * Refreshes categories and generated review details.
+   *
+   * @returns {Promise<void>} Resolves after review data is refreshed.
+   */
+  async function refreshReview() {
+    reviewState.error = "";
+    reviewState.loading = true;
+
+    try {
+      await Promise.all([
+        refreshCategoryRows(),
+        refreshNavboxRows(false),
+      ]);
+    } catch (error) {
+      reviewState.error = error.message || String(error);
+    } finally {
+      reviewState.loading = false;
+    }
+  }
+
+  /**
+   * Generates navbox rows when needed or explicitly requested.
+   *
+   * @param {boolean} force - Whether to replace reviewed rows.
+   * @returns {Promise<void>} Resolves after navbox rows are refreshed.
+   */
+  async function refreshNavboxRows(force, rebuild = false) {
+    if (!force && Array.isArray(form.navboxRows)) {
+      return;
+    }
+
+    form.navboxRows = (await options.onPrepareReview(form, rebuild))
+      .map(createNavboxRow);
+  }
+
+  /**
+   * Opens a page in the embedded viewer.
+   *
+   * @param {string} title - Dialog title.
+   * @param {string} url - Page URL.
+   * @returns {void}
+   */
+  function openPageView(title, url) {
+    categoryViewState.title = title;
+    categoryViewState.url = url;
+    categoryViewOpen.value = true;
   }
 
   /**
@@ -1392,14 +1554,14 @@ function createCategoryViewDialogTemplate() {
     "cdx-dialog",
     {
       class: "create-vg-stub-category-view-dialog",
-      "v-bind:title": "'Category:' + categoryViewState.category",
+      "v-bind:title": "categoryViewState.title",
       "v-model:open": "categoryViewOpen",
     },
     [
       createElement("iframe", {
         class: "create-vg-stub-category-view",
         "v-bind:src": "categoryViewState.url",
-        "v-bind:title": "'Category:' + categoryViewState.category",
+        "v-bind:title": "categoryViewState.title",
       }),
       createElement(
         "template",
@@ -1775,7 +1937,8 @@ function createHistoryEntryTemplate() {
       "v-for": "(entry, index) in historyEntries",
       style: {
         alignItems: "center",
-        borderBottom: "1px solid #eaecf0",
+        borderBottom:
+          "1px solid var(--border-color-subtle, #eaecf0)",
         display: "grid",
         gap: "8px",
         gridTemplateColumns: "1fr auto auto",
@@ -1791,7 +1954,7 @@ function createHistoryEntryTemplate() {
           "div",
           {
             style: {
-              color: "#54595d",
+              color: "var(--color-subtle, #54595d)",
               fontSize: "12px",
             },
           },
@@ -1970,9 +2133,9 @@ function createTabsTemplate() {
               class: "create-vg-stub-tab-panel",
             },
             [
-              createCategoryGroupTemplate(),
-              createNameGroupTemplate(),
               createFieldGroupTemplate(),
+              createNameGroupTemplate(),
+              createCategoryGroupTemplate(),
             ],
           ),
         ],
@@ -1982,7 +2145,7 @@ function createTabsTemplate() {
 }
 
 /**
- * Creates the category review grid template node.
+ * Creates the review panel and category grid template node.
  *
  * @returns {object} Category review grid node.
  */
@@ -1993,6 +2156,14 @@ function createCategoryGroupTemplate() {
       "v-if": "group.categoryReview",
     },
     [
+      createElement(
+        "p",
+        {
+          class: "create-vg-stub-prose-length",
+        },
+        [createText("Prose length: {{ getProseSinographs() }} sinographs")],
+      ),
+      createElement("h3", {}, [createText("Categories")]),
       createElement(
         "div",
         {
@@ -2015,36 +2186,145 @@ function createCategoryGroupTemplate() {
             "v-bind:disabled": "categoryState.loading",
             "v-on:click": "addCategoryRow",
           },
-          [createText("Add")],
+          [createText("Add category")],
         ),
         createElement(
           "cdx-button",
           {
-            action: "progressive",
             "v-bind:disabled": "categoryState.loading",
             "v-on:click": "refreshCategoryRows",
           },
           [
             createText(
-              "{{ categoryState.loading ? 'Checking' : 'Check categories' }}",
+              "{{ categoryState.loading ? 'Checking' : 'Check' }}",
             ),
           ],
         ),
         createElement(
           "cdx-button",
           {
-            action: "progressive",
             "v-bind:disabled": "categoryState.loading",
             "v-on:click": "rebuildCategoryRows",
-            weight: "primary",
           },
           [
             createText(
-              "{{ categoryState.loading ? 'Rebuilding' : 'Rebuild' }}",
+              "{{ categoryState.loading ? 'Regenerating' : 'Regenerate' }}",
             ),
           ],
         ),
       ]),
+      createNavboxReviewTemplate(),
+    ],
+  );
+}
+
+/**
+ * Creates editable navbox review rows.
+ *
+ * @returns {object} Navbox review template node.
+ */
+function createNavboxReviewTemplate() {
+  return createElement(
+    "section",
+    {},
+    [
+      createElement("h3", {}, [createText("Navboxes")]),
+      createElement(
+        "div",
+        {
+          class: "create-vg-stub-navbox-grid",
+        },
+        [
+          createElement(
+            "template",
+            {
+              "v-bind:key": "index",
+              "v-for": "(navbox, index) in form.navboxRows || []",
+            },
+            [
+              createElement(
+                "span",
+                {
+                  class: "create-vg-stub-category-status",
+                  "v-bind:title": "navbox.status",
+                },
+                [createText("{{ formatNavboxStatusLabel(navbox.status) }}")],
+              ),
+              createElement("cdx-text-input", {
+                "v-bind:model-value": "navbox.text",
+                "v-on:update:model-value": "updateNavboxRow(index, $event)",
+              }),
+              createElement(
+                "cdx-button",
+                {
+                  "v-if": "navbox.status === 'OK'",
+                  "v-on:click": "openNavboxView(navbox)",
+                },
+                [createText("View")],
+              ),
+              createElement(
+                "cdx-button",
+                {
+                  "v-else-if": "navbox.title",
+                  "v-on:click": "createNavbox(navbox)",
+                },
+                [createText("Create")],
+              ),
+              createElement("span", {
+                "v-else": "",
+              }),
+              createElement(
+                "cdx-button",
+                {
+                  "v-on:click": "removeNavboxRow(index)",
+                },
+                [createText("Remove")],
+              ),
+            ],
+          ),
+        ],
+      ),
+      createActionFooterTemplate([
+        createElement(
+          "cdx-button",
+          {
+            "v-on:click": "addNavboxRow",
+          },
+          [createText("Add navbox")],
+        ),
+        createElement(
+          "cdx-button",
+          {
+            "v-bind:disabled": "reviewState.loading",
+            "v-on:click": "checkNavboxRows",
+          },
+          [
+            createText(
+              "{{ reviewState.loading ? 'Checking' : 'Check' }}",
+            ),
+          ],
+        ),
+        createElement(
+          "cdx-button",
+          {
+            "v-bind:disabled": "reviewState.loading",
+            "v-on:click": "rebuildNavboxRows",
+          },
+          [
+            createText(
+              "{{ reviewState.loading ? 'Regenerating' : 'Regenerate' }}",
+            ),
+          ],
+        ),
+      ]),
+      createElement(
+        "p",
+        {
+          class: "create-vg-stub-error",
+          "v-if": "reviewState.error",
+        },
+        [createText("{{ reviewState.error }}")],
+      ),
     ],
   );
 }
@@ -2352,7 +2632,7 @@ function createFieldGroupTemplate() {
   return createElement(
     "template",
     {
-      "v-if": "!group.categoryReview && !group.nameGroupKey",
+      "v-if": "!group.nameGroupKey",
     },
     [
       createElement(
@@ -2761,6 +3041,7 @@ function createFormValues(defaultName) {
     categoryRows: [],
     localizedNames: [createNameRow()],
     name: "",
+    navboxRows: null,
     publishers: "=",
     sortKey: "",
   };
@@ -3185,6 +3466,12 @@ function replaceFormValues(form, values) {
 function normalizeReceivedFormValues(values) {
   const normalized = cloneValue(values);
 
+  if (!Object.hasOwn(normalized, "navboxRows")) {
+    normalized.navboxRows = null;
+  } else if (Array.isArray(normalized.navboxRows)) {
+    normalized.navboxRows = normalized.navboxRows.map(createNavboxRow);
+  }
+
   if (normalized.localizedNames == null) {
     normalized.localizedNames = [
       ...(normalized.officialNames || []).map((row) => ({
@@ -3202,6 +3489,49 @@ function normalizeReceivedFormValues(values) {
   delete normalized.commonNames;
 
   return normalized;
+}
+
+/**
+ * Ensures the form has editable navbox rows.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<string>} Navbox rows.
+ */
+function ensureNavboxRows(form) {
+  if (!Array.isArray(form.navboxRows)) {
+    form.navboxRows = [];
+  }
+
+  return form.navboxRows;
+}
+
+/**
+ * Creates one editable navbox row.
+ *
+ * @param {*} [value] - Existing row or navbox wikitext.
+ * @returns {object} Navbox row.
+ */
+function createNavboxRow(value = "") {
+  const text = trimFieldValue(value?.text ?? value);
+
+  return {
+    status: value?.status || "",
+    text,
+    title: value?.title || getNavboxTitle(text),
+  };
+}
+
+/**
+ * Extracts a template title from navbox wikitext.
+ *
+ * @param {*} value - Navbox wikitext.
+ * @returns {string} Template title without namespace.
+ */
+function getNavboxTitle(value) {
+  const text = trimFieldValue(value);
+  const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
+
+  return trimFieldValue(match?.[1] || text).replace(/^Template:/iu, "");
 }
 
 /**

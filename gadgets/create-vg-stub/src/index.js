@@ -397,6 +397,34 @@ function getDefaultName() {
 }
 
 /**
+ * Builds a category page URL.
+ *
+ * @param {string} category - Category title without namespace.
+ * @returns {string} Category page URL.
+ */
+const getCategoryPageUrl = (category) =>
+  mw.util.getUrl(`Category:${category}`);
+
+/**
+ * Builds a template page URL.
+ *
+ * @param {string} template - Template title without namespace.
+ * @param {boolean} edit - Whether to open the edit form.
+ * @returns {string} Template page URL.
+ */
+const getTemplatePageUrl = (template, edit = false) =>
+  mw.util.getUrl(`Template:${template}`, edit ? { action: "edit" } : {});
+
+/**
+ * Counts generated prose from current form values.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {number} Hanzi-equivalent sinograph count.
+ */
+const getFormProseSinographs = (form) =>
+  countGeneratedProseSinographs(createArticleParams(form));
+
+/**
  * Gets placeholder text for one form field.
  *
  * @param {object} form - Dialog form values.
@@ -871,7 +899,7 @@ async function buildStubTextFromForm(form, citationStore) {
 async function buildStubFromForm(form, citationStore) {
   const [sourceReferences, navboxText] = await Promise.all([
     fetchSourceReferences(form, citationStore),
-    buildNavboxText(form.series),
+    getFormNavboxText(form),
   ]);
   const params = createArticleParams({
     ...form,
@@ -882,6 +910,68 @@ async function buildStubFromForm(form, citationStore) {
   return {
     params,
     text: buildStubText(params),
+  };
+}
+
+/**
+ * Gets reviewed navbox text or generates suggestions from the series field.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Promise<string>} Navbox wikitext.
+ */
+async function getFormNavboxText(form) {
+  if (!Array.isArray(form.navboxRows)) {
+    return buildNavboxText(form.series);
+  }
+
+  return form.navboxRows
+    .map((row) => trimFieldValue(row?.text ?? row))
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Builds checked navbox review rows.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {boolean} rebuild - Whether to regenerate rows from the series field.
+ * @returns {Promise<Array<object>>} Checked navbox rows.
+ */
+async function prepareNavboxRows(form, rebuild) {
+  const texts =
+    rebuild || !Array.isArray(form.navboxRows)
+      ? (await buildNavboxText(form.series)).split("\n").filter(Boolean)
+      : form.navboxRows.map((row) => row?.text ?? row);
+  const rows = texts.map(buildNavboxReviewRow);
+  const titles = rows.map((row) => `Template:${row.title}`);
+  const existing = new Set(
+    (await fetchExistingPageTitles(new mw.Api(), titles)).map(normalizePageTitle),
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    status: existing.has(normalizePageTitle(`Template:${row.title}`))
+      ? "OK"
+      : "Not exists",
+  }));
+}
+
+/**
+ * Builds one navbox review row from entered wikitext.
+ *
+ * @param {*} value - Navbox wikitext.
+ * @returns {object} Navbox row.
+ */
+function buildNavboxReviewRow(value) {
+  const text = trimFieldValue(value);
+  const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
+  const title = trimFieldValue(match?.[1] || text)
+    .replace(/^Template:/iu, "");
+
+  return {
+    status: "",
+    text,
+    title,
   };
 }
 
@@ -1485,11 +1575,12 @@ function init(require) {
     createDialogComponent(Vue, {
       citationPrefetchDelay: CITATION_PREFETCH_DELAY,
       defaultName,
-      getCategoryPageUrl: (category) =>
-        mw.util.getUrl(`Category:${category}`),
+      getCategoryPageUrl,
+      getTemplatePageUrl,
       getHistoryEntries: readFormHistoryEntries,
       getFieldPlaceholder,
       getFieldPreview,
+      getProseSinographs: getFormProseSinographs,
       initialForm: movedEdit?.form || readFormDraftForPage(defaultName),
       initialOpen: movedEdit != null,
       onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
@@ -1515,6 +1606,7 @@ function init(require) {
       onFormChange: saveFormDraft,
       onMoveTarget: (...args) => openTargetPage(...args, citationStore),
       onPrepareCompanyCategory: prepareCompanyCategoryText,
+      onPrepareReview: prepareNavboxRows,
       async onPreSavePrepare(form, title) {
         const redirectTitles = buildRedirectTitles(form, title);
         const existingRedirectTitles = await fetchExistingPageTitles(

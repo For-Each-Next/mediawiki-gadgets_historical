@@ -11,13 +11,13 @@
  * @returns {string} References section, or an empty string.
  */
 export function buildReferencesText(references) {
-  if (references.length === 0) {
-    return "";
-  }
+    if (references.length === 0) {
+        return "";
+    }
 
-  return `== 参考文献 ==\n\n<references responsive>\n${references
-    .map(buildFullReferenceText)
-    .join("\n")}\n</references>`;
+    return `== 参考文献 ==\n\n<references responsive>\n${references
+        .map(buildFullReferenceText)
+        .join("\n")}\n</references>`;
 }
 
 /**
@@ -29,5 +29,5 @@ export function buildReferencesText(references) {
  * @returns {string} Full named reference wikitext.
  */
 function buildFullReferenceText(reference) {
-  return `<ref name="${reference.name}">${reference.citation}</ref>`;
+    return `<ref name="${reference.name}">${reference.citation}</ref>`;
 }

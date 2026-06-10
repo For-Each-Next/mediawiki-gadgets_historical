@@ -18,14 +18,14 @@ const TAIWAN_MARKETS = ["hant", "tw"];
  * @returns {string} NoteTA-lite template wikitext.
  */
 export function buildNoteTaText(params = {}) {
-  return buildTemplateText(
-    "NoteTA-lite",
-    [
-      ["G1", "Games"],
-      [null, buildOfficialNameConversionText(params.officialNames)],
-    ],
-    "block",
-  );
+    return buildTemplateText(
+        "NoteTA-lite",
+        [
+            ["G1", "Games"],
+            [null, buildOfficialNameConversionText(params.officialNames)],
+        ],
+        "block",
+    );
 }
 
 /**
@@ -35,21 +35,24 @@ export function buildNoteTaText(params = {}) {
  * @returns {string|undefined} Conversion rule, if both variants exist.
  */
 function buildOfficialNameConversionText(rows) {
-  const simplifiedName = findOfficialName(rows, SIMPLIFIED_MARKETS);
-  const hongKongName = findOfficialName(rows, HONG_KONG_MARKETS);
-  const taiwanName = findOfficialName(rows, TAIWAN_MARKETS);
+    const simplifiedName = findOfficialName(rows, SIMPLIFIED_MARKETS);
+    const hongKongName = findOfficialName(rows, HONG_KONG_MARKETS);
+    const taiwanName = findOfficialName(rows, TAIWAN_MARKETS);
 
-  if (simplifiedName == null || (hongKongName == null && taiwanName == null)) {
-    return undefined;
-  }
+    if (
+        simplifiedName == null ||
+        (hongKongName == null && taiwanName == null)
+    ) {
+        return undefined;
+    }
 
-  return [
-    buildConversionEntry("cn", simplifiedName),
-    buildConversionEntry("hk", hongKongName),
-    buildConversionEntry("tw", taiwanName),
-  ]
-    .filter(Boolean)
-    .join(" ");
+    return [
+        buildConversionEntry("cn", simplifiedName),
+        buildConversionEntry("hk", hongKongName),
+        buildConversionEntry("tw", taiwanName),
+    ]
+        .filter(Boolean)
+        .join(" ");
 }
 
 /**
@@ -60,7 +63,7 @@ function buildOfficialNameConversionText(rows) {
  * @returns {string|undefined} Conversion entry.
  */
 function buildConversionEntry(region, value) {
-  return value == null ? undefined : `zh-${region}:${value};`;
+    return value == null ? undefined : `zh-${region}:${value};`;
 }
 
 /**
@@ -71,9 +74,10 @@ function buildConversionEntry(region, value) {
  * @returns {string|undefined} Official name.
  */
 function findOfficialName(rows = [], markets) {
-  return (
-    rows.find((row) => hasAnyMarket(row, markets))?.name?.trim() || undefined
-  );
+    return (
+        rows.find((row) => hasAnyMarket(row, markets))?.name?.trim() ||
+        undefined
+    );
 }
 
 /**
@@ -85,9 +89,9 @@ function findOfficialName(rows = [], markets) {
  * @returns {boolean} Whether any requested market is selected.
  */
 function hasAnyMarket(row, markets) {
-  if (Array.isArray(row.markets)) {
-    return markets.some((market) => row.markets.includes(market));
-  }
+    if (Array.isArray(row.markets)) {
+        return markets.some((market) => row.markets.includes(market));
+    }
 
-  return markets.some((market) => row[market] === true);
+    return markets.some((market) => row[market] === true);
 }

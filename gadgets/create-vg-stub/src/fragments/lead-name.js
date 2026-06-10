@@ -20,7 +20,7 @@ const ITALIC_LANGUAGE_CODES = new Set(["en", "fr"]);
  * @returns {string} Lead name wikitext.
  */
 export function buildLeadNameText(params) {
-  return `《'''${params.name}'''》${buildVariantNameText(params)}`;
+    return `《'''${params.name}'''》${buildVariantNameText(params)}`;
 }
 
 /**
@@ -34,31 +34,31 @@ export function buildLeadNameText(params) {
  * @returns {string} Parenthesized title text, or an empty string.
  */
 function buildVariantNameText(params) {
-  if (params.originalName !== "") {
-    if (isSameBaseTitle(params.originalName, params.name)) {
-      return "";
+    if (params.originalName !== "") {
+        if (isSameBaseTitle(params.originalName, params.name)) {
+            return "";
+        }
+
+        return buildVariantNameVariantText({
+            code: params.originalLanguage,
+            name: params.originalName,
+            ref: params.sourceTags.originalName || "",
+        });
     }
 
-    return buildVariantNameVariantText({
-      code: params.originalLanguage,
-      name: params.originalName,
-      ref: params.sourceTags.originalName || "",
-    });
-  }
+    if (params.englishName !== "") {
+        if (isSameBaseTitle(params.englishName, params.name)) {
+            return "";
+        }
 
-  if (params.englishName !== "") {
-    if (isSameBaseTitle(params.englishName, params.name)) {
-      return "";
+        return buildVariantNameVariantText({
+            code: "en",
+            name: params.englishName,
+            ref: params.sourceTags.englishName || "",
+        });
     }
 
-    return buildVariantNameVariantText({
-      code: "en",
-      name: params.englishName,
-      ref: params.sourceTags.englishName || "",
-    });
-  }
-
-  return "";
+    return "";
 }
 
 /**
@@ -71,7 +71,7 @@ function buildVariantNameText(params) {
  * @returns {string} Parenthesized variant title text.
  */
 function buildVariantNameVariantText(variant) {
-  return `（${buildLangxTemplate(variant.code, variant.name)}${variant.ref}）`;
+    return `（${buildLangxTemplate(variant.code, variant.name)}${variant.ref}）`;
 }
 
 /**
@@ -82,15 +82,12 @@ function buildVariantNameVariantText(variant) {
  * @returns {string} Langx template wikitext.
  */
 function buildLangxTemplate(language, text) {
-  return buildTemplateText(
-    "langx",
-    [
-      [1, language],
-      [2, text],
-      ["italic", buildLangxItalicParam(language)],
-      ["label", "none"],
-    ],
-  );
+    return buildTemplateText("langx", [
+        [1, language],
+        [2, text],
+        ["italic", buildLangxItalicParam(language)],
+        ["label", "none"],
+    ]);
 }
 
 /**
@@ -100,7 +97,7 @@ function buildLangxTemplate(language, text) {
  * @returns {string} Langx italic parameter, or an empty string.
  */
 function buildLangxItalicParam(language) {
-  return ITALIC_LANGUAGE_CODES.has(language) ? "yes" : undefined;
+    return ITALIC_LANGUAGE_CODES.has(language) ? "yes" : undefined;
 }
 
 /**
@@ -111,8 +108,10 @@ function buildLangxItalicParam(language) {
  * @returns {boolean} Whether the names are equivalent.
  */
 function isSameBaseTitle(variantName, articleTitle) {
-  return normalizeTitleForComparison(variantName) ===
-    normalizeTitleForComparison(articleTitle);
+    return (
+        normalizeTitleForComparison(variantName) ===
+        normalizeTitleForComparison(articleTitle)
+    );
 }
 
 /**
@@ -122,5 +121,7 @@ function isSameBaseTitle(variantName, articleTitle) {
  * @returns {string} Normalized title.
  */
 function normalizeTitleForComparison(title) {
-  return String(title || "").trim().replace(/ \(.+?\)$/u, "");
+    return String(title || "")
+        .trim()
+        .replace(/ \(.+?\)$/u, "");
 }

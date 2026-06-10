@@ -4,23 +4,20 @@
  * Builds and resolves category review data.
  */
 
-import {
-  buildTemplateCall,
-  uniqueValues,
-} from "./utils.js";
+import { buildTemplateCall, uniqueValues } from "./utils.js";
 
 const API_ENDPOINT = "/w/api.php";
 const CATEGORY_NAMESPACE = "Category:";
 const CATEGORY_BATCH_SIZE = 50;
 const CATEGORY_REDIRECT_PROPS = [
-  "category_redirect_target",
-  "categoryredirect",
-  "category_redirect",
+    "category_redirect_target",
+    "categoryredirect",
+    "category_redirect",
 ];
 const CATEGORY_STATUS = {
-  exists: "OK",
-  missing: "Not exists",
-  unchecked: "",
+    exists: "OK",
+    missing: "Not exists",
+    unchecked: "",
 };
 const LEGACY_MANUAL_CATEGORY_SOURCE = "manual added";
 const MODIFIED_SOURCE_SUFFIX = " †";
@@ -35,9 +32,9 @@ const SOURCE_MANUAL = "manual";
  * @returns {object} Category review row.
  */
 export function createManualCategoryRow() {
-  return createCategoryRow({
-    source: SOURCE_MANUAL,
-  });
+    return createCategoryRow({
+        source: SOURCE_MANUAL,
+    });
 }
 
 /**
@@ -47,15 +44,16 @@ export function createManualCategoryRow() {
  * @returns {object} Reset category row.
  */
 export function resetCategoryRow(row) {
-  const source = getBaseSource(row.source);
+    const source = getBaseSource(row.source);
 
-  return normalizeCategoryRow({
-    ...row,
-    category: row.originalCategory,
-    source,
-    status: source === SOURCE_FITTING ? CATEGORY_STATUS.unchecked : row.status,
-    stubTagEnabled: row.originalStubTagEnabled,
-  });
+    return normalizeCategoryRow({
+        ...row,
+        category: row.originalCategory,
+        source,
+        status:
+            source === SOURCE_FITTING ? CATEGORY_STATUS.unchecked : row.status,
+        stubTagEnabled: row.originalStubTagEnabled,
+    });
 }
 
 /**
@@ -65,11 +63,11 @@ export function resetCategoryRow(row) {
  * @returns {Array<object>} Reset category review rows.
  */
 export function resetGeneratedCategoryRows(rows) {
-  return rows.map((row) =>
-    isManualCategoryRow(row)
-      ? normalizeCategoryRow(row)
-      : resetCategoryRow(row),
-  );
+    return rows.map((row) =>
+        isManualCategoryRow(row)
+            ? normalizeCategoryRow(row)
+            : resetCategoryRow(row),
+    );
 }
 
 /**
@@ -80,10 +78,10 @@ export function resetGeneratedCategoryRows(rows) {
  * @returns {object} Updated category review row.
  */
 export function updateCategoryRowCategory(row, category) {
-  return normalizeCategoryRow({
-    ...row,
-    category,
-  });
+    return normalizeCategoryRow({
+        ...row,
+        category,
+    });
 }
 
 /**
@@ -98,25 +96,25 @@ export function updateCategoryRowCategory(row, category) {
  * @returns {Promise<Array<object>>} Category review rows.
  */
 export async function buildCategoryRows(
-  form,
-  params,
-  previousRows = [],
-  options = {},
+    form,
+    params,
+    previousRows = [],
+    options = {},
 ) {
-  const generatedRows = await buildGeneratedCategoryRows(params, options);
-  const mergedGeneratedRows = mergePreviousGeneratedRows(
-    generatedRows,
-    previousRows,
-  );
-  const rows = [
-    ...(await resolveCheckableCategoryRows(mergedGeneratedRows, options)),
-    ...(await resolveCategoryRows(
-      getManualCategoryRows(previousRows),
-      options,
-    )),
-  ];
+    const generatedRows = await buildGeneratedCategoryRows(params, options);
+    const mergedGeneratedRows = mergePreviousGeneratedRows(
+        generatedRows,
+        previousRows,
+    );
+    const rows = [
+        ...(await resolveCheckableCategoryRows(mergedGeneratedRows, options)),
+        ...(await resolveCategoryRows(
+            getManualCategoryRows(previousRows),
+            options,
+        )),
+    ];
 
-  return uniqueCategoryRows(rows.map(normalizeCategoryRow));
+    return uniqueCategoryRows(rows.map(normalizeCategoryRow));
 }
 
 /**
@@ -126,34 +124,34 @@ export async function buildCategoryRows(
  * @returns {Array<object>} Category review rows.
  */
 export function buildFallbackCategoryRows(params) {
-  return uniqueCategoryRows(
-    [
-      ...buildSourceCategoryRows(
-        SOURCE_DATA,
-        params.companyMetadata.categories,
-        {
-          stubTagEnabled: true,
-          stubTags: params.companyMetadata.stubTags,
-        },
-      ),
-      ...buildSourceCategoryRows(
-        SOURCE_DATA,
-        params.platformSeriesMetadata.categories,
-        {
-          stubTagEnabled: true,
-          stubTags: params.platformSeriesMetadata.stubTags,
-        },
-      ),
-      ...buildSourceCategoryRows(
-        SOURCE_DATA,
-        params.yearGenreMetadata.categories,
-        {
-          stubTagEnabled: true,
-          stubTags: params.yearGenreMetadata.stubTags,
-        },
-      ),
-    ].map(normalizeCategoryRow),
-  );
+    return uniqueCategoryRows(
+        [
+            ...buildSourceCategoryRows(
+                SOURCE_DATA,
+                params.companyMetadata.categories,
+                {
+                    stubTagEnabled: true,
+                    stubTags: params.companyMetadata.stubTags,
+                },
+            ),
+            ...buildSourceCategoryRows(
+                SOURCE_DATA,
+                params.platformSeriesMetadata.categories,
+                {
+                    stubTagEnabled: true,
+                    stubTags: params.platformSeriesMetadata.stubTags,
+                },
+            ),
+            ...buildSourceCategoryRows(
+                SOURCE_DATA,
+                params.yearGenreMetadata.categories,
+                {
+                    stubTagEnabled: true,
+                    stubTags: params.yearGenreMetadata.stubTags,
+                },
+            ),
+        ].map(normalizeCategoryRow),
+    );
 }
 
 /**
@@ -163,7 +161,7 @@ export function buildFallbackCategoryRows(params) {
  * @returns {Array<string>} Category link wikitext.
  */
 export function buildCategoryLinks(rows) {
-  return rows.filter(isRenderableCategoryRow).map(buildCategoryLink);
+    return rows.filter(isRenderableCategoryRow).map(buildCategoryLink);
 }
 
 /**
@@ -175,13 +173,13 @@ export function buildCategoryLinks(rows) {
  * @returns {string} Category wikitext.
  */
 export function buildCategoryText(params) {
-  const categoryText = getCategoryLinks(params).join("\n");
+    const categoryText = getCategoryLinks(params).join("\n");
 
-  if (categoryText === "") {
-    return "";
-  }
+    if (categoryText === "") {
+        return "";
+    }
 
-  return `${params.defaultSortText}\n${categoryText}`;
+    return `${params.defaultSortText}\n${categoryText}`;
 }
 
 /**
@@ -191,11 +189,11 @@ export function buildCategoryText(params) {
  * @returns {Array<string>} Category links.
  */
 export function getCategoryLinks(params) {
-  if (params.categoryRows.length > 0) {
-    return buildCategoryLinks(params.categoryRows);
-  }
+    if (params.categoryRows.length > 0) {
+        return buildCategoryLinks(params.categoryRows);
+    }
 
-  return buildCategoryLinks(buildFallbackCategoryRows(params));
+    return buildCategoryLinks(buildFallbackCategoryRows(params));
 }
 
 /**
@@ -205,9 +203,7 @@ export function getCategoryLinks(params) {
  * @returns {string} Stub tag wikitext.
  */
 export function buildStubTagText(params) {
-  return uniqueValues(getStubTags(params))
-    .map(buildTemplateCall)
-    .join("\n");
+    return uniqueValues(getStubTags(params)).map(buildTemplateCall).join("\n");
 }
 
 /**
@@ -217,15 +213,15 @@ export function buildStubTagText(params) {
  * @returns {Array<string>} Stub tag template titles.
  */
 function getStubTags(params) {
-  const rows =
-    params.categoryRows.length > 0
-      ? params.categoryRows
-      : buildFallbackCategoryRows(params);
+    const rows =
+        params.categoryRows.length > 0
+            ? params.categoryRows
+            : buildFallbackCategoryRows(params);
 
-  return rows
-    .filter(isRenderableStubTagRow)
-    .map((row) => row.stubTag)
-    .filter(Boolean);
+    return rows
+        .filter(isRenderableStubTagRow)
+        .map((row) => row.stubTag)
+        .filter(Boolean);
 }
 
 /**
@@ -238,28 +234,28 @@ function getStubTags(params) {
  * @returns {Promise<Array<object>>} Resolved category rows.
  */
 export async function resolveCategoryRows(rows, options = {}) {
-  const normalizedRows = rows.map(normalizeCategoryRow);
-  const categories = uniqueValues(
-    normalizedRows.map((row) => row.category).filter(Boolean),
-  );
+    const normalizedRows = rows.map(normalizeCategoryRow);
+    const categories = uniqueValues(
+        normalizedRows.map((row) => row.category).filter(Boolean),
+    );
 
-  if (categories.length === 0) {
-    return normalizedRows;
-  }
+    if (categories.length === 0) {
+        return normalizedRows;
+    }
 
-  const resolutions = await resolveCategories(categories, options);
+    const resolutions = await resolveCategories(categories, options);
 
-  return normalizedRows.map((row) =>
-    normalizeCategoryRow({
-      ...row,
-      category:
-        resolutions[normalizeCategoryKey(row.category)]?.category ||
-        row.category,
-      status:
-        resolutions[normalizeCategoryKey(row.category)]?.status ||
-        CATEGORY_STATUS.unchecked,
-    }),
-  );
+    return normalizedRows.map((row) =>
+        normalizeCategoryRow({
+            ...row,
+            category:
+                resolutions[normalizeCategoryKey(row.category)]?.category ||
+                row.category,
+            status:
+                resolutions[normalizeCategoryKey(row.category)]?.status ||
+                CATEGORY_STATUS.unchecked,
+        }),
+    );
 }
 
 /**
@@ -270,51 +266,51 @@ export async function resolveCategoryRows(rows, options = {}) {
  * @returns {Promise<Array<object>>} Generated category rows.
  */
 async function buildGeneratedCategoryRows(params, options) {
-  const companyRows = buildCategoryItems(
-    params.companyMetadata.categoryItems,
-    {
-      source: SOURCE_DATA,
-    },
-  );
-  const seriesRows = (params.platformSeriesMetadata.categoryPlans || []).map(
-    createCategoryPlan,
-  );
-  const platformStubTagEnabled =
-    params.platformSeriesMetadata.platformCount === 1;
-  const metadataRows = [
-    ...buildSourceCategoryRows(
-      SOURCE_DATA,
-      params.platformSeriesMetadata.categories,
-      {
-        stubTagEnabled: platformStubTagEnabled,
-        stubTags: params.platformSeriesMetadata.stubTags,
-      },
-    ),
-    ...buildSourceCategoryRows(
-      SOURCE_DATA,
-      params.yearGenreMetadata.categories,
-      {
-        stubTagEnabled: true,
-        stubTags: params.yearGenreMetadata.stubTags,
-      },
-    ),
-  ];
-  const resolutions = await resolveCategories(
-    uniqueValues(
-      [
-        ...companyRows.flatMap(getCategoryPlanCandidates),
-        ...seriesRows.flatMap(getCategoryPlanCandidates),
-        ...metadataRows.map((row) => row.category),
-      ].filter(Boolean),
-    ),
-    options,
-  );
+    const companyRows = buildCategoryItems(
+        params.companyMetadata.categoryItems,
+        {
+            source: SOURCE_DATA,
+        },
+    );
+    const seriesRows = (params.platformSeriesMetadata.categoryPlans || []).map(
+        createCategoryPlan,
+    );
+    const platformStubTagEnabled =
+        params.platformSeriesMetadata.platformCount === 1;
+    const metadataRows = [
+        ...buildSourceCategoryRows(
+            SOURCE_DATA,
+            params.platformSeriesMetadata.categories,
+            {
+                stubTagEnabled: platformStubTagEnabled,
+                stubTags: params.platformSeriesMetadata.stubTags,
+            },
+        ),
+        ...buildSourceCategoryRows(
+            SOURCE_DATA,
+            params.yearGenreMetadata.categories,
+            {
+                stubTagEnabled: true,
+                stubTags: params.yearGenreMetadata.stubTags,
+            },
+        ),
+    ];
+    const resolutions = await resolveCategories(
+        uniqueValues(
+            [
+                ...companyRows.flatMap(getCategoryPlanCandidates),
+                ...seriesRows.flatMap(getCategoryPlanCandidates),
+                ...metadataRows.map((row) => row.category),
+            ].filter(Boolean),
+        ),
+        options,
+    );
 
-  return [
-    ...resolveCategoryPlans(companyRows, resolutions),
-    ...resolveCategoryPlans(seriesRows, resolutions),
-    ...applyCategoryResolutions(metadataRows, resolutions),
-  ];
+    return [
+        ...resolveCategoryPlans(companyRows, resolutions),
+        ...resolveCategoryPlans(seriesRows, resolutions),
+        ...applyCategoryResolutions(metadataRows, resolutions),
+    ];
 }
 
 /**
@@ -328,16 +324,16 @@ async function buildGeneratedCategoryRows(params, options) {
  * @returns {Array<object>} Category rows.
  */
 function buildSourceCategoryRows(source, categories, options = {}) {
-  return (categories || []).map((category, index) => {
-    const stubTag = options.stubTags?.[index] || "";
+    return (categories || []).map((category, index) => {
+        const stubTag = options.stubTags?.[index] || "";
 
-    return createCategoryRow({
-      category,
-      source,
-      stubTag,
-      stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
+        return createCategoryRow({
+            category,
+            source,
+            stubTag,
+            stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
+        });
     });
-  });
 }
 
 /**
@@ -349,16 +345,16 @@ function buildSourceCategoryRows(source, categories, options = {}) {
  * @returns {Array<object>} Category rows or lookup plans.
  */
 function buildCategoryItems(items = [], options = {}) {
-  return items.map((item) => {
-    if (Array.isArray(item.candidates)) {
-      return createCategoryPlan(item);
-    }
+    return items.map((item) => {
+        if (Array.isArray(item.candidates)) {
+            return createCategoryPlan(item);
+        }
 
-    return createCategoryRow({
-      source: options.source,
-      ...item,
+        return createCategoryRow({
+            source: options.source,
+            ...item,
+        });
     });
-  });
 }
 
 /**
@@ -370,11 +366,11 @@ function buildCategoryItems(items = [], options = {}) {
  * @returns {object} Category lookup plan.
  */
 function createCategoryPlan(values) {
-  return {
-    candidates: uniqueValues(values.candidates || []),
-    company: values.company || "",
-    fallback: values.fallback,
-  };
+    return {
+        candidates: uniqueValues(values.candidates || []),
+        company: values.company || "",
+        fallback: values.fallback,
+    };
 }
 
 /**
@@ -384,11 +380,11 @@ function createCategoryPlan(values) {
  * @returns {Array<string>} Candidate category titles.
  */
 function getCategoryPlanCandidates(item) {
-  if (Array.isArray(item.candidates)) {
-    return item.candidates;
-  }
+    if (Array.isArray(item.candidates)) {
+        return item.candidates;
+    }
 
-  return item.category ? [item.category] : [];
+    return item.category ? [item.category] : [];
 }
 
 /**
@@ -399,32 +395,32 @@ function getCategoryPlanCandidates(item) {
  * @returns {Array<object>} Category rows.
  */
 function resolveCategoryPlans(items, resolutions) {
-  return items.map((item) => {
-    if (!Array.isArray(item.candidates)) {
-      return applyCategoryResolution(item, resolutions);
-    }
+    return items.map((item) => {
+        if (!Array.isArray(item.candidates)) {
+            return applyCategoryResolution(item, resolutions);
+        }
 
-    const resolution = item.candidates
-      .map((candidate) => resolutions[normalizeCategoryKey(candidate)])
-      .find((candidateResolution) => candidateResolution?.exists);
+        const resolution = item.candidates
+            .map((candidate) => resolutions[normalizeCategoryKey(candidate)])
+            .find((candidateResolution) => candidateResolution?.exists);
 
-    if (resolution != null) {
-      return createCategoryRow({
-        category: resolution.category,
-        company: item.company,
-        source: SOURCE_FETCH,
-        status: resolution.status,
-      });
-    }
+        if (resolution != null) {
+            return createCategoryRow({
+                category: resolution.category,
+                company: item.company,
+                source: SOURCE_FETCH,
+                status: resolution.status,
+            });
+        }
 
-    return createCategoryRow({
-      category: item.fallback,
-      company: item.company,
-      enabled: false,
-      source: SOURCE_FITTING,
-      status: CATEGORY_STATUS.unchecked,
+        return createCategoryRow({
+            category: item.fallback,
+            company: item.company,
+            enabled: false,
+            source: SOURCE_FITTING,
+            status: CATEGORY_STATUS.unchecked,
+        });
     });
-  });
 }
 
 /**
@@ -435,7 +431,7 @@ function resolveCategoryPlans(items, resolutions) {
  * @returns {Array<object>} Category rows with resolved titles/statuses.
  */
 function applyCategoryResolutions(rows, resolutions) {
-  return rows.map((row) => applyCategoryResolution(row, resolutions));
+    return rows.map((row) => applyCategoryResolution(row, resolutions));
 }
 
 /**
@@ -446,20 +442,20 @@ function applyCategoryResolutions(rows, resolutions) {
  * @returns {object} Category row with resolved title/status.
  */
 function applyCategoryResolution(row, resolutions) {
-  const resolution = resolutions[normalizeCategoryKey(row.category)];
-  const isEdited =
-    normalizeCategoryKey(row.category) !==
-    normalizeCategoryKey(row.originalCategory);
+    const resolution = resolutions[normalizeCategoryKey(row.category)];
+    const isEdited =
+        normalizeCategoryKey(row.category) !==
+        normalizeCategoryKey(row.originalCategory);
 
-  return normalizeCategoryRow({
-    ...row,
-    category: resolution?.category || row.category,
-    originalCategory:
-      !isEdited && resolution?.category != null
-        ? resolution.category
-        : row.originalCategory,
-    status: resolution?.status || CATEGORY_STATUS.unchecked,
-  });
+    return normalizeCategoryRow({
+        ...row,
+        category: resolution?.category || row.category,
+        originalCategory:
+            !isEdited && resolution?.category != null
+                ? resolution.category
+                : row.originalCategory,
+        status: resolution?.status || CATEGORY_STATUS.unchecked,
+    });
 }
 
 /**
@@ -477,17 +473,17 @@ function applyCategoryResolution(row, resolutions) {
  * @returns {object} Category review row.
  */
 function createCategoryRow(values = {}) {
-  return normalizeCategoryRow({
-    category: "",
-    enabled: true,
-    originalCategory: values.category || "",
-    source: "",
-    status: CATEGORY_STATUS.unchecked,
-    stubTag: "",
-    stubTagEnabled: false,
-    originalStubTagEnabled: values.stubTagEnabled === true,
-    ...values,
-  });
+    return normalizeCategoryRow({
+        category: "",
+        enabled: true,
+        originalCategory: values.category || "",
+        source: "",
+        status: CATEGORY_STATUS.unchecked,
+        stubTag: "",
+        stubTagEnabled: false,
+        originalStubTagEnabled: values.stubTagEnabled === true,
+        ...values,
+    });
 }
 
 /**
@@ -497,26 +493,30 @@ function createCategoryRow(values = {}) {
  * @returns {object} Normalized category row.
  */
 function normalizeCategoryRow(row) {
-  const originalCategory = normalizeCategoryTitle(
-    row.originalCategory || row.category,
-  );
-  const category = normalizeCategoryTitle(row.category);
-  const source = normalizeSourceLabel(row.source, category, originalCategory);
+    const originalCategory = normalizeCategoryTitle(
+        row.originalCategory || row.category,
+    );
+    const category = normalizeCategoryTitle(row.category);
+    const source = normalizeSourceLabel(
+        row.source,
+        category,
+        originalCategory,
+    );
 
-  return {
-    category,
-    company: trimValue(row.company),
-    enabled: row.enabled !== false,
-    originalCategory,
-    source,
-    status: trimValue(row.status),
-    stubTag: trimValue(row.stubTag),
-    stubTagEnabled: row.stubTagEnabled === true,
-    originalStubTagEnabled:
-      row.originalStubTagEnabled == null
-        ? row.stubTagEnabled === true
-        : row.originalStubTagEnabled === true,
-  };
+    return {
+        category,
+        company: trimValue(row.company),
+        enabled: row.enabled !== false,
+        originalCategory,
+        source,
+        status: trimValue(row.status),
+        stubTag: trimValue(row.stubTag),
+        stubTagEnabled: row.stubTagEnabled === true,
+        originalStubTagEnabled:
+            row.originalStubTagEnabled == null
+                ? row.stubTagEnabled === true
+                : row.originalStubTagEnabled === true,
+    };
 }
 
 /**
@@ -528,22 +528,23 @@ function normalizeCategoryRow(row) {
  * @returns {string} Source label.
  */
 function normalizeSourceLabel(source, category, originalCategory) {
-  const cleanSource = trimValue(source).replace(
-    new RegExp(`${escapeRegExp(MODIFIED_SOURCE_SUFFIX)}$`, "u"),
-    "",
-  );
+    const cleanSource = trimValue(source).replace(
+        new RegExp(`${escapeRegExp(MODIFIED_SOURCE_SUFFIX)}$`, "u"),
+        "",
+    );
 
-  if (
-    cleanSource === SOURCE_MANUAL ||
-    cleanSource === LEGACY_MANUAL_CATEGORY_SOURCE ||
-    category === "" ||
-    originalCategory === "" ||
-    normalizeCategoryKey(category) === normalizeCategoryKey(originalCategory)
-  ) {
-    return cleanSource;
-  }
+    if (
+        cleanSource === SOURCE_MANUAL ||
+        cleanSource === LEGACY_MANUAL_CATEGORY_SOURCE ||
+        category === "" ||
+        originalCategory === "" ||
+        normalizeCategoryKey(category) ===
+            normalizeCategoryKey(originalCategory)
+    ) {
+        return cleanSource;
+    }
 
-  return `${cleanSource}${MODIFIED_SOURCE_SUFFIX}`;
+    return `${cleanSource}${MODIFIED_SOURCE_SUFFIX}`;
 }
 
 /**
@@ -553,7 +554,7 @@ function normalizeSourceLabel(source, category, originalCategory) {
  * @returns {Array<object>} Manual category rows.
  */
 function getManualCategoryRows(rows) {
-  return rows.filter(isManualCategoryRow);
+    return rows.filter(isManualCategoryRow);
 }
 
 /**
@@ -563,9 +564,9 @@ function getManualCategoryRows(rows) {
  * @returns {boolean} Whether the row is manual.
  */
 function isManualCategoryRow(row) {
-  return [SOURCE_MANUAL, LEGACY_MANUAL_CATEGORY_SOURCE].includes(
-    getBaseSource(row.source),
-  );
+    return [SOURCE_MANUAL, LEGACY_MANUAL_CATEGORY_SOURCE].includes(
+        getBaseSource(row.source),
+    );
 }
 
 /**
@@ -576,25 +577,25 @@ function isManualCategoryRow(row) {
  * @returns {Array<object>} Merged category rows.
  */
 function mergePreviousGeneratedRows(generatedRows, previousRows) {
-  return generatedRows.map((row) => {
-    const previous = previousRows.find((item) =>
-      hasSameGeneratedRow(row, item),
-    );
+    return generatedRows.map((row) => {
+        const previous = previousRows.find((item) =>
+            hasSameGeneratedRow(row, item),
+        );
 
-    if (previous == null) {
-      return row;
-    }
+        if (previous == null) {
+            return row;
+        }
 
-    return {
-      ...row,
-      category: previous.category,
-      enabled: previous.enabled,
-      stubTagEnabled:
-        previous.stubTagEnabled == null
-          ? row.stubTagEnabled
-          : previous.stubTagEnabled,
-    };
-  });
+        return {
+            ...row,
+            category: previous.category,
+            enabled: previous.enabled,
+            stubTagEnabled:
+                previous.stubTagEnabled == null
+                    ? row.stubTagEnabled
+                    : previous.stubTagEnabled,
+        };
+    });
 }
 
 /**
@@ -605,15 +606,15 @@ function mergePreviousGeneratedRows(generatedRows, previousRows) {
  * @returns {Promise<Array<object>>} Category rows with refreshed statuses.
  */
 async function resolveCheckableCategoryRows(rows, options) {
-  const checkableRows = rows.filter(shouldCheckCategoryRow);
-  const resolvedRows = await resolveCategoryRows(checkableRows, options);
-  const resolvedByOriginal = Object.fromEntries(
-    resolvedRows.map((row) => [getCategoryRowIdentity(row), row]),
-  );
+    const checkableRows = rows.filter(shouldCheckCategoryRow);
+    const resolvedRows = await resolveCategoryRows(checkableRows, options);
+    const resolvedByOriginal = Object.fromEntries(
+        resolvedRows.map((row) => [getCategoryRowIdentity(row), row]),
+    );
 
-  return rows.map(
-    (row) => resolvedByOriginal[getCategoryRowIdentity(row)] || row,
-  );
+    return rows.map(
+        (row) => resolvedByOriginal[getCategoryRowIdentity(row)] || row,
+    );
 }
 
 /**
@@ -623,11 +624,11 @@ async function resolveCheckableCategoryRows(rows, options) {
  * @returns {boolean} Whether the row should be checked.
  */
 function shouldCheckCategoryRow(row) {
-  return (
-    normalizeCategoryTitle(row.category) !== "" &&
-    normalizeCategoryKey(row.category) !==
-    normalizeCategoryKey(row.originalCategory)
-  );
+    return (
+        normalizeCategoryTitle(row.category) !== "" &&
+        normalizeCategoryKey(row.category) !==
+            normalizeCategoryKey(row.originalCategory)
+    );
 }
 
 /**
@@ -637,7 +638,7 @@ function shouldCheckCategoryRow(row) {
  * @returns {string} Category row identity.
  */
 function getCategoryRowIdentity(row) {
-  return `${getBaseSource(row.source)}\n${normalizeCategoryKey(row.originalCategory)}`;
+    return `${getBaseSource(row.source)}\n${normalizeCategoryKey(row.originalCategory)}`;
 }
 
 /**
@@ -648,11 +649,11 @@ function getCategoryRowIdentity(row) {
  * @returns {boolean} Whether the rows match.
  */
 function hasSameGeneratedRow(row, previous) {
-  return (
-    getBaseSource(row.source) === getBaseSource(previous.source) &&
-    normalizeCategoryKey(row.originalCategory) ===
-    normalizeCategoryKey(previous.originalCategory)
-  );
+    return (
+        getBaseSource(row.source) === getBaseSource(previous.source) &&
+        normalizeCategoryKey(row.originalCategory) ===
+            normalizeCategoryKey(previous.originalCategory)
+    );
 }
 
 /**
@@ -662,10 +663,10 @@ function hasSameGeneratedRow(row, previous) {
  * @returns {string} Base source label.
  */
 function getBaseSource(source) {
-  return trimValue(source).replace(
-    new RegExp(`${escapeRegExp(MODIFIED_SOURCE_SUFFIX)}$`, "u"),
-    "",
-  );
+    return trimValue(source).replace(
+        new RegExp(`${escapeRegExp(MODIFIED_SOURCE_SUFFIX)}$`, "u"),
+        "",
+    );
 }
 
 /**
@@ -675,7 +676,9 @@ function getBaseSource(source) {
  * @returns {boolean} Whether the row should render.
  */
 function isRenderableCategoryRow(row) {
-  return row.enabled !== false && normalizeCategoryTitle(row.category) !== "";
+    return (
+        row.enabled !== false && normalizeCategoryTitle(row.category) !== ""
+    );
 }
 
 /**
@@ -685,11 +688,11 @@ function isRenderableCategoryRow(row) {
  * @returns {boolean} Whether the row's stub tag should render.
  */
 function isRenderableStubTagRow(row) {
-  return (
-    isRenderableCategoryRow(row) &&
-    row.stubTagEnabled === true &&
-    trimValue(row.stubTag) !== ""
-  );
+    return (
+        isRenderableCategoryRow(row) &&
+        row.stubTagEnabled === true &&
+        trimValue(row.stubTag) !== ""
+    );
 }
 
 /**
@@ -700,7 +703,7 @@ function isRenderableStubTagRow(row) {
  * @returns {string} Category wikitext.
  */
 function buildCategoryLink(row) {
-  return `[[Category:${row.category}]]`;
+    return `[[Category:${row.category}]]`;
 }
 
 /**
@@ -711,22 +714,22 @@ function buildCategoryLink(row) {
  * @returns {Promise<object>} Resolutions keyed by normalized category title.
  */
 async function resolveCategories(categories, options) {
-  const cache = options.cache || {};
-  const missing = categories.filter(
-    (category) => cache[normalizeCategoryKey(category)] == null,
-  );
-  const categoriesToFetch = options.bypassCache ? categories : missing;
+    const cache = options.cache || {};
+    const missing = categories.filter(
+        (category) => cache[normalizeCategoryKey(category)] == null,
+    );
+    const categoriesToFetch = options.bypassCache ? categories : missing;
 
-  for (const batch of chunkValues(categoriesToFetch, CATEGORY_BATCH_SIZE)) {
-    Object.assign(cache, await fetchCategoryResolutions(batch, options));
-  }
+    for (const batch of chunkValues(categoriesToFetch, CATEGORY_BATCH_SIZE)) {
+        Object.assign(cache, await fetchCategoryResolutions(batch, options));
+    }
 
-  return Object.fromEntries(
-    categories.map((category) => [
-      normalizeCategoryKey(category),
-      cache[normalizeCategoryKey(category)],
-    ]),
-  );
+    return Object.fromEntries(
+        categories.map((category) => [
+            normalizeCategoryKey(category),
+            cache[normalizeCategoryKey(category)],
+        ]),
+    );
 }
 
 /**
@@ -737,53 +740,56 @@ async function resolveCategories(categories, options) {
  * @returns {Promise<object>} Resolutions keyed by normalized category title.
  */
 async function fetchCategoryResolutions(categories, options) {
-  try {
-    const data = await fetchCategoryQuery(categories, options);
-    const resolutions = Object.fromEntries(
-      categories.map((category) => [
-        normalizeCategoryKey(category),
-        getCategoryResolution(category, data),
-      ]),
-    );
-    const redirectTargets = uniqueValues(
-      Object.values(resolutions)
-        .map((resolution) => resolution.redirectTarget)
-        .filter(Boolean),
-    );
+    try {
+        const data = await fetchCategoryQuery(categories, options);
+        const resolutions = Object.fromEntries(
+            categories.map((category) => [
+                normalizeCategoryKey(category),
+                getCategoryResolution(category, data),
+            ]),
+        );
+        const redirectTargets = uniqueValues(
+            Object.values(resolutions)
+                .map((resolution) => resolution.redirectTarget)
+                .filter(Boolean),
+        );
 
-    if (redirectTargets.length === 0) {
-      return addResolutionAliases(resolutions);
+        if (redirectTargets.length === 0) {
+            return addResolutionAliases(resolutions);
+        }
+
+        const redirectData = await fetchCategoryQuery(
+            redirectTargets,
+            options,
+        );
+
+        redirectTargets.forEach((target) => {
+            resolutions[normalizeCategoryKey(target)] = getCategoryResolution(
+                target,
+                redirectData,
+            );
+        });
+
+        return addResolutionAliases(
+            Object.fromEntries(
+                Object.entries(resolutions).map(([key, resolution]) => [
+                    key,
+                    resolveCategoryRedirect(resolution, resolutions),
+                ]),
+            ),
+        );
+    } catch (_error) {
+        return Object.fromEntries(
+            categories.map((category) => [
+                normalizeCategoryKey(category),
+                {
+                    category: normalizeCategoryTitle(category),
+                    exists: false,
+                    status: CATEGORY_STATUS.missing,
+                },
+            ]),
+        );
     }
-
-    const redirectData = await fetchCategoryQuery(redirectTargets, options);
-
-    redirectTargets.forEach((target) => {
-      resolutions[normalizeCategoryKey(target)] = getCategoryResolution(
-        target,
-        redirectData,
-      );
-    });
-
-    return addResolutionAliases(
-      Object.fromEntries(
-        Object.entries(resolutions).map(([key, resolution]) => [
-          key,
-          resolveCategoryRedirect(resolution, resolutions),
-        ]),
-      ),
-    );
-  } catch (_error) {
-    return Object.fromEntries(
-      categories.map((category) => [
-        normalizeCategoryKey(category),
-        {
-          category: normalizeCategoryTitle(category),
-          exists: false,
-          status: CATEGORY_STATUS.missing,
-        },
-      ]),
-    );
-  }
 }
 
 /**
@@ -793,11 +799,11 @@ async function fetchCategoryResolutions(categories, options) {
  * @returns {object} Category resolutions with aliases.
  */
 function addResolutionAliases(resolutions) {
-  Object.values(resolutions).forEach((resolution) => {
-    resolutions[normalizeCategoryKey(resolution.category)] = resolution;
-  });
+    Object.values(resolutions).forEach((resolution) => {
+        resolutions[normalizeCategoryKey(resolution.category)] = resolution;
+    });
 
-  return resolutions;
+    return resolutions;
 }
 
 /**
@@ -808,18 +814,18 @@ function addResolutionAliases(resolutions) {
  * @returns {Promise<object>} API response body.
  */
 async function fetchCategoryQuery(categories, options) {
-  const fetcher = options.fetcher || fetch;
-  const response = await fetcher(buildCategoryApiUrl(categories), {
-    headers: {
-      accept: "application/json",
-    },
-  });
+    const fetcher = options.fetcher || fetch;
+    const response = await fetcher(buildCategoryApiUrl(categories), {
+        headers: {
+            accept: "application/json",
+        },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Category request failed: HTTP ${response.status}`);
-  }
+    if (!response.ok) {
+        throw new Error(`Category request failed: HTTP ${response.status}`);
+    }
 
-  return response.json();
+    return response.json();
 }
 
 /**
@@ -829,18 +835,18 @@ async function fetchCategoryQuery(categories, options) {
  * @returns {string} API URL.
  */
 function buildCategoryApiUrl(categories) {
-  const params = new URLSearchParams({
-    action: "query",
-    converttitles: "1",
-    format: "json",
-    formatversion: "2",
-    prop: "info|pageprops",
-    ppprop: CATEGORY_REDIRECT_PROPS.join("|"),
-    redirects: "1",
-    titles: categories.map(formatCategoryApiTitle).join("|"),
-  });
+    const params = new URLSearchParams({
+        action: "query",
+        converttitles: "1",
+        format: "json",
+        formatversion: "2",
+        prop: "info|pageprops",
+        ppprop: CATEGORY_REDIRECT_PROPS.join("|"),
+        redirects: "1",
+        titles: categories.map(formatCategoryApiTitle).join("|"),
+    });
 
-  return `${API_ENDPOINT}?${params.toString()}`;
+    return `${API_ENDPOINT}?${params.toString()}`;
 }
 
 /**
@@ -851,18 +857,18 @@ function buildCategoryApiUrl(categories) {
  * @returns {object} Category resolution.
  */
 function getCategoryResolution(category, data) {
-  const title = getResolvedTitle(category, data);
-  const page = getResolvedPage(title, data);
+    const title = getResolvedTitle(category, data);
+    const page = getResolvedPage(title, data);
 
-  return {
-    category: normalizeCategoryTitle(title),
-    redirectTarget: getCategoryRedirectTarget(page),
-    exists: page != null && !page.missing,
-    status:
-      page != null && !page.missing
-        ? CATEGORY_STATUS.exists
-        : CATEGORY_STATUS.missing,
-  };
+    return {
+        category: normalizeCategoryTitle(title),
+        redirectTarget: getCategoryRedirectTarget(page),
+        exists: page != null && !page.missing,
+        status:
+            page != null && !page.missing
+                ? CATEGORY_STATUS.exists
+                : CATEGORY_STATUS.missing,
+    };
 }
 
 /**
@@ -873,17 +879,17 @@ function getCategoryResolution(category, data) {
  * @returns {object} Final category resolution.
  */
 function resolveCategoryRedirect(resolution, resolutions) {
-  if (resolution.redirectTarget == null) {
-    return resolution;
-  }
-
-  return (
-    resolutions[normalizeCategoryKey(resolution.redirectTarget)] || {
-      category: normalizeCategoryTitle(resolution.redirectTarget),
-      exists: true,
-      status: CATEGORY_STATUS.exists,
+    if (resolution.redirectTarget == null) {
+        return resolution;
     }
-  );
+
+    return (
+        resolutions[normalizeCategoryKey(resolution.redirectTarget)] || {
+            category: normalizeCategoryTitle(resolution.redirectTarget),
+            exists: true,
+            status: CATEGORY_STATUS.exists,
+        }
+    );
 }
 
 /**
@@ -894,20 +900,20 @@ function resolveCategoryRedirect(resolution, resolutions) {
  * @returns {string} Resolved category title.
  */
 function getResolvedTitle(category, data) {
-  return [
-    data?.query?.normalized,
-    data?.query?.converted,
-    data?.query?.redirects,
-  ]
-    .flat()
-    .filter(Boolean)
-    .reduce(
-      (title, item) =>
-        normalizeCategoryKey(item.from) === normalizeCategoryKey(title)
-          ? item.to
-          : title,
-      formatCategoryApiTitle(category),
-    );
+    return [
+        data?.query?.normalized,
+        data?.query?.converted,
+        data?.query?.redirects,
+    ]
+        .flat()
+        .filter(Boolean)
+        .reduce(
+            (title, item) =>
+                normalizeCategoryKey(item.from) === normalizeCategoryKey(title)
+                    ? item.to
+                    : title,
+            formatCategoryApiTitle(category),
+        );
 }
 
 /**
@@ -918,9 +924,10 @@ function getResolvedTitle(category, data) {
  * @returns {object|undefined} API page.
  */
 function getResolvedPage(title, data) {
-  return (data?.query?.pages || []).find(
-    (page) => normalizeCategoryKey(page.title) === normalizeCategoryKey(title),
-  );
+    return (data?.query?.pages || []).find(
+        (page) =>
+            normalizeCategoryKey(page.title) === normalizeCategoryKey(title),
+    );
 }
 
 /**
@@ -930,12 +937,12 @@ function getResolvedPage(title, data) {
  * @returns {string|undefined} Redirect target.
  */
 function getCategoryRedirectTarget(page) {
-  const props = page?.pageprops || {};
-  const target = CATEGORY_REDIRECT_PROPS.map((key) => props[key]).find(
-    Boolean,
-  );
+    const props = page?.pageprops || {};
+    const target = CATEGORY_REDIRECT_PROPS.map((key) => props[key]).find(
+        Boolean,
+    );
 
-  return target == null ? undefined : normalizeCategoryTitle(target);
+    return target == null ? undefined : normalizeCategoryTitle(target);
 }
 
 /**
@@ -945,7 +952,7 @@ function getCategoryRedirectTarget(page) {
  * @returns {string} API page title.
  */
 function formatCategoryApiTitle(category) {
-  return `${CATEGORY_NAMESPACE}${normalizeCategoryTitle(category)}`;
+    return `${CATEGORY_NAMESPACE}${normalizeCategoryTitle(category)}`;
 }
 
 /**
@@ -955,9 +962,9 @@ function formatCategoryApiTitle(category) {
  * @returns {string} Category title.
  */
 function normalizeCategoryTitle(value) {
-  return trimValue(value)
-    .replace(/^Category:/iu, "")
-    .trim();
+    return trimValue(value)
+        .replace(/^Category:/iu, "")
+        .trim();
 }
 
 /**
@@ -967,7 +974,7 @@ function normalizeCategoryTitle(value) {
  * @returns {string} Category key.
  */
 function normalizeCategoryKey(value) {
-  return normalizeCategoryTitle(value).replace(/_/gu, " ");
+    return normalizeCategoryTitle(value).replace(/_/gu, " ");
 }
 
 /**
@@ -978,13 +985,13 @@ function normalizeCategoryKey(value) {
  * @returns {Array<Array<*>>} Chunked values.
  */
 function chunkValues(values, size) {
-  const chunks = [];
+    const chunks = [];
 
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
+    for (let index = 0; index < values.length; index += size) {
+        chunks.push(values.slice(index, index + size));
+    }
 
-  return chunks;
+    return chunks;
 }
 
 /**
@@ -994,19 +1001,19 @@ function chunkValues(values, size) {
  * @returns {Array<object>} Unique category rows.
  */
 function uniqueCategoryRows(rows) {
-  const seen = new Set();
+    const seen = new Set();
 
-  return rows.filter((row) => {
-    const key = normalizeCategoryKey(row.category);
+    return rows.filter((row) => {
+        const key = normalizeCategoryKey(row.category);
 
-    if (key === "" || seen.has(key)) {
-      return false;
-    }
+        if (key === "" || seen.has(key)) {
+            return false;
+        }
 
-    seen.add(key);
+        seen.add(key);
 
-    return true;
-  });
+        return true;
+    });
 }
 
 /**
@@ -1016,7 +1023,7 @@ function uniqueCategoryRows(rows) {
  * @returns {string} Escaped value.
  */
 function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 /**
@@ -1026,5 +1033,5 @@ function escapeRegExp(value) {
  * @returns {string} Trimmed string.
  */
 function trimValue(value) {
-  return value == null ? "" : String(value).trim();
+    return value == null ? "" : String(value).trim();
 }

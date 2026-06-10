@@ -15,38 +15,34 @@ export const SAVE_PROGRESS_STORAGE_KEY = "create-vg-stub-save-progress";
  * @returns {object} Save progress state.
  */
 export function createSaveProgress(title, actions = [], move = {}) {
-  const steps = [
-    {
-      id: "save",
-      label: `Save page: ${title}`,
-      status: "pending",
-    },
-  ];
+    const steps = [
+        { id: "save", label: `Save page: ${title}`, status: "pending" },
+    ];
 
-  if (move.enabled === true) {
-    steps.push({
-      id: "move",
-      label: `Move page to ${move.to}`,
-      status: "pending",
-    });
-  }
+    if (move.enabled === true) {
+        steps.push({
+            id: "move",
+            label: `Move page to ${move.to}`,
+            status: "pending",
+        });
+    }
 
-  actions
-    .filter((action) => action.selected)
-    .forEach((action) => {
-      steps.push({
-        id: action.id,
-        label: action.label,
-        status: "pending",
-      });
-    });
+    actions
+        .filter((action) => action.selected)
+        .forEach((action) => {
+            steps.push({
+                id: action.id,
+                label: action.label,
+                status: "pending",
+            });
+        });
 
-  return {
-    error: "",
-    open: true,
-    steps,
-    title,
-  };
+    return {
+        error: "",
+        open: true,
+        steps,
+        title,
+    };
 }
 
 /**
@@ -58,17 +54,17 @@ export function createSaveProgress(title, actions = [], move = {}) {
  * @returns {object} Updated progress state.
  */
 export function updateSaveProgress(progress, id, status) {
-  return {
-    ...progress,
-    steps: progress.steps.map((step) =>
-      step.id === id
-        ? {
-            ...step,
-            status,
-          }
-        : step,
-    ),
-  };
+    return {
+        ...progress,
+        steps: progress.steps.map((step) =>
+            step.id === id
+                ? {
+                      ...step,
+                      status,
+                  }
+                : step,
+        ),
+    };
 }
 
 /**
@@ -79,7 +75,7 @@ export function updateSaveProgress(progress, id, status) {
  * @returns {void}
  */
 export function storeSaveProgress(progress, storage = sessionStorage) {
-  storage.setItem(SAVE_PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+    storage.setItem(SAVE_PROGRESS_STORAGE_KEY, JSON.stringify(progress));
 }
 
 /**
@@ -89,18 +85,18 @@ export function storeSaveProgress(progress, storage = sessionStorage) {
  * @returns {object|undefined} Stored save progress.
  */
 export function readSaveProgress(storage = sessionStorage) {
-  const item = storage.getItem(SAVE_PROGRESS_STORAGE_KEY);
+    const item = storage.getItem(SAVE_PROGRESS_STORAGE_KEY);
 
-  if (item == null) {
-    return undefined;
-  }
+    if (item == null) {
+        return undefined;
+    }
 
-  try {
-    return JSON.parse(item);
-  } catch (_error) {
-    storage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
-    return undefined;
-  }
+    try {
+        return JSON.parse(item);
+    } catch (_error) {
+        storage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
+        return undefined;
+    }
 }
 
 /**
@@ -111,61 +107,65 @@ export function readSaveProgress(storage = sessionStorage) {
  * @returns {HTMLElement} Progress layer.
  */
 export function renderSaveProgress(progress, documentRef = document) {
-  let layer = documentRef.getElementById("create-vg-stub-save-progress");
+    let layer = documentRef.getElementById("create-vg-stub-save-progress");
 
-  if (layer == null) {
-    layer = documentRef.createElement("div");
-    layer.id = "create-vg-stub-save-progress";
-    Object.assign(layer.style, {
-      alignItems: "center",
-      background:
-        "var(--background-color-backdrop-light, rgb(0 0 0 / 45%))",
-      display: "flex",
-      inset: "0",
-      justifyContent: "center",
-      position: "fixed",
-      zIndex: "10000",
-    });
-    documentRef.body.append(layer);
-  }
+    if (layer == null) {
+        layer = documentRef.createElement("div");
+        layer.id = "create-vg-stub-save-progress";
+        const layerStyles = {
+            alignItems: "center",
+            background:
+                "var(--background-color-backdrop-light, rgb(0 0 0 / 45%))",
+            display: "flex",
+            inset: "0",
+            justifyContent: "center",
+            position: "fixed",
+            zIndex: "10000",
+        };
 
-  const statusLabels = {
-    complete: "Done",
-    failed: "Failed",
-    pending: "Waiting",
-    running: "Working",
-    skipped: "Skipped",
-  };
-  const rows = progress.steps
-    .map(
-      (step) =>
-        `<li data-status="${step.status}"><strong>${escapeHtml(statusLabels[step.status] || step.status)}</strong> ${escapeHtml(step.label)}</li>`,
-    )
-    .join("");
-  const error = progress.error
-    ? `<p style="color:var(--color-error,#b32424)">${escapeHtml(progress.error)}</p>`
-    : "";
-  const complete = progress.steps.every((step) =>
-    ["complete", "skipped"].includes(step.status),
-  );
-  const closeButton = complete
-    ? '<button type="button" data-action="close" style="background:var(--background-color-interactive-subtle,#f8f9fa);border:1px solid var(--border-color-base,#a2a9b1);color:var(--color-base,#202122);float:right">Close</button>'
-    : "";
+        Object.assign(layer.style, layerStyles);
+        documentRef.body.append(layer);
+    }
 
-  layer.innerHTML =
-    '<div style="background:var(--background-color-base,#fff);border:1px solid var(--border-color-base,#a2a9b1);border-radius:4px;box-shadow:var(--box-shadow-drop-medium,0 2px 8px rgb(0 0 0 / 30%));color:var(--color-base,#202122);max-width:min(90vw,640px);padding:24px;width:100%">' +
-    closeButton +
-    `<h2>${complete ? "Article creation complete" : "Creating article"}</h2>` +
-    `<ol style="display:grid;gap:8px;padding-left:24px">${rows}</ol>` +
-    error +
-    "</div>";
+    const statusLabels = {
+        complete: "Done",
+        failed: "Failed",
+        pending: "Waiting",
+        running: "Working",
+        skipped: "Skipped",
+    };
+    const rows = progress.steps
+        .map(
+            (step) =>
+                `<li data-status="${step.status}"><strong>${escapeHtml(statusLabels[step.status] || step.status)}</strong> ${escapeHtml(step.label)}</li>`,
+        )
+        .join("");
+    const error = progress.error
+        ? `<p style="color:var(--color-error,#b32424)">${escapeHtml(progress.error)}</p>`
+        : "";
+    const complete = progress.steps.every((step) =>
+        ["complete", "skipped"].includes(step.status),
+    );
+    const closeButton = complete
+        ? '<button type="button" data-action="close" style="background:var(--background-color-interactive-subtle,#f8f9fa);border:1px solid var(--border-color-base,#a2a9b1);color:var(--color-base,#202122);float:right">Close</button>'
+        : "";
 
-  layer.querySelector('[data-action="close"]')?.addEventListener("click", () => {
-    sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
-    layer.remove();
-  });
+    layer.innerHTML =
+        '<div style="background:var(--background-color-base,#fff);border:1px solid var(--border-color-base,#a2a9b1);border-radius:4px;box-shadow:var(--box-shadow-drop-medium,0 2px 8px rgb(0 0 0 / 30%));color:var(--color-base,#202122);max-width:min(90vw,640px);padding:24px;width:100%">' +
+        closeButton +
+        `<h2>${complete ? "Article creation complete" : "Creating article"}</h2>` +
+        `<ol style="display:grid;gap:8px;padding-left:24px">${rows}</ol>` +
+        error +
+        "</div>";
 
-  return layer;
+    layer
+        .querySelector('[data-action="close"]')
+        ?.addEventListener("click", () => {
+            sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
+            layer.remove();
+        });
+
+    return layer;
 }
 
 /**
@@ -175,10 +175,10 @@ export function renderSaveProgress(progress, documentRef = document) {
  * @returns {string} Escaped HTML.
  */
 function escapeHtml(value) {
-  return String(value)
-    .replace(/&/gu, "&amp;")
-    .replace(/</gu, "&lt;")
-    .replace(/>/gu, "&gt;")
-    .replace(/"/gu, "&quot;")
-    .replace(/'/gu, "&#039;");
+    return String(value)
+        .replace(/&/gu, "&amp;")
+        .replace(/</gu, "&lt;")
+        .replace(/>/gu, "&gt;")
+        .replace(/"/gu, "&quot;")
+        .replace(/'/gu, "&#039;");
 }

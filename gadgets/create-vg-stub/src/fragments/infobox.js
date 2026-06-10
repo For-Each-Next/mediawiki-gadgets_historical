@@ -22,19 +22,19 @@ const NAME_MARKETS = ["ww", "hans", "hant", "cn", "tw", "hk"];
  * @returns {string} Infobox template wikitext.
  */
 export function buildInfoboxText(params) {
-  return buildTemplateText(
-    "Infobox VG",
-    [
-      ["onlysourced", "no"],
-      ["title", normalizeValue(params.name)],
-      ["original", buildOriginalNameText(params)],
-      ["japanese", buildJapaneseNameText(params)],
-      ["english", buildEnglishNameText(params)],
-      ["official", buildVgnText(params.officialNames)],
-      ["common", buildVgnText(params.commonNames)],
-    ],
-    "block",
-  );
+    return buildTemplateText(
+        "Infobox VG",
+        [
+            ["onlysourced", "no"],
+            ["title", normalizeValue(params.name)],
+            ["original", buildOriginalNameText(params)],
+            ["japanese", buildJapaneseNameText(params)],
+            ["english", buildEnglishNameText(params)],
+            ["official", buildVgnText(params.officialNames)],
+            ["common", buildVgnText(params.commonNames)],
+        ],
+        "block",
+    );
 }
 
 /**
@@ -46,19 +46,19 @@ export function buildInfoboxText(params) {
  * @returns {string|undefined} Original title parameter.
  */
 function buildOriginalNameText(params) {
-  const language = normalizeValue(params.originalLanguage);
-  const name = normalizeValue(params.originalName);
+    const language = normalizeValue(params.originalLanguage);
+    const name = normalizeValue(params.originalName);
 
-  if (
-    name == null ||
-    language == null ||
-    language === "ja" ||
-    isSameBaseTitle(name, params.name)
-  ) {
-    return undefined;
-  }
+    if (
+        name == null ||
+        language == null ||
+        language === "ja" ||
+        isSameBaseTitle(name, params.name)
+    ) {
+        return undefined;
+    }
 
-  return `${language}:${name}`;
+    return `${language}:${name}`;
 }
 
 /**
@@ -71,23 +71,25 @@ function buildOriginalNameText(params) {
  * @returns {string|undefined} Japanese title parameter.
  */
 function buildJapaneseNameText(params) {
-  const japaneseName = normalizeValue(params.japaneseName);
+    const japaneseName = normalizeValue(params.japaneseName);
 
-  if (japaneseName != null) {
-    if (isSameBaseTitle(japaneseName, params.name)) {
-      return undefined;
+    if (japaneseName != null) {
+        if (isSameBaseTitle(japaneseName, params.name)) {
+            return undefined;
+        }
+
+        return japaneseName;
     }
 
-    return japaneseName;
-  }
+    if (normalizeValue(params.originalLanguage) !== "ja") {
+        return undefined;
+    }
 
-  if (normalizeValue(params.originalLanguage) !== "ja") {
-    return undefined;
-  }
+    const originalName = normalizeValue(params.originalName);
 
-  const originalName = normalizeValue(params.originalName);
-
-  return isSameBaseTitle(originalName, params.name) ? undefined : originalName;
+    return isSameBaseTitle(originalName, params.name)
+        ? undefined
+        : originalName;
 }
 
 /**
@@ -99,9 +101,9 @@ function buildJapaneseNameText(params) {
  * @returns {string|undefined} English title parameter.
  */
 function buildEnglishNameText(params) {
-  const englishName = normalizeValue(params.englishName);
+    const englishName = normalizeValue(params.englishName);
 
-  return isSameBaseTitle(englishName, params.name) ? undefined : englishName;
+    return isSameBaseTitle(englishName, params.name) ? undefined : englishName;
 }
 
 /**
@@ -111,13 +113,16 @@ function buildEnglishNameText(params) {
  * @returns {string|undefined} vgn template wikitext.
  */
 function buildVgnText(rows) {
-  const entries = (rows || []).flatMap(buildVgnEntries);
+    const entries = (rows || []).flatMap(buildVgnEntries);
 
-  if (entries.length === 0) {
-    return undefined;
-  }
+    if (entries.length === 0) {
+        return undefined;
+    }
 
-  return buildTemplateText("vgn", entries.map((entry) => [1, entry]));
+    return buildTemplateText(
+        "vgn",
+        entries.map((entry) => [1, entry]),
+    );
 }
 
 /**
@@ -130,22 +135,20 @@ function buildVgnText(rows) {
  * @returns {Array<string>} vgn entries.
  */
 function buildVgnEntries(row) {
-  const name = normalizeValue(row.name);
+    const name = normalizeValue(row.name);
 
-  if (name == null) {
-    return [];
-  }
+    if (name == null) {
+        return [];
+    }
 
-  const ref = normalizeValue(row.ref) || "";
-  const markets = getSelectedMarkets(row);
+    const ref = normalizeValue(row.ref) || "";
+    const markets = getSelectedMarkets(row);
 
-  if (markets.length === 0) {
-    return [`${name}${ref}`];
-  }
+    if (markets.length === 0) {
+        return [`${name}${ref}`];
+    }
 
-  return markets.map(
-    (market) => `${market}:${name}${ref}`,
-  );
+    return markets.map((market) => `${market}:${name}${ref}`);
 }
 
 /**
@@ -156,11 +159,11 @@ function buildVgnEntries(row) {
  * @returns {Array<string>} Selected market codes.
  */
 function getSelectedMarkets(row) {
-  if (Array.isArray(row.markets)) {
-    return NAME_MARKETS.filter((market) => row.markets.includes(market));
-  }
+    if (Array.isArray(row.markets)) {
+        return NAME_MARKETS.filter((market) => row.markets.includes(market));
+    }
 
-  return NAME_MARKETS.filter((market) => row[market] === true);
+    return NAME_MARKETS.filter((market) => row[market] === true);
 }
 
 /**
@@ -170,13 +173,13 @@ function getSelectedMarkets(row) {
  * @returns {string|undefined} Trimmed value, or undefined when empty.
  */
 function normalizeValue(value) {
-  if (value == null) {
-    return undefined;
-  }
+    if (value == null) {
+        return undefined;
+    }
 
-  const trimmedValue = String(value).trim();
+    const trimmedValue = String(value).trim();
 
-  return trimmedValue === "" ? undefined : trimmedValue;
+    return trimmedValue === "" ? undefined : trimmedValue;
 }
 
 /**
@@ -187,12 +190,14 @@ function normalizeValue(value) {
  * @returns {boolean} Whether the titles are equivalent.
  */
 function isSameBaseTitle(value, articleTitle) {
-  if (value == null) {
-    return false;
-  }
+    if (value == null) {
+        return false;
+    }
 
-  return normalizeTitleForComparison(value) ===
-    normalizeTitleForComparison(articleTitle);
+    return (
+        normalizeTitleForComparison(value) ===
+        normalizeTitleForComparison(articleTitle)
+    );
 }
 
 /**
@@ -202,5 +207,7 @@ function isSameBaseTitle(value, articleTitle) {
  * @returns {string} Normalized title.
  */
 function normalizeTitleForComparison(title) {
-  return String(title || "").trim().replace(/ \(.+?\)$/u, "");
+    return String(title || "")
+        .trim()
+        .replace(/ \(.+?\)$/u, "");
 }

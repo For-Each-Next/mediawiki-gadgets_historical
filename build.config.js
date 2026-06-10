@@ -5,8 +5,8 @@
  */
 
 export const minifiedOutput = {
-  prefix: "/* <nowiki> */",
-  suffix: "/* </nowiki> */",
+    prefix: "/* <nowiki> */",
+    suffix: "/* </nowiki> */",
 };
 
 /**
@@ -16,5 +16,5 @@ export const minifiedOutput = {
  * @returns {string} Wrapped JavaScript.
  */
 export function formatMinifiedOutput(code) {
-  return `${minifiedOutput.prefix}${code}${minifiedOutput.suffix}`;
+    return `${minifiedOutput.prefix}${code}${minifiedOutput.suffix}`;
 }

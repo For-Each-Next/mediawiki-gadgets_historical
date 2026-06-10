@@ -8,12 +8,12 @@ import { addEditSummarySuffix } from "./edit-summary.js";
 import { buildTemplateCall, buildTemplateText } from "./utils.js";
 
 export const TALK_PAGE_BANNER = buildTemplateText(
-  "WikiProject banner shell",
-  [
-    ["class", "unassessed"],
-    ["1", buildTemplateCall("WikiProject Video games")],
-  ],
-  "block",
+    "WikiProject banner shell",
+    [
+        ["class", "unassessed"],
+        ["1", buildTemplateCall("WikiProject Video games")],
+    ],
+    "block",
 );
 
 /**
@@ -25,44 +25,46 @@ export const TALK_PAGE_BANNER = buildTemplateText(
  * @returns {Array<object>} Selectable action rows.
  */
 export function buildPreSaveActions(selection, existingRedirectTitles = []) {
-  const form = selection.form || {};
-  const title = normalizeTitle(selection.title);
-  const existingKeys = new Set(existingRedirectTitles.map(normalizeTitleKey));
-  const actions = [];
+    const form = selection.form || {};
+    const title = normalizeTitle(selection.title);
+    const existingKeys = new Set(
+        existingRedirectTitles.map(normalizeTitleKey),
+    );
+    const actions = [];
 
-  if (normalizeTitle(form.wikidataId) !== "") {
-    actions.push({
-      id: "interwiki",
-      label: `Connect ${title} to ${normalizeTitle(form.wikidataId)}`,
-      selected: true,
-      type: "interwiki",
-      wikidataId: normalizeTitle(form.wikidataId),
+    if (normalizeTitle(form.wikidataId) !== "") {
+        actions.push({
+            id: "interwiki",
+            label: `Connect ${title} to ${normalizeTitle(form.wikidataId)}`,
+            selected: true,
+            type: "interwiki",
+            wikidataId: normalizeTitle(form.wikidataId),
+        });
+    }
+
+    buildRedirectTitles(form, title).forEach((redirectTitle) => {
+        const exists = existingKeys.has(normalizeTitleKey(redirectTitle));
+
+        actions.push({
+            id: `redirect:${redirectTitle}`,
+            exists,
+            label: exists
+                ? `Redirect: ${redirectTitle} (page already exists)`
+                : `Redirect name: ${redirectTitle} -> ${title}`,
+            redirectTitle,
+            selected: !exists,
+            type: "redirect",
+        });
     });
-  }
-
-  buildRedirectTitles(form, title).forEach((redirectTitle) => {
-    const exists = existingKeys.has(normalizeTitleKey(redirectTitle));
 
     actions.push({
-      id: `redirect:${redirectTitle}`,
-      exists,
-      label: exists
-        ? `Redirect: ${redirectTitle} (page already exists)`
-        : `Redirect name: ${redirectTitle} -> ${title}`,
-      redirectTitle,
-      selected: !exists,
-      type: "redirect",
+        id: "talk-banner",
+        label: `Add WikiProject Video games banner to Talk:${title}`,
+        selected: true,
+        type: "talk-banner",
     });
-  });
 
-  actions.push({
-    id: "talk-banner",
-    label: `Add WikiProject Video games banner to Talk:${title}`,
-    selected: true,
-    type: "talk-banner",
-  });
-
-  return actions;
+    return actions;
 }
 
 /**
@@ -73,14 +75,14 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
  * @returns {object} Default page move settings.
  */
 export function buildTitleFix(form, articleTitle) {
-  const title = normalizeTitle(articleTitle);
-  const chineseTitle = buildChineseRedirectTitles(form, title)[0] || "";
-  const enabled = isEnglishTitle(title) && chineseTitle !== "";
+    const title = normalizeTitle(articleTitle);
+    const chineseTitle = buildChineseRedirectTitles(form, title)[0] || "";
+    const enabled = isEnglishTitle(title) && chineseTitle !== "";
 
-  return {
-    enabled,
-    to: enabled ? chineseTitle : title,
-  };
+    return {
+        enabled,
+        to: enabled ? chineseTitle : title,
+    };
 }
 
 /**
@@ -91,25 +93,23 @@ export function buildTitleFix(form, articleTitle) {
  * @returns {Array<string>} Redirect page titles.
  */
 export function buildRedirectTitles(form, articleTitle) {
-  const targetKey = normalizeTitleKey(articleTitle);
-  const names = [
-    getOriginalName(form.originalName),
-    form.englishName,
-    ...getChineseNames(form),
-  ];
-  const seen = new Set();
+    const targetKey = normalizeTitleKey(articleTitle);
+    const names = [
+        getOriginalName(form.originalName),
+        form.englishName,
+        ...getChineseNames(form),
+    ];
+    const seen = new Set();
 
-  return names
-    .map(normalizeTitle)
-    .filter((title) => {
-      const key = normalizeTitleKey(title);
+    return names.map(normalizeTitle).filter((title) => {
+        const key = normalizeTitleKey(title);
 
-      if (key === "" || key === targetKey || seen.has(key)) {
-        return false;
-      }
+        if (key === "" || key === targetKey || seen.has(key)) {
+            return false;
+        }
 
-      seen.add(key);
-      return true;
+        seen.add(key);
+        return true;
     });
 }
 
@@ -121,21 +121,21 @@ export function buildRedirectTitles(form, articleTitle) {
  * @returns {Array<string>} Chinese page titles.
  */
 function buildChineseRedirectTitles(form, articleTitle) {
-  const targetKey = normalizeTitleKey(articleTitle);
-  const seen = new Set();
+    const targetKey = normalizeTitleKey(articleTitle);
+    const seen = new Set();
 
-  return getChineseNames(form)
-    .map(normalizeTitle)
-    .filter((title) => {
-      const key = normalizeTitleKey(title);
+    return getChineseNames(form)
+        .map(normalizeTitle)
+        .filter((title) => {
+            const key = normalizeTitleKey(title);
 
-      if (key === "" || key === targetKey || seen.has(key)) {
-        return false;
-      }
+            if (key === "" || key === targetKey || seen.has(key)) {
+                return false;
+            }
 
-      seen.add(key);
-      return true;
-    });
+            seen.add(key);
+            return true;
+        });
 }
 
 /**
@@ -145,11 +145,17 @@ function buildChineseRedirectTitles(form, articleTitle) {
  * @returns {Array<string>} Chinese name values.
  */
 function getChineseNames(form) {
-  return [
-    ...(form.localizedNames || []).filter(isChineseNameRow).map((row) => row.name),
-    ...(form.officialNames || []).filter(isChineseNameRow).map((row) => row.name),
-    ...(form.commonNames || []).filter(isChineseNameRow).map((row) => row.name),
-  ];
+    return [
+        ...(form.localizedNames || [])
+            .filter(isChineseNameRow)
+            .map((row) => row.name),
+        ...(form.officialNames || [])
+            .filter(isChineseNameRow)
+            .map((row) => row.name),
+        ...(form.commonNames || [])
+            .filter(isChineseNameRow)
+            .map((row) => row.name),
+    ];
 }
 
 /**
@@ -159,7 +165,10 @@ function getChineseNames(form) {
  * @returns {string} Original title without its language prefix.
  */
 function getOriginalName(value) {
-  return normalizeTitle(value).replace(/^[a-z]{2,3}(?:-[a-z0-9]+)*:\s*/iu, "");
+    return normalizeTitle(value).replace(
+        /^[a-z]{2,3}(?:-[a-z0-9]+)*:\s*/iu,
+        "",
+    );
 }
 
 /**
@@ -170,18 +179,18 @@ function getOriginalName(value) {
  * @returns {Promise<Array<string>>} Existing page titles.
  */
 export async function fetchExistingPageTitles(api, titles) {
-  if (titles.length === 0) {
-    return [];
-  }
+    if (titles.length === 0) {
+        return [];
+    }
 
-  const data = await api.get({
-    action: "query",
-    titles: titles.join("|"),
-  });
+    const data = await api.get({
+        action: "query",
+        titles: titles.join("|"),
+    });
 
-  return Object.values(data?.query?.pages || {})
-    .filter((page) => page.missing == null)
-    .map((page) => normalizeTitle(page.title));
+    return Object.values(data?.query?.pages || {})
+        .filter((page) => page.missing == null)
+        .map((page) => normalizeTitle(page.title));
 }
 
 /**
@@ -204,47 +213,48 @@ export async function fetchExistingPageTitles(api, titles) {
  * @returns {Promise<object>} Completed action rows and final title.
  */
 export async function runSelectedActions(actions, options) {
-  const completed = [];
-  const originalTitle = normalizeTitle(options.title);
-  const moveTitle = normalizeTitle(options.move?.to);
-  const shouldMove =
-    options.move?.enabled === true &&
-    moveTitle !== "" &&
-    normalizeTitleKey(moveTitle) !== normalizeTitleKey(originalTitle);
-  const finalTitle = shouldMove ? moveTitle : originalTitle;
+    const completed = [];
+    const originalTitle = normalizeTitle(options.title);
+    const moveTitle = normalizeTitle(options.move?.to);
+    const shouldMove =
+        options.move?.enabled === true &&
+        moveTitle !== "" &&
+        normalizeTitleKey(moveTitle) !== normalizeTitleKey(originalTitle);
+    const finalTitle = shouldMove ? moveTitle : originalTitle;
 
-  if (shouldMove) {
-    options.onMoveStart?.(finalTitle);
-    await movePage(options.api, originalTitle, finalTitle, {
-      leaveRedirect: options.move.leaveRedirect,
-    });
-    options.onMoveComplete?.(finalTitle);
-  }
-
-  for (const action of actions.filter((item) => item.selected)) {
-    if (
-      action.type === "redirect" &&
-      normalizeTitleKey(action.redirectTitle) === normalizeTitleKey(finalTitle)
-    ) {
-      action.selected = false;
-      options.onActionSkipped?.(action);
-      continue;
+    if (shouldMove) {
+        options.onMoveStart?.(finalTitle);
+        await movePage(options.api, originalTitle, finalTitle, {
+            leaveRedirect: options.move.leaveRedirect,
+        });
+        options.onMoveComplete?.(finalTitle);
     }
 
-    options.onActionStart?.(action);
-    await runSelectedAction(action, {
-      ...options,
-      title: finalTitle,
-    });
-    action.selected = false;
-    completed.push(action);
-    options.onActionComplete?.(action);
-  }
+    for (const action of actions.filter((item) => item.selected)) {
+        if (
+            action.type === "redirect" &&
+            normalizeTitleKey(action.redirectTitle) ===
+                normalizeTitleKey(finalTitle)
+        ) {
+            action.selected = false;
+            options.onActionSkipped?.(action);
+            continue;
+        }
 
-  return {
-    completed,
-    title: finalTitle,
-  };
+        options.onActionStart?.(action);
+        await runSelectedAction(action, {
+            ...options,
+            title: finalTitle,
+        });
+        action.selected = false;
+        completed.push(action);
+        options.onActionComplete?.(action);
+    }
+
+    return {
+        completed,
+        title: finalTitle,
+    };
 }
 
 /**
@@ -258,18 +268,18 @@ export async function runSelectedActions(actions, options) {
  * @returns {Promise<void>} Resolves after the page is moved.
  */
 export async function movePage(api, from, to, options) {
-  const params = {
-    action: "move",
-    from,
-    reason: addEditSummarySuffix(`Rename to [[${to}]]`),
-    to,
-  };
+    const params = {
+        action: "move",
+        from,
+        reason: addEditSummarySuffix(`Rename to [[${to}]]`),
+        to,
+    };
 
-  if (!options.leaveRedirect) {
-    params.noredirect = true;
-  }
+    if (!options.leaveRedirect) {
+        params.noredirect = true;
+    }
 
-  await api.postWithToken("csrf", params);
+    await api.postWithToken("csrf", params);
 }
 
 /**
@@ -283,23 +293,23 @@ export async function movePage(api, from, to, options) {
  * @returns {Promise<void>} Resolves after the action succeeds.
  */
 async function runSelectedAction(action, options) {
-  if (action.type === "interwiki") {
-    await connectWikidataSitelink(
-      options.wikidataApi || options.api,
-      action.wikidataId,
-      options.title,
-    );
-    return;
-  }
+    if (action.type === "interwiki") {
+        await connectWikidataSitelink(
+            options.wikidataApi || options.api,
+            action.wikidataId,
+            options.title,
+        );
+        return;
+    }
 
-  if (action.type === "redirect") {
-    await createRedirect(options.api, action.redirectTitle, options.title);
-    return;
-  }
+    if (action.type === "redirect") {
+        await createRedirect(options.api, action.redirectTitle, options.title);
+        return;
+    }
 
-  if (action.type === "talk-banner") {
-    await addTalkPageBanner(options.api, options.title);
-  }
+    if (action.type === "talk-banner") {
+        await addTalkPageBanner(options.api, options.title);
+    }
 }
 
 /**
@@ -311,13 +321,17 @@ async function runSelectedAction(action, options) {
  * @returns {Promise<void>} Resolves after the sitelink is saved.
  */
 export async function connectWikidataSitelink(api, wikidataId, title) {
-  await api.postWithToken("csrf", {
-    action: "wbsetsitelink",
-    id: wikidataId,
-    linksite: "zhwiki",
-    linktitle: title,
-    summary: addEditSummarySuffix(`Connect zhwiki sitelink to [[${title}]]`),
-  });
+    const params = {
+        action: "wbsetsitelink",
+        id: wikidataId,
+        linksite: "zhwiki",
+        linktitle: title,
+        summary: addEditSummarySuffix(
+            `Connect zhwiki sitelink to [[${title}]]`,
+        ),
+    };
+
+    await api.postWithToken("csrf", params);
 }
 
 /**
@@ -329,13 +343,15 @@ export async function connectWikidataSitelink(api, wikidataId, title) {
  * @returns {Promise<void>} Resolves after the redirect is created.
  */
 export async function createRedirect(api, redirectTitle, targetTitle) {
-  await api.postWithToken("csrf", {
-    action: "edit",
-    createonly: true,
-    summary: addEditSummarySuffix(`Redirect to [[${targetTitle}]]`),
-    text: `#REDIRECT [[${targetTitle}]]`,
-    title: redirectTitle,
-  });
+    const params = {
+        action: "edit",
+        createonly: true,
+        summary: addEditSummarySuffix(`Redirect to [[${targetTitle}]]`),
+        text: `#REDIRECT [[${targetTitle}]]`,
+        title: redirectTitle,
+    };
+
+    await api.postWithToken("csrf", params);
 }
 
 /**
@@ -346,30 +362,32 @@ export async function createRedirect(api, redirectTitle, targetTitle) {
  * @returns {Promise<void>} Resolves after the talk page is updated.
  */
 export async function addTalkPageBanner(api, articleTitle) {
-  const title = `Talk:${articleTitle}`;
-  const data = await api.get({
-    action: "query",
-    prop: "revisions",
-    rvprop: "content",
-    rvslots: "main",
-    titles: title,
-  });
-  const page = Object.values(data?.query?.pages || {})[0];
-  const text =
-    page?.revisions?.[0]?.slots?.main?.content ||
-    page?.revisions?.[0]?.["*"] ||
-    "";
+    const title = `Talk:${articleTitle}`;
+    const data = await api.get({
+        action: "query",
+        prop: "revisions",
+        rvprop: "content",
+        rvslots: "main",
+        titles: title,
+    });
+    const page = Object.values(data?.query?.pages || {})[0];
+    const text =
+        page?.revisions?.[0]?.slots?.main?.content ||
+        page?.revisions?.[0]?.["*"] ||
+        "";
 
-  if (/WikiProject\s+Video games/iu.test(text)) {
-    return;
-  }
+    if (/WikiProject\s+Video games/iu.test(text)) {
+        return;
+    }
 
-  await api.postWithToken("csrf", {
-    action: "edit",
-    appendtext: `${text === "" ? "" : "\n\n"}${TALK_PAGE_BANNER}`,
-    summary: addEditSummarySuffix("Add WikiProject Video games banner"),
-    title,
-  });
+    const params = {
+        action: "edit",
+        appendtext: `${text === "" ? "" : "\n\n"}${TALK_PAGE_BANNER}`,
+        summary: addEditSummarySuffix("Add WikiProject Video games banner"),
+        title,
+    };
+
+    await api.postWithToken("csrf", params);
 }
 
 /**
@@ -379,7 +397,9 @@ export async function addTalkPageBanner(api, articleTitle) {
  * @returns {string} Normalized title.
  */
 function normalizeTitle(value) {
-  return String(value || "").trim().replace(/_/gu, " ");
+    return String(value || "")
+        .trim()
+        .replace(/_/gu, " ");
 }
 
 /**
@@ -389,7 +409,7 @@ function normalizeTitle(value) {
  * @returns {string} Comparison key.
  */
 function normalizeTitleKey(value) {
-  return normalizeTitle(value).toLocaleLowerCase();
+    return normalizeTitle(value).toLocaleLowerCase();
 }
 
 /**
@@ -399,11 +419,13 @@ function normalizeTitleKey(value) {
  * @returns {boolean} Whether the row is a Chinese-name redirect candidate.
  */
 function isChineseNameRow(row) {
-  const hasChineseMarket = ["hans", "hant", "cn", "tw", "hk"].some(
-    (market) => row[market] === true,
-  );
+    const hasChineseMarket = ["hans", "hant", "cn", "tw", "hk"].some(
+        (market) => row[market] === true,
+    );
 
-  return hasChineseMarket || /\p{Script=Han}/u.test(normalizeTitle(row.name));
+    return (
+        hasChineseMarket || /\p{Script=Han}/u.test(normalizeTitle(row.name))
+    );
 }
 
 /**
@@ -413,7 +435,5 @@ function isChineseNameRow(row) {
  * @returns {boolean} Whether the title appears to be English.
  */
 function isEnglishTitle(title) {
-  return (
-    /\p{Script=Latin}/u.test(title) && !/\p{Script=Han}/u.test(title)
-  );
+    return /\p{Script=Latin}/u.test(title) && !/\p{Script=Han}/u.test(title);
 }

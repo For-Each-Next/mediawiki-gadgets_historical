@@ -5,9 +5,9 @@
  */
 
 import {
-  FIELD_REFERENCE_DATA,
-  getReferenceDefinition,
-  trimValue,
+    FIELD_REFERENCE_DATA,
+    getReferenceDefinition,
+    trimValue,
 } from "../utils.js";
 
 /**
@@ -22,16 +22,16 @@ import {
  * @returns {string} Aggregate score sentence, or an empty string.
  */
 export function buildAggScoresText(params) {
-  const clauses = [
-    buildMetacriticClause(params),
-    buildOpenCriticClause(params),
-  ].filter(Boolean);
+    const clauses = [
+        buildMetacriticClause(params),
+        buildOpenCriticClause(params),
+    ].filter(Boolean);
 
-  if (clauses.length === 0) {
-    return "";
-  }
+    if (clauses.length === 0) {
+        return "";
+    }
 
-  return `游戏的${clauses.join("，")}。`;
+    return `游戏的${clauses.join("，")}。`;
 }
 
 /**
@@ -44,17 +44,17 @@ export function buildAggScoresText(params) {
  * @returns {string} Metacritic clause, or an empty string.
  */
 function buildMetacriticClause(params) {
-  const { platform, score } = normalizeMetacriticScoreParams(params);
+    const { platform, score } = normalizeMetacriticScoreParams(params);
 
-  if (!hasDigit(score)) {
-    return "";
-  }
+    if (!hasDigit(score)) {
+        return "";
+    }
 
-  return (
-    `[[Metacritic]]汇总得分为${score}/100` +
-    buildPlatformEditionText(platform) +
-    (params.metacriticSourceTag || "")
-  );
+    return (
+        `[[Metacritic]]汇总得分为${score}/100` +
+        buildPlatformEditionText(platform) +
+        (params.metacriticSourceTag || "")
+    );
 }
 
 /**
@@ -66,16 +66,16 @@ function buildMetacriticClause(params) {
  * @returns {string} OpenCritic clause, or an empty string.
  */
 function buildOpenCriticClause(params) {
-  const score = trimValue(params.openCriticRecommend || "");
+    const score = trimValue(params.openCriticRecommend || "");
 
-  if (!hasDigit(score)) {
-    return "";
-  }
+    if (!hasDigit(score)) {
+        return "";
+    }
 
-  return (
-    `[[OpenCritic]]评测推荐率为${score}%` +
-    (params.openCriticSourceTag || "")
-  );
+    return (
+        `[[OpenCritic]]评测推荐率为${score}%` +
+        (params.openCriticSourceTag || "")
+    );
 }
 
 /**
@@ -87,20 +87,20 @@ function buildOpenCriticClause(params) {
  * @returns {object} Normalized platform and score values.
  */
 function normalizeMetacriticScoreParams(params) {
-  const platform = trimValue(params.metacriticPlatform || "");
-  const score = trimValue(params.metacriticScore || "");
+    const platform = trimValue(params.metacriticPlatform || "");
+    const score = trimValue(params.metacriticScore || "");
 
-  if (!hasDigit(score) && hasDigit(platform)) {
+    if (!hasDigit(score) && hasDigit(platform)) {
+        return {
+            platform: score,
+            score: platform,
+        };
+    }
+
     return {
-      platform: score,
-      score: platform,
+        platform,
+        score,
     };
-  }
-
-  return {
-    platform,
-    score,
-  };
 }
 
 /**
@@ -110,13 +110,13 @@ function normalizeMetacriticScoreParams(params) {
  * @returns {string} Platform edition text, or an empty string.
  */
 function buildPlatformEditionText(platform) {
-  const label = getPlatformLabel(platform);
+    const label = getPlatformLabel(platform);
 
-  if (label === "") {
-    return "";
-  }
+    if (label === "") {
+        return "";
+    }
 
-  return `（${label}版）`;
+    return `（${label}版）`;
 }
 
 /**
@@ -126,25 +126,27 @@ function buildPlatformEditionText(platform) {
  * @returns {string} Unlinked platform label.
  */
 function getPlatformLabel(platform) {
-  const value = trimValue(platform || "");
+    const value = trimValue(platform || "");
 
-  if (value === "") {
-    return "";
-  }
+    if (value === "") {
+        return "";
+    }
 
-  const reference = getReferenceDefinition(
-    FIELD_REFERENCE_DATA.platforms || {},
-    value,
-  );
+    const reference = getReferenceDefinition(
+        FIELD_REFERENCE_DATA.platforms || {},
+        value,
+    );
 
-  if (reference == null) {
-    return value;
-  }
+    if (reference == null) {
+        return value;
+    }
 
-  return reference.label ||
-    reference.page?.label ||
-    reference.page?.title ||
-    value;
+    return (
+        reference.label ||
+        reference.page?.label ||
+        reference.page?.title ||
+        value
+    );
 }
 
 /**
@@ -154,5 +156,5 @@ function getPlatformLabel(platform) {
  * @returns {boolean} Whether the value contains a digit.
  */
 function hasDigit(value) {
-  return /\d/u.test(value);
+    return /\d/u.test(value);
 }

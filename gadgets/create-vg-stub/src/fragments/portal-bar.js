@@ -10,5 +10,5 @@
  * @returns {string} Footer template wikitext.
  */
 export function buildFooterTemplateText() {
-  return "{{Portal bar|电子游戏}}\n{{Authority control}}";
+    return "{{Portal bar|电子游戏}}\n{{Authority control}}";
 }

@@ -19,44 +19,47 @@ const DATE_PARTS_LENGTH = 10;
  * @returns {Promise<string>} Generated citation template wikitext.
  */
 export async function fetchCiteTemplate(url, options = {}) {
-  const cachedTemplate = getCachedCiteTemplate(url, options);
+    const cachedTemplate = getCachedCiteTemplate(url, options);
 
-  if (cachedTemplate != null) {
-    return cachedTemplate;
-  }
-
-  const fetcher = options.fetcher || fetch;
-  const response = await fetcher(buildCitoidUrl(url), {
-    headers: {
-      accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      const citeTemplate = await buildFallbackCiteWebTemplate(url, {
-        fetcher,
-        now: options.now,
-        rules: options.rules,
-      });
-
-      setCachedCiteTemplate(url, citeTemplate, options);
-
-      return citeTemplate;
+    if (cachedTemplate != null) {
+        return cachedTemplate;
     }
 
-    throw new Error(`Citoid request failed: HTTP ${response.status}`);
-  }
+    const fetcher = options.fetcher || fetch;
+    const response = await fetcher(buildCitoidUrl(url), {
+        headers: {
+            accept: "application/json",
+        },
+    });
 
-  const citeTemplate = buildCiteTemplate(getFirstCitation(await response.json()), {
-    now: options.now,
-    rules: options.rules,
-    url,
-  });
+    if (!response.ok) {
+        if (response.status === 404) {
+            const citeTemplate = await buildFallbackCiteWebTemplate(url, {
+                fetcher,
+                now: options.now,
+                rules: options.rules,
+            });
 
-  setCachedCiteTemplate(url, citeTemplate, options);
+            setCachedCiteTemplate(url, citeTemplate, options);
 
-  return citeTemplate;
+            return citeTemplate;
+        }
+
+        throw new Error(`Citoid request failed: HTTP ${response.status}`);
+    }
+
+    const citeTemplate = buildCiteTemplate(
+        getFirstCitation(await response.json()),
+        {
+            now: options.now,
+            rules: options.rules,
+            url,
+        },
+    );
+
+    setCachedCiteTemplate(url, citeTemplate, options);
+
+    return citeTemplate;
 }
 
 /**
@@ -66,13 +69,13 @@ export async function fetchCiteTemplate(url, options = {}) {
  * @returns {string} Citoid request URL.
  */
 export function buildCitoidUrl(url) {
-  const trimmedUrl = url.trim();
+    const trimmedUrl = url.trim();
 
-  if (trimmedUrl === "") {
-    throw new Error("Enter a URL before fetching a citation.");
-  }
+    if (trimmedUrl === "") {
+        throw new Error("Enter a URL before fetching a citation.");
+    }
 
-  return `${CITOID_ENDPOINT}${encodeURIComponent(trimmedUrl)}`;
+    return `${CITOID_ENDPOINT}${encodeURIComponent(trimmedUrl)}`;
 }
 
 /**
@@ -84,11 +87,11 @@ export function buildCitoidUrl(url) {
  * @returns {string|undefined} Cached cite template.
  */
 function getCachedCiteTemplate(url, options) {
-  if (options.cache == null) {
-    return undefined;
-  }
+    if (options.cache == null) {
+        return undefined;
+    }
 
-  return options.cache[normalizeCitationCacheKey(url)];
+    return options.cache[normalizeCitationCacheKey(url)];
 }
 
 /**
@@ -101,11 +104,11 @@ function getCachedCiteTemplate(url, options) {
  * @returns {void}
  */
 function setCachedCiteTemplate(url, citeTemplate, options) {
-  if (options.cache == null) {
-    return;
-  }
+    if (options.cache == null) {
+        return;
+    }
 
-  options.cache[normalizeCitationCacheKey(url)] = citeTemplate;
+    options.cache[normalizeCitationCacheKey(url)] = citeTemplate;
 }
 
 /**
@@ -115,7 +118,7 @@ function setCachedCiteTemplate(url, citeTemplate, options) {
  * @returns {string} Cache key.
  */
 function normalizeCitationCacheKey(url) {
-  return url.trim();
+    return url.trim();
 }
 
 /**
@@ -128,15 +131,15 @@ function normalizeCitationCacheKey(url) {
  * @returns {string} Citation template wikitext.
  */
 export function buildCiteTemplate(citation, options = {}) {
-  const values = applyCitationRules(buildCitationValues(citation, options), {
-    rules: options.rules || CITATION_RULES,
-    sourceUrl: options.url,
-  });
-  const params = Object.entries(values).filter(hasTemplateValue);
+    const values = applyCitationRules(buildCitationValues(citation, options), {
+        rules: options.rules || CITATION_RULES,
+        sourceUrl: options.url,
+    });
+    const params = Object.entries(values).filter(hasTemplateValue);
 
-  return `{{${getTemplateName(citation.itemType)}${params
-    .map(formatTemplateParam)
-    .join("")}}}`;
+    return `{{${getTemplateName(citation.itemType)}${params
+        .map(formatTemplateParam)
+        .join("")}}}`;
 }
 
 /**
@@ -149,23 +152,23 @@ export function buildCiteTemplate(citation, options = {}) {
  * @returns {Promise<string>} Generated cite web template wikitext.
  */
 async function buildFallbackCiteWebTemplate(url, options = {}) {
-  const trimmedUrl = normalizeCitationCacheKey(url);
+    const trimmedUrl = normalizeCitationCacheKey(url);
 
-  return buildCiteTemplate(
-    {
-      itemType: "webpage",
-      title: isSteamUrl(trimmedUrl)
-        ? trimmedUrl
-        : await fetchFallbackTitle(trimmedUrl, options),
-      url: trimmedUrl,
-      websiteTitle: getFallbackWebsiteTitle(url),
-    },
-    {
-      now: options.now,
-      rules: options.rules || CITATION_RULES,
-      url,
-    },
-  );
+    return buildCiteTemplate(
+        {
+            itemType: "webpage",
+            title: isSteamUrl(trimmedUrl)
+                ? trimmedUrl
+                : await fetchFallbackTitle(trimmedUrl, options),
+            url: trimmedUrl,
+            websiteTitle: getFallbackWebsiteTitle(url),
+        },
+        {
+            now: options.now,
+            rules: options.rules || CITATION_RULES,
+            url,
+        },
+    );
 }
 
 /**
@@ -175,7 +178,7 @@ async function buildFallbackCiteWebTemplate(url, options = {}) {
  * @returns {boolean} Whether the source is a Steam URL.
  */
 function isSteamUrl(url) {
-  return parseUrl(url)?.hostname === "store.steampowered.com";
+    return parseUrl(url)?.hostname === "store.steampowered.com";
 }
 
 /**
@@ -187,23 +190,23 @@ function isSteamUrl(url) {
  * @returns {Promise<string>} Page title, or the URL when unavailable.
  */
 async function fetchFallbackTitle(url, options) {
-  const fetcher = options.fetcher || fetch;
+    const fetcher = options.fetcher || fetch;
 
-  try {
-    const response = await fetcher(url, {
-      headers: {
-        accept: "text/html",
-      },
-    });
+    try {
+        const response = await fetcher(url, {
+            headers: {
+                accept: "text/html",
+            },
+        });
 
-    if (!response.ok) {
-      return url;
+        if (!response.ok) {
+            return url;
+        }
+
+        return extractHtmlTitle(await response.text()) || url;
+    } catch (_error) {
+        return url;
     }
-
-    return extractHtmlTitle(await response.text()) || url;
-  } catch (_error) {
-    return url;
-  }
 }
 
 /**
@@ -213,13 +216,15 @@ async function fetchFallbackTitle(url, options) {
  * @returns {string} Extracted title, or an empty string.
  */
 function extractHtmlTitle(html) {
-  const match = String(html || "").match(/<title\b[^>]*>([\s\S]*?)<\/title>/iu);
+    const match = String(html || "").match(
+        /<title\b[^>]*>([\s\S]*?)<\/title>/iu,
+    );
 
-  if (match == null) {
-    return "";
-  }
+    if (match == null) {
+        return "";
+    }
 
-  return decodeHtmlEntities(match[1].replace(/\s+/gu, " ").trim());
+    return decodeHtmlEntities(match[1].replace(/\s+/gu, " ").trim());
 }
 
 /**
@@ -229,16 +234,18 @@ function extractHtmlTitle(html) {
  * @returns {string} Decoded title text.
  */
 function decodeHtmlEntities(text) {
-  return text
-    .replace(/&#(\d+);/gu, (_match, code) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([\da-f]+);/giu, (_match, code) =>
-      String.fromCodePoint(Number.parseInt(code, 16)),
-    )
-    .replace(/&quot;/gu, '"')
-    .replace(/&apos;/gu, "'")
-    .replace(/&amp;/gu, "&")
-    .replace(/&lt;/gu, "<")
-    .replace(/&gt;/gu, ">");
+    return text
+        .replace(/&#(\d+);/gu, (_match, code) =>
+            String.fromCodePoint(Number(code)),
+        )
+        .replace(/&#x([\da-f]+);/giu, (_match, code) =>
+            String.fromCodePoint(Number.parseInt(code, 16)),
+        )
+        .replace(/&quot;/gu, '"')
+        .replace(/&apos;/gu, "'")
+        .replace(/&amp;/gu, "&")
+        .replace(/&lt;/gu, "<")
+        .replace(/&gt;/gu, ">");
 }
 
 /**
@@ -248,9 +255,9 @@ function decodeHtmlEntities(text) {
  * @returns {string} Source URL hostname, or an empty string.
  */
 function getFallbackWebsiteTitle(url) {
-  const parsedUrl = parseUrl(normalizeCitationCacheKey(url));
+    const parsedUrl = parseUrl(normalizeCitationCacheKey(url));
 
-  return (parsedUrl?.hostname || "").replace(/^www\./u, "");
+    return (parsedUrl?.hostname || "").replace(/^www\./u, "");
 }
 
 /**
@@ -259,11 +266,11 @@ function getFallbackWebsiteTitle(url) {
  * @returns {Array<object>} Site-specific citation cleanup rules.
  */
 function getCitationRules() {
-  if (typeof __CREATE_VG_STUB_FIELD_DATA__ === "undefined") {
-    return [];
-  }
+    if (typeof __CREATE_VG_STUB_FIELD_DATA__ === "undefined") {
+        return [];
+    }
 
-  return __CREATE_VG_STUB_FIELD_DATA__["citation-rules"] || [];
+    return __CREATE_VG_STUB_FIELD_DATA__["citation-rules"] || [];
 }
 
 /**
@@ -273,11 +280,11 @@ function getCitationRules() {
  * @returns {object} First citation object.
  */
 function getFirstCitation(citations) {
-  if (!Array.isArray(citations) || citations.length === 0) {
-    throw new Error("Citoid did not return citation data.");
-  }
+    if (!Array.isArray(citations) || citations.length === 0) {
+        throw new Error("Citoid did not return citation data.");
+    }
 
-  return citations[0];
+    return citations[0];
 }
 
 /**
@@ -290,17 +297,17 @@ function getFirstCitation(citations) {
  * @returns {object} Template parameter values.
  */
 function buildCitationValues(citation, options) {
-  return {
-    accessDate: formatAccessDate(options.now),
-    author: formatCreators(citation.creators, "author"),
-    date: citation.date,
-    language: citation.language,
-    publisher: citation.publisher,
-    title: citation.title,
-    url: citation.url || options.url,
-    via: citation.via,
-    website: citation.websiteTitle || citation.publicationTitle,
-  };
+    return {
+        accessDate: formatAccessDate(options.now),
+        author: formatCreators(citation.creators, "author"),
+        date: citation.date,
+        language: citation.language,
+        publisher: citation.publisher,
+        title: citation.title,
+        url: citation.url || options.url,
+        via: citation.via,
+        website: citation.websiteTitle || citation.publicationTitle,
+    };
 }
 
 /**
@@ -313,10 +320,10 @@ function buildCitationValues(citation, options) {
  * @returns {object} Cleaned citation template values.
  */
 function applyCitationRules(values, options) {
-  return getMatchingRules(options.rules, options.sourceUrl || values.url).reduce(
-    applyCitationRule.bind(null, options.sourceUrl),
-    values,
-  );
+    return getMatchingRules(
+        options.rules,
+        options.sourceUrl || values.url,
+    ).reduce(applyCitationRule.bind(null, options.sourceUrl), values);
 }
 
 /**
@@ -328,7 +335,10 @@ function applyCitationRules(values, options) {
  * @returns {object} Cleaned citation template values.
  */
 function applyCitationRule(sourceUrl, values, rule) {
-  return (rule.fixes || []).reduce(applyFieldFix.bind(null, sourceUrl), values);
+    return (rule.fixes || []).reduce(
+        applyFieldFix.bind(null, sourceUrl),
+        values,
+    );
 }
 
 /**
@@ -343,27 +353,27 @@ function applyCitationRule(sourceUrl, values, rule) {
  * @returns {object} Citation template values.
  */
 function applyFieldFix(sourceUrl, values, fix) {
-  if (fix.action === "omit") {
-    return applyOmitFix(values, fix);
-  }
+    if (fix.action === "omit") {
+        return applyOmitFix(values, fix);
+    }
 
-  if (fix.action === "replace") {
-    return applyReplaceFix(values, fix);
-  }
+    if (fix.action === "replace") {
+        return applyReplaceFix(values, fix);
+    }
 
-  if (fix.action === "set") {
-    return applySetFix(values, fix);
-  }
+    if (fix.action === "set") {
+        return applySetFix(values, fix);
+    }
 
-  if (fix.action === "set-from-source-query") {
-    return applySetFromSourceQueryFix(sourceUrl, values, fix);
-  }
+    if (fix.action === "set-from-source-query") {
+        return applySetFromSourceQueryFix(sourceUrl, values, fix);
+    }
 
-  if (fix.action === "preserve-source-query") {
-    return applyPreserveSourceQueryFix(sourceUrl, values, fix);
-  }
+    if (fix.action === "preserve-source-query") {
+        return applyPreserveSourceQueryFix(sourceUrl, values, fix);
+    }
 
-  return values;
+    return values;
 }
 
 /**
@@ -376,14 +386,14 @@ function applyFieldFix(sourceUrl, values, fix) {
  * @returns {object} Citation template values.
  */
 function applyOmitFix(values, fix) {
-  if (fix.operand != null && values[fix.field] !== fix.operand) {
-    return values;
-  }
+    if (fix.operand != null && values[fix.field] !== fix.operand) {
+        return values;
+    }
 
-  return {
-    ...values,
-    [fix.field]: "",
-  };
+    return {
+        ...values,
+        [fix.field]: "",
+    };
 }
 
 /**
@@ -398,10 +408,10 @@ function applyOmitFix(values, fix) {
  * @returns {object} Citation template values.
  */
 function applyReplaceFix(values, fix) {
-  return {
-    ...values,
-    [fix.field]: replacePattern(values[fix.field], fix),
-  };
+    return {
+        ...values,
+        [fix.field]: replacePattern(values[fix.field], fix),
+    };
 }
 
 /**
@@ -414,10 +424,10 @@ function applyReplaceFix(values, fix) {
  * @returns {object} Citation template values.
  */
 function applySetFix(values, fix) {
-  return {
-    ...values,
-    [fix.field]: fix.operand,
-  };
+    return {
+        ...values,
+        [fix.field]: fix.operand,
+    };
 }
 
 /**
@@ -433,24 +443,24 @@ function applySetFix(values, fix) {
  * @returns {object} Citation template values.
  */
 function applySetFromSourceQueryFix(sourceUrl, values, fix) {
-  const source = parseUrl(sourceUrl);
-  const operand = fix.operand || {};
+    const source = parseUrl(sourceUrl);
+    const operand = fix.operand || {};
 
-  if (source == null || operand.key == null || operand.values == null) {
-    return values;
-  }
+    if (source == null || operand.key == null || operand.values == null) {
+        return values;
+    }
 
-  const queryValue = source.searchParams.get(operand.key);
-  const fieldValue = operand.values[queryValue];
+    const queryValue = source.searchParams.get(operand.key);
+    const fieldValue = operand.values[queryValue];
 
-  if (fieldValue == null) {
-    return values;
-  }
+    if (fieldValue == null) {
+        return values;
+    }
 
-  return {
-    ...values,
-    [fix.field]: fieldValue,
-  };
+    return {
+        ...values,
+        [fix.field]: fieldValue,
+    };
 }
 
 /**
@@ -463,10 +473,14 @@ function applySetFromSourceQueryFix(sourceUrl, values, fix) {
  * @returns {object} Citation template values.
  */
 function applyPreserveSourceQueryFix(sourceUrl, values, fix) {
-  return {
-    ...values,
-    [fix.field]: preserveSourceQuery(values[fix.field], sourceUrl, fix.operand),
-  };
+    return {
+        ...values,
+        [fix.field]: preserveSourceQuery(
+            values[fix.field],
+            sourceUrl,
+            fix.operand,
+        ),
+    };
 }
 
 /**
@@ -480,16 +494,16 @@ function applyPreserveSourceQueryFix(sourceUrl, values, fix) {
  * @returns {string} Value with the pattern replaced.
  */
 function replacePattern(value, fix) {
-  const operand = fix.operand || {};
+    const operand = fix.operand || {};
 
-  if (value == null || operand.pattern == null) {
-    return value;
-  }
+    if (value == null || operand.pattern == null) {
+        return value;
+    }
 
-  return value.replace(
-    new RegExp(operand.pattern, "u"),
-    operand.replacement || "",
-  );
+    return value.replace(
+        new RegExp(operand.pattern, "u"),
+        operand.replacement || "",
+    );
 }
 
 /**
@@ -501,22 +515,22 @@ function replacePattern(value, fix) {
  * @returns {string} URL with original query values restored when possible.
  */
 function preserveSourceQuery(citationUrl, sourceUrl, keys) {
-  const citation = parseUrl(citationUrl);
-  const source = parseUrl(sourceUrl);
+    const citation = parseUrl(citationUrl);
+    const source = parseUrl(sourceUrl);
 
-  if (citation == null || source == null) {
-    return citationUrl;
-  }
+    if (citation == null || source == null) {
+        return citationUrl;
+    }
 
-  if (source.search === "") {
-    return citationUrl;
-  }
+    if (source.search === "") {
+        return citationUrl;
+    }
 
-  getSourceQueryKeys(source, keys).forEach(
-    preserveSourceQueryKey.bind(null, citation, source),
-  );
+    getSourceQueryKeys(source, keys).forEach(
+        preserveSourceQueryKey.bind(null, citation, source),
+    );
 
-  return citation.toString();
+    return citation.toString();
 }
 
 /**
@@ -527,11 +541,11 @@ function preserveSourceQuery(citationUrl, sourceUrl, keys) {
  * @returns {Array<string>} Query keys to preserve.
  */
 function getSourceQueryKeys(source, keys) {
-  if (Array.isArray(keys)) {
-    return keys;
-  }
+    if (Array.isArray(keys)) {
+        return keys;
+    }
 
-  return Array.from(source.searchParams.keys());
+    return Array.from(source.searchParams.keys());
 }
 
 /**
@@ -543,11 +557,11 @@ function getSourceQueryKeys(source, keys) {
  * @returns {void}
  */
 function preserveSourceQueryKey(citation, source, key) {
-  if (citation.searchParams.has(key) || !source.searchParams.has(key)) {
-    return;
-  }
+    if (citation.searchParams.has(key) || !source.searchParams.has(key)) {
+        return;
+    }
 
-  citation.searchParams.set(key, source.searchParams.get(key));
+    citation.searchParams.set(key, source.searchParams.get(key));
 }
 
 /**
@@ -558,14 +572,14 @@ function preserveSourceQueryKey(citation, source, key) {
  * @returns {Array<object>} Matching cleanup rules.
  */
 function getMatchingRules(rules, url) {
-  const globalRules = rules.filter(isGlobalRule);
-  const parsedUrl = parseUrl(url);
+    const globalRules = rules.filter(isGlobalRule);
+    const parsedUrl = parseUrl(url);
 
-  if (parsedUrl == null) {
-    return globalRules;
-  }
+    if (parsedUrl == null) {
+        return globalRules;
+    }
 
-  return rules.filter(isMatchingRule.bind(null, parsedUrl.hostname));
+    return rules.filter(isMatchingRule.bind(null, parsedUrl.hostname));
 }
 
 /**
@@ -575,7 +589,7 @@ function getMatchingRules(rules, url) {
  * @returns {boolean} Whether the rule is global.
  */
 function isGlobalRule(rule) {
-  return rule.host == null;
+    return rule.host == null;
 }
 
 /**
@@ -586,7 +600,7 @@ function isGlobalRule(rule) {
  * @returns {boolean} Whether the rule matches the host.
  */
 function isMatchingRule(hostname, rule) {
-  return rule.host == null || hostname === rule.host;
+    return rule.host == null || hostname === rule.host;
 }
 
 /**
@@ -596,11 +610,11 @@ function isMatchingRule(hostname, rule) {
  * @returns {URL|null} Parsed URL.
  */
 function parseUrl(url) {
-  try {
-    return new URL(url);
-  } catch (_error) {
-    return null;
-  }
+    try {
+        return new URL(url);
+    } catch (_error) {
+        return null;
+    }
 }
 
 /**
@@ -610,9 +624,9 @@ function parseUrl(url) {
  * @returns {boolean} Whether the value is present.
  */
 function hasTemplateValue(entry) {
-  const [_key, value] = entry;
+    const [_key, value] = entry;
 
-  return value != null && String(value).trim() !== "";
+    return value != null && String(value).trim() !== "";
 }
 
 /**
@@ -622,9 +636,9 @@ function hasTemplateValue(entry) {
  * @returns {string} Template parameter wikitext.
  */
 function formatTemplateParam(entry) {
-  const [key, value] = entry;
+    const [key, value] = entry;
 
-  return `|${formatTemplateKey(key)}=${escapeTemplateValue(String(value))}`;
+    return `|${formatTemplateKey(key)}=${escapeTemplateValue(String(value))}`;
 }
 
 /**
@@ -634,7 +648,7 @@ function formatTemplateParam(entry) {
  * @returns {string} Template parameter key.
  */
 function formatTemplateKey(key) {
-  return key.replace(/[A-Z]/gu, "-$&").toLocaleLowerCase();
+    return key.replace(/[A-Z]/gu, "-$&").toLocaleLowerCase();
 }
 
 /**
@@ -644,7 +658,7 @@ function formatTemplateKey(key) {
  * @returns {string} Escaped template parameter value.
  */
 function escapeTemplateValue(value) {
-  return value.trim().replace(/\|/gu, "{{!}}");
+    return value.trim().replace(/\|/gu, "{{!}}");
 }
 
 /**
@@ -654,19 +668,19 @@ function escapeTemplateValue(value) {
  * @returns {string} Citation template name.
  */
 function getTemplateName(itemType) {
-  if (itemType === "journalArticle") {
-    return "cite journal";
-  }
+    if (itemType === "journalArticle") {
+        return "cite journal";
+    }
 
-  if (itemType === "book" || itemType === "bookSection") {
-    return "cite book";
-  }
+    if (itemType === "book" || itemType === "bookSection") {
+        return "cite book";
+    }
 
-  if (itemType === "newspaperArticle" || itemType === "magazineArticle") {
-    return "cite news";
-  }
+    if (itemType === "newspaperArticle" || itemType === "magazineArticle") {
+        return "cite news";
+    }
 
-  return "cite web";
+    return "cite web";
 }
 
 /**
@@ -677,11 +691,14 @@ function getTemplateName(itemType) {
  * @returns {string} Joined creator names.
  */
 function formatCreators(creators, type) {
-  if (!Array.isArray(creators)) {
-    return "";
-  }
+    if (!Array.isArray(creators)) {
+        return "";
+    }
 
-  return creators.filter(isCreatorType.bind(null, type)).map(formatCreator).join("; ");
+    return creators
+        .filter(isCreatorType.bind(null, type))
+        .map(formatCreator)
+        .join("; ");
 }
 
 /**
@@ -692,7 +709,7 @@ function formatCreators(creators, type) {
  * @returns {boolean} Whether the creator matches.
  */
 function isCreatorType(type, creator) {
-  return creator.creatorType === type;
+    return creator.creatorType === type;
 }
 
 /**
@@ -702,11 +719,11 @@ function isCreatorType(type, creator) {
  * @returns {string} Creator display text.
  */
 function formatCreator(creator) {
-  if (creator.name != null) {
-    return creator.name;
-  }
+    if (creator.name != null) {
+        return creator.name;
+    }
 
-  return [creator.firstName, creator.lastName].filter(Boolean).join(" ");
+    return [creator.firstName, creator.lastName].filter(Boolean).join(" ");
 }
 
 /**
@@ -716,7 +733,7 @@ function formatCreator(creator) {
  * @returns {string} ISO date string.
  */
 function formatAccessDate(date) {
-  const accessDate = date || new Date();
+    const accessDate = date || new Date();
 
-  return accessDate.toISOString().slice(0, DATE_PARTS_LENGTH);
+    return accessDate.toISOString().slice(0, DATE_PARTS_LENGTH);
 }

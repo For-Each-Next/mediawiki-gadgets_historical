@@ -5,9 +5,9 @@
  */
 
 export const FIELD_REFERENCE_DATA =
-  typeof __CREATE_VG_STUB_FIELD_DATA__ === "undefined"
-    ? {}
-    : __CREATE_VG_STUB_FIELD_DATA__;
+    typeof __CREATE_VG_STUB_FIELD_DATA__ === "undefined"
+        ? {}
+        : __CREATE_VG_STUB_FIELD_DATA__;
 
 /**
  * Template parameter key/value tuple.
@@ -22,7 +22,7 @@ export const FIELD_REFERENCE_DATA =
  * @returns {string} Category wikitext.
  */
 export function buildCategoryLink(category) {
-  return `[[Category:${category}]]`;
+    return `[[Category:${category}]]`;
 }
 
 /**
@@ -32,7 +32,7 @@ export function buildCategoryLink(category) {
  * @returns {string} Template wikitext.
  */
 export function buildTemplateCall(template) {
-  return `{{${template}}}`;
+    return `{{${template}}}`;
 }
 
 /**
@@ -44,13 +44,13 @@ export function buildTemplateCall(template) {
  * @returns {string} Template wikitext.
  */
 export function buildTemplateText(name, params, style = "inline") {
-  const entries = params.filter(hasTemplateParamValue);
+    const entries = params.filter(hasTemplateParamValue);
 
-  if (style === "block") {
-    return buildBlockTemplateText(name, entries);
-  }
+    if (style === "block") {
+        return buildBlockTemplateText(name, entries);
+    }
 
-  return buildInlineTemplateText(name, entries);
+    return buildInlineTemplateText(name, entries);
 }
 
 /**
@@ -61,7 +61,7 @@ export function buildTemplateText(name, params, style = "inline") {
  * @returns {string} Inline template wikitext.
  */
 function buildInlineTemplateText(name, entries) {
-  return `{{${name}${entries.map(buildInlineTemplateParam).join("")}}}`;
+    return `{{${name}${entries.map(buildInlineTemplateParam).join("")}}}`;
 }
 
 /**
@@ -72,7 +72,7 @@ function buildInlineTemplateText(name, entries) {
  * @returns {string} Block template wikitext.
  */
 function buildBlockTemplateText(name, entries) {
-  return `{{${name}\n${entries.map(buildBlockTemplateParam).join("\n")}\n}}`;
+    return `{{${name}\n${entries.map(buildBlockTemplateParam).join("\n")}\n}}`;
 }
 
 /**
@@ -82,13 +82,13 @@ function buildBlockTemplateText(name, entries) {
  * @returns {string} Inline template parameter.
  */
 function buildInlineTemplateParam(entry) {
-  const [key, value] = entry;
+    const [key, value] = entry;
 
-  if (typeof key === "number") {
-    return `|${value}`;
-  }
+    if (typeof key === "number") {
+        return `|${value}`;
+    }
 
-  return `|${key}=${value}`;
+    return `|${key}=${value}`;
 }
 
 /**
@@ -98,13 +98,13 @@ function buildInlineTemplateParam(entry) {
  * @returns {string} Block template parameter.
  */
 function buildBlockTemplateParam(entry) {
-  const [key, value] = entry;
+    const [key, value] = entry;
 
-  if (key == null) {
-    return `| ${value}`;
-  }
+    if (key == null) {
+        return `| ${value}`;
+    }
 
-  return `| ${key} = ${value}`;
+    return `| ${key} = ${value}`;
 }
 
 /**
@@ -114,9 +114,9 @@ function buildBlockTemplateParam(entry) {
  * @returns {boolean} Whether the value should be emitted.
  */
 function hasTemplateParamValue(entry) {
-  const [_key, value] = entry;
+    const [_key, value] = entry;
 
-  return value != null;
+    return value != null;
 }
 
 /**
@@ -127,7 +127,7 @@ function hasTemplateParamValue(entry) {
  * @returns {string} Link wikitext.
  */
 export function buildLinkText(title, label) {
-  return `[[${title}|${label}]]`;
+    return `[[${title}|${label}]]`;
 }
 
 /**
@@ -139,11 +139,11 @@ export function buildLinkText(title, label) {
  * @returns {string} Page link wikitext.
  */
 export function buildPageText(page) {
-  if (page.label == null) {
-    return `[[${page.title}]]`;
-  }
+    if (page.label == null) {
+        return `[[${page.title}]]`;
+    }
 
-  return buildLinkText(page.title, page.label);
+    return buildLinkText(page.title, page.label);
 }
 
 /**
@@ -154,7 +154,7 @@ export function buildPageText(page) {
  * @returns {Array<string>} Flattened reference values.
  */
 export function getReferenceValues(references, key) {
-  return references.flatMap((reference) => reference[key] || []);
+    return references.flatMap((reference) => reference[key] || []);
 }
 
 /**
@@ -164,7 +164,7 @@ export function getReferenceValues(references, key) {
  * @returns {Array<string>} Unique values.
  */
 export function uniqueValues(values) {
-  return Array.from(new Set(values));
+    return Array.from(new Set(values));
 }
 
 /**
@@ -174,7 +174,7 @@ export function uniqueValues(values) {
  * @returns {string} Joined display text.
  */
 export function joinFieldValues(value) {
-  return splitFieldValues(value).join("、");
+    return splitFieldValues(value).join("、");
 }
 
 /**
@@ -184,9 +184,7 @@ export function joinFieldValues(value) {
  * @returns {Array<string>} Individual lookup values.
  */
 export function splitFieldValues(value) {
-  return splitDelimitedFieldValue(value)
-    .map(trimValue)
-    .filter(Boolean);
+    return splitDelimitedFieldValue(value).map(trimValue).filter(Boolean);
 }
 
 /**
@@ -196,10 +194,10 @@ export function splitFieldValues(value) {
  * @returns {Array<string>} Individual values with wikilinks normalized.
  */
 export function splitLookupFieldValues(value) {
-  return splitDelimitedFieldValue(value)
-    .map(getWikilinkValue)
-    .map(trimValue)
-    .filter(Boolean);
+    return splitDelimitedFieldValue(value)
+        .map(getWikilinkValue)
+        .map(trimValue)
+        .filter(Boolean);
 }
 
 /**
@@ -209,14 +207,14 @@ export function splitLookupFieldValues(value) {
  * @returns {string} Display text for piped links, or target text otherwise.
  */
 export function getWikilinkValue(value) {
-  const item = trimValue(value);
-  const parts = getWikilinkParts(item);
+    const item = trimValue(value);
+    const parts = getWikilinkParts(item);
 
-  if (parts == null) {
-    return item;
-  }
+    if (parts == null) {
+        return item;
+    }
 
-  return parts.label || parts.target;
+    return parts.label || parts.target;
 }
 
 /**
@@ -226,18 +224,18 @@ export function getWikilinkValue(value) {
  * @returns {object|null} Wikilink target and display label.
  */
 export function getWikilinkParts(value) {
-  const match = getWikilinkMatch(trimValue(value));
+    const match = getWikilinkMatch(trimValue(value));
 
-  if (match == null) {
-    return null;
-  }
+    if (match == null) {
+        return null;
+    }
 
-  const [target, label] = splitWikilinkParts(match[1]);
+    const [target, label] = splitWikilinkParts(match[1]);
 
-  return {
-    label: trimValue(label),
-    target: trimValue(target),
-  };
+    return {
+        label: trimValue(label),
+        target: trimValue(target),
+    };
 }
 
 /**
@@ -247,7 +245,7 @@ export function getWikilinkParts(value) {
  * @returns {boolean} Whether the item is a wikilink.
  */
 export function isWikilinkValue(value) {
-  return getWikilinkMatch(trimValue(value)) != null;
+    return getWikilinkMatch(trimValue(value)) != null;
 }
 
 /**
@@ -257,7 +255,7 @@ export function isWikilinkValue(value) {
  * @returns {RegExpMatchArray|null} Wikilink match.
  */
 function getWikilinkMatch(value) {
-  return value.match(/^\[\[([^\[\]\r\n]+)\]\]$/u);
+    return value.match(/^\[\[([^\[\]\r\n]+)\]\]$/u);
 }
 
 /**
@@ -267,41 +265,44 @@ function getWikilinkMatch(value) {
  * @returns {Array<string>} Raw field items.
  */
 function splitDelimitedFieldValue(value) {
-  const text = value == null ? "" : String(value);
-  const firstLevelOnly = hasFirstLevelFieldSeparator(text);
-  const items = [];
-  let item = "";
-  let inWikilink = false;
+    const text = value == null ? "" : String(value);
+    const firstLevelOnly = hasFirstLevelFieldSeparator(text);
+    const items = [];
+    let item = "";
+    let inWikilink = false;
 
-  for (let index = 0; index < text.length; index++) {
-    const pair = text.slice(index, index + 2);
+    for (let index = 0; index < text.length; index++) {
+        const pair = text.slice(index, index + 2);
 
-    if (pair === "[[") {
-      inWikilink = true;
-      item += pair;
-      index++;
-      continue;
+        if (pair === "[[") {
+            inWikilink = true;
+            item += pair;
+            index++;
+            continue;
+        }
+
+        if (pair === "]]" && inWikilink) {
+            inWikilink = false;
+            item += pair;
+            index++;
+            continue;
+        }
+
+        if (
+            !inWikilink &&
+            isFieldValueSeparator(text, index, firstLevelOnly)
+        ) {
+            items.push(item);
+            item = "";
+            continue;
+        }
+
+        item += text[index];
     }
 
-    if (pair === "]]" && inWikilink) {
-      inWikilink = false;
-      item += pair;
-      index++;
-      continue;
-    }
+    items.push(item);
 
-    if (!inWikilink && isFieldValueSeparator(text, index, firstLevelOnly)) {
-      items.push(item);
-      item = "";
-      continue;
-    }
-
-    item += text[index];
-  }
-
-  items.push(item);
-
-  return items;
+    return items;
 }
 
 /**
@@ -311,29 +312,29 @@ function splitDelimitedFieldValue(value) {
  * @returns {boolean} Whether the field uses first-level item separators.
  */
 function hasFirstLevelFieldSeparator(text) {
-  let inWikilink = false;
+    let inWikilink = false;
 
-  for (let index = 0; index < text.length; index++) {
-    const pair = text.slice(index, index + 2);
+    for (let index = 0; index < text.length; index++) {
+        const pair = text.slice(index, index + 2);
 
-    if (pair === "[[") {
-      inWikilink = true;
-      index++;
-      continue;
+        if (pair === "[[") {
+            inWikilink = true;
+            index++;
+            continue;
+        }
+
+        if (pair === "]]" && inWikilink) {
+            inWikilink = false;
+            index++;
+            continue;
+        }
+
+        if (!inWikilink && /[;；\r\n]/u.test(text[index])) {
+            return true;
+        }
     }
 
-    if (pair === "]]" && inWikilink) {
-      inWikilink = false;
-      index++;
-      continue;
-    }
-
-    if (!inWikilink && /[;；\r\n]/u.test(text[index])) {
-      return true;
-    }
-  }
-
-  return false;
+    return false;
 }
 
 /**
@@ -343,13 +344,13 @@ function hasFirstLevelFieldSeparator(text) {
  * @returns {Array<string>} Target and optional label.
  */
 function splitWikilinkParts(value) {
-  const separatorIndex = value.indexOf("|");
+    const separatorIndex = value.indexOf("|");
 
-  if (separatorIndex === -1) {
-    return [value, ""];
-  }
+    if (separatorIndex === -1) {
+        return [value, ""];
+    }
 
-  return [value.slice(0, separatorIndex), value.slice(separatorIndex + 1)];
+    return [value.slice(0, separatorIndex), value.slice(separatorIndex + 1)];
 }
 
 /**
@@ -361,17 +362,17 @@ function splitWikilinkParts(value) {
  * @returns {boolean} Whether the character is a field separator.
  */
 function isFieldValueSeparator(text, index, firstLevelOnly) {
-  const character = text[index];
+    const character = text[index];
 
-  if (firstLevelOnly) {
-    return /[;；\r\n]/u.test(character);
-  }
+    if (firstLevelOnly) {
+        return /[;；\r\n]/u.test(character);
+    }
 
-  if (character === "/") {
-    return isSpacedSlash(text, index);
-  }
+    if (character === "/") {
+        return isSpacedSlash(text, index);
+    }
 
-  return /[、,，;；\r\n]/u.test(character);
+    return /[、,，;；\r\n]/u.test(character);
 }
 
 /**
@@ -382,7 +383,9 @@ function isFieldValueSeparator(text, index, firstLevelOnly) {
  * @returns {boolean} Whether the slash is a spaced separator.
  */
 function isSpacedSlash(text, index) {
-  return /\s/u.test(text[index - 1] || "") || /\s/u.test(text[index + 1] || "");
+    return (
+        /\s/u.test(text[index - 1] || "") || /\s/u.test(text[index + 1] || "")
+    );
 }
 
 /**
@@ -392,7 +395,7 @@ function isSpacedSlash(text, index) {
  * @returns {string} Trimmed lookup value.
  */
 export function trimValue(value) {
-  return value.trim();
+    return value.trim();
 }
 
 /**
@@ -403,7 +406,7 @@ export function trimValue(value) {
  * @returns {object|undefined} Matched reference definition.
  */
 export function getReferenceDefinition(definitions, value) {
-  return getReferenceEntry(definitions, value).reference;
+    return getReferenceEntry(definitions, value).reference;
 }
 
 /**
@@ -414,16 +417,16 @@ export function getReferenceDefinition(definitions, value) {
  * @returns {object|undefined} Matched reference definition.
  */
 export function getSourceReference(definitions, value) {
-  const reference = getReferenceDefinition(definitions, value);
+    const reference = getReferenceDefinition(definitions, value);
 
-  if (reference == null) {
-    return undefined;
-  }
+    if (reference == null) {
+        return undefined;
+    }
 
-  return {
-    ...reference,
-    source: value,
-  };
+    return {
+        ...reference,
+        source: value,
+    };
 }
 
 /**
@@ -434,21 +437,23 @@ export function getSourceReference(definitions, value) {
  * @returns {object} Matched reference key and definition.
  */
 export function getReferenceEntry(definitions, value) {
-  const entries = getReferenceEntries(definitions);
-  const normalizedValue = normalizeAlias(getWikilinkValue(value));
-  const entry = entries.find(
-    ([key, definition]) =>
-      normalizeAlias(key) === normalizedValue ||
-      (definition.aliases || []).map(normalizeAlias).includes(normalizedValue),
-  );
+    const entries = getReferenceEntries(definitions);
+    const normalizedValue = normalizeAlias(getWikilinkValue(value));
+    const entry = entries.find(
+        ([key, definition]) =>
+            normalizeAlias(key) === normalizedValue ||
+            (definition.aliases || [])
+                .map(normalizeAlias)
+                .includes(normalizedValue),
+    );
 
-  if (entry == null) {
-    return {};
-  }
+    if (entry == null) {
+        return {};
+    }
 
-  const [key, reference] = entry;
+    const [key, reference] = entry;
 
-  return { key, reference };
+    return { key, reference };
 }
 
 /**
@@ -458,14 +463,14 @@ export function getReferenceEntry(definitions, value) {
  * @returns {Array<Array<string|object>>} Reference key and definition pairs.
  */
 function getReferenceEntries(definitions) {
-  if (Array.isArray(definitions)) {
-    return definitions.map((definition) => [
-      getReferenceKey(definition),
-      definition,
-    ]);
-  }
+    if (Array.isArray(definitions)) {
+        return definitions.map((definition) => [
+            getReferenceKey(definition),
+            definition,
+        ]);
+    }
 
-  return Object.entries(definitions || {});
+    return Object.entries(definitions || {});
 }
 
 /**
@@ -476,7 +481,7 @@ function getReferenceEntries(definitions) {
  * @returns {string|undefined} Reference key.
  */
 function getReferenceKey(definition) {
-  return definition.aliases?.[0];
+    return definition.aliases?.[0];
 }
 
 /**
@@ -486,5 +491,5 @@ function getReferenceKey(definition) {
  * @returns {string} Normalized alias.
  */
 function normalizeAlias(alias) {
-  return alias.toLocaleLowerCase();
+    return alias.toLocaleLowerCase();
 }

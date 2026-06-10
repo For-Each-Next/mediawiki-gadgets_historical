@@ -15,17 +15,17 @@ const DRAFT_SAVED_AT_STORAGE_KEY = "create-vg-stub-form-draft-saved-at";
  * @returns {object|undefined} Stored draft form values.
  */
 export function readFormDraft() {
-  try {
-    if (typeof localStorage === "undefined") {
-      return undefined;
+    try {
+        if (typeof localStorage === "undefined") {
+            return undefined;
+        }
+
+        const draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY));
+
+        return draft == null || typeof draft !== "object" ? undefined : draft;
+    } catch (_error) {
+        return undefined;
     }
-
-    const draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY));
-
-    return draft == null || typeof draft !== "object" ? undefined : draft;
-  } catch (_error) {
-    return undefined;
-  }
 }
 
 /**
@@ -35,13 +35,13 @@ export function readFormDraft() {
  * @returns {object|undefined} Stored draft form values.
  */
 export function readFormDraftForPage(page) {
-  const draft = readFormDraft();
+    const draft = readFormDraft();
 
-  if (draft == null || normalizePage(draft.name) !== normalizePage(page)) {
-    return undefined;
-  }
+    if (draft == null || normalizePage(draft.name) !== normalizePage(page)) {
+        return undefined;
+    }
 
-  return draft;
+    return draft;
 }
 
 /**
@@ -50,19 +50,19 @@ export function readFormDraftForPage(page) {
  * @returns {object|undefined} Draft history entry.
  */
 export function readFormDraftEntry() {
-  const form = readFormDraft();
+    const form = readFormDraft();
 
-  if (form == null) {
-    return undefined;
-  }
+    if (form == null) {
+        return undefined;
+    }
 
-  return {
-    form,
-    id: "draft",
-    page: normalizePage(form.name) || "(temporary draft)",
-    savedAt: readFormDraftSavedAt(),
-    temporary: true,
-  };
+    return {
+        form,
+        id: "draft",
+        page: normalizePage(form.name) || "(temporary draft)",
+        savedAt: readFormDraftSavedAt(),
+        temporary: true,
+    };
 }
 
 /**
@@ -72,8 +72,8 @@ export function readFormDraftEntry() {
  * @returns {void}
  */
 export function saveFormDraft(form) {
-  writeStorageItem(DRAFT_STORAGE_KEY, cloneValue(form));
-  writeStorageItem(DRAFT_SAVED_AT_STORAGE_KEY, new Date().toLocaleString());
+    writeStorageItem(DRAFT_STORAGE_KEY, cloneValue(form));
+    writeStorageItem(DRAFT_SAVED_AT_STORAGE_KEY, new Date().toLocaleString());
 }
 
 /**
@@ -82,17 +82,17 @@ export function saveFormDraft(form) {
  * @returns {Array<object>} Stored history entries.
  */
 export function readFormHistory() {
-  try {
-    if (typeof localStorage === "undefined") {
-      return [];
+    try {
+        if (typeof localStorage === "undefined") {
+            return [];
+        }
+
+        const entries = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY));
+
+        return Array.isArray(entries) ? entries : [];
+    } catch (_error) {
+        return [];
     }
-
-    const entries = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY));
-
-    return Array.isArray(entries) ? entries : [];
-  } catch (_error) {
-    return [];
-  }
 }
 
 /**
@@ -104,13 +104,13 @@ export function readFormHistory() {
  * @returns {void}
  */
 export function saveFormHistory(form, page, citations = {}) {
-  const entry = createFormHistoryEntry(form, page, citations);
-  const entries = [
-    entry,
-    ...readFormHistory().filter((item) => item.id !== entry.id),
-  ].slice(0, HISTORY_LIMIT);
+    const entry = createFormHistoryEntry(form, page, citations);
+    const entries = [
+        entry,
+        ...readFormHistory().filter((item) => item.id !== entry.id),
+    ].slice(0, HISTORY_LIMIT);
 
-  writeFormHistory(entries);
+    writeFormHistory(entries);
 }
 
 /**
@@ -121,7 +121,7 @@ export function saveFormHistory(form, page, citations = {}) {
  * @returns {object} Citation cache keyed by source URL.
  */
 export function getFormHistoryCitations(form, page) {
-  return getFormHistoryEntry(form, page)?.citations || {};
+    return getFormHistoryEntry(form, page)?.citations || {};
 }
 
 /**
@@ -133,17 +133,17 @@ export function getFormHistoryCitations(form, page) {
  * @returns {void}
  */
 export function updateFormHistoryCitations(form, page, citations) {
-  const entry = getFormHistoryEntry(form, page);
+    const entry = getFormHistoryEntry(form, page);
 
-  if (entry == null) {
-    return;
-  }
+    if (entry == null) {
+        return;
+    }
 
-  entry.citations = cloneValue(citations);
-  writeFormHistory([
-    entry,
-    ...readFormHistory().filter((item) => item.id !== entry.id),
-  ]);
+    entry.citations = cloneValue(citations);
+    writeFormHistory([
+        entry,
+        ...readFormHistory().filter((item) => item.id !== entry.id),
+    ]);
 }
 
 /**
@@ -153,7 +153,7 @@ export function updateFormHistoryCitations(form, page, citations) {
  * @returns {void}
  */
 export function deleteFormHistoryEntry(id) {
-  writeFormHistory(readFormHistory().filter((entry) => entry.id !== id));
+    writeFormHistory(readFormHistory().filter((entry) => entry.id !== id));
 }
 
 /**
@@ -162,7 +162,7 @@ export function deleteFormHistoryEntry(id) {
  * @returns {void}
  */
 export function clearFormHistory() {
-  removeStorageItem(HISTORY_STORAGE_KEY);
+    removeStorageItem(HISTORY_STORAGE_KEY);
 }
 
 /**
@@ -174,15 +174,18 @@ export function clearFormHistory() {
  * @returns {object} History entry.
  */
 function createFormHistoryEntry(form, page, citations) {
-  const snapshot = cloneValue(form);
+    const snapshot = cloneValue(form);
 
-  return {
-    citations: cloneValue(citations),
-    form: snapshot,
-    id: createHistoryEntryId(snapshot, page),
-    page: normalizePage(page) || normalizePage(snapshot.name) || "(untitled)",
-    savedAt: new Date().toLocaleString(),
-  };
+    return {
+        citations: cloneValue(citations),
+        form: snapshot,
+        id: createHistoryEntryId(snapshot, page),
+        page:
+            normalizePage(page) ||
+            normalizePage(snapshot.name) ||
+            "(untitled)",
+        savedAt: new Date().toLocaleString(),
+    };
 }
 
 /**
@@ -193,9 +196,9 @@ function createFormHistoryEntry(form, page, citations) {
  * @returns {object|undefined} Stored history entry.
  */
 function getFormHistoryEntry(form, page) {
-  const id = createHistoryEntryId(form, page);
+    const id = createHistoryEntryId(form, page);
 
-  return readFormHistory().find((entry) => entry.id === id);
+    return readFormHistory().find((entry) => entry.id === id);
 }
 
 /**
@@ -206,7 +209,7 @@ function getFormHistoryEntry(form, page) {
  * @returns {string} History entry ID.
  */
 function createHistoryEntryId(form, page) {
-  return JSON.stringify([normalizePage(page), form]);
+    return JSON.stringify([normalizePage(page), form]);
 }
 
 /**
@@ -216,7 +219,7 @@ function createHistoryEntryId(form, page) {
  * @returns {void}
  */
 function writeFormHistory(entries) {
-  writeStorageItem(HISTORY_STORAGE_KEY, entries);
+    writeStorageItem(HISTORY_STORAGE_KEY, entries);
 }
 
 /**
@@ -227,11 +230,11 @@ function writeFormHistory(entries) {
  * @returns {void}
  */
 function writeStorageItem(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (_error) {
-    // Ignore storage quota and privacy-mode failures.
-  }
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (_error) {
+        // Ignore storage quota and privacy-mode failures.
+    }
 }
 
 /**
@@ -240,11 +243,11 @@ function writeStorageItem(key, value) {
  * @returns {string} Draft save timestamp.
  */
 function readFormDraftSavedAt() {
-  try {
-    return JSON.parse(localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY));
-  } catch (_error) {
-    return "Temporary draft";
-  }
+    try {
+        return JSON.parse(localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY));
+    } catch (_error) {
+        return "Temporary draft";
+    }
 }
 
 /**
@@ -254,11 +257,11 @@ function readFormDraftSavedAt() {
  * @returns {void}
  */
 function removeStorageItem(key) {
-  try {
-    localStorage.removeItem(key);
-  } catch (_error) {
-    // Ignore storage quota and privacy-mode failures.
-  }
+    try {
+        localStorage.removeItem(key);
+    } catch (_error) {
+        // Ignore storage quota and privacy-mode failures.
+    }
 }
 
 /**
@@ -268,7 +271,7 @@ function removeStorageItem(key) {
  * @returns {*} Cloned value.
  */
 function cloneValue(value) {
-  return JSON.parse(JSON.stringify(value));
+    return JSON.parse(JSON.stringify(value));
 }
 
 /**
@@ -278,5 +281,5 @@ function cloneValue(value) {
  * @returns {string} Normalized page title.
  */
 function normalizePage(page) {
-  return String(page || "").trim();
+    return String(page || "").trim();
 }

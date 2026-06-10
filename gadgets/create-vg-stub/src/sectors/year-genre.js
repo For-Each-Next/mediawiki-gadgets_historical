@@ -5,15 +5,15 @@
  */
 
 import {
-  FIELD_REFERENCE_DATA,
-  buildLinkText,
-  getReferenceDefinition,
-  getReferenceEntry,
-  getReferenceValues,
-  isWikilinkValue,
-  splitFieldValues,
-  trimValue,
-  uniqueValues,
+    FIELD_REFERENCE_DATA,
+    buildLinkText,
+    getReferenceDefinition,
+    getReferenceEntry,
+    getReferenceValues,
+    isWikilinkValue,
+    splitFieldValues,
+    trimValue,
+    uniqueValues,
 } from "../utils.js";
 
 /**
@@ -26,23 +26,25 @@ import {
  * @returns {object} Video game text, categories, and stub tags.
  */
 export function buildYearGenreMetadata(values) {
-  const genreReferences = getGenreReferences(values.genres);
-  const yearReference = getYearReference(values.year);
-  const text = buildYearGenreText({
-    genreReferences,
-    genres: values.genres,
-    sourceTag: values.sourceTag || "",
-    yearReference,
-  });
+    const genreReferences = getGenreReferences(values.genres);
+    const yearReference = getYearReference(values.year);
+    const text = buildYearGenreText({
+        genreReferences,
+        genres: values.genres,
+        sourceTag: values.sourceTag || "",
+        yearReference,
+    });
 
-  return {
-    categories: uniqueValues([
-      ...getReferenceValues(genreReferences, "categories"),
-      ...yearReference.categories,
-    ]),
-    stubTags: uniqueValues(getReferenceValues(genreReferences, "stubTags")),
-    text,
-  };
+    return {
+        categories: uniqueValues([
+            ...getReferenceValues(genreReferences, "categories"),
+            ...yearReference.categories,
+        ]),
+        stubTags: uniqueValues(
+            getReferenceValues(genreReferences, "stubTags"),
+        ),
+        text,
+    };
 }
 
 /**
@@ -56,7 +58,7 @@ export function buildYearGenreMetadata(values) {
  * @returns {string} Year, genre, and video game phrase.
  */
 function buildYearGenreText(params) {
-  return `${buildYearGenrePrefixText(params)}[[电子游戏]]${params.sourceTag}`;
+    return `${buildYearGenrePrefixText(params)}[[电子游戏]]${params.sourceTag}`;
 }
 
 /**
@@ -69,15 +71,15 @@ function buildYearGenreText(params) {
  * @returns {string} Year and genre phrase.
  */
 function buildYearGenrePrefixText(params) {
-  const yearText = params.yearReference.phrase;
-  const genreText = buildGenreClassText(params);
-  const text = `${yearText}${genreText}`;
+    const yearText = params.yearReference.phrase;
+    const genreText = buildGenreClassText(params);
+    const text = `${yearText}${genreText}`;
 
-  if (text === "") {
-    return "一款";
-  }
+    if (text === "") {
+        return "一款";
+    }
 
-  return text;
+    return text;
 }
 
 /**
@@ -89,13 +91,13 @@ function buildYearGenrePrefixText(params) {
  * @returns {string} Genre class phrase.
  */
 function buildGenreClassText(params) {
-  const genreText = buildGenreText(params);
+    const genreText = buildGenreText(params);
 
-  if (genreText === "") {
-    return "";
-  }
+    if (genreText === "") {
+        return "";
+    }
 
-  return `${genreText}类`;
+    return `${genreText}类`;
 }
 
 /**
@@ -107,7 +109,7 @@ function buildGenreClassText(params) {
  * @returns {string} Genre phrase wikitext.
  */
 function buildGenreText(params) {
-  return splitFieldValues(params.genres).map(buildGenreItemText).join("、");
+    return splitFieldValues(params.genres).map(buildGenreItemText).join("、");
 }
 
 /**
@@ -117,23 +119,23 @@ function buildGenreText(params) {
  * @returns {string} Genre item wikitext.
  */
 function buildGenreItemText(value) {
-  if (isWikilinkValue(value)) {
-    return value;
-  }
+    if (isWikilinkValue(value)) {
+        return value;
+    }
 
-  const genreReference = getReferenceDefinition(
-    FIELD_REFERENCE_DATA.genres,
-    value,
-  );
+    const genreReference = getReferenceDefinition(
+        FIELD_REFERENCE_DATA.genres,
+        value,
+    );
 
-  if (genreReference == null || genreReference.page == null) {
-    return value;
-  }
+    if (genreReference == null || genreReference.page == null) {
+        return value;
+    }
 
-  return buildLinkText(
-    genreReference.page.title,
-    getGenrePageLabel(genreReference),
-  );
+    return buildLinkText(
+        genreReference.page.title,
+        getGenrePageLabel(genreReference),
+    );
 }
 
 /**
@@ -144,11 +146,11 @@ function buildGenreItemText(value) {
  * @returns {string} Genre page label.
  */
 function getGenrePageLabel(reference) {
-  if (reference.page.label == null) {
-    return removeGameSuffix(reference.page.title);
-  }
+    if (reference.page.label == null) {
+        return removeGameSuffix(reference.page.title);
+    }
 
-  return removeGameSuffix(reference.page.label);
+    return removeGameSuffix(reference.page.label);
 }
 
 /**
@@ -158,7 +160,7 @@ function getGenrePageLabel(reference) {
  * @returns {string} Display label without the game suffix.
  */
 function removeGameSuffix(value) {
-  return value.replace(/(?:[电電]子)?[游遊][戏戲]$/u, "");
+    return value.replace(/(?:[电電]子)?[游遊][戏戲]$/u, "");
 }
 
 /**
@@ -168,9 +170,9 @@ function removeGameSuffix(value) {
  * @returns {Array<object>} Matched linked pages, categories, and tags.
  */
 function getGenreReferences(value) {
-  return splitFieldValues(value)
-    .map(getReferenceDefinition.bind(null, FIELD_REFERENCE_DATA.genres))
-    .filter(Boolean);
+    return splitFieldValues(value)
+        .map(getReferenceDefinition.bind(null, FIELD_REFERENCE_DATA.genres))
+        .filter(Boolean);
 }
 
 /**
@@ -180,31 +182,31 @@ function getGenreReferences(value) {
  * @returns {object} Year phrase and categories.
  */
 function getYearReference(value) {
-  const year = trimValue(value);
-  const yearDefinition = getYearDefinition(year);
+    const year = trimValue(value);
+    const yearDefinition = getYearDefinition(year);
 
-  if (year === "") {
+    if (year === "") {
+        return {
+            categories: [],
+            phrase: "",
+        };
+    }
+
+    if (year === "~") {
+        return {
+            categories: ["未来电子游戏"],
+            phrase: "尚未推出的",
+        };
+    }
+
+    if (year.startsWith("~")) {
+        return getPlannedYearReference(year.slice(1));
+    }
+
     return {
-      categories: [],
-      phrase: "",
+        categories: getReferenceCategories(yearDefinition.reference),
+        phrase: `${getYearLabel(year, yearDefinition)}年`,
     };
-  }
-
-  if (year === "~") {
-    return {
-      categories: ["未来电子游戏"],
-      phrase: "尚未推出的",
-    };
-  }
-
-  if (year.startsWith("~")) {
-    return getPlannedYearReference(year.slice(1));
-  }
-
-  return {
-    categories: getReferenceCategories(yearDefinition.reference),
-    phrase: `${getYearLabel(year, yearDefinition)}年`,
-  };
 }
 
 /**
@@ -214,16 +216,16 @@ function getYearReference(value) {
  * @returns {object} Planned year phrase and categories.
  */
 function getPlannedYearReference(value) {
-  const year = trimValue(value);
-  const yearDefinition = getYearDefinition(year);
+    const year = trimValue(value);
+    const yearDefinition = getYearDefinition(year);
 
-  return {
-    categories: uniqueValues([
-      "未来电子游戏",
-      ...getReferenceCategories(yearDefinition.reference),
-    ]),
-    phrase: `预定于${getYearLabel(year, yearDefinition)}年推出的`,
-  };
+    return {
+        categories: uniqueValues([
+            "未来电子游戏",
+            ...getReferenceCategories(yearDefinition.reference),
+        ]),
+        phrase: `预定于${getYearLabel(year, yearDefinition)}年推出的`,
+    };
 }
 
 /**
@@ -233,7 +235,7 @@ function getPlannedYearReference(value) {
  * @returns {object} Matched year key and metadata.
  */
 function getYearDefinition(year) {
-  return getReferenceEntry(FIELD_REFERENCE_DATA.years, year);
+    return getReferenceEntry(FIELD_REFERENCE_DATA.years, year);
 }
 
 /**
@@ -243,11 +245,11 @@ function getYearDefinition(year) {
  * @returns {Array<string>} Category titles.
  */
 function getReferenceCategories(reference) {
-  if (reference == null) {
-    return [];
-  }
+    if (reference == null) {
+        return [];
+    }
 
-  return reference.categories || [];
+    return reference.categories || [];
 }
 
 /**
@@ -258,9 +260,9 @@ function getReferenceCategories(reference) {
  * @returns {string} Canonical year label.
  */
 function getYearLabel(fallback, definition) {
-  if (definition.key == null) {
-    return fallback;
-  }
+    if (definition.key == null) {
+        return fallback;
+    }
 
-  return definition.key;
+    return definition.key;
 }

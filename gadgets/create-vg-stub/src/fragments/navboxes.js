@@ -5,10 +5,10 @@
  */
 
 import {
-  buildTemplateCall,
-  splitLookupFieldValues,
-  trimValue,
-  uniqueValues,
+    buildTemplateCall,
+    splitLookupFieldValues,
+    trimValue,
+    uniqueValues,
 } from "../utils.js";
 
 const API_ENDPOINT = "/w/api.php";
@@ -24,24 +24,26 @@ const TEMPLATE_BATCH_SIZE = 50;
  * @returns {Promise<string>} Navbox wikitext.
  */
 export async function buildNavboxText(seriesNames, options = {}) {
-  const plans = buildNavboxPlans(seriesNames);
+    const plans = buildNavboxPlans(seriesNames);
 
-  if (plans.length === 0) {
-    return "";
-  }
+    if (plans.length === 0) {
+        return "";
+    }
 
-  const resolutions = await resolveTemplates(
-    uniqueValues(plans.flatMap((plan) => plan.candidates)),
-    options,
-  );
+    const resolutions = await resolveTemplates(
+        uniqueValues(plans.flatMap((plan) => plan.candidates)),
+        options,
+    );
 
-  return uniqueValues(
-    plans
-      .map((plan) => getFirstExistingTemplate(plan.candidates, resolutions))
-      .filter(Boolean),
-  )
-    .map(buildTemplateCall)
-    .join("\n");
+    return uniqueValues(
+        plans
+            .map((plan) =>
+                getFirstExistingTemplate(plan.candidates, resolutions),
+            )
+            .filter(Boolean),
+    )
+        .map(buildTemplateCall)
+        .join("\n");
 }
 
 /**
@@ -51,12 +53,14 @@ export async function buildNavboxText(seriesNames, options = {}) {
  * @returns {string} Selected navbox wikitext.
  */
 export function buildReviewedNavboxText(rows) {
-  return rows
-    .filter((row) => row?.enabled !== false)
-    .map((row) => trimValue(row?.text ?? row))
-    .filter(Boolean)
-    .map((text) => text.startsWith("{{") ? text : buildTemplateCall(text))
-    .join("\n");
+    return rows
+        .filter((row) => row?.enabled !== false)
+        .map((row) => trimValue(row?.text ?? row))
+        .filter(Boolean)
+        .map((text) =>
+            text.startsWith("{{") ? text : buildTemplateCall(text),
+        )
+        .join("\n");
 }
 
 /**
@@ -68,26 +72,26 @@ export function buildReviewedNavboxText(rows) {
  * @returns {Promise<Array<object>>} Resolved navbox rows.
  */
 export async function resolveReviewedNavboxRows(values, options = {}) {
-  const rows = values.map(createReviewedNavboxRow);
-  const titles = uniqueValues(rows.map((row) => row.title).filter(Boolean));
+    const rows = values.map(createReviewedNavboxRow);
+    const titles = uniqueValues(rows.map((row) => row.title).filter(Boolean));
 
-  if (titles.length === 0) {
-    return rows;
-  }
+    if (titles.length === 0) {
+        return rows;
+    }
 
-  const resolutions = await resolveTemplates(titles, options);
+    const resolutions = await resolveTemplates(titles, options);
 
-  return rows.map((row) => {
-    const resolution = resolutions[normalizeTemplateKey(row.title)];
-    const title = resolution?.template || row.title;
+    return rows.map((row) => {
+        const resolution = resolutions[normalizeTemplateKey(row.title)];
+        const title = resolution?.template || row.title;
 
-    return {
-      ...row,
-      status: resolution?.exists ? "OK" : "Not exists",
-      text: replaceTemplateTitle(row.text, title),
-      title,
-    };
-  });
+        return {
+            ...row,
+            status: resolution?.exists ? "OK" : "Not exists",
+            text: replaceTemplateTitle(row.text, title),
+            title,
+        };
+    });
 }
 
 /**
@@ -97,15 +101,15 @@ export async function resolveReviewedNavboxRows(values, options = {}) {
  * @returns {object} Reviewed navbox row.
  */
 function createReviewedNavboxRow(value) {
-  const text = trimValue(value?.text ?? value);
-  const title = getTemplateCallTitle(text);
+    const text = trimValue(value?.text ?? value);
+    const title = getTemplateCallTitle(text);
 
-  return {
-    enabled: value?.enabled !== false,
-    status: "",
-    text,
-    title,
-  };
+    return {
+        enabled: value?.enabled !== false,
+        status: "",
+        text,
+        title,
+    };
 }
 
 /**
@@ -115,9 +119,9 @@ function createReviewedNavboxRow(value) {
  * @returns {string} Template title without namespace.
  */
 function getTemplateCallTitle(text) {
-  const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
+    const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
 
-  return normalizeTemplateTitle(match?.[1] || text);
+    return normalizeTemplateTitle(match?.[1] || text);
 }
 
 /**
@@ -128,14 +132,11 @@ function getTemplateCallTitle(text) {
  * @returns {string} Updated template call.
  */
 function replaceTemplateTitle(text, title) {
-  if (!text.trimStart().startsWith("{{")) {
-    return title;
-  }
+    if (!text.trimStart().startsWith("{{")) {
+        return title;
+    }
 
-  return text.replace(
-    /^(\{\{\s*)(?:Template:)?([^|}]+)/iu,
-    `$1${title}`,
-  );
+    return text.replace(/^(\{\{\s*)(?:Template:)?([^|}]+)/iu, `$1${title}`);
 }
 
 /**
@@ -145,9 +146,9 @@ function replaceTemplateTitle(text, title) {
  * @returns {Array<object>} Navbox lookup plans.
  */
 function buildNavboxPlans(seriesNames) {
-  return getSeriesValues(seriesNames).map((series) => ({
-    candidates: buildNavboxCandidates(series),
-  }));
+    return getSeriesValues(seriesNames).map((series) => ({
+        candidates: buildNavboxCandidates(series),
+    }));
 }
 
 /**
@@ -157,11 +158,11 @@ function buildNavboxPlans(seriesNames) {
  * @returns {Array<string>} Normalized series values.
  */
 function getSeriesValues(seriesNames) {
-  const values = Array.isArray(seriesNames)
-    ? seriesNames.flatMap(splitLookupFieldValues)
-    : splitLookupFieldValues(seriesNames || "");
+    const values = Array.isArray(seriesNames)
+        ? seriesNames.flatMap(splitLookupFieldValues)
+        : splitLookupFieldValues(seriesNames || "");
 
-  return uniqueValues(values.map(trimSeriesSuffix).filter(Boolean));
+    return uniqueValues(values.map(trimSeriesSuffix).filter(Boolean));
 }
 
 /**
@@ -171,7 +172,7 @@ function getSeriesValues(seriesNames) {
  * @returns {string} Series value without a trailing suffix.
  */
 function trimSeriesSuffix(value) {
-  return trimValue(value).replace(/系列$/u, "");
+    return trimValue(value).replace(/系列$/u, "");
 }
 
 /**
@@ -181,12 +182,12 @@ function trimSeriesSuffix(value) {
  * @returns {Array<string>} Candidate template titles without namespace.
  */
 function buildNavboxCandidates(series) {
-  return [
-    `${series}系列电子游戏`,
-    `${series}电子游戏`,
-    `${series}系列`,
-    series,
-  ];
+    return [
+        `${series}系列电子游戏`,
+        `${series}电子游戏`,
+        `${series}系列`,
+        series,
+    ];
 }
 
 /**
@@ -197,9 +198,9 @@ function buildNavboxCandidates(series) {
  * @returns {string|undefined} Existing resolved template title.
  */
 function getFirstExistingTemplate(candidates, resolutions) {
-  return candidates
-    .map((candidate) => resolutions[normalizeTemplateKey(candidate)])
-    .find((resolution) => resolution?.exists)?.template;
+    return candidates
+        .map((candidate) => resolutions[normalizeTemplateKey(candidate)])
+        .find((resolution) => resolution?.exists)?.template;
 }
 
 /**
@@ -210,13 +211,16 @@ function getFirstExistingTemplate(candidates, resolutions) {
  * @returns {Promise<object>} Resolutions keyed by normalized template title.
  */
 async function resolveTemplates(templates, options) {
-  const resolutions = {};
+    const resolutions = {};
 
-  for (const batch of chunkValues(templates, TEMPLATE_BATCH_SIZE)) {
-    Object.assign(resolutions, await fetchTemplateResolutions(batch, options));
-  }
+    for (const batch of chunkValues(templates, TEMPLATE_BATCH_SIZE)) {
+        Object.assign(
+            resolutions,
+            await fetchTemplateResolutions(batch, options),
+        );
+    }
 
-  return resolutions;
+    return resolutions;
 }
 
 /**
@@ -227,28 +231,28 @@ async function resolveTemplates(templates, options) {
  * @returns {Promise<object>} Resolutions keyed by template title.
  */
 async function fetchTemplateResolutions(templates, options) {
-  try {
-    const data = await fetchTemplateQuery(templates, options);
+    try {
+        const data = await fetchTemplateQuery(templates, options);
 
-    return addResolutionAliases(
-      Object.fromEntries(
-        templates.map((template) => [
-          normalizeTemplateKey(template),
-          getTemplateResolution(template, data),
-        ]),
-      ),
-    );
-  } catch (_error) {
-    return Object.fromEntries(
-      templates.map((template) => [
-        normalizeTemplateKey(template),
-        {
-          exists: false,
-          template: normalizeTemplateTitle(template),
-        },
-      ]),
-    );
-  }
+        return addResolutionAliases(
+            Object.fromEntries(
+                templates.map((template) => [
+                    normalizeTemplateKey(template),
+                    getTemplateResolution(template, data),
+                ]),
+            ),
+        );
+    } catch (_error) {
+        return Object.fromEntries(
+            templates.map((template) => [
+                normalizeTemplateKey(template),
+                {
+                    exists: false,
+                    template: normalizeTemplateTitle(template),
+                },
+            ]),
+        );
+    }
 }
 
 /**
@@ -258,11 +262,11 @@ async function fetchTemplateResolutions(templates, options) {
  * @returns {object} Template resolutions with aliases.
  */
 function addResolutionAliases(resolutions) {
-  Object.values(resolutions).forEach((resolution) => {
-    resolutions[normalizeTemplateKey(resolution.template)] = resolution;
-  });
+    Object.values(resolutions).forEach((resolution) => {
+        resolutions[normalizeTemplateKey(resolution.template)] = resolution;
+    });
 
-  return resolutions;
+    return resolutions;
 }
 
 /**
@@ -273,18 +277,18 @@ function addResolutionAliases(resolutions) {
  * @returns {Promise<object>} API response body.
  */
 async function fetchTemplateQuery(templates, options) {
-  const fetcher = options.fetcher || fetch;
-  const response = await fetcher(buildTemplateApiUrl(templates), {
-    headers: {
-      accept: "application/json",
-    },
-  });
+    const fetcher = options.fetcher || fetch;
+    const response = await fetcher(buildTemplateApiUrl(templates), {
+        headers: {
+            accept: "application/json",
+        },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Template request failed: HTTP ${response.status}`);
-  }
+    if (!response.ok) {
+        throw new Error(`Template request failed: HTTP ${response.status}`);
+    }
 
-  return response.json();
+    return response.json();
 }
 
 /**
@@ -294,16 +298,16 @@ async function fetchTemplateQuery(templates, options) {
  * @returns {string} API URL.
  */
 function buildTemplateApiUrl(templates) {
-  const params = new URLSearchParams({
-    action: "query",
-    converttitles: "1",
-    format: "json",
-    formatversion: "2",
-    redirects: "1",
-    titles: templates.map(formatTemplateApiTitle).join("|"),
-  });
+    const params = new URLSearchParams({
+        action: "query",
+        converttitles: "1",
+        format: "json",
+        formatversion: "2",
+        redirects: "1",
+        titles: templates.map(formatTemplateApiTitle).join("|"),
+    });
 
-  return `${API_ENDPOINT}?${params.toString()}`;
+    return `${API_ENDPOINT}?${params.toString()}`;
 }
 
 /**
@@ -314,13 +318,13 @@ function buildTemplateApiUrl(templates) {
  * @returns {object} Template resolution.
  */
 function getTemplateResolution(template, data) {
-  const title = getResolvedTitle(template, data);
-  const page = getResolvedPage(title, data);
+    const title = getResolvedTitle(template, data);
+    const page = getResolvedPage(title, data);
 
-  return {
-    exists: page != null && !page.missing,
-    template: normalizeTemplateTitle(title),
-  };
+    return {
+        exists: page != null && !page.missing,
+        template: normalizeTemplateTitle(title),
+    };
 }
 
 /**
@@ -331,20 +335,20 @@ function getTemplateResolution(template, data) {
  * @returns {string} Resolved template title.
  */
 function getResolvedTitle(template, data) {
-  return [
-    data?.query?.normalized,
-    data?.query?.converted,
-    data?.query?.redirects,
-  ]
-    .flat()
-    .filter(Boolean)
-    .reduce(
-      (title, item) =>
-        normalizeTemplateKey(item.from) === normalizeTemplateKey(title)
-          ? item.to
-          : title,
-      formatTemplateApiTitle(template),
-    );
+    return [
+        data?.query?.normalized,
+        data?.query?.converted,
+        data?.query?.redirects,
+    ]
+        .flat()
+        .filter(Boolean)
+        .reduce(
+            (title, item) =>
+                normalizeTemplateKey(item.from) === normalizeTemplateKey(title)
+                    ? item.to
+                    : title,
+            formatTemplateApiTitle(template),
+        );
 }
 
 /**
@@ -355,9 +359,10 @@ function getResolvedTitle(template, data) {
  * @returns {object|undefined} API page.
  */
 function getResolvedPage(title, data) {
-  return (data?.query?.pages || []).find(
-    (page) => normalizeTemplateKey(page.title) === normalizeTemplateKey(title),
-  );
+    return (data?.query?.pages || []).find(
+        (page) =>
+            normalizeTemplateKey(page.title) === normalizeTemplateKey(title),
+    );
 }
 
 /**
@@ -367,11 +372,11 @@ function getResolvedPage(title, data) {
  * @returns {string} Template API title.
  */
 function formatTemplateApiTitle(template) {
-  const title = trimValue(template);
+    const title = trimValue(template);
 
-  return title.startsWith(TEMPLATE_NAMESPACE)
-    ? title
-    : `${TEMPLATE_NAMESPACE}${title}`;
+    return title.startsWith(TEMPLATE_NAMESPACE)
+        ? title
+        : `${TEMPLATE_NAMESPACE}${title}`;
 }
 
 /**
@@ -381,7 +386,7 @@ function formatTemplateApiTitle(template) {
  * @returns {string} Template title without namespace.
  */
 function normalizeTemplateTitle(template) {
-  return trimValue(template).replace(/^Template:/u, "");
+    return trimValue(template).replace(/^Template:/u, "");
 }
 
 /**
@@ -391,7 +396,7 @@ function normalizeTemplateTitle(template) {
  * @returns {string} Normalized template key.
  */
 function normalizeTemplateKey(template) {
-  return normalizeTemplateTitle(template).replace(/_/gu, " ");
+    return normalizeTemplateTitle(template).replace(/_/gu, " ");
 }
 
 /**
@@ -402,11 +407,11 @@ function normalizeTemplateKey(template) {
  * @returns {Array<Array<string>>} Chunked values.
  */
 function chunkValues(values, size) {
-  const chunks = [];
+    const chunks = [];
 
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
+    for (let index = 0; index < values.length; index += size) {
+        chunks.push(values.slice(index, index + size));
+    }
 
-  return chunks;
+    return chunks;
 }

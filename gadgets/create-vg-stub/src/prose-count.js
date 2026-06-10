@@ -19,7 +19,7 @@
  * @returns {number} Hanzi-equivalent sinograph count.
  */
 export function countGeneratedProseSinographs(params) {
-  return countProseSinographs(buildGeneratedProseText(params));
+    return countProseSinographs(buildGeneratedProseText(params));
 }
 
 /**
@@ -29,15 +29,15 @@ export function countGeneratedProseSinographs(params) {
  * @returns {number} Hanzi-equivalent sinograph count.
  */
 export function countProseSinographs(text) {
-  const plainText = stripWikitext(text);
-  const withoutLatin = plainText.replace(getLatinPhrasePattern(), "");
-  const withoutNumbers = withoutLatin.replace(getNumberPattern(), "");
+    const plainText = stripWikitext(text);
+    const withoutLatin = plainText.replace(getLatinPhrasePattern(), "");
+    const withoutNumbers = withoutLatin.replace(getNumberPattern(), "");
 
-  return (
-    countHanCharacters(withoutNumbers) +
-    countMatches(plainText, getLatinPhrasePattern()) * 2 +
-    countMatches(withoutLatin, getNumberPattern()) * 2
-  );
+    return (
+        countHanCharacters(withoutNumbers) +
+        countMatches(plainText, getLatinPhrasePattern()) * 2 +
+        countMatches(withoutLatin, getNumberPattern()) * 2
+    );
 }
 
 /**
@@ -47,12 +47,12 @@ export function countProseSinographs(text) {
  * @returns {string} Generated prose text.
  */
 function buildGeneratedProseText(params) {
-  return (
-    `是${params.yearGenreMetadata.text}${params.companyMetadata.text}。` +
-    params.platformSeriesMetadata.text +
-    params.aggScoresText +
-    (params.additionalProseText || "")
-  );
+    return (
+        `是${params.yearGenreMetadata.text}${params.companyMetadata.text}。` +
+        params.platformSeriesMetadata.text +
+        params.aggScoresText +
+        (params.additionalProseText || "")
+    );
 }
 
 /**
@@ -62,12 +62,12 @@ function buildGeneratedProseText(params) {
  * @returns {string} Plain prose.
  */
 function stripWikitext(text) {
-  return String(text || "")
-    .replace(/<ref\b[^>]*\/>/giu, "")
-    .replace(/<ref\b[^>]*>[\s\S]*?<\/ref>/giu, "")
-    .replace(/\[\[[^\]|]*\|([^\]]+)\]\]/gu, "$1")
-    .replace(/\[\[([^\]]+)\]\]/gu, "$1")
-    .replace(/\{\{[^{}]*\}\}/gu, "");
+    return String(text || "")
+        .replace(/<ref\b[^>]*\/>/giu, "")
+        .replace(/<ref\b[^>]*>[\s\S]*?<\/ref>/giu, "")
+        .replace(/\[\[[^\]|]*\|([^\]]+)\]\]/gu, "$1")
+        .replace(/\[\[([^\]]+)\]\]/gu, "$1")
+        .replace(/\{\{[^{}]*\}\}/gu, "");
 }
 
 /**
@@ -77,7 +77,7 @@ function stripWikitext(text) {
  * @returns {number} Han character count.
  */
 function countHanCharacters(text) {
-  return countMatches(text, /\p{Script=Han}/gu);
+    return countMatches(text, /\p{Script=Han}/gu);
 }
 
 /**
@@ -88,7 +88,7 @@ function countHanCharacters(text) {
  * @returns {number} Match count.
  */
 function countMatches(text, pattern) {
-  return Array.from(String(text || "").matchAll(pattern)).length;
+    return Array.from(String(text || "").matchAll(pattern)).length;
 }
 
 /**
@@ -97,7 +97,7 @@ function countMatches(text, pattern) {
  * @returns {RegExp} Latin phrase matcher.
  */
 function getLatinPhrasePattern() {
-  return /\b[A-Za-z][A-Za-z0-9]*(?:[ \t./&'’:-]+[A-Za-z0-9]+)*\b/gu;
+    return /\b[A-Za-z][A-Za-z0-9]*(?:[ \t./&'’:-]+[A-Za-z0-9]+)*\b/gu;
 }
 
 /**
@@ -106,5 +106,5 @@ function getLatinPhrasePattern() {
  * @returns {RegExp} Number matcher.
  */
 function getNumberPattern() {
-  return /\b\d+(?:[./:-]\d+)*(?:%)?\b/gu;
+    return /\b\d+(?:[./:-]\d+)*(?:%)?\b/gu;
 }

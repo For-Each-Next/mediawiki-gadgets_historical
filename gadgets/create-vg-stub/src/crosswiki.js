@@ -13,23 +13,23 @@
  * @returns {Promise<object>} Page metadata.
  */
 export async function fetchEnwikiMetadata(title, options = {}) {
-  const fetcher = options.fetcher || fetch;
+    const fetcher = options.fetcher || fetch;
 
-  try {
-    const response = await fetcher(buildEnwikiMetadataUrl(title), {
-      headers: {
-        accept: "application/json",
-      },
-    });
+    try {
+        const response = await fetcher(buildEnwikiMetadataUrl(title), {
+            headers: {
+                accept: "application/json",
+            },
+        });
 
-    if (!response.ok) {
-      return createBlankEnwikiMetadata(title);
+        if (!response.ok) {
+            return createBlankEnwikiMetadata(title);
+        }
+
+        return parseEnwikiMetadata(title, await response.json());
+    } catch (_error) {
+        return createBlankEnwikiMetadata(title);
     }
-
-    return parseEnwikiMetadata(title, await response.json());
-  } catch (_error) {
-    return createBlankEnwikiMetadata(title);
-  }
 }
 
 /**
@@ -39,15 +39,15 @@ export async function fetchEnwikiMetadata(title, options = {}) {
  * @returns {string} API URL.
  */
 export function buildEnwikiMetadataUrl(title) {
-  const params = new URLSearchParams({
-    action: "query",
-    format: "json",
-    origin: "*",
-    prop: "pageprops",
-    titles: title,
-  });
+    const params = new URLSearchParams({
+        action: "query",
+        format: "json",
+        origin: "*",
+        prop: "pageprops",
+        titles: title,
+    });
 
-  return `https://en.wikipedia.org/w/api.php?${params.toString()}`;
+    return `https://en.wikipedia.org/w/api.php?${params.toString()}`;
 }
 
 /**
@@ -58,16 +58,16 @@ export function buildEnwikiMetadataUrl(title) {
  * @returns {object} Page metadata.
  */
 export function parseEnwikiMetadata(title, data) {
-  const page = Object.values(data?.query?.pages || {})[0];
+    const page = Object.values(data?.query?.pages || {})[0];
 
-  if (page == null || page.missing != null) {
-    return createBlankEnwikiMetadata(title);
-  }
+    if (page == null || page.missing != null) {
+        return createBlankEnwikiMetadata(title);
+    }
 
-  return {
-    title: page.title || title,
-    wikidataId: page.pageprops?.wikibase_item || "",
-  };
+    return {
+        title: page.title || title,
+        wikidataId: page.pageprops?.wikibase_item || "",
+    };
 }
 
 /**
@@ -77,9 +77,8 @@ export function parseEnwikiMetadata(title, data) {
  * @returns {object} Blank metadata.
  */
 function createBlankEnwikiMetadata(title) {
-  return {
-    title,
-    wikidataId: "",
-  };
+    return {
+        title,
+        wikidataId: "",
+    };
 }
-

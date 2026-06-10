@@ -5,7 +5,7 @@
  */
 
 export const EDIT_SUMMARY_SUFFIX =
-  "[[:m:User:For_Each_..._Next/global.js/create_vg_stub.js|🎮]]";
+    "[[:m:User:For_Each_..._Next/global.js/create_vg_stub.js|🎮]]";
 
 /**
  * Builds a generated-stub edit summary.
@@ -19,18 +19,18 @@ export const EDIT_SUMMARY_SUFFIX =
  * @returns {string} Generated edit summary.
  */
 export function buildEditSummary(metadata) {
-  return [
-    buildNameSummaryText(
-      metadata.displayName,
-      metadata.wikidataId,
-      metadata.enwikiTitle,
-    ),
-    buildYearSummaryText(metadata.year),
-    buildProseCountText(metadata.proseSinographs),
-    EDIT_SUMMARY_SUFFIX,
-  ]
-    .filter(Boolean)
-    .join(" ");
+    return [
+        buildNameSummaryText(
+            metadata.displayName,
+            metadata.wikidataId,
+            metadata.enwikiTitle,
+        ),
+        buildYearSummaryText(metadata.year),
+        buildProseCountText(metadata.proseSinographs),
+        EDIT_SUMMARY_SUFFIX,
+    ]
+        .filter(Boolean)
+        .join(" ");
 }
 
 /**
@@ -40,9 +40,9 @@ export function buildEditSummary(metadata) {
  * @returns {string} Attributed edit summary.
  */
 export function addEditSummarySuffix(summary) {
-  return [String(summary || "").trim(), EDIT_SUMMARY_SUFFIX]
-    .filter(Boolean)
-    .join(" ");
+    return [String(summary || "").trim(), EDIT_SUMMARY_SUFFIX]
+        .filter(Boolean)
+        .join(" ");
 }
 
 /**
@@ -52,14 +52,14 @@ export function addEditSummarySuffix(summary) {
  * @returns {string} Year summary text.
  */
 function buildYearSummaryText(year) {
-  const value = String(year || "").trim();
-  const match = value.match(/\b\d{4}\b/u);
+    const value = String(year || "").trim();
+    const match = value.match(/\b\d{4}\b/u);
 
-  if (match == null) {
-    return "";
-  }
+    if (match == null) {
+        return "";
+    }
 
-  return `([[${match[0]}年電子遊戲界|${match[0]}]])`;
+    return `([[${match[0]}年電子遊戲界|${match[0]}]])`;
 }
 
 /**
@@ -69,11 +69,11 @@ function buildYearSummaryText(year) {
  * @returns {string} Prose count text.
  */
 function buildProseCountText(count) {
-  if (!Number.isFinite(count) || count <= 0) {
-    return "";
-  }
+    if (!Number.isFinite(count) || count <= 0) {
+        return "";
+    }
 
-  return `[${Math.round(count)} sinographs]`;
+    return `[${Math.round(count)} sinographs]`;
 }
 
 /**
@@ -85,21 +85,21 @@ function buildProseCountText(count) {
  * @returns {string} Game title summary text.
  */
 function buildNameSummaryText(displayName, wikidataId, enwikiTitle) {
-  const label = String(displayName || "").trim();
-  const entityId = String(wikidataId || "").trim();
-  const title = String(enwikiTitle || "").trim();
+    const label = String(displayName || "").trim();
+    const entityId = String(wikidataId || "").trim();
+    const title = String(enwikiTitle || "").trim();
 
-  if (label === "") {
-    return "";
-  }
+    if (label === "") {
+        return "";
+    }
 
-  if (entityId !== "") {
-    return `[[:d:${entityId}|${label}]]`;
-  }
+    if (entityId !== "") {
+        return `[[:d:${entityId}|${label}]]`;
+    }
 
-  if (title === "") {
-    return label;
-  }
+    if (title === "") {
+        return label;
+    }
 
-  return `[[:w:en:${title}|${label}]]`;
+    return `[[:w:en:${title}|${label}]]`;
 }

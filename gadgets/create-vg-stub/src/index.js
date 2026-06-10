@@ -5,70 +5,70 @@
  */
 
 import {
-  buildCategoryRows,
-  createManualCategoryRow,
-  resetCategoryRow,
-  updateCategoryRowCategory,
+    buildCategoryRows,
+    createManualCategoryRow,
+    resetCategoryRow,
+    updateCategoryRowCategory,
 } from "./categories.js";
 import { fetchCiteTemplate } from "./citations.js";
 import {
-  prepareCompanyCategoryText,
-  saveCategoryPage,
-  saveCompanyCategory,
+    prepareCompanyCategoryText,
+    saveCategoryPage,
+    saveCompanyCategory,
 } from "./company-category-helper.js";
 import {
-  addDialogStyles,
-  buildNameSourceReferenceKey,
-  createDialogComponent,
-  getEnteredNameSourceReferenceFields,
-  SOURCE_REFERENCE_FIELDS,
-  splitSourceUrls,
-  trimFieldValue,
+    addDialogStyles,
+    buildNameSourceReferenceKey,
+    createDialogComponent,
+    getEnteredNameSourceReferenceFields,
+    SOURCE_REFERENCE_FIELDS,
+    splitSourceUrls,
+    trimFieldValue,
 } from "./interface.js";
 import {
-  clearFormHistory,
-  deleteFormHistoryEntry,
-  readFormDraftEntry,
-  readFormDraftForPage,
-  readFormHistory,
-  saveFormDraft,
-  saveFormHistory,
+    clearFormHistory,
+    deleteFormHistoryEntry,
+    readFormDraftEntry,
+    readFormDraftForPage,
+    readFormHistory,
+    saveFormDraft,
+    saveFormHistory,
 } from "./history.js";
 import {
-  buildAggScoresText,
-  buildDefaultSortKey,
-  buildDefaultSortText,
-  buildInfoboxText,
-  buildLeadNameText,
-  buildNavboxText,
-  buildNoteTaText,
-  buildReviewedNavboxText,
-  resolveReviewedNavboxRows,
+    buildAggScoresText,
+    buildDefaultSortKey,
+    buildDefaultSortText,
+    buildInfoboxText,
+    buildLeadNameText,
+    buildNavboxText,
+    buildNoteTaText,
+    buildReviewedNavboxText,
+    resolveReviewedNavboxRows,
 } from "./fragments/index.js";
 import { buildEditSummary } from "./edit-summary.js";
 import { fetchEnwikiMetadata } from "./crosswiki.js";
 import { countGeneratedProseSinographs } from "./prose-count.js";
 import {
-  buildPreSaveActions,
-  buildRedirectTitles,
-  buildTitleFix,
-  fetchExistingPageTitles,
-  runSelectedActions,
+    buildPreSaveActions,
+    buildRedirectTitles,
+    buildTitleFix,
+    fetchExistingPageTitles,
+    runSelectedActions,
 } from "./pre-save.js";
 import { addMissingPageEditTrigger } from "./page-trigger.js";
 import { saveNavboxTemplate } from "./navbox-helper.js";
 import {
-  SAVE_PROGRESS_STORAGE_KEY,
-  createSaveProgress,
-  readSaveProgress,
-  renderSaveProgress,
-  storeSaveProgress,
-  updateSaveProgress,
+    SAVE_PROGRESS_STORAGE_KEY,
+    createSaveProgress,
+    readSaveProgress,
+    renderSaveProgress,
+    storeSaveProgress,
+    updateSaveProgress,
 } from "./save-progress.js";
 import {
-  buildCompanyMetadata,
-  buildPlatformSeriesMetadata,
-  buildYearGenreMetadata,
+    buildCompanyMetadata,
+    buildPlatformSeriesMetadata,
+    buildYearGenreMetadata,
 } from "./sectors/index.js";
 import { buildArticleWikitext } from "./wikitext.js";
 
@@ -81,109 +81,114 @@ const CITATION_PREFETCH_DELAY = 800;
  * Stores normalized video game article parameters.
  */
 class VideoGameArticleParams {
-  /**
-   * Creates reusable video game article parameters.
-   *
-   * @param {object} form - Dialog form values.
-   * @param {string} form.additionalProse - User-entered appended prose.
-   * @param {string} form.developers - Developer names.
-   * @param {string} form.englishName - English game title.
-   * @param {string} form.genres - Game genre text.
-   * @param {string} form.metacriticPlatform - Metacritic platform.
-   * @param {string} form.metacriticScore - Metacritic score.
-   * @param {string} form.name - Game title.
-   * @param {string} form.navboxText - Series navbox wikitext.
-   * @param {string} form.openCriticRecommend - OpenCritic recommendation rate.
-   * @param {string} form.originalLanguage - Original title language code.
-   * @param {string} form.originalName - Original game title.
-   * @param {string} form.sortKey - Category sort key.
-   * @param {Array<object>} [form.commonNames] - Common localized name rows.
-   * @param {Array<object>} [form.categoryRows] - Reviewed category rows.
-   * @param {Array<object>} [form.officialNames] - Official localized name rows.
-   * @param {string} form.platforms - Platform names.
-   * @param {string} form.publishers - Publisher names.
-   * @param {string} form.series - Series name.
-   * @param {Array<object>} [form.sourceReferences] - Named source refs.
-   * @param {string} form.year - Release year.
-   */
-  constructor(form) {
-    this.sourceReferences = buildNamedSourceReferences(form.sourceReferences);
-    this.sourceTags = buildSourceReferenceTags(this.sourceReferences);
-    this.aggScoresText = buildAggScoresText({
-      metacriticPlatform: form.metacriticPlatform || "",
-      metacriticScore: form.metacriticScore || "",
-      metacriticSourceTag: this.sourceTags.metacriticScore,
-      openCriticRecommend: form.openCriticRecommend || "",
-      openCriticSourceTag: this.sourceTags.openCriticRecommend,
-    });
-    this.additionalProseText = buildAdditionalProseText(
-      form.additionalProse,
-      this.sourceTags.additionalProse,
-    );
-    this.companies = {
-      developers: form.developers,
-      publishers: form.publishers,
-    };
-    this.companyMetadata = buildCompanyMetadata(this.companies, {
-      sourceTag: joinSourceTags(this.sourceTags, ["developers", "publishers"]),
-    });
-    this.englishName = form.englishName || "";
-    this.genres = form.genres;
-    this.noteTaText = buildNoteTaText({
-      officialNames: form.officialNames,
-    });
-    this.defaultSortText = buildDefaultSortText({
-      english: form.englishName || "",
-      original: form.originalName || "",
-      sortKey: form.sortKey || "",
-      title: form.name,
-    });
-    this.infoboxText = buildInfoboxText({
-      commonNames: buildInfoboxNameRows(
-        form.commonNames,
-        this.sourceTags,
-        "commonNames",
-      ),
-      englishName: this.englishName,
-      name: form.name,
-      officialNames: buildInfoboxNameRows(
-        form.officialNames,
-        this.sourceTags,
-        "officialNames",
-      ),
-      originalLanguage: form.originalLanguage || "ja",
-      originalName: form.originalName || "",
-    });
-    this.leadNameText = buildLeadNameText({
-      englishName: this.englishName,
-      name: form.name,
-      originalLanguage: form.originalLanguage || "ja",
-      originalName: form.originalName || "",
-      sourceTags: this.sourceTags,
-    });
-    this.name = form.name;
-    this.navboxText = form.navboxText || "";
-    this.originalLanguage = form.originalLanguage;
-    this.originalName = form.originalName || "";
-    this.platforms = form.platforms;
-    this.platformSeriesMetadata = buildPlatformSeriesMetadata(
-      {
-        platforms: this.platforms,
-        series: form.series || "",
-      },
-      {
-        platformSourceTag: this.sourceTags.platforms,
-        seriesSourceTag: this.sourceTags.series,
-      },
-    );
-    this.year = form.year;
-    this.yearGenreMetadata = buildYearGenreMetadata({
-      genres: this.genres,
-      sourceTag: joinSourceTags(this.sourceTags, ["year", "genres"]),
-      year: this.year,
-    });
-    this.categoryRows = form.categoryRows || [];
-  }
+    /**
+     * Creates reusable video game article parameters.
+     *
+     * @param {object} form - Dialog form values.
+     * @param {string} form.additionalProse - User-entered appended prose.
+     * @param {string} form.developers - Developer names.
+     * @param {string} form.englishName - English game title.
+     * @param {string} form.genres - Game genre text.
+     * @param {string} form.metacriticPlatform - Metacritic platform.
+     * @param {string} form.metacriticScore - Metacritic score.
+     * @param {string} form.name - Game title.
+     * @param {string} form.navboxText - Series navbox wikitext.
+     * @param {string} form.openCriticRecommend - OpenCritic recommendation rate.
+     * @param {string} form.originalLanguage - Original title language code.
+     * @param {string} form.originalName - Original game title.
+     * @param {string} form.sortKey - Category sort key.
+     * @param {Array<object>} [form.commonNames] - Common localized name rows.
+     * @param {Array<object>} [form.categoryRows] - Reviewed category rows.
+     * @param {Array<object>} [form.officialNames] - Official localized name rows.
+     * @param {string} form.platforms - Platform names.
+     * @param {string} form.publishers - Publisher names.
+     * @param {string} form.series - Series name.
+     * @param {Array<object>} [form.sourceReferences] - Named source refs.
+     * @param {string} form.year - Release year.
+     */
+    constructor(form) {
+        this.sourceReferences = buildNamedSourceReferences(
+            form.sourceReferences,
+        );
+        this.sourceTags = buildSourceReferenceTags(this.sourceReferences);
+        this.aggScoresText = buildAggScoresText({
+            metacriticPlatform: form.metacriticPlatform || "",
+            metacriticScore: form.metacriticScore || "",
+            metacriticSourceTag: this.sourceTags.metacriticScore,
+            openCriticRecommend: form.openCriticRecommend || "",
+            openCriticSourceTag: this.sourceTags.openCriticRecommend,
+        });
+        this.additionalProseText = buildAdditionalProseText(
+            form.additionalProse,
+            this.sourceTags.additionalProse,
+        );
+        this.companies = {
+            developers: form.developers,
+            publishers: form.publishers,
+        };
+        this.companyMetadata = buildCompanyMetadata(this.companies, {
+            sourceTag: joinSourceTags(this.sourceTags, [
+                "developers",
+                "publishers",
+            ]),
+        });
+        this.englishName = form.englishName || "";
+        this.genres = form.genres;
+        this.noteTaText = buildNoteTaText({
+            officialNames: form.officialNames,
+        });
+        this.defaultSortText = buildDefaultSortText({
+            english: form.englishName || "",
+            original: form.originalName || "",
+            sortKey: form.sortKey || "",
+            title: form.name,
+        });
+        this.infoboxText = buildInfoboxText({
+            commonNames: buildInfoboxNameRows(
+                form.commonNames,
+                this.sourceTags,
+                "commonNames",
+            ),
+            englishName: this.englishName,
+            name: form.name,
+            officialNames: buildInfoboxNameRows(
+                form.officialNames,
+                this.sourceTags,
+                "officialNames",
+            ),
+            originalLanguage: form.originalLanguage || "ja",
+            originalName: form.originalName || "",
+        });
+        this.leadNameText = buildLeadNameText({
+            englishName: this.englishName,
+            name: form.name,
+            originalLanguage: form.originalLanguage || "ja",
+            originalName: form.originalName || "",
+            sourceTags: this.sourceTags,
+        });
+        this.name = form.name;
+        this.navboxText = form.navboxText || "";
+        this.originalLanguage = form.originalLanguage;
+        this.originalName = form.originalName || "";
+        this.platforms = form.platforms;
+        this.platformSeriesMetadata = buildPlatformSeriesMetadata(
+            {
+                platforms: this.platforms,
+                series: form.series || "",
+            },
+            {
+                platformSourceTag: this.sourceTags.platforms,
+                seriesSourceTag: this.sourceTags.series,
+            },
+        );
+        this.year = form.year;
+        this.yearGenreMetadata = buildYearGenreMetadata({
+            genres: this.genres,
+            sourceTag: joinSourceTags(this.sourceTags, ["year", "genres"]),
+            year: this.year,
+        });
+        this.categoryRows = form.categoryRows || [];
+    }
 }
 
 /**
@@ -194,17 +199,17 @@ class VideoGameArticleParams {
  * @returns {string} Appended prose wikitext.
  */
 function buildAdditionalProseText(prose, sourceTag) {
-  const text = trimFieldValue(prose);
+    const text = trimFieldValue(prose);
 
-  if (text === "") {
-    return "";
-  }
+    if (text === "") {
+        return "";
+    }
 
-  const reference = sourceTag || "";
+    const reference = sourceTag || "";
 
-  return text.endsWith("。")
-    ? `${text.slice(0, -1)}${reference}。`
-    : `${text}${reference}`;
+    return text.endsWith("。")
+        ? `${text.slice(0, -1)}${reference}。`
+        : `${text}${reference}`;
 }
 
 /**
@@ -213,10 +218,10 @@ function buildAdditionalProseText(prose, sourceTag) {
  * @returns {boolean} Whether the current view is a new-page edit form.
  */
 function isNewPageEdit() {
-  return (
-    isEditAction(mw.config.get("wgAction")) &&
-    mw.config.get("wgArticleId") === 0
-  );
+    return (
+        isEditAction(mw.config.get("wgAction")) &&
+        mw.config.get("wgArticleId") === 0
+    );
 }
 
 /**
@@ -225,10 +230,10 @@ function isNewPageEdit() {
  * @returns {boolean} Whether the current action views an uncreated page.
  */
 function isMissingPageView() {
-  return (
-    mw.config.get("wgAction") === "view" &&
-    mw.config.get("wgArticleId") === 0
-  );
+    return (
+        mw.config.get("wgAction") === "view" &&
+        mw.config.get("wgArticleId") === 0
+    );
 }
 
 /**
@@ -238,7 +243,7 @@ function isMissingPageView() {
  * @returns {boolean} Whether the action edits or submits page text.
  */
 function isEditAction(action) {
-  return action === "edit" || action === "submit";
+    return action === "edit" || action === "submit";
 }
 
 /**
@@ -258,7 +263,7 @@ function isEditAction(action) {
  * @returns {string} Generated Chinese wikitext.
  */
 export function buildStubText(params) {
-  return buildArticleWikitext(params);
+    return buildArticleWikitext(params);
 }
 
 /**
@@ -268,7 +273,7 @@ export function buildStubText(params) {
  * @returns {Array<object>} Source references with generated names.
  */
 function buildNamedSourceReferences(references) {
-  return (references || []).map(buildNamedSourceReference);
+    return (references || []).map(buildNamedSourceReference);
 }
 
 /**
@@ -281,10 +286,10 @@ function buildNamedSourceReferences(references) {
  * @returns {object} Named source reference.
  */
 function buildNamedSourceReference(reference, index) {
-  return {
-    ...reference,
-    name: reference.name || `:${index + 1}`,
-  };
+    return {
+        ...reference,
+        name: reference.name || `:${index + 1}`,
+    };
 }
 
 /**
@@ -294,13 +299,13 @@ function buildNamedSourceReference(reference, index) {
  * @returns {object} Source reference tags keyed by section.
  */
 function buildSourceReferenceTags(references) {
-  return references.reduce((tags, reference) => {
-    tags[reference.key] = `${tags[reference.key] || ""}${buildReferenceTag(
-      reference.name,
-    )}`;
+    return references.reduce((tags, reference) => {
+        tags[reference.key] = `${tags[reference.key] || ""}${buildReferenceTag(
+            reference.name,
+        )}`;
 
-    return tags;
-  }, {});
+        return tags;
+    }, {});
 }
 
 /**
@@ -312,13 +317,13 @@ function buildSourceReferenceTags(references) {
  * @returns {Array<object>} Localized name rows with reference tags.
  */
 function buildInfoboxNameRows(rows, sourceTags, key) {
-  return (rows || []).map((row, index) => ({
-    ...row,
-    ref:
-      sourceTags[row.sourceKey] ||
-      sourceTags[buildNameSourceReferenceKey(key, index)] ||
-      "",
-  }));
+    return (rows || []).map((row, index) => ({
+        ...row,
+        ref:
+            sourceTags[row.sourceKey] ||
+            sourceTags[buildNameSourceReferenceKey(key, index)] ||
+            "",
+    }));
 }
 
 /**
@@ -329,7 +334,7 @@ function buildInfoboxNameRows(rows, sourceTags, key) {
  * @returns {string} Joined source reference tags.
  */
 function joinSourceTags(tags, keys) {
-  return keys.map((key) => tags[key] || "").join("");
+    return keys.map((key) => tags[key] || "").join("");
 }
 
 /**
@@ -339,7 +344,7 @@ function joinSourceTags(tags, keys) {
  * @returns {string} Named reference invocation.
  */
 function buildReferenceTag(name) {
-  return `<ref name="${name}" />`;
+    return `<ref name="${name}" />`;
 }
 
 /**
@@ -349,17 +354,17 @@ function buildReferenceTag(name) {
  * @returns {void}
  */
 function writeEditText(text) {
-  const textbox = document.getElementById("wpTextbox1");
-  const $textbox = $(textbox);
+    const textbox = document.getElementById("wpTextbox1");
+    const $textbox = $(textbox);
 
-  if (typeof $textbox.textSelection === "function") {
-    $textbox.textSelection("setContents", text);
-  } else {
-    textbox.value = text;
-  }
+    if (typeof $textbox.textSelection === "function") {
+        $textbox.textSelection("setContents", text);
+    } else {
+        textbox.value = text;
+    }
 
-  $textbox.trigger("input").trigger("change");
-  textbox.focus();
+    $textbox.trigger("input").trigger("change");
+    textbox.focus();
 }
 
 /**
@@ -369,14 +374,14 @@ function writeEditText(text) {
  * @returns {void}
  */
 function writeEditSummary(summary) {
-  const summaryInput = document.getElementById("wpSummary");
+    const summaryInput = document.getElementById("wpSummary");
 
-  if (summaryInput == null) {
-    return;
-  }
+    if (summaryInput == null) {
+        return;
+    }
 
-  summaryInput.value = summary;
-  $(summaryInput).trigger("input").trigger("change");
+    summaryInput.value = summary;
+    $(summaryInput).trigger("input").trigger("change");
 }
 
 /**
@@ -385,11 +390,11 @@ function writeEditSummary(summary) {
  * @returns {HTMLElement} Element appended to the document body.
  */
 function createHost() {
-  const host = document.createElement("div");
+    const host = document.createElement("div");
 
-  document.body.append(host);
+    document.body.append(host);
 
-  return host;
+    return host;
 }
 
 /**
@@ -398,7 +403,7 @@ function createHost() {
  * @returns {string} Page title without a trailing disambiguation suffix.
  */
 function getDefaultName() {
-  return mw.config.get("wgTitle").replace(/ \(.+?\)$/u, "");
+    return mw.config.get("wgTitle").replace(/ \(.+?\)$/u, "");
 }
 
 /**
@@ -408,7 +413,7 @@ function getDefaultName() {
  * @returns {string} Category page URL.
  */
 const getCategoryPageUrl = (category) =>
-  mw.util.getUrl(`Category:${category}`);
+    mw.util.getUrl(`Category:${category}`);
 
 /**
  * Builds a template page URL.
@@ -418,7 +423,7 @@ const getCategoryPageUrl = (category) =>
  * @returns {string} Template page URL.
  */
 const getTemplatePageUrl = (template, edit = false) =>
-  mw.util.getUrl(`Template:${template}`, edit ? { action: "edit" } : {});
+    mw.util.getUrl(`Template:${template}`, edit ? { action: "edit" } : {});
 
 /**
  * Counts generated prose from current form values.
@@ -427,7 +432,7 @@ const getTemplatePageUrl = (template, edit = false) =>
  * @returns {number} Hanzi-equivalent sinograph count.
  */
 const getFormProseSinographs = (form) =>
-  countGeneratedProseSinographs(createArticleParams(form));
+    countGeneratedProseSinographs(createArticleParams(form));
 
 /**
  * Gets placeholder text for one form field.
@@ -438,28 +443,28 @@ const getFormProseSinographs = (form) =>
  * @returns {string|undefined} Placeholder text.
  */
 function getFieldPlaceholder(form, field) {
-  if (field.key === "name") {
-    return getDefaultName();
-  }
+    if (field.key === "name") {
+        return getDefaultName();
+    }
 
-  if (field.key === "wikidataId") {
-    return trimFieldValue(form.enwikiTitle) === ""
-      ? "Enter enwiki title first"
-      : "No connected Wikidata item";
-  }
+    if (field.key === "wikidataId") {
+        return trimFieldValue(form.enwikiTitle) === ""
+            ? "Enter enwiki title first"
+            : "No connected Wikidata item";
+    }
 
-  if (field.key !== "sortKey") {
-    return undefined;
-  }
+    if (field.key !== "sortKey") {
+        return undefined;
+    }
 
-  const normalizedForm = normalizeArticleForm(form);
-  const sortKey = buildDefaultSortKey({
-    english: normalizedForm.englishName,
-    original: normalizedForm.originalName,
-    title: normalizedForm.name,
-  });
+    const normalizedForm = normalizeArticleForm(form);
+    const sortKey = buildDefaultSortKey({
+        english: normalizedForm.englishName,
+        original: normalizedForm.originalName,
+        title: normalizedForm.name,
+    });
 
-  return sortKey;
+    return sortKey;
 }
 
 /**
@@ -470,11 +475,14 @@ function getFieldPlaceholder(form, field) {
  * @returns {string} Preview wikitext, or an empty string.
  */
 function getFieldPreview(form, previewKey) {
-  try {
-    return getArticleParamsFieldPreview(createArticleParams(form), previewKey);
-  } catch (_error) {
-    return "";
-  }
+    try {
+        return getArticleParamsFieldPreview(
+            createArticleParams(form),
+            previewKey,
+        );
+    } catch (_error) {
+        return "";
+    }
 }
 
 /**
@@ -485,19 +493,19 @@ function getFieldPreview(form, previewKey) {
  * @returns {string} Preview wikitext, or an empty string.
  */
 function getArticleParamsFieldPreview(params, key) {
-  if (key === "names") {
-    return params.leadNameText;
-  }
+    if (key === "names") {
+        return params.leadNameText;
+    }
 
-  if (key === "score") {
-    return params.aggScoresText;
-  }
+    if (key === "score") {
+        return params.aggScoresText;
+    }
 
-  if (key === "attribution") {
-    return buildAttributionPreviewText(params);
-  }
+    if (key === "attribution") {
+        return buildAttributionPreviewText(params);
+    }
 
-  return "";
+    return "";
 }
 
 /**
@@ -507,14 +515,14 @@ function getArticleParamsFieldPreview(params, key) {
  * @returns {string} Attribution preview wikitext.
  */
 function buildAttributionPreviewText(params) {
-  const introText = `${params.yearGenreMetadata.text}${params.companyMetadata.text}`;
-  const platformText = params.platformSeriesMetadata.text;
+    const introText = `${params.yearGenreMetadata.text}${params.companyMetadata.text}`;
+    const platformText = params.platformSeriesMetadata.text;
 
-  if (introText === "") {
-    return platformText;
-  }
+    if (introText === "") {
+        return platformText;
+    }
 
-  return `……是${introText}。${platformText}`;
+    return `……是${introText}。${platformText}`;
 }
 
 /**
@@ -532,7 +540,7 @@ function buildAttributionPreviewText(params) {
  * @returns {object} Normalized article parameters.
  */
 export function createArticleParams(form) {
-  return new VideoGameArticleParams(normalizeArticleForm(form));
+    return new VideoGameArticleParams(normalizeArticleForm(form));
 }
 
 /**
@@ -543,26 +551,26 @@ export function createArticleParams(form) {
  * @returns {object} Form values with builder fallbacks applied.
  */
 function normalizeArticleForm(form) {
-  const originalTitle = parsePrefixedValue(
-    form.originalName,
-    form.originalLanguage || "ja",
-  );
-  const metacriticScore = parsePrefixedValue(
-    form.metacriticScore,
-    form.metacriticPlatform || "",
-  );
-  const localizedNames = getLocalizedNameRows(form);
+    const originalTitle = parsePrefixedValue(
+        form.originalName,
+        form.originalLanguage || "ja",
+    );
+    const metacriticScore = parsePrefixedValue(
+        form.metacriticScore,
+        form.metacriticPlatform || "",
+    );
+    const localizedNames = getLocalizedNameRows(form);
 
-  return {
-    ...form,
-    commonNames: localizedNames.filter((row) => !row.official),
-    metacriticPlatform: metacriticScore.prefix,
-    metacriticScore: metacriticScore.value,
-    name: trimFieldValue(form.name) || getDefaultNameFallback(),
-    officialNames: localizedNames.filter((row) => row.official),
-    originalLanguage: originalTitle.prefix || "ja",
-    originalName: originalTitle.value,
-  };
+    return {
+        ...form,
+        commonNames: localizedNames.filter((row) => !row.official),
+        metacriticPlatform: metacriticScore.prefix,
+        metacriticScore: metacriticScore.value,
+        name: trimFieldValue(form.name) || getDefaultNameFallback(),
+        officialNames: localizedNames.filter((row) => row.official),
+        originalLanguage: originalTitle.prefix || "ja",
+        originalName: originalTitle.value,
+    };
 }
 
 /**
@@ -572,25 +580,25 @@ function normalizeArticleForm(form) {
  * @returns {Array<object>} Localized name rows.
  */
 function getLocalizedNameRows(form) {
-  if (Array.isArray(form.localizedNames)) {
-    return form.localizedNames.map((row, index) => ({
-      ...row,
-      sourceKey: buildNameSourceReferenceKey("localizedNames", index),
-    }));
-  }
+    if (Array.isArray(form.localizedNames)) {
+        return form.localizedNames.map((row, index) => ({
+            ...row,
+            sourceKey: buildNameSourceReferenceKey("localizedNames", index),
+        }));
+    }
 
-  return [
-    ...(form.officialNames || []).map((row, index) => ({
-      ...row,
-      official: true,
-      sourceKey: buildNameSourceReferenceKey("officialNames", index),
-    })),
-    ...(form.commonNames || []).map((row, index) => ({
-      ...row,
-      official: false,
-      sourceKey: buildNameSourceReferenceKey("commonNames", index),
-    })),
-  ];
+    return [
+        ...(form.officialNames || []).map((row, index) => ({
+            ...row,
+            official: true,
+            sourceKey: buildNameSourceReferenceKey("officialNames", index),
+        })),
+        ...(form.commonNames || []).map((row, index) => ({
+            ...row,
+            official: false,
+            sourceKey: buildNameSourceReferenceKey("commonNames", index),
+        })),
+    ];
 }
 
 /**
@@ -601,20 +609,20 @@ function getLocalizedNameRows(form) {
  * @returns {object} Parsed prefix and value.
  */
 function parsePrefixedValue(value, defaultPrefix) {
-  const text = trimFieldValue(value);
-  const match = text.match(/^([^:\s][^:]*):(.*)$/u);
+    const text = trimFieldValue(value);
+    const match = text.match(/^([^:\s][^:]*):(.*)$/u);
 
-  if (match == null) {
+    if (match == null) {
+        return {
+            prefix: trimFieldValue(defaultPrefix),
+            value: text,
+        };
+    }
+
     return {
-      prefix: trimFieldValue(defaultPrefix),
-      value: text,
+        prefix: trimFieldValue(match[1]),
+        value: trimFieldValue(match[2]),
     };
-  }
-
-  return {
-    prefix: trimFieldValue(match[1]),
-    value: trimFieldValue(match[2]),
-  };
 }
 
 /**
@@ -623,11 +631,11 @@ function parsePrefixedValue(value, defaultPrefix) {
  * @returns {string} Default article title, or an empty string.
  */
 function getDefaultNameFallback() {
-  if (typeof mw === "undefined") {
-    return "";
-  }
+    if (typeof mw === "undefined") {
+        return "";
+    }
 
-  return getDefaultName();
+    return getDefaultName();
 }
 
 /**
@@ -640,18 +648,18 @@ function getDefaultNameFallback() {
  * @returns {Promise<void>} Resolves after generated text is inserted.
  */
 async function fillForm(form, sourceFetchState, closeDialog, citationStore) {
-  sourceFetchState.error = "";
-  sourceFetchState.loading = true;
+    sourceFetchState.error = "";
+    sourceFetchState.loading = true;
 
-  try {
-    await writeGeneratedStub(form, citationStore);
-    sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
-    closeDialog();
-  } catch (error) {
-    sourceFetchState.error = error.message;
-  } finally {
-    sourceFetchState.loading = false;
-  }
+    try {
+        await writeGeneratedStub(form, citationStore);
+        sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
+        closeDialog();
+    } catch (error) {
+        sourceFetchState.error = error.message;
+    } finally {
+        sourceFetchState.loading = false;
+    }
 }
 
 /**
@@ -665,72 +673,75 @@ async function fillForm(form, sourceFetchState, closeDialog, citationStore) {
  * @returns {Promise<void>} Resolves after save submission starts.
  */
 async function submitForm(
-  form,
-  sourceFetchState,
-  closeDialog,
-  preSave,
-  citationStore,
+    form,
+    sourceFetchState,
+    closeDialog,
+    preSave,
+    citationStore,
 ) {
-  sourceFetchState.error = "";
-  sourceFetchState.loading = true;
+    sourceFetchState.error = "";
+    sourceFetchState.loading = true;
 
-  try {
-    const moveTitle = trimFieldValue(preSave?.move?.to);
-    const shouldMove =
-      preSave?.move?.enabled === true &&
-      moveTitle !== "" &&
-      normalizePageTitle(moveTitle) !== normalizePageTitle(getPageName());
-    const submittedForm = shouldMove
-      ? {
-          ...form,
-          name: moveTitle,
+    try {
+        const moveTitle = trimFieldValue(preSave?.move?.to);
+        const shouldMove =
+            preSave?.move?.enabled === true &&
+            moveTitle !== "" &&
+            normalizePageTitle(moveTitle) !==
+                normalizePageTitle(getPageName());
+        const submittedForm = shouldMove
+            ? {
+                  ...form,
+                  name: moveTitle,
+              }
+            : form;
+        const stub = await buildStubFromForm(submittedForm, citationStore);
+        const summary = buildEditSummary(
+            createEditSummaryMetadata(submittedForm, stub),
+        );
+        const pending = {
+            actions: preSave.actions,
+            move: shouldMove
+                ? {
+                      ...preSave.move,
+                      to: moveTitle,
+                  }
+                : {
+                      enabled: false,
+                  },
+        };
+
+        storePendingSaveData(submittedForm, getPageName(), {
+            actions: pending.actions,
+            move: pending.move,
+        });
+        startSaveProgress(getPageName(), pending);
+
+        if (document.getElementById("editform") == null) {
+            const params = {
+                action: "edit",
+                createonly: true,
+                summary,
+                text: stub.text,
+                title: getPageName(),
+            };
+
+            await new mw.Api().postWithToken("csrf", params);
+            setSaveProgressStep("save", "complete");
+            window.location.href = mw.util.getUrl(getPageName());
+        } else {
+            writeEditText(stub.text);
+            writeEditSummary(summary);
+            submitEditForm();
         }
-      : form;
-    const stub = await buildStubFromForm(submittedForm, citationStore);
-    const summary = buildEditSummary(
-      createEditSummaryMetadata(submittedForm, stub),
-    );
-    const pending = {
-      actions: preSave.actions,
-      move: shouldMove
-        ? {
-            ...preSave.move,
-            to: moveTitle,
-          }
-        : {
-            enabled: false,
-          },
-    };
 
-    storePendingSaveData(submittedForm, getPageName(), {
-      actions: pending.actions,
-      move: pending.move,
-    });
-    startSaveProgress(getPageName(), pending);
-
-    if (document.getElementById("editform") == null) {
-      await new mw.Api().postWithToken("csrf", {
-        action: "edit",
-        createonly: true,
-        summary,
-        text: stub.text,
-        title: getPageName(),
-      });
-      setSaveProgressStep("save", "complete");
-      window.location.href = mw.util.getUrl(getPageName());
-    } else {
-      writeEditText(stub.text);
-      writeEditSummary(summary);
-      submitEditForm();
+        closeDialog();
+    } catch (error) {
+        failSaveProgress(error);
+        sourceFetchState.error = error.message;
+    } finally {
+        sourceFetchState.loading = false;
     }
-
-    closeDialog();
-  } catch (error) {
-    failSaveProgress(error);
-    sourceFetchState.error = error.message;
-  } finally {
-    sourceFetchState.loading = false;
-  }
 }
 
 /**
@@ -741,14 +752,14 @@ async function submitForm(
  * @returns {void}
  */
 function startSaveProgress(title, pending) {
-  const progress = createSaveProgress(
-    title,
-    pending.actions || [],
-    pending.move || {},
-  );
+    const progress = createSaveProgress(
+        title,
+        pending.actions || [],
+        pending.move || {},
+    );
 
-  storeSaveProgress(updateSaveProgress(progress, "save", "running"));
-  renderStoredSaveProgress();
+    storeSaveProgress(updateSaveProgress(progress, "save", "running"));
+    renderStoredSaveProgress();
 }
 
 /**
@@ -759,14 +770,14 @@ function startSaveProgress(title, pending) {
  * @returns {void}
  */
 function setSaveProgressStep(id, status) {
-  const progress = readSaveProgress();
+    const progress = readSaveProgress();
 
-  if (progress == null) {
-    return;
-  }
+    if (progress == null) {
+        return;
+    }
 
-  storeSaveProgress(updateSaveProgress(progress, id, status));
-  renderStoredSaveProgress();
+    storeSaveProgress(updateSaveProgress(progress, id, status));
+    renderStoredSaveProgress();
 }
 
 /**
@@ -776,20 +787,21 @@ function setSaveProgressStep(id, status) {
  * @returns {void}
  */
 function failSaveProgress(error) {
-  const progress = readSaveProgress();
+    const progress = readSaveProgress();
 
-  if (progress == null) {
-    return;
-  }
+    if (progress == null) {
+        return;
+    }
 
-  progress.error = error.message || String(error);
-  const running = progress.steps.find((step) => step.status === "running");
-  const failed = running == null
-    ? progress
-    : updateSaveProgress(progress, running.id, "failed");
+    progress.error = error.message || String(error);
+    const running = progress.steps.find((step) => step.status === "running");
+    const failed =
+        running == null
+            ? progress
+            : updateSaveProgress(progress, running.id, "failed");
 
-  storeSaveProgress(failed);
-  renderSaveProgress(failed);
+    storeSaveProgress(failed);
+    renderSaveProgress(failed);
 }
 
 /**
@@ -798,11 +810,11 @@ function failSaveProgress(error) {
  * @returns {void}
  */
 function renderStoredSaveProgress() {
-  const progress = readSaveProgress();
+    const progress = readSaveProgress();
 
-  if (progress != null) {
-    renderSaveProgress(progress);
-  }
+    if (progress != null) {
+        renderSaveProgress(progress);
+    }
 }
 
 /**
@@ -813,10 +825,10 @@ function renderStoredSaveProgress() {
  * @returns {Promise<void>} Resolves after the editor is filled.
  */
 async function writeGeneratedStub(form, citationStore) {
-  const stub = await buildStubFromForm(form, citationStore);
+    const stub = await buildStubFromForm(form, citationStore);
 
-  writeEditText(stub.text);
-  writeEditSummary(buildEditSummary(createEditSummaryMetadata(form, stub)));
+    writeEditText(stub.text);
+    writeEditSummary(buildEditSummary(createEditSummaryMetadata(form, stub)));
 }
 
 /**
@@ -828,15 +840,15 @@ async function writeGeneratedStub(form, citationStore) {
  * @returns {void}
  */
 function storePendingSaveData(form, title, preSave = {}) {
-  sessionStorage.setItem(
-    PENDING_SAVE_STORAGE_KEY,
-    JSON.stringify({
-      form,
-      actions: preSave.actions,
-      move: preSave.move,
-      title,
-    }),
-  );
+    sessionStorage.setItem(
+        PENDING_SAVE_STORAGE_KEY,
+        JSON.stringify({
+            form,
+            actions: preSave.actions,
+            move: preSave.move,
+            title,
+        }),
+    );
 }
 
 /**
@@ -845,14 +857,14 @@ function storePendingSaveData(form, title, preSave = {}) {
  * @returns {void}
  */
 export function submitEditForm() {
-  const editForm = document.getElementById("editform");
-  const saveButton = document.getElementById("wpSave");
+    const editForm = document.getElementById("editform");
+    const saveButton = document.getElementById("wpSave");
 
-  if (editForm == null || saveButton == null) {
-    throw new Error("MediaWiki save form is unavailable.");
-  }
+    if (editForm == null || saveButton == null) {
+        throw new Error("MediaWiki save form is unavailable.");
+    }
 
-  editForm.requestSubmit(saveButton);
+    editForm.requestSubmit(saveButton);
 }
 
 /**
@@ -861,26 +873,27 @@ export function submitEditForm() {
  * @returns {object|undefined} Pending selected actions.
  */
 function getPendingSaveData() {
-  const item = sessionStorage.getItem(PENDING_SAVE_STORAGE_KEY);
+    const item = sessionStorage.getItem(PENDING_SAVE_STORAGE_KEY);
 
-  if (item == null) {
-    return undefined;
-  }
-
-  try {
-    const pending = JSON.parse(item);
-
-    if (
-      normalizePageTitle(pending.title) !== normalizePageTitle(getPageName())
-    ) {
-      return undefined;
+    if (item == null) {
+        return undefined;
     }
 
-    return pending;
-  } catch (_error) {
-    sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
-    return undefined;
-  }
+    try {
+        const pending = JSON.parse(item);
+
+        if (
+            normalizePageTitle(pending.title) !==
+            normalizePageTitle(getPageName())
+        ) {
+            return undefined;
+        }
+
+        return pending;
+    } catch (_error) {
+        sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
+        return undefined;
+    }
 }
 
 /**
@@ -891,7 +904,7 @@ function getPendingSaveData() {
  * @returns {Promise<string>} Generated stub wikitext.
  */
 async function buildStubTextFromForm(form, citationStore) {
-  return (await buildStubFromForm(form, citationStore)).text;
+    return (await buildStubFromForm(form, citationStore)).text;
 }
 
 /**
@@ -902,20 +915,20 @@ async function buildStubTextFromForm(form, citationStore) {
  * @returns {Promise<object>} Generated stub text and article parameters.
  */
 async function buildStubFromForm(form, citationStore) {
-  const [sourceReferences, navboxText] = await Promise.all([
-    fetchSourceReferences(form, citationStore),
-    getFormNavboxText(form),
-  ]);
-  const params = createArticleParams({
-    ...form,
-    navboxText,
-    sourceReferences,
-  });
+    const [sourceReferences, navboxText] = await Promise.all([
+        fetchSourceReferences(form, citationStore),
+        getFormNavboxText(form),
+    ]);
+    const params = createArticleParams({
+        ...form,
+        navboxText,
+        sourceReferences,
+    });
 
-  return {
-    params,
-    text: buildStubText(params),
-  };
+    return {
+        params,
+        text: buildStubText(params),
+    };
 }
 
 /**
@@ -925,11 +938,11 @@ async function buildStubFromForm(form, citationStore) {
  * @returns {Promise<string>} Navbox wikitext.
  */
 async function getFormNavboxText(form) {
-  if (!Array.isArray(form.navboxRows)) {
-    return buildNavboxText(form.series);
-  }
+    if (!Array.isArray(form.navboxRows)) {
+        return buildNavboxText(form.series);
+    }
 
-  return buildReviewedNavboxText(form.navboxRows);
+    return buildReviewedNavboxText(form.navboxRows);
 }
 
 /**
@@ -940,12 +953,12 @@ async function getFormNavboxText(form) {
  * @returns {Promise<Array<object>>} Checked navbox rows.
  */
 async function prepareNavboxRows(form, rebuild) {
-  const values =
-    rebuild || !Array.isArray(form.navboxRows)
-      ? (await buildNavboxText(form.series)).split("\n").filter(Boolean)
-      : form.navboxRows;
+    const values =
+        rebuild || !Array.isArray(form.navboxRows)
+            ? (await buildNavboxText(form.series)).split("\n").filter(Boolean)
+            : form.navboxRows;
 
-  return resolveReviewedNavboxRows(values);
+    return resolveReviewedNavboxRows(values);
 }
 
 /**
@@ -962,13 +975,13 @@ async function prepareNavboxRows(form, rebuild) {
  * @returns {object} Edit summary metadata.
  */
 function createEditSummaryMetadata(form, stub) {
-  return {
-    displayName: getEditSummaryDisplayName(form),
-    enwikiTitle: trimFieldValue(form.enwikiTitle),
-    proseSinographs: countGeneratedProseSinographs(stub.params),
-    wikidataId: trimFieldValue(form.wikidataId),
-    year: trimFieldValue(form.year),
-  };
+    return {
+        displayName: getEditSummaryDisplayName(form),
+        enwikiTitle: trimFieldValue(form.enwikiTitle),
+        proseSinographs: countGeneratedProseSinographs(stub.params),
+        wikidataId: trimFieldValue(form.wikidataId),
+        year: trimFieldValue(form.year),
+    };
 }
 
 /**
@@ -980,7 +993,9 @@ function createEditSummaryMetadata(form, stub) {
  * @returns {string} Summary display title.
  */
 function getEditSummaryDisplayName(form) {
-  return trimFieldValue(form.originalName) || trimFieldValue(form.englishName);
+    return (
+        trimFieldValue(form.originalName) || trimFieldValue(form.englishName)
+    );
 }
 
 /**
@@ -991,21 +1006,21 @@ function getEditSummaryDisplayName(form) {
  * @returns {Promise<Array<object>>} Localized official name rows.
  */
 async function fetchSteamNameRows(sourceUrl, citationStore) {
-  getSteamAppId(sourceUrl);
-  const rows = await Promise.all(
-    [
-      {
-        language: "schinese",
-        markets: ["hans"],
-      },
-      {
-        language: "tchinese",
-        markets: ["hant"],
-      },
-    ].map((item) => fetchSteamNameRow(sourceUrl, item, citationStore)),
-  );
+    getSteamAppId(sourceUrl);
+    const rows = await Promise.all(
+        [
+            {
+                language: "schinese",
+                markets: ["hans"],
+            },
+            {
+                language: "tchinese",
+                markets: ["hant"],
+            },
+        ].map((item) => fetchSteamNameRow(sourceUrl, item, citationStore)),
+    );
 
-  return rows.filter(Boolean);
+    return rows.filter(Boolean);
 }
 
 /**
@@ -1017,20 +1032,23 @@ async function fetchSteamNameRows(sourceUrl, citationStore) {
  * @returns {Promise<object|undefined>} Localized name row.
  */
 async function fetchSteamNameRow(sourceUrl, item, citationStore) {
-  const localizedUrl = buildSteamLocalizedSourceUrl(sourceUrl, item.language);
-  const citation = await citationStore.fetch(localizedUrl);
-  const name = cleanSteamNameTitle(getTemplateParam(citation, "title"));
+    const localizedUrl = buildSteamLocalizedSourceUrl(
+        sourceUrl,
+        item.language,
+    );
+    const citation = await citationStore.fetch(localizedUrl);
+    const name = cleanSteamNameTitle(getTemplateParam(citation, "title"));
 
-  if (name === "") {
-    return undefined;
-  }
+    if (name === "") {
+        return undefined;
+    }
 
-  return {
-    markets: item.markets,
-    name,
-    official: true,
-    sourceUrl: localizedUrl,
-  };
+    return {
+        markets: item.markets,
+        name,
+        official: true,
+        sourceUrl: localizedUrl,
+    };
 }
 
 /**
@@ -1040,13 +1058,13 @@ async function fetchSteamNameRow(sourceUrl, item, citationStore) {
  * @returns {string} Steam app ID.
  */
 function getSteamAppId(sourceUrl) {
-  const match = trimFieldValue(sourceUrl).match(/\/app\/(\d+)(?:[/?#]|$)/u);
+    const match = trimFieldValue(sourceUrl).match(/\/app\/(\d+)(?:[/?#]|$)/u);
 
-  if (match == null) {
-    throw new Error("Enter a Steam app URL.");
-  }
+    if (match == null) {
+        throw new Error("Enter a Steam app URL.");
+    }
 
-  return match[1];
+    return match[1];
 }
 
 /**
@@ -1057,11 +1075,11 @@ function getSteamAppId(sourceUrl) {
  * @returns {string} Steam appdetails API URL.
  */
 function buildSteamLocalizedSourceUrl(sourceUrl, language) {
-  const url = new URL(trimFieldValue(sourceUrl));
+    const url = new URL(trimFieldValue(sourceUrl));
 
-  url.searchParams.set("l", language);
+    url.searchParams.set("l", language);
 
-  return url.toString();
+    return url.toString();
 }
 
 /**
@@ -1072,12 +1090,11 @@ function buildSteamLocalizedSourceUrl(sourceUrl, language) {
  * @returns {string} Template parameter value.
  */
 function getTemplateParam(template, key) {
-  const match = String(template).match(new RegExp(
-    `(?:^|\\|)\\s*${escapeRegExp(key)}\\s*=\\s*([^|}]*)`,
-    "u",
-  ));
+    const match = String(template).match(
+        new RegExp(`(?:^|\\|)\\s*${escapeRegExp(key)}\\s*=\\s*([^|}]*)`, "u"),
+    );
 
-  return trimFieldValue(match?.[1] || "");
+    return trimFieldValue(match?.[1] || "");
 }
 
 /**
@@ -1087,7 +1104,7 @@ function getTemplateParam(template, key) {
  * @returns {string} Escaped text.
  */
 function escapeRegExp(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 /**
@@ -1097,10 +1114,10 @@ function escapeRegExp(text) {
  * @returns {string} Game name.
  */
 function cleanSteamNameTitle(title) {
-  return trimFieldValue(title)
-    .replace(/^Steam - /u, "")
-    .replace(/^Steam 上的 /u, "")
-    .replace(/ on Steam$/u, "");
+    return trimFieldValue(title)
+        .replace(/^Steam - /u, "")
+        .replace(/^Steam 上的 /u, "")
+        .replace(/ on Steam$/u, "");
 }
 
 /**
@@ -1112,51 +1129,51 @@ function cleanSteamNameTitle(title) {
  * @returns {Promise<void>} Resolves after category rows are refreshed.
  */
 async function refreshFormCategoryRows(
-  form,
-  categoryState,
-  categoryStore,
-  options = {},
+    form,
+    categoryState,
+    categoryStore,
+    options = {},
 ) {
-  categoryState.error = "";
-  categoryState.loading = true;
+    categoryState.error = "";
+    categoryState.loading = true;
 
-  try {
-    if (options.bypassCache) {
-      categoryStore.clear();
-    }
-
-    const rows = await buildCategoryRows(
-      form,
-      createArticleParams({
-        ...form,
-        categoryRows: [],
-      }),
-      form.categoryRows,
-      {
-        bypassCache: options.bypassCache,
-        cache: categoryStore.cache,
-      },
-    );
-    form.categoryRows.splice(
-      0,
-      form.categoryRows.length,
-      ...rows.map((row, index) => {
-        const current = form.categoryRows[index];
-
-        if (current == null) {
-          return row;
+    try {
+        if (options.bypassCache) {
+            categoryStore.clear();
         }
 
-        Object.assign(current, row);
-        return current;
-      }),
-    );
-    categoryStore.save();
-  } catch (error) {
-    categoryState.error = error.message;
-  } finally {
-    categoryState.loading = false;
-  }
+        const rows = await buildCategoryRows(
+            form,
+            createArticleParams({
+                ...form,
+                categoryRows: [],
+            }),
+            form.categoryRows,
+            {
+                bypassCache: options.bypassCache,
+                cache: categoryStore.cache,
+            },
+        );
+        form.categoryRows.splice(
+            0,
+            form.categoryRows.length,
+            ...rows.map((row, index) => {
+                const current = form.categoryRows[index];
+
+                if (current == null) {
+                    return row;
+                }
+
+                Object.assign(current, row);
+                return current;
+            }),
+        );
+        categoryStore.save();
+    } catch (error) {
+        categoryState.error = error.message;
+    } finally {
+        categoryState.loading = false;
+    }
 }
 
 /**
@@ -1167,13 +1184,13 @@ async function refreshFormCategoryRows(
  * @returns {void}
  */
 function saveCurrentFormHistory(form, page) {
-  saveFormHistory(
-    {
-      ...form,
-      name: page,
-    },
-    page,
-  );
+    saveFormHistory(
+        {
+            ...form,
+            name: page,
+        },
+        page,
+    );
 }
 
 /**
@@ -1182,7 +1199,7 @@ function saveCurrentFormHistory(form, page) {
  * @returns {Array<object>} Form history manager entries.
  */
 function readFormHistoryEntries() {
-  return [readFormDraftEntry(), ...readFormHistory()].filter(Boolean);
+    return [readFormDraftEntry(), ...readFormHistory()].filter(Boolean);
 }
 
 /**
@@ -1193,11 +1210,11 @@ function readFormHistoryEntries() {
  * @returns {Promise<Array<object>>} Source reference data.
  */
 async function fetchSourceReferences(form, citationStore) {
-  const entries = getEnteredSourceReferenceFields(form);
+    const entries = getEnteredSourceReferenceFields(form);
 
-  return Promise.all(
-    entries.map(fetchSourceReference.bind(null, form, citationStore)),
-  );
+    return Promise.all(
+        entries.map(fetchSourceReference.bind(null, form, citationStore)),
+    );
 }
 
 /**
@@ -1207,15 +1224,15 @@ async function fetchSourceReferences(form, citationStore) {
  * @returns {Array<object>} Entered source reference fields.
  */
 function getEnteredSourceReferenceFields(form) {
-  return [
-    ...SOURCE_REFERENCE_FIELDS.flatMap((field) =>
-      splitSourceUrls(form[field.sourceKey]).map((sourceUrl) => ({
-        ...field,
-        sourceUrl,
-      })),
-    ),
-    ...getEnteredNameSourceReferenceFields(form),
-  ];
+    return [
+        ...SOURCE_REFERENCE_FIELDS.flatMap((field) =>
+            splitSourceUrls(form[field.sourceKey]).map((sourceUrl) => ({
+                ...field,
+                sourceUrl,
+            })),
+        ),
+        ...getEnteredNameSourceReferenceFields(form),
+    ];
 }
 
 /**
@@ -1230,10 +1247,12 @@ function getEnteredSourceReferenceFields(form) {
  * @returns {Promise<object>} Source reference data.
  */
 async function fetchSourceReference(form, citationStore, field) {
-  return {
-    citation: await citationStore.fetch(getSourceReferenceUrl(form, field)),
-    key: field.key,
-  };
+    return {
+        citation: await citationStore.fetch(
+            getSourceReferenceUrl(form, field),
+        ),
+        key: field.key,
+    };
 }
 
 /**
@@ -1242,46 +1261,48 @@ async function fetchSourceReference(form, citationStore, field) {
  * @returns {object} Citation store.
  */
 function createCitationStore() {
-  const cache = {};
-  const pending = {};
+    const cache = {};
+    const pending = {};
 
-  return {
-    /**
-     * Fetches citation wikitext, reusing cached or in-flight requests.
-     *
-     * @param {string} url - Source URL.
-     * @returns {Promise<string>} Citation template wikitext.
-     */
-    fetch(url) {
-      const key = getCitationStoreKey(url);
+    return {
+        /**
+         * Fetches citation wikitext, reusing cached or in-flight requests.
+         *
+         * @param {string} url - Source URL.
+         * @returns {Promise<string>} Citation template wikitext.
+         */
+        fetch(url) {
+            const key = getCitationStoreKey(url);
 
-      if (cache[key] != null) {
-        return Promise.resolve(cache[key]);
-      }
+            if (cache[key] != null) {
+                return Promise.resolve(cache[key]);
+            }
 
-      if (pending[key] == null) {
-        pending[key] = fetchCiteTemplate(key, { cache }).finally(() => {
-          delete pending[key];
-        });
-      }
+            if (pending[key] == null) {
+                pending[key] = fetchCiteTemplate(key, { cache }).finally(
+                    () => {
+                        delete pending[key];
+                    },
+                );
+            }
 
-      return pending[key];
-    },
+            return pending[key];
+        },
 
-    /**
-     * Starts a background citation fetch for a source URL.
-     *
-     * @param {string} url - Source URL.
-     * @returns {void}
-     */
-    prefetch(url) {
-      if (!isPrefetchableSourceUrl(url)) {
-        return;
-      }
+        /**
+         * Starts a background citation fetch for a source URL.
+         *
+         * @param {string} url - Source URL.
+         * @returns {void}
+         */
+        prefetch(url) {
+            if (!isPrefetchableSourceUrl(url)) {
+                return;
+            }
 
-      this.fetch(url).catch(() => {});
-    },
-  };
+            this.fetch(url).catch(() => {});
+        },
+    };
 }
 
 /**
@@ -1290,33 +1311,33 @@ function createCitationStore() {
  * @returns {object} Category cache store.
  */
 function createCategoryCacheStore() {
-  const storageKey = `${CATEGORY_CACHE_STORAGE_PREFIX}${getPageName()}`;
-  const cache = readJsonStorage(storageKey) || {};
+    const storageKey = `${CATEGORY_CACHE_STORAGE_PREFIX}${getPageName()}`;
+    const cache = readJsonStorage(storageKey) || {};
 
-  return {
-    cache,
+    return {
+        cache,
 
-    /**
-     * Clears cached category resolutions for the current page.
-     *
-     * @returns {void}
-     */
-    clear() {
-      Object.keys(cache).forEach((key) => {
-        delete cache[key];
-      });
-      removeStorageItem(storageKey);
-    },
+        /**
+         * Clears cached category resolutions for the current page.
+         *
+         * @returns {void}
+         */
+        clear() {
+            Object.keys(cache).forEach((key) => {
+                delete cache[key];
+            });
+            removeStorageItem(storageKey);
+        },
 
-    /**
-     * Saves cached category resolutions for the current page.
-     *
-     * @returns {void}
-     */
-    save() {
-      writeJsonStorage(storageKey, cache);
-    },
-  };
+        /**
+         * Saves cached category resolutions for the current page.
+         *
+         * @returns {void}
+         */
+        save() {
+            writeJsonStorage(storageKey, cache);
+        },
+    };
 }
 
 /**
@@ -1326,13 +1347,13 @@ function createCategoryCacheStore() {
  * @returns {object|undefined} Stored value.
  */
 function readJsonStorage(key) {
-  try {
-    const value = localStorage.getItem(key);
+    try {
+        const value = localStorage.getItem(key);
 
-    return value == null ? undefined : JSON.parse(value);
-  } catch (_error) {
-    return undefined;
-  }
+        return value == null ? undefined : JSON.parse(value);
+    } catch (_error) {
+        return undefined;
+    }
 }
 
 /**
@@ -1343,9 +1364,9 @@ function readJsonStorage(key) {
  * @returns {void}
  */
 function writeJsonStorage(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (_error) {}
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (_error) {}
 }
 
 /**
@@ -1355,9 +1376,9 @@ function writeJsonStorage(key, value) {
  * @returns {void}
  */
 function removeStorageItem(key) {
-  try {
-    localStorage.removeItem(key);
-  } catch (_error) {}
+    try {
+        localStorage.removeItem(key);
+    } catch (_error) {}
 }
 
 /**
@@ -1367,7 +1388,7 @@ function removeStorageItem(key) {
  * @returns {string} Citation store key.
  */
 function getCitationStoreKey(url) {
-  return trimFieldValue(url);
+    return trimFieldValue(url);
 }
 
 /**
@@ -1377,13 +1398,13 @@ function getCitationStoreKey(url) {
  * @returns {boolean} Whether the URL should be prefetched.
  */
 function isPrefetchableSourceUrl(url) {
-  try {
-    const parsed = new URL(getCitationStoreKey(url));
+    try {
+        const parsed = new URL(getCitationStoreKey(url));
 
-    return ["http:", "https:"].includes(parsed.protocol);
-  } catch (_error) {
-    return false;
-  }
+        return ["http:", "https:"].includes(parsed.protocol);
+    } catch (_error) {
+        return false;
+    }
 }
 
 /**
@@ -1396,15 +1417,15 @@ function isPrefetchableSourceUrl(url) {
  * @returns {string} Trimmed source URL.
  */
 function getSourceReferenceUrl(form, field) {
-  if (field.sourceUrl != null) {
-    return trimFieldValue(field.sourceUrl);
-  }
+    if (field.sourceUrl != null) {
+        return trimFieldValue(field.sourceUrl);
+    }
 
-  if (field.sourceKey != null) {
-    return trimFieldValue(form[field.sourceKey]);
-  }
+    if (field.sourceKey != null) {
+        return trimFieldValue(form[field.sourceKey]);
+    }
 
-  return "";
+    return "";
 }
 
 /**
@@ -1414,8 +1435,8 @@ function getSourceReferenceUrl(form, field) {
  * @returns {void}
  */
 function handleToolboxClick(event) {
-  event.preventDefault();
-  window.createVgStubDialog.open();
+    event.preventDefault();
+    window.createVgStubDialog.open();
 }
 
 /**
@@ -1424,18 +1445,18 @@ function handleToolboxClick(event) {
  * @returns {void}
  */
 function addToolboxLink() {
-  const link = mw.util.addPortletLink(
-    "p-tb",
-    "#",
-    "Create video game stub",
-    "t-create-vg-stub",
-  );
+    const link = mw.util.addPortletLink(
+        "p-tb",
+        "#",
+        "Create video game stub",
+        "t-create-vg-stub",
+    );
 
-  link.addEventListener("click", handleToolboxClick);
+    link.addEventListener("click", handleToolboxClick);
 
-  if (isMissingPageView()) {
-    addMissingPageEditTrigger(document, handleToolboxClick);
-  }
+    if (isMissingPageView()) {
+        addMissingPageEditTrigger(document, handleToolboxClick);
+    }
 }
 
 /**
@@ -1448,36 +1469,36 @@ function addToolboxLink() {
  * @returns {Promise<void>} Resolves after generated text is stored.
  */
 async function openTargetPage(form, title, sourceFetchState, citationStore) {
-  sourceFetchState.error = "";
-  const targetTitle = trimFieldValue(title);
+    sourceFetchState.error = "";
+    const targetTitle = trimFieldValue(title);
 
-  if (targetTitle === "") {
-    return;
-  }
+    if (targetTitle === "") {
+        return;
+    }
 
-  sourceFetchState.loading = true;
+    sourceFetchState.loading = true;
 
-  try {
-    const targetForm = { ...form, name: targetTitle };
-    const stub = await buildStubFromForm(targetForm, citationStore);
+    try {
+        const targetForm = { ...form, name: targetTitle };
+        const stub = await buildStubFromForm(targetForm, citationStore);
 
-    sessionStorage.setItem(
-      MOVE_TEXT_STORAGE_KEY,
-      JSON.stringify({
-        form: targetForm,
-        text: stub.text,
-        summaryMetadata: createEditSummaryMetadata(targetForm, stub),
-        title: targetTitle,
-      }),
-    );
-    window.location.href = mw.util.getUrl(targetTitle, {
-      action: "edit",
-      redlink: "1",
-    });
-  } catch (error) {
-    sourceFetchState.error = error.message;
-    sourceFetchState.loading = false;
-  }
+        sessionStorage.setItem(
+            MOVE_TEXT_STORAGE_KEY,
+            JSON.stringify({
+                form: targetForm,
+                text: stub.text,
+                summaryMetadata: createEditSummaryMetadata(targetForm, stub),
+                title: targetTitle,
+            }),
+        );
+        window.location.href = mw.util.getUrl(targetTitle, {
+            action: "edit",
+            redlink: "1",
+        });
+    } catch (error) {
+        sourceFetchState.error = error.message;
+        sourceFetchState.loading = false;
+    }
 }
 
 /**
@@ -1486,15 +1507,15 @@ async function openTargetPage(form, title, sourceFetchState, citationStore) {
  * @returns {void}
  */
 function restoreMovedEditText() {
-  const pending = getMovedEdit();
+    const pending = getMovedEdit();
 
-  if (pending == null) {
-    return;
-  }
+    if (pending == null) {
+        return;
+    }
 
-  writeEditText(pending.text);
-  writeEditSummary(buildEditSummary(pending.summaryMetadata || {}));
-  sessionStorage.removeItem(MOVE_TEXT_STORAGE_KEY);
+    writeEditText(pending.text);
+    writeEditSummary(buildEditSummary(pending.summaryMetadata || {}));
+    sessionStorage.removeItem(MOVE_TEXT_STORAGE_KEY);
 }
 
 /**
@@ -1503,21 +1524,21 @@ function restoreMovedEditText() {
  * @returns {object|undefined} Pending moved edit data.
  */
 function getMovedEdit() {
-  const item = sessionStorage.getItem(MOVE_TEXT_STORAGE_KEY);
+    const item = sessionStorage.getItem(MOVE_TEXT_STORAGE_KEY);
 
-  if (item == null) {
-    return undefined;
-  }
+    if (item == null) {
+        return undefined;
+    }
 
-  const pending = JSON.parse(item);
+    const pending = JSON.parse(item);
 
-  if (
-    normalizePageTitle(pending.title) !== normalizePageTitle(getPageName())
-  ) {
-    return undefined;
-  }
+    if (
+        normalizePageTitle(pending.title) !== normalizePageTitle(getPageName())
+    ) {
+        return undefined;
+    }
 
-  return pending;
+    return pending;
 }
 
 /**
@@ -1526,7 +1547,7 @@ function getMovedEdit() {
  * @returns {string} Current full page name.
  */
 function getPageName() {
-  return mw.config.get("wgPageName").replace(/_/gu, " ");
+    return mw.config.get("wgPageName").replace(/_/gu, " ");
 }
 
 /**
@@ -1536,7 +1557,7 @@ function getPageName() {
  * @returns {string} Normalized page title text.
  */
 function normalizePageTitle(title) {
-  return trimFieldValue(title).replace(/_/gu, " ");
+    return trimFieldValue(title).replace(/_/gu, " ");
 }
 
 /**
@@ -1546,95 +1567,89 @@ function normalizePageTitle(title) {
  * @returns {void}
  */
 function init(require) {
-  const Vue = require("vue");
-  const Codex = require("@wikimedia/codex");
-  const categoryStore = createCategoryCacheStore();
-  const citationStore = createCitationStore();
-  const defaultName = getDefaultName();
-  const movedEdit = getMovedEdit();
+    const Vue = require("vue");
+    const Codex = require("@wikimedia/codex");
+    const categoryStore = createCategoryCacheStore();
+    const citationStore = createCitationStore();
+    const defaultName = getDefaultName();
+    const movedEdit = getMovedEdit();
 
-  addDialogStyles();
+    addDialogStyles();
 
-  const app = Vue.createMwApp(
-    createDialogComponent(Vue, {
-      citationPrefetchDelay: CITATION_PREFETCH_DELAY,
-      defaultName,
-      getCategoryPageUrl,
-      getTemplatePageUrl,
-      getHistoryEntries: readFormHistoryEntries,
-      getFieldPlaceholder,
-      getFieldPreview,
-      getProseSinographs: getFormProseSinographs,
-      initialForm: movedEdit?.form || readFormDraftForPage(defaultName),
-      initialOpen: movedEdit != null,
-      onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
-        refreshFormCategoryRows(
-          form,
-          categoryState,
-          categoryStore,
-          refreshOptions,
-        ),
-      onClearHistory: clearFormHistory,
-      onCreateCategoryRow: createManualCategoryRow,
-      onDeleteHistoryEntry: deleteFormHistoryEntry,
-      onEnwikiTitleChange: fetchEnwikiMetadata,
-      onFill: isMissingPageView()
-        ? (form, sourceFetchState) =>
-            openTargetPage(
-              form,
-              getPageName(),
-              sourceFetchState,
-              citationStore,
-            )
-        : (...args) => fillForm(...args, citationStore),
-      onFormChange: saveFormDraft,
-      onMoveTarget: (...args) => openTargetPage(...args, citationStore),
-      onPrepareCompanyCategory: prepareCompanyCategoryText,
-      onPrepareReview: prepareNavboxRows,
-      async onPreSavePrepare(form, title) {
-        const redirectTitles = buildRedirectTitles(form, title);
-        const existingRedirectTitles = await fetchExistingPageTitles(
-          new mw.Api(),
-          redirectTitles,
-        );
-        const actions = buildPreSaveActions(
-          {
-            form,
-            title,
-          },
-          existingRedirectTitles,
-        );
-        const move = buildTitleFix(form, title);
+    const dialogOptions = {
+        citationPrefetchDelay: CITATION_PREFETCH_DELAY,
+        defaultName,
+        getCategoryPageUrl,
+        getTemplatePageUrl,
+        getHistoryEntries: readFormHistoryEntries,
+        getFieldPlaceholder,
+        getFieldPreview,
+        getProseSinographs: getFormProseSinographs,
+        initialForm: movedEdit?.form || readFormDraftForPage(defaultName),
+        initialOpen: movedEdit != null,
+        onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
+            refreshFormCategoryRows(
+                form,
+                categoryState,
+                categoryStore,
+                refreshOptions,
+            ),
+        onClearHistory: clearFormHistory,
+        onCreateCategoryRow: createManualCategoryRow,
+        onDeleteHistoryEntry: deleteFormHistoryEntry,
+        onEnwikiTitleChange: fetchEnwikiMetadata,
+        onFill: isMissingPageView()
+            ? (form, sourceFetchState) =>
+                  openTargetPage(
+                      form,
+                      getPageName(),
+                      sourceFetchState,
+                      citationStore,
+                  )
+            : (...args) => fillForm(...args, citationStore),
+        onFormChange: saveFormDraft,
+        onMoveTarget: (...args) => openTargetPage(...args, citationStore),
+        onPrepareCompanyCategory: prepareCompanyCategoryText,
+        onPrepareReview: prepareNavboxRows,
+        async onPreSavePrepare(form, title) {
+            const redirectTitles = buildRedirectTitles(form, title);
+            const existingRedirectTitles = await fetchExistingPageTitles(
+                new mw.Api(),
+                redirectTitles,
+            );
+            const metadata = { form, title };
+            const actions = buildPreSaveActions(
+                metadata,
+                existingRedirectTitles,
+            );
+            const move = buildTitleFix(form, title);
 
-        return {
-          actions,
-          move,
-        };
-      },
-      onResetCategoryRow: resetCategoryRow,
-      onSaveCategory: saveCategoryPage,
-      onSaveCompanyCategory: saveCompanyCategory,
-      onSaveNavbox: saveNavboxTemplate,
-      onSourceUrlChange: (url) => citationStore.prefetch(url),
-      onSteamNamesFetch: (url) => fetchSteamNameRows(url, citationStore),
-      onSubmit: (...args) => submitForm(...args, citationStore),
-      onSubmitHistory: saveCurrentFormHistory,
-      onUpdateCategoryRowCategory: updateCategoryRowCategory,
-    }),
-  );
+            return { actions, move };
+        },
+        onResetCategoryRow: resetCategoryRow,
+        onSaveCategory: saveCategoryPage,
+        onSaveCompanyCategory: saveCompanyCategory,
+        onSaveNavbox: saveNavboxTemplate,
+        onSourceUrlChange: (url) => citationStore.prefetch(url),
+        onSteamNamesFetch: (url) => fetchSteamNameRows(url, citationStore),
+        onSubmit: (...args) => submitForm(...args, citationStore),
+        onSubmitHistory: saveCurrentFormHistory,
+        onUpdateCategoryRowCategory: updateCategoryRowCategory,
+    };
+    const app = Vue.createMwApp(createDialogComponent(Vue, dialogOptions));
 
-  app.component("CdxDialog", Codex.CdxDialog);
-  app.component("CdxButton", Codex.CdxButton);
-  app.component("CdxCheckbox", Codex.CdxCheckbox);
-  app.component("CdxField", Codex.CdxField);
-  app.component("CdxTab", Codex.CdxTab);
-  app.component("CdxTabs", Codex.CdxTabs);
-  app.component("CdxTextArea", Codex.CdxTextArea);
-  app.component("CdxTextInput", Codex.CdxTextInput);
-  app.mount(createHost());
-  addToolboxLink();
-  renderStoredSaveProgress();
-  restoreMovedEditText();
+    app.component("CdxDialog", Codex.CdxDialog);
+    app.component("CdxButton", Codex.CdxButton);
+    app.component("CdxCheckbox", Codex.CdxCheckbox);
+    app.component("CdxField", Codex.CdxField);
+    app.component("CdxTab", Codex.CdxTab);
+    app.component("CdxTabs", Codex.CdxTabs);
+    app.component("CdxTextArea", Codex.CdxTextArea);
+    app.component("CdxTextInput", Codex.CdxTextInput);
+    app.mount(createHost());
+    addToolboxLink();
+    renderStoredSaveProgress();
+    restoreMovedEditText();
 }
 
 /**
@@ -1644,76 +1659,79 @@ function init(require) {
  * @returns {void}
  */
 async function runPendingSaveActions(require) {
-  const pending = getPendingSaveData();
+    const pending = getPendingSaveData();
 
-  if (pending == null) {
-    return;
-  }
-
-  setSaveProgressStep("save", "complete");
-
-  try {
-    const api = new mw.Api();
-    let currentTitle = pending.title;
-    const result = await runSelectedActions(pending.actions || [], {
-      api,
-      move: pending.move,
-      onActionComplete(action) {
-        setSaveProgressStep(action.id, "complete");
-      },
-      onActionSkipped(action) {
-        setSaveProgressStep(action.id, "skipped");
-      },
-      onActionStart(action) {
-        setSaveProgressStep(action.id, "running");
-      },
-      onMoveComplete(title) {
-        currentTitle = title;
-        setSaveProgressStep("move", "complete");
-      },
-      onMoveStart() {
-        setSaveProgressStep("move", "running");
-      },
-      title: currentTitle,
-      wikidataApi: new mw.ForeignApi("https://www.wikidata.org/w/api.php"),
-    });
-
-    sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
-    sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
-
-    if (
-      normalizePageTitle(result.title) !== normalizePageTitle(getPageName())
-    ) {
-      window.location.href = mw.util.getUrl(result.title);
-    } else {
-      window.location.reload();
+    if (pending == null) {
+        return;
     }
-  } catch (error) {
-    failSaveProgress(error);
-  }
+
+    setSaveProgressStep("save", "complete");
+
+    try {
+        const api = new mw.Api();
+        let currentTitle = pending.title;
+        const actionOptions = {
+            api,
+            move: pending.move,
+            onActionComplete(action) {
+                setSaveProgressStep(action.id, "complete");
+            },
+            onActionSkipped(action) {
+                setSaveProgressStep(action.id, "skipped");
+            },
+            onActionStart(action) {
+                setSaveProgressStep(action.id, "running");
+            },
+            onMoveComplete(title) {
+                currentTitle = title;
+                setSaveProgressStep("move", "complete");
+            },
+            onMoveStart() {
+                setSaveProgressStep("move", "running");
+            },
+            title: currentTitle,
+            wikidataApi: new mw.ForeignApi(
+                "https://www.wikidata.org/w/api.php",
+            ),
+        };
+        const result = await runSelectedActions(
+            pending.actions || [],
+            actionOptions,
+        );
+
+        sessionStorage.removeItem(PENDING_SAVE_STORAGE_KEY);
+        sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
+
+        if (
+            normalizePageTitle(result.title) !==
+            normalizePageTitle(getPageName())
+        ) {
+            window.location.href = mw.util.getUrl(result.title);
+        } else {
+            window.location.reload();
+        }
+    } catch (error) {
+        failSaveProgress(error);
+    }
 }
 
 if (isNewPageEdit() || isMissingPageView()) {
-  mw.loader
-    .using([
-      "mediawiki.api",
-      "mediawiki.ForeignApi",
-      "mediawiki.util",
-      "jquery.textSelection",
-      "vue",
-      "@wikimedia/codex",
-    ])
-    .then(init);
+    mw.loader
+        .using([
+            "mediawiki.api",
+            "mediawiki.ForeignApi",
+            "mediawiki.util",
+            "jquery.textSelection",
+            "vue",
+            "@wikimedia/codex",
+        ])
+        .then(init);
 } else if (
-  mw.config.get("wgAction") === "view" &&
-  mw.config.get("wgArticleId") !== 0 &&
-  getPendingSaveData() != null
+    mw.config.get("wgAction") === "view" &&
+    mw.config.get("wgArticleId") !== 0 &&
+    getPendingSaveData() != null
 ) {
-  mw.loader
-    .using([
-      "mediawiki.api",
-      "mediawiki.ForeignApi",
-      "mediawiki.util",
-    ])
-    .then(runPendingSaveActions);
+    mw.loader
+        .using(["mediawiki.api", "mediawiki.ForeignApi", "mediawiki.util"])
+        .then(runPendingSaveActions);
 }

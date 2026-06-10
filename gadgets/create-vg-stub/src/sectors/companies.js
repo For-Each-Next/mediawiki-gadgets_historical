@@ -5,15 +5,15 @@
  */
 
 import {
-  FIELD_REFERENCE_DATA,
-  buildPageText,
-  getWikilinkParts,
-  getWikilinkValue,
-  getReferenceValues,
-  getSourceReference,
-  isWikilinkValue,
-  splitFieldValues,
-  uniqueValues,
+    FIELD_REFERENCE_DATA,
+    buildPageText,
+    getWikilinkParts,
+    getWikilinkValue,
+    getReferenceValues,
+    getSourceReference,
+    isWikilinkValue,
+    splitFieldValues,
+    uniqueValues,
 } from "../utils.js";
 
 /**
@@ -27,18 +27,20 @@ import {
  * @returns {object} Text, categories, and stub tags.
  */
 export function buildCompanyMetadata(companies, options = {}) {
-  const references = getCompanyReferences(companies);
-  const text = buildAttributionText(
-    buildAttributionRoleText(companies, references),
-    options.sourceTag || "",
-  );
+    const references = getCompanyReferences(companies);
+    const text = buildAttributionText(
+        buildAttributionRoleText(companies, references),
+        options.sourceTag || "",
+    );
 
-  return {
-    categoryItems: buildCompanyCategoryItems(companies),
-    categories: uniqueValues(getReferenceValues(references.all, "categories")),
-    stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
-    text,
-  };
+    return {
+        categoryItems: buildCompanyCategoryItems(companies),
+        categories: uniqueValues(
+            getReferenceValues(references.all, "categories"),
+        ),
+        stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
+        text,
+    };
 }
 
 /**
@@ -49,11 +51,11 @@ export function buildCompanyMetadata(companies, options = {}) {
  * @returns {string} Attribution text.
  */
 function buildAttributionText(text, sourceTag) {
-  if (text === "") {
-    return "";
-  }
+    if (text === "") {
+        return "";
+    }
 
-  return `，${text}${sourceTag}`;
+    return `，${text}${sourceTag}`;
 }
 
 /**
@@ -64,24 +66,24 @@ function buildAttributionText(text, sourceTag) {
  * @returns {string} Attribution role phrase.
  */
 function buildAttributionRoleText(companies, references) {
-  const developers = buildCompanyListText(
-    companies.developers,
-    references.developers,
-  );
-  const publishers = buildCompanyListText(
-    getPublisherValue(companies),
-    references.publishers,
-  );
+    const developers = buildCompanyListText(
+        companies.developers,
+        references.developers,
+    );
+    const publishers = buildCompanyListText(
+        getPublisherValue(companies),
+        references.publishers,
+    );
 
-  if (developers === "" && publishers === "") {
-    return "";
-  }
+    if (developers === "" && publishers === "") {
+        return "";
+    }
 
-  if (developers !== "" && companies.publishers === "=") {
-    return `由${developers}开发及发行`;
-  }
+    if (developers !== "" && companies.publishers === "=") {
+        return `由${developers}开发及发行`;
+    }
 
-  return `由${buildCompanyRoleText(developers, publishers)}`;
+    return `由${buildCompanyRoleText(developers, publishers)}`;
 }
 
 /**
@@ -92,15 +94,15 @@ function buildAttributionRoleText(companies, references) {
  * @returns {string} Company role text.
  */
 function buildCompanyRoleText(developers, publishers) {
-  if (developers === "") {
-    return `${publishers}发行`;
-  }
+    if (developers === "") {
+        return `${publishers}发行`;
+    }
 
-  if (publishers === "") {
-    return `${developers}开发`;
-  }
+    if (publishers === "") {
+        return `${developers}开发`;
+    }
 
-  return `${developers}开发、${publishers}发行`;
+    return `${developers}开发、${publishers}发行`;
 }
 
 /**
@@ -111,9 +113,9 @@ function buildCompanyRoleText(developers, publishers) {
  * @returns {string} Company list wikitext.
  */
 function buildCompanyListText(value, references) {
-  return joinCompanyTextList(
-    splitFieldValues(value).map(buildCompanyText.bind(null, references)),
-  );
+    return joinCompanyTextList(
+        splitFieldValues(value).map(buildCompanyText.bind(null, references)),
+    );
 }
 
 /**
@@ -123,11 +125,11 @@ function buildCompanyListText(value, references) {
  * @returns {string} Joined company names.
  */
 function joinCompanyTextList(values) {
-  if (values.length === 2) {
-    return values.join("和");
-  }
+    if (values.length === 2) {
+        return values.join("和");
+    }
 
-  return values.join("、");
+    return values.join("、");
 }
 
 /**
@@ -138,17 +140,17 @@ function joinCompanyTextList(values) {
  * @returns {string} Company wikitext.
  */
 function buildCompanyText(references, value) {
-  if (isWikilinkValue(value)) {
-    return value;
-  }
+    if (isWikilinkValue(value)) {
+        return value;
+    }
 
-  const reference = references.find((item) => item.source === value);
+    const reference = references.find((item) => item.source === value);
 
-  if (reference == null || reference.page == null) {
-    return value;
-  }
+    if (reference == null || reference.page == null) {
+        return value;
+    }
 
-  return buildPageText(reference.page);
+    return buildPageText(reference.page);
 }
 
 /**
@@ -158,11 +160,11 @@ function buildCompanyText(references, value) {
  * @returns {string} Publisher values.
  */
 function getPublisherValue(companies) {
-  if (companies.publishers === "=") {
-    return companies.developers;
-  }
+    if (companies.publishers === "=") {
+        return companies.developers;
+    }
 
-  return companies.publishers;
+    return companies.publishers;
 }
 
 /**
@@ -172,17 +174,21 @@ function getPublisherValue(companies) {
  * @returns {Array<object>} Company category items.
  */
 function buildCompanyCategoryItems(companies) {
-  const developers = buildCompanyLookupValues(companies.developers || "");
-  const publishers = buildCompanyLookupValues(getPublisherValue(companies) || "");
-  const sharedCompanies = getSharedValues(developers, publishers);
-  const values = uniqueCompanyLookupValues([...developers, ...publishers]);
+    const developers = buildCompanyLookupValues(companies.developers || "");
+    const publishers = buildCompanyLookupValues(
+        getPublisherValue(companies) || "",
+    );
+    const sharedCompanies = getSharedValues(developers, publishers);
+    const values = uniqueCompanyLookupValues([...developers, ...publishers]);
 
-  return values.flatMap((company) =>
-    buildCompanyCategoryItemsForValue(company.lookup, {
-      company: company.title,
-      stubTagEnabled: sharedCompanies.includes(normalizeValueKey(company.lookup)),
-    }),
-  );
+    return values.flatMap((company) =>
+        buildCompanyCategoryItemsForValue(company.lookup, {
+            company: company.title,
+            stubTagEnabled: sharedCompanies.includes(
+                normalizeValueKey(company.lookup),
+            ),
+        }),
+    );
 }
 
 /**
@@ -192,14 +198,14 @@ function buildCompanyCategoryItems(companies) {
  * @returns {Array<object>} Company lookup values.
  */
 function buildCompanyLookupValues(value) {
-  return splitFieldValues(value).map((company) => {
-    const parts = getWikilinkParts(company);
+    return splitFieldValues(value).map((company) => {
+        const parts = getWikilinkParts(company);
 
-    return {
-      lookup: getWikilinkValue(company),
-      title: parts?.target || getWikilinkValue(company),
-    };
-  });
+        return {
+            lookup: getWikilinkValue(company),
+            title: parts?.target || getWikilinkValue(company),
+        };
+    });
 }
 
 /**
@@ -209,18 +215,18 @@ function buildCompanyLookupValues(value) {
  * @returns {Array<object>} Unique company lookup values.
  */
 function uniqueCompanyLookupValues(values) {
-  const seen = new Set();
+    const seen = new Set();
 
-  return values.filter((value) => {
-    const key = normalizeValueKey(value.lookup);
+    return values.filter((value) => {
+        const key = normalizeValueKey(value.lookup);
 
-    if (seen.has(key)) {
-      return false;
-    }
+        if (seen.has(key)) {
+            return false;
+        }
 
-    seen.add(key);
-    return true;
-  });
+        seen.add(key);
+        return true;
+    });
 }
 
 /**
@@ -233,31 +239,31 @@ function uniqueCompanyLookupValues(values) {
  * @returns {Array<object>} Company category items.
  */
 function buildCompanyCategoryItemsForValue(company, options = {}) {
-  const reference = getSourceReference(
-    FIELD_REFERENCE_DATA.companies,
-    company,
-  );
+    const reference = getSourceReference(
+        FIELD_REFERENCE_DATA.companies,
+        company,
+    );
 
-  if (reference != null && (reference.categories || []).length > 0) {
-    return reference.categories.map((category, index) => {
-      const stubTag = reference.stubTags?.[index] || "";
+    if (reference != null && (reference.categories || []).length > 0) {
+        return reference.categories.map((category, index) => {
+            const stubTag = reference.stubTags?.[index] || "";
 
-      return {
-        category,
-        company: reference.page?.title || options.company || company,
-        stubTag,
-        stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
-      };
-    });
-  }
+            return {
+                category,
+                company: reference.page?.title || options.company || company,
+                stubTag,
+                stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
+            };
+        });
+    }
 
-  return [
-    {
-      candidates: buildCompanyCategoryCandidates(company),
-      company: reference?.page?.title || options.company || company,
-      fallback: `${getDisambiguationBaseTitle(company)}游戏`,
-    },
-  ];
+    return [
+        {
+            candidates: buildCompanyCategoryCandidates(company),
+            company: reference?.page?.title || options.company || company,
+            fallback: `${getDisambiguationBaseTitle(company)}游戏`,
+        },
+    ];
 }
 
 /**
@@ -268,13 +274,13 @@ function buildCompanyCategoryItemsForValue(company, options = {}) {
  * @returns {Array<string>} Shared normalized values.
  */
 function getSharedValues(values, candidates) {
-  const candidateKeys = candidates.map((value) =>
-    normalizeValueKey(value.lookup),
-  );
+    const candidateKeys = candidates.map((value) =>
+        normalizeValueKey(value.lookup),
+    );
 
-  return values
-    .map((value) => normalizeValueKey(value.lookup))
-    .filter((value) => candidateKeys.includes(value));
+    return values
+        .map((value) => normalizeValueKey(value.lookup))
+        .filter((value) => candidateKeys.includes(value));
 }
 
 /**
@@ -284,7 +290,7 @@ function getSharedValues(values, candidates) {
  * @returns {string} Normalized comparison key.
  */
 function normalizeValueKey(value) {
-  return getWikilinkValue(value).toLocaleLowerCase();
+    return getWikilinkValue(value).toLocaleLowerCase();
 }
 
 /**
@@ -294,11 +300,11 @@ function normalizeValueKey(value) {
  * @returns {Array<string>} Candidate category titles.
  */
 function buildCompanyCategoryCandidates(company) {
-  return uniqueValues(
-    [company, getDisambiguationBaseTitle(company)].flatMap(
-      buildCompanyTitleCategoryCandidates,
-    ),
-  );
+    return uniqueValues(
+        [company, getDisambiguationBaseTitle(company)].flatMap(
+            buildCompanyTitleCategoryCandidates,
+        ),
+    );
 }
 
 /**
@@ -308,7 +314,7 @@ function buildCompanyCategoryCandidates(company) {
  * @returns {Array<string>} Candidate category titles.
  */
 function buildCompanyTitleCategoryCandidates(title) {
-  return [`${title}电子游戏`, `${title}游戏`, title];
+    return [`${title}电子游戏`, `${title}游戏`, title];
 }
 
 /**
@@ -318,7 +324,7 @@ function buildCompanyTitleCategoryCandidates(title) {
  * @returns {string} Base title.
  */
 function getDisambiguationBaseTitle(title) {
-  return title.replace(/\s*\([^()]+\)\s*$/u, "");
+    return title.replace(/\s*\([^()]+\)\s*$/u, "");
 }
 
 /**
@@ -330,14 +336,14 @@ function getDisambiguationBaseTitle(title) {
  * @returns {object} Matched company metadata by role.
  */
 function getCompanyReferences(companies) {
-  const developers = getCompanyRoleReferences(companies.developers);
-  const publishers = getCompanyRoleReferences(getPublisherValue(companies));
+    const developers = getCompanyRoleReferences(companies.developers);
+    const publishers = getCompanyRoleReferences(getPublisherValue(companies));
 
-  return {
-    all: [...developers, ...publishers],
-    developers,
-    publishers,
-  };
+    return {
+        all: [...developers, ...publishers],
+        developers,
+        publishers,
+    };
 }
 
 /**
@@ -347,7 +353,7 @@ function getCompanyReferences(companies) {
  * @returns {Array<object>} Matched company metadata.
  */
 function getCompanyRoleReferences(value) {
-  return splitFieldValues(value)
-    .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.companies))
-    .filter(Boolean);
+    return splitFieldValues(value)
+        .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.companies))
+        .filter(Boolean);
 }

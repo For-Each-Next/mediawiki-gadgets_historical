@@ -9,9 +9,9 @@ export { buildDefaultSortKey, buildDefaultSortText } from "./defaultsort.js";
 export { buildInfoboxText } from "./infobox.js";
 export { buildLeadNameText } from "./lead-name.js";
 export {
-  buildNavboxText,
-  buildReviewedNavboxText,
-  resolveReviewedNavboxRows,
+    buildNavboxText,
+    buildReviewedNavboxText,
+    resolveReviewedNavboxRows,
 } from "./navboxes.js";
 export { buildNoteTaText } from "./noteta.js";
 export { buildFooterTemplateText } from "./portal-bar.js";

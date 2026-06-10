@@ -6,8 +6,8 @@
 
 import { buildCategoryText, buildStubTagText } from "./categories.js";
 import {
-  buildFooterTemplateText,
-  buildReferencesText,
+    buildFooterTemplateText,
+    buildReferencesText,
 } from "./fragments/index.js";
 
 /**
@@ -27,24 +27,24 @@ import {
  * @returns {string} Generated Chinese wikitext.
  */
 export function buildArticleWikitext(params) {
-  const intro =
-    `${params.leadNameText}是${buildVideoGameText(params)}。` +
-    params.platformSeriesMetadata.text +
-    params.aggScoresText +
-    params.additionalProseText;
+    const intro =
+        `${params.leadNameText}是${buildVideoGameText(params)}。` +
+        params.platformSeriesMetadata.text +
+        params.aggScoresText +
+        params.additionalProseText;
 
-  return [
-    params.noteTaText,
-    params.infoboxText,
-    intro,
-    buildReferencesText(params.sourceReferences),
-    params.navboxText,
-    buildFooterTemplateText(),
-    buildCategoryText(params),
-    buildStubTagText(params),
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+    return [
+        params.noteTaText,
+        params.infoboxText,
+        intro,
+        buildReferencesText(params.sourceReferences),
+        params.navboxText,
+        buildFooterTemplateText(),
+        buildCategoryText(params),
+        buildStubTagText(params),
+    ]
+        .filter(Boolean)
+        .join("\n\n");
 }
 
 /**
@@ -56,5 +56,5 @@ export function buildArticleWikitext(params) {
  * @returns {string} Video game noun phrase.
  */
 function buildVideoGameText(params) {
-  return params.yearGenreMetadata.text + params.companyMetadata.text;
+    return params.yearGenreMetadata.text + params.companyMetadata.text;
 }

@@ -15,7 +15,7 @@
  * @returns {string} DEFAULTSORT wikitext.
  */
 export function buildDefaultSortText(params) {
-  return `{{DEFAULTSORT:${buildDefaultSortKey(params)}}}`;
+    return `{{DEFAULTSORT:${buildDefaultSortKey(params)}}}`;
 }
 
 /**
@@ -29,19 +29,19 @@ export function buildDefaultSortText(params) {
  * @returns {string} Sort key.
  */
 export function buildDefaultSortKey(params) {
-  const sortKey = normalizeValue(params.sortKey);
+    const sortKey = normalizeValue(params.sortKey);
 
-  if (sortKey != null) {
-    return sortKey;
-  }
+    if (sortKey != null) {
+        return sortKey;
+    }
 
-  const original = normalizeValue(params.original);
+    const original = normalizeValue(params.original);
 
-  if (original != null && !hasNonLatinLetter(original)) {
-    return normalizeSortKey(original);
-  }
+    if (original != null && !hasNonLatinLetter(original)) {
+        return normalizeSortKey(original);
+    }
 
-  return normalizeSortKey(params.english || params.title);
+    return normalizeSortKey(params.english || params.title);
 }
 
 /**
@@ -51,7 +51,9 @@ export function buildDefaultSortKey(params) {
  * @returns {string} Normalized sort key.
  */
 function normalizeSortKey(value) {
-  return toTitleUpperCase(normalizeSortPunctuation(normalizeValue(value) || ""));
+    return toTitleUpperCase(
+        normalizeSortPunctuation(normalizeValue(value) || ""),
+    );
 }
 
 /**
@@ -61,17 +63,17 @@ function normalizeSortKey(value) {
  * @returns {string} Sort key with mechanical punctuation cleanup.
  */
 function normalizeSortPunctuation(value) {
-  return value
-    .normalize("NFKC")
-    .replace(/\.{3,}/gu, " ")
-    .replace(/(\d)[,.](?=\d)/gu, "$1")
-    .replace(/[‐‑‒–—―−]/gu, "-")
-    .replace(/&/gu, " and ")
-    .replace(/×/gu, " x ")
-    .replace(/\bO'(?=\p{Letter})/gu, "O")
-    .replace(/[^\p{Letter}\p{Mark}\p{Number}\s.'-]+/gu, " ")
-    .replace(/\s+/gu, " ")
-    .trim();
+    return value
+        .normalize("NFKC")
+        .replace(/\.{3,}/gu, " ")
+        .replace(/(\d)[,.](?=\d)/gu, "$1")
+        .replace(/[‐‑‒–—―−]/gu, "-")
+        .replace(/&/gu, " and ")
+        .replace(/×/gu, " x ")
+        .replace(/\bO'(?=\p{Letter})/gu, "O")
+        .replace(/[^\p{Letter}\p{Mark}\p{Number}\s.'-]+/gu, " ")
+        .replace(/\s+/gu, " ")
+        .trim();
 }
 
 /**
@@ -81,9 +83,9 @@ function normalizeSortPunctuation(value) {
  * @returns {string} Title-style value.
  */
 function toTitleUpperCase(value) {
-  return value
-    .replace(/\s+/gu, " ")
-    .replace(/\p{Letter}[\p{Letter}\p{Mark}'’-]*/gu, titleUpperWord);
+    return value
+        .replace(/\s+/gu, " ")
+        .replace(/\p{Letter}[\p{Letter}\p{Mark}'’-]*/gu, titleUpperWord);
 }
 
 /**
@@ -93,9 +95,11 @@ function toTitleUpperCase(value) {
  * @returns {string} Title-style word.
  */
 function titleUpperWord(word) {
-  return word
-    .toLocaleLowerCase()
-    .replace(/(^|-)\p{Letter}/gu, (character) => character.toLocaleUpperCase());
+    return word
+        .toLocaleLowerCase()
+        .replace(/(^|-)\p{Letter}/gu, (character) =>
+            character.toLocaleUpperCase(),
+        );
 }
 
 /**
@@ -105,7 +109,7 @@ function titleUpperWord(word) {
  * @returns {boolean} Whether the value contains a non-Latin letter.
  */
 function hasNonLatinLetter(value) {
-  return Array.from(value).some(isNonLatinLetter);
+    return Array.from(value).some(isNonLatinLetter);
 }
 
 /**
@@ -115,7 +119,9 @@ function hasNonLatinLetter(value) {
  * @returns {boolean} Whether the character is a non-Latin letter.
  */
 function isNonLatinLetter(character) {
-  return /\p{Letter}/u.test(character) && !/\p{Script=Latin}/u.test(character);
+    return (
+        /\p{Letter}/u.test(character) && !/\p{Script=Latin}/u.test(character)
+    );
 }
 
 /**
@@ -125,11 +131,11 @@ function isNonLatinLetter(character) {
  * @returns {string|undefined} Trimmed value, or undefined when empty.
  */
 function normalizeValue(value) {
-  if (value == null) {
-    return undefined;
-  }
+    if (value == null) {
+        return undefined;
+    }
 
-  const trimmedValue = String(value).trim();
+    const trimmedValue = String(value).trim();
 
-  return trimmedValue === "" ? undefined : trimmedValue;
+    return trimmedValue === "" ? undefined : trimmedValue;
 }

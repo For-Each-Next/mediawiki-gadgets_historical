@@ -12,21 +12,21 @@
  * @returns {boolean} Whether the edit tab was updated.
  */
 export function addMissingPageEditTrigger(documentRef, handler) {
-  const editItem = documentRef.querySelector("#ca-edit");
+    const editItem = documentRef.querySelector("#ca-edit");
 
-  if (editItem == null || editItem.parentNode == null) {
-    return false;
-  }
+    if (editItem == null || editItem.parentNode == null) {
+        return false;
+    }
 
-  const item = documentRef.createElement("li");
-  const link = documentRef.createElement("a");
+    const item = documentRef.createElement("li");
+    const link = documentRef.createElement("a");
 
-  item.id = "ca-create-vg-stub";
-  link.href = "#";
-  link.textContent = "Create video game stub";
-  link.addEventListener("click", handler);
-  item.append(link);
-  editItem.parentNode.insertBefore(item, editItem.nextSibling);
+    item.id = "ca-create-vg-stub";
+    link.href = "#";
+    link.textContent = "Create video game stub";
+    link.addEventListener("click", handler);
+    item.append(link);
+    editItem.parentNode.insertBefore(item, editItem.nextSibling);
 
-  return true;
+    return true;
 }

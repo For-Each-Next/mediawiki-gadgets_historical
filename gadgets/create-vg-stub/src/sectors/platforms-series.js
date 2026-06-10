@@ -5,17 +5,17 @@
  */
 
 import {
-  FIELD_REFERENCE_DATA,
-  buildLinkText,
-  buildPageText,
-  getReferenceValues,
-  getSourceReference,
-  getWikilinkParts,
-  isWikilinkValue,
-  splitFieldValues,
-  splitLookupFieldValues,
-  trimValue,
-  uniqueValues,
+    FIELD_REFERENCE_DATA,
+    buildLinkText,
+    buildPageText,
+    getReferenceValues,
+    getSourceReference,
+    getWikilinkParts,
+    isWikilinkValue,
+    splitFieldValues,
+    splitLookupFieldValues,
+    trimValue,
+    uniqueValues,
 } from "../utils.js";
 
 /**
@@ -30,22 +30,25 @@ import {
  * @returns {object} Text, categories, and stub tags.
  */
 export function buildPlatformSeriesMetadata(values, options = {}) {
-  const references = getPlatformReferences(values.platforms);
-  const platformListText = buildPlatformListText(values.platforms, references);
-  const series = normalizeSeriesValues(values.series || "");
+    const references = getPlatformReferences(values.platforms);
+    const platformListText = buildPlatformListText(
+        values.platforms,
+        references,
+    );
+    const series = normalizeSeriesValues(values.series || "");
 
-  return {
-    categories: uniqueValues(getReferenceValues(references, "categories")),
-    categoryPlans: buildSeriesCategoryPlans(series),
-    platformCount: splitLookupFieldValues(values.platforms || "").length,
-    stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
-    text: buildPlatformSeriesSentenceText(
-      platformListText,
-      series,
-      options.platformSourceTag || "",
-      options.seriesSourceTag || "",
-    ),
-  };
+    return {
+        categories: uniqueValues(getReferenceValues(references, "categories")),
+        categoryPlans: buildSeriesCategoryPlans(series),
+        platformCount: splitLookupFieldValues(values.platforms || "").length,
+        stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
+        text: buildPlatformSeriesSentenceText(
+            platformListText,
+            series,
+            options.platformSourceTag || "",
+            options.seriesSourceTag || "",
+        ),
+    };
 }
 
 /**
@@ -58,23 +61,23 @@ export function buildPlatformSeriesMetadata(values, options = {}) {
  * @returns {string} Platform sentence, or an empty string.
  */
 function buildPlatformSeriesSentenceText(
-  platformText,
-  series,
-  platformSourceTag,
-  seriesSourceTag,
+    platformText,
+    series,
+    platformSourceTag,
+    seriesSourceTag,
 ) {
-  if (platformText === "" && series.length === 0) {
-    return "";
-  }
+    if (platformText === "" && series.length === 0) {
+        return "";
+    }
 
-  if (platformText === "") {
-    return `作品属于${buildSeriesListText(series)}${seriesSourceTag}。`;
-  }
+    if (platformText === "") {
+        return `作品属于${buildSeriesListText(series)}${seriesSourceTag}。`;
+    }
 
-  return (
-    `作品对应${platformText}平台${platformSourceTag}` +
-    `${buildSeriesText(series, seriesSourceTag)}。`
-  );
+    return (
+        `作品对应${platformText}平台${platformSourceTag}` +
+        `${buildSeriesText(series, seriesSourceTag)}。`
+    );
 }
 
 /**
@@ -85,11 +88,11 @@ function buildPlatformSeriesSentenceText(
  * @returns {string} Series phrase, or an empty string.
  */
 function buildSeriesText(series, sourceTag) {
-  if (series.length === 0) {
-    return "";
-  }
+    if (series.length === 0) {
+        return "";
+    }
 
-  return `，属于${buildSeriesListText(series)}${sourceTag}`;
+    return `，属于${buildSeriesListText(series)}${sourceTag}`;
 }
 
 /**
@@ -99,13 +102,15 @@ function buildSeriesText(series, sourceTag) {
  * @returns {string} Series display wikitext.
  */
 function buildSeriesListText(series) {
-  const values = series.map((value) => `「${buildSeriesDisplayText(value)}」`);
+    const values = series.map(
+        (value) => `「${buildSeriesDisplayText(value)}」`,
+    );
 
-  if (values.length === 2) {
-    return values.join("和");
-  }
+    if (values.length === 2) {
+        return values.join("和");
+    }
 
-  return values.join("、");
+    return values.join("、");
 }
 
 /**
@@ -115,18 +120,18 @@ function buildSeriesListText(series) {
  * @returns {string} Series display wikitext.
  */
 function buildSeriesDisplayText(series) {
-  if (!isWikilinkValue(series)) {
-    return `《${series}》系列`;
-  }
+    if (!isWikilinkValue(series)) {
+        return `《${series}》系列`;
+    }
 
-  const parts = getWikilinkParts(series);
-  const label = parts.label || parts.target;
+    const parts = getWikilinkParts(series);
+    const label = parts.label || parts.target;
 
-  if (parts.label === "") {
-    return buildLinkText(`${parts.target}系列`, `《${label}》系列`);
-  }
+    if (parts.label === "") {
+        return buildLinkText(`${parts.target}系列`, `《${label}》系列`);
+    }
 
-  return buildLinkText(parts.target, `《${label}》系列`);
+    return buildLinkText(parts.target, `《${label}》系列`);
 }
 
 /**
@@ -136,7 +141,7 @@ function buildSeriesDisplayText(series) {
  * @returns {Array<string>} Normalized series names.
  */
 function normalizeSeriesValues(series) {
-  return splitFieldValues(series).map(normalizeSeriesValue);
+    return splitFieldValues(series).map(normalizeSeriesValue);
 }
 
 /**
@@ -146,21 +151,21 @@ function normalizeSeriesValues(series) {
  * @returns {string} Normalized series name.
  */
 function normalizeSeriesValue(series) {
-  const value = trimValue(series);
+    const value = trimValue(series);
 
-  if (!isWikilinkValue(value)) {
-    return trimSeriesSuffix(value);
-  }
+    if (!isWikilinkValue(value)) {
+        return trimSeriesSuffix(value);
+    }
 
-  const parts = getWikilinkParts(value);
-  const target = trimSeriesSuffix(parts.target);
-  const label = trimSeriesSuffix(parts.label);
+    const parts = getWikilinkParts(value);
+    const target = trimSeriesSuffix(parts.target);
+    const label = trimSeriesSuffix(parts.label);
 
-  if (label === "") {
-    return `[[${target}]]`;
-  }
+    if (label === "") {
+        return `[[${target}]]`;
+    }
 
-  return buildLinkText(target, label);
+    return buildLinkText(target, label);
 }
 
 /**
@@ -170,7 +175,7 @@ function normalizeSeriesValue(series) {
  * @returns {string} Series value without a trailing suffix.
  */
 function trimSeriesSuffix(value) {
-  return trimValue(value).replace(/系列$/u, "");
+    return trimValue(value).replace(/系列$/u, "");
 }
 
 /**
@@ -181,9 +186,9 @@ function trimSeriesSuffix(value) {
  * @returns {string} Platform list wikitext.
  */
 function buildPlatformListText(value, references) {
-  return splitFieldValues(value)
-    .map(buildPlatformText.bind(null, references))
-    .join("、");
+    return splitFieldValues(value)
+        .map(buildPlatformText.bind(null, references))
+        .join("、");
 }
 
 /**
@@ -194,17 +199,17 @@ function buildPlatformListText(value, references) {
  * @returns {string} Platform wikitext.
  */
 function buildPlatformText(references, value) {
-  if (isWikilinkValue(value)) {
-    return value;
-  }
+    if (isWikilinkValue(value)) {
+        return value;
+    }
 
-  const reference = references.find((item) => item.source === value);
+    const reference = references.find((item) => item.source === value);
 
-  if (reference == null || reference.page == null) {
-    return value;
-  }
+    if (reference == null || reference.page == null) {
+        return value;
+    }
 
-  return buildPageText(reference.page);
+    return buildPageText(reference.page);
 }
 
 /**
@@ -214,9 +219,9 @@ function buildPlatformText(references, value) {
  * @returns {Array<object>} Matched platform metadata.
  */
 function getPlatformReferences(value) {
-  return splitFieldValues(value)
-    .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.platforms))
-    .filter(Boolean);
+    return splitFieldValues(value)
+        .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.platforms))
+        .filter(Boolean);
 }
 
 /**
@@ -226,9 +231,9 @@ function getPlatformReferences(value) {
  * @returns {Array<object>} Series category lookup plans.
  */
 function buildSeriesCategoryPlans(series) {
-  return series
-    .flatMap((value) => splitLookupFieldValues(value))
-    .map(buildSeriesCategoryPlan);
+    return series
+        .flatMap((value) => splitLookupFieldValues(value))
+        .map(buildSeriesCategoryPlan);
 }
 
 /**
@@ -238,10 +243,10 @@ function buildSeriesCategoryPlans(series) {
  * @returns {object} Series category lookup plan.
  */
 function buildSeriesCategoryPlan(series) {
-  return {
-    candidates: buildSeriesCategoryCandidates(series),
-    fallback: `${series}电子游戏`,
-  };
+    return {
+        candidates: buildSeriesCategoryCandidates(series),
+        fallback: `${series}电子游戏`,
+    };
 }
 
 /**
@@ -251,9 +256,9 @@ function buildSeriesCategoryPlan(series) {
  * @returns {Array<string>} Candidate category titles.
  */
 function buildSeriesCategoryCandidates(title) {
-  return uniqueValues(
-    [`${title}系列`, title].flatMap(buildSeriesTitleCandidates),
-  );
+    return uniqueValues(
+        [`${title}系列`, title].flatMap(buildSeriesTitleCandidates),
+    );
 }
 
 /**
@@ -263,5 +268,5 @@ function buildSeriesCategoryCandidates(title) {
  * @returns {Array<string>} Candidate category titles.
  */
 function buildSeriesTitleCandidates(title) {
-  return [`${title}电子游戏`, `${title}游戏`, title];
+    return [`${title}电子游戏`, `${title}游戏`, title];
 }

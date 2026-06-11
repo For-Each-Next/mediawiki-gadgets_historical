@@ -1,0 +1,84 @@
+/**
+ * Tests the modular article data hub and prose output.
+ */
+
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { createArticleData } from "../src/article/index.js";
+
+const PART_KEYS = [
+    "assumedCategories",
+    "assumedStubTags",
+    "categoryItems",
+    "categoryPlans",
+    "citations",
+    "inputText",
+    "issues",
+    "key",
+    "metadata",
+    "navboxes",
+    "normalizedText",
+    "sourceUrls",
+    "values",
+    "wikitext",
+];
+
+test("all article parts expose the universal data contract", () => {
+    const data = createArticleData({
+        categoryRows: [],
+        developers: "Foo Studio",
+        genres: "RPG",
+        localizedNames: [],
+        name: "Example",
+        navboxRows: [
+            {
+                enabled: true,
+                text: "{{Example series}}",
+                title: "Example series",
+            },
+        ],
+        navboxText: "{{Example series}}",
+        platforms: "PS5",
+        publishers: "Bar Games",
+        series: "Example",
+        sourceReferences: [
+            {
+                citation: "{{Cite web|url=https://example.test}}",
+                key: "platforms",
+                sourceUrl: "https://example.test",
+            },
+        ],
+        year: "2026",
+    });
+
+    Object.values(data.parts).forEach((part) => {
+        assert.deepEqual(Object.keys(part).sort(), PART_KEYS);
+    });
+    assert.deepEqual(data.parts.platform.sourceUrls, ["https://example.test"]);
+    assert.equal(data.parts.platform.normalizedText.platforms, "PS5");
+    assert.equal(data.parts.review.navboxes[0].title, "Example series");
+});
+
+test("prose builds the complete paragraph and its sinograph count", () => {
+    const data = createArticleData({
+        additionalProse: "补充说明。",
+        categoryRows: [],
+        developers: "Foo Studio",
+        genres: "RPG",
+        localizedNames: [],
+        name: "Example",
+        navboxText: "",
+        platforms: "PS5",
+        publishers: "Bar Games",
+        series: "Example",
+        sourceReferences: [],
+        year: "2026",
+    });
+
+    assert.equal(data.prose.text.startsWith("《'''Example'''》是"), true);
+    assert.equal(data.prose.text.includes("作品对应"), true);
+    assert.equal(data.prose.text.endsWith("补充说明。"), true);
+    assert.equal(data.prose.sinographs > 0, true);
+    assert.equal(data.prose.fragments.leadName, "《'''Example'''》");
+});

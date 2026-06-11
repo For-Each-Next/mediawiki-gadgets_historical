@@ -124,30 +124,38 @@ export async function buildCategoryRows(
  * @returns {Array<object>} Category review rows.
  */
 export function buildFallbackCategoryRows(params) {
+    const metadata = getArticleCategoryMetadata(params);
+
     return uniqueCategoryRows(
         [
             ...buildSourceCategoryRows(
                 SOURCE_DATA,
-                params.companyMetadata.categories,
+                metadata.companies.assumedCategories ||
+                    metadata.companies.categories,
                 {
                     stubTagEnabled: true,
-                    stubTags: params.companyMetadata.stubTags,
+                    stubTags:
+                        metadata.companies.assumedStubTags ||
+                        metadata.companies.stubTags,
                 },
             ),
             ...buildSourceCategoryRows(
                 SOURCE_DATA,
-                params.platformSeriesMetadata.categories,
+                metadata.platform.assumedCategories ||
+                    metadata.platform.categories,
                 {
                     stubTagEnabled: true,
-                    stubTags: params.platformSeriesMetadata.stubTags,
+                    stubTags:
+                        metadata.platform.assumedStubTags ||
+                        metadata.platform.stubTags,
                 },
             ),
             ...buildSourceCategoryRows(
                 SOURCE_DATA,
-                params.yearGenreMetadata.categories,
+                metadata.release.categories,
                 {
                     stubTagEnabled: true,
-                    stubTags: params.yearGenreMetadata.stubTags,
+                    stubTags: metadata.release.stubTags,
                 },
             ),
         ].map(normalizeCategoryRow),
@@ -266,34 +274,30 @@ export async function resolveCategoryRows(rows, options = {}) {
  * @returns {Promise<Array<object>>} Generated category rows.
  */
 async function buildGeneratedCategoryRows(params, options) {
-    const companyRows = buildCategoryItems(
-        params.companyMetadata.categoryItems,
-        {
-            source: SOURCE_DATA,
-        },
-    );
-    const seriesRows = (params.platformSeriesMetadata.categoryPlans || []).map(
+    const metadata = getArticleCategoryMetadata(params);
+    const companyRows = buildCategoryItems(metadata.companies.categoryItems, {
+        source: SOURCE_DATA,
+    });
+    const seriesRows = (metadata.series.categoryPlans || []).map(
         createCategoryPlan,
     );
-    const platformStubTagEnabled =
-        params.platformSeriesMetadata.platformCount === 1;
+    const platformStubTagEnabled = metadata.platform.count === 1;
     const metadataRows = [
         ...buildSourceCategoryRows(
             SOURCE_DATA,
-            params.platformSeriesMetadata.categories,
+            metadata.platform.assumedCategories ||
+                metadata.platform.categories,
             {
                 stubTagEnabled: platformStubTagEnabled,
-                stubTags: params.platformSeriesMetadata.stubTags,
+                stubTags:
+                    metadata.platform.assumedStubTags ||
+                    metadata.platform.stubTags,
             },
         ),
-        ...buildSourceCategoryRows(
-            SOURCE_DATA,
-            params.yearGenreMetadata.categories,
-            {
-                stubTagEnabled: true,
-                stubTags: params.yearGenreMetadata.stubTags,
-            },
-        ),
+        ...buildSourceCategoryRows(SOURCE_DATA, metadata.release.categories, {
+            stubTagEnabled: true,
+            stubTags: metadata.release.stubTags,
+        }),
     ];
     const resolutions = await resolveCategories(
         uniqueValues(
@@ -311,6 +315,45 @@ async function buildGeneratedCategoryRows(params, options) {
         ...resolveCategoryPlans(seriesRows, resolutions),
         ...applyCategoryResolutions(metadataRows, resolutions),
     ];
+}
+
+/**
+ * Gets category metadata from article parts or legacy parameters.
+ *
+ * @param {object} params - Article hub output or legacy parameters.
+ * @returns {object} Category metadata grouped by owning part.
+ */
+function getArticleCategoryMetadata(params) {
+    if (params.parts == null) {
+        return {
+            companies: params.companyMetadata,
+            platform: {
+                ...params.platformSeriesMetadata,
+                count: params.platformSeriesMetadata.platformCount,
+            },
+            release: params.yearGenreMetadata,
+            series: params.platformSeriesMetadata,
+        };
+    }
+
+    return {
+        companies: params.parts.companies,
+        platform: {
+            ...params.parts.platform,
+            count: params.parts.platform.metadata.count,
+        },
+        release: {
+            categories: uniqueValues([
+                ...params.parts.genre.assumedCategories,
+                ...params.parts.year.assumedCategories,
+            ]),
+            stubTags: uniqueValues([
+                ...params.parts.genre.assumedStubTags,
+                ...params.parts.year.assumedStubTags,
+            ]),
+        },
+        series: params.parts.series,
+    };
 }
 
 /**

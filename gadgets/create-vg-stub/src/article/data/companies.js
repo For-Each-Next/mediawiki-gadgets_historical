@@ -14,108 +14,52 @@ import {
     isWikilinkValue,
     splitFieldValues,
     uniqueValues,
-} from "../utils.js";
+} from "../../utils.js";
 
 /**
- * Builds display and metadata for company values.
+ * Builds company values and category assumptions without composing prose.
  *
  * @param {object} companies - Company-related parameters.
  * @param {string} companies.developers - Developer names.
  * @param {string} companies.publishers - Publisher names.
- * @param {object} [options] - Company formatting options.
- * @param {string} [options.sourceTag] - Source reference tag.
- * @returns {object} Text, categories, and stub tags.
+ * @returns {object} Company role values and category metadata.
  */
-export function buildCompanyMetadata(companies, options = {}) {
+export function buildCompanyData(companies) {
     const references = getCompanyReferences(companies);
-    const text = buildAttributionText(
-        buildAttributionRoleText(companies, references),
-        options.sourceTag || "",
+    const developerItems = buildCompanyItems(
+        companies.developers,
+        references.developers,
     );
-
-    return {
+    const publisherValue = getPublisherValue(companies);
+    const publisherItems = buildCompanyItems(
+        publisherValue,
+        references.publishers,
+    );
+    const data = {
         categoryItems: buildCompanyCategoryItems(companies),
         categories: uniqueValues(
             getReferenceValues(references.all, "categories"),
         ),
+        developers: {
+            items: developerItems,
+            text: joinCompanyTextList(
+                developerItems.map((item) => item.wikitext),
+            ),
+            values: splitFieldValues(companies.developers),
+        },
+        publishers: {
+            items: publisherItems,
+            text: joinCompanyTextList(
+                publisherItems.map((item) => item.wikitext),
+            ),
+            values: splitFieldValues(publisherValue),
+        },
+        references,
+        sameCompanies: companies.publishers === "=",
         stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
-        text,
     };
-}
 
-/**
- * Builds attribution text after the video game noun.
- *
- * @param {string} text - Company role text.
- * @param {string} sourceTag - Source reference tag.
- * @returns {string} Attribution text.
- */
-function buildAttributionText(text, sourceTag) {
-    if (text === "") {
-        return "";
-    }
-
-    return `，${text}${sourceTag}`;
-}
-
-/**
- * Builds developer and publisher role text.
- *
- * @param {object} companies - Company-related parameters.
- * @param {object} references - Matched company metadata.
- * @returns {string} Attribution role phrase.
- */
-function buildAttributionRoleText(companies, references) {
-    const developers = buildCompanyListText(
-        companies.developers,
-        references.developers,
-    );
-    const publishers = buildCompanyListText(
-        getPublisherValue(companies),
-        references.publishers,
-    );
-
-    if (developers === "" && publishers === "") {
-        return "";
-    }
-
-    if (developers !== "" && companies.publishers === "=") {
-        return `由${developers}开发及发行`;
-    }
-
-    return `由${buildCompanyRoleText(developers, publishers)}`;
-}
-
-/**
- * Builds company role text from developer and publisher text.
- *
- * @param {string} developers - Developer wikitext.
- * @param {string} publishers - Publisher wikitext.
- * @returns {string} Company role text.
- */
-function buildCompanyRoleText(developers, publishers) {
-    if (developers === "") {
-        return `${publishers}发行`;
-    }
-
-    if (publishers === "") {
-        return `${developers}开发`;
-    }
-
-    return `${developers}开发、${publishers}发行`;
-}
-
-/**
- * Builds linked company text from raw values and matched metadata.
- *
- * @param {string} value - User-entered company values.
- * @param {Array<object>} references - Matched company metadata.
- * @returns {string} Company list wikitext.
- */
-function buildCompanyListText(value, references) {
-    return joinCompanyTextList(
-        splitFieldValues(value).map(buildCompanyText.bind(null, references)),
-    );
+    return data;
 }
 
 /**
@@ -133,24 +77,59 @@ function joinCompanyTextList(values) {
 }
 
 /**
- * Builds display text for one company value.
+ * Builds structured display values for one company field.
+ *
+ * @param {string} value - User-entered company values.
+ * @param {Array<object>} references - Matched company metadata.
+ * @returns {Array<object>} Company display values.
+ */
+function buildCompanyItems(value, references) {
+    const buildItem = buildCompanyItem.bind(null, references);
+    const items = splitFieldValues(value).map(buildItem);
+
+    return items;
+}
+
+/**
+ * Builds one structured company value.
  *
  * @param {Array<object>} references - Matched company metadata.
  * @param {string} value - User-entered company value.
- * @returns {string} Company wikitext.
+ * @returns {object} Company display value.
  */
-function buildCompanyText(references, value) {
+function buildCompanyItem(references, value) {
     if (isWikilinkValue(value)) {
-        return value;
+        const parts = getWikilinkParts(value);
+        const item = {
+            displayText: parts.label || parts.target,
+            linkTarget: parts.target,
+            normalizedText: value,
+            wikitext: value,
+        };
+
+        return item;
     }
 
     const reference = references.find((item) => item.source === value);
 
     if (reference == null || reference.page == null) {
-        return value;
+        const item = {
+            displayText: value,
+            normalizedText: value,
+            wikitext: value,
+        };
+
+        return item;
     }
 
-    return buildPageText(reference.page);
+    const item = {
+        displayText: reference.page.label || reference.page.title,
+        linkTarget: reference.page.title,
+        normalizedText: value,
+        wikitext: buildPageText(reference.page),
+    };
+
+    return item;
 }
 
 /**

@@ -4,6 +4,24 @@
  * Builds the create-vg-stub dialog form.
  */
 
+import {
+    formatArticleFormField,
+    getArticleSourceFields,
+    isArticleListField,
+} from "./article/index.js";
+import {
+    buildNameSourceReferenceKey,
+    hasFirstLevelFieldSeparator,
+    trimFieldValue,
+} from "./form-values.js";
+import { getEnteredSourceUrls } from "./source-references.js";
+
+export {
+    buildNameSourceReferenceKey,
+    splitSourceUrls,
+    trimFieldValue,
+} from "./form-values.js";
+
 export class StyleSheet {
     constructor() {
         this.rules = [];
@@ -247,71 +265,7 @@ class ArticleParameterGroup {
     }
 }
 
-export const SOURCE_REFERENCE_FIELDS = [
-    {
-        key: "originalName",
-        label: "Original title source URLs",
-        sourceKey: "originalNameSourceUrl",
-    },
-    {
-        key: "englishName",
-        label: "English title source URLs",
-        sourceKey: "englishNameSourceUrl",
-    },
-    {
-        key: "year",
-        label: "Year source URLs",
-        sourceKey: "yearSourceUrl",
-    },
-    {
-        key: "developers",
-        label: "Dev source URLs",
-        sourceKey: "developersSourceUrl",
-    },
-    {
-        key: "publishers",
-        label: "Pub source URLs",
-        sourceKey: "publishersSourceUrl",
-    },
-    {
-        key: "series",
-        label: "Series source URLs",
-        sourceKey: "seriesSourceUrl",
-    },
-    {
-        key: "genres",
-        label: "Genre source URLs",
-        sourceKey: "genresSourceUrl",
-    },
-    {
-        key: "platforms",
-        label: "Plat source URLs",
-        sourceKey: "platformsSourceUrl",
-    },
-    {
-        key: "metacriticScore",
-        label: "MC score source URLs",
-        sourceKey: "metacriticScoreSourceUrl",
-    },
-    {
-        key: "openCriticRecommend",
-        label: "OC score source URLs",
-        sourceKey: "openCriticRecommendSourceUrl",
-    },
-    {
-        key: "additionalProse",
-        label: "Additional prose source URLs",
-        sourceKey: "additionalProseSourceUrl",
-    },
-];
-
-const MULTI_ITEM_FIELD_KEYS = [
-    "developers",
-    "publishers",
-    "genres",
-    "platforms",
-];
-const NAME_GROUP_KEYS = ["localizedNames", "officialNames", "commonNames"];
+export const SOURCE_REFERENCE_FIELDS = getArticleSourceFields();
 const NAME_MARKETS = [
     {
         key: "ww",
@@ -383,7 +337,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "originalName",
             "Original title",
             "originalName",
-            SOURCE_REFERENCE_FIELDS[0],
+            getSourceReferenceField("originalName"),
             {
                 placeholder: "ja:タイトル or en:Title",
             },
@@ -392,7 +346,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "englishName",
             "English title",
             "englishName",
-            SOURCE_REFERENCE_FIELDS[1],
+            getSourceReferenceField("englishName"),
             {
                 placeholder: "Localized title",
                 previewKey: "names",
@@ -405,7 +359,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "metacriticScore",
             "Score",
             "scores.metacriticScore",
-            SOURCE_REFERENCE_FIELDS[8],
+            getSourceReferenceField("metacriticScore"),
             {
                 breakBefore: true,
                 compact: true,
@@ -417,7 +371,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "openCriticRecommend",
             "Critics Recommend",
             "scores.openCriticRecommend",
-            SOURCE_REFERENCE_FIELDS[9],
+            getSourceReferenceField("openCriticRecommend"),
             {
                 compact: true,
                 heading: "OC score",
@@ -431,7 +385,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "developers",
             "Dev",
             "companies.developers",
-            SOURCE_REFERENCE_FIELDS[3],
+            getSourceReferenceField("developers"),
             {
                 placeholder: "Names",
             },
@@ -440,7 +394,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "publishers",
             "Pub",
             "companies.publishers",
-            SOURCE_REFERENCE_FIELDS[4],
+            getSourceReferenceField("publishers"),
             {
                 placeholder: "Names",
             },
@@ -449,7 +403,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "series",
             "Series",
             "series",
-            SOURCE_REFERENCE_FIELDS[5],
+            getSourceReferenceField("series"),
             {
                 placeholder: "Title",
             },
@@ -458,7 +412,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "platforms",
             "Plat",
             "platforms",
-            SOURCE_REFERENCE_FIELDS[7],
+            getSourceReferenceField("platforms"),
             {
                 placeholder: "Names",
             },
@@ -467,7 +421,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "year",
             "Year",
             "year",
-            SOURCE_REFERENCE_FIELDS[2],
+            getSourceReferenceField("year"),
             {
                 placeholder: "YYYY",
             },
@@ -476,7 +430,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             "genres",
             "Genre",
             "genres",
-            SOURCE_REFERENCE_FIELDS[6],
+            getSourceReferenceField("genres"),
             {
                 placeholder: "Names",
                 previewKey: "attribution",
@@ -492,7 +446,7 @@ const ARTICLE_PARAMETER_GROUPS = [
                 "additionalProse",
                 "Additional prose",
                 "additionalProse",
-                SOURCE_REFERENCE_FIELDS[10],
+                getSourceReferenceField("additionalProse"),
                 {
                     multiline: true,
                     placeholder: "Text appended after the generated prose",
@@ -834,8 +788,9 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             normalizeFieldValue(field) {
-                form[field.key] = normalizeArticleFieldValue(
-                    field,
+                form[field.key] = formatArticleFormField(
+                    form,
+                    field.key,
                     form[field.key],
                 );
             },
@@ -859,7 +814,11 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             updateFieldValue(field, value) {
-                form[field.key] = normalizeArticleFieldValue(field, value);
+                form[field.key] = formatArticleFormField(
+                    form,
+                    field.key,
+                    value,
+                );
 
                 if (field.key === "enwikiTitle") {
                     refreshEnwikiMetadata();
@@ -916,7 +875,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             normalizePastedFieldValue(field, event) {
-                if (!isMultiItemField(field)) {
+                if (!isArticleListField(field.key)) {
                     return;
                 }
 
@@ -929,7 +888,11 @@ export function createDialogComponent(Vue, options) {
                 }
 
                 event.preventDefault();
-                form[field.key] = normalizeArticleFieldValue(field, text);
+                form[field.key] = formatArticleFormField(
+                    form,
+                    field.key,
+                    text,
+                );
             },
 
             /**
@@ -1668,33 +1631,6 @@ function createCitationPrefetchQueue(options) {
             urls.forEach(options.onSourceUrlChange);
         }, options.citationPrefetchDelay || 0);
     };
-}
-
-/**
- * Gets all currently entered source URLs.
- *
- * @param {object} form - Dialog form values.
- * @returns {Array<string>} Entered source URLs.
- */
-function getEnteredSourceUrls(form) {
-    return uniqueFieldValues([
-        ...SOURCE_REFERENCE_FIELDS.flatMap((field) =>
-            splitSourceUrls(form[field.sourceKey]),
-        ),
-        ...NAME_GROUP_KEYS.flatMap((key) =>
-            (form[key] || []).flatMap((row) => splitSourceUrls(row.sourceUrl)),
-        ),
-    ]).filter(Boolean);
-}
-
-/**
- * Gets unique trimmed field values.
- *
- * @param {Array<*>} values - Raw field values.
- * @returns {Array<string>} Unique trimmed values.
- */
-function uniqueFieldValues(values) {
-    return [...new Set(values.map(trimFieldValue))];
 }
 
 /**
@@ -3497,6 +3433,16 @@ function getArticleField(key) {
 }
 
 /**
+ * Gets a registered source URL field by article field key.
+ *
+ * @param {string} key - Article field key.
+ * @returns {object|undefined} Matching source field definition.
+ */
+function getSourceReferenceField(key) {
+    return SOURCE_REFERENCE_FIELDS.find((field) => field.key === key);
+}
+
+/**
  * Gets the fields from an article parameter group.
  *
  * @param {object} group - Article parameter group.
@@ -3532,93 +3478,6 @@ function getFieldValueKey(field) {
 }
 
 /**
- * Checks whether a field accepts multiple list items.
- *
- * @param {object} field - Dialog field definition.
- * @param {string} field.key - Form key for the field.
- * @returns {boolean} Whether the field accepts multiple items.
- */
-function isMultiItemField(field) {
-    return MULTI_ITEM_FIELD_KEYS.includes(field.key);
-}
-
-/**
- * Normalizes an article field value for live form input.
- *
- * @param {object} field - Dialog field definition.
- * @param {string} field.key - Form key for the field.
- * @param {*} value - Raw form field value.
- * @returns {string} Normalized form field value.
- */
-function normalizeArticleFieldValue(field, value) {
-    const trimmed = trimFieldValue(value);
-
-    if (field.key === "year") {
-        return normalizeYearValue(trimmed);
-    }
-
-    if (isMultiItemField(field)) {
-        return normalizeMultilineFieldValue(trimmed);
-    }
-
-    return trimmed;
-}
-
-/**
- * Converts a full date-like value to a bare year.
- *
- * @param {string} value - Trimmed form field value.
- * @returns {string} Year field value.
- */
-function normalizeYearValue(value) {
-    const match = value.match(/\b\d{4}\b/u);
-
-    return match == null ? value : match[0];
-}
-
-/**
- * Normalizes pasted field values with first-level separators.
- *
- * @param {string} value - Raw form field value.
- * @returns {string} Normalized form field value.
- */
-function normalizeMultilineFieldValue(value) {
-    if (!hasFirstLevelFieldSeparator(value)) {
-        return value;
-    }
-
-    return value
-        .split(/\s*[;；]\s*|[\r\n]+/u)
-        .map(trimFieldValue)
-        .filter(Boolean)
-        .join("; ");
-}
-
-/**
- * Checks whether a field value contains multiple lines.
- *
- * @param {string} value - Raw form field value.
- * @returns {boolean} Whether the value has a first-level separator.
- */
-function hasFirstLevelFieldSeparator(value) {
-    return /[;；\r\n]/u.test(value);
-}
-
-/**
- * Trims leading and trailing whitespace from a field value.
- *
- * @param {*} value - Raw field item value.
- * @returns {string} Trimmed field item.
- */
-export function trimFieldValue(value) {
-    if (value == null) {
-        return "";
-    }
-
-    return String(value).trim();
-}
-
-/**
  * Removes a trailing parenthesized disambiguator from a page title.
  *
  * @param {string} title - Page title.
@@ -3626,54 +3485,6 @@ export function trimFieldValue(value) {
  */
 function getBasePageTitle(title) {
     return trimFieldValue(title).replace(/ \(.+?\)$/u, "");
-}
-
-/**
- * Splits a source URL field into one trimmed URL per nonblank line.
- *
- * @param {*} value - Raw source URL field value.
- * @returns {Array<string>} Source URLs.
- */
-export function splitSourceUrls(value) {
-    return trimFieldValue(value)
-        .split(/[\r\n]+/u)
-        .map(trimFieldValue)
-        .filter(Boolean);
-}
-
-/**
- * Gets source reference fields for localized name rows with URLs.
- *
- * @param {object} form - Dialog form values.
- * @returns {Array<object>} Entered localized name source fields.
- */
-export function getEnteredNameSourceReferenceFields(form) {
-    return NAME_GROUP_KEYS.flatMap((key) =>
-        (form[key] || [])
-            .flatMap((row, index) =>
-                splitSourceUrls(row.sourceUrl).map((sourceUrl) => ({
-                    key: buildNameSourceReferenceKey(key, index),
-                    name: row.name,
-                    sourceUrl,
-                })),
-            )
-            .filter(
-                (field) =>
-                    Boolean(trimFieldValue(field.name)) &&
-                    Boolean(trimFieldValue(field.sourceUrl)),
-            ),
-    );
-}
-
-/**
- * Builds a source reference key for one localized name row.
- *
- * @param {string} key - Localized name group key.
- * @param {number} index - Row index.
- * @returns {string} Source reference key.
- */
-export function buildNameSourceReferenceKey(key, index) {
-    return `${key}.${index}`;
 }
 
 /**

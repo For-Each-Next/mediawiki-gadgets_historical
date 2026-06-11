@@ -10,10 +10,13 @@ import {
     trimValue,
     uniqueValues,
 } from "../utils.js";
+import {
+    normalizeTitleKey,
+    resolvePageTitles,
+    stripNamespace,
+} from "../handlers/title-resolver.js";
 
-const API_ENDPOINT = "/w/api.php";
-const TEMPLATE_NAMESPACE = "Template:";
-const TEMPLATE_BATCH_SIZE = 50;
+const TEMPLATE_NAMESPACE = "Template";
 
 /**
  * Builds navbox template calls for series values.
@@ -211,172 +214,24 @@ function getFirstExistingTemplate(candidates, resolutions) {
  * @returns {Promise<object>} Resolutions keyed by normalized template title.
  */
 async function resolveTemplates(templates, options) {
-    const resolutions = {};
-
-    for (const batch of chunkValues(templates, TEMPLATE_BATCH_SIZE)) {
-        Object.assign(
-            resolutions,
-            await fetchTemplateResolutions(batch, options),
-        );
-    }
-
-    return resolutions;
-}
-
-/**
- * Fetches template resolutions for one API batch.
- *
- * @param {Array<string>} templates - Template titles without namespace.
- * @param {object} options - API options.
- * @returns {Promise<object>} Resolutions keyed by template title.
- */
-async function fetchTemplateResolutions(templates, options) {
-    try {
-        const data = await fetchTemplateQuery(templates, options);
-
-        return addResolutionAliases(
-            Object.fromEntries(
-                templates.map((template) => [
-                    normalizeTemplateKey(template),
-                    getTemplateResolution(template, data),
-                ]),
-            ),
-        );
-    } catch (_error) {
-        return Object.fromEntries(
-            templates.map((template) => [
-                normalizeTemplateKey(template),
-                {
-                    exists: false,
-                    template: normalizeTemplateTitle(template),
-                },
-            ]),
-        );
-    }
-}
-
-/**
- * Stores each resolved title as an alias to avoid duplicate converted-title fetches.
- *
- * @param {object} resolutions - Resolutions keyed by requested title.
- * @returns {object} Template resolutions with aliases.
- */
-function addResolutionAliases(resolutions) {
-    Object.values(resolutions).forEach((resolution) => {
-        resolutions[normalizeTemplateKey(resolution.template)] = resolution;
-    });
-
-    return resolutions;
-}
-
-/**
- * Fetches one template query response.
- *
- * @param {Array<string>} templates - Template titles without namespace.
- * @param {object} options - API options.
- * @returns {Promise<object>} API response body.
- */
-async function fetchTemplateQuery(templates, options) {
-    const fetcher = options.fetcher || fetch;
-    const response = await fetcher(buildTemplateApiUrl(templates), {
-        headers: {
-            accept: "application/json",
+    const values = await resolvePageTitles(
+        templates,
+        {
+            namespace: TEMPLATE_NAMESPACE,
         },
-    });
-
-    if (!response.ok) {
-        throw new Error(`Template request failed: HTTP ${response.status}`);
-    }
-
-    return response.json();
-}
-
-/**
- * Builds a MediaWiki template query URL.
- *
- * @param {Array<string>} templates - Template titles without namespace.
- * @returns {string} API URL.
- */
-function buildTemplateApiUrl(templates) {
-    const params = new URLSearchParams({
-        action: "query",
-        converttitles: "1",
-        format: "json",
-        formatversion: "2",
-        redirects: "1",
-        titles: templates.map(formatTemplateApiTitle).join("|"),
-    });
-
-    return `${API_ENDPOINT}?${params.toString()}`;
-}
-
-/**
- * Gets one template resolution from an API response.
- *
- * @param {string} template - Original template title.
- * @param {object} data - API response body.
- * @returns {object} Template resolution.
- */
-function getTemplateResolution(template, data) {
-    const title = getResolvedTitle(template, data);
-    const page = getResolvedPage(title, data);
-
-    return {
-        exists: page != null && !page.missing,
-        template: normalizeTemplateTitle(title),
-    };
-}
-
-/**
- * Gets a resolved title from API normalization/conversion/redirect data.
- *
- * @param {string} template - Original template title.
- * @param {object} data - API response body.
- * @returns {string} Resolved template title.
- */
-function getResolvedTitle(template, data) {
-    return [
-        data?.query?.normalized,
-        data?.query?.converted,
-        data?.query?.redirects,
-    ]
-        .flat()
-        .filter(Boolean)
-        .reduce(
-            (title, item) =>
-                normalizeTemplateKey(item.from) === normalizeTemplateKey(title)
-                    ? item.to
-                    : title,
-            formatTemplateApiTitle(template),
-        );
-}
-
-/**
- * Gets the API page matching a resolved title.
- *
- * @param {string} title - Resolved page title.
- * @param {object} data - API response body.
- * @returns {object|undefined} API page.
- */
-function getResolvedPage(title, data) {
-    return (data?.query?.pages || []).find(
-        (page) =>
-            normalizeTemplateKey(page.title) === normalizeTemplateKey(title),
+        options,
     );
-}
+    const resolutions = Object.fromEntries(
+        Object.entries(values).map(([key, resolution]) => [
+            key,
+            {
+                ...resolution,
+                template: resolution.title,
+            },
+        ]),
+    );
 
-/**
- * Formats a title for API template queries.
- *
- * @param {string} template - Template title with or without namespace.
- * @returns {string} Template API title.
- */
-function formatTemplateApiTitle(template) {
-    const title = trimValue(template);
-
-    return title.startsWith(TEMPLATE_NAMESPACE)
-        ? title
-        : `${TEMPLATE_NAMESPACE}${title}`;
+    return resolutions;
 }
 
 /**
@@ -386,7 +241,7 @@ function formatTemplateApiTitle(template) {
  * @returns {string} Template title without namespace.
  */
 function normalizeTemplateTitle(template) {
-    return trimValue(template).replace(/^Template:/u, "");
+    return stripNamespace(template, TEMPLATE_NAMESPACE);
 }
 
 /**
@@ -396,22 +251,5 @@ function normalizeTemplateTitle(template) {
  * @returns {string} Normalized template key.
  */
 function normalizeTemplateKey(template) {
-    return normalizeTemplateTitle(template).replace(/_/gu, " ");
-}
-
-/**
- * Splits an array into fixed-size chunks.
- *
- * @param {Array<string>} values - Values to split.
- * @param {number} size - Chunk size.
- * @returns {Array<Array<string>>} Chunked values.
- */
-function chunkValues(values, size) {
-    const chunks = [];
-
-    for (let index = 0; index < values.length; index += size) {
-        chunks.push(values.slice(index, index + size));
-    }
-
-    return chunks;
+    return normalizeTitleKey(template, TEMPLATE_NAMESPACE);
 }

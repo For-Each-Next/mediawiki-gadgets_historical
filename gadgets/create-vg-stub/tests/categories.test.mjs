@@ -14,8 +14,7 @@ import {
     resetGeneratedCategoryRows,
     updateCategoryRowCategory,
 } from "../src/categories.js";
-import { buildCompanyMetadata } from "../src/sectors/companies.js";
-import { buildPlatformSeriesMetadata } from "../src/sectors/platforms-series.js";
+import { createArticleData } from "../src/article/index.js";
 
 test("buildFallbackCategoryRows keeps generated metadata categories", () => {
     const rows = buildFallbackCategoryRows({
@@ -463,21 +462,28 @@ function emptyParams(options = {}) {
 }
 
 function paramsFromForm(form, options = {}) {
-    return {
-        ...emptyParams(options),
-        companyMetadata: buildCompanyMetadata({
-            developers: form.developers || "",
-            publishers: form.publishers || "",
-        }),
-        platformSeriesMetadata: {
-            ...buildPlatformSeriesMetadata({
-                platforms: form.platforms || "",
-                series: form.series || "",
-            }),
-            categories: options.platformSeriesCategories || [],
-            stubTags: options.platformSeriesStubTags || [],
-        },
-    };
+    const params = createArticleData({
+        categoryRows: [],
+        developers: form.developers || "",
+        genres: "",
+        localizedNames: [],
+        name: "Example",
+        navboxText: "",
+        platforms: form.platforms || "",
+        publishers: form.publishers || "",
+        series: form.series || "",
+        sourceReferences: [],
+        year: "",
+    });
+
+    params.parts.platform.assumedCategories =
+        options.platformSeriesCategories || [];
+    params.parts.platform.assumedStubTags =
+        options.platformSeriesStubTags || [];
+    params.parts.year.assumedCategories = options.yearGenreCategories || [];
+    params.parts.year.assumedStubTags = options.yearGenreStubTags || [];
+
+    return params;
 }
 
 function emptyMetadata() {

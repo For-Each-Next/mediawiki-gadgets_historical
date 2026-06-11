@@ -27,24 +27,32 @@ import {
  * @returns {string} Generated Chinese wikitext.
  */
 export function buildArticleWikitext(params) {
-    const intro =
-        `${params.leadNameText}是${buildVideoGameText(params)}。` +
-        params.platformSeriesMetadata.text +
-        params.aggScoresText +
-        params.additionalProseText;
+    const review = params.parts?.review?.wikitext || {};
+    const intro = params.prose?.text || buildLegacyProse(params);
 
     return [
-        params.noteTaText,
-        params.infoboxText,
+        params.renderers?.noteTa || params.noteTaText,
+        params.renderers?.infobox || params.infoboxText,
         intro,
         buildReferencesText(params.sourceReferences),
-        params.navboxText,
+        params.renderers?.navboxes || review.navbox || params.navboxText,
         buildFooterTemplateText(),
         buildCategoryText(params),
         buildStubTagText(params),
     ]
         .filter(Boolean)
         .join("\n\n");
+}
+
+function buildLegacyProse(params) {
+    const leadName = params.leadNameText;
+    const text =
+        `${leadName}是${buildVideoGameText(params)}。` +
+        params.platformSeriesMetadata.text +
+        params.aggScoresText +
+        params.additionalProseText;
+
+    return text;
 }
 
 /**

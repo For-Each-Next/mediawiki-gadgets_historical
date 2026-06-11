@@ -1,0 +1,44 @@
+/**
+ * Tests localized Steam name extraction.
+ */
+
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { fetchSteamNameRows } from "../src/steam-names.js";
+
+test("Steam names are extracted with localized source URLs", async () => {
+    const rows = await fetchSteamNameRows(
+        "https://store.steampowered.com/app/123/example/",
+        {
+            async fetch(url) {
+                const title = url.includes("l=schinese")
+                    ? "Steam 上的 简体名"
+                    : "Steam - 繁體名";
+
+                return `{{cite web|title=${title}|url=${url}}}`;
+            },
+        },
+    );
+
+    assert.deepEqual(
+        rows.map((row) => [row.markets, row.name]),
+        [
+            [["hans"], "简体名"],
+            [["hant"], "繁體名"],
+        ],
+    );
+    assert.equal(rows[0].sourceUrl.includes("l=schinese"), true);
+    assert.equal(rows[1].sourceUrl.includes("l=tchinese"), true);
+});
+
+test("Steam name lookup rejects non-app URLs", async () => {
+    await assert.rejects(
+        fetchSteamNameRows("https://store.steampowered.com/", {
+            async fetch() {
+                return "";
+            },
+        }),
+        /Enter a Steam app URL/u,
+    );
+});

@@ -21,7 +21,7 @@ globalThis.__CREATE_VG_STUB_FIELD_DATA__ = {
 };
 
 const { buildCategoryRows } = await import("../src/categories.js");
-const { buildCompanyMetadata } = await import("../src/sectors/companies.js");
+const { createArticleData } = await import("../src/article/index.js");
 
 test("buildCategoryRows checks company stub tags for shared developers and publishers", async () => {
     const form = {
@@ -87,13 +87,21 @@ function emptyParams() {
 }
 
 function paramsFromForm(form) {
-    return {
-        ...emptyParams(),
-        companyMetadata: buildCompanyMetadata({
-            developers: form.developers,
-            publishers: form.publishers,
-        }),
-    };
+    const params = createArticleData({
+        categoryRows: [],
+        developers: form.developers,
+        genres: "",
+        localizedNames: [],
+        name: "Example",
+        navboxText: "",
+        platforms: form.platforms,
+        publishers: form.publishers,
+        series: form.series,
+        sourceReferences: [],
+        year: "",
+    });
+
+    return params;
 }
 
 function createCategoryFetcher(existing) {

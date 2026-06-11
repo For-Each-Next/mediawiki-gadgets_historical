@@ -19,6 +19,10 @@
  * @returns {number} Hanzi-equivalent sinograph count.
  */
 export function countGeneratedProseSinographs(params) {
+    if (params.prose?.sinographs != null) {
+        return params.prose.sinographs;
+    }
+
     return countProseSinographs(buildGeneratedProseText(params));
 }
 

@@ -1448,14 +1448,14 @@ function addToolboxLink() {
     const link = mw.util.addPortletLink(
         "p-tb",
         "#",
-        "Create video game stub",
+        "Create VG stub",
         "t-create-vg-stub",
     );
 
     link.addEventListener("click", handleToolboxClick);
 
     if (isMissingPageView()) {
-        addMissingPageEditTrigger(document, handleToolboxClick);
+        addMissingPageEditTrigger(document, mw.util, handleToolboxClick);
     }
 }
 

@@ -5,31 +5,31 @@
  */
 
 import {
-    buildCategoryRows,
     createManualCategoryRow,
     resetCategoryRow,
     updateCategoryRowCategory,
-} from "./categories.js";
+} from "./handlers/categories.js";
 import {
     buildStubFromForm as buildArticleStubFromForm,
     buildStubText as buildArticleStubText,
-    createArticleParams as createArticleData,
+    flushArticleData as createArticleData,
     getArticleFieldPlaceholder,
     getArticleFieldPreview,
     getFormProseSinographs as countFormProseSinographs,
+    prepareCategoryRows,
     prepareNavboxRows,
-} from "./article-builder.js";
-import { createCategoryCacheStore } from "./category-cache.js";
+} from "./workflow/article.js";
+import { createCategoryCacheStore } from "./handlers/category-cache.js";
 import {
     prepareCompanyCategoryText,
     saveCategoryPage,
     saveCompanyCategory,
-} from "./company-category-helper.js";
+} from "./handlers/category-pages.js";
 import {
     addDialogStyles,
     createDialogComponent,
     trimFieldValue,
-} from "./interface.js";
+} from "./interface/form.js";
 import {
     clearFormHistory,
     deleteFormHistoryEntry,
@@ -38,9 +38,8 @@ import {
     readFormHistory,
     saveFormDraft,
     saveFormHistory,
-} from "./history.js";
-import { buildEditSummary } from "./edit-summary.js";
-import { fetchEnwikiMetadata } from "./crosswiki.js";
+} from "./interface/history.js";
+import { fetchEnwikiMetadata } from "./sources/crosswiki.js";
 import {
     clearMovedEdit,
     clearPendingSaveData,
@@ -49,26 +48,31 @@ import {
     normalizePageTitle,
     storeMovedEdit,
     storePendingSaveData,
-} from "./edit-session.js";
-import { submitEditForm, writeEditSummary, writeEditText } from "./editor.js";
+} from "./editing/session.js";
+import {
+    submitEditForm,
+    writeEditSummary,
+    writeEditText,
+} from "./editing/editor.js";
+import { buildEditSummary } from "./editing/summary.js";
 import {
     buildPreSaveActions,
     buildRedirectTitles,
     buildTitleFix,
     fetchExistingPageTitles,
     runSelectedActions,
-} from "./pre-save.js";
-import { addMissingPageEditTrigger } from "./page-trigger.js";
-import { saveNavboxTemplate } from "./navbox-helper.js";
-import { SAVE_PROGRESS_STORAGE_KEY } from "./save-progress.js";
+} from "./editing/pre-save.js";
+import { saveNavboxTemplate } from "./handlers/navbox-pages.js";
+import { addMissingPageEditTrigger } from "./interface/page-trigger.js";
 import {
     failSaveProgress,
     renderStoredSaveProgress,
     setSaveProgressStep,
     startSaveProgress,
-} from "./save-progress-controller.js";
-import { createCitationStore } from "./source-references.js";
-import { fetchSteamNameRows } from "./steam-names.js";
+} from "./save/controller.js";
+import { SAVE_PROGRESS_STORAGE_KEY } from "./save/progress.js";
+import { createCitationStore } from "./sources/source-references.js";
+import { fetchSteamNameRows } from "./sources/steam-names.js";
 
 const CITATION_PREFETCH_DELAY = 800;
 
@@ -383,14 +387,14 @@ async function buildStubFromForm(form, citationStore) {
  * @param {string} form.wikidataId - Wikidata entity ID.
  * @param {string} form.year - Release year.
  * @param {object} stub - Generated stub data.
- * @param {object} stub.params - Article parameters.
+ * @param {object} stub.articleData - Article metadata.
  * @returns {object} Edit summary metadata.
  */
 function createEditSummaryMetadata(form, stub) {
     return {
         displayName: getEditSummaryDisplayName(form),
         enwikiTitle: trimFieldValue(form.enwikiTitle),
-        proseSinographs: stub.params.prose.sinographs,
+        proseSinographs: stub.articleData.prose.sinographs,
         wikidataId: trimFieldValue(form.wikidataId),
         year: trimFieldValue(form.year),
     };
@@ -432,16 +436,19 @@ async function refreshFormCategoryRows(
             categoryStore.clear();
         }
 
-        const rows = await buildCategoryRows(
+        const articleOptions = {
+            defaultName: getDefaultNameFallback(),
+        };
+        const categoryOptions = {
+            bypassCache: options.bypassCache,
+            cache: categoryStore.cache,
+        };
+        const rows = await prepareCategoryRows(
             form,
-            createArticleParams({
-                ...form,
-                categoryRows: [],
-            }),
             form.categoryRows,
             {
-                bypassCache: options.bypassCache,
-                cache: categoryStore.cache,
+                article: articleOptions,
+                categories: categoryOptions,
             },
         );
         form.categoryRows.splice(

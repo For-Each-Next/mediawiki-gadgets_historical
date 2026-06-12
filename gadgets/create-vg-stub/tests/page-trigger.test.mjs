@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { addMissingPageEditTrigger } from "../src/page-trigger.js";
+import { addMissingPageEditTrigger } from "../src/interface/page-trigger.js";
 
 test("addMissingPageEditTrigger adds an action beside #ca-edit", () => {
     const listeners = [];

@@ -10,8 +10,8 @@ import {
     prepareCompanyCategoryText,
     saveCategoryPage,
     saveCompanyCategory,
-} from "../src/company-category-helper.js";
-import { EDIT_SUMMARY_SUFFIX } from "../src/edit-summary.js";
+} from "../src/handlers/category-pages.js";
+import { EDIT_SUMMARY_SUFFIX } from "../src/editing/summary.js";
 
 test("buildCompanyCategoryText joins category page lines", () => {
     assert.equal(

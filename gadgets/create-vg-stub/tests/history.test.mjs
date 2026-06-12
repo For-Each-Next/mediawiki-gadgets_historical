@@ -5,7 +5,10 @@
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach } from "node:test";
 
-import { readFormDraftForPage, saveFormDraft } from "../src/history.js";
+import {
+    readFormDraftForPage,
+    saveFormDraft,
+} from "../src/interface/history.js";
 
 const originalLocalStorage = globalThis.localStorage;
 

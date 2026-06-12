@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildInfoboxText } from "../src/fragments/infobox.js";
+import { buildInfoboxText } from "../src/wikitext/infobox.js";
 
 test("buildInfoboxText renders Japanese original names as Japanese", () => {
     assert.equal(

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fetchSteamNameRows } from "../src/steam-names.js";
+import { fetchSteamNameRows } from "../src/sources/steam-names.js";
 
 test("Steam names are extracted with localized source URLs", async () => {
     const rows = await fetchSteamNameRows(

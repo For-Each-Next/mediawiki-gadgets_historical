@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     countGeneratedProseSinographs,
     countProseSinographs,
-} from "../src/prose-count.js";
+} from "../src/wikitext/prose-count.js";
 
 test("countProseSinographs counts generated prose with weighted Latin and numbers", () => {
     assert.equal(

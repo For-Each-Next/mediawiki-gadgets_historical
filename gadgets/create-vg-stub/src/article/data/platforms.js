@@ -14,7 +14,7 @@ import {
     splitFieldValues,
     splitLookupFieldValues,
     uniqueValues,
-} from "../../utils.js";
+} from "../../shared/utils.js";
 
 /**
  * Builds normalized display, link, and category metadata for platforms.

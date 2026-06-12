@@ -11,7 +11,7 @@ import {
     getWikilinkValue,
     splitFieldValues,
     splitLookupFieldValues,
-} from "../src/utils.js";
+} from "../src/shared/utils.js";
 
 test("buildTemplateText builds inline positional parameters by default", () => {
     assert.equal(

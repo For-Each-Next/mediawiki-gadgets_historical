@@ -10,7 +10,7 @@ import {
     readSaveProgress,
     storeSaveProgress,
     updateSaveProgress,
-} from "../src/save-progress.js";
+} from "../src/save/progress.js";
 
 test("createSaveProgress builds save, move, and selected action rows", () => {
     const progress = createSaveProgress(

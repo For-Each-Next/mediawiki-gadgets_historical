@@ -5,7 +5,10 @@
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach } from "node:test";
 
-import { StyleSheet, createDialogComponent } from "../src/interface.js";
+import {
+    StyleSheet,
+    createDialogComponent,
+} from "../src/interface/form.js";
 
 const originalWindow = globalThis.window;
 

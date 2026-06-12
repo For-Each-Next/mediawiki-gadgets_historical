@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildNoteTaText } from "../src/fragments/noteta.js";
+import { buildNoteTaText } from "../src/wikitext/note-ta.js";
 
 test("buildNoteTaText renders the Games conversion group", () => {
     assert.equal(

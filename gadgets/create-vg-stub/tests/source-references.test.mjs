@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     fetchSourceReferences,
     getEnteredSourceUrls,
-} from "../src/source-references.js";
+} from "../src/sources/source-references.js";
 
 test("source discovery includes registered fields and localized names", () => {
     const form = {
@@ -29,7 +29,7 @@ test("source discovery includes registered fields and localized names", () => {
     ]);
 });
 
-test("citation fetching keeps source URLs in hub metadata", async () => {
+test("citation fetching keeps source URLs in article metadata", async () => {
     const references = await fetchSourceReferences(
         {
             localizedNames: [],

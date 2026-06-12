@@ -9,7 +9,7 @@ import {
     EDIT_SUMMARY_SUFFIX,
     addEditSummarySuffix,
     buildEditSummary,
-} from "../src/edit-summary.js";
+} from "../src/editing/summary.js";
 
 test("buildEditSummary prefers Wikidata title metadata", () => {
     assert.equal(

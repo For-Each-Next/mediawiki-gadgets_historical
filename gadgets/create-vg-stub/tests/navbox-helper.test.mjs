@@ -5,8 +5,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { EDIT_SUMMARY_SUFFIX } from "../src/edit-summary.js";
-import { saveNavboxTemplate } from "../src/navbox-helper.js";
+import { EDIT_SUMMARY_SUFFIX } from "../src/editing/summary.js";
+import { saveNavboxTemplate } from "../src/handlers/navbox-pages.js";
 
 test("saveNavboxTemplate creates a template without overwriting", async () => {
     const calls = [];

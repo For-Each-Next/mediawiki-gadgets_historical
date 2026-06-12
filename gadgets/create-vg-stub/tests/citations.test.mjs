@@ -9,7 +9,7 @@ import {
     buildCiteTemplate,
     buildCitoidUrl,
     fetchCiteTemplate,
-} from "../src/citations.js";
+} from "../src/sources/citations.js";
 
 const RULES = [
     {

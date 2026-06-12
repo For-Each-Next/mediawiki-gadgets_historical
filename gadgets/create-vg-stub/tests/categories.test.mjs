@@ -5,16 +5,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-    buildCategoryLinks,
     buildCategoryRows,
     buildFallbackCategoryRows,
-    buildStubTagText,
     createManualCategoryRow,
     resolveCategoryRows,
     resetGeneratedCategoryRows,
     updateCategoryRowCategory,
-} from "../src/categories.js";
+} from "../src/handlers/categories.js";
 import { createArticleData } from "../src/article/index.js";
+import {
+    buildCategoryLinks,
+    buildStubTagText,
+} from "../src/wikitext/categories.js";
 
 test("buildFallbackCategoryRows keeps generated metadata categories", () => {
     const rows = buildFallbackCategoryRows({
@@ -476,12 +478,14 @@ function paramsFromForm(form, options = {}) {
         year: "",
     });
 
-    params.parts.platform.assumedCategories =
+    params.records.platform.assumedCategories =
         options.platformSeriesCategories || [];
-    params.parts.platform.assumedStubTags =
+    params.records.platform.assumedStubTags =
         options.platformSeriesStubTags || [];
-    params.parts.year.assumedCategories = options.yearGenreCategories || [];
-    params.parts.year.assumedStubTags = options.yearGenreStubTags || [];
+    params.records.year.assumedCategories =
+        options.yearGenreCategories || [];
+    params.records.year.assumedStubTags =
+        options.yearGenreStubTags || [];
 
     return params;
 }

@@ -12,7 +12,7 @@ import {
     splitLookupFieldValues,
     trimValue,
     uniqueValues,
-} from "../../utils.js";
+} from "../../shared/utils.js";
 
 /**
  * Builds normalized display, link, and category metadata for series.

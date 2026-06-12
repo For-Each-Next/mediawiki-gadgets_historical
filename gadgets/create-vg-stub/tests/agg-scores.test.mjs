@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildAggScoresText } from "../src/fragments/agg-scores.js";
+import { buildAggScoresText } from "../src/wikitext/aggregate-scores.js";
 
 test("buildAggScoresText renders Metacritic and OpenCritic scores", () => {
     assert.equal(

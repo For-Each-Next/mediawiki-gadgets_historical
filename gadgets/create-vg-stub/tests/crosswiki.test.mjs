@@ -9,7 +9,7 @@ import {
     buildEnwikiMetadataUrl,
     fetchEnwikiMetadata,
     parseEnwikiMetadata,
-} from "../src/crosswiki.js";
+} from "../src/sources/crosswiki.js";
 
 test("buildEnwikiMetadataUrl builds an enwiki pageprops query", () => {
     const url = new URL(buildEnwikiMetadataUrl("Example Game"));

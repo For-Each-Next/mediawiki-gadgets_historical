@@ -20,7 +20,9 @@ globalThis.__CREATE_VG_STUB_FIELD_DATA__ = {
     ],
 };
 
-const { buildCategoryRows } = await import("../src/categories.js");
+const { buildCategoryRows } = await import(
+    "../src/handlers/categories.js"
+);
 const { createArticleData } = await import("../src/article/index.js");
 
 test("buildCategoryRows checks company stub tags for shared developers and publishers", async () => {

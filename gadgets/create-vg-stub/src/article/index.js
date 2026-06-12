@@ -9,7 +9,8 @@ export {
     formatArticleFormField,
     getArticleSourceFields,
     isArticleListField,
-} from "./hub.js";
-export { createArticlePartPayload, defineArticlePart } from "./part.js";
-export { ARTICLE_PARTS } from "./parts/index.js";
-export { buildArticleProse } from "./prose.js";
+} from "./processor.js";
+export { createDataRecord, createDataValue } from "./data-record.js";
+export { defineArticleModule } from "./module.js";
+export { ARTICLE_MODULES } from "./modules/index.js";
+export { buildArticleProse } from "../wikitext/prose.js";

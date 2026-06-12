@@ -1,5 +1,5 @@
 /**
- * Tests the modular article data hub and prose output.
+ * Tests modular article data and prose output.
  */
 
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ const PART_KEYS = [
     "wikitext",
 ];
 
-test("all article parts expose the universal data contract", () => {
+test("all article modules expose the universal data contract", () => {
     const data = createArticleData({
         categoryRows: [],
         developers: "Foo Studio",
@@ -52,12 +52,14 @@ test("all article parts expose the universal data contract", () => {
         year: "2026",
     });
 
-    Object.values(data.parts).forEach((part) => {
-        assert.deepEqual(Object.keys(part).sort(), PART_KEYS);
+    Object.values(data.records).forEach((record) => {
+        assert.deepEqual(Object.keys(record).sort(), PART_KEYS);
     });
-    assert.deepEqual(data.parts.platform.sourceUrls, ["https://example.test"]);
-    assert.equal(data.parts.platform.normalizedText.platforms, "PS5");
-    assert.equal(data.parts.review.navboxes[0].title, "Example series");
+    assert.deepEqual(data.records.platform.sourceUrls, [
+        "https://example.test",
+    ]);
+    assert.equal(data.records.platform.normalizedText.platforms, "PS5");
+    assert.equal(data.records.review.navboxes[0].title, "Example series");
 });
 
 test("prose builds the complete paragraph and its sinograph count", () => {

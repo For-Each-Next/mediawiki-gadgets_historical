@@ -6,21 +6,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    resolveNavboxTitles,
+    resolveReviewedNavboxRows,
+} from "../src/handlers/navboxes.js";
+import {
     buildNavboxText,
     buildReviewedNavboxText,
-    resolveReviewedNavboxRows,
-} from "../src/fragments/navboxes.js";
+} from "../src/wikitext/navboxes.js";
 
 test("buildNavboxText uses the first existing series navbox candidate", async () => {
-    const text = await buildNavboxText("Foo", {
+    const titles = await resolveNavboxTitles("Foo", {
         fetcher: createTemplateFetcher(["Template:Foo电子游戏"]),
     });
+    const text = buildNavboxText(titles);
 
     assert.equal(text, "{{Foo电子游戏}}");
 });
 
 test("buildNavboxText resolves converted template titles", async () => {
-    const text = await buildNavboxText("电子游戏", {
+    const titles = await resolveNavboxTitles("电子游戏", {
         fetcher: createTemplateFetcher(
             ["Template:電子遊戲系列電子遊戲"],
             [
@@ -31,17 +35,19 @@ test("buildNavboxText resolves converted template titles", async () => {
             ],
         ),
     });
+    const text = buildNavboxText(titles);
 
     assert.equal(text, "{{電子遊戲系列電子遊戲}}");
 });
 
 test("buildNavboxText handles multiple series and omits missing navboxes", async () => {
-    const text = await buildNavboxText("Foo; Bar; Baz", {
+    const titles = await resolveNavboxTitles("Foo; Bar; Baz", {
         fetcher: createTemplateFetcher([
             "Template:Foo系列电子游戏",
             "Template:Bar系列",
         ]),
     });
+    const text = buildNavboxText(titles);
 
     assert.equal(text, "{{Foo系列电子游戏}}\n{{Bar系列}}");
 });

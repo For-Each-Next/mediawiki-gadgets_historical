@@ -14,7 +14,7 @@ import {
     isWikilinkValue,
     splitFieldValues,
     uniqueValues,
-} from "../../utils.js";
+} from "../../shared/utils.js";
 
 /**
  * Builds company values and category assumptions without composing prose.

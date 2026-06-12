@@ -16,8 +16,8 @@ import {
     fetchExistingPageTitles,
     movePage,
     runSelectedActions,
-} from "../src/pre-save.js";
-import { EDIT_SUMMARY_SUFFIX } from "../src/edit-summary.js";
+} from "../src/editing/pre-save.js";
+import { EDIT_SUMMARY_SUFFIX } from "../src/editing/summary.js";
 
 test("TALK_PAGE_BANNER is built in block template format", () => {
     assert.equal(

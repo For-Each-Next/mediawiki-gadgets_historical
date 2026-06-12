@@ -9,7 +9,7 @@ import {
     getReferenceEntry,
     trimValue,
     uniqueValues,
-} from "../../utils.js";
+} from "../../shared/utils.js";
 
 export function buildYearMetadata(value) {
     const normalized = normalizeYearFieldValue(value);

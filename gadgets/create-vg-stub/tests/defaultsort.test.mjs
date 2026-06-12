@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     buildDefaultSortKey,
     buildDefaultSortText,
-} from "../src/fragments/defaultsort.js";
+} from "../src/wikitext/default-sort.js";
 
 test("buildDefaultSortText uses an explicit sort key", () => {
     assert.equal(

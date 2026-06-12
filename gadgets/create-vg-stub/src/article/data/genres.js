@@ -13,7 +13,7 @@ import {
     isWikilinkValue,
     splitFieldValues,
     uniqueValues,
-} from "../../utils.js";
+} from "../../shared/utils.js";
 
 export function buildGenreMetadata(value) {
     const genres = splitFieldValues(value);

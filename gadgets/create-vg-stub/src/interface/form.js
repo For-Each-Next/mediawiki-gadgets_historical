@@ -2709,6 +2709,13 @@ function createNameMarketTemplate() {
                 [createText("Official")],
             ),
             createElement(
+                "span",
+                {
+                    class: "create-vg-stub-name-market-label",
+                },
+                [createText("Regions:")],
+            ),
+            createElement(
                 "cdx-checkbox",
                 {
                     "v-bind:key": "market.key",

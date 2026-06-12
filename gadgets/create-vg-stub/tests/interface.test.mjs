@@ -625,6 +625,20 @@ test("Steam helper can merge or blank fetched localized names", async () => {
     );
 });
 
+test("localized name rows visually distinguish official and regions", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+
+    assert.equal(
+        component.template.includes(
+            '<span class="create-vg-stub-name-market-label">Regions:</span>',
+        ),
+        true,
+    );
+});
+
 test("field preview callback receives live form and preview key", () => {
     const component = createDialogComponent(
         createVueStub(),

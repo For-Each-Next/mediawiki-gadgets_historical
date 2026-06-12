@@ -79,9 +79,8 @@
 
     // Text shown in the generated edit summary.
     "editing": {
-        // Full summary and reusable suffix form.
-        "summary": "{name}{year}{proseCount}",
-        "summaryWithIcon": "{summary} {icon}",
+        // Full summary including the linked gadget marker.
+        "summary": "{name}{year}{proseCount} {icon}",
 
         // Optional summary components.
         "wikidataName": "[[:d:{id}|{label}]]",

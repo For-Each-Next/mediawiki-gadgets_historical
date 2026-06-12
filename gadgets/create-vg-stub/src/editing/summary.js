@@ -21,6 +21,7 @@ export const EDIT_SUMMARY_SUFFIX = getTextTemplate("editing.summaryIcon");
  */
 export function buildEditSummary(metadata) {
     const values = {
+        icon: EDIT_SUMMARY_SUFFIX,
         name: buildNameSummaryText(
             metadata.displayName,
             metadata.wikidataId,
@@ -29,8 +30,7 @@ export function buildEditSummary(metadata) {
         proseCount: buildProseCountText(metadata.proseSinographs),
         year: buildYearSummaryText(metadata.year),
     };
-    const summaryBody = formatText("editing.summary", values).trim();
-    const summary = addEditSummarySuffix(summaryBody);
+    const summary = formatText("editing.summary", values).trim();
 
     return summary;
 }
@@ -48,10 +48,12 @@ export function addEditSummarySuffix(summary) {
         return EDIT_SUMMARY_SUFFIX;
     }
 
-    return formatText("editing.summaryWithIcon", {
+    return formatText("editing.summary", {
         icon: EDIT_SUMMARY_SUFFIX,
-        summary: text,
-    });
+        name: text,
+        proseCount: "",
+        year: "",
+    }).trim();
 }
 
 /**

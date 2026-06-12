@@ -599,8 +599,8 @@ test("Steam helper can merge or blank fetched localized names", async () => {
 
     assert.deepEqual(form.localizedNames[0], {
         cn: false,
-        hans: true,
-        hant: true,
+        hans: false,
+        hant: false,
         hk: false,
         name: "相同名",
         official: true,
@@ -608,15 +608,16 @@ test("Steam helper can merge or blank fetched localized names", async () => {
             "https://store.steampowered.com/app/123/example/?l=schinese\n" +
             "https://store.steampowered.com/app/123/example/?l=tchinese",
         tw: false,
-        ww: false,
+        ww: true,
     });
 
     await component.methods.addSteamNames();
     component.methods.applySteamNameChoice("other");
 
     assert.equal(form.localizedNames[1].name, "");
-    assert.equal(form.localizedNames[1].hans, true);
-    assert.equal(form.localizedNames[1].hant, true);
+    assert.equal(form.localizedNames[1].ww, true);
+    assert.equal(form.localizedNames[1].hans, false);
+    assert.equal(form.localizedNames[1].hant, false);
     assert.equal(
         form.localizedNames[1].sourceUrl,
         "https://store.steampowered.com/app/123/example/?l=schinese\n" +

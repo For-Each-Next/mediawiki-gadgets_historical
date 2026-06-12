@@ -311,11 +311,11 @@ const STEAM_NAME_CHOICES = [
     },
     {
         key: "merge",
-        label: "Merge same",
+        label: "Worldwide name",
     },
     {
         key: "other",
-        label: "Other name",
+        label: "Custom name",
     },
 ];
 const ARTICLE_PARAMETER_GROUPS = [
@@ -3348,14 +3348,13 @@ function mergeSteamNameRows(hans, hant, blankName) {
     }
 
     return {
-        hans: Boolean(hans),
-        hant: Boolean(hant),
         name: blankName ? "" : trimFieldValue(hans?.name || hant?.name),
         official: true,
         sourceUrl: rows
             .map((row) => row.sourceUrl)
             .filter(Boolean)
             .join("\n"),
+        ww: true,
     };
 }
 

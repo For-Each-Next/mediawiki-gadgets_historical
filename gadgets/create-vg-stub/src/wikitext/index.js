@@ -10,6 +10,8 @@ export {
     buildCategoryText,
     buildStubTagText,
     getCategoryLinks,
+    getStubTagRows,
+    sortCategoryRowsByProse,
 } from "./categories.js";
 export { buildDefaultSortKey, buildDefaultSortText } from "./default-sort.js";
 export { buildFooterTemplateText } from "./footer.js";

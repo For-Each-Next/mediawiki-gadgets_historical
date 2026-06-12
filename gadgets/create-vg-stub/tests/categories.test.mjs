@@ -15,7 +15,10 @@ import {
 import { createArticleData } from "../src/article/index.js";
 import {
     buildCategoryLinks,
+    buildCategoryText,
     buildStubTagText,
+    getStubTagRows,
+    sortCategoryRowsByProse,
 } from "../src/wikitext/categories.js";
 
 test("buildFallbackCategoryRows keeps generated metadata categories", () => {
@@ -44,7 +47,7 @@ test("buildFallbackCategoryRows keeps generated metadata categories", () => {
     );
 });
 
-test("buildStubTagText renders only checked category row stub tags", () => {
+test("buildStubTagText uses its own checkbox independently of categories", () => {
     assert.equal(
         buildStubTagText({
             categoryRows: [
@@ -71,7 +74,77 @@ test("buildStubTagText renders only checked category row stub tags", () => {
             platformSeriesMetadata: emptyMetadata(),
             yearGenreMetadata: emptyMetadata(),
         }),
-        "{{genre-stub}}",
+        "{{genre-stub}}\n{{platform-stub}}",
+    );
+});
+
+test("buildStubTagText follows related prose order independently of categories", () => {
+    assert.equal(
+        buildStubTagText({
+            categoryRows: [
+                {
+                    category: "PlayStation 5游戏",
+                    enabled: false,
+                    stubTag: "PlayStation-stub",
+                    stubTagEnabled: true,
+                },
+                {
+                    category: "Foo Studio游戏",
+                    stubTag: "company-stub",
+                    stubTagEnabled: true,
+                },
+                {
+                    category: "动作游戏",
+                    stubTag: "action-videogame-stub",
+                    stubTagEnabled: true,
+                },
+            ],
+            prose: {
+                text: "本作是动作游戏，由Foo Studio开发，并登陆PlayStation 5。",
+            },
+        }),
+        [
+            "{{action-videogame-stub}}",
+            "{{company-stub}}",
+            "{{PlayStation-stub}}",
+        ].join("\n"),
+    );
+});
+
+test("getStubTagRows lists unique tags with generated defaults", () => {
+    assert.deepEqual(
+        getStubTagRows({
+            categoryRows: [
+                {
+                    category: "平台A游戏",
+                    stubTag: "platform-stub",
+                    stubTagEnabled: false,
+                },
+                {
+                    category: "平台B游戏",
+                    stubTag: "platform-stub",
+                    stubTagEnabled: true,
+                },
+                {
+                    category: "动作游戏",
+                    stubTag: "action-stub",
+                    stubTagEnabled: true,
+                },
+            ],
+            prose: {
+                text: "动作游戏登陆平台A与平台B。",
+            },
+        }),
+        [
+            {
+                enabled: true,
+                stubTag: "action-stub",
+            },
+            {
+                enabled: true,
+                stubTag: "platform-stub",
+            },
+        ],
     );
 });
 
@@ -88,6 +161,67 @@ test("buildCategoryLinks omits unchecked rows", () => {
             },
         ]),
         ["[[Category:保留分类]]"],
+    );
+});
+
+test("buildCategoryText follows related prose order", () => {
+    assert.equal(
+        buildCategoryText({
+            categoryRows: [
+                {
+                    category: "科樂美遊戲",
+                },
+                {
+                    category: "任天堂Switch 2遊戲",
+                },
+                {
+                    category: "PlayStation 5游戏",
+                },
+                {
+                    category: "Windows游戏",
+                },
+                {
+                    category: "Xbox Series X/S游戏",
+                },
+                {
+                    category: "平台游戏",
+                },
+                {
+                    category: "2026年电子游戏",
+                },
+            ],
+            defaultSortText: "",
+            prose: {
+                text: "《Darwin's Paradox!》是2026年平台类电子游戏，由ZDT Studio开发、科樂美发行。作品对应任天堂Switch 2、PlayStation 5、Windows、Xbox Series X/S平台。",
+            },
+        }),
+        [
+            "",
+            "[[Category:2026年电子游戏]]",
+            "[[Category:平台游戏]]",
+            "[[Category:科樂美遊戲]]",
+            "[[Category:任天堂Switch 2遊戲]]",
+            "[[Category:PlayStation 5游戏]]",
+            "[[Category:Windows游戏]]",
+            "[[Category:Xbox Series X/S游戏]]",
+        ].join("\n"),
+    );
+});
+
+test("sortCategoryRowsByProse orders review rows like category output", () => {
+    const rows = [
+        { category: "科樂美遊戲" },
+        { category: "PlayStation 5游戏" },
+        { category: "平台游戏" },
+        { category: "2026年电子游戏" },
+    ];
+
+    assert.deepEqual(
+        sortCategoryRowsByProse(
+            rows,
+            "本作是2026年平台类电子游戏，由科樂美发行，并登陆PlayStation 5。",
+        ),
+        [rows[3], rows[2], rows[0], rows[1]],
     );
 });
 
@@ -482,10 +616,8 @@ function paramsFromForm(form, options = {}) {
         options.platformSeriesCategories || [];
     params.records.platform.assumedStubTags =
         options.platformSeriesStubTags || [];
-    params.records.year.assumedCategories =
-        options.yearGenreCategories || [];
-    params.records.year.assumedStubTags =
-        options.yearGenreStubTags || [];
+    params.records.year.assumedCategories = options.yearGenreCategories || [];
+    params.records.year.assumedStubTags = options.yearGenreStubTags || [];
 
     return params;
 }

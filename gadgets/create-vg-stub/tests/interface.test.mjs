@@ -5,10 +5,7 @@
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach } from "node:test";
 
-import {
-    StyleSheet,
-    createDialogComponent,
-} from "../src/interface/form.js";
+import { StyleSheet, createDialogComponent } from "../src/interface/form.js";
 
 const originalWindow = globalThis.window;
 
@@ -146,6 +143,7 @@ test("additional prose uses a textarea and source URL field", () => {
     assert.equal(field.multiline, true);
     assert.equal(field.sourceField.sourceKey, "additionalProseSourceUrl");
     assert.equal(field.placeholder, "Text appended after the generated prose");
+    assert.equal(component.template.includes('<cdx-text-area rows="1"'), true);
 });
 
 test("review exposes editable navboxes and subtle prose length", async () => {
@@ -156,7 +154,9 @@ test("review exposes editable navboxes and subtle prose length", async () => {
                 return form.additionalProse === "" ? 24 : 51;
             },
             async onPrepareReview(form) {
-                return form.navboxRows || ["{{Foo series}}"];
+                return form.navboxRows?.length > 0
+                    ? form.navboxRows
+                    : ["{{Foo series}}"];
             },
         }),
     );
@@ -165,6 +165,8 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.methods.getProseSinographs(), 24);
     form.additionalProse = "補充文字";
     assert.equal(component.methods.getProseSinographs(), 51);
+    form.series = "Foo";
+    form.navboxRows = [];
 
     await component.methods.fillForm();
     assert.deepEqual(form.navboxRows, [
@@ -190,6 +192,9 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             title: "Manual navbox",
         },
     ]);
+    component.methods.removeNavboxRow(0);
+    await component.methods.fillForm();
+    assert.deepEqual(form.navboxRows, []);
 
     assert.equal(component.template.includes("Prose length:"), true);
     assert.equal(
@@ -201,6 +206,27 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes("Navboxes"), true);
     assert.equal(
         component.template.includes('v-model="navbox.enabled"'),
+        true,
+    );
+    assert.equal(component.template.includes('v-model="row.enabled"'), true);
+    assert.equal(
+        component.template.includes('v-model="row.stubTagEnabled"'),
+        true,
+    );
+    assert.equal(component.template.includes("{{stub}}"), true);
+    assert.equal(
+        component.template.includes(
+            "'Whether adding {{' + row.stubTag + '}}'",
+        ),
+        true,
+    );
+    assert.equal(component.template.includes("<h3>Stub tags</h3>"), false);
+    assert.equal(
+        component.template.includes('v-on:click="resetCategoryRow(index)"'),
+        false,
+    );
+    assert.equal(
+        component.template.includes('class="create-vg-stub-category-action"'),
         true,
     );
     assert.equal(component.template.includes('v-model="row.category"'), true);

@@ -6,7 +6,6 @@
 
 import {
     createManualCategoryRow,
-    resetCategoryRow,
     updateCategoryRowCategory,
 } from "./handlers/categories.js";
 import {
@@ -443,14 +442,10 @@ async function refreshFormCategoryRows(
             bypassCache: options.bypassCache,
             cache: categoryStore.cache,
         };
-        const rows = await prepareCategoryRows(
-            form,
-            form.categoryRows,
-            {
-                article: articleOptions,
-                categories: categoryOptions,
-            },
-        );
+        const rows = await prepareCategoryRows(form, form.categoryRows, {
+            article: articleOptions,
+            categories: categoryOptions,
+        });
         form.categoryRows.splice(
             0,
             form.categoryRows.length,
@@ -661,7 +656,6 @@ function init(require) {
 
             return { actions, move };
         },
-        onResetCategoryRow: resetCategoryRow,
         onSaveCategory: saveCategoryPage,
         onSaveCompanyCategory: saveCompanyCategory,
         onSaveNavbox: saveNavboxTemplate,

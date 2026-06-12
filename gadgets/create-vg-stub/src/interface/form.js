@@ -166,7 +166,7 @@ const DIALOG_CSS = new StyleSheet()
         display: "grid",
         gap: "4px",
         gridTemplateColumns:
-            "auto minmax(4.2rem, 0.35fr) minmax(12rem, 1.6fr) auto auto auto",
+            "auto minmax(4.2rem, 6em) minmax(12rem, 1.6fr) auto auto",
         marginBottom: "12px",
     })
     .add(".create-vg-stub-category-status", {
@@ -200,8 +200,22 @@ const DIALOG_CSS = new StyleSheet()
         display: "grid",
         gap: "4px",
         gridTemplateColumns:
-            "auto minmax(4.2rem, 0.35fr) minmax(0, 1fr) auto auto",
+            "auto minmax(4.2rem, 0.35fr) minmax(12rem, 1.6fr) auto auto",
         marginBottom: "12px",
+    })
+    .add(".create-vg-stub-category-actions", {
+        alignItems: "center",
+        display: "flex",
+        gap: "16px",
+    })
+    .add(".create-vg-stub-category-action", {
+        width: "5em",
+    })
+    .add(".create-vg-stub-category-stub-tag", {
+        alignItems: "center",
+        display: "inline-flex",
+        gap: "4px",
+        whiteSpace: "nowrap",
     })
     .media("(max-width: 640px)", (sheet) => {
         sheet.add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
@@ -497,7 +511,6 @@ export function addDialogStyles() {
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
  * @param {Function} options.onFill - Editor fill handler.
  * @param {Function} options.onPreSavePrepare - Follow-up action builder.
- * @param {Function} options.onResetCategoryRow - Category row reset handler.
  * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
  * @param {Function} options.onSubmit - Submit handler.
  * @param {Function} options.onSubmitHistory - Form history submit handler.
@@ -557,6 +570,7 @@ export function createDialogComponent(Vue, options) {
         replaceFormValues(form, initialForm);
     }
 
+    let navboxRowsPrepared = hasPreparedNavboxRows(form);
     const queueCitationPrefetch = createCitationPrefetchQueue(options);
 
     Vue.watch(
@@ -711,6 +725,7 @@ export function createDialogComponent(Vue, options) {
              */
             fillHistoryEntry(entry) {
                 replaceFormValues(form, entry.form);
+                navboxRowsPrepared = hasPreparedNavboxRows(form);
                 historyOpen.value = false;
             },
 
@@ -1045,6 +1060,7 @@ export function createDialogComponent(Vue, options) {
              */
             addNavboxRow() {
                 ensureNavboxRows(form).push(createNavboxRow());
+                navboxRowsPrepared = true;
             },
 
             /**
@@ -1166,18 +1182,6 @@ export function createDialogComponent(Vue, options) {
                 } finally {
                     navboxCreateState.loading = false;
                 }
-            },
-
-            /**
-             * Resets one generated category row to its automatic value.
-             *
-             * @param {number} index - Category row index.
-             * @returns {void}
-             */
-            resetCategoryRow(index) {
-                form.categoryRows[index] = options.onResetCategoryRow(
-                    form.categoryRows[index],
-                );
             },
 
             /**
@@ -1458,7 +1462,7 @@ export function createDialogComponent(Vue, options) {
      * @returns {Promise<void>} Resolves after navbox rows are refreshed.
      */
     async function refreshNavboxRows(force, rebuild = false) {
-        if (!force && Array.isArray(form.navboxRows)) {
+        if (!force && navboxRowsPrepared) {
             return;
         }
 
@@ -1481,10 +1485,12 @@ export function createDialogComponent(Vue, options) {
                     return current;
                 }),
             );
+            navboxRowsPrepared = true;
             return;
         }
 
         form.navboxRows = rows;
+        navboxRowsPrepared = true;
     }
 
     /**
@@ -2510,38 +2516,53 @@ function createCategoryRowTemplate() {
                 "v-model": "row.category",
                 "v-on:blur": "checkCategoryRow(index, $event)",
             }),
+            createElement("span", {}),
             createElement(
-                "cdx-button",
+                "div",
                 {
-                    "v-bind:disabled": "row.source === 'manual'",
-                    "v-on:click": "resetCategoryRow(index)",
+                    class: "create-vg-stub-category-actions",
                 },
-                [createText("↺")],
+                [
+                    createElement(
+                        "cdx-button",
+                        {
+                            class: "create-vg-stub-category-action",
+                            "v-if": "canCreateCategory(row)",
+                            "v-on:click": "openCategoryCreate(row)",
+                        },
+                        [createText("Create")],
+                    ),
+                    createElement(
+                        "cdx-button",
+                        {
+                            class: "create-vg-stub-category-action",
+                            "v-else-if": "row.category",
+                            "v-on:click": "openCategoryView(row)",
+                        },
+                        [createText("View")],
+                    ),
+                    createElement("span", {
+                        "v-else": "",
+                    }),
+                    createElement(
+                        "label",
+                        {
+                            class: "create-vg-stub-category-stub-tag",
+                            "v-if": "row.stubTag",
+                        },
+                        [
+                            createElement("cdx-checkbox", {
+                                "v-bind:title":
+                                    "'Whether adding {{' + row.stubTag + '}}'",
+                                "v-model": "row.stubTagEnabled",
+                            }),
+                            createElement("span", {}, [
+                                createText("{{stub}}"),
+                            ]),
+                        ],
+                    ),
+                ],
             ),
-            createElement(
-                "cdx-button",
-                {
-                    "v-if": "canCreateCategory(row)",
-                    "v-on:click": "openCategoryCreate(row)",
-                },
-                [createText("Create")],
-            ),
-            createElement(
-                "cdx-button",
-                {
-                    "v-else-if": "row.category",
-                    "v-on:click": "openCategoryView(row)",
-                },
-                [createText("View")],
-            ),
-            createElement("span", {
-                "v-else": "",
-            }),
-            createElement("cdx-checkbox", {
-                "v-bind:disabled": "!row.stubTag",
-                "v-bind:title": "row.stubTag",
-                "v-model": "row.stubTagEnabled",
-            }),
         ],
     );
 }
@@ -2904,7 +2925,7 @@ function createStandardFieldTemplate() {
                         },
                         [
                             createElement("cdx-text-area", {
-                                rows: "5",
+                                rows: "1",
                                 "v-bind:placeholder":
                                     "getFieldPlaceholder(field) || field.placeholder",
                                 "v-bind:model-value": "form[field.key]",
@@ -3553,6 +3574,13 @@ function ensureNavboxRows(form) {
     }
 
     return form.navboxRows;
+}
+
+function hasPreparedNavboxRows(form) {
+    return (
+        Array.isArray(form.navboxRows) &&
+        (form.navboxRows.length > 0 || trimFieldValue(form.series) === "")
+    );
 }
 
 /**

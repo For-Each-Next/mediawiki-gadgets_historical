@@ -28,8 +28,8 @@ test("RPG genre alias generates linked genre, category, and stub tag", async () 
             "[[电子游戏]]，由Foo Studio开发、Bar Games发行。作品对应PC平台。" +
             "\n\n{{Portal bar|电子游戏}}" +
             "\n{{Authority control}}" +
-            "\n\n{{DEFAULTSORT:Example}}\n[[Category:電子角色扮演遊戲]]" +
-            "\n[[Category:2024年電子遊戲]]\n\n{{rpg-videogame-stub}}",
+            "\n\n{{DEFAULTSORT:Example}}\n[[Category:2024年電子遊戲]]" +
+            "\n[[Category:電子角色扮演遊戲]]\n\n{{rpg-videogame-stub}}",
     );
 });
 
@@ -812,7 +812,7 @@ test("explicit sort key renders above the first category", async () => {
             "\n\n{{Example系列电子游戏}}\n\n" +
                 "{{Portal bar|电子游戏}}\n" +
                 "{{Authority control}}\n\n" +
-                "{{DEFAULTSORT:Custom Key}}\n[[Category:電子角色扮演遊戲]]",
+                "{{DEFAULTSORT:Custom Key}}\n[[Category:2024年電子遊戲]]",
         ),
         true,
     );

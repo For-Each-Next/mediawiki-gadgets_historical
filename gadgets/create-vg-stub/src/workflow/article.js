@@ -18,6 +18,7 @@ import {
     buildDefaultSortKey,
     buildNavboxText,
     buildReviewedNavboxText,
+    sortCategoryRowsByProse,
 } from "../wikitext/index.js";
 import { trimFieldValue } from "../shared/form-values.js";
 import { buildArticleWikitext } from "../wikitext/article.js";
@@ -107,7 +108,10 @@ export async function buildStubTextFromForm(
  * @returns {Promise<Array<object>>} Resolved navbox rows.
  */
 export async function prepareNavboxRows(form, rebuild) {
-    const shouldGenerate = rebuild || !Array.isArray(form.navboxRows);
+    const shouldGenerate =
+        rebuild ||
+        !Array.isArray(form.navboxRows) ||
+        (form.navboxRows.length === 0 && trimFieldValue(form.series) !== "");
     const titles = shouldGenerate
         ? await resolveNavboxTitles(form.series)
         : [];
@@ -145,7 +149,7 @@ export async function prepareCategoryRows(
         options.categories || {},
     );
 
-    return rows;
+    return sortCategoryRowsByProse(rows, articleData.prose.text);
 }
 
 /**

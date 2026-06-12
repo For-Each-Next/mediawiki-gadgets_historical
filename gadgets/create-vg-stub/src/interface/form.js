@@ -509,7 +509,7 @@ export function addDialogStyles() {
  * @param {Function} options.onSaveCompanyCategory - Company category save handler.
  * @param {Function} options.onSaveNavbox - Navbox template save handler.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
- * @param {Function} options.onFill - Editor fill handler.
+ * @param {Function} options.onPreview - Editor preview handler.
  * @param {Function} options.onPreSavePrepare - Follow-up action builder.
  * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
  * @param {Function} options.onSubmit - Submit handler.
@@ -590,8 +590,40 @@ export function createDialogComponent(Vue, options) {
         }
     });
 
+    async function openPreSave() {
+        await refreshReview();
+        sourceFetchState.error = "";
+        sourceFetchState.loading = true;
+        preSaveMoveTitle.value = getCurrentTitle();
+        preSaveOpen.value = true;
+
+        try {
+            const prepared = await options.onPreSavePrepare(
+                form,
+                getCurrentTitle(),
+            );
+
+            preSaveActions.splice(
+                0,
+                preSaveActions.length,
+                ...(prepared.actions || []),
+            );
+            preSaveMoveEnabled.value = prepared.move?.enabled === true;
+            preSaveMoveTitle.value =
+                trimFieldValue(prepared.move?.to) || getCurrentTitle();
+        } catch (error) {
+            sourceFetchState.error = error.message || String(error);
+        } finally {
+            sourceFetchState.loading = false;
+        }
+    }
+
     window.createVgStubDialog = {
         open: openDialog.bind(null, open),
+        async submit() {
+            open.value = true;
+            await openPreSave();
+        },
     };
 
     return {
@@ -606,15 +638,19 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
-             * Fills the MediaWiki editor after review without submitting it.
+             * Opens a MediaWiki preview after review.
              *
-             * @returns {Promise<void>} Resolves after generated text is inserted.
+             * @returns {Promise<void>} Resolves after preview submission starts.
              */
-            async fillForm() {
+            async previewForm() {
                 await refreshReview();
                 options.onSubmitHistory(form, getCurrentTitle());
                 historyEntries.value = options.getHistoryEntries();
-                await options.onFill(form, sourceFetchState, this.closeDialog);
+                await options.onPreview(
+                    form,
+                    sourceFetchState,
+                    this.closeDialog,
+                );
             },
 
             /**
@@ -623,31 +659,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after checklist preparation.
              */
             async submitForm() {
-                await refreshReview();
-                sourceFetchState.error = "";
-                sourceFetchState.loading = true;
-                preSaveMoveTitle.value = getCurrentTitle();
-                preSaveOpen.value = true;
-
-                try {
-                    const prepared = await options.onPreSavePrepare(
-                        form,
-                        getCurrentTitle(),
-                    );
-
-                    preSaveActions.splice(
-                        0,
-                        preSaveActions.length,
-                        ...(prepared.actions || []),
-                    );
-                    preSaveMoveEnabled.value = prepared.move?.enabled === true;
-                    preSaveMoveTitle.value =
-                        trimFieldValue(prepared.move?.to) || getCurrentTitle();
-                } catch (error) {
-                    sourceFetchState.error = error.message || String(error);
-                } finally {
-                    sourceFetchState.loading = false;
-                }
+                await openPreSave();
             },
 
             /**
@@ -2001,11 +2013,11 @@ function createMainDialogFooterTemplate() {
                         {
                             action: "progressive",
                             "v-bind:disabled": "sourceFetchState.loading",
-                            "v-on:click": "fillForm",
+                            "v-on:click": "previewForm",
                         },
                         [
                             createText(
-                                "{{ sourceFetchState.loading ? 'Fetching' : 'Fill' }}",
+                                "{{ sourceFetchState.loading ? 'Fetching' : 'Preview' }}",
                             ),
                         ],
                     ),

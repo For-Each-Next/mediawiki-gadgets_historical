@@ -49,7 +49,9 @@ import {
     storePendingSaveData,
 } from "./editing/session.js";
 import {
+    interceptEditSave,
     submitEditForm,
+    submitPreviewForm,
     writeEditSummary,
     writeEditText,
 } from "./editing/editor.js";
@@ -76,18 +78,6 @@ import { fetchSteamNameRows } from "./sources/steam-names.js";
 const CITATION_PREFETCH_DELAY = 800;
 
 export { submitEditForm };
-
-/**
- * Checks whether the current view is editing a missing page.
- *
- * @returns {boolean} Whether the current view is a new-page edit form.
- */
-function isNewPageEdit() {
-    return (
-        isEditAction(mw.config.get("wgAction")) &&
-        mw.config.get("wgArticleId") === 0
-    );
-}
 
 /**
  * Checks whether the current view displays a missing page.
@@ -244,22 +234,41 @@ function getDefaultNameFallback() {
 }
 
 /**
- * Generates wikitext and fills the MediaWiki edit form without submitting it.
+ * Generates wikitext and opens the MediaWiki preview.
  *
  * @param {object} form - Dialog form values.
  * @param {object} sourceFetchState - Source fetch status state.
  * @param {Function} closeDialog - Dialog close callback.
  * @param {object} citationStore - Citation fetch/cache store.
- * @returns {Promise<void>} Resolves after generated text is inserted.
+ * @returns {Promise<void>} Resolves after preview submission starts.
  */
-async function fillForm(form, sourceFetchState, closeDialog, citationStore) {
+async function previewForm(
+    form,
+    sourceFetchState,
+    closeDialog,
+    citationStore,
+) {
     sourceFetchState.error = "";
     sourceFetchState.loading = true;
 
     try {
+        if (document.getElementById("editform") == null) {
+            await openTargetPage(
+                form,
+                getPageName(),
+                sourceFetchState,
+                citationStore,
+                {
+                    preview: true,
+                },
+            );
+            return;
+        }
+
         await writeGeneratedStub(form, citationStore);
         clearPendingSaveData();
         closeDialog();
+        submitPreviewForm();
     } catch (error) {
         sourceFetchState.error = error.message;
     } finally {
@@ -534,7 +543,13 @@ function addToolboxLink() {
  * @param {object} citationStore - Citation fetch/cache store.
  * @returns {Promise<void>} Resolves after generated text is stored.
  */
-async function openTargetPage(form, title, sourceFetchState, citationStore) {
+async function openTargetPage(
+    form,
+    title,
+    sourceFetchState,
+    citationStore,
+    options = {},
+) {
     sourceFetchState.error = "";
     const targetTitle = trimFieldValue(title);
 
@@ -550,6 +565,7 @@ async function openTargetPage(form, title, sourceFetchState, citationStore) {
 
         storeMovedEdit({
             form: targetForm,
+            preview: options.preview === true,
             text: stub.text,
             summaryMetadata: createEditSummaryMetadata(targetForm, stub),
             title: targetTitle,
@@ -579,6 +595,10 @@ function restoreMovedEditText() {
     writeEditText(pending.text);
     writeEditSummary(buildEditSummary(pending.summaryMetadata || {}));
     clearMovedEdit();
+
+    if (pending.preview === true) {
+        submitPreviewForm();
+    }
 }
 
 /**
@@ -616,7 +636,7 @@ function init(require) {
         getFieldPreview,
         getProseSinographs: getFormProseSinographs,
         initialForm: movedEdit?.form || readFormDraftForPage(defaultName),
-        initialOpen: movedEdit != null,
+        initialOpen: movedEdit != null && movedEdit.preview !== true,
         onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
             refreshFormCategoryRows(
                 form,
@@ -628,15 +648,7 @@ function init(require) {
         onCreateCategoryRow: createManualCategoryRow,
         onDeleteHistoryEntry: deleteFormHistoryEntry,
         onEnwikiTitleChange: fetchEnwikiMetadata,
-        onFill: isMissingPageView()
-            ? (form, sourceFetchState) =>
-                  openTargetPage(
-                      form,
-                      getPageName(),
-                      sourceFetchState,
-                      citationStore,
-                  )
-            : (...args) => fillForm(...args, citationStore),
+        onPreview: (...args) => previewForm(...args, citationStore),
         onFormChange: saveFormDraft,
         onMoveTarget: (...args) => openTargetPage(...args, citationStore),
         onPrepareCompanyCategory: prepareCompanyCategoryText,
@@ -676,6 +688,7 @@ function init(require) {
     app.component("CdxTextArea", Codex.CdxTextArea);
     app.component("CdxTextInput", Codex.CdxTextInput);
     app.mount(createHost());
+    interceptEditSave(() => window.createVgStubDialog.submit());
     addToolboxLink();
     renderStoredSaveProgress();
     restoreMovedEditText();
@@ -744,7 +757,17 @@ async function runPendingSaveActions(require) {
     }
 }
 
-if (isNewPageEdit() || isMissingPageView()) {
+const currentAction = mw.config.get("wgAction");
+const hasPendingSave =
+    currentAction === "view" &&
+    mw.config.get("wgArticleId") !== 0 &&
+    getPendingSaveData(getPageName()) != null;
+
+if (hasPendingSave) {
+    mw.loader
+        .using(["mediawiki.api", "mediawiki.ForeignApi", "mediawiki.util"])
+        .then(runPendingSaveActions);
+} else if (isEditAction(currentAction) || currentAction === "view") {
     mw.loader
         .using([
             "mediawiki.api",
@@ -755,12 +778,4 @@ if (isNewPageEdit() || isMissingPageView()) {
             "@wikimedia/codex",
         ])
         .then(init);
-} else if (
-    mw.config.get("wgAction") === "view" &&
-    mw.config.get("wgArticleId") !== 0 &&
-    getPendingSaveData(getPageName()) != null
-) {
-    mw.loader
-        .using(["mediawiki.api", "mediawiki.ForeignApi", "mediawiki.util"])
-        .then(runPendingSaveActions);
 }

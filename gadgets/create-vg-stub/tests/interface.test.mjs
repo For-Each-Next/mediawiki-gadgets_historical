@@ -168,7 +168,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     form.series = "Foo";
     form.navboxRows = [];
 
-    await component.methods.fillForm();
+    await component.methods.previewForm();
     assert.deepEqual(form.navboxRows, [
         {
             enabled: true,
@@ -193,7 +193,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         },
     ]);
     component.methods.removeNavboxRow(0);
-    await component.methods.fillForm();
+    await component.methods.previewForm();
     assert.deepEqual(form.navboxRows, []);
 
     assert.equal(component.template.includes("Prose length:"), true);
@@ -716,15 +716,39 @@ test("submit opens pre-save fixes without changing tabs", async () => {
     assert.equal(preSaveOpen.value, true);
 });
 
-test("fill and submit use separate popup actions", async () => {
-    let fillCount = 0;
+test("native submit bridge opens category and pre-save review", async () => {
+    let refreshCount = 0;
+    let submitCount = 0;
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onCategoryRowsRefresh() {
+                refreshCount += 1;
+            },
+            onSubmit() {
+                submitCount += 1;
+            },
+        }),
+    );
+    const { open, preSaveOpen } = component.setup();
+
+    await window.createVgStubDialog.submit();
+
+    assert.equal(open.value, true);
+    assert.equal(preSaveOpen.value, true);
+    assert.equal(refreshCount, 1);
+    assert.equal(submitCount, 0);
+});
+
+test("preview and submit use separate popup actions", async () => {
+    let previewCount = 0;
     let submitCount = 0;
     let historyCount = 0;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
-            onFill() {
-                fillCount += 1;
+            onPreview() {
+                previewCount += 1;
             },
             onSubmit() {
                 submitCount += 1;
@@ -734,21 +758,24 @@ test("fill and submit use separate popup actions", async () => {
             },
         }),
     );
-    await component.methods.fillForm();
-    assert.equal(fillCount, 1);
+    await component.methods.previewForm();
+    assert.equal(previewCount, 1);
     assert.equal(submitCount, 0);
     assert.equal(historyCount, 1);
-    assert.equal(component.template.includes('v-on:click="fillForm"'), true);
-    assert.equal(component.template.includes("'Fill'"), true);
+    assert.equal(
+        component.template.includes('v-on:click="previewForm"'),
+        true,
+    );
+    assert.equal(component.template.includes("'Preview'"), true);
     assert.equal(component.template.includes('v-on:click="submitForm"'), true);
     assert.equal(component.template.includes("'Submit'"), true);
     assert.equal(
         component.template.indexOf(">Move<") <
-            component.template.indexOf('v-on:click="fillForm"'),
+            component.template.indexOf('v-on:click="previewForm"'),
         true,
     );
     assert.equal(
-        component.template.indexOf('v-on:click="fillForm"') <
+        component.template.indexOf('v-on:click="previewForm"') <
             component.template.indexOf('v-on:click="submitForm"'),
         true,
     );
@@ -986,7 +1013,7 @@ function createOptionsStub(options = {}) {
         onCreateCategoryRow() {},
         onDeleteHistoryEntry() {},
         onFormChange() {},
-        onFill() {},
+        onPreview() {},
         onMoveTarget() {},
         onPrepareCompanyCategory() {},
         async onPrepareReview() {

@@ -13,7 +13,7 @@
         "outputName": "create_vg_stub",
         "defines": {
             "__CREATE_VG_STUB_FIELD_DATA__": {
-                "jsonDirectory": "src/data"
+                "jsonDirectory": "src/config"
             }
         },
         "userscript": {

@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseJsonc } from "../../../scripts/jsonc.mjs";
 
-const path = resolve("src/data/wikitext.jsonc");
+const path = resolve("src/config/wikitext.jsonc");
 const source = await readFile(path, "utf8");
 const wikitext = parseJsonc(source);
 

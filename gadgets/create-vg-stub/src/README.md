@@ -9,7 +9,7 @@ wikitext.
 - `article/data/`: pure field parsing and metadata extraction.
 - `article/modules/`: field ownership, live normalization, and record adapters.
 - `article/processor.js`: flushes registered modules into article data.
-- `data/wikitext.jsonc`: editable language text and placeholder templates.
+- `config/`: editable build-time definitions and language text.
 - `handlers/`: asynchronous title/category/navbox resolution and review state.
 - `wikitext/`: pure builders that accept prepared data and return text.
 - `interface/`: form UI and form-history persistence.
@@ -35,6 +35,6 @@ Handlers own MediaWiki page resolution and review state. Wikitext builders
 own article text rendering. Cross-layer work belongs in
 `workflow/article.js`.
 
-Generated language text belongs in `data/wikitext.jsonc`. Builders retain
+Generated language text belongs in `config/wikitext.jsonc`. Builders retain
 structural wikitext and substitute named placeholders through
 `shared/text-templates.js`.

@@ -4,6 +4,9 @@
  * Estimates generated prose length in Hanzi-equivalent sinographs.
  */
 
+import { formatText } from "../shared/text-templates.js";
+import { buildSentence1Text } from "./sentence.js";
+
 /**
  * Counts generated prose in Hanzi-equivalent sinographs.
  *
@@ -51,12 +54,21 @@ export function countProseSinographs(text) {
  * @returns {string} Generated prose text.
  */
 function buildGeneratedProseText(params) {
-    return (
-        `是${params.yearGenreMetadata.text}${params.companyMetadata.text}。` +
-        params.platformSeriesMetadata.text +
-        params.aggScoresText +
-        (params.additionalProseText || "")
+    const sentence1a = formatText("prose.countedSentence1a", {
+        yearGenre: params.yearGenreMetadata.text,
+    });
+    const sentence1 = buildSentence1Text(
+        sentence1a,
+        params.companyMetadata.text,
     );
+    const text = formatText("prose.paragraph", {
+        sentence1,
+        sentence2: params.platformSeriesMetadata.text,
+        sentence3: params.aggScoresText,
+        sentence4: params.additionalProseText || "",
+    });
+
+    return text;
 }
 
 /**

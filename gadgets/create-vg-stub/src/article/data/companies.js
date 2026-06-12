@@ -15,6 +15,7 @@ import {
     splitFieldValues,
     uniqueValues,
 } from "../../shared/utils.js";
+import { formatText, getTextTemplate } from "../../shared/text-templates.js";
 
 /**
  * Builds company values and category assumptions without composing prose.
@@ -70,10 +71,10 @@ export function buildCompanyData(companies) {
  */
 function joinCompanyTextList(values) {
     if (values.length === 2) {
-        return values.join("和");
+        return values.join(getTextTemplate("shared.conjunction"));
     }
 
-    return values.join("、");
+    return values.join(getTextTemplate("shared.enumerationSeparator"));
 }
 
 /**
@@ -240,7 +241,9 @@ function buildCompanyCategoryItemsForValue(company, options = {}) {
         {
             candidates: buildCompanyCategoryCandidates(company),
             company: reference?.page?.title || options.company || company,
-            fallback: `${getDisambiguationBaseTitle(company)}游戏`,
+            fallback: formatText("patterns.title.game", {
+                title: getDisambiguationBaseTitle(company),
+            }),
         },
     ];
 }
@@ -293,7 +296,11 @@ function buildCompanyCategoryCandidates(company) {
  * @returns {Array<string>} Candidate category titles.
  */
 function buildCompanyTitleCategoryCandidates(title) {
-    return [`${title}电子游戏`, `${title}游戏`, title];
+    return [
+        formatText("patterns.title.videoGames", { title }),
+        formatText("patterns.title.game", { title }),
+        title,
+    ];
 }
 
 /**

@@ -1,0 +1,93 @@
+{
+    // Punctuation shared by prose and normalized field display.
+    "shared": {
+        "conjunction": "和",
+        "enumerationSeparator": "、",
+        "portal": "电子游戏",
+    },
+
+    // Reusable title, year, and series formatting patterns.
+    "patterns": {
+        // Generic page and category title candidates.
+        "title.game": "{title}游戏",
+        "title.series": "{title}系列",
+        "title.seriesVideoGames": "{title}系列电子游戏",
+        "title.videoGames": "{title}电子游戏",
+
+        // Release-year phrases and category.
+        "year.future": "未来电子游戏",
+        "year.planned": "预定于{year}年推出的",
+        "year.released": "{year}年",
+        "year.unreleased": "尚未推出的",
+
+        // Series display text used in prose.
+        "series.displayTitle": "《{title}》系列",
+    },
+
+    // Text shown in the generated article's main prose paragraph.
+    "prose": {
+        // Complete paragraph from four sentence outputs.
+        "paragraph": "{sentence1}{sentence2}{sentence3}{sentence4}",
+
+        // Sentence 1 joins sentence 1a and optional sentence 1b.
+        "sentence1": "{text}。",
+        "sentence1Separator": "，",
+
+        // Sentence 1a: titles, release year, and genre.
+        "sentence1a": "{titles}是{yearGenre}",
+        "countedSentence1a": "是{yearGenre}",
+        "titles": "《'''{name}'''》{foreignTitle}",
+        "foreignTitle": "（{title}{sourceTag}）",
+        "yearGenre": "{prefix}[[电子游戏]]{sourceTag}",
+        "fallbackYearGenrePrefix": "一款",
+        "genreClass": "{genreText}类",
+
+        // Sentence 1b: developer and publisher attribution.
+        "sentence1b": "由{roleText}{sourceTag}",
+        "developed": "{developers}开发",
+        "developedAndPublished": "{developers}开发及发行",
+        "developedThenPublished": "{developers}开发、{publishers}发行",
+        "published": "{publishers}发行",
+
+        // Sentence 2: supported platforms and game series.
+        "sentence2": "作品对应{platformText}平台{platformSourceTag}{seriesClause}。",
+        "seriesClause": "，属于{seriesText}{seriesSourceTag}",
+        "seriesOnly": "作品属于{seriesText}{seriesSourceTag}。",
+        "seriesTitle": "「{value}」",
+
+        // Sentence 3: aggregate review scores.
+        "sentence3": "游戏的{clauses}。",
+        "scoreSeparator": "，",
+        "metacritic": "[[Metacritic]]汇总得分为{score}/100",
+        "metacriticPlatformEdition": "（{label}版）",
+        "openCritic": "[[OpenCritic]]评测推荐率为{score}%",
+
+        // Sentence 4: user-entered appended prose.
+        "sentence4": "{text}{sourceTag}",
+        "sentence4WithPeriod": "{text}{sourceTag}。",
+    },
+
+    // Heading shown above generated citation definitions.
+    "referencesHeading": "参考文献",
+
+    // Text shown on generated company-category helper pages.
+    "handlers": {
+        // Company category page title and prose.
+        "allCompaniesCategory": "各公司电子游戏",
+        "companyCategoryDescription": "本分類收錄由[[{company}]]開發、發行的電子遊戲作品。",
+    },
+
+    // Text shown in the generated edit summary.
+    "editing": {
+        // Full summary and reusable suffix form.
+        "summary": "{name}{year}{proseCount}",
+        "summaryWithIcon": "{summary} {icon}",
+
+        // Optional summary components.
+        "wikidataName": "[[:d:{id}|{label}]]",
+        "enwikiName": "[[:w:en:{title}|{label}]]",
+        "summaryYear": " ([[{year}年電子遊戲界|{year}]])",
+        "proseCount": " [{count} sinographs]",
+        "summaryIcon": "[[:m:User:For_Each_..._Next/global.js/create_vg_stub.js|🎮]]",
+    },
+}

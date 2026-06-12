@@ -74,9 +74,7 @@ export function formatArticleFormField(form, key, value) {
  * @returns {boolean} Whether the field is a multi-item list.
  */
 export function isArticleListField(key) {
-    return ARTICLE_MODULES.some((module) =>
-        module.listFields.includes(key),
-    );
+    return ARTICLE_MODULES.some((module) => module.listFields.includes(key));
 }
 
 /**
@@ -123,14 +121,14 @@ function buildArticleData(input) {
     const renderers = buildArticleRenderers(records, sourceTags);
     const companyMetadata = {
         ...records.companies.metadata,
-        text: prose.fragments.companies,
+        text: prose.fragments.sentence1.s1b,
     };
     const platformSeriesMetadata = {
         categories: records.platform.assumedCategories,
         categoryPlans: records.series.categoryPlans,
         platformCount: records.platform.metadata.count,
         stubTags: records.platform.assumedStubTags,
-        text: prose.fragments.platformSeries,
+        text: prose.fragments.sentence2,
     };
     const yearGenreMetadata = {
         categories: [
@@ -138,11 +136,11 @@ function buildArticleData(input) {
             ...records.year.assumedCategories,
         ],
         stubTags: records.genre.assumedStubTags,
-        text: prose.fragments.yearGenre,
+        text: prose.fragments.sentence1.s1a.yearGenre,
     };
     const data = {
-        additionalProseText: prose.fragments.additional,
-        aggScoresText: prose.fragments.scores,
+        additionalProseText: prose.fragments.sentence4,
+        aggScoresText: prose.fragments.sentence3,
         categoryRows: form.categoryRows,
         companies: {
             developers: form.developers,
@@ -154,7 +152,7 @@ function buildArticleData(input) {
         form,
         genres: form.genres,
         infoboxText: renderers.infobox,
-        leadNameText: prose.fragments.leadName,
+        leadNameText: prose.fragments.sentence1.s1a.titles,
         name: form.name,
         navboxText: renderers.navboxes,
         noteTaText: renderers.noteTa,

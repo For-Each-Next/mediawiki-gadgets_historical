@@ -1,48 +1,48 @@
 {
-  "name": "create-vg-stub",
-  "version": "0.1.0",
-  "description": "Quickly create a video game stub on the Chinese Wikipedia.",
-  "private": true,
-  "license": "CC BY-SA 4.0",
-  "author": "For Each ... Next",
-  "type": "module",
-  "main": "./src/index.js",
-  "browser": "./src/index.js",
-  "gadgetBuild": {
-    "globalName": "createVgStub",
-    "outputName": "create_vg_stub",
-    "defines": {
-      "__CREATE_VG_STUB_FIELD_DATA__": {
-        "jsonDirectory": "src/data"
-      }
+    "name": "create-vg-stub",
+    "version": "0.1.0",
+    "description": "Quickly create a video game stub on the Chinese Wikipedia.",
+    "private": true,
+    "license": "CC BY-SA 4.0",
+    "author": "For Each ... Next",
+    "type": "module",
+    "main": "./src/index.js",
+    "browser": "./src/index.js",
+    "gadgetBuild": {
+        "globalName": "createVgStub",
+        "outputName": "create_vg_stub",
+        "defines": {
+            "__CREATE_VG_STUB_FIELD_DATA__": {
+                "jsonDirectory": "src/data"
+            }
+        },
+        "userscript": {
+            "match": [
+                "https://zh.wikipedia.org/*"
+            ]
+        }
     },
-    "userscript": {
-      "match": [
-        "https://zh.wikipedia.org/*"
-      ]
+    "files": [
+        "dist",
+        "README.md",
+        "src"
+    ],
+    "keywords": [
+        "mediawiki",
+        "gadget",
+        "wikipedia",
+        "zhwiki",
+        "video-games"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/build-gadget.mjs",
+        "check": "npm run lint && node --check src/index.js",
+        "lint": "eslint src",
+        "lint:fix": "eslint src --fix",
+        "test": "node --import ./tests/setup.mjs --test",
+        "prepublishOnly": "npm run check"
+    },
+    "engines": {
+        "node": ">=20"
     }
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "src"
-  ],
-  "keywords": [
-    "mediawiki",
-    "gadget",
-    "wikipedia",
-    "zhwiki",
-    "video-games"
-  ],
-  "scripts": {
-    "build": "node ../../scripts/build-gadget.mjs",
-    "check": "npm run lint && node --check src/index.js",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
-    "test": "node --test",
-    "prepublishOnly": "npm run check"
-  },
-  "engines": {
-    "node": ">=20"
-  }
 }

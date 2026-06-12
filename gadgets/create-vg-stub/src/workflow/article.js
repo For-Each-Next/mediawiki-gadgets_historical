@@ -22,6 +22,8 @@ import {
 import { trimFieldValue } from "../shared/form-values.js";
 import { buildArticleWikitext } from "../wikitext/article.js";
 import { countGeneratedProseSinographs } from "../wikitext/prose-count.js";
+import { buildSentence1Text } from "../wikitext/sentence.js";
+import { formatText } from "../shared/text-templates.js";
 
 /**
  * Builds normalized article data from raw form values.
@@ -135,10 +137,7 @@ export async function prepareCategoryRows(
         ...form,
         categoryRows: [],
     };
-    const articleData = flushArticleData(
-        articleForm,
-        options.article || {},
-    );
+    const articleData = flushArticleData(articleForm, options.article || {});
     const rows = await buildCategoryRows(
         form,
         articleData,
@@ -166,7 +165,7 @@ export function getArticleFieldPreview(form, key, options = {}) {
         }
 
         if (key === "score") {
-            return articleData.prose.fragments.scores;
+            return articleData.prose.fragments.sentence3;
         }
 
         if (key === "attribution") {
@@ -268,11 +267,18 @@ function prepareWikitextData(articleData) {
  */
 function buildAttributionPreviewText(articleData) {
     const fragments = articleData.prose.fragments;
-    const introText = `${fragments.yearGenre}${fragments.companies}`;
+    const sentence1 = fragments.sentence1;
 
-    if (introText === "") {
-        return fragments.platformSeries;
+    if (sentence1.s1a.yearGenre === "") {
+        return fragments.sentence2;
     }
 
-    return `……是${introText}。${fragments.platformSeries}`;
+    const sentence1a = formatText("prose.sentence1a", {
+        titles: "……",
+        yearGenre: sentence1.s1a.yearGenre,
+    });
+    const previewSentence1 = buildSentence1Text(sentence1a, sentence1.s1b);
+    const preview = `${previewSentence1}${fragments.sentence2}`;
+
+    return preview;
 }

@@ -18,11 +18,10 @@ globalThis.__CREATE_VG_STUB_FIELD_DATA__ = {
             stubTags: ["Bar-stub"],
         },
     ],
+    wikitext: globalThis.__CREATE_VG_STUB_FIELD_DATA__.wikitext,
 };
 
-const { buildCategoryRows } = await import(
-    "../src/handlers/categories.js"
-);
+const { buildCategoryRows } = await import("../src/handlers/categories.js");
 const { createArticleData } = await import("../src/article/index.js");
 
 test("buildCategoryRows checks company stub tags for shared developers and publishers", async () => {

@@ -9,6 +9,7 @@ import {
     getReferenceDefinition,
     trimValue,
 } from "../shared/utils.js";
+import { formatText, getTextTemplate } from "../shared/text-templates.js";
 
 /**
  * Builds aggregate review score sentence text.
@@ -31,7 +32,9 @@ export function buildAggScoresText(params) {
         return "";
     }
 
-    return `游戏的${clauses.join("，")}。`;
+    return formatText("prose.sentence3", {
+        clauses: clauses.join(getTextTemplate("prose.scoreSeparator")),
+    });
 }
 
 /**
@@ -51,7 +54,7 @@ function buildMetacriticClause(params) {
     }
 
     return (
-        `[[Metacritic]]汇总得分为${score}/100` +
+        formatText("prose.metacritic", { score }) +
         buildPlatformEditionText(platform) +
         (params.metacriticSourceTag || "")
     );
@@ -73,7 +76,7 @@ function buildOpenCriticClause(params) {
     }
 
     return (
-        `[[OpenCritic]]评测推荐率为${score}%` +
+        formatText("prose.openCritic", { score }) +
         (params.openCriticSourceTag || "")
     );
 }
@@ -116,7 +119,9 @@ function buildPlatformEditionText(platform) {
         return "";
     }
 
-    return `（${label}版）`;
+    return formatText("prose.metacriticPlatformEdition", {
+        label,
+    });
 }
 
 /**

@@ -7,6 +7,8 @@
 import { buildAggScoresText } from "./aggregate-scores.js";
 import { buildLeadNameText } from "./lead-name.js";
 import { countProseSinographs } from "./prose-count.js";
+import { buildSentence1Text } from "./sentence.js";
+import { formatText, getTextTemplate } from "../shared/text-templates.js";
 
 /**
  * Builds every prose fragment that combines independent data records.
@@ -24,46 +26,63 @@ export function buildArticleProse(records, sourceTags) {
         originalName: names.original.name,
         sourceTags,
     };
-    const leadName = buildLeadNameText(leadValues);
+    const titles = buildLeadNameText(leadValues);
     const yearGenre = buildYearGenreProse(
         records.year,
         records.genre,
         joinSourceTags(sourceTags, ["year", "genres"]),
     );
-    const companies = buildCompanyProse(records.companies, {
+    const sentence1aText = formatText("prose.sentence1a", {
+        titles,
+        yearGenre,
+    });
+    const sentence1b = buildCompanyProse(records.companies, {
         sourceTag: joinSourceTags(sourceTags, ["developers", "publishers"]),
     });
-    const platformSeries = buildPlatformSeriesProse(
+    const sentence1a = {
+        text: sentence1aText,
+        titles,
+        yearGenre,
+    };
+    const sentence1 = {
+        s1a: sentence1a,
+        s1b: sentence1b,
+        text: buildSentence1Text(sentence1a.text, sentence1b),
+    };
+    const sentence2 = buildPlatformsAndSeriesProse(
         records.platform,
         records.series,
         sourceTags,
     );
-    const scores = buildScoreProse(records.scores, sourceTags);
-    const additional = buildAdditionalProse(
+    const sentence3 = buildScoresProse(records.scores, sourceTags);
+    const sentence4 = buildAppendProse(
         records.additionalProse,
         sourceTags.additionalProse,
     );
     const fragments = {
-        additional,
-        companies,
-        leadName,
-        platformSeries,
-        scores,
-        yearGenre,
+        sentence1,
+        sentence2,
+        sentence3,
+        sentence4,
     };
-    const text =
-        `${leadName}是${yearGenre}${companies}。` +
-        platformSeries +
-        scores +
-        additional;
+    const proseValues = {
+        sentence1: sentence1.text,
+        sentence2,
+        sentence3,
+        sentence4,
+    };
+    const countedSentence1a = formatText("prose.countedSentence1a", {
+        yearGenre,
+    });
+    const countedSentence1 = buildSentence1Text(countedSentence1a, sentence1b);
+    const countedText = formatText("prose.paragraph", {
+        ...proseValues,
+        sentence1: countedSentence1,
+    });
+    const text = formatText("prose.paragraph", proseValues);
     const prose = {
         fragments,
-        sinographs: countProseSinographs(
-            `是${yearGenre}${companies}。` +
-                platformSeries +
-                scores +
-                additional,
-        ),
+        sinographs: countProseSinographs(countedText),
         text,
     };
 
@@ -81,9 +100,19 @@ export function buildArticleProse(records, sourceTags) {
 export function buildYearGenreProse(year, genre, sourceTag = "") {
     const yearText = year.metadata.phrase || "";
     const genreText =
-        genre.wikitext.list === "" ? "" : `${genre.wikitext.list}类`;
-    const prefix = `${yearText}${genreText}` || "一款";
-    const prose = `${prefix}[[电子游戏]]${sourceTag}`;
+        genre.wikitext.list === ""
+            ? ""
+            : formatText("prose.genreClass", {
+                  genreText: genre.wikitext.list,
+              });
+    const prefix =
+        `${yearText}${genreText}` ||
+        getTextTemplate("prose.fallbackYearGenrePrefix");
+    const values = {
+        prefix,
+        sourceTag,
+    };
+    const prose = formatText("prose.yearGenre", values);
 
     return prose;
 }
@@ -93,7 +122,7 @@ export function buildYearGenreProse(year, genre, sourceTag = "") {
  *
  * @param {object} options - Attribution options.
  * @param {string} [options.sourceTag] - Combined company source tags.
- * @returns {string} Company attribution beginning with a comma.
+ * @returns {string} Company attribution clause.
  */
 export function buildCompanyProse(companies, options = {}) {
     const developerText = companies.wikitext.developers || "";
@@ -108,7 +137,11 @@ export function buildCompanyProse(companies, options = {}) {
         return "";
     }
 
-    const prose = `，由${roleText}${options.sourceTag || ""}`;
+    const values = {
+        roleText,
+        sourceTag: options.sourceTag || "",
+    };
+    const prose = formatText("prose.sentence1b", values);
 
     return prose;
 }
@@ -121,7 +154,11 @@ export function buildCompanyProse(companies, options = {}) {
  * @param {object} [sourceTags] - Source tags keyed by field.
  * @returns {string} Platform/series sentence.
  */
-export function buildPlatformSeriesProse(platforms, series, sourceTags = {}) {
+export function buildPlatformsAndSeriesProse(
+    platforms,
+    series,
+    sourceTags = {},
+) {
     const platformText = platforms.wikitext.list;
     const seriesText = buildSeriesListText(series.values);
 
@@ -130,7 +167,11 @@ export function buildPlatformSeriesProse(platforms, series, sourceTags = {}) {
     }
 
     if (platformText === "") {
-        const prose = `作品属于${seriesText}${sourceTags.series || ""}。`;
+        const values = {
+            seriesSourceTag: sourceTags.series || "",
+            seriesText,
+        };
+        const prose = formatText("prose.seriesOnly", values);
 
         return prose;
     }
@@ -138,10 +179,16 @@ export function buildPlatformSeriesProse(platforms, series, sourceTags = {}) {
     const seriesClause =
         seriesText === ""
             ? ""
-            : `，属于${seriesText}${sourceTags.series || ""}`;
-    const prose =
-        `作品对应${platformText}平台${sourceTags.platforms || ""}` +
-        `${seriesClause}。`;
+            : formatText("prose.seriesClause", {
+                  seriesSourceTag: sourceTags.series || "",
+                  seriesText,
+              });
+    const values = {
+        platformSourceTag: sourceTags.platforms || "",
+        platformText,
+        seriesClause,
+    };
+    const prose = formatText("prose.sentence2", values);
 
     return prose;
 }
@@ -153,7 +200,7 @@ export function buildPlatformSeriesProse(platforms, series, sourceTags = {}) {
  * @param {object} sourceTags - Source tags keyed by field.
  * @returns {string} Aggregate score sentence.
  */
-export function buildScoreProse(scores, sourceTags = {}) {
+export function buildScoresProse(scores, sourceTags = {}) {
     const values = {
         metacriticPlatform: scores.metadata.metacritic.platform,
         metacriticScore: scores.metadata.metacritic.score,
@@ -173,16 +220,21 @@ export function buildScoreProse(scores, sourceTags = {}) {
  * @param {string} sourceTag - Additional-prose source tag.
  * @returns {string} Sourced prose text.
  */
-export function buildAdditionalProse(additionalProse, sourceTag = "") {
+export function buildAppendProse(additionalProse, sourceTag = "") {
     const text = additionalProse.wikitext.text || "";
 
     if (text === "") {
         return "";
     }
 
-    const prose = text.endsWith("。")
-        ? `${text.slice(0, -1)}${sourceTag}。`
-        : `${text}${sourceTag}`;
+    const hasPeriod = text.endsWith("。");
+    const templateKey = hasPeriod
+        ? "prose.sentence4WithPeriod"
+        : "prose.sentence4";
+    const prose = formatText(templateKey, {
+        sourceTag,
+        text: hasPeriod ? text.slice(0, -1) : text,
+    });
 
     return prose;
 }
@@ -193,28 +245,41 @@ function buildCompanyRoleText(developers, publishers, sameCompanies) {
     }
 
     if (developers !== "" && sameCompanies) {
-        return `${developers}开发及发行`;
+        return formatText("prose.developedAndPublished", {
+            developers,
+        });
     }
 
     if (developers === "") {
-        return `${publishers}发行`;
+        return formatText("prose.published", {
+            publishers,
+        });
     }
 
     if (publishers === "") {
-        return `${developers}开发`;
+        return formatText("prose.developed", {
+            developers,
+        });
     }
 
-    return `${developers}开发、${publishers}发行`;
+    return formatText("prose.developedThenPublished", {
+        developers,
+        publishers,
+    });
 }
 
 function buildSeriesListText(values) {
-    const names = values.map((value) => `「${value.wikitext}」`);
+    const names = values.map((value) =>
+        formatText("prose.seriesTitle", {
+            value: value.wikitext,
+        }),
+    );
 
     if (names.length === 2) {
-        return names.join("和");
+        return names.join(getTextTemplate("shared.conjunction"));
     }
 
-    return names.join("、");
+    return names.join(getTextTemplate("shared.enumerationSeparator"));
 }
 
 function joinSourceTags(sourceTags, keys) {

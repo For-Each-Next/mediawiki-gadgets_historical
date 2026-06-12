@@ -2,6 +2,7 @@
  * Configures ESLint rules and globals for the gadget workspace.
  */
 
+import * as jsoncParser from "jsonc-eslint-parser";
 import jsdoc from "eslint-plugin-jsdoc";
 
 const browserGlobals = {
@@ -418,6 +419,15 @@ export default [
         files: ["**/*.cjs"],
         languageOptions: {
             sourceType: "commonjs",
+        },
+    },
+    {
+        files: ["**/*.jsonc"],
+        languageOptions: {
+            parser: jsoncParser,
+        },
+        rules: {
+            "comma-dangle": ["error", "always-multiline"],
         },
     },
     {

@@ -6,6 +6,7 @@
 
 import { addEditSummarySuffix } from "../editing/summary.js";
 import { buildDefaultSortText } from "../wikitext/default-sort.js";
+import { formatText, getTextTemplate } from "../shared/text-templates.js";
 
 const CATEGORY_NAMESPACE = "Category:";
 
@@ -23,15 +24,20 @@ export function buildCompanyCategoryText(company, parentCategoryExists) {
     const defaultSort = buildDefaultSortText({
         title: company,
     });
+    const portal = getTextTemplate("shared.portal");
+    const description = formatText("handlers.companyCategoryDescription", {
+        company,
+    });
+    const allCompanies = getTextTemplate("handlers.allCompaniesCategory");
 
     return [
-        "{{portal|电子游戏}}",
+        `{{portal|${portal}}}`,
         "",
-        `本分類收錄由[[${company}]]開發、發行的電子遊戲作品。`,
+        description,
         "",
         defaultSort,
         ...parentCategories,
-        "[[Category:各公司电子游戏]]",
+        `[[Category:${allCompanies}]]`,
     ].join("\n");
 }
 

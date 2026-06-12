@@ -10,6 +10,7 @@ import { build } from "esbuild";
 import { format } from "prettier";
 import { minify } from "terser";
 import { formatMinifiedOutput } from "../build.config.js";
+import { parseJsonc } from "./jsonc.mjs";
 
 const packagePath = resolve("package.json");
 const packageMetadata = JSON.parse(await readFile(packagePath, "utf8"));
@@ -106,7 +107,7 @@ async function buildDefines(defineConfig = {}) {
 }
 
 /**
- * Reads a directory of JSON files into an object keyed by basename.
+ * Reads a directory of JSON and JSONC files into an object keyed by basename.
  *
  * @param {string} directory - JSON data directory.
  * @returns {Promise<object>} Parsed JSON data.
@@ -118,10 +119,10 @@ async function readJsonDirectory(directory) {
 
     const paths = await readdir(directory);
     const entries = await Promise.all(
-        paths.filter(isJsonPath).map(async (path) => {
+        paths.filter(isDataPath).map(async (path) => {
             const data = await readFile(resolve(directory, path), "utf8");
 
-            return [basename(path, ".json"), JSON.parse(data)];
+            return [getDataKey(path), parseDataFile(path, data)];
         }),
     );
 
@@ -129,13 +130,38 @@ async function readJsonDirectory(directory) {
 }
 
 /**
- * Gets whether a path points to a JSON file.
+ * Gets whether a path points to a JSON or JSONC file.
  *
  * @param {string} path - Data file path.
- * @returns {boolean} Whether the path points to JSON.
+ * @returns {boolean} Whether the path points to JSON data.
  */
-function isJsonPath(path) {
-    return extname(path) === ".json";
+function isDataPath(path) {
+    return [".json", ".jsonc"].includes(extname(path));
+}
+
+/**
+ * Gets the extension-independent data key for one path.
+ *
+ * @param {string} path - Data file path.
+ * @returns {string} Data key.
+ */
+function getDataKey(path) {
+    return basename(path, extname(path));
+}
+
+/**
+ * Parses one JSON or JSONC data file.
+ *
+ * @param {string} path - Data file path.
+ * @param {string} data - Serialized data.
+ * @returns {*} Parsed data.
+ */
+function parseDataFile(path, data) {
+    if (extname(path) === ".jsonc") {
+        return parseJsonc(data);
+    }
+
+    return JSON.parse(data);
 }
 
 /**

@@ -13,6 +13,7 @@ import {
     trimValue,
     uniqueValues,
 } from "../../shared/utils.js";
+import { formatText, getTextTemplate } from "../../shared/text-templates.js";
 
 /**
  * Builds normalized display, link, and category metadata for series.
@@ -34,7 +35,9 @@ export function buildSeriesMetadata(value) {
         categoryPlans: buildSeriesCategoryPlans(values),
         items,
         links,
-        text: items.map((item) => item.wikitext).join("、"),
+        text: items
+            .map((item) => item.wikitext)
+            .join(getTextTemplate("shared.enumerationSeparator")),
         values,
     };
 
@@ -43,10 +46,13 @@ export function buildSeriesMetadata(value) {
 
 function buildSeriesItem(series) {
     if (!isWikilinkValue(series)) {
+        const displayText = formatText("patterns.series.displayTitle", {
+            title: series,
+        });
         const item = {
-            displayText: `《${series}》系列`,
+            displayText,
             normalizedText: series,
-            wikitext: `《${series}》系列`,
+            wikitext: displayText,
         };
 
         return item;
@@ -55,8 +61,12 @@ function buildSeriesItem(series) {
     const parts = getWikilinkParts(series);
     const label = parts.label || parts.target;
     const linkTarget =
-        parts.label === "" ? `${parts.target}系列` : parts.target;
-    const displayText = `《${label}》系列`;
+        parts.label === ""
+            ? formatText("patterns.title.series", { title: parts.target })
+            : parts.target;
+    const displayText = formatText("patterns.series.displayTitle", {
+        title: label,
+    });
     const item = {
         displayText,
         linkTarget,
@@ -106,7 +116,7 @@ function buildSeriesCategoryPlans(series) {
 function buildSeriesCategoryPlan(series) {
     const plan = {
         candidates: buildSeriesCategoryCandidates(series),
-        fallback: `${series}电子游戏`,
+        fallback: formatText("patterns.title.videoGames", { title: series }),
     };
 
     return plan;
@@ -114,12 +124,18 @@ function buildSeriesCategoryPlan(series) {
 
 function buildSeriesCategoryCandidates(title) {
     const candidates = uniqueValues(
-        [`${title}系列`, title].flatMap(buildSeriesTitleCandidates),
+        [formatText("patterns.title.series", { title }), title].flatMap(
+            buildSeriesTitleCandidates,
+        ),
     );
 
     return candidates;
 }
 
 function buildSeriesTitleCandidates(title) {
-    return [`${title}电子游戏`, `${title}游戏`, title];
+    return [
+        formatText("patterns.title.videoGames", { title }),
+        formatText("patterns.title.game", { title }),
+        title,
+    ];
 }

@@ -10,6 +10,8 @@ import {
     buildReferencesText,
     buildStubTagText,
 } from "./index.js";
+import { buildSentence1Text } from "./sentence.js";
+import { formatText } from "../shared/text-templates.js";
 
 /**
  * Builds the Chinese Wikipedia video game stub article text.
@@ -46,24 +48,20 @@ export function buildArticleWikitext(params) {
 }
 
 function buildLegacyProse(params) {
-    const leadName = params.leadNameText;
-    const text =
-        `${leadName}是${buildVideoGameText(params)}。` +
-        params.platformSeriesMetadata.text +
-        params.aggScoresText +
-        params.additionalProseText;
+    const sentence1a = formatText("prose.sentence1a", {
+        titles: params.leadNameText,
+        yearGenre: params.yearGenreMetadata.text,
+    });
+    const sentence1 = buildSentence1Text(
+        sentence1a,
+        params.companyMetadata.text,
+    );
+    const text = formatText("prose.paragraph", {
+        sentence1,
+        sentence2: params.platformSeriesMetadata.text,
+        sentence3: params.aggScoresText,
+        sentence4: params.additionalProseText,
+    });
 
     return text;
-}
-
-/**
- * Builds the video game noun phrase.
- *
- * @param {object} params - Normalized article parameters.
- * @param {object} params.companyMetadata - Company text and metadata.
- * @param {object} params.yearGenreMetadata - Year/genre text and metadata.
- * @returns {string} Video game noun phrase.
- */
-function buildVideoGameText(params) {
-    return params.yearGenreMetadata.text + params.companyMetadata.text;
 }

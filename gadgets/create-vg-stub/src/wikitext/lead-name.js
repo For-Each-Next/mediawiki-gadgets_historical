@@ -5,6 +5,7 @@
  */
 
 import { buildTemplateText } from "../shared/utils.js";
+import { formatText } from "../shared/text-templates.js";
 
 const ITALIC_LANGUAGE_CODES = new Set(["en", "fr"]);
 
@@ -20,7 +21,13 @@ const ITALIC_LANGUAGE_CODES = new Set(["en", "fr"]);
  * @returns {string} Lead name wikitext.
  */
 export function buildLeadNameText(params) {
-    return `《'''${params.name}'''》${buildVariantNameText(params)}`;
+    const values = {
+        foreignTitle: buildVariantNameText(params),
+        name: params.name,
+    };
+    const text = formatText("prose.titles", values);
+
+    return text;
 }
 
 /**
@@ -71,7 +78,13 @@ function buildVariantNameText(params) {
  * @returns {string} Parenthesized variant title text.
  */
 function buildVariantNameVariantText(variant) {
-    return `（${buildLangxTemplate(variant.code, variant.name)}${variant.ref}）`;
+    const values = {
+        sourceTag: variant.ref,
+        title: buildLangxTemplate(variant.code, variant.name),
+    };
+    const text = formatText("prose.foreignTitle", values);
+
+    return text;
 }
 
 /**

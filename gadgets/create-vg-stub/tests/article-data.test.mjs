@@ -82,5 +82,29 @@ test("prose builds the complete paragraph and its sinograph count", () => {
     assert.equal(data.prose.text.includes("作品对应"), true);
     assert.equal(data.prose.text.endsWith("补充说明。"), true);
     assert.equal(data.prose.sinographs > 0, true);
-    assert.equal(data.prose.fragments.leadName, "《'''Example'''》");
+    assert.equal(
+        data.prose.fragments.sentence1.s1a.titles,
+        "《'''Example'''》",
+    );
+    assert.equal(
+        data.prose.fragments.sentence1.s1b,
+        "由Foo Studio开发、Bar Games发行",
+    );
+});
+
+test("sentence 1 omits its clause separator without company prose", () => {
+    const data = createArticleData({
+        categoryRows: [],
+        genres: "",
+        localizedNames: [],
+        name: "Example",
+        navboxText: "",
+        platforms: "",
+        series: "",
+        sourceReferences: [],
+        year: "",
+    });
+
+    assert.equal(data.prose.fragments.sentence1.s1b, "");
+    assert.equal(data.prose.text, "《'''Example'''》是一款[[电子游戏]]。");
 });

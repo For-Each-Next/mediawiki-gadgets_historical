@@ -4,6 +4,8 @@
  * Builds references-section wikitext for video game stubs.
  */
 
+import { getTextTemplate } from "../shared/text-templates.js";
+
 /**
  * Builds the references section for generated citations.
  *
@@ -15,9 +17,17 @@ export function buildReferencesText(references) {
         return "";
     }
 
-    return `== 参考文献 ==\n\n<references responsive>\n${references
-        .map(buildFullReferenceText)
-        .join("\n")}\n</references>`;
+    const referenceText = references.map(buildFullReferenceText).join("\n");
+    const heading = getTextTemplate("referencesHeading");
+    const result = [
+        `== ${heading} ==`,
+        "",
+        "<references responsive>",
+        referenceText,
+        "</references>",
+    ].join("\n");
+
+    return result;
 }
 
 /**

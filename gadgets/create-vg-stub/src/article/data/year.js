@@ -10,6 +10,7 @@ import {
     trimValue,
     uniqueValues,
 } from "../../shared/utils.js";
+import { formatText, getTextTemplate } from "../../shared/text-templates.js";
 
 export function buildYearMetadata(value) {
     const normalized = normalizeYearFieldValue(value);
@@ -52,8 +53,8 @@ function getYearReference(value) {
 
     if (year === "~") {
         return {
-            categories: ["未来电子游戏"],
-            phrase: "尚未推出的",
+            categories: [getTextTemplate("patterns.year.future")],
+            phrase: getTextTemplate("patterns.year.unreleased"),
         };
     }
 
@@ -63,7 +64,9 @@ function getYearReference(value) {
 
     const reference = {
         categories: getReferenceCategories(yearDefinition.reference),
-        phrase: `${getYearLabel(year, yearDefinition)}年`,
+        phrase: formatText("patterns.year.released", {
+            year: getYearLabel(year, yearDefinition),
+        }),
     };
 
     return reference;
@@ -74,10 +77,12 @@ function getPlannedYearReference(value) {
     const yearDefinition = getYearDefinition(year);
     const reference = {
         categories: uniqueValues([
-            "未来电子游戏",
+            getTextTemplate("patterns.year.future"),
             ...getReferenceCategories(yearDefinition.reference),
         ]),
-        phrase: `预定于${getYearLabel(year, yearDefinition)}年推出的`,
+        phrase: formatText("patterns.year.planned", {
+            year: getYearLabel(year, yearDefinition),
+        }),
     };
 
     return reference;

@@ -9,6 +9,7 @@ import {
     trimValue,
     uniqueValues,
 } from "../shared/utils.js";
+import { formatText } from "../shared/text-templates.js";
 import {
     normalizeTitleKey,
     resolvePageTitles,
@@ -168,9 +169,9 @@ function trimSeriesSuffix(value) {
  */
 function buildNavboxCandidates(series) {
     return [
-        `${series}系列电子游戏`,
-        `${series}电子游戏`,
-        `${series}系列`,
+        formatText("patterns.title.seriesVideoGames", { title: series }),
+        formatText("patterns.title.videoGames", { title: series }),
+        formatText("patterns.title.series", { title: series }),
         series,
     ];
 }

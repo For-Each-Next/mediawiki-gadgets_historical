@@ -4,8 +4,9 @@
  * Builds edit summaries for generated video game stubs.
  */
 
-export const EDIT_SUMMARY_SUFFIX =
-    "[[:m:User:For_Each_..._Next/global.js/create_vg_stub.js|🎮]]";
+import { formatText, getTextTemplate } from "../shared/text-templates.js";
+
+export const EDIT_SUMMARY_SUFFIX = getTextTemplate("editing.summaryIcon");
 
 /**
  * Builds a generated-stub edit summary.
@@ -19,18 +20,19 @@ export const EDIT_SUMMARY_SUFFIX =
  * @returns {string} Generated edit summary.
  */
 export function buildEditSummary(metadata) {
-    return [
-        buildNameSummaryText(
+    const values = {
+        name: buildNameSummaryText(
             metadata.displayName,
             metadata.wikidataId,
             metadata.enwikiTitle,
         ),
-        buildYearSummaryText(metadata.year),
-        buildProseCountText(metadata.proseSinographs),
-        EDIT_SUMMARY_SUFFIX,
-    ]
-        .filter(Boolean)
-        .join(" ");
+        proseCount: buildProseCountText(metadata.proseSinographs),
+        year: buildYearSummaryText(metadata.year),
+    };
+    const summaryBody = formatText("editing.summary", values).trim();
+    const summary = addEditSummarySuffix(summaryBody);
+
+    return summary;
 }
 
 /**
@@ -40,9 +42,16 @@ export function buildEditSummary(metadata) {
  * @returns {string} Attributed edit summary.
  */
 export function addEditSummarySuffix(summary) {
-    return [String(summary || "").trim(), EDIT_SUMMARY_SUFFIX]
-        .filter(Boolean)
-        .join(" ");
+    const text = String(summary || "").trim();
+
+    if (text === "") {
+        return EDIT_SUMMARY_SUFFIX;
+    }
+
+    return formatText("editing.summaryWithIcon", {
+        icon: EDIT_SUMMARY_SUFFIX,
+        summary: text,
+    });
 }
 
 /**
@@ -59,7 +68,9 @@ function buildYearSummaryText(year) {
         return "";
     }
 
-    return `([[${match[0]}年電子遊戲界|${match[0]}]])`;
+    return formatText("editing.summaryYear", {
+        year: match[0],
+    });
 }
 
 /**
@@ -73,7 +84,9 @@ function buildProseCountText(count) {
         return "";
     }
 
-    return `[${Math.round(count)} sinographs]`;
+    return formatText("editing.proseCount", {
+        count: Math.round(count),
+    });
 }
 
 /**
@@ -94,12 +107,18 @@ function buildNameSummaryText(displayName, wikidataId, enwikiTitle) {
     }
 
     if (entityId !== "") {
-        return `[[:d:${entityId}|${label}]]`;
+        return formatText("editing.wikidataName", {
+            id: entityId,
+            label,
+        });
     }
 
     if (title === "") {
         return label;
     }
 
-    return `[[:w:en:${title}|${label}]]`;
+    return formatText("editing.enwikiName", {
+        label,
+        title,
+    });
 }

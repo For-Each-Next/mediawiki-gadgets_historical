@@ -22,7 +22,7 @@ test("userscript output includes Tampermonkey metadata and bundled code", async 
 
     assert.equal(source.startsWith("// ==UserScript==\n"), true);
     assert.match(source, /^\/\/ @name {9}create-vg-stub$/mu);
-    assert.match(source, /^\/\/ @version {6}0\.1\.0$/mu);
+    assert.match(source, /^\/\/ @version {6}0\.3\.0$/mu);
     assert.match(
         source,
         /^\/\/ @match {8}https:\/\/zh\.wikipedia\.org\/\*$/mu,

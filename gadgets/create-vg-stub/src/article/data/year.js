@@ -53,8 +53,8 @@ function getYearReference(value) {
 
     if (year === "~") {
         return {
-            categories: [getTextTemplate("patterns.year.future")],
-            phrase: getTextTemplate("patterns.year.unreleased"),
+            categories: [getTextTemplate("patterns.yearFuture")],
+            phrase: getTextTemplate("patterns.yearUnreleased"),
         };
     }
 
@@ -64,7 +64,7 @@ function getYearReference(value) {
 
     const reference = {
         categories: getReferenceCategories(yearDefinition.reference),
-        phrase: formatText("patterns.year.released", {
+        phrase: formatText("patterns.yearReleased", {
             year: getYearLabel(year, yearDefinition),
         }),
     };
@@ -77,10 +77,10 @@ function getPlannedYearReference(value) {
     const yearDefinition = getYearDefinition(year);
     const reference = {
         categories: uniqueValues([
-            getTextTemplate("patterns.year.future"),
+            getTextTemplate("patterns.yearFuture"),
             ...getReferenceCategories(yearDefinition.reference),
         ]),
-        phrase: formatText("patterns.year.planned", {
+        phrase: formatText("patterns.yearPlanned", {
             year: getYearLabel(year, yearDefinition),
         }),
     };

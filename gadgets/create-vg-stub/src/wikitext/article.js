@@ -56,7 +56,7 @@ function buildLegacyProse(params) {
         sentence1a,
         params.companyMetadata.text,
     );
-    const text = formatText("prose.paragraph", {
+    const text = formatText("prose.text", {
         sentence1,
         sentence2: params.platformSeriesMetadata.text,
         sentence3: params.aggScoresText,

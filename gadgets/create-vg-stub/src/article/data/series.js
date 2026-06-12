@@ -46,7 +46,7 @@ export function buildSeriesMetadata(value) {
 
 function buildSeriesItem(series) {
     if (!isWikilinkValue(series)) {
-        const displayText = formatText("patterns.series.displayTitle", {
+        const displayText = formatText("patterns.seriesDisplayTitle", {
             title: series,
         });
         const item = {
@@ -62,9 +62,9 @@ function buildSeriesItem(series) {
     const label = parts.label || parts.target;
     const linkTarget =
         parts.label === ""
-            ? formatText("patterns.title.series", { title: parts.target })
+            ? formatText("patterns.titleSeries", { title: parts.target })
             : parts.target;
-    const displayText = formatText("patterns.series.displayTitle", {
+    const displayText = formatText("patterns.seriesDisplayTitle", {
         title: label,
     });
     const item = {
@@ -116,7 +116,7 @@ function buildSeriesCategoryPlans(series) {
 function buildSeriesCategoryPlan(series) {
     const plan = {
         candidates: buildSeriesCategoryCandidates(series),
-        fallback: formatText("patterns.title.videoGames", { title: series }),
+        fallback: formatText("patterns.titleVideoGames", { title: series }),
     };
 
     return plan;
@@ -124,7 +124,7 @@ function buildSeriesCategoryPlan(series) {
 
 function buildSeriesCategoryCandidates(title) {
     const candidates = uniqueValues(
-        [formatText("patterns.title.series", { title }), title].flatMap(
+        [formatText("patterns.titleSeries", { title }), title].flatMap(
             buildSeriesTitleCandidates,
         ),
     );
@@ -134,8 +134,8 @@ function buildSeriesCategoryCandidates(title) {
 
 function buildSeriesTitleCandidates(title) {
     return [
-        formatText("patterns.title.videoGames", { title }),
-        formatText("patterns.title.game", { title }),
+        formatText("patterns.titleVideoGames", { title }),
+        formatText("patterns.titleGame", { title }),
         title,
     ];
 }

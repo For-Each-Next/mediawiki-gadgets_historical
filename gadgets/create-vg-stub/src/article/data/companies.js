@@ -241,7 +241,7 @@ function buildCompanyCategoryItemsForValue(company, options = {}) {
         {
             candidates: buildCompanyCategoryCandidates(company),
             company: reference?.page?.title || options.company || company,
-            fallback: formatText("patterns.title.game", {
+            fallback: formatText("patterns.titleGame", {
                 title: getDisambiguationBaseTitle(company),
             }),
         },
@@ -297,8 +297,8 @@ function buildCompanyCategoryCandidates(company) {
  */
 function buildCompanyTitleCategoryCandidates(title) {
     return [
-        formatText("patterns.title.videoGames", { title }),
-        formatText("patterns.title.game", { title }),
+        formatText("patterns.titleVideoGames", { title }),
+        formatText("patterns.titleGame", { title }),
         title,
     ];
 }

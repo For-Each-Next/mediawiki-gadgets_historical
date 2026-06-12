@@ -75,11 +75,11 @@ export function buildArticleProse(records, sourceTags) {
         yearGenre,
     });
     const countedSentence1 = buildSentence1Text(countedSentence1a, sentence1b);
-    const countedText = formatText("prose.paragraph", {
+    const countedText = formatText("prose.text", {
         ...proseValues,
         sentence1: countedSentence1,
     });
-    const text = formatText("prose.paragraph", proseValues);
+    const text = formatText("prose.text", proseValues);
     const prose = {
         fragments,
         sinographs: countProseSinographs(countedText),

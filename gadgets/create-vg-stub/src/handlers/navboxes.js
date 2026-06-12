@@ -169,9 +169,9 @@ function trimSeriesSuffix(value) {
  */
 function buildNavboxCandidates(series) {
     return [
-        formatText("patterns.title.seriesVideoGames", { title: series }),
-        formatText("patterns.title.videoGames", { title: series }),
-        formatText("patterns.title.series", { title: series }),
+        formatText("patterns.titleSeriesVideoGames", { title: series }),
+        formatText("patterns.titleVideoGames", { title: series }),
+        formatText("patterns.titleSeries", { title: series }),
         series,
     ];
 }

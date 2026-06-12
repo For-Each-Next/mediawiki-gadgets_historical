@@ -9,25 +9,25 @@
     // Reusable title, year, and series formatting patterns.
     "patterns": {
         // Generic page and category title candidates.
-        "title.game": "{title}游戏",
-        "title.series": "{title}系列",
-        "title.seriesVideoGames": "{title}系列电子游戏",
-        "title.videoGames": "{title}电子游戏",
+        "titleGame": "{title}游戏",
+        "titleSeries": "{title}系列",
+        "titleSeriesVideoGames": "{title}系列电子游戏",
+        "titleVideoGames": "{title}电子游戏",
 
         // Release-year phrases and category.
-        "year.future": "未来电子游戏",
-        "year.planned": "预定于{year}年推出的",
-        "year.released": "{year}年",
-        "year.unreleased": "尚未推出的",
+        "yearFuture": "未来电子游戏",
+        "yearPlanned": "预定于{year}年推出的",
+        "yearReleased": "{year}年",
+        "yearUnreleased": "尚未推出的",
 
         // Series display text used in prose.
-        "series.displayTitle": "《{title}》系列",
+        "seriesDisplayTitle": "《{title}》系列",
     },
 
     // Text shown in the generated article's main prose paragraph.
     "prose": {
         // Complete paragraph from four sentence outputs.
-        "paragraph": "{sentence1}{sentence2}{sentence3}{sentence4}",
+        "text": "{sentence1}{sentence2}{sentence3}{sentence4}",
 
         // Sentence 1 joins sentence 1a and optional sentence 1b.
         "sentence1": "{text}。",

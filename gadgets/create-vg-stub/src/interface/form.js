@@ -72,12 +72,12 @@ export class StyleSheet {
 
 const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-dialog.cdx-dialog", {
-        maxWidth: "min(96vw, 960px)",
-        width: "min(96vw, 960px)",
+        maxWidth: "min(96vw, 60em)",
+        width: "min(96vw, 60em)",
     })
     .add(".create-vg-stub-category-view-dialog.cdx-dialog", {
-        maxWidth: "min(96vw, 960px)",
-        width: "min(96vw, 960px)",
+        maxWidth: "min(96vw, 60em)",
+        width: "min(96vw, 60em)",
     })
     .add(".create-vg-stub-category-view", {
         border: "1px solid var(--border-color-base, #a2a9b1)",
@@ -85,31 +85,31 @@ const DIALOG_CSS = new StyleSheet()
         width: "100%",
     })
     .add(".create-vg-stub-tab-panel", {
-        paddingTop: "12px",
+        paddingTop: "0.75em",
     })
     .add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
         alignItems: "center",
         display: "grid",
-        gap: "12px",
+        gap: "0.75em",
     })
     .add(".create-vg-stub-field-row", {
-        gridTemplateColumns: "5.75rem minmax(0, 1fr)",
-        marginBottom: "12px",
+        gridTemplateColumns: "5.75em minmax(0, 1fr)",
+        marginBottom: "0.75em",
     })
     .add(".create-vg-stub-field-separator", {
         border: "0",
         borderTop: "1px solid var(--border-color-subtle, #eaecf0)",
         gridColumn: "1 / -1",
-        margin: "16px 0",
+        margin: "1em 0",
     })
     .add(".create-vg-stub-field-separator-compact", {
-        margin: "16px 0 12px",
+        margin: "1em 0 0.75em",
     })
     .add(".create-vg-stub-name-row", {
         borderBottom: "1px solid var(--border-color-subtle, #eaecf0)",
         gridTemplateColumns: "minmax(0, 1fr)",
-        marginBottom: "16px",
-        paddingBottom: "16px",
+        marginBottom: "1em",
+        paddingBottom: "1em",
     })
     .add(".create-vg-stub-field-label", {
         fontWeight: "600",
@@ -123,19 +123,19 @@ const DIALOG_CSS = new StyleSheet()
     })
     .add(".create-vg-stub-steam-helper", {
         display: "grid",
-        gap: "8px",
+        gap: "0.5em",
         gridTemplateColumns: "minmax(0, 1fr) auto",
-        marginBottom: "16px",
+        marginBottom: "1em",
     })
     .add(".create-vg-stub-steam-actions", {
         display: "flex",
         flexWrap: "wrap",
-        gap: "8px",
+        gap: "0.5em",
         gridColumn: "1 / -1",
     })
     .add(".create-vg-stub-steam-suggestion", {
         color: "var(--color-subtle, #54595d)",
-        fontSize: "12px",
+        fontSize: "0.75em",
         gridColumn: "1 / -1",
         overflowWrap: "anywhere",
     })
@@ -145,29 +145,29 @@ const DIALOG_CSS = new StyleSheet()
             "textarea.create-vg-stub-source-url",
         ],
         {
-            fontSize: "12px",
-            height: "32px",
-            minHeight: "32px",
+            fontSize: "0.75em",
+            height: "2.67em",
+            minHeight: "2.67em",
             resize: "vertical",
         },
     )
     .add(".create-vg-stub-wikitext-preview", {
         color: "var(--color-subtle, #72777d)",
         fontFamily: "monospace",
-        fontSize: "12px",
+        fontSize: "0.75em",
         lineHeight: "1.35",
-        marginTop: "4px",
+        marginTop: "0.25em",
         overflowWrap: "anywhere",
     })
     .add(".create-vg-stub-field-note", {
-        margin: "-8px 0 12px",
+        margin: "-0.5em 0 0.75em",
     })
     .add(".create-vg-stub-category-grid", {
         display: "grid",
-        gap: "4px",
+        gap: "0.25em",
         gridTemplateColumns:
-            "auto minmax(4.2rem, 6em) minmax(12rem, 1.6fr) auto auto",
-        marginBottom: "12px",
+            "auto minmax(4.2em, 6em) minmax(12em, 1.6fr) auto auto",
+        marginBottom: "0.75em",
     })
     .add(".create-vg-stub-category-status", {
         alignItems: "center",
@@ -179,11 +179,11 @@ const DIALOG_CSS = new StyleSheet()
         display: "inline-flex",
         fontSize: "0.875em",
         fontWeight: "600",
-        height: "28px",
+        height: "2em",
         justifyContent: "center",
         lineHeight: "1",
-        minWidth: "28px",
-        padding: "0 6px",
+        minWidth: "2em",
+        padding: "0 0.43em",
     })
     .add(".create-vg-stub-company-category-text textarea", {
         fontFamily: "monospace",
@@ -193,20 +193,20 @@ const DIALOG_CSS = new StyleSheet()
     })
     .add(".create-vg-stub-prose-length", {
         color: "var(--color-subtle, #54595d)",
-        fontSize: "12px",
-        margin: "4px 0 12px",
+        fontSize: "0.75em",
+        margin: "0.25em 0 0.75em",
     })
     .add(".create-vg-stub-navbox-grid", {
         display: "grid",
-        gap: "4px",
+        gap: "0.25em",
         gridTemplateColumns:
-            "auto minmax(4.2rem, 0.35fr) minmax(12rem, 1.6fr) auto auto",
-        marginBottom: "12px",
+            "auto minmax(4.2em, 0.35fr) minmax(12em, 1.6fr) auto auto",
+        marginBottom: "0.75em",
     })
     .add(".create-vg-stub-category-actions", {
         alignItems: "center",
         display: "flex",
-        gap: "16px",
+        gap: "1em",
     })
     .add(".create-vg-stub-category-action", {
         width: "5em",
@@ -214,10 +214,10 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-category-stub-tag", {
         alignItems: "center",
         display: "inline-flex",
-        gap: "4px",
+        gap: "0.25em",
         whiteSpace: "nowrap",
     })
-    .media("(max-width: 640px)", (sheet) => {
+    .media("(max-width: 40em)", (sheet) => {
         sheet.add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
             gridTemplateColumns: "1fr",
         });
@@ -1856,8 +1856,8 @@ function createPreSaveDialogTemplate() {
                     "v-if": "preSaveMoveEnabled",
                     style: {
                         display: "grid",
-                        gap: "8px",
-                        marginLeft: "28px",
+                        gap: "0.5em",
+                        marginLeft: "1.75em",
                     },
                 },
                 [
@@ -1872,8 +1872,8 @@ function createPreSaveDialogTemplate() {
                 {
                     style: {
                         display: "grid",
-                        gap: "8px",
-                        marginTop: "12px",
+                        gap: "0.5em",
+                        marginTop: "0.75em",
                     },
                 },
                 [
@@ -2094,7 +2094,7 @@ function createHistoryEntryListTemplate() {
             "v-if": "historyEntries.length > 0",
             style: {
                 display: "grid",
-                gap: "8px",
+                gap: "0.5em",
             },
         },
         [createHistoryEntryTemplate()],
@@ -2116,9 +2116,9 @@ function createHistoryEntryTemplate() {
                 alignItems: "center",
                 borderBottom: "1px solid var(--border-color-subtle, #eaecf0)",
                 display: "grid",
-                gap: "8px",
+                gap: "0.5em",
                 gridTemplateColumns: "1fr auto auto",
-                padding: "8px 0",
+                padding: "0.5em 0",
             },
         },
         [
@@ -2131,7 +2131,7 @@ function createHistoryEntryTemplate() {
                     {
                         style: {
                             color: "var(--color-subtle, #54595d)",
-                            fontSize: "12px",
+                            fontSize: "0.75em",
                         },
                     },
                     [createText("{{ entry.savedAt }}")],
@@ -2271,7 +2271,7 @@ function createActionFooterTemplate(actions, style = {}) {
         {
             style: {
                 display: "flex",
-                gap: "8px",
+                gap: "0.5em",
                 justifyContent: "flex-end",
                 width: "100%",
                 ...style,
@@ -2656,7 +2656,7 @@ function createNameActionsTemplate() {
         {
             style: {
                 display: "flex",
-                gap: "8px",
+                gap: "0.5em",
             },
         },
         [
@@ -2717,8 +2717,8 @@ function createNameMarketTemplate() {
             style: {
                 display: "flex",
                 flexWrap: "wrap",
-                gap: "12px",
-                marginBottom: "8px",
+                gap: "0.75em",
+                marginBottom: "0.5em",
             },
         },
         [

@@ -18,7 +18,7 @@ const INFOBOX_END = "\n}}";
 export function updateMovedTitleText(text, current, target) {
     let updated = updateInfoboxTitleLines(text, current, target);
 
-    updated = replaceOnce(updated, current.leadNameText, target.leadNameText);
+    updated = updateLeadTitle(updated, current, target);
     updated = replaceOnce(
         updated,
         current.defaultSortText,
@@ -26,6 +26,33 @@ export function updateMovedTitleText(text, current, target) {
     );
 
     return updated;
+}
+
+/**
+ * Updates the first prose title and its optional foreign-title parenthesis.
+ *
+ * @param {string} text - Current wikitext.
+ * @param {object} current - Current-title article data.
+ * @param {object} target - Target-title article data.
+ * @returns {string} Updated wikitext.
+ */
+function updateLeadTitle(text, current, target) {
+    const exact = replaceOnce(text, current.leadNameText, target.leadNameText);
+
+    if (exact !== text) {
+        return exact;
+    }
+
+    const currentName = current.name || current.form?.name;
+
+    if (currentName == null || currentName === "") {
+        return text;
+    }
+
+    const mainTitle = `《'''${escapeRegularExpression(currentName)}'''》`;
+    const pattern = new RegExp(`${mainTitle}(?:（[^）\\n]*）)?`, "u");
+
+    return text.replace(pattern, target.leadNameText);
 }
 
 /**
@@ -126,4 +153,14 @@ function replaceOnce(text, current, target) {
     return `${text.slice(0, index)}${target || ""}${text.slice(
         index + current.length,
     )}`;
+}
+
+/**
+ * Escapes text for use inside a regular expression.
+ *
+ * @param {string} value - Literal text.
+ * @returns {string} Escaped regular-expression text.
+ */
+function escapeRegularExpression(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }

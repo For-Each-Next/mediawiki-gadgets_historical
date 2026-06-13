@@ -50,6 +50,9 @@ import {
 } from "./editing/session.js";
 import {
     interceptEditSave,
+    readEditSummary,
+    readEditText,
+    shouldPreserveEditor,
     submitEditForm,
     submitPreviewForm,
     writeEditSummary,
@@ -309,10 +312,17 @@ async function submitForm(
                   name: moveTitle,
               }
             : form;
-        const stub = await buildStubFromForm(submittedForm, citationStore);
-        const summary = buildEditSummary(
-            createEditSummaryMetadata(submittedForm, stub),
-        );
+        const editFormAvailable = document.getElementById("editform") != null;
+        const preserveEditor = shouldPreserveEditor();
+        const stub = preserveEditor
+            ? null
+            : await buildStubFromForm(submittedForm, citationStore);
+        const summary =
+            stub == null
+                ? ""
+                : buildEditSummary(
+                      createEditSummaryMetadata(submittedForm, stub),
+                  );
         const pending = {
             actions: preSave.actions,
             move: shouldMove
@@ -331,7 +341,7 @@ async function submitForm(
         });
         startSaveProgress(getPageName(), pending);
 
-        if (document.getElementById("editform") == null) {
+        if (!editFormAvailable) {
             const params = {
                 action: "edit",
                 createonly: true,
@@ -344,8 +354,11 @@ async function submitForm(
             setSaveProgressStep("save", "complete");
             window.location.href = mw.util.getUrl(getPageName());
         } else {
-            writeEditText(stub.text);
-            writeEditSummary(summary);
+            if (!preserveEditor) {
+                writeEditText(stub.text);
+                writeEditSummary(summary);
+            }
+
             submitEditForm();
         }
 
@@ -561,13 +574,21 @@ async function openTargetPage(
 
     try {
         const targetForm = { ...form, name: targetTitle };
-        const stub = await buildStubFromForm(targetForm, citationStore);
+        const preserveEditor = shouldPreserveEditor();
+        const stub = preserveEditor
+            ? null
+            : await buildStubFromForm(targetForm, citationStore);
+        const summaryMetadata =
+            stub == null
+                ? undefined
+                : createEditSummaryMetadata(targetForm, stub);
 
         storeMovedEdit({
             form: targetForm,
             preview: options.preview === true,
-            text: stub.text,
-            summaryMetadata: createEditSummaryMetadata(targetForm, stub),
+            summary: preserveEditor ? readEditSummary() : undefined,
+            summaryMetadata,
+            text: preserveEditor ? readEditText() : stub.text,
             title: targetTitle,
         });
         window.location.href = mw.util.getUrl(targetTitle, {
@@ -593,7 +614,9 @@ function restoreMovedEditText() {
     }
 
     writeEditText(pending.text);
-    writeEditSummary(buildEditSummary(pending.summaryMetadata || {}));
+    writeEditSummary(
+        pending.summary ?? buildEditSummary(pending.summaryMetadata || {}),
+    );
     clearMovedEdit();
 
     if (pending.preview === true) {

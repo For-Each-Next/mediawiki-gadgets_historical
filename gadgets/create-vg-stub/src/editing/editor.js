@@ -25,6 +25,33 @@ export function writeEditText(text) {
 }
 
 /**
+ * Reads the current MediaWiki edit textarea.
+ *
+ * @returns {string} Current editor wikitext.
+ */
+export function readEditText() {
+    return document.getElementById("wpTextbox1")?.value || "";
+}
+
+/**
+ * Checks whether the MediaWiki editor already contains wikitext.
+ *
+ * @returns {boolean} Whether existing editor text should be preserved.
+ */
+export function hasEditText() {
+    return readEditText() !== "";
+}
+
+/**
+ * Checks whether save should keep the current editor text and summary.
+ *
+ * @returns {boolean} Whether existing editor values are authoritative.
+ */
+export function shouldPreserveEditor() {
+    return document.getElementById("editform") != null && hasEditText();
+}
+
+/**
  * Replaces the MediaWiki edit summary.
  *
  * @param {string} summary - Generated edit summary.
@@ -39,6 +66,15 @@ export function writeEditSummary(summary) {
 
     summaryInput.value = summary;
     $(summaryInput).trigger("input").trigger("change");
+}
+
+/**
+ * Reads the current MediaWiki edit summary.
+ *
+ * @returns {string} Current edit summary.
+ */
+export function readEditSummary() {
+    return document.getElementById("wpSummary")?.value || "";
 }
 
 /**

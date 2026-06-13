@@ -6,7 +6,11 @@ import assert from "node:assert/strict";
 import test, { afterEach } from "node:test";
 
 import {
+    hasEditText,
     interceptEditSave,
+    readEditSummary,
+    readEditText,
+    shouldPreserveEditor,
     submitEditForm,
     submitPreviewForm,
 } from "../src/editing/editor.js";
@@ -15,6 +19,77 @@ const originalDocument = globalThis.document;
 
 afterEach(() => {
     globalThis.document = originalDocument;
+});
+
+test("readEditText returns manually edited wikitext", () => {
+    globalThis.document = {
+        getElementById(id) {
+            return id === "wpTextbox1"
+                ? {
+                      value: "{{cite web|title=Manually fixed}}",
+                  }
+                : null;
+        },
+    };
+
+    assert.equal(readEditText(), "{{cite web|title=Manually fixed}}");
+    assert.equal(hasEditText(), true);
+});
+
+test("readEditSummary returns a manually edited summary", () => {
+    globalThis.document = {
+        getElementById(id) {
+            return id === "wpSummary"
+                ? {
+                      value: "Manual summary",
+                  }
+                : null;
+        },
+    };
+
+    assert.equal(readEditSummary(), "Manual summary");
+});
+
+test("hasEditText is false only for an empty editor", () => {
+    globalThis.document = {
+        getElementById() {
+            return {
+                value: "",
+            };
+        },
+    };
+
+    assert.equal(hasEditText(), false);
+});
+
+test("shouldPreserveEditor protects nonempty editor content", () => {
+    globalThis.document = {
+        getElementById(id) {
+            return {
+                editform: {},
+                wpTextbox1: {
+                    value: "Manual changes",
+                },
+            }[id];
+        },
+    };
+
+    assert.equal(shouldPreserveEditor(), true);
+});
+
+test("shouldPreserveEditor allows generation for an empty editor", () => {
+    globalThis.document = {
+        getElementById(id) {
+            return {
+                editform: {},
+                wpTextbox1: {
+                    value: "",
+                },
+            }[id];
+        },
+    };
+
+    assert.equal(shouldPreserveEditor(), false);
 });
 
 test("interceptEditSave routes native saves through review", () => {

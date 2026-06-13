@@ -7,25 +7,46 @@
 import { trimFieldValue } from "../shared/form-values.js";
 
 /**
- * Fetches Simplified and Traditional Chinese Steam names.
+ * Fetches localized Steam names.
  *
  * @param {string} sourceUrl - Steam store app URL.
  * @param {object} citationStore - Citation fetch/cache store.
+ * @param {object} [options] - Fetch options.
+ * @param {boolean} [options.includeJapanese] - Whether to fetch Japanese.
  * @returns {Promise<Array<object>>} Localized official name rows.
  */
-export async function fetchSteamNameRows(sourceUrl, citationStore) {
+export async function fetchSteamNameRows(
+    sourceUrl,
+    citationStore,
+    options = {},
+) {
     getSteamAppId(sourceUrl);
+    const languages = [
+        {
+            label: "Simplified",
+            language: "schinese",
+            markets: ["hans"],
+        },
+        {
+            label: "Traditional",
+            language: "tchinese",
+            markets: ["hant"],
+        },
+    ];
+
+    if (options.includeJapanese === true) {
+        languages.push({
+            label: "Japanese",
+            language: "japanese",
+            markets: [],
+            previewOnly: true,
+        });
+    }
+
     const rows = await Promise.all(
-        [
-            {
-                language: "schinese",
-                markets: ["hans"],
-            },
-            {
-                language: "tchinese",
-                markets: ["hant"],
-            },
-        ].map((item) => fetchSteamNameRow(sourceUrl, item, citationStore)),
+        languages.map((item) =>
+            fetchSteamNameRow(sourceUrl, item, citationStore),
+        ),
     );
 
     return rows.filter(Boolean);
@@ -52,9 +73,11 @@ async function fetchSteamNameRow(sourceUrl, item, citationStore) {
     }
 
     return {
+        label: item.label,
         markets: item.markets,
         name,
         official: true,
+        previewOnly: Boolean(item.previewOnly),
         sourceUrl: localizedUrl,
     };
 }

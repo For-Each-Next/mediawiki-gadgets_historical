@@ -628,15 +628,19 @@ test("Steam helper stages official localized name choices", async () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
-            async onSteamNamesFetch(url) {
+            async onSteamNamesFetch(url, options) {
                 assert.equal(
                     url,
                     "https://store.steampowered.com/app/123/example/",
                 );
+                assert.deepEqual(options, {
+                    includeJapanese: false,
+                });
 
                 return [
                     {
                         hans: true,
+                        label: "Simplified",
                         name: "简体名",
                         official: true,
                         sourceUrl:
@@ -644,6 +648,7 @@ test("Steam helper stages official localized name choices", async () => {
                     },
                     {
                         hant: true,
+                        label: "Traditional",
                         name: "繁體名",
                         official: true,
                         sourceUrl:
@@ -653,7 +658,7 @@ test("Steam helper stages official localized name choices", async () => {
             },
         }),
     );
-    const { fetchedSteamNameRows, form, formatSteamNameSuggestion } =
+    const { fetchedSteamNameRows, form, getSteamNameSuggestions } =
         component.setup();
 
     component.methods.updateSteamUrl(
@@ -674,10 +679,22 @@ test("Steam helper stages official localized name choices", async () => {
             ],
         ],
     );
-    assert.equal(
-        formatSteamNameSuggestion(fetchedSteamNameRows.value),
-        "Hans: 简体名 | Hant: 繁體名",
-    );
+    assert.deepEqual(getSteamNameSuggestions(fetchedSteamNameRows.value), [
+        {
+            label: "Simplified",
+            url:
+                "https://store.steampowered.com/app/123/example/" +
+                "?l=schinese",
+            value: "简体名",
+        },
+        {
+            label: "Traditional",
+            url:
+                "https://store.steampowered.com/app/123/example/" +
+                "?l=tchinese",
+            value: "繁體名",
+        },
+    ]);
     assert.deepEqual(
         form.localizedNames.map((row) => row.name),
         [""],
@@ -713,6 +730,67 @@ test("Steam helper stages official localized name choices", async () => {
         ],
     );
     assert.deepEqual(fetchedSteamNameRows.value, []);
+});
+
+test("Steam helper previews Japanese for a Japanese original title", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onSteamNamesFetch(_url, options) {
+                assert.deepEqual(options, {
+                    includeJapanese: true,
+                });
+
+                return [
+                    {
+                        label: "Simplified",
+                        markets: ["hans"],
+                        name: "简体名",
+                        sourceUrl:
+                            "https://store.steampowered.com/app/123/?l=schinese",
+                    },
+                    {
+                        label: "Japanese",
+                        markets: [],
+                        name: "日本語名",
+                        previewOnly: true,
+                        sourceUrl:
+                            "https://store.steampowered.com/app/123/?l=japanese",
+                    },
+                ];
+            },
+        }),
+    );
+    const { fetchedSteamNameRows, form, getSteamNameSuggestions } =
+        component.setup();
+
+    form.originalName = "ja:原題";
+    component.methods.updateSteamUrl(
+        "https://store.steampowered.com/app/123/",
+    );
+    await component.methods.addSteamNames();
+
+    assert.deepEqual(
+        getSteamNameSuggestions(fetchedSteamNameRows.value),
+        [
+            {
+                label: "Simplified",
+                url: "https://store.steampowered.com/app/123/?l=schinese",
+                value: "简体名",
+            },
+            {
+                label: "Japanese",
+                url: "https://store.steampowered.com/app/123/?l=japanese",
+                value: "日本語名",
+            },
+        ],
+    );
+
+    component.methods.applySteamNameChoice("both");
+    assert.deepEqual(
+        form.localizedNames.map((row) => row.name),
+        ["简体名"],
+    );
 });
 
 test("Steam helper can merge or blank fetched localized names", async () => {
@@ -810,11 +888,17 @@ test("field preview callback receives live form and preview key", () => {
         true,
     );
     assert.equal(
-        component.template.includes("v-for=\"(link, index) in getEnwikiTipLinks()\""),
+        component.template.includes("v-for=\"link in getEnwikiTipLinks()\""),
         true,
     );
     assert.equal(
         component.template.includes("<strong>{{ link.label }}</strong>"),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
+            "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)",
+        ),
         true,
     );
 });

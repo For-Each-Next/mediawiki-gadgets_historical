@@ -12,6 +12,7 @@ import {
 import {
     buildNameSourceReferenceKey,
     hasFirstLevelFieldSeparator,
+    parsePrefixedValue,
     trimFieldValue,
 } from "../shared/form-values.js";
 import { getEnteredSourceUrls } from "../sources/source-references.js";
@@ -138,6 +139,14 @@ const DIALOG_CSS = new StyleSheet()
         fontSize: "0.75em",
         gridColumn: "1 / -1",
         overflowWrap: "anywhere",
+    })
+    .add(".create-vg-stub-horizontal-list", {
+        display: "flex",
+        flexWrap: "wrap",
+    })
+    .add(".create-vg-stub-horizontal-list-item:not(:first-child)::before", {
+        content: '" · "',
+        whiteSpace: "pre",
     })
     .add(
         [
@@ -1052,6 +1061,10 @@ export function createDialogComponent(Vue, options) {
                 try {
                     const rows = await options.onSteamNamesFetch(
                         steamUrl.value,
+                        {
+                            includeJapanese:
+                                getOriginalNameLanguage(form) === "ja",
+                        },
                     );
 
                     fetchedSteamNameRows.value = rows;
@@ -1472,7 +1485,7 @@ export function createDialogComponent(Vue, options) {
                 groups: ARTICLE_PARAMETER_GROUPS,
                 form,
                 fetchedSteamNameRows,
-                formatSteamNameSuggestion,
+                getSteamNameSuggestions,
                 getArticleField,
                 getFieldPlaceholder: options.getFieldPlaceholder.bind(
                     null,
@@ -2898,12 +2911,37 @@ function createSteamNameHelperTemplate() {
             createElement(
                 "div",
                 {
-                    class: "create-vg-stub-steam-suggestion",
+                    class:
+                        "create-vg-stub-steam-suggestion " +
+                        "create-vg-stub-horizontal-list",
                     "v-if": "fetchedSteamNameRows.length",
                 },
                 [
-                    createText(
-                        "{{ formatSteamNameSuggestion(fetchedSteamNameRows) }}",
+                    createElement(
+                        "span",
+                        {
+                            class: "create-vg-stub-horizontal-list-item",
+                            "v-bind:key": "suggestion.label",
+                            "v-for":
+                                "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)",
+                        },
+                        [
+                            createElement(
+                                "strong",
+                                {},
+                                [createText("{{ suggestion.label }}")],
+                            ),
+                            createText(" "),
+                            createElement(
+                                "a",
+                                {
+                                    "v-bind:href": "suggestion.url",
+                                    rel: "noopener noreferrer",
+                                    target: "_blank",
+                                },
+                                [createText("{{ suggestion.value }}")],
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -3267,7 +3305,9 @@ function createWikidataNoteTemplate() {
     return createElement(
         "div",
         {
-            class: "create-vg-stub-wikitext-preview create-vg-stub-field-note",
+            class:
+                "create-vg-stub-wikitext-preview " +
+                "create-vg-stub-field-note create-vg-stub-horizontal-list",
             "v-if": "field.key === 'enwikiTitle'",
         },
         [
@@ -3280,11 +3320,11 @@ function createWikidataNoteTemplate() {
                     createElement(
                         "span",
                         {
+                            class: "create-vg-stub-horizontal-list-item",
                             "v-bind:key": "link.label",
-                            "v-for": "(link, index) in getEnwikiTipLinks()",
+                            "v-for": "link in getEnwikiTipLinks()",
                         },
                         [
-                            createText("{{ index ? ' · ' : '' }}"),
                             createElement(
                                 "strong",
                                 {},
@@ -3607,23 +3647,17 @@ function createNameRowFromValues(values) {
 }
 
 /**
- * Formats fetched Steam names with market labels.
+ * Formats fetched Steam names as linked preview items.
  *
  * @param {Array<object>} rows - Fetched Steam name rows.
- * @returns {string} Labeled Steam name suggestion text.
+ * @returns {Array<object>} Labeled Steam name suggestions.
  */
-function formatSteamNameSuggestion(rows) {
-    return rows.map(formatSteamNameSuggestionRow).join(" | ");
-}
-
-/**
- * Formats one fetched Steam name row with its market label.
- *
- * @param {object} row - Fetched Steam name row.
- * @returns {string} Labeled Steam name suggestion item.
- */
-function formatSteamNameSuggestionRow(row) {
-    return `${formatSteamNameMarkets(row)}: ${row.name}`;
+function getSteamNameSuggestions(rows) {
+    return rows.map((row) => ({
+        label: row.label || formatSteamNameMarkets(row),
+        url: row.sourceUrl,
+        value: row.name,
+    }));
 }
 
 /**
@@ -3646,6 +3680,23 @@ function formatSteamNameMarket(market) {
     const item = NAME_MARKETS.find((entry) => entry.key === market);
 
     return item?.label || market;
+}
+
+/**
+ * Gets the normalized original-title language for helper lookups.
+ *
+ * @param {object} form - Current form values.
+ * @returns {string} Original-title language code.
+ */
+function getOriginalNameLanguage(form) {
+    if (trimFieldValue(form.originalName) === "") {
+        return "";
+    }
+
+    return parsePrefixedValue(
+        form.originalName,
+        form.originalLanguage || "ja",
+    ).prefix.toLocaleLowerCase();
 }
 
 /**

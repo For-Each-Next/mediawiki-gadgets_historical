@@ -721,7 +721,8 @@ function init(require) {
             }),
         onSaveNavbox: saveNavboxTemplate,
         onSourceUrlChange: (url) => citationStore.prefetch(url),
-        onSteamNamesFetch: (url) => fetchSteamNameRows(url, citationStore),
+        onSteamNamesFetch: (url, options) =>
+            fetchSteamNameRows(url, citationStore, options),
         onSubmit: (...args) => submitForm(...args, citationStore),
         onSubmitHistory: saveCurrentFormHistory,
         onUpdateCategoryRowCategory: updateCategoryRowCategory,

@@ -32,6 +32,28 @@ test("Steam names are extracted with localized source URLs", async () => {
     assert.equal(rows[1].sourceUrl.includes("l=tchinese"), true);
 });
 
+test("Steam name lookup optionally includes preview-only Japanese", async () => {
+    const rows = await fetchSteamNameRows(
+        "https://store.steampowered.com/app/123/example/",
+        {
+            async fetch(url) {
+                return `{{cite web|title=Steam - ${
+                    url.includes("l=japanese") ? "日本語名" : "中文名"
+                }|url=${url}}}`;
+            },
+        },
+        {
+            includeJapanese: true,
+        },
+    );
+    const japanese = rows.find((row) => row.label === "Japanese");
+
+    assert.equal(japanese.name, "日本語名");
+    assert.equal(japanese.previewOnly, true);
+    assert.deepEqual(japanese.markets, []);
+    assert.equal(japanese.sourceUrl.includes("l=japanese"), true);
+});
+
 test("Steam name lookup rejects non-app URLs", async () => {
     await assert.rejects(
         fetchSteamNameRows("https://store.steampowered.com/", {

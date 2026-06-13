@@ -71,7 +71,10 @@ import {
     runSelectedActions,
 } from "./editing/pre-save.js";
 import { saveNavboxTemplate } from "./handlers/navbox-pages.js";
-import { addMissingPageEditTrigger } from "./interface/page-trigger.js";
+import {
+    addMissingPageEditTrigger,
+    addViewPageTrigger,
+} from "./interface/page-trigger.js";
 import {
     failSaveProgress,
     renderStoredSaveProgress,
@@ -543,14 +546,7 @@ function addToolboxLink() {
         return;
     }
 
-    const link = mw.util.addPortletLink(
-        "p-tb",
-        "#",
-        "Create VG stub",
-        "t-create-vg-stub",
-    );
-
-    link.addEventListener("click", handleToolboxClick);
+    addViewPageTrigger(mw.util, handleToolboxClick);
 }
 
 /**

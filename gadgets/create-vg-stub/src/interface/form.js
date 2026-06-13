@@ -1953,7 +1953,7 @@ function createNavboxDialogTemplate() {
                                 "v-bind:disabled": "navboxCreateState.loading",
                                 "v-on:click": "closeNavboxCreate",
                             },
-                            [createText("Cancel")],
+                            [createText("Delete")],
                         ),
                         createElement(
                             "cdx-button",

@@ -1953,7 +1953,7 @@ function createNavboxDialogTemplate() {
                                 "v-bind:disabled": "navboxCreateState.loading",
                                 "v-on:click": "closeNavboxCreate",
                             },
-                            [createText("Close")],
+                            [createText("Cancel")],
                         ),
                         createElement(
                             "cdx-button",
@@ -2008,7 +2008,7 @@ function createCategoryViewDialogTemplate() {
                             {
                                 "v-on:click": "closeCategoryView",
                             },
-                            [createText("Close")],
+                            [createText("Done")],
                         ),
                     ]),
                 ],
@@ -2086,7 +2086,7 @@ function createCompanyCategoryDialogTemplate() {
                                     "companyCategoryState.loading",
                                 "v-on:click": "closeCompanyCategory",
                             },
-                            [createText("Close")],
+                            [createText("Cancel")],
                         ),
                         createElement(
                             "cdx-button",
@@ -2315,7 +2315,7 @@ function createMainDialogFooterTemplate() {
                         {
                             "v-on:click": "closeDialog",
                         },
-                        [createText("Close")],
+                        [createText("Cancel")],
                     ),
                     createElement(
                         "cdx-button",
@@ -2464,7 +2464,7 @@ function createHistoryJsonDialogTemplate() {
                             {
                                 "v-on:click": "closeHistoryJsonDialog",
                             },
-                            [createText("Close")],
+                            [createText("Cancel")],
                         ),
                     ]),
                 ],
@@ -2580,7 +2580,7 @@ function createHistoryDialogFooterTemplate() {
                     {
                         "v-on:click": "closeHistoryDialog",
                     },
-                    [createText("Close")],
+                    [createText("Done")],
                 ),
             ]),
         ],
@@ -2635,7 +2635,7 @@ function createMoveDialogFooterTemplate() {
                     {
                         "v-on:click": "closeMoveDialog",
                     },
-                    [createText("Close")],
+                    [createText("Cancel")],
                 ),
                 createElement(
                     "cdx-button",

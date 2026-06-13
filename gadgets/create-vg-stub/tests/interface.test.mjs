@@ -624,7 +624,12 @@ test("pending category button reopens review and can cancel creation", async () 
     assert.equal(prepareCount, 0);
     assert.equal(component.template.includes("Review Category:"), true);
     assert.equal(component.template.includes(">Cancel</cdx-button>"), true);
-    assert.equal(component.template.includes(">Close</cdx-button>"), true);
+    assert.equal(component.template.includes(">Done</cdx-button>"), true);
+    assert.equal(component.template.includes(">Close</cdx-button>"), false);
+    const destructiveCancel = component.template.match(
+        /<cdx-button[^>]*action="destructive"[^>]*>Cancel<\/cdx-button>/u,
+    );
+    assert.notEqual(destructiveCancel, null);
 
     component.methods.cancelCompanyCategoryCreation();
 

@@ -497,6 +497,7 @@ export function addDialogStyles() {
  * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
  * @param {Function} [options.getFieldPreview] - Field wikitext preview builder.
  * @param {Function} options.getHistoryEntries - Form history entry provider.
+ * @param {Function} options.onActivate - Tool activation handler.
  * @param {Function} options.onCategoryRowsRefresh - Category refresh handler.
  * @param {Function} options.onClearHistory - Form history clear handler.
  * @param {Function} options.onCreateCategoryRow - Category row factory.
@@ -573,6 +574,10 @@ export function createDialogComponent(Vue, options) {
         replaceFormValues(form, initialForm);
     }
 
+    if (options.initialOpen === true) {
+        options.onActivate();
+    }
+
     let navboxRowsPrepared = hasPreparedNavboxRows(form);
     const queueCitationPrefetch = createCitationPrefetchQueue(options);
 
@@ -622,7 +627,10 @@ export function createDialogComponent(Vue, options) {
     }
 
     window.createVgStubDialog = {
-        open: openDialog.bind(null, open),
+        open() {
+            options.onActivate();
+            openDialog(open);
+        },
         async submit() {
             open.value = true;
             await openPreSave();

@@ -43,6 +43,7 @@ test("StyleSheet serializes selector arrays and nested media rules", () => {
 });
 
 test("moved editing sessions open the refilled form automatically", () => {
+    let activationCount = 0;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
@@ -50,12 +51,37 @@ test("moved editing sessions open the refilled form automatically", () => {
                 name: "中文名",
             },
             initialOpen: true,
+            onActivate() {
+                activationCount += 1;
+            },
         }),
     );
     const { form, open } = component.setup();
 
     assert.equal(open.value, true);
     assert.equal(form.name, "中文名");
+    assert.equal(activationCount, 1);
+});
+
+test("opening the tool activates submit handling", () => {
+    let activationCount = 0;
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onActivate() {
+                activationCount += 1;
+            },
+        }),
+    );
+    const { open } = component.setup();
+
+    assert.equal(activationCount, 0);
+    assert.equal(open.value, false);
+
+    window.createVgStubDialog.open();
+
+    assert.equal(activationCount, 1);
+    assert.equal(open.value, true);
 });
 
 test("history JSON can be copied, edited, and imported", () => {
@@ -1084,6 +1110,7 @@ function createOptionsStub(options = {}) {
         getHistoryEntries() {
             return [];
         },
+        onActivate() {},
         onCategoryRowsRefresh() {},
         onClearHistory() {},
         onCreateCategoryRow() {},

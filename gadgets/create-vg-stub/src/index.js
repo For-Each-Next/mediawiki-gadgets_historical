@@ -654,6 +654,16 @@ function init(require) {
     const citationStore = createCitationStore();
     const defaultName = getDefaultName();
     const movedEdit = getMovedEdit(getPageName());
+    let saveInterceptorActive = false;
+
+    const activateTool = () => {
+        if (saveInterceptorActive) {
+            return;
+        }
+
+        interceptEditSave(() => window.createVgStubDialog.submit());
+        saveInterceptorActive = true;
+    };
 
     addDialogStyles();
 
@@ -668,6 +678,7 @@ function init(require) {
         getProseSinographs: getFormProseSinographs,
         initialForm: movedEdit?.form || readFormDraftForPage(defaultName),
         initialOpen: movedEdit != null && movedEdit.preview !== true,
+        onActivate: activateTool,
         onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
             refreshFormCategoryRows(
                 form,
@@ -719,7 +730,11 @@ function init(require) {
     app.component("CdxTextArea", Codex.CdxTextArea);
     app.component("CdxTextInput", Codex.CdxTextInput);
     app.mount(createHost());
-    interceptEditSave(() => window.createVgStubDialog.submit());
+
+    if (movedEdit != null) {
+        activateTool();
+    }
+
     addToolboxLink();
     renderStoredSaveProgress();
     restoreMovedEditText();

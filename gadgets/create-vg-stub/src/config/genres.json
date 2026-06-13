@@ -1,1377 +1,1176 @@
 [
-  {
-    "aliases": [
-      "4x",
-      "4X game",
-      "4X概念系统"
-    ],
-    "page": {
-      "title": "4X概念系统"
-    },
-    "categories": [
-      "4X电子游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "action",
-      "Action game",
-      "动作游戏"
-    ],
-    "page": {
-      "title": "动作游戏"
-    },
-    "categories": [
-      "动作游戏"
-    ],
-    "stubTags": [
-      "action-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "action-adventure",
-      "Action-adventure game",
-      "动作冒险游戏"
-    ],
-    "page": {
-      "title": "动作冒险游戏"
-    },
-    "categories": [
-      "动作冒险游戏"
-    ],
-    "stubTags": [
-      "action-adventure-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "action-rpg",
-      "Action RPG",
-      "Action role-playing game",
-      "動作角色扮演遊戲",
-      "ARPG"
-    ],
-    "page": {
-      "title": "動作角色扮演遊戲"
-    },
-    "categories": [
-      "動作角色扮演遊戲"
-    ],
-    "stubTags": [
-      "action-rpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "adventure",
-      "Adventure game",
-      "冒险游戏"
-    ],
-    "page": {
-      "title": "冒险游戏"
-    },
-    "categories": [
-      "冒险游戏"
-    ],
-    "stubTags": [
-      "adventure-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "artillery",
-      "Artillery game",
-      "炮术游戏"
-    ],
-    "page": {
-      "title": "炮术游戏"
-    },
-    "categories": [
-      "炮术游戏"
-    ],
-    "stubTags": [
-      "artillery-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "auto-battler",
-      "Auto battler",
-      "自走棋"
-    ],
-    "page": {
-      "title": "自走棋"
-    },
-    "categories": [
-      "自走棋游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "battle-royale",
-      "Battle royale",
-      "Battle royale game",
-      "大逃杀游戏"
-    ],
-    "page": {
-      "title": "大逃杀游戏"
-    },
-    "categories": [
-      "大逃杀游戏"
-    ],
-    "stubTags": [
-      "action-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "brawler",
-      "Beat 'em up",
-      "清版动作游戏"
-    ],
-    "page": {
-      "title": "清版动作游戏"
-    },
-    "categories": [
-      "清版动作游戏"
-    ],
-    "stubTags": [
-      "action-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "business-sim",
-      "Business sim",
-      "Business simulation game",
-      "商业模拟游戏",
-      "Business simulation"
-    ],
-    "page": {
-      "title": "商业模拟游戏"
-    },
-    "categories": [
-      "商业模拟游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "bullet-hell",
-      "Bullet hell",
-      "彈幕射擊遊戲"
-    ],
-    "page": {
-      "title": "彈幕射擊遊戲"
-    },
-    "categories": [
-      "彈幕射擊遊戲"
-    ],
-    "stubTags": [
-      "shooter-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "bullet-heaven",
-      "Bullet heaven",
-      "Vampire Survivors–like",
-      "類吸血鬼倖存者遊戲",
-      "Vampire Survivors-like"
-    ],
-    "page": {
-      "title": "類吸血鬼倖存者遊戲"
-    },
-    "categories": [
-      "類吸血鬼倖存者遊戲"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "city-builder",
-      "City builder",
-      "City-building game",
-      "城市建造游戏"
-    ],
-    "page": {
-      "title": "城市建造游戏"
-    },
-    "categories": [
-      "城市建造游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "cms",
-      "Construction and management simulation",
-      "建造與經營模擬遊戲"
-    ],
-    "page": {
-      "title": "建造與經營模擬遊戲"
-    },
-    "categories": [
-      "建造與經營模擬遊戲"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "dating-sim",
-      "Dating sim",
-      "戀愛模擬遊戲"
-    ],
-    "page": {
-      "title": "戀愛模擬遊戲"
-    },
-    "categories": [
-      "戀愛模擬遊戲"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "dccg",
-      "Digital collectible card game",
-      "电子集换式卡片游戏"
-    ],
-    "page": {
-      "title": "电子集换式卡片游戏"
-    },
-    "categories": [
-      "电子集换式卡片游戏"
-    ],
-    "stubTags": [
-      "card-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "deck-building",
-      "Deck building",
-      "Deck building game",
-      "牌组构筑游戏"
-    ],
-    "page": {
-      "title": "牌组构筑游戏"
-    },
-    "categories": [
-      "牌组构筑游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "digital-tabletop",
-      "Digital tabletop",
-      "Digital tabletop game",
-      "数字桌上游戏"
-    ],
-    "page": {
-      "title": "数字桌上游戏"
-    },
-    "categories": [
-      "数字桌上游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "dungeon-crawl",
-      "Dungeon crawl",
-      "迷宫探索"
-    ],
-    "page": {
-      "title": "迷宫探索"
-    },
-    "categories": [
-      "迷宫探索游戏"
-    ],
-    "stubTags": [
-      "rpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "educational",
-      "Educational video game",
-      "教育游戏"
-    ],
-    "page": {
-      "title": "教育游戏"
-    },
-    "categories": [
-      "教育游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "endless-runner",
-      "Endless runner",
-      "無盡跑酷遊戲",
-      "Runner game"
-    ],
-    "page": {
-      "title": "無盡跑酷遊戲"
-    },
-    "categories": [
-      "無盡跑酷遊戲"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "eroge",
-      "Japanese erotic video game",
-      "日本成人遊戲"
-    ],
-    "page": {
-      "title": "日本成人遊戲"
-    },
-    "categories": [
-      "日本成人遊戲"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "farming",
-      "Farm life sim",
-      "農場模擬遊戲",
-      "Farm life simulation"
-    ],
-    "page": {
-      "title": "農場模擬遊戲"
-    },
-    "categories": [
-      "農場模擬遊戲"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "fighting",
-      "Fighting game",
-      "格鬥遊戲"
-    ],
-    "page": {
-      "title": "格鬥遊戲"
-    },
-    "categories": [
-      "格鬥遊戲"
-    ],
-    "stubTags": [
-      "fighting-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "fitness",
-      "Fitness game",
-      "健身遊戲"
-    ],
-    "page": {
-      "title": "健身遊戲"
-    },
-    "categories": [
-      "健身遊戲"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "fps",
-      "First-person shooter",
-      "第一人称射击游戏"
-    ],
-    "page": {
-      "title": "第一人称射击游戏"
-    },
-    "categories": [
-      "第一人称射击游戏"
-    ],
-    "stubTags": [
-      "fps-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "god-game",
-      "God game",
-      "上帝模拟游戏"
-    ],
-    "page": {
-      "title": "上帝模拟游戏"
-    },
-    "categories": [
-      "上帝模拟游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "government-sim",
-      "Government sim",
-      "Government simulation game",
-      "政府模拟游戏"
-    ],
-    "page": {
-      "title": "政府模拟游戏"
-    },
-    "categories": [
-      "政府模拟游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "grand-strategy",
-      "Grand strategy",
-      "Grand strategy game",
-      "大战略游戏"
-    ],
-    "page": {
-      "title": "大战略游戏"
-    },
-    "categories": [
-      "大战略游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "graphic-adventure",
-      "Graphic adventure",
-      "图形冒险游戏"
-    ],
-    "page": {
-      "title": "图形冒险游戏"
-    },
-    "categories": [
-      "图形冒险游戏"
-    ],
-    "stubTags": [
-      "adventure-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "hack-and-slash",
-      "Hack and slash",
-      "砍殺遊戲"
-    ],
-    "page": {
-      "title": "砍殺遊戲"
-    },
-    "categories": [
-      "砍殺遊戲"
-    ],
-    "stubTags": [
-      "action-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "hero-shooter",
-      "Hero shooter",
-      "英雄射击游戏"
-    ],
-    "page": {
-      "title": "英雄射击游戏"
-    },
-    "categories": [
-      "英雄射击游戏"
-    ],
-    "stubTags": [
-      "shooter-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "horror",
-      "Horror game",
-      "恐怖游戏"
-    ],
-    "page": {
-      "title": "恐怖游戏"
-    },
-    "categories": [
-      "恐怖游戏"
-    ],
-    "stubTags": [
-      "horror-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "interactive-film",
-      "Interactive film",
-      "互动式电影",
-      "Full motion video"
-    ],
-    "page": {
-      "title": "互动式电影"
-    },
-    "categories": [
-      "互动式电影"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "jrpg",
-      "Japanese-style role-playing game",
-      "日式角色扮演游戏",
-      "Japanese RPG"
-    ],
-    "page": {
-      "title": "日式角色扮演游戏"
-    },
-    "categories": [
-      "日式角色扮演游戏"
-    ],
-    "stubTags": [
-      "rpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "life-sim",
-      "Life sim",
-      "Life simulation game",
-      "生活模拟游戏"
-    ],
-    "page": {
-      "title": "生活模拟游戏"
-    },
-    "categories": [
-      "生活模拟游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "metroidvania",
-      "類銀河戰士惡魔城遊戲"
-    ],
-    "page": {
-      "title": "類銀河戰士惡魔城遊戲"
-    },
-    "categories": [
-      "類銀河戰士惡魔城遊戲"
-    ],
-    "stubTags": [
-      "action-adventure-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "mmo",
-      "Massively multiplayer online game",
-      "大型多人在线游戏"
-    ],
-    "page": {
-      "title": "大型多人在线游戏"
-    },
-    "categories": [
-      "大型多人在线游戏"
-    ],
-    "stubTags": [
-      "Online-game-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "mmorpg",
-      "Massively multiplayer online RPG",
-      "大型多人在线角色扮演游戏",
-      "Massively multiplayer online role-playing game"
-    ],
-    "page": {
-      "title": "大型多人在线角色扮演游戏"
-    },
-    "categories": [
-      "大型多人在线角色扮演游戏"
-    ],
-    "stubTags": [
-      "mmorpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "moba",
-      "Multiplayer online battle arena",
-      "多人在线战斗竞技场"
-    ],
-    "page": {
-      "title": "多人在线战斗竞技场"
-    },
-    "categories": [
-      "多人在线战斗竞技场"
-    ],
-    "stubTags": [
-      "Online-game-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "monster-tamer",
-      "Monster tamer",
-      "Monster-taming game",
-      "怪物驯养游戏"
-    ],
-    "page": {
-      "title": "怪物驯养游戏"
-    },
-    "categories": [
-      "怪物驯养游戏"
-    ],
-    "stubTags": [
-      "rpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "mud",
-      "Multi-user dungeon"
-    ],
-    "page": {
-      "title": "MUD"
-    },
-    "categories": [
-      "MUD游戏"
-    ],
-    "stubTags": [
-      "rpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "music",
-      "Music video game",
-      "音樂遊戲"
-    ],
-    "page": {
-      "title": "音樂遊戲"
-    },
-    "categories": [
-      "音樂遊戲"
-    ],
-    "stubTags": [
-      "music-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "narrative-adventure",
-      "Narrative adventure",
-      "Narrative adventure game",
-      "叙事冒险游戏"
-    ],
-    "page": {
-      "title": "叙事冒险游戏"
-    },
-    "categories": [
-      "叙事冒险游戏"
-    ],
-    "stubTags": [
-      "adventure-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "otome",
-      "Otome game",
-      "乙女游戏"
-    ],
-    "page": {
-      "title": "乙女游戏"
-    },
-    "categories": [
-      "乙女游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "party",
-      "Party video game",
-      "聚会游戏"
-    ],
-    "page": {
-      "title": "聚会游戏"
-    },
-    "categories": [
-      "聚会游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "pca",
-      "Point-and-click adventure",
-      "点击式冒险游戏"
-    ],
-    "page": {
-      "title": "点击式冒险游戏"
-    },
-    "categories": [
-      "点击式冒险游戏"
-    ],
-    "stubTags": [
-      "adventure-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "platform",
-      "platformer",
-      "平台游戏",
-      "Platform game"
-    ],
-    "page": {
-      "title": "平台游戏"
-    },
-    "categories": [
-      "平台游戏"
-    ],
-    "stubTags": [
-      "platform-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "puzzle",
-      "Puzzle video game",
-      "益智游戏"
-    ],
-    "page": {
-      "title": "益智游戏"
-    },
-    "categories": [
-      "益智游戏"
-    ],
-    "stubTags": [
-      "puzzle-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "puzzle-platformer",
-      "益智平台游戏"
-    ],
-    "page": {
-      "title": "益智平台游戏"
-    },
-    "categories": [
-      "益智平台游戏"
-    ],
-    "stubTags": [
-      "platform-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "racing",
-      "Racing game",
-      "竞速游戏"
-    ],
-    "page": {
-      "title": "竞速游戏"
-    },
-    "categories": [
-      "竞速游戏"
-    ],
-    "stubTags": [
-      "racing-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "real-time",
-      "Real-time game",
-      "即时游戏"
-    ],
-    "page": {
-      "title": "即时游戏"
-    },
-    "categories": [
-      "即时游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "rhythm",
-      "Rhythm game",
-      "节奏游戏"
-    ],
-    "page": {
-      "title": "节奏游戏"
-    },
-    "categories": [
-      "节奏游戏"
-    ],
-    "stubTags": [
-      "music-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "roguelike",
-      "Roguelite"
-    ],
-    "page": {
-      "title": "Roguelike"
-    },
-    "categories": [
-      "Roguelike游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "rpg",
-      "Role-playing video game",
-      "電子角色扮演遊戲",
-      "CRPG",
-      "电脑角色扮演游戏"
-    ],
-    "page": {
-      "title": "電子角色扮演遊戲",
-      "label": "角色扮演游戏"
-    },
-    "categories": [
-      "電子角色扮演遊戲"
-    ],
-    "stubTags": [
-      "rpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "rts",
-      "Real-time strategy",
-      "即时战略游戏"
-    ],
-    "page": {
-      "title": "即时战略游戏"
-    },
-    "categories": [
-      "即时战略游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "rtt",
-      "Real-time tactics",
-      "即时战术游戏"
-    ],
-    "page": {
-      "title": "即时战术游戏"
-    },
-    "categories": [
-      "即时战术游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "run-and-gun",
-      "Run and gun",
-      "Run and gun game",
-      "奔跑射擊遊戲"
-    ],
-    "page": {
-      "title": "奔跑射擊遊戲"
-    },
-    "categories": [
-      "奔跑射擊遊戲"
-    ],
-    "stubTags": [
-      "shooter-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "sandbox",
-      "Sandbox game",
-      "沙盒游戏"
-    ],
-    "page": {
-      "title": "沙盒游戏"
-    },
-    "categories": [
-      "沙盒游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "shoot-em-up",
-      "Shoot 'em up",
-      "清版射击游戏"
-    ],
-    "page": {
-      "title": "清版射击游戏"
-    },
-    "categories": [
-      "清版射击游戏"
-    ],
-    "stubTags": [
-      "shmup-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "scrolling-shooter",
-      "Scrolling shooter",
-      "捲軸射擊遊戲"
-    ],
-    "page": {
-      "title": "捲軸射擊遊戲"
-    },
-    "categories": [
-      "捲軸射擊遊戲"
-    ],
-    "stubTags": [
-      "shooter-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "shooter",
-      "Shooter game",
-      "射击游戏"
-    ],
-    "page": {
-      "title": "射击游戏"
-    },
-    "categories": [
-      "射击游戏"
-    ],
-    "stubTags": [
-      "shooter-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "simulation",
-      "Simulation video game",
-      "模拟游戏"
-    ],
-    "page": {
-      "title": "模拟游戏"
-    },
-    "categories": [
-      "模拟游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "social-sim",
-      "Social sim",
-      "Social simulation game",
-      "社交模拟游戏"
-    ],
-    "page": {
-      "title": "社交模拟游戏"
-    },
-    "categories": [
-      "社交模拟游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "soulslike",
-      "魂系",
-      "Souls-like"
-    ],
-    "page": {
-      "title": "魂系"
-    },
-    "categories": [
-      "魂系游戏"
-    ],
-    "stubTags": [
-      "rpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "sports",
-      "Sports video game",
-      "体育游戏"
-    ],
-    "page": {
-      "title": "体育游戏"
-    },
-    "categories": [
-      "体育游戏"
-    ],
-    "stubTags": [
-      "sports-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "stealth",
-      "Stealth game",
-      "隐蔽类游戏"
-    ],
-    "page": {
-      "title": "隐蔽类游戏"
-    },
-    "categories": [
-      "隐蔽类游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "strategy",
-      "Strategy video game",
-      "策略游戏"
-    ],
-    "page": {
-      "title": "策略游戏"
-    },
-    "categories": [
-      "策略游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "survival",
-      "Survival game",
-      "生存游戏"
-    ],
-    "page": {
-      "title": "生存游戏"
-    },
-    "categories": [
-      "生存游戏"
-    ],
-    "stubTags": [
-      "action-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "survival-horror",
-      "Survival horror",
-      "恐怖生存游戏"
-    ],
-    "page": {
-      "title": "恐怖生存游戏"
-    },
-    "categories": [
-      "恐怖生存游戏"
-    ],
-    "stubTags": [
-      "horror-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "tactical-rpg",
-      "Tactical RPG",
-      "Tactical role-playing game",
-      "戰略角色扮演遊戲",
-      "Strategy RPG",
-      "SRPG"
-    ],
-    "page": {
-      "title": "戰略角色扮演遊戲"
-    },
-    "categories": [
-      "戰略角色扮演遊戲"
-    ],
-    "stubTags": [
-      "tactical-rpg-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "tactical-shooter",
-      "Tactical shooter",
-      "战术射击游戏"
-    ],
-    "page": {
-      "title": "战术射击游戏"
-    },
-    "categories": [
-      "战术射击游戏"
-    ],
-    "stubTags": [
-      "shooter-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "tbs",
-      "Turn-based strategy",
-      "回合制策略游戏"
-    ],
-    "page": {
-      "title": "回合制策略游戏"
-    },
-    "categories": [
-      "回合制策略游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "tbt",
-      "Turn-based tactics",
-      "回合制战术游戏"
-    ],
-    "page": {
-      "title": "回合制战术游戏"
-    },
-    "categories": [
-      "回合制战术游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "tile-matching",
-      "Tile matching",
-      "Tile-matching video game",
-      "消除类游戏",
-      "Match-three game"
-    ],
-    "page": {
-      "title": "消除类游戏"
-    },
-    "categories": [
-      "消除类游戏"
-    ],
-    "stubTags": [
-      "puzzle-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "tower-defense",
-      "Tower defense",
-      "塔防"
-    ],
-    "page": {
-      "title": "塔防"
-    },
-    "categories": [
-      "塔防游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "tps",
-      "Third-person shooter",
-      "第三人称射击游戏"
-    ],
-    "page": {
-      "title": "第三人称射击游戏"
-    },
-    "categories": [
-      "第三人称射击游戏"
-    ],
-    "stubTags": [
-      "tps-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "turn-based",
-      "Turn-based game",
-      "回合制游戏"
-    ],
-    "page": {
-      "title": "回合制游戏"
-    },
-    "categories": [
-      "回合制游戏"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "vehicle-sim",
-      "Vehicle sim",
-      "Vehicle simulation game",
-      "交通工具模拟游戏"
-    ],
-    "page": {
-      "title": "交通工具模拟游戏"
-    },
-    "categories": [
-      "交通工具模拟游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "vehicular-combat",
-      "Vehicular combat",
-      "Vehicular combat game",
-      "交通工具戰鬥遊戲"
-    ],
-    "page": {
-      "title": "交通工具戰鬥遊戲"
-    },
-    "categories": [
-      "交通工具戰鬥遊戲"
-    ],
-    "stubTags": [
-      "videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "virtual-pet",
-      "Virtual pet",
-      "电子宠物",
-      "Pet-raising simulation"
-    ],
-    "page": {
-      "title": "电子宠物"
-    },
-    "categories": [
-      "电子宠物游戏"
-    ],
-    "stubTags": [
-      "simulation-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "visual-novel",
-      "Visual novel",
-      "视觉小说"
-    ],
-    "page": {
-      "title": "视觉小说"
-    },
-    "categories": [
-      "视觉小说"
-    ],
-    "stubTags": [
-      "Visual-novel-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "walking-sim",
-      "Walking sim",
-      "Walking simulator",
-      "步行模擬器"
-    ],
-    "page": {
-      "title": "步行模擬器"
-    },
-    "categories": [
-      "步行模擬器"
-    ],
-    "stubTags": [
-      "adventure-videogame-stub"
-    ]
-  },
-  {
-    "aliases": [
-      "wargame",
-      "Computer wargame",
-      "电脑战争游戏"
-    ],
-    "page": {
-      "title": "电脑战争游戏"
-    },
-    "categories": [
-      "电脑战争游戏"
-    ],
-    "stubTags": [
-      "strategy-videogame-stub"
-    ]
-  }
+    {
+        "aliases": ["4x", "4X game", "4X概念系統", "4X概念系统"],
+        "page": {
+            "title": "4X概念系统"
+        },
+        "categories": ["4X电子游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "action",
+            "action game",
+            "动作",
+            "动作游戏",
+            "動作",
+            "動作遊戲"
+        ],
+        "page": {
+            "title": "动作游戏"
+        },
+        "categories": ["动作游戏"],
+        "stubTags": ["action-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "action-adventure",
+            "action-adventure game",
+            "动作冒险",
+            "动作冒险游戏",
+            "動作冒險",
+            "動作冒險遊戲"
+        ],
+        "page": {
+            "title": "动作冒险游戏"
+        },
+        "categories": ["动作冒险游戏"],
+        "stubTags": ["action-adventure-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "action role-playing",
+            "action role-playing game",
+            "action RPG",
+            "ARPG",
+            "动作角色扮演",
+            "动作角色扮演游戏",
+            "動作角色扮演",
+            "動作角色扮演遊戲"
+        ],
+        "page": {
+            "title": "動作角色扮演遊戲"
+        },
+        "categories": ["動作角色扮演遊戲"],
+        "stubTags": ["action-rpg-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "adventure",
+            "adventure game",
+            "冒险",
+            "冒险游戏",
+            "冒險",
+            "冒險遊戲"
+        ],
+        "page": {
+            "title": "冒险游戏"
+        },
+        "categories": ["冒险游戏"],
+        "stubTags": ["adventure-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "artillery",
+            "artillery game",
+            "炮术",
+            "炮术游戏",
+            "炮術",
+            "炮術遊戲"
+        ],
+        "page": {
+            "title": "炮术游戏"
+        },
+        "categories": ["炮术游戏"],
+        "stubTags": ["artillery-videogame-stub"]
+    },
+    {
+        "aliases": ["auto battler", "自走棋"],
+        "page": {
+            "title": "自走棋"
+        },
+        "categories": ["自走棋游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "battle royale",
+            "battle royale game",
+            "大逃杀",
+            "大逃杀游戏",
+            "大逃殺",
+            "大逃殺遊戲"
+        ],
+        "page": {
+            "title": "大逃杀游戏"
+        },
+        "categories": ["大逃杀游戏"],
+        "stubTags": ["action-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "beat 'em up",
+            "brawler",
+            "清版动作",
+            "清版动作游戏",
+            "清版動作",
+            "清版動作遊戲"
+        ],
+        "page": {
+            "title": "清版动作游戏"
+        },
+        "categories": ["清版动作游戏"],
+        "stubTags": ["action-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "business sim",
+            "business simulation",
+            "business simulation game",
+            "商业模拟",
+            "商业模拟游戏",
+            "商業模擬",
+            "商業模擬遊戲"
+        ],
+        "page": {
+            "title": "商业模拟游戏"
+        },
+        "categories": ["商业模拟游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "bullet hell",
+            "弹幕射击",
+            "弹幕射击游戏",
+            "彈幕射擊",
+            "彈幕射擊遊戲"
+        ],
+        "page": {
+            "title": "彈幕射擊遊戲"
+        },
+        "categories": ["彈幕射擊遊戲"],
+        "stubTags": ["shooter-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "bullet heaven",
+            "vampire Survivors-like",
+            "vampire Survivors–like",
+            "类吸血鬼幸存者",
+            "类吸血鬼幸存者游戏",
+            "類吸血鬼倖存者",
+            "類吸血鬼倖存者遊戲"
+        ],
+        "page": {
+            "title": "類吸血鬼倖存者遊戲"
+        },
+        "categories": ["類吸血鬼倖存者遊戲"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "city builder",
+            "city-building",
+            "city-building game",
+            "城市建造",
+            "城市建造游戏",
+            "城市建造遊戲"
+        ],
+        "page": {
+            "title": "城市建造游戏"
+        },
+        "categories": ["城市建造游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "cms",
+            "construction and management simulation",
+            "建造与经营模拟",
+            "建造与经营模拟游戏",
+            "建造與經營模擬",
+            "建造與經營模擬遊戲"
+        ],
+        "page": {
+            "title": "建造與經營模擬遊戲"
+        },
+        "categories": ["建造與經營模擬遊戲"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "dating sim",
+            "恋爱模拟",
+            "恋爱模拟游戏",
+            "戀愛模擬",
+            "戀愛模擬遊戲"
+        ],
+        "page": {
+            "title": "戀愛模擬遊戲"
+        },
+        "categories": ["戀愛模擬遊戲"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "dccg",
+            "digital collectible card",
+            "digital collectible card game",
+            "电子集换式卡片",
+            "电子集换式卡片游戏",
+            "電子集換式卡片",
+            "電子集換式卡片遊戲"
+        ],
+        "page": {
+            "title": "电子集换式卡片游戏"
+        },
+        "categories": ["电子集换式卡片游戏"],
+        "stubTags": ["card-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "deck building",
+            "deck building game",
+            "牌組構築",
+            "牌組構築遊戲",
+            "牌组构筑",
+            "牌组构筑游戏"
+        ],
+        "page": {
+            "title": "牌组构筑游戏"
+        },
+        "categories": ["牌组构筑游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "digital tabletop",
+            "digital tabletop game",
+            "数字桌上",
+            "数字桌上游戏",
+            "數字桌上",
+            "數字桌上游戲"
+        ],
+        "page": {
+            "title": "数字桌上游戏"
+        },
+        "categories": ["数字桌上游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": ["dungeon crawl", "迷宫探索", "迷宮探索"],
+        "page": {
+            "title": "迷宫探索"
+        },
+        "categories": ["迷宫探索游戏"],
+        "stubTags": ["rpg-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "educational",
+            "educational video",
+            "educational video game",
+            "教育",
+            "教育游戏",
+            "教育遊戲"
+        ],
+        "page": {
+            "title": "教育游戏"
+        },
+        "categories": ["教育游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "endless runner",
+            "runner",
+            "runner game",
+            "无尽跑酷",
+            "无尽跑酷游戏",
+            "無盡跑酷",
+            "無盡跑酷遊戲"
+        ],
+        "page": {
+            "title": "無盡跑酷遊戲"
+        },
+        "categories": ["無盡跑酷遊戲"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "eroge",
+            "japanese erotic video",
+            "japanese erotic video game",
+            "日本成人",
+            "日本成人游戏",
+            "日本成人遊戲"
+        ],
+        "page": {
+            "title": "日本成人遊戲"
+        },
+        "categories": ["日本成人遊戲"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "farm life sim",
+            "farm life simulation",
+            "farming",
+            "农场模拟",
+            "农场模拟游戏",
+            "農場模擬",
+            "農場模擬遊戲"
+        ],
+        "page": {
+            "title": "農場模擬遊戲"
+        },
+        "categories": ["農場模擬遊戲"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "fighting",
+            "fighting game",
+            "格斗",
+            "格斗游戏",
+            "格鬥",
+            "格鬥遊戲"
+        ],
+        "page": {
+            "title": "格鬥遊戲"
+        },
+        "categories": ["格鬥遊戲"],
+        "stubTags": ["fighting-videogame-stub"]
+    },
+    {
+        "aliases": ["fitness", "fitness game", "健身", "健身游戏", "健身遊戲"],
+        "page": {
+            "title": "健身遊戲"
+        },
+        "categories": ["健身遊戲"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "first-person shooter",
+            "fps",
+            "第一人称射击",
+            "第一人称射击游戏",
+            "第一人稱射擊",
+            "第一人稱射擊遊戲"
+        ],
+        "page": {
+            "title": "第一人称射击游戏"
+        },
+        "categories": ["第一人称射击游戏"],
+        "stubTags": ["fps-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "god",
+            "god game",
+            "上帝模拟",
+            "上帝模拟游戏",
+            "上帝模擬",
+            "上帝模擬遊戲"
+        ],
+        "page": {
+            "title": "上帝模拟游戏"
+        },
+        "categories": ["上帝模拟游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "government sim",
+            "government simulation",
+            "government simulation game",
+            "政府模拟",
+            "政府模拟游戏",
+            "政府模擬",
+            "政府模擬遊戲"
+        ],
+        "page": {
+            "title": "政府模拟游戏"
+        },
+        "categories": ["政府模拟游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "grand strategy",
+            "grand strategy game",
+            "大战略",
+            "大战略游戏",
+            "大戰略",
+            "大戰略遊戲"
+        ],
+        "page": {
+            "title": "大战略游戏"
+        },
+        "categories": ["大战略游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "graphic adventure",
+            "图形冒险",
+            "图形冒险游戏",
+            "圖形冒險",
+            "圖形冒險遊戲"
+        ],
+        "page": {
+            "title": "图形冒险游戏"
+        },
+        "categories": ["图形冒险游戏"],
+        "stubTags": ["adventure-videogame-stub"]
+    },
+    {
+        "aliases": ["hack and slash", "砍杀", "砍杀游戏", "砍殺", "砍殺遊戲"],
+        "page": {
+            "title": "砍殺遊戲"
+        },
+        "categories": ["砍殺遊戲"],
+        "stubTags": ["action-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "hero shooter",
+            "英雄射击",
+            "英雄射击游戏",
+            "英雄射擊",
+            "英雄射擊遊戲"
+        ],
+        "page": {
+            "title": "英雄射击游戏"
+        },
+        "categories": ["英雄射击游戏"],
+        "stubTags": ["shooter-videogame-stub"]
+    },
+    {
+        "aliases": ["horror", "horror game", "恐怖", "恐怖游戏", "恐怖遊戲"],
+        "page": {
+            "title": "恐怖游戏"
+        },
+        "categories": ["恐怖游戏"],
+        "stubTags": ["horror-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "full motion video",
+            "interactive film",
+            "互动式电影",
+            "互動式電影"
+        ],
+        "page": {
+            "title": "互动式电影"
+        },
+        "categories": ["互动式电影"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "japanese RPG",
+            "japanese-style role-playing",
+            "japanese-style role-playing game",
+            "jrpg",
+            "日式角色扮演",
+            "日式角色扮演游戏",
+            "日式角色扮演遊戲"
+        ],
+        "page": {
+            "title": "日式角色扮演游戏"
+        },
+        "categories": ["日式角色扮演游戏"],
+        "stubTags": ["rpg-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "life sim",
+            "life simulation",
+            "life simulation game",
+            "生活模拟",
+            "生活模拟游戏",
+            "生活模擬",
+            "生活模擬遊戲"
+        ],
+        "page": {
+            "title": "生活模拟游戏"
+        },
+        "categories": ["生活模拟游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "metroidvania",
+            "类银河战士恶魔城",
+            "类银河战士恶魔城游戏",
+            "類銀河戰士惡魔城",
+            "類銀河戰士惡魔城遊戲"
+        ],
+        "page": {
+            "title": "類銀河戰士惡魔城遊戲"
+        },
+        "categories": ["類銀河戰士惡魔城遊戲"],
+        "stubTags": ["action-adventure-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "massively multiplayer online",
+            "massively multiplayer online game",
+            "mmo",
+            "大型多人在线",
+            "大型多人在线游戏",
+            "大型多人在線",
+            "大型多人在線遊戲"
+        ],
+        "page": {
+            "title": "大型多人在线游戏"
+        },
+        "categories": ["大型多人在线游戏"],
+        "stubTags": ["Online-game-stub"]
+    },
+    {
+        "aliases": [
+            "massively multiplayer online role-playing",
+            "massively multiplayer online role-playing game",
+            "massively multiplayer online RPG",
+            "mmorpg",
+            "大型多人在线角色扮演",
+            "大型多人在线角色扮演游戏",
+            "大型多人在線角色扮演",
+            "大型多人在線角色扮演遊戲"
+        ],
+        "page": {
+            "title": "大型多人在线角色扮演游戏"
+        },
+        "categories": ["大型多人在线角色扮演游戏"],
+        "stubTags": ["mmorpg-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "moba",
+            "multiplayer online battle arena",
+            "多人在线战斗竞技场",
+            "多人在線戰鬥競技場"
+        ],
+        "page": {
+            "title": "多人在线战斗竞技场"
+        },
+        "categories": ["多人在线战斗竞技场"],
+        "stubTags": ["Online-game-stub"]
+    },
+    {
+        "aliases": [
+            "monster tamer",
+            "monster-taming",
+            "monster-taming game",
+            "怪物馴養",
+            "怪物馴養遊戲",
+            "怪物驯养",
+            "怪物驯养游戏"
+        ],
+        "page": {
+            "title": "怪物驯养游戏"
+        },
+        "categories": ["怪物驯养游戏"],
+        "stubTags": ["rpg-videogame-stub"]
+    },
+    {
+        "aliases": ["mud", "multi-user dungeon"],
+        "page": {
+            "title": "MUD"
+        },
+        "categories": ["MUD游戏"],
+        "stubTags": ["rpg-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "music",
+            "music video",
+            "music video game",
+            "音乐",
+            "音乐游戏",
+            "音樂",
+            "音樂遊戲"
+        ],
+        "page": {
+            "title": "音樂遊戲"
+        },
+        "categories": ["音樂遊戲"],
+        "stubTags": ["music-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "narrative adventure",
+            "narrative adventure game",
+            "叙事冒险",
+            "叙事冒险游戏",
+            "敘事冒險",
+            "敘事冒險遊戲"
+        ],
+        "page": {
+            "title": "叙事冒险游戏"
+        },
+        "categories": ["叙事冒险游戏"],
+        "stubTags": ["adventure-videogame-stub"]
+    },
+    {
+        "aliases": ["otome", "otome game", "乙女", "乙女游戏", "乙女遊戲"],
+        "page": {
+            "title": "乙女游戏"
+        },
+        "categories": ["乙女游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "party",
+            "party video",
+            "party video game",
+            "聚会",
+            "聚会游戏",
+            "聚會",
+            "聚會遊戲"
+        ],
+        "page": {
+            "title": "聚会游戏"
+        },
+        "categories": ["聚会游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "pca",
+            "point-and-click adventure",
+            "点击式冒险",
+            "点击式冒险游戏",
+            "點擊式冒險",
+            "點擊式冒險遊戲"
+        ],
+        "page": {
+            "title": "点击式冒险游戏"
+        },
+        "categories": ["点击式冒险游戏"],
+        "stubTags": ["adventure-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "platform",
+            "platform game",
+            "platformer",
+            "平台",
+            "平台游戏",
+            "平臺",
+            "平臺遊戲"
+        ],
+        "page": {
+            "title": "平台游戏"
+        },
+        "categories": ["平台游戏"],
+        "stubTags": ["platform-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "puzzle",
+            "puzzle video",
+            "puzzle video game",
+            "益智",
+            "益智游戏",
+            "益智遊戲"
+        ],
+        "page": {
+            "title": "益智游戏"
+        },
+        "categories": ["益智游戏"],
+        "stubTags": ["puzzle-videogame-stub"]
+    },
+    {
+        "aliases": ["益智平台", "益智平台游戏", "益智平臺", "益智平臺遊戲"],
+        "page": {
+            "title": "益智平台游戏"
+        },
+        "categories": ["益智平台游戏"],
+        "stubTags": ["platform-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "racing",
+            "racing game",
+            "竞速",
+            "竞速游戏",
+            "競速",
+            "競速遊戲"
+        ],
+        "page": {
+            "title": "竞速游戏"
+        },
+        "categories": ["竞速游戏"],
+        "stubTags": ["racing-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "real-time",
+            "real-time game",
+            "即时",
+            "即时游戏",
+            "即時",
+            "即時遊戲"
+        ],
+        "page": {
+            "title": "即时游戏"
+        },
+        "categories": ["即时游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "rhythm",
+            "rhythm game",
+            "節奏",
+            "節奏遊戲",
+            "节奏",
+            "节奏游戏"
+        ],
+        "page": {
+            "title": "节奏游戏"
+        },
+        "categories": ["节奏游戏"],
+        "stubTags": ["music-videogame-stub"]
+    },
+    {
+        "aliases": ["roguelike", "roguelite"],
+        "page": {
+            "title": "Roguelike"
+        },
+        "categories": ["Roguelike游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "RPG",
+            "role-playing",
+            "role-playing video game",
+            "rpg",
+            "角色扮演",
+            "電子角色扮演游戏",
+
+            "角色扮演",
+            "電子角色扮演遊戲"
+        ],
+        "page": {
+            "title": "電子角色扮演遊戲",
+            "label": "角色扮演游戏"
+        },
+        "categories": ["電子角色扮演遊戲"],
+        "stubTags": ["rpg-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "real-time strategy",
+            "rts",
+            "即时战略",
+            "即时战略游戏",
+            "即時戰略",
+            "即時戰略遊戲"
+        ],
+        "page": {
+            "title": "即时战略游戏"
+        },
+        "categories": ["即时战略游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "real-time tactics",
+            "rtt",
+            "即时战术",
+            "即时战术游戏",
+            "即時戰術",
+            "即時戰術遊戲"
+        ],
+        "page": {
+            "title": "即时战术游戏"
+        },
+        "categories": ["即时战术游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "run and gun",
+            "run and gun game",
+            "奔跑射击",
+            "奔跑射击游戏",
+            "奔跑射擊",
+            "奔跑射擊遊戲"
+        ],
+        "page": {
+            "title": "奔跑射擊遊戲"
+        },
+        "categories": ["奔跑射擊遊戲"],
+        "stubTags": ["shooter-videogame-stub"]
+    },
+    {
+        "aliases": ["sandbox", "sandbox game", "沙盒", "沙盒游戏", "沙盒遊戲"],
+        "page": {
+            "title": "沙盒游戏"
+        },
+        "categories": ["沙盒游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "shoot 'em up",
+            "清版射击",
+            "清版射击游戏",
+            "清版射擊",
+            "清版射擊遊戲"
+        ],
+        "page": {
+            "title": "清版射击游戏"
+        },
+        "categories": ["清版射击游戏"],
+        "stubTags": ["shmup-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "scrolling shooter",
+            "卷軸射擊",
+            "卷軸射擊遊戲",
+            "卷轴射击",
+            "卷轴射击游戏",
+            "捲軸射擊",
+            "捲軸射擊遊戲"
+        ],
+        "page": {
+            "title": "捲軸射擊遊戲"
+        },
+        "categories": ["捲軸射擊遊戲"],
+        "stubTags": ["shooter-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "shooter",
+            "shooter game",
+            "射击",
+            "射击游戏",
+            "射擊",
+            "射擊遊戲"
+        ],
+        "page": {
+            "title": "射击游戏"
+        },
+        "categories": ["射击游戏"],
+        "stubTags": ["shooter-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "simulation",
+            "simulation video",
+            "simulation video game",
+            "模拟",
+            "模拟游戏",
+            "模擬",
+            "模擬遊戲"
+        ],
+        "page": {
+            "title": "模拟游戏"
+        },
+        "categories": ["模拟游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "social sim",
+            "social simulation",
+            "social simulation game",
+            "社交模拟",
+            "社交模拟游戏",
+            "社交模擬",
+            "社交模擬遊戲"
+        ],
+        "page": {
+            "title": "社交模拟游戏"
+        },
+        "categories": ["社交模拟游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": ["souls-like", "soulslike", "魂系"],
+        "page": {
+            "title": "魂系"
+        },
+        "categories": ["魂系游戏"],
+        "stubTags": ["rpg-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "sports",
+            "sports video",
+            "sports video game",
+            "体育",
+            "体育游戏",
+            "體育",
+            "體育遊戲"
+        ],
+        "page": {
+            "title": "体育游戏"
+        },
+        "categories": ["体育游戏"],
+        "stubTags": ["sports-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "stealth",
+            "stealth game",
+            "隐蔽类",
+            "隐蔽类游戏",
+            "隱蔽類",
+            "隱蔽類遊戲"
+        ],
+        "page": {
+            "title": "隐蔽类游戏"
+        },
+        "categories": ["隐蔽类游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "strategy",
+            "strategy video",
+            "strategy video game",
+            "策略",
+            "策略游戏",
+            "策略遊戲"
+        ],
+        "page": {
+            "title": "策略游戏"
+        },
+        "categories": ["策略游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "survival",
+            "survival game",
+            "生存",
+            "生存游戏",
+            "生存遊戲"
+        ],
+        "page": {
+            "title": "生存游戏"
+        },
+        "categories": ["生存游戏"],
+        "stubTags": ["action-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "survival horror",
+            "恐怖生存",
+            "恐怖生存游戏",
+            "恐怖生存遊戲"
+        ],
+        "page": {
+            "title": "恐怖生存游戏"
+        },
+        "categories": ["恐怖生存游戏"],
+        "stubTags": ["horror-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "SRPG",
+            "strategy RPG",
+            "tactical role-playing",
+            "tactical role-playing game",
+            "tactical RPG",
+            "战略角色扮演",
+            "战略角色扮演游戏",
+            "戰略角色扮演",
+            "戰略角色扮演遊戲"
+        ],
+        "page": {
+            "title": "戰略角色扮演遊戲"
+        },
+        "categories": ["戰略角色扮演遊戲"],
+        "stubTags": ["tactical-rpg-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "tactical shooter",
+            "战术射击",
+            "战术射击游戏",
+            "戰術射擊",
+            "戰術射擊遊戲"
+        ],
+        "page": {
+            "title": "战术射击游戏"
+        },
+        "categories": ["战术射击游戏"],
+        "stubTags": ["shooter-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "tbs",
+            "turn-based strategy",
+            "回合制策略",
+            "回合制策略游戏",
+            "回合制策略遊戲"
+        ],
+        "page": {
+            "title": "回合制策略游戏"
+        },
+        "categories": ["回合制策略游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "tbt",
+            "turn-based tactics",
+            "回合制战术",
+            "回合制战术游戏",
+            "回合制戰術",
+            "回合制戰術遊戲"
+        ],
+        "page": {
+            "title": "回合制战术游戏"
+        },
+        "categories": ["回合制战术游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "match-three",
+            "match-three game",
+            "tile matching",
+            "tile-matching video",
+            "tile-matching video game",
+            "消除类",
+            "消除类游戏",
+            "消除類",
+            "消除類遊戲"
+        ],
+        "page": {
+            "title": "消除类游戏"
+        },
+        "categories": ["消除类游戏"],
+        "stubTags": ["puzzle-videogame-stub"]
+    },
+    {
+        "aliases": ["tower defense", "塔防"],
+        "page": {
+            "title": "塔防"
+        },
+        "categories": ["塔防游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "third-person shooter",
+            "tps",
+            "第三人称射击",
+            "第三人称射击游戏",
+            "第三人稱射擊",
+            "第三人稱射擊遊戲"
+        ],
+        "page": {
+            "title": "第三人称射击游戏"
+        },
+        "categories": ["第三人称射击游戏"],
+        "stubTags": ["tps-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "turn-based",
+            "turn-based game",
+            "回合制",
+            "回合制游戏",
+            "回合制遊戲"
+        ],
+        "page": {
+            "title": "回合制游戏"
+        },
+        "categories": ["回合制游戏"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "vehicle sim",
+            "vehicle simulation",
+            "vehicle simulation game",
+            "交通工具模拟",
+            "交通工具模拟游戏",
+            "交通工具模擬",
+            "交通工具模擬遊戲"
+        ],
+        "page": {
+            "title": "交通工具模拟游戏"
+        },
+        "categories": ["交通工具模拟游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "vehicular combat",
+            "vehicular combat game",
+            "交通工具战斗",
+            "交通工具战斗游戏",
+            "交通工具戰鬥",
+            "交通工具戰鬥遊戲"
+        ],
+        "page": {
+            "title": "交通工具戰鬥遊戲"
+        },
+        "categories": ["交通工具戰鬥遊戲"],
+        "stubTags": ["videogame-stub"]
+    },
+    {
+        "aliases": [
+            "pet-raising simulation",
+            "virtual pet",
+            "电子宠物",
+            "電子寵物"
+        ],
+        "page": {
+            "title": "电子宠物"
+        },
+        "categories": ["电子宠物游戏"],
+        "stubTags": ["simulation-videogame-stub"]
+    },
+    {
+        "aliases": ["visual novel", "视觉小说", "視覺小說"],
+        "page": {
+            "title": "视觉小说"
+        },
+        "categories": ["视觉小说"],
+        "stubTags": ["Visual-novel-stub"]
+    },
+    {
+        "aliases": [
+            "walking sim",
+            "walking simulator",
+            "步行模拟器",
+            "步行模擬器"
+        ],
+        "page": {
+            "title": "步行模擬器"
+        },
+        "categories": ["步行模擬器"],
+        "stubTags": ["adventure-videogame-stub"]
+    },
+    {
+        "aliases": [
+            "computer wargame",
+            "wargame",
+            "电脑战争",
+            "电脑战争游戏",
+            "電腦戰爭",
+            "電腦戰爭遊戲"
+        ],
+        "page": {
+            "title": "电脑战争游戏"
+        },
+        "categories": ["电脑战争游戏"],
+        "stubTags": ["strategy-videogame-stub"]
+    }
 ]

@@ -48,6 +48,73 @@ test("genre alias ignores letter case", async () => {
     assert.equal(text.includes("{{rpg-videogame-stub}}"), true);
 });
 
+test("genre aliases accept forms with and without a trailing game", async () => {
+    for (const genres of ["Action role-playing", "Action role-playing game"]) {
+        const text = await buildStubText({
+            genres,
+            name: "Example",
+            platforms: "PC",
+            year: "2024",
+        });
+
+        assert.equal(text.includes("[[動作角色扮演遊戲|動作角色扮演]]"), true);
+        assert.equal(text.includes("[[Category:動作角色扮演遊戲]]"), true);
+        assert.equal(text.includes("{{action-rpg-videogame-stub}}"), true);
+    }
+});
+
+test("Chinese genre aliases accept simplified and traditional suffix forms", async () => {
+    for (const genres of [
+        "动作冒险",
+        "动作冒险游戏",
+        "動作冒險",
+        "動作冒險遊戲",
+    ]) {
+        const text = await buildStubText({
+            genres,
+            name: "Example",
+            platforms: "PC",
+            year: "2024",
+        });
+
+        assert.equal(text.includes("[[Category:动作冒险游戏]]"), true);
+        assert.equal(
+            text.includes("{{action-adventure-videogame-stub}}"),
+            true,
+        );
+
+        if (genres.endsWith("游戏")) {
+            assert.equal(text.includes("[[动作冒险游戏|动作冒险]]"), true);
+        }
+    }
+});
+
+test("genre aliases do not accept obsolete key-style names", async () => {
+    const text = await buildStubText({
+        genres: "action-rpg",
+        name: "Example",
+        platforms: "PC",
+        year: "2024",
+    });
+
+    assert.equal(text.includes("2024年action-rpg类[[电子游戏]]"), true);
+    assert.equal(text.includes("[[Category:動作角色扮演遊戲]]"), false);
+    assert.equal(text.includes("{{action-rpg-videogame-stub}}"), false);
+});
+
+test("Life simulation genre alias generates life simulation metadata", async () => {
+    const text = await buildStubText({
+        genres: "Life simulation",
+        name: "Example",
+        platforms: "PC",
+        year: "2024",
+    });
+
+    assert.equal(text.includes("[[生活模拟游戏|生活模拟]]"), true);
+    assert.equal(text.includes("[[Category:生活模拟游戏]]"), true);
+    assert.equal(text.includes("{{simulation-videogame-stub}}"), true);
+});
+
 test("platform genre alias generates platform game metadata", async () => {
     const text = await buildStubText({
         genres: "platform",

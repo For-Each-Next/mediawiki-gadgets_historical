@@ -57,6 +57,15 @@
     ]
   },
   {
+    "host": "www.playstation.com",
+    "fixes": [
+      {
+        "action": "set-from-source-url",
+        "field": "url"
+      }
+    ]
+  },
+  {
     "host": "www.metacritic.com",
     "fixes": [
       {

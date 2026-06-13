@@ -365,6 +365,10 @@ function applyFieldFix(sourceUrl, values, fix) {
         return applySetFix(values, fix);
     }
 
+    if (fix.action === "set-from-source-url") {
+        return applySetFromSourceUrlFix(sourceUrl, values, fix);
+    }
+
     if (fix.action === "set-from-source-query") {
         return applySetFromSourceQueryFix(sourceUrl, values, fix);
     }
@@ -427,6 +431,26 @@ function applySetFix(values, fix) {
     return {
         ...values,
         [fix.field]: fix.operand,
+    };
+}
+
+/**
+ * Restores a citation field from the original user-entered source URL.
+ *
+ * @param {string} sourceUrl - Original user-entered source URL.
+ * @param {object} values - Citation template values.
+ * @param {object} fix - Field fix definition.
+ * @param {string} fix.field - Citation value field.
+ * @returns {object} Citation template values.
+ */
+function applySetFromSourceUrlFix(sourceUrl, values, fix) {
+    if (sourceUrl == null) {
+        return values;
+    }
+
+    return {
+        ...values,
+        [fix.field]: normalizeCitationCacheKey(sourceUrl),
     };
 }
 

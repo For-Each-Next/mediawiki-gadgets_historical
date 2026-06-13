@@ -59,6 +59,15 @@ const RULES = [
     {
         fixes: [
             {
+                action: "set-from-source-url",
+                field: "url",
+            },
+        ],
+        host: "www.playstation.com",
+    },
+    {
+        fixes: [
+            {
                 action: "set",
                 field: "website",
                 operand: "Metacritic",
@@ -336,6 +345,34 @@ test("buildCiteTemplate strips Game Informer title suffix by host rule", () => {
 
     assert.equal(text.includes("|title=Example Preview|"), true);
     assert.equal(text.includes(" - Game Informer"), false);
+});
+
+test("fetchCiteTemplate preserves the entered PlayStation URL", async () => {
+    const sourceUrl =
+        "https://www.playstation.com/zh-hant-tw/games/darwins-paradox/";
+    const text = await fetchCiteTemplate(sourceUrl, {
+        fetcher() {
+            return {
+                async json() {
+                    return [
+                        {
+                            itemType: "webpage",
+                            language: "zh-HANT-TW",
+                            title: "《達爾文悖論！》- PS5遊戲 | PlayStation",
+                            url: "https://www.playstation.com/zh-hant-tw/games/--/",
+                            websiteTitle: "PlayStation",
+                        },
+                    ];
+                },
+                ok: true,
+            };
+        },
+        now: new Date("2026-06-13T00:00:00Z"),
+        rules: RULES,
+    });
+
+    assert.equal(text.includes(`|url=${sourceUrl}`), true);
+    assert.equal(text.includes("/games/--/"), false);
 });
 
 test("fetchCiteTemplate restores Steam source query by host rule", async () => {

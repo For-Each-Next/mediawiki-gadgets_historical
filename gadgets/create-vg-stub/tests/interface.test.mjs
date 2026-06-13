@@ -536,11 +536,18 @@ test("category helper stages missing category rows for final submission", async 
 
     assert.deepEqual(companyRow.pendingCreation, {
         englishName: "Foo Studio games",
+        previousStatus: "",
         text: "Text for Foo Studio\nEdited",
     });
     assert.equal(companyRow.status, "Pending creation");
     assert.equal(companyCategoryOpen.value, false);
-    assert.equal(component.template.includes(">Pending</span>"), true);
+    assert.equal(component.template.includes(">Pending</cdx-button>"), true);
+    assert.equal(
+        component.template.includes(
+            'v-on:click="cancelCompanyCategoryCreation"',
+        ),
+        true,
+    );
     assert.equal(component.template.includes("Create Category:"), true);
     assert.equal(
         component.template.includes("English Wikipedia category"),
@@ -548,9 +555,7 @@ test("category helper stages missing category rows for final submission", async 
     );
     assert.equal(
         component.template.indexOf("English Wikipedia category") >
-            component.template.indexOf(
-                "'Create Category:' + companyCategoryState.category",
-            ),
+            component.template.indexOf("Create Category:"),
         true,
     );
     assert.equal(
@@ -570,6 +575,7 @@ test("category helper stages missing category rows for final submission", async 
     await component.methods.saveCompanyCategory();
     assert.deepEqual(genericRow.pendingCreation, {
         englishName: "",
+        previousStatus: "Not exists",
         text: "Category text",
     });
     assert.equal(
@@ -579,6 +585,50 @@ test("category helper stages missing category rows for final submission", async 
         }),
         true,
     );
+});
+
+test("pending category button reopens review and can cancel creation", async () => {
+    let prepareCount = 0;
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onPrepareCompanyCategory() {
+                prepareCount += 1;
+                return "Generated text";
+            },
+        }),
+    );
+    const { companyCategoryOpen, companyCategoryState, form } =
+        component.setup();
+    const row = {
+        category: "Foo Studio游戏",
+        company: "Foo Studio",
+        pendingCreation: {
+            englishName: "Category:Foo Studio games",
+            previousStatus: "Not exists",
+            text: "Edited category text",
+        },
+        status: "Pending creation",
+    };
+    form.categoryRows = [row];
+
+    await component.methods.openCategoryCreate(row);
+
+    assert.equal(companyCategoryOpen.value, true);
+    assert.equal(companyCategoryState.pending, true);
+    assert.equal(
+        companyCategoryState.englishName,
+        "Category:Foo Studio games",
+    );
+    assert.equal(companyCategoryState.text, "Edited category text");
+    assert.equal(prepareCount, 0);
+    assert.equal(component.template.includes("Review Category:"), true);
+
+    component.methods.cancelCompanyCategoryCreation();
+
+    assert.equal(companyCategoryOpen.value, false);
+    assert.equal(row.pendingCreation, undefined);
+    assert.equal(row.status, "Not exists");
 });
 
 test("category viewer opens for existing company and other category rows", () => {

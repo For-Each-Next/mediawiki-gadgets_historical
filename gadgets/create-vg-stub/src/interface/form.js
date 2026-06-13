@@ -543,6 +543,7 @@ export function createDialogComponent(Vue, options) {
         englishName: "",
         error: "",
         loading: false,
+        pending: false,
         text: "",
     });
     const navboxCreateOpen = Vue.ref(false);
@@ -1340,15 +1341,22 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after the category text is prepared.
              */
             async openCategoryCreate(row) {
+                const pendingCreation = row.pendingCreation;
+
                 Object.assign(companyCategoryState, {
                     category: trimFieldValue(row.category),
                     company: trimFieldValue(row.company),
-                    englishName: "",
+                    englishName: trimFieldValue(pendingCreation?.englishName),
                     error: "",
                     loading: false,
-                    text: "",
+                    pending: pendingCreation != null,
+                    text: String(pendingCreation?.text || ""),
                 });
                 companyCategoryOpen.value = true;
+
+                if (pendingCreation != null) {
+                    return;
+                }
 
                 if (companyCategoryState.company === "") {
                     return;
@@ -1377,6 +1385,27 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Cancels the staged category creation.
+             *
+             * @returns {void}
+             */
+            cancelCompanyCategoryCreation() {
+                const row = form.categoryRows.find(
+                    (item) =>
+                        trimFieldValue(item.category) ===
+                        companyCategoryState.category,
+                );
+
+                if (row == null || row.pendingCreation == null) {
+                    return;
+                }
+
+                row.status = row.pendingCreation.previousStatus || "";
+                delete row.pendingCreation;
+                companyCategoryOpen.value = false;
+            },
+
+            /**
              * Stages the category for creation after the article is saved.
              *
              * @returns {Promise<void>} Resolves after the category is staged.
@@ -1400,6 +1429,8 @@ export function createDialogComponent(Vue, options) {
                         englishName: trimFieldValue(
                             companyCategoryState.englishName,
                         ),
+                        previousStatus:
+                            row.pendingCreation?.previousStatus || row.status,
                         text: companyCategoryState.text,
                     };
                     row.status = "Pending creation";
@@ -1996,7 +2027,7 @@ function createCompanyCategoryDialogTemplate() {
         "cdx-dialog",
         {
             "v-bind:title":
-                "'Create Category:' + companyCategoryState.category",
+                "(companyCategoryState.pending ? 'Review Category:' : 'Create Category:') + companyCategoryState.category",
             "v-model:open": "companyCategoryOpen",
         },
         [
@@ -2056,6 +2087,17 @@ function createCompanyCategoryDialogTemplate() {
                                 "v-on:click": "closeCompanyCategory",
                             },
                             [createText("Cancel")],
+                        ),
+                        createElement(
+                            "cdx-button",
+                            {
+                                action: "destructive",
+                                "v-bind:disabled":
+                                    "companyCategoryState.loading",
+                                "v-if": "companyCategoryState.pending",
+                                "v-on:click": "cancelCompanyCategoryCreation",
+                            },
+                            [createText("Cancel creation")],
                         ),
                         createElement(
                             "cdx-button",
@@ -2889,10 +2931,11 @@ function createCategoryRowTemplate() {
                         [createText("Create")],
                     ),
                     createElement(
-                        "span",
+                        "cdx-button",
                         {
                             class: "create-vg-stub-category-action",
                             "v-else-if": "row.pendingCreation",
+                            "v-on:click": "openCategoryCreate(row)",
                         },
                         [createText("Pending")],
                     ),

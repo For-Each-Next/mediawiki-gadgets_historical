@@ -109,18 +109,18 @@ function buildNameSummaryText(displayName, wikidataId, enwikiTitle) {
     }
 
     if (entityId !== "") {
-        return formatText("editing.wikidataName", {
+        return `«${formatText("editing.wikidataName", {
             id: entityId,
             label,
-        });
+        })}»`;
     }
 
     if (title === "") {
-        return label;
+        return `«${label}»`;
     }
 
-    return formatText("editing.enwikiName", {
+    return `«${formatText("editing.enwikiName", {
         label,
         title,
-    });
+    })}»`;
 }

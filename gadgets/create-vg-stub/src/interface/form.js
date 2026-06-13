@@ -338,7 +338,7 @@ const STEAM_NAME_CHOICES = [
     },
     {
         key: "other",
-        label: "Custom name",
+        label: "Unspecified region",
     },
 ];
 const ARTICLE_PARAMETER_GROUPS = [
@@ -3739,7 +3739,7 @@ function buildSteamNameChoiceRows(rows, choice) {
     }
 
     if (choice === "other") {
-        return [mergeSteamNameRows(hans, hant, true)].filter(Boolean);
+        return [mergeSteamNameRows(hans, hant, true, false)].filter(Boolean);
     }
 
     return [];
@@ -3764,22 +3764,27 @@ function findSteamNameRow(rows, market) {
  * @param {boolean} blankName - Whether to leave the name blank for manual entry.
  * @returns {object|undefined} Merged localized name row.
  */
-function mergeSteamNameRows(hans, hant, blankName) {
+function mergeSteamNameRows(hans, hant, blankName, worldwide = true) {
     const rows = [hans, hant].filter(Boolean);
 
     if (rows.length === 0) {
         return undefined;
     }
 
-    return {
+    const row = {
         name: blankName ? "" : trimFieldValue(hans?.name || hant?.name),
         official: true,
         sourceUrl: rows
             .map((row) => row.sourceUrl)
             .filter(Boolean)
             .join("\n"),
-        ww: true,
     };
+
+    if (worldwide) {
+        row.ww = true;
+    }
+
+    return row;
 }
 
 /**

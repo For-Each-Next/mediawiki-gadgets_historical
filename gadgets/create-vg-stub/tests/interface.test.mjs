@@ -836,7 +836,7 @@ test("Steam helper can merge or blank fetched localized names", async () => {
     component.methods.applySteamNameChoice("other");
 
     assert.equal(form.localizedNames[1].name, "");
-    assert.equal(form.localizedNames[1].ww, true);
+    assert.equal(form.localizedNames[1].ww, false);
     assert.equal(form.localizedNames[1].hans, false);
     assert.equal(form.localizedNames[1].hant, false);
     assert.equal(

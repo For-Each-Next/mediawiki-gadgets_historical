@@ -1751,33 +1751,6 @@ function createNavboxDialogTemplate() {
             "v-model:open": "navboxCreateOpen",
         },
         [
-            createElement(
-                "label",
-                {
-                    "v-if": "companyCategoryState.company",
-                    style: {
-                        display: "block",
-                        marginBottom: "0.75em",
-                    },
-                },
-                [
-                    createElement(
-                        "span",
-                        {
-                            style: {
-                                display: "block",
-                                marginBottom: "0.25em",
-                            },
-                        },
-                        [createText("English Wikipedia category")],
-                    ),
-                    createElement("cdx-text-input", {
-                        placeholder: "e.g. Foo Studio games",
-                        "v-bind:disabled": "companyCategoryState.loading",
-                        "v-model": "companyCategoryState.englishName",
-                    }),
-                ],
-            ),
             createElement("cdx-text-area", {
                 rows: "10",
                 "v-bind:disabled": "navboxCreateState.loading",
@@ -1882,6 +1855,33 @@ function createCompanyCategoryDialogTemplate() {
             "v-model:open": "companyCategoryOpen",
         },
         [
+            createElement(
+                "label",
+                {
+                    "v-if": "companyCategoryState.company",
+                    style: {
+                        display: "block",
+                        marginBottom: "0.75em",
+                    },
+                },
+                [
+                    createElement(
+                        "span",
+                        {
+                            style: {
+                                display: "block",
+                                marginBottom: "0.25em",
+                            },
+                        },
+                        [createText("English Wikipedia category")],
+                    ),
+                    createElement("cdx-text-input", {
+                        placeholder: "e.g. Private Division games",
+                        "v-bind:disabled": "companyCategoryState.loading",
+                        "v-model": "companyCategoryState.englishName",
+                    }),
+                ],
+            ),
             createElement("cdx-text-area", {
                 class: "create-vg-stub-company-category-text",
                 rows: "10",

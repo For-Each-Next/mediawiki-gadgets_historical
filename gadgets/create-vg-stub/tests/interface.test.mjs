@@ -558,6 +558,18 @@ test("category helper opens and saves missing category rows", async () => {
         component.template.includes("English Wikipedia category"),
         true,
     );
+    assert.equal(
+        component.template.indexOf("English Wikipedia category") >
+            component.template.indexOf(
+                "'Create Category:' + companyCategoryState.category",
+            ),
+        true,
+    );
+    assert.equal(
+        component.template.indexOf("English Wikipedia category") <
+            component.template.indexOf("create-vg-stub-company-category-text"),
+        true,
+    );
 
     await component.methods.openCategoryCreate({
         category: "动作游戏",

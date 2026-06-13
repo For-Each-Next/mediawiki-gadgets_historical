@@ -1106,13 +1106,13 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
-             * Removes localized name rows without a name or source URL.
+             * Clears all localized name rows.
              *
              * @param {string} key - Localized name group key.
              * @returns {void}
              */
-            removeBlankNameRows(key) {
-                form[key] = form[key].filter(hasEnteredNameRowValue);
+            clearNameRows(key) {
+                form[key] = [];
             },
 
             /**
@@ -2994,9 +2994,9 @@ function createNameActionsTemplate() {
             createElement(
                 "cdx-button",
                 {
-                    "v-on:click": "removeBlankNameRows(group.nameGroupKey)",
+                    "v-on:click": "clearNameRows(group.nameGroupKey)",
                 },
-                [createText("Remove blank")],
+                [createText("Clear")],
             ),
         ],
     );

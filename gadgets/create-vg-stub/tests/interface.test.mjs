@@ -867,6 +867,34 @@ test("localized name rows visually distinguish official and regions", () => {
     );
 });
 
+test("Clear removes all localized name rows", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { form } = component.setup();
+
+    form.localizedNames = [
+        {
+            name: "Entered name",
+            sourceUrl: "https://example.test/name",
+        },
+        {
+            name: "",
+            sourceUrl: "",
+        },
+    ];
+    component.methods.clearNameRows("localizedNames");
+
+    assert.deepEqual(form.localizedNames, []);
+    assert.equal(
+        component.template.includes(
+            'v-on:click="clearNameRows(group.nameGroupKey)">Clear</cdx-button>',
+        ),
+        true,
+    );
+});
+
 test("field preview callback receives live form and preview key", () => {
     const component = createDialogComponent(
         createVueStub(),

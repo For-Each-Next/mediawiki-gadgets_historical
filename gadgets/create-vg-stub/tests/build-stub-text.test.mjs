@@ -224,10 +224,7 @@ test("company alias generates linked attribution, category, and stub tag", async
         year: "2024",
     });
 
-    assert.equal(
-        text.includes("由[[史克威尔艾尼克斯|史克威尔艾尼克斯]]开发及发行。"),
-        true,
-    );
+    assert.equal(text.includes("由[[史克威尔艾尼克斯]]开发及发行。"), true);
     assert.equal(text.includes("[[Category:史克威爾艾尼克斯遊戲]]"), true);
     assert.equal(text.includes("{{SquareEnix-stub}}"), true);
 });
@@ -312,16 +309,11 @@ test("separated genre, company, and platform values render as lists", async () =
         ),
         true,
     );
-    assert.equal(
-        text.includes(
-            "由[[史克威尔艾尼克斯|史克威尔艾尼克斯]]和Company B开发",
-        ),
-        true,
-    );
+    assert.equal(text.includes("由[[史克威尔艾尼克斯]]和Company B开发"), true);
     assert.equal(text.includes("Bar Games和Company C发行"), true);
     assert.equal(
         text.includes(
-            "作品对应[[PlayStation 5|PlayStation 5]]、[[任天堂Switch|任天堂Switch]]平台。",
+            "作品对应[[PlayStation 5]]、[[任天堂Switch]]平台。",
         ),
         true,
     );
@@ -346,8 +338,8 @@ test("Xbox Series slash platform value stays one platform", async () => {
 
     assert.equal(
         text.includes(
-            "作品对应[[PlayStation 5|PlayStation 5]]、[[Windows|Windows]]、" +
-                "[[Xbox Series X/S|Xbox Series X/S]]平台。",
+            "作品对应[[PlayStation 5]]、[[Windows]]、" +
+                "[[Xbox Series X/S]]平台。",
         ),
         true,
     );
@@ -360,10 +352,7 @@ test("Xbox Series shorthand aliases match Xbox Series X/S", async () => {
         year: "",
     });
 
-    assert.equal(
-        text.includes("作品对应[[Xbox Series X/S|Xbox Series X/S]]平台。"),
-        true,
-    );
+    assert.equal(text.includes("作品对应[[Xbox Series X/S]]平台。"), true);
 });
 
 test("three or more companies render with enumeration separators", async () => {
@@ -576,7 +565,7 @@ test("aggregate scores render after platform text", async () => {
 
     assert.equal(
         text.includes(
-            "作品对应[[PlayStation 5|PlayStation 5]]平台。游戏的[[Metacritic]]汇总得分为77/100" +
+            "作品对应[[PlayStation 5]]平台。游戏的[[Metacritic]]汇总得分为77/100" +
                 '（PlayStation 5版）<ref name=":1" />，' +
                 '[[OpenCritic]]评测推荐率为68%<ref name=":2" />。',
         ),

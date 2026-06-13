@@ -127,6 +127,9 @@ function hasTemplateParamValue(entry) {
  * @returns {string} Link wikitext.
  */
 export function buildLinkText(title, label) {
+    if (title === label) {
+        return `[[${title}]]`
+    }
     return `[[${title}|${label}]]`;
 }
 

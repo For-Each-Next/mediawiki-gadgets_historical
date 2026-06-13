@@ -34,7 +34,7 @@ test("get returns metadata by default and supports projected fields", () => {
     assert.equal(get("company", "Square Enix", "page"), "史克威尔艾尼克斯");
     assert.equal(
         get("company", "Square Enix", "link"),
-        "[[史克威尔艾尼克斯|史克威尔艾尼克斯]]",
+        "[[史克威尔艾尼克斯]]",
     );
 });
 

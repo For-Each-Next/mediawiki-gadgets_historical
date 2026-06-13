@@ -39,10 +39,10 @@ export const scoresModule = defineArticleModule({
             return trimFieldValue(value);
         }
 
-        const score = trimFieldValue(value).replace(
-            /^([a-z0-9_-]{1,8})\s+(\d{1,3})$/iu,
-            "$1:$2",
-        );
+        const enteredScore = trimFieldValue(value);
+        const score = enteredScore.includes(":")
+            ? enteredScore
+            : enteredScore.replace(/^(.+?)\s+(\d{1,3})$/u, "$1:$2");
 
         return formatPrefixedValue(score, {
             normalizePrefix: normalizeScorePlatform,

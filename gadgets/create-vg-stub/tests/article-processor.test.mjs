@@ -92,6 +92,10 @@ test("registered field formatters update compact values in place", () => {
         "PS5:85",
     );
     assert.equal(
+        formatArticleFormField({}, "metacriticScore", " ps5 85 "),
+        "PS5:85",
+    );
+    assert.equal(
         formatArticleFormField({}, "originalName", " EN: Example "),
         "en:Example",
     );

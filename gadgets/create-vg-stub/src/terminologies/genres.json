@@ -688,7 +688,7 @@
     },
     {
         "aliases": ["roguelike", "roguelite"],
-        "name": "Roguelike",
+        "name": "roguelike",
         "page": "Roguelike",
         "categories": ["Roguelike游戏"],
         "stubTags": ["videogame-stub"]

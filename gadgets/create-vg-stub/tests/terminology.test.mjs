@@ -43,6 +43,12 @@ test("get resolves aliases case-insensitively and accepts plural types", () => {
     assert.equal(get("genres", "rpg", "short name"), "角色扮演");
 });
 
+test("Roguelike uses a lowercase display name and unpiped link", () => {
+    assert.equal(get("genre", "roguelike", "name"), "roguelike");
+    assert.equal(get("genre", "roguelike", "page"), "Roguelike");
+    assert.equal(get("genre", "roguelike", "link"), "[[roguelike]]");
+});
+
 test("link returns plain name when a term has no page", () => {
     assert.equal(get("platform", "pc", "name"), "PC");
     assert.equal(get("platform", "pc", "page"), undefined);

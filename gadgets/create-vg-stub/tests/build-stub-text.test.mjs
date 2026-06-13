@@ -48,6 +48,19 @@ test("genre alias ignores letter case", async () => {
     assert.equal(text.includes("{{rpg-videogame-stub}}"), true);
 });
 
+test("Roguelike genre uses its lowercase display link", async () => {
+    const text = await buildStubText({
+        genres: "Roguelike",
+        name: "Example",
+        platforms: "PC",
+        year: "2024",
+    });
+
+    assert.equal(text.includes("[[roguelike]]"), true);
+    assert.equal(text.includes("[[Roguelike|roguelike]]"), false);
+    assert.equal(text.includes("[[Category:Roguelike游戏]]"), true);
+});
+
 test("unlinked platform alias normalizes to its configured name", async () => {
     const text = await buildStubText({
         name: "Example",

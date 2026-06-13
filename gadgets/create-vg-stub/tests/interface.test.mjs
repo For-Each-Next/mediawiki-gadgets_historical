@@ -1030,6 +1030,10 @@ test("preview and submit use separate popup actions", async () => {
         component.template.includes('v-on:click="previewForm"'),
         true,
     );
+    const previewButton = component.template.match(
+        /<cdx-button[^>]*v-on:click="previewForm"[^>]*>/u,
+    )?.[0];
+    assert.equal(previewButton?.includes('action="progressive"'), false);
     assert.equal(component.template.includes("'Preview'"), true);
     assert.equal(component.template.includes('v-on:click="submitForm"'), true);
     assert.equal(component.template.includes("'Submit'"), true);

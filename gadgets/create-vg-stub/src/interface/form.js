@@ -2194,7 +2194,7 @@ function createDialogTemplateRoot() {
         {
             class: "create-vg-stub-dialog",
             "v-model:open": "open",
-            title: "Create video game stub",
+            title: "Create a video game stub article",
         },
         [
             createTabsTemplate(),
@@ -2269,7 +2269,6 @@ function createMainDialogFooterTemplate() {
                     createElement(
                         "cdx-button",
                         {
-                            action: "progressive",
                             "v-bind:disabled": "sourceFetchState.loading",
                             "v-on:click": "previewForm",
                         },

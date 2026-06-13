@@ -659,6 +659,26 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Clears all form and helper data across every tab.
+             *
+             * @returns {void}
+             */
+            clearForm() {
+                replaceFormValues(form, {
+                    ...createFormValues(""),
+                    publishers: "",
+                });
+                activeTab.value = ARTICLE_PARAMETER_GROUPS[0].key;
+                fetchedSteamNameRows.value = [];
+                steamUrl.value = "";
+                Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
+                categoryState.error = "";
+                reviewState.error = "";
+                sourceFetchState.error = "";
+                navboxRowsPrepared = false;
+            },
+
+            /**
              * Opens a MediaWiki preview after review.
              *
              * @returns {Promise<void>} Resolves after preview submission starts.
@@ -2204,12 +2224,31 @@ function createMainDialogFooterTemplate() {
         [
             createSplitActionFooterTemplate(
                 createElement(
-                    "cdx-button",
+                    "div",
                     {
-                        "v-bind:disabled": "sourceFetchState.loading",
-                        "v-on:click": "openHistoryDialog",
+                        style: {
+                            display: "flex",
+                            gap: "0.5em",
+                        },
                     },
-                    [createText("History")],
+                    [
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-bind:disabled": "sourceFetchState.loading",
+                                "v-on:click": "openHistoryDialog",
+                            },
+                            [createText("History")],
+                        ),
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-bind:disabled": "sourceFetchState.loading",
+                                "v-on:click": "clearForm",
+                            },
+                            [createText("Clear")],
+                        ),
+                    ],
                 ),
                 [
                     createElement(

@@ -846,6 +846,37 @@ test("Steam helper can merge or blank fetched localized names", async () => {
     );
 });
 
+test("Clear resets fields and helper state across all tabs", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onSteamNamesFetch() {
+                return [{ hans: true, name: "简体名" }];
+            },
+        }),
+    );
+    const { activeTab, fetchedSteamNameRows, form, steamUrl } =
+        component.setup();
+
+    activeTab.value = "review";
+    form.name = "Example";
+    form.publishers = "Publisher";
+    form.categoryRows = [{ category: "Example games" }];
+    component.methods.updateSteamUrl(
+        "https://store.steampowered.com/app/123/example/",
+    );
+    await component.methods.addSteamNames();
+    component.methods.clearForm();
+
+    assert.equal(activeTab.value, "titles");
+    assert.equal(form.name, "");
+    assert.equal(form.publishers, "");
+    assert.deepEqual(form.categoryRows, []);
+    assert.equal(steamUrl.value, "");
+    assert.deepEqual(fetchedSteamNameRows.value, []);
+    assert.equal(component.template.includes('v-on:click="clearForm"'), true);
+});
+
 test("localized name rows visually distinguish official and regions", () => {
     const component = createDialogComponent(
         createVueStub(),

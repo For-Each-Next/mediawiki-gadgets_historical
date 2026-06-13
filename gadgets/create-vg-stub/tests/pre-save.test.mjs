@@ -203,6 +203,22 @@ test("connectWikidataSitelink posts the zhwiki sitelink", async () => {
     ]);
 });
 
+test("connectWikidataSitelink uses an interwiki category summary link", async () => {
+    const calls = [];
+    const api = createApiStub(calls);
+
+    await connectWikidataSitelink(
+        api,
+        "Q123",
+        "Category:Private Division游戏",
+    );
+
+    assert.equal(
+        calls[0][2].summary,
+        `Connect zhwiki sitelink to [[:w:zh:Category:Private Division游戏]] ${EDIT_SUMMARY_SUFFIX}`,
+    );
+});
+
 test("createRedirect uses createonly and redirect wikitext", async () => {
     const calls = [];
     const api = createApiStub(calls);

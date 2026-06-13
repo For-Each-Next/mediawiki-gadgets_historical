@@ -327,11 +327,21 @@ export async function connectWikidataSitelink(api, wikidataId, title) {
         linksite: "zhwiki",
         linktitle: title,
         summary: addEditSummarySuffix(
-            `Connect zhwiki sitelink to [[${title}]]`,
+            `Connect zhwiki sitelink to ${buildWikidataSummaryLink(title)}`,
         ),
     };
 
     await api.postWithToken("csrf", params);
+}
+
+/**
+ * Builds a summary link to the connected Chinese Wikipedia page.
+ *
+ * @param {string} title - Chinese Wikipedia page title.
+ * @returns {string} Wikitext link suitable for a Wikidata edit summary.
+ */
+function buildWikidataSummaryLink(title) {
+    return /^Category:/iu.test(title) ? `[[:w:zh:${title}]]` : `[[${title}]]`;
 }
 
 /**

@@ -128,7 +128,8 @@ test("saveCompanyCategory creates, connects, and tags the category", async () =>
                 linksite: "zhwiki",
                 linktitle: "Category:Foo Studio游戏",
                 summary:
-                    `Connect zhwiki sitelink to [[Category:Foo Studio游戏]] ` +
+                    `Connect zhwiki sitelink to ` +
+                    `[[:w:zh:Category:Foo Studio游戏]] ` +
                     EDIT_SUMMARY_SUFFIX,
             },
         ],

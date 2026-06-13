@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import vm from "node:vm";
 import { format } from "prettier";
 import { minifiedOutput } from "../../../build.config.js";
 
@@ -51,3 +52,48 @@ test("userscript output is beautified", async () => {
 
     assert.equal(await format(source, { parser: "babel" }), source);
 });
+
+test("gadget initializes only for edit actions and missing-page views", async () => {
+    assert.equal(await getLoaderCallCount("view", 1), 0);
+    assert.equal(await getLoaderCallCount("view", 0), 1);
+    assert.equal(await getLoaderCallCount("edit"), 1);
+    assert.equal(await getLoaderCallCount("submit"), 1);
+});
+
+async function getLoaderCallCount(action, articleId = 1) {
+    const source = await readFile("dist/create_vg_stub.js", "utf8");
+    let calls = 0;
+    const sandbox = {
+        mw: {
+            config: {
+                get(key) {
+                    if (key === "wgAction") {
+                        return action;
+                    }
+
+                    if (key === "wgArticleId") {
+                        return articleId;
+                    }
+
+                    return "";
+                },
+            },
+            loader: {
+                using() {
+                    calls += 1;
+                    return new Promise(() => {});
+                },
+            },
+        },
+        sessionStorage: {
+            getItem() {
+                return null;
+            },
+        },
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(source, sandbox);
+
+    return calls;
+}

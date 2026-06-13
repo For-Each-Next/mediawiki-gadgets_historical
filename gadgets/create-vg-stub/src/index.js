@@ -534,6 +534,11 @@ function handleToolboxClick(event) {
  * @returns {void}
  */
 function addToolboxLink() {
+    if (isMissingPageView()) {
+        addMissingPageEditTrigger(document, mw.util, handleToolboxClick);
+        return;
+    }
+
     const link = mw.util.addPortletLink(
         "p-tb",
         "#",
@@ -542,10 +547,6 @@ function addToolboxLink() {
     );
 
     link.addEventListener("click", handleToolboxClick);
-
-    if (isMissingPageView()) {
-        addMissingPageEditTrigger(document, mw.util, handleToolboxClick);
-    }
 }
 
 /**
@@ -819,7 +820,7 @@ if (hasPendingSave) {
     mw.loader
         .using(["mediawiki.api", "mediawiki.ForeignApi", "mediawiki.util"])
         .then(runPendingSaveActions);
-} else if (isEditAction(currentAction) || currentAction === "view") {
+} else if (isEditAction(currentAction) || isMissingPageView()) {
     mw.loader
         .using([
             "mediawiki.api",

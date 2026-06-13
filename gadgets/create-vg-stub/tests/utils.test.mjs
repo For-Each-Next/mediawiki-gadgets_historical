@@ -6,12 +6,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    buildLinkText,
     buildTemplateText,
     getReferenceEntry,
     getWikilinkValue,
     splitFieldValues,
     splitLookupFieldValues,
 } from "../src/shared/utils.js";
+
+test("buildLinkText omits a label differing only by first-letter case", () => {
+    assert.equal(buildLinkText("Roguelike", "roguelike"), "[[roguelike]]");
+    assert.equal(buildLinkText("roguelike", "Roguelike"), "[[Roguelike]]");
+    assert.equal(buildLinkText("FooBar", "Foobar"), "[[FooBar|Foobar]]");
+});
 
 test("buildTemplateText builds inline positional parameters by default", () => {
     assert.equal(

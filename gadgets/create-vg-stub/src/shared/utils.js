@@ -127,10 +127,28 @@ function hasTemplateParamValue(entry) {
  * @returns {string} Link wikitext.
  */
 export function buildLinkText(title, label) {
-    if (title === label) {
-        return `[[${title}]]`
+    if (hasSameFirstLetterCaseInsensitiveText(title, label)) {
+        return `[[${label}]]`;
     }
+
     return `[[${title}|${label}]]`;
+}
+
+/**
+ * Compares link text while ignoring case only for the first character.
+ *
+ * @param {string} title - Link target.
+ * @param {string} label - Link label.
+ * @returns {boolean} Whether an unpiped link can use the label.
+ */
+function hasSameFirstLetterCaseInsensitiveText(title, label) {
+    const [titleFirst = "", ...titleRest] = Array.from(title);
+    const [labelFirst = "", ...labelRest] = Array.from(label);
+
+    return (
+        titleFirst.toLocaleLowerCase() === labelFirst.toLocaleLowerCase() &&
+        titleRest.join("") === labelRest.join("")
+    );
 }
 
 /**

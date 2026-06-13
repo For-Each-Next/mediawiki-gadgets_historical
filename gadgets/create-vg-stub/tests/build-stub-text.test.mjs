@@ -112,7 +112,7 @@ test("Life simulation genre alias generates life simulation metadata", async () 
 
     assert.equal(text.includes("[[生活模拟游戏|生活模拟]]"), true);
     assert.equal(text.includes("[[Category:生活模拟游戏]]"), true);
-    assert.equal(text.includes("{{simulation-videogame-stub}}"), true);
+    assert.equal(text.includes("{{Life-simulation-videogame-stub}}"), true);
 });
 
 test("platform genre alias generates platform game metadata", async () => {

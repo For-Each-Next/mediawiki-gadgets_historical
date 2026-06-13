@@ -120,7 +120,7 @@
             "title": "清版动作游戏"
         },
         "categories": ["清版动作游戏"],
-        "stubTags": ["action-videogame-stub"]
+        "stubTags": ["Beatemup-videogame-stub"]
     },
     {
         "aliases": [
@@ -256,7 +256,7 @@
             "title": "数字桌上游戏"
         },
         "categories": ["数字桌上游戏"],
-        "stubTags": ["videogame-stub"]
+        "stubTags": ["Board-videogame-stub"]
     },
     {
         "aliases": ["dungeon crawl", "迷宫探索", "迷宮探索"],
@@ -279,7 +279,7 @@
             "title": "教育游戏"
         },
         "categories": ["教育游戏"],
-        "stubTags": ["videogame-stub"]
+        "stubTags": ["Edu-videogame-stub"]
     },
     {
         "aliases": [
@@ -310,7 +310,7 @@
             "title": "日本成人遊戲"
         },
         "categories": ["日本成人遊戲"],
-        "stubTags": ["videogame-stub"]
+        "stubTags": ["Eroge-videogame-stub"]
     },
     {
         "aliases": [
@@ -499,7 +499,7 @@
             "title": "生活模拟游戏"
         },
         "categories": ["生活模拟游戏"],
-        "stubTags": ["simulation-videogame-stub"]
+        "stubTags": ["Life-simulation-videogame-stub"]
     },
     {
         "aliases": [
@@ -529,7 +529,7 @@
             "title": "大型多人在线游戏"
         },
         "categories": ["大型多人在线游戏"],
-        "stubTags": ["Online-game-stub"]
+        "stubTags": ["Online-videogame-stub"]
     },
     {
         "aliases": [
@@ -559,7 +559,7 @@
             "title": "多人在线战斗竞技场"
         },
         "categories": ["多人在线战斗竞技场"],
-        "stubTags": ["Online-game-stub"]
+        "stubTags": ["Online-videogame-stub"]
     },
     {
         "aliases": [
@@ -638,7 +638,7 @@
             "title": "聚会游戏"
         },
         "categories": ["聚会游戏"],
-        "stubTags": ["videogame-stub"]
+        "stubTags": ["Party-videogame-stub"]
     },
     {
         "aliases": [
@@ -1107,7 +1107,7 @@
             "title": "交通工具模拟游戏"
         },
         "categories": ["交通工具模拟游戏"],
-        "stubTags": ["simulation-videogame-stub"]
+        "stubTags": ["Vehicle-simulation-videogame-stub"]
     },
     {
         "aliases": [

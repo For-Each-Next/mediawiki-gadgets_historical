@@ -810,7 +810,11 @@ test("field preview callback receives live form and preview key", () => {
         true,
     );
     assert.equal(
-        component.template.includes("Wikidata: {{ getWikidataText() }}"),
+        component.template.includes("v-for=\"(link, index) in getEnwikiTipLinks()\""),
+        true,
+    );
+    assert.equal(
+        component.template.includes("<strong>{{ link.label }}</strong>"),
         true,
     );
 });
@@ -1028,19 +1032,249 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
                 assert.equal(title, "Example Game");
 
                 return {
+                    metacriticId: "example-game",
+                    openCriticId: "6789",
+                    steamId: "12345",
                     title: "Example Game",
                     wikidataId: "Q123",
                 };
             },
         }),
     );
-    const { form } = component.setup();
+    const { form, getEnwikiTipLinks, steamUrl } = component.setup();
 
     form.enwikiTitle = "Example Game";
     await component.methods.updateEnwikiTitle();
 
     assert.equal(form.wikidataId, "Q123");
     assert.equal(form.englishName, "Example Game");
+    assert.equal(
+        form.metacriticScoreSourceUrl,
+        "https://www.metacritic.com/game/example-game/",
+    );
+    assert.equal(
+        form.openCriticRecommendSourceUrl,
+        "https://opencritic.com/game/6789/-",
+    );
+    assert.equal(steamUrl.value, "https://store.steampowered.com/app/12345/");
+    assert.deepEqual(getEnwikiTipLinks(), [
+        {
+            label: "Wikidata",
+            url: "https://www.wikidata.org/wiki/Q123",
+            value: "Q123",
+        },
+        {
+            label: "Metacritic",
+            url: "https://www.metacritic.com/game/example-game/",
+            value: "example-game",
+        },
+        {
+            label: "OpenCritic",
+            url: "https://opencritic.com/game/6789/-",
+            value: "6789",
+        },
+        {
+            label: "Steam",
+            url: "https://store.steampowered.com/app/12345/",
+            value: "12345",
+        },
+    ]);
+});
+
+test("enwiki lookup offers Metacritic search without an ID", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onEnwikiTitleChange() {
+                return {
+                    title: "Example Game (video game)",
+                    wikidataId: "Q123",
+                };
+            },
+        }),
+    );
+    const { form, getEnwikiTipLinks } = component.setup();
+
+    form.enwikiTitle = "Example Game (video game)";
+    await component.methods.updateEnwikiTitle();
+
+    assert.equal(form.metacriticScoreSourceUrl, "");
+    assert.equal(form.openCriticRecommendSourceUrl, "");
+    assert.deepEqual(getEnwikiTipLinks(), [
+        {
+            label: "Wikidata",
+            url: "https://www.wikidata.org/wiki/Q123",
+            value: "Q123",
+        },
+        {
+            label: "Metacritic",
+            url:
+                "https://www.google.com/search?q=" +
+                "%22Example%20Game%22%20site%3Ametacritic.com",
+            value: "search",
+        },
+        {
+            label: "OpenCritic",
+            url:
+                "https://www.google.com/search?q=" +
+                "%22Example%20Game%22%20site%3Aopencritic.com%2Fgame",
+            value: "search",
+        },
+        {
+            label: "Steam",
+            url:
+                "https://www.google.com/search?q=" +
+                "%22Example%20Game%22%20site%3Astore.steampowered.com%2Fapp",
+            value: "search",
+        },
+    ]);
+});
+
+test("enwiki lookup offers Wikidata search without an item", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onEnwikiTitleChange() {
+                return {
+                    pageExists: true,
+                    title: "Example Game (video game)",
+                };
+            },
+        }),
+    );
+    const { form, getEnwikiTipLinks } = component.setup();
+
+    form.enwikiTitle = "Example Game (video game)";
+    await component.methods.updateEnwikiTitle();
+
+    assert.deepEqual(getEnwikiTipLinks()[0], {
+        label: "Wikidata",
+        url:
+            "https://www.google.com/search?q=" +
+            "%22Example%20Game%22%20site%3Awikidata.org%2Fwiki",
+        value: "not connected",
+    });
+});
+
+test("enwiki lookup distinguishes a missing English page", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onEnwikiTitleChange() {
+                return {
+                    pageExists: false,
+                    title: "Missing Game",
+                };
+            },
+        }),
+    );
+    const { form, getEnwikiTipLinks } = component.setup();
+
+    form.enwikiTitle = "Missing Game";
+    await component.methods.updateEnwikiTitle();
+
+    assert.equal(getEnwikiTipLinks()[0].value, "no enwiki page");
+});
+
+test("enwiki lookup hides fallback links until Wikidata lookup settles", async () => {
+    let resolveMetadata;
+    const metadataPromise = new Promise((resolve) => {
+        resolveMetadata = resolve;
+    });
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onEnwikiTitleChange() {
+                return metadataPromise;
+            },
+        }),
+    );
+    const { form, getEnwikiTipLinks } = component.setup();
+
+    form.enwikiTitle = "Final Fantasy (video game)";
+    const lookup = component.methods.updateEnwikiTitle();
+
+    assert.deepEqual(
+        getEnwikiTipLinks().map(({ label, value, url }) => ({
+            label,
+            value,
+            url,
+        })),
+        [
+            { label: "Wikidata", value: "checking...", url: "" },
+            { label: "Metacritic", value: "checking...", url: "" },
+            { label: "OpenCritic", value: "checking...", url: "" },
+            { label: "Steam", value: "checking...", url: "" },
+        ],
+    );
+
+    resolveMetadata({
+        metacriticId: "final-fantasy",
+        title: "Final Fantasy (video game)",
+        wikidataId: "Q1415970",
+    });
+    await lookup;
+
+    assert.deepEqual(getEnwikiTipLinks(), [
+        {
+            label: "Wikidata",
+            url: "https://www.wikidata.org/wiki/Q1415970",
+            value: "Q1415970",
+        },
+        {
+            label: "Metacritic",
+            url: "https://www.metacritic.com/game/final-fantasy/",
+            value: "final-fantasy",
+        },
+        {
+            label: "OpenCritic",
+            url:
+                "https://www.google.com/search?q=" +
+                "%22Final%20Fantasy%22%20site%3Aopencritic.com%2Fgame",
+            value: "search",
+        },
+        {
+            label: "Steam",
+            url:
+                "https://www.google.com/search?q=" +
+                "%22Final%20Fantasy%22%20site%3Astore.steampowered.com%2Fapp",
+            value: "search",
+        },
+    ]);
+});
+
+test("enwiki lookup preserves entered source and Steam URLs", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onEnwikiTitleChange() {
+                return {
+                    metacriticId: "fetched-game",
+                    openCriticId: "6789",
+                    steamId: "12345",
+                    title: "Example Game",
+                    wikidataId: "Q123",
+                };
+            },
+        }),
+    );
+    const { form, steamUrl } = component.setup();
+
+    form.enwikiTitle = "Example Game";
+    form.metacriticScoreSourceUrl = "https://example.test/metacritic";
+    form.openCriticRecommendSourceUrl = "https://example.test/opencritic";
+    steamUrl.value = "https://store.steampowered.com/app/999/";
+    await component.methods.updateEnwikiTitle();
+
+    assert.equal(
+        form.metacriticScoreSourceUrl,
+        "https://example.test/metacritic",
+    );
+    assert.equal(
+        form.openCriticRecommendSourceUrl,
+        "https://example.test/opencritic",
+    );
+    assert.equal(steamUrl.value, "https://store.steampowered.com/app/999/");
 });
 
 test("enwiki lookup removes disambiguation from blank English title", async () => {

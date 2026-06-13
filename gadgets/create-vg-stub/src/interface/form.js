@@ -561,7 +561,9 @@ export function createDialogComponent(Vue, options) {
     const preSaveMoveTitle = Vue.ref(options.defaultName);
     const preSaveOpen = Vue.ref(false);
     const preSaveActions = Vue.reactive([]);
+    const enwikiLookupLoading = Vue.ref(false);
     const enwikiLookupSerial = Vue.ref(0);
+    const enwikiMetadata = Vue.reactive(createBlankEnwikiMetadata());
     const fetchedSteamNameRows = Vue.ref([]);
     const steamUrl = Vue.ref("");
     const sourceFetchState = Vue.reactive({
@@ -1477,6 +1479,7 @@ export function createDialogComponent(Vue, options) {
                     form,
                 ),
                 getFieldPreview,
+                getEnwikiTipLinks,
                 getWikidataText,
                 historyEntries,
                 historyJsonError,
@@ -1628,6 +1631,72 @@ export function createDialogComponent(Vue, options) {
     }
 
     /**
+     * Gets external links discovered from the English Wikipedia title.
+     *
+     * @returns {Array<object>} Tip link definitions.
+     */
+    function getEnwikiTipLinks() {
+        if (enwikiLookupLoading.value) {
+            return createEnwikiTipPlaceholders("checking...");
+        }
+
+        const title = getBasePageTitle(form.enwikiTitle);
+
+        return [
+            {
+                label: "Wikidata",
+                value: form.wikidataId
+                    ? form.wikidataId
+                    : getWikidataLookupStatus(enwikiMetadata.pageExists),
+                url: form.wikidataId
+                    ? `https://www.wikidata.org/wiki/${encodeURIComponent(form.wikidataId)}`
+                    : title
+                      ? buildWikidataSearchUrl(title)
+                      : "",
+            },
+            {
+                label: "Metacritic",
+                value: enwikiMetadata.metacriticId
+                    ? enwikiMetadata.metacriticId
+                    : title
+                      ? "search"
+                      : "not found",
+                url: enwikiMetadata.metacriticId
+                    ? buildMetacriticUrl(enwikiMetadata.metacriticId)
+                    : title
+                      ? buildMetacriticSearchUrl(title)
+                      : "",
+            },
+            {
+                label: "OpenCritic",
+                value: enwikiMetadata.openCriticId
+                    ? enwikiMetadata.openCriticId
+                    : title
+                      ? "search"
+                      : "not found",
+                url: enwikiMetadata.openCriticId
+                    ? buildOpenCriticUrl(enwikiMetadata.openCriticId)
+                    : title
+                      ? buildOpenCriticSearchUrl(title)
+                      : "",
+            },
+            {
+                label: "Steam",
+                value: enwikiMetadata.steamId
+                    ? enwikiMetadata.steamId
+                    : title
+                      ? "search"
+                      : "not found",
+                url: enwikiMetadata.steamId
+                    ? buildSteamUrl(enwikiMetadata.steamId)
+                    : title
+                      ? buildSteamSearchUrl(title)
+                      : "",
+            },
+        ];
+    }
+
+    /**
      * Refreshes form values derived from the English Wikipedia title.
      *
      * @returns {Promise<void>} Resolves after the lookup is handled.
@@ -1637,7 +1706,10 @@ export function createDialogComponent(Vue, options) {
         const serial = enwikiLookupSerial.value + 1;
 
         enwikiLookupSerial.value = serial;
+        enwikiLookupLoading.value =
+            title !== "" && options.onEnwikiTitleChange != null;
         form.wikidataId = "";
+        Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
 
         if (title === "" || options.onEnwikiTitleChange == null) {
             return;
@@ -1655,11 +1727,44 @@ export function createDialogComponent(Vue, options) {
             return;
         }
 
+        Object.assign(enwikiMetadata, {
+            metacriticId: trimFieldValue(metadata.metacriticId),
+            openCriticId: trimFieldValue(metadata.openCriticId),
+            pageExists:
+                metadata.pageExists === true || metadata.pageExists === false
+                    ? metadata.pageExists
+                    : null,
+            steamId: trimFieldValue(metadata.steamId),
+        });
         form.wikidataId = trimFieldValue(metadata.wikidataId);
 
         if (trimFieldValue(form.englishName) === "") {
             form.englishName = getBasePageTitle(metadata.title);
         }
+
+        if (
+            trimFieldValue(form.metacriticScoreSourceUrl) === "" &&
+            enwikiMetadata.metacriticId
+        ) {
+            form.metacriticScoreSourceUrl = buildMetacriticUrl(
+                enwikiMetadata.metacriticId,
+            );
+        }
+
+        if (
+            trimFieldValue(form.openCriticRecommendSourceUrl) === "" &&
+            enwikiMetadata.openCriticId
+        ) {
+            form.openCriticRecommendSourceUrl = buildOpenCriticUrl(
+                enwikiMetadata.openCriticId,
+            );
+        }
+
+        if (trimFieldValue(steamUrl.value) === "" && enwikiMetadata.steamId) {
+            steamUrl.value = buildSteamUrl(enwikiMetadata.steamId);
+        }
+
+        enwikiLookupLoading.value = false;
     }
 }
 
@@ -3165,7 +3270,56 @@ function createWikidataNoteTemplate() {
             class: "create-vg-stub-wikitext-preview create-vg-stub-field-note",
             "v-if": "field.key === 'enwikiTitle'",
         },
-        [createText("Wikidata: {{ getWikidataText() }}")],
+        [
+            createElement(
+                "template",
+                {
+                    "v-if": "getEnwikiTipLinks().length",
+                },
+                [
+                    createElement(
+                        "span",
+                        {
+                            "v-bind:key": "link.label",
+                            "v-for": "(link, index) in getEnwikiTipLinks()",
+                        },
+                        [
+                            createText("{{ index ? ' · ' : '' }}"),
+                            createElement(
+                                "strong",
+                                {},
+                                [createText("{{ link.label }}")],
+                            ),
+                            createText(" "),
+                            createElement(
+                                "a",
+                                {
+                                    "v-if": "link.url",
+                                    "v-bind:href": "link.url",
+                                    rel: "noopener noreferrer",
+                                    target: "_blank",
+                                },
+                                [createText("{{ link.value }}")],
+                            ),
+                            createElement(
+                                "span",
+                                {
+                                    "v-else": "",
+                                },
+                                [createText("{{ link.value }}")],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            createElement(
+                "template",
+                {
+                    "v-else": "",
+                },
+                [createText("Wikidata: {{ getWikidataText() }}")],
+            ),
+        ],
     );
 }
 
@@ -3691,6 +3845,137 @@ function getFieldValueKey(field) {
  */
 function getBasePageTitle(title) {
     return trimFieldValue(title).replace(/ \(.+?\)$/u, "");
+}
+
+/**
+ * Creates blank external identifiers for the Enwiki lookup tip.
+ *
+ * @returns {object} Blank identifier values.
+ */
+function createBlankEnwikiMetadata() {
+    return {
+        metacriticId: "",
+        openCriticId: "",
+        pageExists: null,
+        steamId: "",
+    };
+}
+
+/**
+ * Formats the Enwiki-to-Wikidata lookup outcome.
+ *
+ * @param {boolean|null} pageExists - Whether the English Wikipedia page exists.
+ * @returns {string} Lookup status text.
+ */
+function getWikidataLookupStatus(pageExists) {
+    if (pageExists === false) {
+        return "no enwiki page";
+    }
+
+    if (pageExists === true) {
+        return "not connected";
+    }
+
+    return "lookup failed";
+}
+
+/**
+ * Creates fixed Enwiki tip slots with a shared placeholder value.
+ *
+ * @param {string} value - Placeholder text.
+ * @returns {Array<object>} Tip slot definitions.
+ */
+function createEnwikiTipPlaceholders(value) {
+    return ["Wikidata", "Metacritic", "OpenCritic", "Steam"].map((label) => ({
+        label,
+        value,
+        url: "",
+    }));
+}
+
+/**
+ * Builds a Google site search for a Wikidata item.
+ *
+ * @param {string} title - Page title without a disambiguation suffix.
+ * @returns {string} Search URL.
+ */
+function buildWikidataSearchUrl(title) {
+    return buildGoogleSiteSearchUrl(title, "wikidata.org/wiki");
+}
+
+/**
+ * Builds a Metacritic game URL.
+ *
+ * @param {string} id - Metacritic game ID.
+ * @returns {string} Game URL.
+ */
+function buildMetacriticUrl(id) {
+    return `https://www.metacritic.com/game/${encodeURIComponent(id)}/`;
+}
+
+/**
+ * Builds a Google site search for a Metacritic game page.
+ *
+ * @param {string} title - Game title without a disambiguation suffix.
+ * @returns {string} Search URL.
+ */
+function buildMetacriticSearchUrl(title) {
+    const query = `"${getBasePageTitle(title)}" site:metacritic.com`;
+
+    return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+}
+
+/**
+ * Builds an OpenCritic game URL.
+ *
+ * @param {string} id - OpenCritic game ID.
+ * @returns {string} Game URL.
+ */
+function buildOpenCriticUrl(id) {
+    return `https://opencritic.com/game/${encodeURIComponent(id)}/-`;
+}
+
+/**
+ * Builds a Google site search for an OpenCritic game page.
+ *
+ * @param {string} title - Game title without a disambiguation suffix.
+ * @returns {string} Search URL.
+ */
+function buildOpenCriticSearchUrl(title) {
+    return buildGoogleSiteSearchUrl(title, "opencritic.com/game");
+}
+
+/**
+ * Builds a Steam store application URL.
+ *
+ * @param {string} id - Steam application ID.
+ * @returns {string} Store URL.
+ */
+function buildSteamUrl(id) {
+    return `https://store.steampowered.com/app/${encodeURIComponent(id)}/`;
+}
+
+/**
+ * Builds a Google site search for a Steam application page.
+ *
+ * @param {string} title - Game title without a disambiguation suffix.
+ * @returns {string} Search URL.
+ */
+function buildSteamSearchUrl(title) {
+    return buildGoogleSiteSearchUrl(title, "store.steampowered.com/app");
+}
+
+/**
+ * Builds a Google site search URL.
+ *
+ * @param {string} title - Page title without a disambiguation suffix.
+ * @param {string} site - Site or path restriction.
+ * @returns {string} Search URL.
+ */
+function buildGoogleSiteSearchUrl(title, site) {
+    const query = `"${getBasePageTitle(title)}" site:${site}`;
+
+    return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
 }
 
 /**

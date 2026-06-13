@@ -34,6 +34,9 @@ test("createSaveProgress builds save, move, and selected action rows", () => {
             enabled: true,
             to: "示例",
         },
+        {
+            enabled: true,
+        },
     );
 
     assert.deepEqual(
@@ -42,6 +45,7 @@ test("createSaveProgress builds save, move, and selected action rows", () => {
             ["save", "Save page: Example", "pending"],
             ["move", "Move page to 示例", "pending"],
             ["redirect:Alias", "Create redirect Alias", "pending"],
+            ["new-page-list", "Register new page: Example", "pending"],
         ],
     );
 });

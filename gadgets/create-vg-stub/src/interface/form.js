@@ -742,6 +742,9 @@ export function createDialogComponent(Vue, options) {
                             enabled: false,
                             to: getCurrentTitle(),
                         },
+                        registration: {
+                            enabled: form.registerNewPage !== false,
+                        },
                     },
                 );
 
@@ -2136,6 +2139,20 @@ function createPreSaveDialogTemplate() {
                             "v-model": "action.selected",
                         },
                         [createText("{{ action.label }}")],
+                    ),
+                ],
+            ),
+            createElement(
+                "cdx-checkbox",
+                {
+                    style: {
+                        marginTop: "0.75em",
+                    },
+                    "v-model": "form.registerNewPage",
+                },
+                [
+                    createText(
+                        "Register on WikiProject Video games' new-page list",
                     ),
                 ],
             ),
@@ -3657,6 +3674,7 @@ function createFormValues(defaultName) {
         name: "",
         navboxRows: null,
         publishers: "=",
+        registerNewPage: true,
         sortKey: "",
     };
 }
@@ -4106,6 +4124,10 @@ function replaceFormValues(form, values) {
  */
 function normalizeReceivedFormValues(values) {
     const normalized = cloneValue(values);
+
+    if (!Object.hasOwn(normalized, "registerNewPage")) {
+        normalized.registerNewPage = true;
+    }
 
     if (!Object.hasOwn(normalized, "navboxRows")) {
         normalized.navboxRows = null;

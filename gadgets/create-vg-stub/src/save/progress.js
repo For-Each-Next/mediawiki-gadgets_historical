@@ -12,9 +12,15 @@ export const SAVE_PROGRESS_STORAGE_KEY = "create-vg-stub-save-progress";
  * @param {string} title - Submitted article title.
  * @param {Array<object>} actions - Pre-save action rows.
  * @param {object} [move] - Optional move action.
+ * @param {object} [registration] - Optional new-page-list action.
  * @returns {object} Save progress state.
  */
-export function createSaveProgress(title, actions = [], move = {}) {
+export function createSaveProgress(
+    title,
+    actions = [],
+    move = {},
+    registration = {},
+) {
     const steps = [
         {
             id: "save",
@@ -43,6 +49,15 @@ export function createSaveProgress(title, actions = [], move = {}) {
                 status: "pending",
             });
         });
+
+    if (registration.enabled === true) {
+        steps.push({
+            id: "new-page-list",
+            label: `Register new page: ${title}`,
+            parts: [{ text: "Register new page: " }, { code: title }],
+            status: "pending",
+        });
+    }
 
     return {
         error: "",

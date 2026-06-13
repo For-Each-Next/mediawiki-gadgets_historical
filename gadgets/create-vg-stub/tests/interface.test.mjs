@@ -978,6 +978,12 @@ test("submit opens pre-save fixes without changing tabs", async () => {
     assert.equal(activeTab.value, "titles");
     assert.equal(refreshCount, 1);
     assert.equal(preSaveOpen.value, true);
+    assert.equal(
+        component.template.includes(
+            "Register on WikiProject Video games' new-page list",
+        ),
+        true,
+    );
 });
 
 test("native submit bridge opens category and pre-save review", async () => {

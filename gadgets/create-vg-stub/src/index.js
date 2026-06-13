@@ -71,6 +71,7 @@ import {
     runSelectedActions,
 } from "./editing/pre-save.js";
 import { saveNavboxTemplate } from "./handlers/navbox-pages.js";
+import { registerNewPage } from "./handlers/new-page-list.js";
 import {
     addMissingPageEditTrigger,
     addViewPageTrigger,
@@ -341,11 +342,13 @@ async function submitForm(
                 : {
                       enabled: false,
                   },
+            registration: preSave.registration,
         };
 
         storePendingSaveData(submittedForm, getPageName(), {
             actions: pending.actions,
             move: pending.move,
+            registration: pending.registration,
         });
         startSaveProgress(getPageName(), pending);
 
@@ -809,6 +812,22 @@ async function runPendingSaveActions(require) {
             pending.actions || [],
             actionOptions,
         );
+
+        if (pending.registration?.enabled === true) {
+            setSaveProgressStep("new-page-list", "running");
+            await registerNewPage(
+                api,
+                result.title,
+                result.completed
+                    .filter(
+                        (action) =>
+                            action.type === "category" &&
+                            trimFieldValue(action.company) !== "",
+                    )
+                    .map((action) => action.category),
+            );
+            setSaveProgressStep("new-page-list", "complete");
+        }
 
         clearPendingSaveData();
         sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);

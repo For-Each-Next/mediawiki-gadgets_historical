@@ -24,6 +24,7 @@ export function startSaveProgress(title, pending) {
         title,
         pending.actions || [],
         pending.move || {},
+        pending.registration || {},
     );
 
     storeSaveProgress(updateSaveProgress(progress, "save", "running"));

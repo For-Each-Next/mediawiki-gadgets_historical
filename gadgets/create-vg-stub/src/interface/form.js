@@ -1953,7 +1953,7 @@ function createNavboxDialogTemplate() {
                                 "v-bind:disabled": "navboxCreateState.loading",
                                 "v-on:click": "closeNavboxCreate",
                             },
-                            [createText("Delete")],
+                            [createText("Cancel")],
                         ),
                         createElement(
                             "cdx-button",
@@ -2018,7 +2018,7 @@ function createCategoryViewDialogTemplate() {
 }
 
 /**
- * Creates the missing company category editor dialog.
+ * Creates the category editor dialog.
  *
  * @returns {object} Company category dialog template node.
  */
@@ -2026,8 +2026,7 @@ function createCompanyCategoryDialogTemplate() {
     return createElement(
         "cdx-dialog",
         {
-            "v-bind:title":
-                "(companyCategoryState.pending ? 'Review Category:' : 'Create Category:') + companyCategoryState.category",
+            "v-bind:title": "'Category:' + companyCategoryState.category",
             "v-model:open": "companyCategoryOpen",
         },
         [
@@ -2097,7 +2096,7 @@ function createCompanyCategoryDialogTemplate() {
                                 "v-if": "companyCategoryState.pending",
                                 "v-on:click": "cancelCompanyCategoryCreation",
                             },
-                            [createText("Cancel")],
+                            [createText("Delete")],
                         ),
                         createElement(
                             "cdx-button",

@@ -548,14 +548,21 @@ test("category helper stages missing category rows for final submission", async 
         ),
         true,
     );
-    assert.equal(component.template.includes("Create Category:"), true);
+    assert.equal(
+        component.template.includes(
+            "'Category:' + companyCategoryState.category",
+        ),
+        true,
+    );
     assert.equal(
         component.template.includes("English Wikipedia category"),
         true,
     );
     assert.equal(
         component.template.indexOf("English Wikipedia category") >
-            component.template.indexOf("Create Category:"),
+            component.template.indexOf(
+                "'Category:' + companyCategoryState.category",
+            ),
         true,
     );
     assert.equal(
@@ -622,7 +629,8 @@ test("pending category button reopens review and can cancel creation", async () 
     );
     assert.equal(companyCategoryState.text, "Edited category text");
     assert.equal(prepareCount, 0);
-    assert.equal(component.template.includes("Review Category:"), true);
+    assert.equal(component.template.includes("Review Category:"), false);
+    assert.equal(component.template.includes("Create Category:"), false);
     assert.equal(component.template.includes(">Cancel</cdx-button>"), true);
     assert.equal(component.template.includes(">Delete</cdx-button>"), true);
     assert.equal(component.template.includes(">Done</cdx-button>"), true);

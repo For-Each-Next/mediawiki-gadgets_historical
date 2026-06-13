@@ -59,15 +59,6 @@ const RULES = [
     {
         fixes: [
             {
-                action: "set-from-source-url",
-                field: "url",
-            },
-        ],
-        host: "www.playstation.com",
-    },
-    {
-        fixes: [
-            {
                 action: "set",
                 field: "website",
                 operand: "Metacritic",
@@ -112,6 +103,7 @@ const RULES = [
             },
         ],
         host: "store.steampowered.com",
+        redirect: true,
     },
 ];
 
@@ -221,6 +213,59 @@ test("fetchCiteTemplate fetches Citoid data and formats the first item", async (
         text,
         "{{cite web|access-date=2026-05-24|title=Example|url=https://example.test/article}}",
     );
+});
+
+test("fetchCiteTemplate preserves the entered URL by default", async () => {
+    const sourceUrl = "https://example.test/original";
+    const text = await fetchCiteTemplate(sourceUrl, {
+        fetcher() {
+            return {
+                async json() {
+                    return [
+                        {
+                            itemType: "webpage",
+                            title: "Example",
+                            url: "https://example.test/redirected",
+                        },
+                    ];
+                },
+                ok: true,
+            };
+        },
+        now: new Date("2026-06-13T00:00:00Z"),
+        rules: RULES,
+    });
+
+    assert.equal(text.includes(`|url=${sourceUrl}`), true);
+    assert.equal(text.includes("/redirected"), false);
+});
+
+test("fetchCiteTemplate follows Citoid redirects when enabled", async () => {
+    const text = await fetchCiteTemplate("https://example.test/original", {
+        fetcher() {
+            return {
+                async json() {
+                    return [
+                        {
+                            itemType: "webpage",
+                            title: "Example",
+                            url: "https://example.test/redirected",
+                        },
+                    ];
+                },
+                ok: true,
+            };
+        },
+        now: new Date("2026-06-13T00:00:00Z"),
+        rules: [
+            {
+                host: "example.test",
+                redirect: true,
+            },
+        ],
+    });
+
+    assert.equal(text.includes("|url=https://example.test/redirected"), true);
 });
 
 test("fetchCiteTemplate falls back to source page title on Citoid 404", async () => {
@@ -347,7 +392,7 @@ test("buildCiteTemplate strips Game Informer title suffix by host rule", () => {
     assert.equal(text.includes(" - Game Informer"), false);
 });
 
-test("fetchCiteTemplate preserves the entered PlayStation URL", async () => {
+test("fetchCiteTemplate preserves the entered PlayStation URL by default", async () => {
     const sourceUrl =
         "https://www.playstation.com/zh-hant-tw/games/darwins-paradox/";
     const text = await fetchCiteTemplate(sourceUrl, {

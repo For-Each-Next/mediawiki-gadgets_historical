@@ -320,10 +320,23 @@ function buildCitationValues(citation, options) {
  * @returns {object} Cleaned citation template values.
  */
 function applyCitationRules(values, options) {
-    return getMatchingRules(
+    const rules = getMatchingRules(
         options.rules,
         options.sourceUrl || values.url,
-    ).reduce(applyCitationRule.bind(null, options.sourceUrl), values);
+    );
+    const initialValues =
+        options.sourceUrl == null ||
+        rules.some((rule) => rule.redirect === true)
+            ? values
+            : {
+                  ...values,
+                  url: normalizeCitationCacheKey(options.sourceUrl),
+              };
+
+    return rules.reduce(
+        applyCitationRule.bind(null, options.sourceUrl),
+        initialValues,
+    );
 }
 
 /**
@@ -363,10 +376,6 @@ function applyFieldFix(sourceUrl, values, fix) {
 
     if (fix.action === "set") {
         return applySetFix(values, fix);
-    }
-
-    if (fix.action === "set-from-source-url") {
-        return applySetFromSourceUrlFix(sourceUrl, values, fix);
     }
 
     if (fix.action === "set-from-source-query") {
@@ -431,26 +440,6 @@ function applySetFix(values, fix) {
     return {
         ...values,
         [fix.field]: fix.operand,
-    };
-}
-
-/**
- * Restores a citation field from the original user-entered source URL.
- *
- * @param {string} sourceUrl - Original user-entered source URL.
- * @param {object} values - Citation template values.
- * @param {object} fix - Field fix definition.
- * @param {string} fix.field - Citation value field.
- * @returns {object} Citation template values.
- */
-function applySetFromSourceUrlFix(sourceUrl, values, fix) {
-    if (sourceUrl == null) {
-        return values;
-    }
-
-    return {
-        ...values,
-        [fix.field]: normalizeCitationCacheKey(sourceUrl),
     };
 }
 

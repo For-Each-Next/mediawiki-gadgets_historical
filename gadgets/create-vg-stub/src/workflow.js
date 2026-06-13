@@ -4,27 +4,27 @@
  * Coordinates form data, review handlers, and final wikitext.
  */
 
-import { createArticleData as flushRawArticleData } from "../article/index.js";
+import { createArticleData as flushRawArticleData } from "./article/index.js";
 import {
     buildCategoryRows,
     buildFallbackCategoryRows,
-} from "../handlers/categories.js";
+} from "./handlers/categories.js";
 import {
     resolveNavboxTitles,
     resolveReviewedNavboxRows,
-} from "../handlers/navboxes.js";
-import { fetchSourceReferences } from "../sources/source-references.js";
+} from "./handlers/navboxes.js";
+import { fetchSourceReferences } from "./sources/source-references.js";
 import {
     buildDefaultSortKey,
     buildNavboxText,
     buildReviewedNavboxText,
     sortCategoryRowsByProse,
-} from "../wikitext/index.js";
-import { trimFieldValue } from "../shared/form-values.js";
-import { buildArticleWikitext } from "../wikitext/article.js";
-import { countGeneratedProseSinographs } from "../wikitext/prose-count.js";
-import { buildSentence1Text } from "../wikitext/sentence.js";
-import { formatText } from "../shared/text-templates.js";
+} from "./wikitext/index.js";
+import { trimFieldValue } from "./shared/form-values.js";
+import { buildArticleWikitext } from "./wikitext/article.js";
+import { countGeneratedProseSinographs } from "./wikitext/prose-count.js";
+import { buildSentence1Text } from "./wikitext/sentence.js";
+import { formatText } from "./shared/text-templates.js";
 
 /**
  * Builds normalized article data from raw form values.

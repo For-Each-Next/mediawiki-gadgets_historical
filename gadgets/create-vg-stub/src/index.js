@@ -17,7 +17,7 @@ import {
     getFormProseSinographs as countFormProseSinographs,
     prepareCategoryRows,
     prepareNavboxRows,
-} from "./workflow/article.js";
+} from "./workflow.js";
 import { createCategoryCacheStore } from "./handlers/category-cache.js";
 import {
     prepareCompanyCategoryText,

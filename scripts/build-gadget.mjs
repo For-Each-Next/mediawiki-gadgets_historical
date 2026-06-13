@@ -99,11 +99,35 @@ async function buildDefines(defineConfig = {}) {
     const entries = await Promise.all(
         Object.entries(defineConfig).map(async ([placeholder, definition]) => [
             placeholder,
-            JSON.stringify(await readJsonDirectory(definition.jsonDirectory)),
+            JSON.stringify(await readJsonDirectories(definition)),
         ]),
     );
 
     return Object.fromEntries(entries);
+}
+
+/**
+ * Reads configured JSON directories into one object.
+ *
+ * @param {object} definition - Define data configuration.
+ * @param {string} [definition.jsonDirectory] - Single JSON data directory.
+ * @param {Array<string>} [definition.jsonDirectories] - JSON data directories.
+ * @returns {Promise<object>} Parsed JSON data.
+ */
+async function readJsonDirectories(definition) {
+    const directories =
+        definition.jsonDirectories ||
+        (definition.jsonDirectory == null ? [] : [definition.jsonDirectory]);
+
+    if (directories.length === 0) {
+        throw new Error(
+            "Each gadgetBuild.defines entry needs jsonDirectory or jsonDirectories.",
+        );
+    }
+
+    const data = await Promise.all(directories.map(readJsonDirectory));
+
+    return Object.assign({}, ...data);
 }
 
 /**
@@ -113,10 +137,6 @@ async function buildDefines(defineConfig = {}) {
  * @returns {Promise<object>} Parsed JSON data.
  */
 async function readJsonDirectory(directory) {
-    if (directory == null) {
-        throw new Error("Each gadgetBuild.defines entry needs jsonDirectory.");
-    }
-
     const paths = await readdir(directory);
     const entries = await Promise.all(
         paths.filter(isDataPath).map(async (path) => {

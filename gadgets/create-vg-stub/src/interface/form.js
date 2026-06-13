@@ -549,6 +549,9 @@ export function createDialogComponent(Vue, options) {
         url: "",
     });
     const historyEntries = Vue.ref(options.getHistoryEntries());
+    const historyJsonError = Vue.ref("");
+    const historyJsonOpen = Vue.ref(false);
+    const historyJsonText = Vue.ref("");
     const historyOpen = Vue.ref(false);
     const moveTarget = Vue.ref(options.defaultName);
     const moveOpen = Vue.ref(false);
@@ -739,6 +742,58 @@ export function createDialogComponent(Vue, options) {
                 replaceFormValues(form, entry.form);
                 navboxRowsPrepared = hasPreparedNavboxRows(form);
                 historyOpen.value = false;
+            },
+
+            /**
+             * Opens an editable JSON representation of a history entry.
+             *
+             * @param {object} entry - History entry.
+             * @returns {void}
+             */
+            openHistoryJsonDialog(entry) {
+                historyJsonError.value = "";
+                historyJsonText.value = JSON.stringify(entry, null, 2);
+                historyJsonOpen.value = true;
+            },
+
+            /**
+             * Closes the history JSON dialog.
+             *
+             * @returns {void}
+             */
+            closeHistoryJsonDialog() {
+                historyJsonOpen.value = false;
+            },
+
+            /**
+             * Imports form values from the history JSON dialog.
+             *
+             * @returns {void}
+             */
+            importHistoryJson() {
+                historyJsonError.value = "";
+
+                try {
+                    const data = JSON.parse(historyJsonText.value);
+                    const importedForm = data?.form || data;
+
+                    if (
+                        importedForm == null ||
+                        typeof importedForm !== "object" ||
+                        Array.isArray(importedForm)
+                    ) {
+                        throw new Error(
+                            "JSON must contain a form object or history entry.",
+                        );
+                    }
+
+                    replaceFormValues(form, importedForm);
+                    navboxRowsPrepared = hasPreparedNavboxRows(form);
+                    historyJsonOpen.value = false;
+                    historyOpen.value = false;
+                } catch (error) {
+                    historyJsonError.value = error.message || String(error);
+                }
             },
 
             /**
@@ -1413,6 +1468,9 @@ export function createDialogComponent(Vue, options) {
                 getFieldPreview,
                 getWikidataText,
                 historyEntries,
+                historyJsonError,
+                historyJsonOpen,
+                historyJsonText,
                 historyOpen,
                 moveOpen,
                 moveTarget,
@@ -1665,6 +1723,7 @@ function createDialogTemplate() {
         createCategoryViewDialogTemplate(),
         createMoveDialogTemplate(),
         createHistoryDialogTemplate(),
+        createHistoryJsonDialogTemplate(),
     ]);
 }
 
@@ -2095,6 +2154,69 @@ function createHistoryDialogTemplate() {
 }
 
 /**
+ * Creates the editable history JSON dialog.
+ *
+ * @returns {object} History JSON dialog template node.
+ */
+function createHistoryJsonDialogTemplate() {
+    return createElement(
+        "cdx-dialog",
+        {
+            "v-model:open": "historyJsonOpen",
+            title: "History JSON",
+        },
+        [
+            createElement("p", {}, [
+                createText(
+                    "Copy this JSON for debugging, or edit it and import the form values.",
+                ),
+            ]),
+            createElement("cdx-text-area", {
+                "v-model": "historyJsonText",
+                rows: "12",
+                spellcheck: "false",
+            }),
+            createElement(
+                "p",
+                {
+                    "v-if": "historyJsonError",
+                    style: {
+                        color: "var(--color-error, #b32424)",
+                    },
+                },
+                [createText("{{ historyJsonError }}")],
+            ),
+            createElement(
+                "template",
+                {
+                    "v-slot:footer": "",
+                },
+                [
+                    createActionFooterTemplate([
+                        createElement(
+                            "cdx-button",
+                            {
+                                action: "progressive",
+                                weight: "primary",
+                                "v-on:click": "importHistoryJson",
+                            },
+                            [createText("Fill")],
+                        ),
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-on:click": "closeHistoryJsonDialog",
+                            },
+                            [createText("Close")],
+                        ),
+                    ]),
+                ],
+            ),
+        ],
+    );
+}
+
+/**
  * Creates the history entry list.
  *
  * @returns {object} History entry list template node.
@@ -2129,7 +2251,7 @@ function createHistoryEntryTemplate() {
                 borderBottom: "1px solid var(--border-color-subtle, #eaecf0)",
                 display: "grid",
                 gap: "0.5em",
-                gridTemplateColumns: "1fr auto auto",
+                gridTemplateColumns: "1fr auto auto auto",
                 padding: "0.5em 0",
             },
         },
@@ -2155,6 +2277,13 @@ function createHistoryEntryTemplate() {
                     "v-on:click": "fillHistoryEntry(entry)",
                 },
                 [createText("Fill")],
+            ),
+            createElement(
+                "cdx-button",
+                {
+                    "v-on:click": "openHistoryJsonDialog(entry)",
+                },
+                [createText("Import")],
             ),
             createElement(
                 "cdx-button",

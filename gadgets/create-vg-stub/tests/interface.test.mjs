@@ -58,6 +58,82 @@ test("moved editing sessions open the refilled form automatically", () => {
     assert.equal(form.name, "中文名");
 });
 
+test("history JSON can be copied, edited, and imported", () => {
+    const entry = {
+        citations: {
+            "https://example.test/source": "{{cite web|title=Example}}",
+        },
+        form: {
+            name: "Stored name",
+            year: "2025",
+        },
+        id: "stored-entry",
+        page: "Stored page",
+        savedAt: "2026-06-13",
+    };
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            getHistoryEntries() {
+                return [entry];
+            },
+        }),
+    );
+    const {
+        form,
+        historyJsonError,
+        historyJsonOpen,
+        historyJsonText,
+        historyOpen,
+    } = component.setup();
+
+    component.methods.openHistoryDialog();
+    component.methods.openHistoryJsonDialog(entry);
+
+    assert.equal(historyJsonOpen.value, true);
+    assert.deepEqual(JSON.parse(historyJsonText.value), entry);
+
+    historyJsonText.value = JSON.stringify({
+        form: {
+            name: "Imported name",
+            year: "2026",
+        },
+    });
+    component.methods.importHistoryJson();
+
+    assert.equal(form.name, "Imported name");
+    assert.equal(form.year, "2026");
+    assert.equal(historyJsonError.value, "");
+    assert.equal(historyJsonOpen.value, false);
+    assert.equal(historyOpen.value, false);
+    assert.equal(
+        component.template.indexOf(">Fill<") <
+            component.template.indexOf(">Import<"),
+        true,
+    );
+});
+
+test("invalid history JSON stays open and preserves the form", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { form, historyJsonError, historyJsonOpen, historyJsonText } =
+        component.setup();
+
+    component.methods.openHistoryJsonDialog({
+        form: {
+            name: "Stored name",
+        },
+    });
+    historyJsonText.value = "{";
+    component.methods.importHistoryJson();
+
+    assert.equal(form.name, "");
+    assert.equal(historyJsonOpen.value, true);
+    assert.notEqual(historyJsonError.value, "");
+});
+
 test("live field updates trim values and normalize full dates to years", () => {
     const component = createDialogComponent(
         createVueStub(),

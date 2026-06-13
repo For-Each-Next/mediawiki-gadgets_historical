@@ -492,32 +492,23 @@ test("category checks preserve manually entered textbox text", async () => {
     assert.deepEqual(refreshes, [{ bypassCache: true }]);
 });
 
-test("category helper opens and saves missing category rows", async () => {
-    const saved = [];
-    const refreshes = [];
+test("category helper stages missing category rows for final submission", async () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
-            onCategoryRowsRefresh(_form, _state, options) {
-                refreshes.push(options);
-            },
             async onPrepareCompanyCategory(row) {
                 return `Text for ${row.company}`;
             },
-            async onSaveCompanyCategory(category, text, englishName) {
-                saved.push(["company", category, text, englishName]);
-            },
-            async onSaveCategory(category, text) {
-                saved.push(["category", category, text]);
-            },
         }),
     );
-    const { companyCategoryOpen, companyCategoryState } = component.setup();
+    const { companyCategoryOpen, companyCategoryState, form } =
+        component.setup();
     const companyRow = {
         category: "Foo Studio游戏",
         company: "Foo Studio",
         status: "",
     };
+    form.categoryRows = [companyRow];
 
     assert.equal(component.methods.canCreateCompanyCategory(companyRow), true);
     assert.equal(
@@ -543,16 +534,13 @@ test("category helper opens and saves missing category rows", async () => {
     companyCategoryState.text += "\nEdited";
     await component.methods.saveCompanyCategory();
 
-    assert.deepEqual(saved, [
-        [
-            "company",
-            "Foo Studio游戏",
-            "Text for Foo Studio\nEdited",
-            "Foo Studio games",
-        ],
-    ]);
-    assert.deepEqual(refreshes, [{ bypassCache: true }]);
+    assert.deepEqual(companyRow.pendingCreation, {
+        englishName: "Foo Studio games",
+        text: "Text for Foo Studio\nEdited",
+    });
+    assert.equal(companyRow.status, "Pending creation");
     assert.equal(companyCategoryOpen.value, false);
+    assert.equal(component.template.includes(">Pending</span>"), true);
     assert.equal(component.template.includes("Create Category:"), true);
     assert.equal(
         component.template.includes("English Wikipedia category"),
@@ -571,14 +559,19 @@ test("category helper opens and saves missing category rows", async () => {
         true,
     );
 
-    await component.methods.openCategoryCreate({
+    const genericRow = {
         category: "动作游戏",
         status: "Not exists",
-    });
+    };
+    form.categoryRows = [genericRow];
+    await component.methods.openCategoryCreate(genericRow);
     assert.equal(companyCategoryState.text, "");
     companyCategoryState.text = "Category text";
     await component.methods.saveCompanyCategory();
-    assert.deepEqual(saved.at(-1), ["category", "动作游戏", "Category text"]);
+    assert.deepEqual(genericRow.pendingCreation, {
+        englishName: "",
+        text: "Category text",
+    });
     assert.equal(
         component.methods.canCreateCategory({
             category: "动作游戏",

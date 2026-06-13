@@ -7,6 +7,7 @@ import test from "node:test";
 
 import {
     buildCompanyCategoryText,
+    createWikidataCategoryItem,
     prepareCompanyCategoryText,
     saveCategoryPage,
     saveCompanyCategory,
@@ -139,32 +140,76 @@ test("saveCompanyCategory creates, connects, and tags the category", async () =>
     assert.equal(calls[2][2].title, "Category talk:Foo Studio游戏");
 });
 
-test("saveCompanyCategory validates English category Wikidata first", async () => {
-    let saveCount = 0;
+test("saveCompanyCategory creates a Wikidata item for an existing unconnected English category", async () => {
+    const calls = [];
+    const wikidataCalls = [];
 
-    await assert.rejects(
-        saveCompanyCategory(
-            "Foo Studio游戏",
-            "Category text",
-            "Category:Missing games",
-            {
-                api: {
-                    async postWithToken() {
-                        saveCount += 1;
-                    },
-                },
-                async fetchMetadata() {
+    await saveCompanyCategory(
+        "Chibig游戏",
+        "Category text",
+        "Category:Chibig games",
+        {
+            api: {
+                async get() {
                     return {
-                        title: "Category:Missing games",
-                        wikidataId: "",
+                        query: {
+                            pages: {},
+                        },
                     };
                 },
+                async postWithToken(token, params) {
+                    calls.push([token, params]);
+                },
             },
-        ),
-        /No Wikidata item found/u,
+            async fetchMetadata() {
+                return {
+                    pageExists: true,
+                    title: "Category:Chibig games",
+                    wikidataId: "",
+                };
+            },
+            wikidataApi: {
+                async postWithToken(token, params) {
+                    wikidataCalls.push([token, params]);
+                },
+            },
+        },
     );
 
-    assert.equal(saveCount, 0);
+    assert.equal(calls[0][1].title, "Category:Chibig游戏");
+    assert.equal(wikidataCalls[0][1].action, "wbeditentity");
+    assert.deepEqual(JSON.parse(wikidataCalls[0][1].data).sitelinks, {
+        enwiki: {
+            site: "enwiki",
+            title: "Category:Chibig games",
+        },
+        zhwiki: {
+            site: "zhwiki",
+            title: "Category:Chibig游戏",
+        },
+    });
+});
+
+test("createWikidataCategoryItem creates one item with both sitelinks", async () => {
+    const calls = [];
+
+    await createWikidataCategoryItem(
+        {
+            async postWithToken(token, params) {
+                calls.push([token, params]);
+            },
+        },
+        "Category:Chibig games",
+        "Category:Chibig游戏",
+    );
+
+    assert.equal(calls[0][1].new, "item");
+    assert.equal(
+        calls[0][1].summary.includes(
+            "Connect Category:Chibig games and Category:Chibig游戏",
+        ),
+        true,
+    );
 });
 
 test("saveCategoryPage creates a generic category without overwriting", async () => {

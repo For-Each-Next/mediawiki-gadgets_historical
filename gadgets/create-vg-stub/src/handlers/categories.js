@@ -566,6 +566,7 @@ function mergePreviousGeneratedRows(generatedRows, previousRows) {
             ...row,
             category: previous.category,
             enabled: previous.enabled,
+            pendingCreation: previous.pendingCreation,
             stubTagEnabled:
                 previous.stubTagEnabled == null
                     ? row.stubTagEnabled

@@ -711,14 +711,6 @@ function init(require) {
 
             return { actions, move };
         },
-        onSaveCategory: saveCategoryPage,
-        onSaveCompanyCategory: (category, text, englishName) =>
-            saveCompanyCategory(category, text, englishName, {
-                api: new mw.Api(),
-                wikidataApi: new mw.ForeignApi(
-                    "https://www.wikidata.org/w/api.php",
-                ),
-            }),
         onSaveNavbox: saveNavboxTemplate,
         onSourceUrlChange: (url) => citationStore.prefetch(url),
         onSteamNamesFetch: (url, options) =>
@@ -789,6 +781,15 @@ async function runPendingSaveActions(require) {
             wikidataApi: new mw.ForeignApi(
                 "https://www.wikidata.org/w/api.php",
             ),
+            saveCategory: (category, text) =>
+                saveCategoryPage(category, text, undefined, api),
+            saveCompanyCategory: (category, text, englishName) =>
+                saveCompanyCategory(category, text, englishName, {
+                    api,
+                    wikidataApi: new mw.ForeignApi(
+                        "https://www.wikidata.org/w/api.php",
+                    ),
+                }),
         };
         const result = await runSelectedActions(
             pending.actions || [],

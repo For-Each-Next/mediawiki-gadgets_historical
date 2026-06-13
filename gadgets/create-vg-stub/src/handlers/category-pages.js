@@ -88,10 +88,6 @@ export async function saveCompanyCategory(
                   englishTitle,
               );
 
-    if (metadata != null && metadata.wikidataId === "") {
-        throw new Error(`No Wikidata item found for ${englishTitle}.`);
-    }
-
     await saveCategoryPage(
         category,
         text,
@@ -101,19 +97,61 @@ export async function saveCompanyCategory(
 
     const categoryTitle = `${CATEGORY_NAMESPACE}${category}`;
 
-    if (metadata != null) {
+    if (metadata != null && metadata.pageExists !== false) {
         const wikidataApi =
             options.wikidataApi ||
             new mw.ForeignApi("https://www.wikidata.org/w/api.php");
 
-        await connectWikidataSitelink(
-            wikidataApi,
-            metadata.wikidataId,
-            categoryTitle,
-        );
+        if (String(metadata.wikidataId || "").trim() === "") {
+            await createWikidataCategoryItem(
+                wikidataApi,
+                englishTitle,
+                categoryTitle,
+            );
+        } else {
+            await connectWikidataSitelink(
+                wikidataApi,
+                metadata.wikidataId,
+                categoryTitle,
+            );
+        }
     }
 
     await addTalkPageBanner(api, categoryTitle);
+}
+
+/**
+ * Creates a Wikidata item linking matching English and Chinese categories.
+ *
+ * @param {object} api - Wikidata API client.
+ * @param {string} englishTitle - English Wikipedia category title.
+ * @param {string} chineseTitle - Chinese Wikipedia category title.
+ * @returns {Promise<void>} Resolves after the item is created.
+ */
+export async function createWikidataCategoryItem(
+    api,
+    englishTitle,
+    chineseTitle,
+) {
+    await api.postWithToken("csrf", {
+        action: "wbeditentity",
+        data: JSON.stringify({
+            sitelinks: {
+                enwiki: {
+                    site: "enwiki",
+                    title: englishTitle,
+                },
+                zhwiki: {
+                    site: "zhwiki",
+                    title: chineseTitle,
+                },
+            },
+        }),
+        new: "item",
+        summary: addEditSummarySuffix(
+            `Connect ${englishTitle} and ${chineseTitle}`,
+        ),
+    });
 }
 
 /**

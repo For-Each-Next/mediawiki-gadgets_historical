@@ -515,8 +515,6 @@ export function addDialogStyles() {
  * @param {Function} options.onMoveTarget - New-page target opener.
  * @param {Function} options.onPrepareCompanyCategory - Company category text builder.
  * @param {Function} options.onPrepareReview - Review report builder.
- * @param {Function} options.onSaveCategory - Category page save handler.
- * @param {Function} options.onSaveCompanyCategory - Company category save handler.
  * @param {Function} options.onSaveNavbox - Navbox template save handler.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
  * @param {Function} options.onPreview - Editor preview handler.
@@ -1356,29 +1354,33 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
-             * Saves the category and refreshes category status.
+             * Stages the category for creation after the article is saved.
              *
-             * @returns {Promise<void>} Resolves after the category is saved.
+             * @returns {Promise<void>} Resolves after the category is staged.
              */
             async saveCompanyCategory() {
                 companyCategoryState.error = "";
                 companyCategoryState.loading = true;
 
                 try {
-                    const save =
-                        companyCategoryState.company === ""
-                            ? options.onSaveCategory
-                            : options.onSaveCompanyCategory;
-
-                    await save(
-                        companyCategoryState.category,
-                        companyCategoryState.text,
-                        companyCategoryState.englishName,
+                    const row = form.categoryRows.find(
+                        (item) =>
+                            trimFieldValue(item.category) ===
+                            companyCategoryState.category,
                     );
+
+                    if (row == null) {
+                        throw new Error("Category row is unavailable.");
+                    }
+
+                    row.pendingCreation = {
+                        englishName: trimFieldValue(
+                            companyCategoryState.englishName,
+                        ),
+                        text: companyCategoryState.text,
+                    };
+                    row.status = "Pending creation";
                     companyCategoryOpen.value = false;
-                    await refreshCategoryRows({
-                        bypassCache: true,
-                    });
                 } catch (error) {
                     companyCategoryState.error =
                         error.message || String(error);
@@ -1407,7 +1409,9 @@ export function createDialogComponent(Vue, options) {
              */
             canCreateCategory(row) {
                 return (
-                    trimFieldValue(row.category) !== "" && row.status !== "OK"
+                    trimFieldValue(row.category) !== "" &&
+                    row.status !== "OK" &&
+                    row.pendingCreation == null
                 );
             },
 
@@ -2828,6 +2832,14 @@ function createCategoryRowTemplate() {
                             "v-on:click": "openCategoryCreate(row)",
                         },
                         [createText("Create")],
+                    ),
+                    createElement(
+                        "span",
+                        {
+                            class: "create-vg-stub-category-action",
+                            "v-else-if": "row.pendingCreation",
+                        },
+                        [createText("Pending")],
                     ),
                     createElement(
                         "cdx-button",

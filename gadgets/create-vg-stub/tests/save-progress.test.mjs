@@ -93,6 +93,13 @@ test("renderSaveProgress uses bullets and code-wrapped titles", () => {
             selected: true,
             type: "talk-banner",
         },
+        {
+            category: "Chibig游戏",
+            id: "category:Chibig游戏",
+            label: "Create category: Chibig游戏",
+            selected: true,
+            type: "category",
+        },
     ]);
     const layer = renderSaveProgress(progress, documentRef);
 
@@ -103,6 +110,12 @@ test("renderSaveProgress uses bullets and code-wrapped titles", () => {
         true,
     );
     assert.equal(layer.innerHTML.includes("<code>Q125570677</code>"), true);
+    assert.equal(layer.innerHTML.includes("✅"), false);
+    assert.equal(layer.innerHTML.includes("⏸️"), true);
+    assert.equal(
+        layer.innerHTML.includes("<code>Category:Chibig游戏</code>"),
+        true,
+    );
     assert.equal(layer.innerHTML.includes(" -&gt; "), false);
     assert.equal(layer.innerHTML.includes(" to "), true);
 });

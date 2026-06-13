@@ -85,6 +85,13 @@ function buildActionProgressParts(action, title) {
         ];
     }
 
+    if (action.type === "category") {
+        return [
+            { text: "Create category: " },
+            { code: `Category:${action.category}` },
+        ];
+    }
+
     return undefined;
 }
 
@@ -171,11 +178,11 @@ export function renderSaveProgress(progress, documentRef = document) {
     }
 
     const statusLabels = {
-        complete: "Done",
-        failed: "Failed",
-        pending: "Waiting",
-        running: "Working",
-        skipped: "Skipped",
+        complete: "✅",
+        failed: "❌",
+        pending: "⏸️",
+        running: "⏳",
+        skipped: "⏭️",
     };
     const rows = progress.steps
         .map(

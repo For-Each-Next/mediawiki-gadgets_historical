@@ -64,6 +64,28 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
         type: "talk-banner",
     });
 
+    (form.categoryRows || [])
+        .filter(
+            (row) =>
+                row.enabled !== false &&
+                row.pendingCreation != null &&
+                normalizeTitle(row.category) !== "",
+        )
+        .forEach((row) => {
+            const category = normalizeTitle(row.category);
+
+            actions.push({
+                category,
+                company: normalizeTitle(row.company),
+                englishName: normalizeTitle(row.pendingCreation.englishName),
+                id: `category:${category}`,
+                label: `Create category: ${category}`,
+                selected: true,
+                text: String(row.pendingCreation.text || ""),
+                type: "category",
+            });
+        });
+
     return actions;
 }
 
@@ -208,6 +230,8 @@ export async function fetchExistingPageTitles(api, titles) {
  * @param {Function} [options.onActionComplete] - Action success callback.
  * @param {Function} [options.onActionSkipped] - Action skipped callback.
  * @param {Function} [options.onActionStart] - Action start callback.
+ * @param {Function} [options.saveCategory] - Generic category save handler.
+ * @param {Function} [options.saveCompanyCategory] - Company category save handler.
  * @param {object} [options.wikidataApi] - Wikidata API client.
  * @param {string} options.title - Saved article title.
  * @returns {Promise<object>} Completed action rows and final title.
@@ -309,6 +333,20 @@ async function runSelectedAction(action, options) {
 
     if (action.type === "talk-banner") {
         await addTalkPageBanner(options.api, options.title);
+        return;
+    }
+
+    if (action.type === "category") {
+        const save =
+            normalizeTitle(action.company) === ""
+                ? options.saveCategory
+                : options.saveCompanyCategory;
+
+        if (save == null) {
+            throw new Error("Category save handler is unavailable.");
+        }
+
+        await save(action.category, action.text, action.englishName);
     }
 }
 

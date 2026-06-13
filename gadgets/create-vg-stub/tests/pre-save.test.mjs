@@ -78,6 +78,37 @@ test("buildPreSaveActions includes interwiki, redirects, and talk banner", () =>
     );
 });
 
+test("buildPreSaveActions includes staged category creation", () => {
+    const actions = buildPreSaveActions({
+        form: {
+            categoryRows: [
+                {
+                    category: "Chibig游戏",
+                    company: "Chibig",
+                    enabled: true,
+                    pendingCreation: {
+                        englishName: "Category:Chibig games",
+                        text: "Category text",
+                    },
+                },
+            ],
+        },
+        title: "Example",
+    });
+    const category = actions.find((action) => action.type === "category");
+
+    assert.deepEqual(category, {
+        category: "Chibig游戏",
+        company: "Chibig",
+        englishName: "Category:Chibig games",
+        id: "category:Chibig游戏",
+        label: "Create category: Chibig游戏",
+        selected: true,
+        text: "Category text",
+        type: "category",
+    });
+});
+
 test("buildPreSaveActions hints existing redirects and unchecks them", () => {
     const actions = buildPreSaveActions(
         {
@@ -350,6 +381,34 @@ test("runSelectedActions uses the Wikidata API for interwiki edits", async () =>
 
     assert.equal(localCalls.length, 0);
     assert.equal(wikidataCalls[0][2].action, "wbsetsitelink");
+});
+
+test("runSelectedActions creates staged categories", async () => {
+    const calls = [];
+
+    await runSelectedActions(
+        [
+            {
+                category: "Chibig游戏",
+                company: "Chibig",
+                englishName: "Category:Chibig games",
+                selected: true,
+                text: "Category text",
+                type: "category",
+            },
+        ],
+        {
+            api: createApiStub([]),
+            async saveCompanyCategory(...args) {
+                calls.push(args);
+            },
+            title: "Target",
+        },
+    );
+
+    assert.deepEqual(calls, [
+        ["Chibig游戏", "Category text", "Category:Chibig games"],
+    ]);
 });
 
 test("movePage can leave or suppress the source redirect", async () => {

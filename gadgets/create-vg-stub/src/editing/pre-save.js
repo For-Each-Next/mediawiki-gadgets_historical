@@ -50,7 +50,7 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
             exists,
             label: exists
                 ? `Redirect: ${redirectTitle} (page already exists)`
-                : `Redirect name: ${redirectTitle} -> ${title}`,
+                : `Redirect name: ${redirectTitle} to ${title}`,
             redirectTitle,
             selected: !exists,
             type: "redirect",

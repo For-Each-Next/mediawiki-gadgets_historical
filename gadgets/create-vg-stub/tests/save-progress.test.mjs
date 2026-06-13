@@ -8,6 +8,7 @@ import test from "node:test";
 import {
     createSaveProgress,
     readSaveProgress,
+    renderSaveProgress,
     storeSaveProgress,
     updateSaveProgress,
 } from "../src/save/progress.js";
@@ -19,7 +20,9 @@ test("createSaveProgress builds save, move, and selected action rows", () => {
             {
                 id: "redirect:Alias",
                 label: "Create redirect Alias",
+                redirectTitle: "Alias",
                 selected: true,
+                type: "redirect",
             },
             {
                 id: "redirect:Existing",
@@ -66,3 +69,64 @@ test("save progress updates and round-trips through storage", () => {
 
     assert.equal(readSaveProgress(storage).steps[0].status, "running");
 });
+
+test("renderSaveProgress uses bullets and code-wrapped titles", () => {
+    const documentRef = createDocumentStub();
+    const progress = createSaveProgress("夏爾故事：魔戒遊戲", [
+        {
+            id: "interwiki",
+            label: "Connect",
+            selected: true,
+            type: "interwiki",
+            wikidataId: "Q125570677",
+        },
+        {
+            id: "redirect:English",
+            label: "Redirect",
+            redirectTitle: "Tales of the Shire: A The Lord of the Rings Game",
+            selected: true,
+            type: "redirect",
+        },
+        {
+            id: "talk-banner",
+            label: "Banner",
+            selected: true,
+            type: "talk-banner",
+        },
+    ]);
+    const layer = renderSaveProgress(progress, documentRef);
+
+    assert.equal(layer.innerHTML.includes("<ul"), true);
+    assert.equal(layer.innerHTML.includes("<ol"), false);
+    assert.equal(
+        layer.innerHTML.includes("<code>夏爾故事：魔戒遊戲</code>"),
+        true,
+    );
+    assert.equal(layer.innerHTML.includes("<code>Q125570677</code>"), true);
+    assert.equal(layer.innerHTML.includes(" -&gt; "), false);
+    assert.equal(layer.innerHTML.includes(" to "), true);
+});
+
+function createDocumentStub() {
+    let layer;
+
+    return {
+        body: {
+            append(element) {
+                layer = element;
+            },
+        },
+        createElement() {
+            return {
+                innerHTML: "",
+                querySelector() {
+                    return null;
+                },
+                style: {},
+            };
+        },
+        getElementById() {
+            return layer;
+        },
+    };
+}

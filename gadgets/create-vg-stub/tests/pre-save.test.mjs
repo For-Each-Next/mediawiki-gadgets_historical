@@ -107,7 +107,7 @@ test("buildPreSaveActions hints existing redirects and unchecks them", () => {
                 false,
                 "Redirect: 示例遊戲 (page already exists)",
             ],
-            ["示例游戏", false, true, "Redirect name: 示例游戏 -> Example"],
+            ["示例游戏", false, true, "Redirect name: 示例游戏 to Example"],
         ],
     );
 });

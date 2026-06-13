@@ -16,13 +16,19 @@ export const SAVE_PROGRESS_STORAGE_KEY = "create-vg-stub-save-progress";
  */
 export function createSaveProgress(title, actions = [], move = {}) {
     const steps = [
-        { id: "save", label: `Save page: ${title}`, status: "pending" },
+        {
+            id: "save",
+            label: `Save page: ${title}`,
+            parts: [{ text: "Save page: " }, { code: title }],
+            status: "pending",
+        },
     ];
 
     if (move.enabled === true) {
         steps.push({
             id: "move",
             label: `Move page to ${move.to}`,
+            parts: [{ text: "Move page to " }, { code: move.to }],
             status: "pending",
         });
     }
@@ -33,6 +39,7 @@ export function createSaveProgress(title, actions = [], move = {}) {
             steps.push({
                 id: action.id,
                 label: action.label,
+                parts: buildActionProgressParts(action, title),
                 status: "pending",
             });
         });
@@ -43,6 +50,42 @@ export function createSaveProgress(title, actions = [], move = {}) {
         steps,
         title,
     };
+}
+
+/**
+ * Builds semantic progress text for one follow-up action.
+ *
+ * @param {object} action - Selected follow-up action.
+ * @param {string} title - Submitted article title.
+ * @returns {Array<object>|undefined} Text and code fragments.
+ */
+function buildActionProgressParts(action, title) {
+    if (action.type === "interwiki") {
+        return [
+            { text: "Connect " },
+            { code: title },
+            { text: " to " },
+            { code: action.wikidataId },
+        ];
+    }
+
+    if (action.type === "redirect") {
+        return [
+            { text: "Redirect name: " },
+            { code: action.redirectTitle },
+            { text: " to " },
+            { code: title },
+        ];
+    }
+
+    if (action.type === "talk-banner") {
+        return [
+            { text: "Add WikiProject Video games banner to " },
+            { code: `Talk:${title}` },
+        ];
+    }
+
+    return undefined;
 }
 
 /**
@@ -137,7 +180,7 @@ export function renderSaveProgress(progress, documentRef = document) {
     const rows = progress.steps
         .map(
             (step) =>
-                `<li data-status="${step.status}"><strong>${escapeHtml(statusLabels[step.status] || step.status)}</strong> ${escapeHtml(step.label)}</li>`,
+                `<li data-status="${step.status}"><strong>${escapeHtml(statusLabels[step.status] || step.status)}</strong> ${renderStepParts(step)}</li>`,
         )
         .join("");
     const error = progress.error
@@ -151,10 +194,10 @@ export function renderSaveProgress(progress, documentRef = document) {
         : "";
 
     layer.innerHTML =
-        '<div style="background:var(--background-color-base,#fff);border:1px solid var(--border-color-base,#a2a9b1);border-radius:4px;box-shadow:var(--box-shadow-drop-medium,0 2px 8px rgb(0 0 0 / 30%));color:var(--color-base,#202122);max-width:min(90vw,640px);padding:24px;width:100%">' +
+        '<div style="background:var(--background-color-base,#fff);border:1px solid var(--border-color-base,#a2a9b1);border-radius:0.25em;box-shadow:var(--box-shadow-drop-medium,0 0.125em 0.5em rgb(0 0 0 / 30%));color:var(--color-base,#202122);max-width:min(90vw,40em);padding:1.5em;width:100%">' +
         closeButton +
         `<h2>${complete ? "Article creation complete" : "Creating article"}</h2>` +
-        `<ol style="display:grid;gap:8px;padding-left:24px">${rows}</ol>` +
+        `<ul style="display:grid;gap:0.5em;padding-left:1.5em">${rows}</ul>` +
         error +
         "</div>";
 
@@ -166,6 +209,26 @@ export function renderSaveProgress(progress, documentRef = document) {
         });
 
     return layer;
+}
+
+/**
+ * Renders one progress step's semantic text fragments.
+ *
+ * @param {object} step - Progress step.
+ * @returns {string} Escaped progress markup.
+ */
+function renderStepParts(step) {
+    if (!Array.isArray(step.parts)) {
+        return escapeHtml(step.label);
+    }
+
+    return step.parts
+        .map((part) =>
+            part.code == null
+                ? escapeHtml(part.text || "")
+                : `<code>${escapeHtml(part.code)}</code>`,
+        )
+        .join("");
 }
 
 /**

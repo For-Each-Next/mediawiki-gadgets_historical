@@ -1953,7 +1953,7 @@ function createNavboxDialogTemplate() {
                                 "v-bind:disabled": "navboxCreateState.loading",
                                 "v-on:click": "closeNavboxCreate",
                             },
-                            [createText("Cancel")],
+                            [createText("Close")],
                         ),
                         createElement(
                             "cdx-button",
@@ -2086,7 +2086,7 @@ function createCompanyCategoryDialogTemplate() {
                                     "companyCategoryState.loading",
                                 "v-on:click": "closeCompanyCategory",
                             },
-                            [createText("Cancel")],
+                            [createText("Close")],
                         ),
                         createElement(
                             "cdx-button",
@@ -2097,7 +2097,7 @@ function createCompanyCategoryDialogTemplate() {
                                 "v-if": "companyCategoryState.pending",
                                 "v-on:click": "cancelCompanyCategoryCreation",
                             },
-                            [createText("Cancel creation")],
+                            [createText("Cancel")],
                         ),
                         createElement(
                             "cdx-button",
@@ -2315,7 +2315,7 @@ function createMainDialogFooterTemplate() {
                         {
                             "v-on:click": "closeDialog",
                         },
-                        [createText("Cancel")],
+                        [createText("Close")],
                     ),
                     createElement(
                         "cdx-button",
@@ -2635,7 +2635,7 @@ function createMoveDialogFooterTemplate() {
                     {
                         "v-on:click": "closeMoveDialog",
                     },
-                    [createText("Cancel")],
+                    [createText("Close")],
                 ),
                 createElement(
                     "cdx-button",

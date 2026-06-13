@@ -623,6 +623,8 @@ test("pending category button reopens review and can cancel creation", async () 
     assert.equal(companyCategoryState.text, "Edited category text");
     assert.equal(prepareCount, 0);
     assert.equal(component.template.includes("Review Category:"), true);
+    assert.equal(component.template.includes(">Cancel</cdx-button>"), true);
+    assert.equal(component.template.includes(">Close</cdx-button>"), true);
 
     component.methods.cancelCompanyCategoryCreation();
 

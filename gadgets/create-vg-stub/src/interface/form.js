@@ -1433,6 +1433,7 @@ export function createDialogComponent(Vue, options) {
                             row.pendingCreation?.previousStatus || row.status,
                         text: companyCategoryState.text,
                     };
+                    row.enabled = true;
                     row.status = "Pending creation";
                     companyCategoryOpen.value = false;
                 } catch (error) {

@@ -506,6 +506,7 @@ test("category helper stages missing category rows for final submission", async 
     const companyRow = {
         category: "Foo Studio游戏",
         company: "Foo Studio",
+        enabled: false,
         status: "",
     };
     form.categoryRows = [companyRow];
@@ -539,6 +540,7 @@ test("category helper stages missing category rows for final submission", async 
         previousStatus: "",
         text: "Text for Foo Studio\nEdited",
     });
+    assert.equal(companyRow.enabled, true);
     assert.equal(companyRow.status, "Pending creation");
     assert.equal(companyCategoryOpen.value, false);
     assert.equal(component.template.includes(">Pending</cdx-button>"), true);

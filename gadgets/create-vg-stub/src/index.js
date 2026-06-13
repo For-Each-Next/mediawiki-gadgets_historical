@@ -42,11 +42,14 @@ import { fetchEnwikiMetadata } from "./sources/crosswiki.js";
 import {
     clearMovedEdit,
     clearPendingSaveData,
+    clearPreviewFormData,
     getMovedEdit,
     getPendingSaveData,
+    getPreviewFormData,
     normalizePageTitle,
     storeMovedEdit,
     storePendingSaveData,
+    storePreviewFormData,
 } from "./editing/session.js";
 import {
     interceptEditSave,
@@ -271,6 +274,7 @@ async function previewForm(
 
         await writeGeneratedStub(form, citationStore);
         clearPendingSaveData();
+        storePreviewFormData(form, getPageName());
         closeDialog();
         submitPreviewForm();
     } catch (error) {
@@ -629,6 +633,7 @@ function restoreMovedEditText() {
     clearMovedEdit();
 
     if (pending.preview === true) {
+        storePreviewFormData(pending.form, getPageName());
         submitPreviewForm();
     }
 }
@@ -655,6 +660,10 @@ function init(require) {
     const citationStore = createCitationStore();
     const defaultName = getDefaultName();
     const movedEdit = getMovedEdit(getPageName());
+    const previewFormData =
+        mw.config.get("wgAction") === "submit"
+            ? getPreviewFormData(getPageName())
+            : undefined;
     let saveInterceptorActive = false;
 
     const activateTool = () => {
@@ -677,8 +686,13 @@ function init(require) {
         getFieldPlaceholder,
         getFieldPreview,
         getProseSinographs: getFormProseSinographs,
-        initialForm: movedEdit?.form || readFormDraftForPage(defaultName),
-        initialOpen: movedEdit != null && movedEdit.preview !== true,
+        initialForm:
+            previewFormData?.form ||
+            movedEdit?.form ||
+            readFormDraftForPage(defaultName),
+        initialOpen:
+            previewFormData != null ||
+            (movedEdit != null && movedEdit.preview !== true),
         onActivate: activateTool,
         onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
             refreshFormCategoryRows(
@@ -730,6 +744,10 @@ function init(require) {
     app.component("CdxTextArea", Codex.CdxTextArea);
     app.component("CdxTextInput", Codex.CdxTextInput);
     app.mount(createHost());
+
+    if (previewFormData != null) {
+        clearPreviewFormData();
+    }
 
     if (movedEdit != null) {
         activateTool();

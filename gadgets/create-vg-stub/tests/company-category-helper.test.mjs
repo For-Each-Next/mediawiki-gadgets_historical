@@ -64,27 +64,106 @@ test("prepareCompanyCategoryText omits a missing company parent category", async
     assert.equal(text.includes("[[Category:各公司电子游戏]]"), true);
 });
 
-test("saveCompanyCategory creates the category without overwriting", async () => {
+test("saveCompanyCategory creates, connects, and tags the category", async () => {
     const calls = [];
+    const wikidataCalls = [];
 
-    await saveCompanyCategory("Foo Studio游戏", "Category text", {
-        async postWithToken(token, params) {
-            calls.push([token, params]);
+    await saveCompanyCategory(
+        "Foo Studio游戏",
+        "Category text",
+        "Foo Studio games",
+        {
+            api: {
+                async get(params) {
+                    calls.push(["get", params]);
+
+                    return {
+                        query: {
+                            pages: {
+                                "-1": {
+                                    missing: "",
+                                    title: "Category talk:Foo Studio游戏",
+                                },
+                            },
+                        },
+                    };
+                },
+                async postWithToken(token, params) {
+                    calls.push(["postWithToken", token, params]);
+                },
+            },
+            async fetchMetadata(title) {
+                assert.equal(title, "Category:Foo Studio games");
+
+                return {
+                    title,
+                    wikidataId: "Q123",
+                };
+            },
+            wikidataApi: {
+                async postWithToken(token, params) {
+                    wikidataCalls.push([token, params]);
+                },
+            },
         },
-    });
+    );
 
-    assert.deepEqual(calls, [
+    assert.deepEqual(calls[0], [
+        "postWithToken",
+        "csrf",
+        {
+            action: "edit",
+            createonly: true,
+            summary: `Create company video game category ${EDIT_SUMMARY_SUFFIX}`,
+            text: "Category text",
+            title: "Category:Foo Studio游戏",
+        },
+    ]);
+    assert.deepEqual(wikidataCalls, [
         [
             "csrf",
             {
-                action: "edit",
-                createonly: true,
-                summary: `Create company video game category ${EDIT_SUMMARY_SUFFIX}`,
-                text: "Category text",
-                title: "Category:Foo Studio游戏",
+                action: "wbsetsitelink",
+                id: "Q123",
+                linksite: "zhwiki",
+                linktitle: "Category:Foo Studio游戏",
+                summary:
+                    `Connect zhwiki sitelink to [[Category:Foo Studio游戏]] ` +
+                    EDIT_SUMMARY_SUFFIX,
             },
         ],
     ]);
+    assert.equal(calls[1][0], "get");
+    assert.equal(calls[1][1].titles, "Category talk:Foo Studio游戏");
+    assert.equal(calls[2][2].title, "Category talk:Foo Studio游戏");
+});
+
+test("saveCompanyCategory validates English category Wikidata first", async () => {
+    let saveCount = 0;
+
+    await assert.rejects(
+        saveCompanyCategory(
+            "Foo Studio游戏",
+            "Category text",
+            "Category:Missing games",
+            {
+                api: {
+                    async postWithToken() {
+                        saveCount += 1;
+                    },
+                },
+                async fetchMetadata() {
+                    return {
+                        title: "Category:Missing games",
+                        wikidataId: "",
+                    };
+                },
+            },
+        ),
+        /No Wikidata item found/u,
+    );
+
+    assert.equal(saveCount, 0);
 });
 
 test("saveCategoryPage creates a generic category without overwriting", async () => {

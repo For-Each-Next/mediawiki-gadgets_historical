@@ -504,8 +504,8 @@ test("category helper opens and saves missing category rows", async () => {
             async onPrepareCompanyCategory(row) {
                 return `Text for ${row.company}`;
             },
-            async onSaveCompanyCategory(category, text) {
-                saved.push(["company", category, text]);
+            async onSaveCompanyCategory(category, text, englishName) {
+                saved.push(["company", category, text, englishName]);
             },
             async onSaveCategory(category, text) {
                 saved.push(["category", category, text]);
@@ -539,15 +539,25 @@ test("category helper opens and saves missing category rows", async () => {
     assert.equal(companyCategoryOpen.value, true);
     assert.equal(companyCategoryState.text, "Text for Foo Studio");
 
+    companyCategoryState.englishName = "Foo Studio games";
     companyCategoryState.text += "\nEdited";
     await component.methods.saveCompanyCategory();
 
     assert.deepEqual(saved, [
-        ["company", "Foo Studio游戏", "Text for Foo Studio\nEdited"],
+        [
+            "company",
+            "Foo Studio游戏",
+            "Text for Foo Studio\nEdited",
+            "Foo Studio games",
+        ],
     ]);
     assert.deepEqual(refreshes, [{ bypassCache: true }]);
     assert.equal(companyCategoryOpen.value, false);
     assert.equal(component.template.includes("Create Category:"), true);
+    assert.equal(
+        component.template.includes("English Wikipedia category"),
+        true,
+    );
 
     await component.methods.openCategoryCreate({
         category: "动作游戏",

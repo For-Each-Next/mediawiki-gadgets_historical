@@ -711,7 +711,13 @@ function init(require) {
             return { actions, move };
         },
         onSaveCategory: saveCategoryPage,
-        onSaveCompanyCategory: saveCompanyCategory,
+        onSaveCompanyCategory: (category, text, englishName) =>
+            saveCompanyCategory(category, text, englishName, {
+                api: new mw.Api(),
+                wikidataApi: new mw.ForeignApi(
+                    "https://www.wikidata.org/w/api.php",
+                ),
+            }),
         onSaveNavbox: saveNavboxTemplate,
         onSourceUrlChange: (url) => citationStore.prefetch(url),
         onSteamNamesFetch: (url) => fetchSteamNameRows(url, citationStore),

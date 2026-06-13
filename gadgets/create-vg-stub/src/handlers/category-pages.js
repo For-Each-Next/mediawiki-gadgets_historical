@@ -5,7 +5,12 @@
  */
 
 import { addEditSummarySuffix } from "../editing/summary.js";
+import {
+    addTalkPageBanner,
+    connectWikidataSitelink,
+} from "../editing/pre-save.js";
 import { buildDefaultSortText } from "../wikitext/default-sort.js";
+import { fetchEnwikiMetadata } from "../sources/crosswiki.js";
 import { formatText, getTextTemplate } from "../shared/text-templates.js";
 
 const CATEGORY_NAMESPACE = "Category:";
@@ -61,16 +66,54 @@ export async function prepareCompanyCategoryText(row, api = new mw.Api()) {
  *
  * @param {string} category - Category title without namespace.
  * @param {string} text - Category page wikitext.
- * @param {object} [api] - MediaWiki API client.
+ * @param {string} [englishCategory] - English Wikipedia category title.
+ * @param {object} [options] - Save and lookup clients.
+ * @param {object} [options.api] - MediaWiki API client.
+ * @param {Function} [options.fetchMetadata] - Enwiki metadata fetcher.
+ * @param {object} [options.wikidataApi] - Wikidata API client.
  * @returns {Promise<void>} Resolves after the category is saved.
  */
-export async function saveCompanyCategory(category, text, api = new mw.Api()) {
-    return saveCategoryPage(
+export async function saveCompanyCategory(
+    category,
+    text,
+    englishCategory = "",
+    options = {},
+) {
+    const api = options.api || new mw.Api();
+    const englishTitle = normalizeEnglishCategoryTitle(englishCategory);
+    const metadata =
+        englishTitle === ""
+            ? null
+            : await (options.fetchMetadata || fetchEnwikiMetadata)(
+                  englishTitle,
+              );
+
+    if (metadata != null && metadata.wikidataId === "") {
+        throw new Error(`No Wikidata item found for ${englishTitle}.`);
+    }
+
+    await saveCategoryPage(
         category,
         text,
         "Create company video game category",
         api,
     );
+
+    const categoryTitle = `${CATEGORY_NAMESPACE}${category}`;
+
+    if (metadata != null) {
+        const wikidataApi =
+            options.wikidataApi ||
+            new mw.ForeignApi("https://www.wikidata.org/w/api.php");
+
+        await connectWikidataSitelink(
+            wikidataApi,
+            metadata.wikidataId,
+            categoryTitle,
+        );
+    }
+
+    await addTalkPageBanner(api, categoryTitle);
 }
 
 /**
@@ -120,4 +163,20 @@ async function categoryExists(api, company) {
     } catch (_error) {
         return false;
     }
+}
+
+/**
+ * Normalizes an English Wikipedia company-category title.
+ *
+ * @param {string} title - User-entered English category name.
+ * @returns {string} Canonical English category title, or an empty string.
+ */
+function normalizeEnglishCategoryTitle(title) {
+    const value = String(title || "").trim();
+
+    if (value === "") {
+        return "";
+    }
+
+    return /^Category:/iu.test(value) ? value : `Category:${value}`;
 }

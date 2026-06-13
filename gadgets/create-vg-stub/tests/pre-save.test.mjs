@@ -267,6 +267,25 @@ test("addTalkPageBanner skips an existing video game banner", async () => {
     assert.equal(calls.length, 1);
 });
 
+test("addTalkPageBanner uses the category talk namespace", async () => {
+    const calls = [];
+    const api = createApiStub(calls, {
+        query: {
+            pages: {
+                "-1": {
+                    missing: "",
+                    title: "Category talk:示例游戏",
+                },
+            },
+        },
+    });
+
+    await addTalkPageBanner(api, "Category:示例游戏");
+
+    assert.equal(calls[0][1].titles, "Category talk:示例游戏");
+    assert.equal(calls[1][2].title, "Category talk:示例游戏");
+});
+
 test("runSelectedActions only runs selected rows", async () => {
     const calls = [];
     const api = createApiStub(calls);

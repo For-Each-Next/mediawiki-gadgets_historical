@@ -533,6 +533,7 @@ export function createDialogComponent(Vue, options) {
     const companyCategoryState = Vue.reactive({
         category: "",
         company: "",
+        englishName: "",
         error: "",
         loading: false,
         text: "",
@@ -1306,6 +1307,7 @@ export function createDialogComponent(Vue, options) {
                 Object.assign(companyCategoryState, {
                     category: trimFieldValue(row.category),
                     company: trimFieldValue(row.company),
+                    englishName: "",
                     error: "",
                     loading: false,
                     text: "",
@@ -1356,6 +1358,7 @@ export function createDialogComponent(Vue, options) {
                     await save(
                         companyCategoryState.category,
                         companyCategoryState.text,
+                        companyCategoryState.englishName,
                     );
                     companyCategoryOpen.value = false;
                     await refreshCategoryRows({
@@ -1748,6 +1751,33 @@ function createNavboxDialogTemplate() {
             "v-model:open": "navboxCreateOpen",
         },
         [
+            createElement(
+                "label",
+                {
+                    "v-if": "companyCategoryState.company",
+                    style: {
+                        display: "block",
+                        marginBottom: "0.75em",
+                    },
+                },
+                [
+                    createElement(
+                        "span",
+                        {
+                            style: {
+                                display: "block",
+                                marginBottom: "0.25em",
+                            },
+                        },
+                        [createText("English Wikipedia category")],
+                    ),
+                    createElement("cdx-text-input", {
+                        placeholder: "e.g. Foo Studio games",
+                        "v-bind:disabled": "companyCategoryState.loading",
+                        "v-model": "companyCategoryState.englishName",
+                    }),
+                ],
+            ),
             createElement("cdx-text-area", {
                 rows: "10",
                 "v-bind:disabled": "navboxCreateState.loading",

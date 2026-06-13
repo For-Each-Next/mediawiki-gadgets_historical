@@ -362,7 +362,7 @@ export async function createRedirect(api, redirectTitle, targetTitle) {
  * @returns {Promise<void>} Resolves after the talk page is updated.
  */
 export async function addTalkPageBanner(api, articleTitle) {
-    const title = `Talk:${articleTitle}`;
+    const title = getTalkPageTitle(articleTitle);
     const data = await api.get({
         action: "query",
         prop: "revisions",
@@ -388,6 +388,20 @@ export async function addTalkPageBanner(api, articleTitle) {
     };
 
     await api.postWithToken("csrf", params);
+}
+
+/**
+ * Gets the canonical talk-page title for an article or category.
+ *
+ * @param {string} title - Subject-page title.
+ * @returns {string} Talk-page title.
+ */
+function getTalkPageTitle(title) {
+    const categoryMatch = normalizeTitle(title).match(/^Category:(.+)$/iu);
+
+    return categoryMatch == null
+        ? `Talk:${normalizeTitle(title)}`
+        : `Category talk:${categoryMatch[1]}`;
 }
 
 /**

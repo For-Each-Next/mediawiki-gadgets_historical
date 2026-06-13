@@ -166,7 +166,7 @@ test("registerNewPage retries edit conflicts with fresh page text", async () => 
     assert.equal(edits[1][1].title, NEW_PAGE_LIST_TITLE);
     assert.equal(
         edits[1][1].summary,
-        `Register 'Example' the new page ${EDIT_SUMMARY_SUFFIX}`,
+        `Register '[[Example]]' the new page ${EDIT_SUMMARY_SUFFIX}`,
     );
     assert.equal(
         edits[1][1].text,

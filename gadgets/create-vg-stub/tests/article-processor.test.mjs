@@ -83,7 +83,7 @@ test("article modules emit one shared metadata contract", () => {
     assert.deepEqual(data.records.scores.sourceUrls, [
         "https://example.test/score",
     ]);
-    assert.match(data.prose.text, /85\/100（PS5版）/u);
+    assert.match(data.prose.text, /85\/100（PlayStation 5版）/u);
 });
 
 test("registered field formatters update compact values in place", () => {

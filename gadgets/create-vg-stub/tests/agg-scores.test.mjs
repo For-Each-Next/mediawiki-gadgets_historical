@@ -46,3 +46,20 @@ test("buildAggScoresText omits empty scores", () => {
         "",
     );
 });
+
+test("buildAggScoresText uses plain terminology names for platforms", () => {
+    assert.equal(
+        buildAggScoresText({
+            metacriticPlatform: "PS5",
+            metacriticScore: "77",
+        }),
+        "游戏的[[Metacritic]]汇总得分为77/100（PlayStation 5版）。",
+    );
+    assert.equal(
+        buildAggScoresText({
+            metacriticPlatform: "pc",
+            metacriticScore: "77",
+        }),
+        "游戏的[[Metacritic]]汇总得分为77/100（PC版）。",
+    );
+});

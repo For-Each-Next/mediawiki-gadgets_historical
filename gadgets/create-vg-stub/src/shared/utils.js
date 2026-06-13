@@ -131,22 +131,6 @@ export function buildLinkText(title, label) {
 }
 
 /**
- * Builds page link text from page metadata.
- *
- * @param {object} page - Page metadata.
- * @param {string} page.title - Page title.
- * @param {string} [page.label] - Optional display label.
- * @returns {string} Page link wikitext.
- */
-export function buildPageText(page) {
-    if (page.label == null) {
-        return `[[${page.title}]]`;
-    }
-
-    return buildLinkText(page.title, page.label);
-}
-
-/**
  * Gets an array property from matched reference definitions.
  *
  * @param {Array<object>} references - Matched reference definitions.

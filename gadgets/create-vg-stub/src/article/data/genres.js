@@ -5,15 +5,13 @@
  */
 
 import {
-    FIELD_REFERENCE_DATA,
-    buildLinkText,
-    getReferenceDefinition,
     getReferenceValues,
     getWikilinkParts,
     isWikilinkValue,
     splitFieldValues,
     uniqueValues,
 } from "../../shared/utils.js";
+import { get as getTerminology } from "../../terminologies/index.js";
 
 export function buildGenreMetadata(value) {
     const genres = splitFieldValues(value);
@@ -51,12 +49,9 @@ function buildGenreItem(value) {
         return item;
     }
 
-    const reference = getReferenceDefinition(
-        FIELD_REFERENCE_DATA.genres,
-        value,
-    );
+    const reference = getTerminology("genre", value);
 
-    if (reference?.page == null) {
+    if (reference == null) {
         const item = {
             displayText: value,
             normalizedText: value,
@@ -66,27 +61,23 @@ function buildGenreItem(value) {
         return item;
     }
 
-    const displayText = getGenrePageLabel(reference);
-    const linkTarget = reference.page.title;
     const item = {
-        displayText,
-        linkTarget,
+        displayText: getTerminology("genre", value, "short name"),
         normalizedText: value,
-        wikitext: buildLinkText(linkTarget, displayText),
+        wikitext: getTerminology("genre", value, "link"),
     };
+    const page = getTerminology("genre", value, "page");
+
+    if (page != null) {
+        item.linkTarget = page;
+    }
 
     return item;
 }
 
-function getGenrePageLabel(reference) {
-    const label = reference.page.label || reference.page.title;
-
-    return label.replace(/(?:[电電]子)?[游遊][戏戲]$/u, "");
-}
-
 function getGenreReferences(value) {
     const references = splitFieldValues(value)
-        .map(getReferenceDefinition.bind(null, FIELD_REFERENCE_DATA.genres))
+        .map((genre) => getTerminology("genre", genre))
         .filter(Boolean);
 
     return references;

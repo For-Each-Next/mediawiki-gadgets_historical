@@ -4,13 +4,9 @@
  * Normalizes release years and derives year categories.
  */
 
-import {
-    FIELD_REFERENCE_DATA,
-    getReferenceEntry,
-    trimValue,
-    uniqueValues,
-} from "../../shared/utils.js";
+import { trimValue, uniqueValues } from "../../shared/utils.js";
 import { formatText, getTextTemplate } from "../../shared/text-templates.js";
+import { get as getTerminology } from "../../terminologies/index.js";
 
 export function buildYearMetadata(value) {
     const normalized = normalizeYearFieldValue(value);
@@ -30,8 +26,7 @@ export function normalizeYearFieldValue(value) {
     const rawYear = planned ? entered.slice(1).trim() : entered;
     const yearMatch = rawYear.match(/\b\d{4}\b/u);
     const candidate = yearMatch?.[0] || rawYear;
-    const definition = getYearDefinition(candidate);
-    const normalized = definition.key || candidate;
+    const normalized = getTerminology("year", candidate, "name") || candidate;
 
     if (planned) {
         return normalized === "" ? "~" : `~${normalized}`;
@@ -42,7 +37,7 @@ export function normalizeYearFieldValue(value) {
 
 function getYearReference(value) {
     const year = trimValue(value);
-    const yearDefinition = getYearDefinition(year);
+    const definition = getTerminology("year", year);
 
     if (year === "") {
         return {
@@ -63,9 +58,9 @@ function getYearReference(value) {
     }
 
     const reference = {
-        categories: getReferenceCategories(yearDefinition.reference),
+        categories: definition?.categories || [],
         phrase: formatText("patterns.yearReleased", {
-            year: getYearLabel(year, yearDefinition),
+            year: definition?.name || year,
         }),
     };
 
@@ -74,28 +69,16 @@ function getYearReference(value) {
 
 function getPlannedYearReference(value) {
     const year = trimValue(value);
-    const yearDefinition = getYearDefinition(year);
+    const definition = getTerminology("year", year);
     const reference = {
         categories: uniqueValues([
             getTextTemplate("patterns.yearFuture"),
-            ...getReferenceCategories(yearDefinition.reference),
+            ...(definition?.categories || []),
         ]),
         phrase: formatText("patterns.yearPlanned", {
-            year: getYearLabel(year, yearDefinition),
+            year: definition?.name || year,
         }),
     };
 
     return reference;
-}
-
-function getYearDefinition(year) {
-    return getReferenceEntry(FIELD_REFERENCE_DATA.years, year);
-}
-
-function getReferenceCategories(reference) {
-    return reference?.categories || [];
-}
-
-function getYearLabel(fallback, definition) {
-    return definition.key == null ? fallback : definition.key;
 }

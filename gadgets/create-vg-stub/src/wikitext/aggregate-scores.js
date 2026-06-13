@@ -4,12 +4,9 @@
  * Builds aggregate review score prose for video game stubs.
  */
 
-import {
-    FIELD_REFERENCE_DATA,
-    getReferenceDefinition,
-    trimValue,
-} from "../shared/utils.js";
+import { trimValue } from "../shared/utils.js";
 import { formatText, getTextTemplate } from "../shared/text-templates.js";
+import { get as getTerminology } from "../terminologies/index.js";
 
 /**
  * Builds aggregate review score sentence text.
@@ -137,21 +134,7 @@ function getPlatformLabel(platform) {
         return "";
     }
 
-    const reference = getReferenceDefinition(
-        FIELD_REFERENCE_DATA.platforms || {},
-        value,
-    );
-
-    if (reference == null) {
-        return value;
-    }
-
-    return (
-        reference.label ||
-        reference.page?.label ||
-        reference.page?.title ||
-        value
-    );
+    return getTerminology("platform", value, "name") || value;
 }
 
 /**

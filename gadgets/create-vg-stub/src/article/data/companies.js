@@ -5,17 +5,15 @@
  */
 
 import {
-    FIELD_REFERENCE_DATA,
-    buildPageText,
     getWikilinkParts,
     getWikilinkValue,
     getReferenceValues,
-    getSourceReference,
     isWikilinkValue,
     splitFieldValues,
     uniqueValues,
 } from "../../shared/utils.js";
 import { formatText, getTextTemplate } from "../../shared/text-templates.js";
+import { get as getTerminology } from "../../terminologies/index.js";
 
 /**
  * Builds company values and category assumptions without composing prose.
@@ -113,7 +111,7 @@ function buildCompanyItem(references, value) {
 
     const reference = references.find((item) => item.source === value);
 
-    if (reference == null || reference.page == null) {
+    if (reference == null) {
         const item = {
             displayText: value,
             normalizedText: value,
@@ -124,11 +122,15 @@ function buildCompanyItem(references, value) {
     }
 
     const item = {
-        displayText: reference.page.label || reference.page.title,
-        linkTarget: reference.page.title,
+        displayText: getTerminology("company", value, "name"),
         normalizedText: value,
-        wikitext: buildPageText(reference.page),
+        wikitext: getTerminology("company", value, "link"),
     };
+    const page = getTerminology("company", value, "page");
+
+    if (page != null) {
+        item.linkTarget = page;
+    }
 
     return item;
 }
@@ -219,10 +221,7 @@ function uniqueCompanyLookupValues(values) {
  * @returns {Array<object>} Company category items.
  */
 function buildCompanyCategoryItemsForValue(company, options = {}) {
-    const reference = getSourceReference(
-        FIELD_REFERENCE_DATA.companies,
-        company,
-    );
+    const reference = getTerminology("company", company);
 
     if (reference != null && (reference.categories || []).length > 0) {
         return reference.categories.map((category, index) => {
@@ -230,7 +229,11 @@ function buildCompanyCategoryItemsForValue(company, options = {}) {
 
             return {
                 category,
-                company: reference.page?.title || options.company || company,
+                company:
+                    getTerminology("company", company, "page") ||
+                    getTerminology("company", company, "name") ||
+                    options.company ||
+                    company,
                 stubTag,
                 stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
             };
@@ -240,7 +243,11 @@ function buildCompanyCategoryItemsForValue(company, options = {}) {
     return [
         {
             candidates: buildCompanyCategoryCandidates(company),
-            company: reference?.page?.title || options.company || company,
+            company:
+                getTerminology("company", company, "page") ||
+                getTerminology("company", company, "name") ||
+                options.company ||
+                company,
             fallback: formatText("patterns.titleGame", {
                 title: getDisambiguationBaseTitle(company),
             }),
@@ -340,6 +347,10 @@ function getCompanyReferences(companies) {
  */
 function getCompanyRoleReferences(value) {
     return splitFieldValues(value)
-        .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.companies))
+        .map((source) => {
+            const reference = getTerminology("company", source);
+
+            return reference == null ? undefined : { ...reference, source };
+        })
         .filter(Boolean);
 }

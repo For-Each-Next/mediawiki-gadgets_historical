@@ -5,16 +5,14 @@
  */
 
 import {
-    FIELD_REFERENCE_DATA,
-    buildPageText,
     getReferenceValues,
-    getSourceReference,
     getWikilinkParts,
     isWikilinkValue,
     splitFieldValues,
     splitLookupFieldValues,
     uniqueValues,
 } from "../../shared/utils.js";
+import { get as getTerminology } from "../../terminologies/index.js";
 
 /**
  * Builds normalized display, link, and category metadata for platforms.
@@ -62,7 +60,7 @@ function buildPlatformItem(references, value) {
 
     const reference = references.find((item) => item.source === value);
 
-    if (reference == null || reference.page == null) {
+    if (reference == null) {
         const item = {
             displayText: value,
             normalizedText: value,
@@ -73,18 +71,26 @@ function buildPlatformItem(references, value) {
     }
 
     const item = {
-        displayText: reference.page.label || reference.page.title,
-        linkTarget: reference.page.title,
+        displayText: getTerminology("platform", value, "name"),
         normalizedText: value,
-        wikitext: buildPageText(reference.page),
+        wikitext: getTerminology("platform", value, "link"),
     };
+    const page = getTerminology("platform", value, "page");
+
+    if (page != null) {
+        item.linkTarget = page;
+    }
 
     return item;
 }
 
 function getPlatformReferences(value) {
     const references = splitFieldValues(value)
-        .map(getSourceReference.bind(null, FIELD_REFERENCE_DATA.platforms))
+        .map((source) => {
+            const reference = getTerminology("platform", source);
+
+            return reference == null ? undefined : { ...reference, source };
+        })
         .filter(Boolean);
 
     return references;

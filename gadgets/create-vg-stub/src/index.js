@@ -59,6 +59,7 @@ import {
     writeEditText,
 } from "./editing/editor.js";
 import { buildEditSummary } from "./editing/summary.js";
+import { updateMovedTitleText } from "./editing/title-move.js";
 import {
     buildPreSaveActions,
     buildRedirectTitles,
@@ -575,20 +576,27 @@ async function openTargetPage(
     try {
         const targetForm = { ...form, name: targetTitle };
         const preserveEditor = shouldPreserveEditor();
-        const stub = preserveEditor
-            ? null
-            : await buildStubFromForm(targetForm, citationStore);
-        const summaryMetadata =
-            stub == null
-                ? undefined
-                : createEditSummaryMetadata(targetForm, stub);
+        const [currentStub, stub] = preserveEditor
+            ? await Promise.all([
+                  buildStubFromForm(form, citationStore),
+                  buildStubFromForm(targetForm, citationStore),
+              ])
+            : [null, await buildStubFromForm(targetForm, citationStore)];
+        const summaryMetadata = createEditSummaryMetadata(targetForm, stub);
+        const text = preserveEditor
+            ? updateMovedTitleText(
+                  readEditText(),
+                  currentStub.articleData,
+                  stub.articleData,
+              )
+            : stub.text;
 
         storeMovedEdit({
             form: targetForm,
             preview: options.preview === true,
             summary: preserveEditor ? readEditSummary() : undefined,
             summaryMetadata,
-            text: preserveEditor ? readEditText() : stub.text,
+            text,
             title: targetTitle,
         });
         window.location.href = mw.util.getUrl(targetTitle, {

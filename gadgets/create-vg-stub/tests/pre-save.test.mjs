@@ -23,7 +23,7 @@ test("TALK_PAGE_BANNER is built in block template format", () => {
     assert.equal(
         TALK_PAGE_BANNER,
         "{{WikiProject banner shell\n" +
-            "| class = unassessed\n" +
+            "| class = stub\n" +
             "| 1 = {{WikiProject Video games}}\n" +
             "}}",
     );

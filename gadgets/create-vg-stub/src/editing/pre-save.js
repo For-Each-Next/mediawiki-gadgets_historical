@@ -10,7 +10,7 @@ import { addEditSummarySuffix } from "./summary.js";
 export const TALK_PAGE_BANNER = buildTemplateText(
     "WikiProject banner shell",
     [
-        ["class", "unassessed"],
+        ["class", "stub"],
         ["1", buildTemplateCall("WikiProject Video games")],
     ],
     "block",

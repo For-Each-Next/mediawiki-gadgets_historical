@@ -135,15 +135,20 @@ export function buildLinkText(title, label) {
 }
 
 /**
- * Compares link text while ignoring case only for the first character.
+ * Compares link text while treating spaces and underscores as equivalent and
+ * ignoring case only for the first character.
  *
  * @param {string} title - Link target.
  * @param {string} label - Link label.
  * @returns {boolean} Whether an unpiped link can use the label.
  */
 function hasSameFirstLetterCaseInsensitiveText(title, label) {
-    const [titleFirst = "", ...titleRest] = Array.from(title);
-    const [labelFirst = "", ...labelRest] = Array.from(label);
+    const [titleFirst = "", ...titleRest] = Array.from(
+        title.replace(/_/gu, " "),
+    );
+    const [labelFirst = "", ...labelRest] = Array.from(
+        label.replace(/_/gu, " "),
+    );
 
     return (
         titleFirst.toLocaleLowerCase() === labelFirst.toLocaleLowerCase() &&

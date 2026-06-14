@@ -17,6 +17,8 @@ import {
 test("buildLinkText omits a label differing only by first-letter case", () => {
     assert.equal(buildLinkText("Roguelike", "roguelike"), "[[roguelike]]");
     assert.equal(buildLinkText("roguelike", "Roguelike"), "[[Roguelike]]");
+    assert.equal(buildLinkText("Foo_bar", "foo bar"), "[[foo bar]]");
+    assert.equal(buildLinkText("Foo bar", "foo_bar"), "[[foo_bar]]");
     assert.equal(buildLinkText("FooBar", "Foobar"), "[[FooBar|Foobar]]");
 });
 

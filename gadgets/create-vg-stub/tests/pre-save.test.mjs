@@ -331,6 +331,13 @@ test("addTalkPageBanner uses the category talk namespace", async () => {
 
     assert.equal(calls[0][1].titles, "Category talk:示例游戏");
     assert.equal(calls[1][2].title, "Category talk:示例游戏");
+    assert.equal(
+        calls[1][2].appendtext,
+        "{{WikiProject banner shell\n" +
+            "| class = unassessed\n" +
+            "| 1 = {{WikiProject Video games}}\n" +
+            "}}",
+    );
 });
 
 test("runSelectedActions only runs selected rows", async () => {

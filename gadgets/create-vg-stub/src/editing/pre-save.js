@@ -15,6 +15,14 @@ export const TALK_PAGE_BANNER = buildTemplateText(
     ],
     "block",
 );
+const UNASSESSED_TALK_PAGE_BANNER = buildTemplateText(
+    "WikiProject banner shell",
+    [
+        ["class", "unassessed"],
+        ["1", buildTemplateCall("WikiProject Video games")],
+    ],
+    "block",
+);
 
 /**
  * Builds the selectable pre-save action rows.
@@ -411,6 +419,7 @@ export async function createRedirect(api, redirectTitle, targetTitle) {
  */
 export async function addTalkPageBanner(api, articleTitle) {
     const title = getTalkPageTitle(articleTitle);
+    const banner = getTalkPageBanner(articleTitle);
     const data = await api.get({
         action: "query",
         prop: "revisions",
@@ -430,12 +439,24 @@ export async function addTalkPageBanner(api, articleTitle) {
 
     const params = {
         action: "edit",
-        appendtext: `${text === "" ? "" : "\n\n"}${TALK_PAGE_BANNER}`,
+        appendtext: `${text === "" ? "" : "\n\n"}${banner}`,
         summary: addEditSummarySuffix("Add WikiProject Video games banner"),
         title,
     };
 
     await api.postWithToken("csrf", params);
+}
+
+/**
+ * Builds the project banner with an assessment appropriate to the subject.
+ *
+ * @param {string} title - Subject-page title.
+ * @returns {string} Talk-page banner wikitext.
+ */
+function getTalkPageBanner(title) {
+    return /^Category:/iu.test(normalizeTitle(title))
+        ? UNASSESSED_TALK_PAGE_BANNER
+        : TALK_PAGE_BANNER;
 }
 
 /**

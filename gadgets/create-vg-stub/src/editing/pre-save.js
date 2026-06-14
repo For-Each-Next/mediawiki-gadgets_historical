@@ -379,7 +379,7 @@ export async function connectWikidataSitelink(api, wikidataId, title) {
  * @returns {string} Wikitext link suitable for a Wikidata edit summary.
  */
 function buildWikidataSummaryLink(title) {
-    return /^Category:/iu.test(title) ? `[[:w:zh:${title}]]` : `[[${title}]]`;
+    return `[[:w:zh:${title}]]`;
 }
 
 /**

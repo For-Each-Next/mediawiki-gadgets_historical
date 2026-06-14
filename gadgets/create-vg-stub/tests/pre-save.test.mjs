@@ -229,7 +229,7 @@ test("connectWikidataSitelink posts the zhwiki sitelink", async () => {
             id: "Q123",
             linksite: "zhwiki",
             linktitle: "示例",
-            summary: `Connect zhwiki sitelink to [[示例]] ${EDIT_SUMMARY_SUFFIX}`,
+            summary: `Connect zhwiki sitelink to [[:w:zh:示例]] ${EDIT_SUMMARY_SUFFIX}`,
         },
     ]);
 });

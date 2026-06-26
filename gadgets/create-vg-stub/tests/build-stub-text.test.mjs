@@ -325,9 +325,7 @@ test("separated genre, company, and platform values render as lists", async () =
     assert.equal(text.includes("由[[史克威尔艾尼克斯]]和Company B开发"), true);
     assert.equal(text.includes("Bar Games和Company C发行"), true);
     assert.equal(
-        text.includes(
-            "作品对应[[PlayStation 5]]、[[任天堂Switch]]平台。",
-        ),
+        text.includes("作品对应[[PlayStation 5]]、[[任天堂Switch]]平台。"),
         true,
     );
     assert.equal(text.includes("[[Category:史克威爾艾尼克斯遊戲]]"), true);
@@ -942,7 +940,7 @@ test("official name rows render vgn refs in the infobox", async () => {
         text.startsWith(
             "{{NoteTA-lite\n" +
                 "| G1 = Games\n" +
-                "| zh-cn:Official; zh-tw:Official;\n" +
+                "| 1 = zh-cn:Official; zh-tw:Official;\n" +
                 "}}\n\n" +
                 "{{Infobox VG\n" +
                 "| onlysourced = no\n" +
@@ -958,6 +956,83 @@ test("official name rows render vgn refs in the infobox", async () => {
         ),
         true,
     );
+});
+
+test("manual NoteTA rows render in source order", async () => {
+    const text = await buildStubText({
+        developers: "",
+        genres: "",
+        name: "Example",
+        noteTaRows: [
+            {
+                key: "2",
+                value: "zh-cn:后项; zh-tw:後項;",
+            },
+            {
+                key: "G2",
+                value: "Software",
+            },
+            {
+                key: "G1",
+                value: "Games",
+            },
+            {
+                key: "1",
+                value: "zh-cn:前项; zh-tw:前項;",
+            },
+        ],
+        platforms: "",
+        publishers: "",
+        year: "",
+    });
+
+    assert.equal(
+        text.startsWith(
+            "{{NoteTA-lite\n" +
+                "| G1 = Games\n" +
+                "| G2 = Software\n" +
+                "| 1 = zh-cn:前项; zh-tw:前項;\n" +
+                "| 2 = zh-cn:后项; zh-tw:後項;\n" +
+                "}}\n\n",
+        ),
+        true,
+    );
+});
+
+test("removed generated NoteTA name row stays removed", async () => {
+    const text = await buildStubText({
+        developers: "",
+        genres: "",
+        name: "Example",
+        noteTaNamesRemoved: true,
+        noteTaRows: [
+            {
+                key: "G1",
+                value: "Games",
+            },
+        ],
+        officialNames: [
+            {
+                cn: true,
+                name: "简体名",
+            },
+            {
+                name: "繁體名",
+                tw: true,
+            },
+        ],
+        platforms: "",
+        publishers: "",
+        year: "",
+    });
+
+    assert.equal(
+        text.startsWith(
+            "{{NoteTA-lite\n" + "| G1 = Games\n" + "}}\n\n" + "{{Infobox VG\n",
+        ),
+        true,
+    );
+    assert.equal(text.includes("| 1 = zh-cn:简体名; zh-tw:繁體名;"), false);
 });
 
 test("localized name rows split official and common infobox names", async () => {

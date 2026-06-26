@@ -8,6 +8,7 @@ import { additionalProseModule } from "./additional-prose.js";
 import { companiesModule } from "./companies.js";
 import { genreModule } from "./genre.js";
 import { namesModule } from "./names.js";
+import { noteTaModule } from "./note-ta.js";
 import { platformModule } from "./platform.js";
 import { reviewModule } from "./review.js";
 import { scoresModule } from "./scores.js";
@@ -22,6 +23,7 @@ export const ARTICLE_MODULES = Object.freeze([
     platformModule,
     seriesModule,
     scoresModule,
+    noteTaModule,
     additionalProseModule,
     reviewModule,
 ]);

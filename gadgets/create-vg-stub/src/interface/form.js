@@ -16,6 +16,10 @@ import {
     trimFieldValue,
 } from "../shared/form-values.js";
 import { getEnteredSourceUrls } from "../sources/source-references.js";
+import {
+    buildOfficialNameConversionText,
+    sortNoteTaEntries,
+} from "../wikitext/note-ta.js";
 
 export {
     buildNameSourceReferenceKey,
@@ -212,6 +216,12 @@ const DIALOG_CSS = new StyleSheet()
             "auto minmax(4.2em, 0.35fr) minmax(12em, 1.6fr) auto auto",
         marginBottom: "0.75em",
     })
+    .add(".create-vg-stub-noteta-grid", {
+        display: "grid",
+        gap: "0.25em",
+        gridTemplateColumns: "minmax(4.2em, 7em) minmax(12em, 1fr) auto",
+        marginBottom: "0.75em",
+    })
     .add(".create-vg-stub-category-actions", {
         alignItems: "center",
         display: "flex",
@@ -285,6 +295,7 @@ class ArticleParameterGroup {
         this.key = key;
         this.label = label;
         this.nameGroupKey = nameGroupKey;
+        this.noteTaReview = Boolean(options.noteTaReview);
     }
 }
 
@@ -341,6 +352,7 @@ const STEAM_NAME_CHOICES = [
         label: "Unspecified region",
     },
 ];
+const NOTE_TA_NAMES_SOURCE = "names";
 const ARTICLE_PARAMETER_GROUPS = [
     new ArticleParameterGroup("titles", "Titles", [
         new ArticleParameterField(
@@ -462,8 +474,8 @@ const ARTICLE_PARAMETER_GROUPS = [
     ]),
     new ArticleParameterGroup("localizedNames", "Names", [], "localizedNames"),
     new ArticleParameterGroup(
-        "review",
-        "Review",
+        "prose",
+        "Prose",
         [
             new ArticleParameterField(
                 "additionalProse",
@@ -478,9 +490,12 @@ const ARTICLE_PARAMETER_GROUPS = [
         ],
         null,
         {
-            categoryReview: true,
+            noteTaReview: true,
         },
     ),
+    new ArticleParameterGroup("review", "Review", [], null, {
+        categoryReview: true,
+    }),
 ];
 
 /**
@@ -584,6 +599,7 @@ export function createDialogComponent(Vue, options) {
     if (initialForm != null) {
         replaceFormValues(form, initialForm);
     }
+    syncGeneratedNameNoteTaRow(form);
 
     if (options.initialOpen === true) {
         options.onActivate();
@@ -595,6 +611,7 @@ export function createDialogComponent(Vue, options) {
     Vue.watch(
         form,
         (currentForm) => {
+            syncGeneratedNameNoteTaRow(currentForm);
             options.onFormChange(currentForm);
             queueCitationPrefetch(currentForm);
         },
@@ -669,6 +686,7 @@ export function createDialogComponent(Vue, options) {
                     ...createFormValues(""),
                     publishers: "",
                 });
+                syncGeneratedNameNoteTaRow(form);
                 activeTab.value = ARTICLE_PARAMETER_GROUPS[0].key;
                 fetchedSteamNameRows.value = [];
                 steamUrl.value = "";
@@ -782,6 +800,7 @@ export function createDialogComponent(Vue, options) {
              */
             fillHistoryEntry(entry) {
                 replaceFormValues(form, entry.form);
+                syncGeneratedNameNoteTaRow(form);
                 navboxRowsPrepared = hasPreparedNavboxRows(form);
                 historyOpen.value = false;
             },
@@ -830,6 +849,7 @@ export function createDialogComponent(Vue, options) {
                     }
 
                     replaceFormValues(form, importedForm);
+                    syncGeneratedNameNoteTaRow(form);
                     navboxRowsPrepared = hasPreparedNavboxRows(form);
                     historyJsonOpen.value = false;
                     historyOpen.value = false;
@@ -1031,6 +1051,7 @@ export function createDialogComponent(Vue, options) {
                 form[key][index][field] = trimFieldValue(
                     form[key][index][field],
                 );
+                syncGeneratedNameNoteTaRow(form);
             },
 
             /**
@@ -1044,6 +1065,7 @@ export function createDialogComponent(Vue, options) {
              */
             updateNameRowValue(key, index, field, value) {
                 form[key][index][field] = trimFieldValue(value);
+                syncGeneratedNameNoteTaRow(form);
             },
 
             /**
@@ -1122,6 +1144,7 @@ export function createDialogComponent(Vue, options) {
                     ).forEach((row) => {
                         fillNameRow(form.localizedNames, row);
                     });
+                    syncGeneratedNameNoteTaRow(form);
                 }
 
                 fetchedSteamNameRows.value = [];
@@ -1135,6 +1158,7 @@ export function createDialogComponent(Vue, options) {
              */
             clearNameRows(key) {
                 form[key] = [];
+                syncGeneratedNameNoteTaRow(form);
             },
 
             /**
@@ -1174,6 +1198,70 @@ export function createDialogComponent(Vue, options) {
             addNavboxRow() {
                 ensureNavboxRows(form).push(createNavboxRow());
                 navboxRowsPrepared = true;
+            },
+
+            /**
+             * Appends a blank NoteTA row.
+             *
+             * @returns {void}
+             */
+            addNoteTaRow() {
+                ensureNoteTaRows(form).push(createNoteTaRow());
+            },
+
+            /**
+             * Removes one NoteTA row.
+             *
+             * @param {number} index - NoteTA row index.
+             * @returns {void}
+             */
+            removeNoteTaRow(index) {
+                const rows = ensureNoteTaRows(form);
+                const row = rows[index];
+
+                if (row?.source === NOTE_TA_NAMES_SOURCE) {
+                    form.noteTaNamesRemoved = true;
+                }
+
+                rows.splice(index, 1);
+            },
+
+            /**
+             * Updates one NoteTA row key or value from live input.
+             *
+             * @param {number} index - NoteTA row index.
+             * @param {string} field - Row field key.
+             * @param {string} value - Raw input value.
+             * @returns {void}
+             */
+            updateNoteTaRow(index, field, value) {
+                const row = ensureNoteTaRows(form)[index];
+
+                row[field] = trimFieldValue(value);
+
+                if (row.source === NOTE_TA_NAMES_SOURCE) {
+                    row.modified = true;
+                }
+            },
+
+            /**
+             * Sorts NoteTA rows by output source order.
+             *
+             * @returns {void}
+             */
+            sortNoteTaRows() {
+                const rows = ensureNoteTaRows(form);
+
+                rows.splice(0, rows.length, ...sortNoteTaEntries(rows));
+            },
+
+            /**
+             * Rebuilds generated NoteTA rows and preserves manual extras.
+             *
+             * @returns {void}
+             */
+            regenerateNoteTaRows() {
+                regenerateNoteTaRows(form);
             },
 
             /**
@@ -2709,10 +2797,93 @@ function createTabsTemplate() {
                         [
                             createFieldGroupTemplate(),
                             createNameGroupTemplate(),
+                            createNoteTaGroupTemplate(),
                             createCategoryGroupTemplate(),
                         ],
                     ),
                 ],
+            ),
+        ],
+    );
+}
+
+/**
+ * Creates editable NoteTA rows.
+ *
+ * @returns {object} NoteTA row template node.
+ */
+function createNoteTaGroupTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-if": "group.noteTaReview",
+        },
+        [
+            createElement(
+                "div",
+                {
+                    class: "create-vg-stub-noteta-grid",
+                },
+                [createNoteTaRowTemplate()],
+            ),
+            createActionFooterTemplate([
+                createElement(
+                    "cdx-button",
+                    {
+                        "v-on:click": "addNoteTaRow",
+                    },
+                    [createText("Add NoteTA")],
+                ),
+                createElement(
+                    "cdx-button",
+                    {
+                        "v-on:click": "sortNoteTaRows",
+                    },
+                    [createText("Sort")],
+                ),
+                createElement(
+                    "cdx-button",
+                    {
+                        "v-on:click": "regenerateNoteTaRows",
+                    },
+                    [createText("Regenerate")],
+                ),
+            ]),
+        ],
+    );
+}
+
+/**
+ * Creates one editable NoteTA row template.
+ *
+ * @returns {object} NoteTA row template node.
+ */
+function createNoteTaRowTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-bind:key": "index",
+            "v-for": "(row, index) in form.noteTaRows",
+        },
+        [
+            createElement("cdx-text-input", {
+                placeholder: "T, G1, 1, or blank",
+                "v-bind:model-value": "row.key",
+                "v-on:update:model-value":
+                    "updateNoteTaRow(index, 'key', $event)",
+            }),
+            createElement("cdx-text-input", {
+                placeholder: "Games or zh-cn:...; zh-tw:...;",
+                "v-bind:model-value": "row.value",
+                "v-on:update:model-value":
+                    "updateNoteTaRow(index, 'value', $event)",
+            }),
+            createElement(
+                "cdx-button",
+                {
+                    "v-on:click": "removeNoteTaRow(index)",
+                },
+                [createText("Remove")],
             ),
         ],
     );
@@ -3036,11 +3207,9 @@ function createSteamNameHelperTemplate() {
                                 "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)",
                         },
                         [
-                            createElement(
-                                "strong",
-                                {},
-                                [createText("{{ suggestion.label }}")],
-                            ),
+                            createElement("strong", {}, [
+                                createText("{{ suggestion.label }}"),
+                            ]),
                             createText(" "),
                             createElement(
                                 "a",
@@ -3435,11 +3604,9 @@ function createWikidataNoteTemplate() {
                             "v-for": "link in getEnwikiTipLinks()",
                         },
                         [
-                            createElement(
-                                "strong",
-                                {},
-                                [createText("{{ link.label }}")],
-                            ),
+                            createElement("strong", {}, [
+                                createText("{{ link.label }}"),
+                            ]),
                             createText(" "),
                             createElement(
                                 "a",
@@ -3715,7 +3882,9 @@ function createFormValues(defaultName) {
         categoryRows: [],
         localizedNames: [createNameRow()],
         name: "",
+        noteTaNamesRemoved: false,
         navboxRows: null,
+        noteTaRows: [createNoteTaRow("G1", "Games")],
         publishers: "=",
         registerNewPage: true,
         sortKey: "",
@@ -3742,6 +3911,42 @@ function createNameRow(selectedMarkets = [], options = {}) {
         official: Boolean(options.official),
         sourceUrl: "",
     };
+}
+
+/**
+ * Creates one editable NoteTA row.
+ *
+ * @param {*} [key] - Existing row or row key.
+ * @param {string} [value] - Row value.
+ * @returns {object} NoteTA row.
+ */
+function createNoteTaRow(key = "", value = "") {
+    const row =
+        key != null && typeof key === "object"
+            ? key
+            : {
+                  key,
+                  value,
+              };
+
+    const created = {
+        key: trimFieldValue(row.key),
+        value: trimFieldValue(row.value),
+    };
+
+    if (trimFieldValue(row.source) !== "") {
+        created.source = trimFieldValue(row.source);
+    }
+
+    if (trimFieldValue(row.generatedValue) !== "") {
+        created.generatedValue = trimFieldValue(row.generatedValue);
+    }
+
+    if (row.modified === true) {
+        created.modified = true;
+    }
+
+    return created;
 }
 
 /**
@@ -4178,6 +4383,16 @@ function normalizeReceivedFormValues(values) {
         normalized.navboxRows = normalized.navboxRows.map(createNavboxRow);
     }
 
+    if (!Object.hasOwn(normalized, "noteTaNamesRemoved")) {
+        normalized.noteTaNamesRemoved = false;
+    }
+
+    if (!Array.isArray(normalized.noteTaRows)) {
+        normalized.noteTaRows = [createNoteTaRow("G1", "Games")];
+    } else {
+        normalized.noteTaRows = normalized.noteTaRows.map(createNoteTaRow);
+    }
+
     if (normalized.localizedNames == null) {
         normalized.localizedNames = [
             ...(normalized.officialNames || []).map((row) => ({
@@ -4195,6 +4410,144 @@ function normalizeReceivedFormValues(values) {
     delete normalized.commonNames;
 
     return normalized;
+}
+
+/**
+ * Lists the generated name conversion rule as an editable NoteTA row.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {void}
+ */
+function syncGeneratedNameNoteTaRow(form) {
+    const generated = buildOfficialNameConversionText(
+        getOfficialNameNoteTaRows(form),
+    );
+    const rows = ensureNoteTaRows(form);
+    const index = rows.findIndex((row) => row.source === NOTE_TA_NAMES_SOURCE);
+    const current = index === -1 ? null : rows[index];
+
+    if (form.noteTaNamesRemoved) {
+        if (index !== -1) {
+            rows.splice(index, 1);
+        }
+
+        return;
+    }
+
+    if (current?.modified && current.generatedValue === generated) {
+        return;
+    }
+
+    if (generated == null) {
+        if (index !== -1) {
+            rows.splice(index, 1);
+        }
+
+        return;
+    }
+
+    const row = createNoteTaRow({
+        generatedValue: generated,
+        key: "1",
+        source: NOTE_TA_NAMES_SOURCE,
+        value: generated,
+    });
+
+    if (index === -1) {
+        rows.splice(getGeneratedNameNoteTaInsertIndex(rows), 0, row);
+        return;
+    }
+
+    delete current.modified;
+    Object.assign(current, row);
+}
+
+/**
+ * Rebuilds generated NoteTA rows while preserving manual rows.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {void}
+ */
+function regenerateNoteTaRows(form) {
+    const rows = ensureNoteTaRows(form);
+    const manualRows = rows.filter(isManualNoteTaRow);
+    const generatedRows = [createNoteTaRow("G1", "Games")];
+    const generated = buildOfficialNameConversionText(
+        getOfficialNameNoteTaRows(form),
+    );
+
+    form.noteTaNamesRemoved = false;
+
+    if (generated != null) {
+        generatedRows.push(
+            createNoteTaRow({
+                generatedValue: generated,
+                key: "1",
+                source: NOTE_TA_NAMES_SOURCE,
+                value: generated,
+            }),
+        );
+    }
+
+    rows.splice(
+        0,
+        rows.length,
+        ...sortNoteTaEntries([...manualRows, ...generatedRows]),
+    );
+}
+
+/**
+ * Checks whether a NoteTA row is manually managed.
+ *
+ * @param {object} row - NoteTA row.
+ * @returns {boolean} Whether the row should survive regeneration.
+ */
+function isManualNoteTaRow(row) {
+    const key = trimFieldValue(row.key);
+
+    return row.source !== NOTE_TA_NAMES_SOURCE && !/^G[1-9]\d*$/u.test(key);
+}
+
+/**
+ * Gets official localized name rows for NoteTA generation.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<object>} Official name rows.
+ */
+function getOfficialNameNoteTaRows(form) {
+    return Array.isArray(form.localizedNames)
+        ? form.localizedNames.filter((row) => row.official)
+        : [];
+}
+
+/**
+ * Finds where a generated names row should appear in the editable list.
+ *
+ * @param {Array<object>} rows - Current NoteTA rows.
+ * @returns {number} Insertion index.
+ */
+function getGeneratedNameNoteTaInsertIndex(rows) {
+    const index = rows.findIndex((row) => {
+        const key = trimFieldValue(row.key);
+
+        return key !== "T" && !/^G[1-9]\d*$/u.test(key);
+    });
+
+    return index === -1 ? rows.length : index;
+}
+
+/**
+ * Ensures the form has editable NoteTA rows.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<object>} NoteTA rows.
+ */
+function ensureNoteTaRows(form) {
+    if (!Array.isArray(form.noteTaRows)) {
+        form.noteTaRows = [];
+    }
+
+    return form.noteTaRows;
 }
 
 /**

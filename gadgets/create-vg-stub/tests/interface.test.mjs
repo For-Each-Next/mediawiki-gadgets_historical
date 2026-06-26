@@ -248,6 +248,138 @@ test("additional prose uses a textarea and source URL field", () => {
     assert.equal(component.template.includes('<cdx-text-area rows="1"'), true);
 });
 
+test("NoteTA tab lists generated title conversion and sorts rows", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { form } = component.setup();
+
+    form.localizedNames = [
+        {
+            cn: true,
+            name: "简体名",
+            official: true,
+            sourceUrl: "",
+        },
+        {
+            name: "繁體名",
+            official: true,
+            sourceUrl: "",
+            tw: true,
+        },
+    ];
+    component.methods.updateNameRowValue(
+        "localizedNames",
+        0,
+        "name",
+        "简体名",
+    );
+
+    assert.deepEqual(form.noteTaRows[1], {
+        generatedValue: "zh-cn:简体名; zh-tw:繁體名;",
+        key: "1",
+        source: "names",
+        value: "zh-cn:简体名; zh-tw:繁體名;",
+    });
+
+    form.noteTaRows.push(
+        {
+            key: "T",
+            value: "zh-cn:手动; zh-tw:手動;",
+        },
+        {
+            key: "",
+            value: "zh-cn:无名; zh-tw:無名;",
+        },
+        {
+            key: "4",
+            value: "zh-cn:数字; zh-tw:數字;",
+        },
+    );
+    component.methods.sortNoteTaRows();
+    assert.deepEqual(
+        form.noteTaRows.map((row) => row.key),
+        ["T", "G1", "1", "4", ""],
+    );
+
+    const generatedIndex = form.noteTaRows.findIndex(
+        (row) => row.source === "names",
+    );
+
+    component.methods.updateNoteTaRow(generatedIndex, "value", "manual");
+    component.methods.updateNameRowValue(
+        "localizedNames",
+        0,
+        "name",
+        "简体名",
+    );
+    assert.equal(form.noteTaRows[generatedIndex].value, "manual");
+    component.methods.updateNameRowValue(
+        "localizedNames",
+        1,
+        "name",
+        "台灣名",
+    );
+    assert.equal(
+        form.noteTaRows[generatedIndex].value,
+        "zh-cn:简体名; zh-tw:台灣名;",
+    );
+    assert.equal(
+        form.noteTaRows[generatedIndex].generatedValue,
+        "zh-cn:简体名; zh-tw:台灣名;",
+    );
+    assert.equal(form.noteTaRows[generatedIndex].modified, undefined);
+    component.methods.regenerateNoteTaRows();
+    assert.deepEqual(
+        form.noteTaRows.map((row) => row.key),
+        ["T", "G1", "1", "4", ""],
+    );
+    assert.deepEqual(
+        form.noteTaRows.find((row) => row.source === "names"),
+        {
+            generatedValue: "zh-cn:简体名; zh-tw:台灣名;",
+            key: "1",
+            source: "names",
+            value: "zh-cn:简体名; zh-tw:台灣名;",
+        },
+    );
+    const regeneratedIndex = form.noteTaRows.findIndex(
+        (row) => row.source === "names",
+    );
+    component.methods.removeNoteTaRow(regeneratedIndex);
+    assert.equal(
+        form.noteTaRows.some((row) => row.source === "names"),
+        false,
+    );
+    component.methods.updateNameRowValue(
+        "localizedNames",
+        1,
+        "name",
+        "繁體名",
+    );
+    assert.equal(
+        form.noteTaRows.some((row) => row.source === "names"),
+        false,
+    );
+    component.methods.regenerateNoteTaRows();
+    assert.equal(
+        form.noteTaRows.some((row) => row.source === "names"),
+        true,
+    );
+    component.methods.removeNoteTaRow(0);
+    assert.equal(
+        form.noteTaRows.some((row) => row.key === "T"),
+        false,
+    );
+    assert.equal(component.template.includes(">Sort<"), true);
+    assert.equal(component.template.includes(">Regenerate<"), true);
+    assert.equal(
+        component.template.includes("!canRemoveNoteTaRow(row)"),
+        false,
+    );
+});
+
 test("review exposes editable navboxes and subtle prose length", async () => {
     const component = createDialogComponent(
         createVueStub(),
@@ -637,10 +769,7 @@ test("pending category button reopens review and can cancel creation", async () 
     assert.equal(component.template.includes(">Delete</cdx-button>"), true);
     assert.equal(component.template.includes(">Done</cdx-button>"), true);
     assert.equal(component.template.includes(">Close</cdx-button>"), false);
-    assert.equal(
-        component.template.includes('action="destructive"'),
-        true,
-    );
+    assert.equal(component.template.includes('action="destructive"'), true);
 
     component.methods.cancelCompanyCategoryCreation();
 
@@ -831,21 +960,18 @@ test("Steam helper previews Japanese for a Japanese original title", async () =>
     );
     await component.methods.addSteamNames();
 
-    assert.deepEqual(
-        getSteamNameSuggestions(fetchedSteamNameRows.value),
-        [
-            {
-                label: "Simplified",
-                url: "https://store.steampowered.com/app/123/?l=schinese",
-                value: "简体名",
-            },
-            {
-                label: "Japanese",
-                url: "https://store.steampowered.com/app/123/?l=japanese",
-                value: "日本語名",
-            },
-        ],
-    );
+    assert.deepEqual(getSteamNameSuggestions(fetchedSteamNameRows.value), [
+        {
+            label: "Simplified",
+            url: "https://store.steampowered.com/app/123/?l=schinese",
+            value: "简体名",
+        },
+        {
+            label: "Japanese",
+            url: "https://store.steampowered.com/app/123/?l=japanese",
+            value: "日本語名",
+        },
+    ]);
 
     component.methods.applySteamNameChoice("both");
     assert.deepEqual(
@@ -1008,7 +1134,7 @@ test("field preview callback receives live form and preview key", () => {
         true,
     );
     assert.equal(
-        component.template.includes("v-for=\"link in getEnwikiTipLinks()\""),
+        component.template.includes('v-for="link in getEnwikiTipLinks()"'),
         true,
     );
     assert.equal(

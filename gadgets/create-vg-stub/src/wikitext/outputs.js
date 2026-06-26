@@ -45,6 +45,8 @@ export function buildArticleRenderers(records, sourceTags) {
         originalName: names.original.name,
     });
     const noteTa = buildNoteTaText({
+        entries: records.noteTa.metadata.rows,
+        namesRemoved: records.noteTa.metadata.namesRemoved,
         officialNames: names.officialNames,
     });
     const outputs = {

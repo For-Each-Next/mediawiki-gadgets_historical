@@ -43,8 +43,11 @@ test("specific subjects use their matching stub templates", async () => {
     const expectations = {
         companies: {
             "Bandai Namco Forge Digitals": "BandaiNamco-stub",
+            "EA Canada": "ElectronicArts-stub",
+            "EA Digital Illusions CE": "ElectronicArts-stub",
             万代南梦宫娱乐: "BandaiNamco-stub",
             万代南梦宫工作室: "BandaiNamco-stub",
+            艺电: "ElectronicArts-stub",
         },
         genres: {
             大型多人在线游戏: "Online-videogame-stub",

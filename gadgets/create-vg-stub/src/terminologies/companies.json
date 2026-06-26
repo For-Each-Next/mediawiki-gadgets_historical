@@ -1796,7 +1796,8 @@
         ],
         "name": "EA Digital Illusions CE",
         "page": "EA Digital Illusions CE",
-        "categories": ["EA Digital Illusions CE遊戲"]
+        "categories": ["EA Digital Illusions CE遊戲"],
+        "stubTags": ["ElectronicArts-stub"]
     },
     {
         "aliases": ["Digital Jesters"],
@@ -1932,13 +1933,15 @@
         "aliases": ["EA Canada"],
         "name": "EA Canada",
         "page": "EA Canada",
-        "categories": ["EA Canada遊戲"]
+        "categories": ["EA Canada遊戲"],
+        "stubTags": ["ElectronicArts-stub"]
     },
     {
         "aliases": ["EA Digital Illusions CE"],
         "name": "EA Digital Illusions CE",
         "page": "EA Digital Illusions CE",
-        "categories": ["EA Digital Illusions CE遊戲"]
+        "categories": ["EA Digital Illusions CE遊戲"],
+        "stubTags": ["ElectronicArts-stub"]
     },
     {
         "aliases": ["eastasiasoft"],

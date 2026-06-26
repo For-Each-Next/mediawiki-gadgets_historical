@@ -5,32 +5,18 @@
  */
 
 /**
- * Adds a gadget trigger beside the missing-page edit tab.
+ * Adds a gadget trigger to the page views portlet on missing pages.
  *
- * @param {Document} documentRef - Current document.
  * @param {object} mediaWikiUtil - MediaWiki utility functions.
  * @param {Function} handler - Gadget open handler.
- * @returns {boolean} Whether the edit tab was updated.
+ * @returns {boolean} Whether a trigger was added.
  */
-export function addMissingPageEditTrigger(
-    documentRef,
-    mediaWikiUtil,
-    handler,
-) {
-    const editItem = documentRef.querySelector("#ca-edit");
-
-    if (editItem == null || editItem.parentNode == null) {
-        return false;
-    }
-
+export function addMissingPageEditTrigger(mediaWikiUtil, handler) {
     const link = mediaWikiUtil.addPortletLink(
-        "p-cactions",
+        "p-views",
         "#",
         "Create VG stub",
         "ca-create-vg-stub",
-        undefined,
-        undefined,
-        editItem.nextSibling,
     );
 
     if (link == null) {

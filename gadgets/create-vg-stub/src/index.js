@@ -545,7 +545,7 @@ function handleToolboxClick(event) {
  */
 function addToolboxLink() {
     if (isMissingPageView()) {
-        addMissingPageEditTrigger(document, mw.util, handleToolboxClick);
+        addMissingPageEditTrigger(mw.util, handleToolboxClick);
         return;
     }
 

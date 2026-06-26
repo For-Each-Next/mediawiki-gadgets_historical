@@ -47,6 +47,31 @@ test("buildFallbackCategoryRows keeps generated metadata categories", () => {
     );
 });
 
+test("buildFallbackCategoryRows follows related prose order", () => {
+    const rows = buildFallbackCategoryRows({
+        companyMetadata: {
+            categories: ["公司游戏"],
+            stubTags: [],
+        },
+        platformSeriesMetadata: {
+            categories: ["平台游戏"],
+            stubTags: [],
+        },
+        prose: {
+            text: "本作是2026年电子游戏，由公司开发，并登陆平台。",
+        },
+        yearGenreMetadata: {
+            categories: ["2026年电子游戏"],
+            stubTags: [],
+        },
+    });
+
+    assert.deepEqual(
+        rows.map((row) => row.category),
+        ["2026年电子游戏", "公司游戏", "平台游戏"],
+    );
+});
+
 test("buildStubTagText uses its own checkbox independently of categories", () => {
     assert.equal(
         buildStubTagText({
@@ -225,6 +250,26 @@ test("sortCategoryRowsByProse orders review rows like category output", () => {
     );
 });
 
+test("sortCategoryRowsByProse matches Chinese variant category titles", () => {
+    const rows = [
+        { category: "EA Sports游戏" },
+        { category: "2026年电子游戏" },
+        { category: "格鬥遊戲" },
+        { category: "EA温哥华游戏" },
+        { category: "PlayStation 5游戏" },
+        { category: "Xbox Series X/S游戏" },
+        { category: "體育遊戲" },
+    ];
+
+    assert.deepEqual(
+        sortCategoryRowsByProse(
+            rows,
+            "《EA Sports UFC 6》是2026年格斗、体育类电子游戏，由EA温哥华开发、EA Sports发行。作品对应PlayStation 5、Xbox Series X/S平台。",
+        ),
+        [rows[1], rows[2], rows[6], rows[3], rows[0], rows[4], rows[5]],
+    );
+});
+
 test("buildCategoryRows fetches company categories from API", async () => {
     const form = {
         developers: "日本开发",
@@ -372,6 +417,48 @@ test("buildCategoryRows always checks genre stub tags", async () => {
             ["动作游戏", "action-videogame-stub", true],
             ["2026年电子游戏", "", false],
         ],
+    );
+});
+
+test("buildCategoryRows follows related prose order", async () => {
+    const rows = await buildCategoryRows(
+        {},
+        {
+            companyMetadata: {
+                categories: ["Foo Studio游戏"],
+                categoryItems: [
+                    {
+                        category: "Foo Studio游戏",
+                    },
+                ],
+                stubTags: [],
+            },
+            platformSeriesMetadata: {
+                categories: ["PlayStation 5游戏"],
+                platformCount: 1,
+                stubTags: [],
+            },
+            prose: {
+                text: "本作是2026年电子游戏，由Foo Studio开发，并登陆PlayStation 5。",
+            },
+            yearGenreMetadata: {
+                categories: ["2026年电子游戏"],
+                stubTags: [],
+            },
+        },
+        [],
+        {
+            fetcher: createCategoryFetcher({
+                "2026年电子游戏": "2026年电子游戏",
+                "Foo Studio游戏": "Foo Studio游戏",
+                "PlayStation 5游戏": "PlayStation 5游戏",
+            }),
+        },
+    );
+
+    assert.deepEqual(
+        rows.map((row) => row.category),
+        ["2026年电子游戏", "Foo Studio游戏", "PlayStation 5游戏"],
     );
 });
 

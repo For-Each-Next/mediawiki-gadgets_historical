@@ -10,6 +10,7 @@ import {
     resolvePageTitles,
     stripNamespace,
 } from "./title-resolver.js";
+import { sortCategoryRowsByProse } from "../wikitext/categories.js";
 
 const CATEGORY_NAMESPACE = "Category";
 const CATEGORY_REDIRECT_PROPS = [
@@ -117,7 +118,10 @@ export async function buildCategoryRows(
         )),
     ];
 
-    return uniqueCategoryRows(rows.map(normalizeCategoryRow));
+    return sortRowsByArticleProse(
+        uniqueCategoryRows(rows.map(normalizeCategoryRow)),
+        params,
+    );
 }
 
 /**
@@ -129,39 +133,42 @@ export async function buildCategoryRows(
 export function buildFallbackCategoryRows(params) {
     const metadata = getArticleCategoryMetadata(params);
 
-    return uniqueCategoryRows(
-        [
-            ...buildSourceCategoryRows(
-                SOURCE_DATA,
-                metadata.companies.assumedCategories ||
-                    metadata.companies.categories,
-                {
-                    stubTagEnabled: true,
-                    stubTags:
-                        metadata.companies.assumedStubTags ||
-                        metadata.companies.stubTags,
-                },
-            ),
-            ...buildSourceCategoryRows(
-                SOURCE_DATA,
-                metadata.platform.assumedCategories ||
-                    metadata.platform.categories,
-                {
-                    stubTagEnabled: true,
-                    stubTags:
-                        metadata.platform.assumedStubTags ||
-                        metadata.platform.stubTags,
-                },
-            ),
-            ...buildSourceCategoryRows(
-                SOURCE_DATA,
-                metadata.release.categories,
-                {
-                    stubTagEnabled: true,
-                    stubTags: metadata.release.stubTags,
-                },
-            ),
-        ].map(normalizeCategoryRow),
+    return sortRowsByArticleProse(
+        uniqueCategoryRows(
+            [
+                ...buildSourceCategoryRows(
+                    SOURCE_DATA,
+                    metadata.companies.assumedCategories ||
+                        metadata.companies.categories,
+                    {
+                        stubTagEnabled: true,
+                        stubTags:
+                            metadata.companies.assumedStubTags ||
+                            metadata.companies.stubTags,
+                    },
+                ),
+                ...buildSourceCategoryRows(
+                    SOURCE_DATA,
+                    metadata.platform.assumedCategories ||
+                        metadata.platform.categories,
+                    {
+                        stubTagEnabled: true,
+                        stubTags:
+                            metadata.platform.assumedStubTags ||
+                            metadata.platform.stubTags,
+                    },
+                ),
+                ...buildSourceCategoryRows(
+                    SOURCE_DATA,
+                    metadata.release.categories,
+                    {
+                        stubTagEnabled: true,
+                        stubTags: metadata.release.stubTags,
+                    },
+                ),
+            ].map(normalizeCategoryRow),
+        ),
+        params,
     );
 }
 
@@ -287,6 +294,17 @@ function getArticleCategoryMetadata(params) {
         },
         series: params.records.series,
     };
+}
+
+/**
+ * Sorts category rows by their first related mention in generated prose.
+ *
+ * @param {Array<object>} rows - Category review rows.
+ * @param {object} params - Processed article data or legacy parameters.
+ * @returns {Array<object>} Prose-ordered category rows.
+ */
+function sortRowsByArticleProse(rows, params) {
+    return sortCategoryRowsByProse(rows, params.prose?.text || "");
 }
 
 /**

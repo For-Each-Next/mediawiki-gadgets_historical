@@ -109,7 +109,7 @@ function hasStubTag(row) {
  * @returns {Array<object>} Prose-ordered category rows.
  */
 export function sortCategoryRowsByProse(rows, prose) {
-    const normalizedProse = normalizeRelatedText(prose);
+    const normalizedProse = normalizeRelatedText(stripLeadTitleText(prose));
 
     if (normalizedProse === "") {
         return rows;
@@ -153,11 +153,28 @@ function getCategorySearchTerms(category) {
     return uniqueValues([normalized, stem]).filter(Boolean);
 }
 
+function stripLeadTitleText(prose) {
+    return trimValue(prose)
+        .replace(/^《[^》]+》(?:（[^）]+）)?/u, "")
+        .replace(/^''[^']+''(?:（[^）]+）)?/u, "");
+}
+
 function normalizeRelatedText(value) {
-    return trimValue(value)
-        .replace(/\[\[([^|\]]+\|)?([^\]]+)\]\]/gu, "$2")
-        .replace(/[\s\u200e\u200f]/gu, "")
-        .toLocaleLowerCase();
+    return foldChineseVariants(
+        trimValue(value)
+            .replace(/\[\[([^|\]]+\|)?([^\]]+)\]\]/gu, "$2")
+            .replace(/[\s\u200e\u200f]/gu, "")
+            .toLocaleLowerCase(),
+    );
+}
+
+function foldChineseVariants(value) {
+    return value
+        .replace(/電/gu, "电")
+        .replace(/體/gu, "体")
+        .replace(/遊/gu, "游")
+        .replace(/戲/gu, "戏")
+        .replace(/鬥/gu, "斗");
 }
 
 function buildCategoryLink(row) {

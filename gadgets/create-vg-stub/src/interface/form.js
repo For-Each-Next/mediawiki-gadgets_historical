@@ -422,7 +422,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             },
         ),
     ]),
-    new ArticleParameterGroup("attribution", "Attribution", [
+    new ArticleParameterGroup("attribution", "Metadata", [
         new ArticleParameterField(
             "developers",
             "Dev",
@@ -479,7 +479,12 @@ const ARTICLE_PARAMETER_GROUPS = [
             },
         ),
     ]),
-    new ArticleParameterGroup("localizedNames", "Names", [], "localizedNames"),
+    new ArticleParameterGroup(
+        "localizedNames",
+        "Localized names",
+        [],
+        "localizedNames",
+    ),
     new ArticleParameterGroup(
         "prose",
         "Prose",
@@ -500,7 +505,7 @@ const ARTICLE_PARAMETER_GROUPS = [
             noteTaReview: true,
         },
     ),
-    new ArticleParameterGroup("review", "Review", [], null, {
+    new ArticleParameterGroup("review", "Checks", [], null, {
         categoryReview: true,
     }),
 ];

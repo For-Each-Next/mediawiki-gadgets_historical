@@ -32,7 +32,24 @@ export function createFieldGroupTemplate() {
                     createFieldPreviewTemplate(),
                 ],
             ),
+            createProseLengthTemplate(),
         ],
+    );
+}
+
+/**
+ * Creates the prose length status line.
+ *
+ * @returns {object} Prose length template node.
+ */
+function createProseLengthTemplate() {
+    return createElement(
+        "p",
+        {
+            class: "create-vg-stub-prose-length",
+            "v-if": "group.key === 'prose'",
+        },
+        [createText("Prose length: {{ getProseSinographs() }} sinographs")],
     );
 }
 

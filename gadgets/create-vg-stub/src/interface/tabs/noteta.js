@@ -18,6 +18,7 @@ export function createNoteTaGroupTemplate() {
             "v-if": "group.noteTaReview",
         },
         [
+            createElement("h3", {}, [createText("NoteTA items")]),
             createElement(
                 "div",
                 {

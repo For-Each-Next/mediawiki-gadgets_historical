@@ -18,17 +18,6 @@ export function createCategoryGroupTemplate() {
             "v-if": "group.categoryReview",
         },
         [
-            createElement(
-                "p",
-                {
-                    class: "create-vg-stub-prose-length",
-                },
-                [
-                    createText(
-                        "Prose length: {{ getProseSinographs() }} sinographs",
-                    ),
-                ],
-            ),
             createElement("h3", {}, [createText("Categories")]),
             createElement(
                 "div",

@@ -237,7 +237,7 @@ test("additional prose uses a textarea and source URL field", () => {
         createVueStub(),
         createOptionsStub(),
     );
-    const { form, getArticleField } = component.setup();
+    const { form, getArticleField, groups } = component.setup();
     const field = getArticleField("additionalProse");
 
     assert.equal(form.additionalProse, "");
@@ -246,6 +246,26 @@ test("additional prose uses a textarea and source URL field", () => {
     assert.equal(field.sourceField.sourceKey, "additionalProseSourceUrl");
     assert.equal(field.placeholder, "Text appended after the generated prose");
     assert.equal(component.template.includes('<cdx-text-area rows="1"'), true);
+    assert.deepEqual(
+        groups.map((group) => group.label),
+        ["Titles", "Metadata", "Localized names", "Prose", "Checks"],
+    );
+    assert.equal(
+        component.template.includes(
+            '<p class="create-vg-stub-prose-length" v-if="group.key === \'prose\'">',
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.indexOf("Prose length:") >
+            component.template.indexOf('v-for="field in group.fields"'),
+        true,
+    );
+    assert.equal(
+        component.template.indexOf("Prose length:") <
+            component.template.indexOf("<h3>NoteTA items</h3>"),
+        true,
+    );
 });
 
 test("NoteTA tab lists generated title conversion and sorts rows", () => {
@@ -374,6 +394,7 @@ test("NoteTA tab lists generated title conversion and sorts rows", () => {
     );
     assert.equal(component.template.includes(">Sort<"), true);
     assert.equal(component.template.includes(">Regenerate<"), true);
+    assert.equal(component.template.includes("<h3>NoteTA items</h3>"), true);
     assert.equal(
         component.template.includes("!canRemoveNoteTaRow(row)"),
         false,
@@ -430,11 +451,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     await component.methods.previewForm();
     assert.deepEqual(form.navboxRows, []);
 
-    assert.equal(component.template.includes("Prose length:"), true);
-    assert.equal(
-        component.template.includes("create-vg-stub-prose-length"),
-        true,
-    );
+    assert.equal(component.template.includes("<h3>Categories</h3>"), true);
     assert.equal(component.template.includes("Add category"), true);
     assert.equal(component.template.includes("Add navbox"), true);
     assert.equal(component.template.includes("Navboxes"), true);

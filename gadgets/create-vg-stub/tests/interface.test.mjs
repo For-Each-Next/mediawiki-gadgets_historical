@@ -8,7 +8,6 @@ import test, { afterEach, beforeEach } from "node:test";
 import { StyleSheet, createDialogComponent } from "../src/interface/form.js";
 
 const originalWindow = globalThis.window;
-
 beforeEach(() => {
     globalThis.window = {};
 });
@@ -1166,29 +1165,35 @@ test("field preview callback receives live form and preview key", () => {
     );
 });
 
-test("submit opens pre-save fixes without changing tabs", async () => {
+test("submit opens preview without changing tabs", async () => {
     let refreshCount = 0;
+    let previewCount = 0;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
             onCategoryRowsRefresh() {
                 refreshCount += 1;
             },
-            async onPreSavePrepare() {
+            onPreview() {
+                previewCount += 1;
                 return {
-                    actions: [],
+                    html: "",
+                    summary: "",
+                    text: "Generated text",
                 };
             },
         }),
     );
-    const { activeTab, preSaveOpen } = component.setup();
+    const { activeTab, preSaveOpen, previewOpen } = component.setup();
 
     assert.equal(activeTab.value, "titles");
     await component.methods.submitForm();
 
     assert.equal(activeTab.value, "titles");
     assert.equal(refreshCount, 1);
-    assert.equal(preSaveOpen.value, true);
+    assert.equal(previewCount, 1);
+    assert.equal(previewOpen.value, true);
+    assert.equal(preSaveOpen.value, false);
     assert.equal(
         component.template.includes(
             "Register on WikiProject Video games' new-page list",
@@ -1221,78 +1226,130 @@ test("native submit bridge opens category and pre-save review", async () => {
     assert.equal(submitCount, 0);
 });
 
-test("preview and submit use separate popup actions", async () => {
+test("submit opens editable source and parsed preview first", async () => {
     let previewCount = 0;
     let submitCount = 0;
     let historyCount = 0;
+    let parseText;
+    let submittedPreview;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
+            onParsePreview(text) {
+                parseText = text;
+                return "<p>Edited parsed text</p>";
+            },
             onPreview() {
                 previewCount += 1;
+                return {
+                    html: "<p>Generated parsed text</p>",
+                    summary: "create stub",
+                    text: "Generated text",
+                };
             },
-            onSubmit() {
+            onSubmit(form, state, closeDialog, preSave, preview) {
                 submitCount += 1;
+                submittedPreview = preview;
             },
             onSubmitHistory() {
                 historyCount += 1;
             },
         }),
     );
-    await component.methods.previewForm();
+    const {
+        preSaveOpen,
+        previewHtml,
+        previewOpen,
+        previewSummary,
+        previewText,
+    } = component.setup();
+
+    await component.methods.submitForm();
     assert.equal(previewCount, 1);
     assert.equal(submitCount, 0);
     assert.equal(historyCount, 1);
+    assert.equal(previewOpen.value, true);
+    assert.equal(previewText.value, "Generated text");
+    assert.equal(previewSummary.value, "create stub");
+    assert.equal(previewHtml.value, "<p>Generated parsed text</p>");
+
+    previewText.value = "Edited generated text";
+    await component.methods.refreshParsedPreview();
+    assert.equal(parseText, "Edited generated text");
+    assert.equal(previewHtml.value, "<p>Edited parsed text</p>");
+
+    await component.methods.submitPreviewText();
+    assert.equal(previewOpen.value, false);
+    assert.equal(preSaveOpen.value, true);
+    assert.equal(submitCount, 0);
+
+    await component.methods.confirmSubmit();
+    assert.equal(submitCount, 1);
+    assert.deepEqual(submittedPreview, {
+        summary: "create stub",
+        text: "Edited generated text",
+    });
     assert.equal(
         component.template.includes('v-on:click="previewForm"'),
+        false,
+    );
+    assert.equal(
+        component.template.includes('v-model:open="previewOpen"'),
         true,
     );
-    const previewButton = component.template.match(
-        /<cdx-button[^>]*v-on:click="previewForm"[^>]*>/u,
-    )?.[0];
-    assert.equal(previewButton?.includes('action="progressive"'), false);
-    assert.equal(component.template.includes("'Preview'"), true);
+    assert.equal(component.template.includes('v-model="previewText"'), true);
+    assert.equal(component.template.includes('v-html="previewHtml"'), true);
+    assert.equal(
+        component.template.includes("create-vg-stub-preview-text"),
+        true,
+    );
+    assert.equal(
+        component.template.includes("create-vg-stub-preview-dialog"),
+        true,
+    );
+    assert.equal(
+        component.template.includes("create-vg-stub-preview-layout"),
+        true,
+    );
+    assert.equal(component.template.includes("font-family: monospace"), true);
     assert.equal(component.template.includes('v-on:click="submitForm"'), true);
-    assert.equal(component.template.includes("'Submit'"), true);
+    assert.equal(component.template.includes("'Preview and submit'"), true);
+    assert.equal(component.template.includes(">Continue<"), true);
     assert.equal(
         component.template.indexOf(">Move<") <
-            component.template.indexOf('v-on:click="previewForm"'),
-        true,
-    );
-    assert.equal(
-        component.template.indexOf('v-on:click="previewForm"') <
             component.template.indexOf('v-on:click="submitForm"'),
         true,
     );
 });
 
-test("submit from review opens pre-save fixes", async () => {
+test("submit from review opens preview before pre-save fixes", async () => {
     let refreshCount = 0;
-    let submitCount = 0;
-    let historyCount = 0;
+    let previewCount = 0;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
             onCategoryRowsRefresh() {
                 refreshCount += 1;
             },
-            onSubmit() {
-                submitCount += 1;
-            },
-            onSubmitHistory() {
-                historyCount += 1;
+            onPreview() {
+                previewCount += 1;
+                return {
+                    html: "",
+                    summary: "",
+                    text: "Generated text",
+                };
             },
         }),
     );
-    const { activeTab, preSaveOpen } = component.setup();
+    const { activeTab, preSaveOpen, previewOpen } = component.setup();
 
     activeTab.value = "review";
     await component.methods.submitForm();
 
     assert.equal(refreshCount, 1);
-    assert.equal(preSaveOpen.value, true);
-    assert.equal(submitCount, 0);
-    assert.equal(historyCount, 0);
+    assert.equal(previewCount, 1);
+    assert.equal(previewOpen.value, true);
+    assert.equal(preSaveOpen.value, false);
 });
 
 test("pre-save title choice moves the editing session before saving", async () => {
@@ -1303,6 +1360,13 @@ test("pre-save title choice moves the editing session before saving", async () =
         createOptionsStub({
             onMoveTarget(_form, title) {
                 moved = title;
+            },
+            onPreview() {
+                return {
+                    html: "",
+                    summary: "",
+                    text: "Generated text",
+                };
             },
             onSubmit(_form, _state, _close, preSave) {
                 submitted = preSave;
@@ -1328,6 +1392,7 @@ test("pre-save title choice moves the editing session before saving", async () =
 
     state.activeTab.value = "review";
     await component.methods.submitForm();
+    await component.methods.submitPreviewText();
     assert.equal(state.preSaveMoveEnabled.value, true);
     assert.equal(state.preSaveMoveTitle.value, "預設中文名");
     state.preSaveMoveTitle.value = " 中文名 ";
@@ -1731,6 +1796,9 @@ function createOptionsStub(options = {}) {
         onFormChange() {},
         onPreview() {},
         onMoveTarget() {},
+        onParsePreview() {
+            return "";
+        },
         onPrepareCompanyCategory() {},
         async onPrepareReview() {
             return [];

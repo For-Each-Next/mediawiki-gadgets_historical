@@ -245,47 +245,53 @@ function getDefaultNameFallback() {
 }
 
 /**
- * Generates wikitext and opens the MediaWiki preview.
+ * Generates wikitext for an editable in-dialog preview.
  *
  * @param {object} form - Dialog form values.
  * @param {object} sourceFetchState - Source fetch status state.
- * @param {Function} closeDialog - Dialog close callback.
  * @param {object} citationStore - Citation fetch/cache store.
- * @returns {Promise<void>} Resolves after preview submission starts.
+ * @returns {Promise<object|undefined>} Generated preview text, summary, and HTML.
  */
-async function previewForm(
-    form,
-    sourceFetchState,
-    closeDialog,
-    citationStore,
-) {
+async function previewForm(form, sourceFetchState, citationStore) {
     sourceFetchState.error = "";
     sourceFetchState.loading = true;
 
     try {
-        if (document.getElementById("editform") == null) {
-            await openTargetPage(
-                form,
-                getPageName(),
-                sourceFetchState,
-                citationStore,
-                {
-                    preview: true,
-                },
-            );
-            return;
-        }
+        const stub = await buildStubFromForm(form, citationStore);
 
-        await writeGeneratedStub(form, citationStore);
-        clearPendingSaveData();
-        storePreviewFormData(form, getPageName());
-        closeDialog();
-        submitPreviewForm();
+        const text = stub.text;
+
+        return {
+            html: await parsePreviewText(text),
+            summary: buildEditSummary(createEditSummaryMetadata(form, stub)),
+            text,
+        };
     } catch (error) {
         sourceFetchState.error = error.message;
+        return undefined;
     } finally {
         sourceFetchState.loading = false;
     }
+}
+
+/**
+ * Parses generated wikitext through MediaWiki.
+ *
+ * @param {string} text - Wikitext to parse.
+ * @returns {Promise<string>} Parsed preview HTML.
+ */
+async function parsePreviewText(text) {
+    const response = await new mw.Api().post({
+        action: "parse",
+        contentmodel: "wikitext",
+        disableeditsection: true,
+        formatversion: 2,
+        prop: "text",
+        text,
+        title: getPageName(),
+    });
+
+    return response?.parse?.text || "";
 }
 
 /**
@@ -296,6 +302,9 @@ async function previewForm(
  * @param {Function} closeDialog - Dialog close callback.
  * @param {object} preSave - Configured pre-save fixes.
  * @param {object} citationStore - Citation fetch/cache store.
+ * @param {object} [preview] - User-reviewed preview text.
+ * @param {string} [preview.summary] - User-reviewed edit summary.
+ * @param {string} [preview.text] - User-reviewed wikitext.
  * @returns {Promise<void>} Resolves after save submission starts.
  */
 async function submitForm(
@@ -304,6 +313,7 @@ async function submitForm(
     closeDialog,
     preSave,
     citationStore,
+    preview,
 ) {
     sourceFetchState.error = "";
     sourceFetchState.loading = true;
@@ -322,16 +332,22 @@ async function submitForm(
               }
             : form;
         const editFormAvailable = document.getElementById("editform") != null;
-        const preserveEditor = shouldPreserveEditor();
-        const stub = preserveEditor
-            ? null
-            : await buildStubFromForm(submittedForm, citationStore);
+        const previewText =
+            typeof preview?.text === "string" ? preview.text : undefined;
+        const preserveEditor = previewText == null && shouldPreserveEditor();
+        const stub =
+            previewText != null || preserveEditor
+                ? null
+                : await buildStubFromForm(submittedForm, citationStore);
         const summary =
-            stub == null
-                ? ""
-                : buildEditSummary(
-                      createEditSummaryMetadata(submittedForm, stub),
-                  );
+            typeof preview?.summary === "string"
+                ? preview.summary
+                : stub == null
+                  ? ""
+                  : buildEditSummary(
+                        createEditSummaryMetadata(submittedForm, stub),
+                    );
+        const text = previewText ?? stub?.text;
         const pending = {
             actions: preSave.actions,
             move: shouldMove
@@ -357,7 +373,7 @@ async function submitForm(
                 action: "edit",
                 createonly: true,
                 summary,
-                text: stub.text,
+                text,
                 title: getPageName(),
             };
 
@@ -365,8 +381,8 @@ async function submitForm(
             setSaveProgressStep("save", "complete");
             window.location.href = mw.util.getUrl(getPageName());
         } else {
-            if (!preserveEditor) {
-                writeEditText(stub.text);
+            if (previewText != null || !preserveEditor) {
+                writeEditText(text);
                 writeEditSummary(summary);
             }
 
@@ -380,20 +396,6 @@ async function submitForm(
     } finally {
         sourceFetchState.loading = false;
     }
-}
-
-/**
- * Generates and writes article text and its edit summary.
- *
- * @param {object} form - Dialog form values.
- * @param {object} citationStore - Citation fetch/cache store.
- * @returns {Promise<void>} Resolves after the editor is filled.
- */
-async function writeGeneratedStub(form, citationStore) {
-    const stub = await buildStubFromForm(form, citationStore);
-
-    writeEditText(stub.text);
-    writeEditSummary(buildEditSummary(createEditSummaryMetadata(form, stub)));
 }
 
 /**
@@ -704,6 +706,7 @@ function init(require) {
         onCreateCategoryRow: createManualCategoryRow,
         onDeleteHistoryEntry: deleteFormHistoryEntry,
         onEnwikiTitleChange: fetchEnwikiMetadata,
+        onParsePreview: parsePreviewText,
         onPreview: (...args) => previewForm(...args, citationStore),
         onFormChange: saveFormDraft,
         onMoveTarget: (...args) => openTargetPage(...args, citationStore),

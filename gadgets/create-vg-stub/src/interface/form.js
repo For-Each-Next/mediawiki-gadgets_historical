@@ -91,6 +91,10 @@ const DIALOG_CSS = new StyleSheet()
         maxWidth: "min(96vw, 60em)",
         width: "min(96vw, 60em)",
     })
+    .add(".create-vg-stub-preview-dialog.cdx-dialog", {
+        maxWidth: "min(98vw, 100em)",
+        width: "min(98vw, 100em)",
+    })
     .add(".create-vg-stub-category-view", {
         border: "1px solid var(--border-color-base, #a2a9b1)",
         height: "70vh",
@@ -181,6 +185,34 @@ const DIALOG_CSS = new StyleSheet()
     })
     .add(".create-vg-stub-field-note", {
         margin: "-0.5em 0 0.75em",
+    })
+    .add(
+        [
+            ".create-vg-stub-preview-text textarea",
+            "textarea.create-vg-stub-preview-text",
+        ],
+        {
+            fontFamily: "monospace",
+        },
+    )
+    .add(".create-vg-stub-preview-layout", {
+        display: "grid",
+        gap: "0.75em",
+    })
+    .add(".create-vg-stub-preview-rendered", {
+        border: "1px solid var(--border-color-subtle, #eaecf0)",
+        maxHeight: "35vh",
+        overflow: "auto",
+        padding: "0.75em",
+    })
+    .media("(min-width: 960px)", (sheet) => {
+        sheet
+            .add(".create-vg-stub-preview-layout", {
+                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            })
+            .add(".create-vg-stub-preview-rendered", {
+                maxHeight: "60vh",
+            });
     })
     .add(".create-vg-stub-category-grid", {
         display: "grid",
@@ -544,6 +576,7 @@ export function addDialogStyles() {
  * @param {Function} options.onPrepareReview - Review report builder.
  * @param {Function} options.onSaveNavbox - Navbox template save handler.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
+ * @param {Function} options.onParsePreview - Wikitext preview parser.
  * @param {Function} options.onPreview - Editor preview handler.
  * @param {Function} options.onPreSavePrepare - Follow-up action builder.
  * @param {Function} [options.onSourceUrlChange] - Source URL change handler.
@@ -596,6 +629,11 @@ export function createDialogComponent(Vue, options) {
     const preSaveMoveTitle = Vue.ref(options.defaultName);
     const preSaveOpen = Vue.ref(false);
     const preSaveActions = Vue.reactive([]);
+    const previewOpen = Vue.ref(false);
+    const previewText = Vue.ref("");
+    const previewSummary = Vue.ref("");
+    const previewHtml = Vue.ref("");
+    const previewSubmitted = Vue.ref(false);
     const enwikiLookupLoading = Vue.ref(false);
     const enwikiLookupSerial = Vue.ref(0);
     const enwikiMetadata = Vue.reactive(createBlankEnwikiMetadata());
@@ -710,28 +748,77 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
-             * Opens a MediaWiki preview after review.
+             * Opens an editable generated wikitext preview after review.
              *
-             * @returns {Promise<void>} Resolves after preview submission starts.
+             * @returns {Promise<void>} Resolves after preview text is ready.
              */
             async previewForm() {
                 await refreshReview();
                 options.onSubmitHistory(form, getCurrentTitle());
                 historyEntries.value = options.getHistoryEntries();
-                await options.onPreview(
+                const preview = await options.onPreview(
                     form,
                     sourceFetchState,
-                    this.closeDialog,
                 );
+
+                if (preview == null) {
+                    return;
+                }
+
+                previewText.value = preview.text || "";
+                previewSummary.value = preview.summary || "";
+                previewHtml.value = preview.html || "";
+                previewSubmitted.value = false;
+                previewOpen.value = true;
             },
 
             /**
-             * Opens the pre-save checklist after review.
+             * Refreshes the parsed HTML preview from the editable wikitext.
+             *
+             * @returns {Promise<void>} Resolves after parsed HTML is refreshed.
+             */
+            async refreshParsedPreview() {
+                sourceFetchState.error = "";
+                sourceFetchState.loading = true;
+
+                try {
+                    previewHtml.value = await options.onParsePreview(
+                        previewText.value,
+                    );
+                } catch (error) {
+                    sourceFetchState.error = error.message || String(error);
+                } finally {
+                    sourceFetchState.loading = false;
+                }
+            },
+
+            /**
+             * Closes the editable preview dialog.
+             *
+             * @returns {void}
+             */
+            closePreviewDialog() {
+                previewOpen.value = false;
+            },
+
+            /**
+             * Opens pre-save checks for the edited preview text.
              *
              * @returns {Promise<void>} Resolves after checklist preparation.
              */
-            async submitForm() {
+            async submitPreviewText() {
+                previewSubmitted.value = true;
+                previewOpen.value = false;
                 await openPreSave();
+            },
+
+            /**
+             * Opens the editable preview before final submission.
+             *
+             * @returns {Promise<void>} Resolves after preview text is ready.
+             */
+            async submitForm() {
+                await this.previewForm();
             },
 
             /**
@@ -763,6 +850,13 @@ export function createDialogComponent(Vue, options) {
                     return;
                 }
 
+                const reviewedPreview = previewSubmitted.value
+                    ? {
+                          summary: previewSummary.value,
+                          text: previewText.value,
+                      }
+                    : undefined;
+
                 await options.onSubmit(
                     form,
                     sourceFetchState,
@@ -777,10 +871,12 @@ export function createDialogComponent(Vue, options) {
                             enabled: form.registerNewPage !== false,
                         },
                     },
+                    reviewedPreview,
                 );
 
                 if (sourceFetchState.error === "") {
                     preSaveOpen.value = false;
+                    previewSubmitted.value = false;
                 }
             },
 
@@ -1669,6 +1765,11 @@ export function createDialogComponent(Vue, options) {
                 preSaveMoveTitle,
                 preSaveOpen,
                 preSaveActions,
+                previewOpen,
+                previewText,
+                previewSummary,
+                previewHtml,
+                previewSubmitted,
                 sourceFetchState,
                 steamNameChoices: STEAM_NAME_CHOICES,
                 steamUrl,
@@ -2010,9 +2111,97 @@ function createDialogTemplate() {
         createNavboxDialogTemplate(),
         createCategoryViewDialogTemplate(),
         createMoveDialogTemplate(),
+        createPreviewDialogTemplate(),
         createHistoryDialogTemplate(),
         createHistoryJsonDialogTemplate(),
     ]);
+}
+
+/**
+ * Creates the editable generated wikitext preview dialog.
+ *
+ * @returns {object} Preview dialog template node.
+ */
+function createPreviewDialogTemplate() {
+    return createElement(
+        "cdx-dialog",
+        {
+            class: "create-vg-stub-preview-dialog",
+            "v-model:open": "previewOpen",
+            title: "Generated wikitext preview",
+        },
+        [
+            createElement(
+                "div",
+                {
+                    class: "create-vg-stub-preview-layout",
+                },
+                [
+                    createElement("cdx-text-area", {
+                        class: "create-vg-stub-preview-text",
+                        "v-model": "previewText",
+                        rows: "18",
+                        spellcheck: "false",
+                        style: {
+                            fontFamily: "monospace",
+                        },
+                    }),
+                    createElement("div", {
+                        class: "create-vg-stub-preview-rendered mw-parser-output",
+                        "v-html": "previewHtml",
+                    }),
+                ],
+            ),
+            createElement(
+                "p",
+                {
+                    class: "create-vg-stub-error",
+                    "v-if": "sourceFetchState.error",
+                },
+                [createText("{{ sourceFetchState.error }}")],
+            ),
+            createElement(
+                "template",
+                {
+                    "v-slot:footer": "",
+                },
+                [
+                    createActionFooterTemplate([
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-bind:disabled": "sourceFetchState.loading",
+                                "v-on:click": "refreshParsedPreview",
+                            },
+                            [
+                                createText(
+                                    "{{ sourceFetchState.loading ? 'Working' : 'Update preview' }}",
+                                ),
+                            ],
+                        ),
+                        createElement(
+                            "cdx-button",
+                            {
+                                action: "progressive",
+                                weight: "primary",
+                                "v-bind:disabled":
+                                    "sourceFetchState.loading || !previewText.trim()",
+                                "v-on:click": "submitPreviewText",
+                            },
+                            [createText("Continue")],
+                        ),
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-on:click": "closePreviewDialog",
+                            },
+                            [createText("Dismiss")],
+                        ),
+                    ]),
+                ],
+            ),
+        ],
+    );
 }
 
 /**
@@ -2428,18 +2617,6 @@ function createMainDialogFooterTemplate() {
                     createElement(
                         "cdx-button",
                         {
-                            "v-bind:disabled": "sourceFetchState.loading",
-                            "v-on:click": "previewForm",
-                        },
-                        [
-                            createText(
-                                "{{ sourceFetchState.loading ? 'Fetching' : 'Preview' }}",
-                            ),
-                        ],
-                    ),
-                    createElement(
-                        "cdx-button",
-                        {
                             action: "progressive",
                             "v-bind:disabled": "sourceFetchState.loading",
                             "v-on:click": "submitForm",
@@ -2447,7 +2624,7 @@ function createMainDialogFooterTemplate() {
                         },
                         [
                             createText(
-                                "{{ sourceFetchState.loading ? 'Fetching' : 'Submit' }}",
+                                "{{ sourceFetchState.loading ? 'Fetching' : 'Preview and submit' }}",
                             ),
                         ],
                     ),

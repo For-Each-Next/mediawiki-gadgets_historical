@@ -84,14 +84,15 @@ test("opening the tool activates submit handling", () => {
     assert.equal(open.value, true);
 });
 
-test("history JSON can be copied, edited, and imported", () => {
+test("history JSON can be copied, edited, and imported", async () => {
     const entry = {
-        citations: {
-            "https://example.test/source": "{{cite web|title=Example}}",
-        },
-        form: {
-            name: "Stored name",
-            year: "2025",
+        data: {
+            input: {
+                name: "Stored name",
+                year: "2025",
+            },
+            patches: {},
+            version: 1,
         },
         id: "stored-entry",
         page: "Stored page",
@@ -118,14 +119,22 @@ test("history JSON can be copied, edited, and imported", () => {
 
     assert.equal(historyJsonOpen.value, true);
     assert.deepEqual(JSON.parse(historyJsonText.value), entry);
+    assert.equal(
+        component.template.includes("create-vg-stub-history-json-text"),
+        true,
+    );
 
     historyJsonText.value = JSON.stringify({
-        form: {
-            name: "Imported name",
-            year: "2026",
+        data: {
+            input: {
+                name: "Imported name",
+                year: "2026",
+            },
+            patches: {},
+            version: 1,
         },
     });
-    component.methods.importHistoryJson();
+    await component.methods.importHistoryJson();
 
     assert.equal(form.name, "Imported name");
     assert.equal(form.year, "2026");
@@ -139,7 +148,7 @@ test("history JSON can be copied, edited, and imported", () => {
     );
 });
 
-test("invalid history JSON stays open and preserves the form", () => {
+test("invalid history JSON stays open and preserves the form", async () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub(),
@@ -153,11 +162,117 @@ test("invalid history JSON stays open and preserves the form", () => {
         },
     });
     historyJsonText.value = "{";
-    component.methods.importHistoryJson();
+    await component.methods.importHistoryJson();
 
     assert.equal(form.name, "");
     assert.equal(historyJsonOpen.value, true);
     assert.notEqual(historyJsonError.value, "");
+});
+
+test("legacy history JSON is rejected", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { form, historyJsonError, historyJsonOpen, historyJsonText } =
+        component.setup();
+
+    component.methods.openHistoryJsonDialog({
+        form: {
+            name: "Stored name",
+        },
+    });
+    await component.methods.importHistoryJson();
+
+    assert.equal(form.name, "");
+    assert.equal(historyJsonOpen.value, true);
+    assert.equal(
+        historyJsonError.value,
+        "JSON must contain structured history data.",
+    );
+    assert.equal(JSON.parse(historyJsonText.value).form.name, "Stored name");
+});
+
+test("structured history JSON regenerates rows and applies patches", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onPrepareCitations() {
+                return [
+                    {
+                        generatedParams: [
+                            {
+                                name: "title",
+                                value: "Generated title",
+                            },
+                        ],
+                        index: 1,
+                        params: [
+                            {
+                                name: "title",
+                                value: "Generated title",
+                            },
+                        ],
+                        sourceUrl: "https://example.test/source",
+                        template: "cite web",
+                    },
+                ];
+            },
+            onCategoryRowsRefresh(form) {
+                form.categoryRows.splice(0, form.categoryRows.length, {
+                    category: "Generated games",
+                    originalCategory: "Generated games",
+                    source: "company",
+                    stubTag: "vg-stub",
+                    stubTagEnabled: true,
+                });
+            },
+        }),
+    );
+    const { form, historyJsonOpen, historyJsonText } = component.setup();
+
+    component.methods.openHistoryJsonDialog({
+        data: {
+            input: {
+                developers: "Example Studio",
+                developersSourceUrl: "https://example.test/source",
+                name: "Imported name",
+            },
+            patches: {
+                categories: [
+                    {
+                        category: "Patched games",
+                        source: {
+                            category: "Generated games",
+                        },
+                    },
+                ],
+                citations: [
+                    {
+                        sourceUrl: "https://example.test/source",
+                        params: [
+                            {
+                                name: "title",
+                                value: "Patched title",
+                            },
+                        ],
+                    },
+                ],
+            },
+            version: 1,
+        },
+    });
+    await component.methods.importHistoryJson();
+
+    assert.equal(form.name, "Imported name");
+    assert.equal(form.developers, "Example Studio");
+    assert.equal(form.categoryRows[0].category, "Patched games");
+    assert.equal(form.categoryRows[0].source, "company");
+    assert.equal(form.citationRows[0].modified, true);
+    assert.equal(form.citationRows[0].sourceUrl, "https://example.test/source");
+    assert.equal(form.citationRows[0].params[0].value, "Patched title");
+    assert.equal(historyJsonOpen.value, false);
+    assert.equal(JSON.parse(historyJsonText.value).data.version, 1);
 });
 
 test("live field updates trim values and normalize full dates to years", () => {

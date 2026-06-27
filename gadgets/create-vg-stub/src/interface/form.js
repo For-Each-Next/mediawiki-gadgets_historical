@@ -190,7 +190,9 @@ const DIALOG_CSS = new StyleSheet()
     .add(
         [
             ".create-vg-stub-preview-text textarea",
+            ".create-vg-stub-history-json-text textarea",
             "textarea.create-vg-stub-preview-text",
+            "textarea.create-vg-stub-history-json-text",
         ],
         {
             fontFamily: "monospace",
@@ -938,10 +940,12 @@ export function createDialogComponent(Vue, options) {
              * @param {object} entry.form - Stored form values.
              * @returns {void}
              */
-            fillHistoryEntry(entry) {
-                replaceFormValues(form, entry.form);
+            async fillHistoryEntry(entry) {
+                replaceFormValues(form, getHistoryEntryForm(entry));
                 syncGeneratedNameNoteTaRow(form);
-                navboxRowsPrepared = hasPreparedNavboxRows(form);
+                navboxRowsPrepared = false;
+                await refreshCitationRows();
+                await refreshReview();
                 historyOpen.value = false;
             },
 
@@ -971,12 +975,12 @@ export function createDialogComponent(Vue, options) {
              *
              * @returns {void}
              */
-            importHistoryJson() {
+            async importHistoryJson() {
                 historyJsonError.value = "";
 
                 try {
                     const data = JSON.parse(historyJsonText.value);
-                    const importedForm = data?.form || data;
+                    const importedForm = getHistoryEntryForm(data);
 
                     if (
                         importedForm == null ||
@@ -984,13 +988,15 @@ export function createDialogComponent(Vue, options) {
                         Array.isArray(importedForm)
                     ) {
                         throw new Error(
-                            "JSON must contain a form object or history entry.",
+                            "JSON must contain structured history data.",
                         );
                     }
 
                     replaceFormValues(form, importedForm);
                     syncGeneratedNameNoteTaRow(form);
-                    navboxRowsPrepared = hasPreparedNavboxRows(form);
+                    navboxRowsPrepared = false;
+                    await refreshCitationRows();
+                    await refreshReview();
                     historyJsonOpen.value = false;
                     historyOpen.value = false;
                 } catch (error) {
@@ -1924,6 +1930,7 @@ export function createDialogComponent(Vue, options) {
             categoryState,
             refreshOptions,
         );
+        applyCategoryPatches(form.categoryRows, form.historyPatches?.categories);
     }
 
     /**
@@ -1964,11 +1971,15 @@ export function createDialogComponent(Vue, options) {
 
         try {
             const rows = await options.onPrepareCitations(form);
+            const patchedRows = applyCitationPatches(
+                rows.map(createCitationRow),
+                form.historyPatches?.citations,
+            );
 
             form.citationRows.splice(
                 0,
                 form.citationRows.length,
-                ...rows.map(createCitationRow),
+                ...patchedRows,
             );
         } catch (error) {
             citationState.error = error.message || String(error);
@@ -1990,8 +2001,9 @@ export function createDialogComponent(Vue, options) {
             return;
         }
 
-        const rows = (await options.onPrepareReview(form, rebuild)).map(
-            createNavboxRow,
+        const rows = applyNavboxPatches(
+            (await options.onPrepareReview(form, rebuild)).map(createNavboxRow),
+            form.historyPatches?.navboxes,
         );
 
         if (!rebuild && Array.isArray(form.navboxRows)) {
@@ -2873,6 +2885,7 @@ function createHistoryJsonDialogTemplate() {
                 ),
             ]),
             createElement("cdx-text-area", {
+                class: "create-vg-stub-history-json-text",
                 "v-model": "historyJsonText",
                 rows: "12",
                 spellcheck: "false",
@@ -3672,6 +3685,10 @@ function normalizeReceivedFormValues(values) {
         normalized.navboxRows = normalized.navboxRows.map(createNavboxRow);
     }
 
+    if (!Array.isArray(normalized.categoryRows)) {
+        normalized.categoryRows = [];
+    }
+
     if (!Array.isArray(normalized.citationRows)) {
         normalized.citationRows = [];
     } else {
@@ -3707,6 +3724,144 @@ function normalizeReceivedFormValues(values) {
     delete normalized.commonNames;
 
     return normalized;
+}
+
+/**
+ * Gets restorable flat form values from structured history JSON.
+ *
+ * @param {object} entry - History entry or structured data.
+ * @returns {object} Restorable form values.
+ */
+function getHistoryEntryForm(entry) {
+    if (entry?.data?.input != null) {
+        return {
+            ...cloneValue(entry.data.input),
+            historyPatches: cloneValue(entry.data.patches || {}),
+        };
+    }
+
+    if (entry?.input != null) {
+        return {
+            ...cloneValue(entry.input),
+            historyPatches: cloneValue(entry.patches || {}),
+        };
+    }
+
+    return undefined;
+}
+
+/**
+ * Applies citation patches to generated citation rows.
+ *
+ * @param {Array<object>} rows - Generated citation rows.
+ * @param {Array<object>} patches - Citation patches.
+ * @returns {Array<object>} Patched citation rows.
+ */
+function applyCitationPatches(rows, patches = []) {
+    return rows.map((row) => {
+        const patch = patches.find(
+            (item) => trimFieldValue(item.sourceUrl) === row.sourceUrl,
+        );
+
+        if (patch == null) {
+            return row;
+        }
+
+        return createCitationRow({
+            ...row,
+            ...cloneValue(patch),
+            modified: true,
+            sourceUrl: row.sourceUrl,
+        });
+    });
+}
+
+/**
+ * Applies category patches to generated category rows.
+ *
+ * @param {Array<object>} rows - Generated category rows.
+ * @param {Array<object>} patches - Category patches.
+ * @returns {void}
+ */
+function applyCategoryPatches(rows, patches = []) {
+    patches.forEach((patch) => {
+        if (patch.source?.manual === true) {
+            rows.push(createCategoryPatchRow(patch));
+            return;
+        }
+
+        const row = rows.find((item) => isCategoryPatchTarget(item, patch));
+
+        if (row != null) {
+            const values = cloneValue(patch);
+
+            delete values.source;
+            Object.assign(row, values);
+        }
+    });
+}
+
+/**
+ * Applies navbox patches to generated navbox rows.
+ *
+ * @param {Array<object>} rows - Generated navbox rows.
+ * @param {Array<object>} patches - Navbox patches.
+ * @returns {Array<object>} Patched navbox rows.
+ */
+function applyNavboxPatches(rows, patches = []) {
+    return rows.map((row) => {
+        const patch = patches.find(
+            (item) => trimFieldValue(item.source?.title) === row.title,
+        );
+
+        if (patch == null) {
+            return row;
+        }
+
+        return createNavboxRow({
+            ...row,
+            ...cloneValue(patch),
+            title: row.title,
+        });
+    });
+}
+
+/**
+ * Checks whether a category row matches a patch source.
+ *
+ * @param {object} row - Generated category row.
+ * @param {object} patch - Category patch.
+ * @returns {boolean} Whether the patch targets the row.
+ */
+function isCategoryPatchTarget(row, patch) {
+    if (trimFieldValue(patch.source?.company) !== "") {
+        return trimFieldValue(row.company) === trimFieldValue(patch.source.company);
+    }
+
+    return (
+        trimFieldValue(row.originalCategory || row.category) ===
+        trimFieldValue(patch.source?.category)
+    );
+}
+
+/**
+ * Creates a category row from a patch.
+ *
+ * @param {object} patch - Category patch.
+ * @returns {object} Category row.
+ */
+function createCategoryPatchRow(patch) {
+    return {
+        category: trimFieldValue(patch.category),
+        company: trimFieldValue(patch.company),
+        enabled: patch.enabled !== false,
+        originalCategory: trimFieldValue(patch.category),
+        originalStubTagEnabled: patch.stubTagEnabled === true,
+        source: "manual",
+        status: trimFieldValue(patch.status),
+        stubTag: trimFieldValue(patch.stubTag),
+        stubTagEnabled: patch.stubTagEnabled === true,
+    };
 }
 
 /**

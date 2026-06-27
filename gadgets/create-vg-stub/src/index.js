@@ -83,7 +83,10 @@ import {
     startSaveProgress,
 } from "./save/controller.js";
 import { SAVE_PROGRESS_STORAGE_KEY } from "./save/progress.js";
-import { createCitationStore } from "./sources/source-references.js";
+import {
+    createCitationStore,
+    prepareManagedCitationRows,
+} from "./sources/source-references.js";
 import { fetchSteamNameRows } from "./sources/steam-names.js";
 
 const CITATION_PREFETCH_DELAY = 800;
@@ -723,6 +726,8 @@ function init(require) {
         onFormChange: saveFormDraft,
         onMoveTarget: (...args) => openTargetPage(...args, citationStore),
         onPrepareCompanyCategory: prepareCompanyCategoryText,
+        onPrepareCitations: (form) =>
+            prepareManagedCitationRows(form, citationStore),
         onPrepareReview: prepareNavboxRows,
         async onPreSavePrepare(form, title) {
             const redirectTitles = buildRedirectTitles(form, title);

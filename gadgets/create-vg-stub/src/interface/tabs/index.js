@@ -2,6 +2,7 @@
 
 import { createElement } from "../template/nodes.js";
 import { createFieldGroupTemplate } from "./article-fields.js";
+import { createCitationGroupTemplate } from "./citations.js";
 import { createNameGroupTemplate } from "./localized-names.js";
 import { createNoteTaGroupTemplate } from "./noteta.js";
 import { createCategoryGroupTemplate } from "./review.js";
@@ -37,6 +38,7 @@ export function createTabsTemplate() {
                             createFieldGroupTemplate(),
                             createNameGroupTemplate(),
                             createNoteTaGroupTemplate(),
+                            createCitationGroupTemplate(),
                             createCategoryGroupTemplate(),
                         ],
                     ),

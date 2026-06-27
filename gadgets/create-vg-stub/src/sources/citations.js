@@ -7,6 +7,7 @@
 const CITOID_ENDPOINT = "/api/rest_v1/data/citation/zotero/";
 const CITATION_RULES = getCitationRules();
 const DATE_PARTS_LENGTH = 10;
+const UNKNOWN_PARAM_ORDER_OFFSET = 10000;
 
 /**
  * Builds a cite template from the first Citoid result for a URL.
@@ -135,11 +136,65 @@ export function buildCiteTemplate(citation, options = {}) {
         rules: options.rules || CITATION_RULES,
         sourceUrl: options.url,
     });
-    const params = Object.entries(values).filter(hasTemplateValue);
+    const params = sortCitationParamEntries(
+        Object.entries(values).filter(hasTemplateValue),
+    );
 
     return `{{${getTemplateName(citation.itemType)}${params
-        .map(formatTemplateParam)
+        .map((param) => formatTemplateParam(param, { formatKey: false }))
         .join("")}}}`;
+}
+
+/**
+ * Parses one generated citation template into editable parts.
+ *
+ * @param {string} text - Citation template wikitext.
+ * @returns {object} Parsed template name and parameter rows.
+ */
+export function parseCiteTemplate(text) {
+    const parts = splitTemplateParts(text);
+    const [template, ...params] = parts;
+
+    return {
+        params: sortCitationParams(params.map(parseTemplateParam)),
+        template: trimFieldText(template) || "cite web",
+    };
+}
+
+/**
+ * Builds citation template wikitext from editable parts.
+ *
+ * @param {object} parts - Editable citation parts.
+ * @param {Array<object>} parts.params - Editable parameter rows.
+ * @param {string} parts.template - Citation template name.
+ * @returns {string} Citation template wikitext.
+ */
+export function buildCiteTemplateFromParts(parts) {
+    const template = trimFieldText(parts?.template) || "cite web";
+    const params = sortCitationParams(parts?.params || []).filter((param) =>
+        hasTemplateValue([param.name, param.value]),
+    );
+
+    return `{{${template}${params
+        .map((param) =>
+            formatTemplateParam([param.name, param.value], {
+                formatKey: false,
+            }),
+        )
+        .join("")}}}`;
+}
+
+/**
+ * Sorts citation parameter rows by local TemplateData order.
+ *
+ * @param {Array<object>} params - Citation parameter rows.
+ * @returns {Array<object>} Sorted citation parameter rows.
+ */
+export function sortCitationParams(params) {
+    return params
+        .map((param, index) => ({ ...param, _index: index }))
+        .sort(compareCitationParams)
+        .map(({ _index, ...param }) => param);
 }
 
 /**
@@ -271,6 +326,19 @@ function getCitationRules() {
     }
 
     return __CREATE_VG_STUB_FIELD_DATA__["citation-rules"] || [];
+}
+
+/**
+ * Gets bundled citation TemplateData order and aliases.
+ *
+ * @returns {object} Citation TemplateData subset.
+ */
+function getCitationTemplateData() {
+    if (typeof __CREATE_VG_STUB_FIELD_DATA__ === "undefined") {
+        return {};
+    }
+
+    return __CREATE_VG_STUB_FIELD_DATA__["citation-template"] || {};
 }
 
 /**
@@ -643,15 +711,33 @@ function hasTemplateValue(entry) {
 }
 
 /**
+ * Sorts citation parameter entries by local TemplateData order.
+ *
+ * @param {Array<Array<string>>} entries - Citation parameter entries.
+ * @returns {Array<Array<string>>} Sorted parameter entries.
+ */
+function sortCitationParamEntries(entries) {
+    return sortCitationParams(
+        entries.map(([name, value]) => ({
+            name: formatTemplateKey(name),
+            value,
+        })),
+    ).map((param) => [param.name, param.value]);
+}
+
+/**
  * Formats one template parameter.
  *
  * @param {Array<string>} entry - Template parameter entry.
+ * @param {object} [options] - Formatting options.
+ * @param {boolean} [options.formatKey] - Whether to convert camelCase keys.
  * @returns {string} Template parameter wikitext.
  */
-function formatTemplateParam(entry) {
+function formatTemplateParam(entry, options = {}) {
     const [key, value] = entry;
+    const name = options.formatKey === false ? key : formatTemplateKey(key);
 
-    return `|${formatTemplateKey(key)}=${escapeTemplateValue(String(value))}`;
+    return `|${name}=${escapeTemplateValue(String(value))}`;
 }
 
 /**
@@ -672,6 +758,133 @@ function formatTemplateKey(key) {
  */
 function escapeTemplateValue(value) {
     return value.trim().replace(/\|/gu, "{{!}}");
+}
+
+/**
+ * Splits a single citation template into template and parameter parts.
+ *
+ * @param {string} text - Citation template wikitext.
+ * @returns {Array<string>} Template parts.
+ */
+function splitTemplateParts(text) {
+    const value = trimFieldText(text);
+    const body =
+        value.startsWith("{{") && value.endsWith("}}")
+            ? value.slice(2, -2)
+            : value;
+    const parts = [];
+    let depth = 0;
+    let start = 0;
+
+    for (let index = 0; index < body.length; index += 1) {
+        const pair = body.slice(index, index + 2);
+
+        if (pair === "{{") {
+            depth += 1;
+            index += 1;
+            continue;
+        }
+
+        if (pair === "}}" && depth > 0) {
+            depth -= 1;
+            index += 1;
+            continue;
+        }
+
+        if (body[index] === "|" && depth === 0) {
+            parts.push(body.slice(start, index));
+            start = index + 1;
+        }
+    }
+
+    parts.push(body.slice(start));
+
+    return parts;
+}
+
+/**
+ * Parses one template parameter part.
+ *
+ * @param {string} text - Template parameter text.
+ * @returns {object} Editable citation parameter row.
+ */
+function parseTemplateParam(text) {
+    const separator = text.indexOf("=");
+
+    if (separator === -1) {
+        return {
+            name: trimFieldText(text),
+            value: "",
+        };
+    }
+
+    return {
+        name: trimFieldText(text.slice(0, separator)),
+        value: trimFieldText(text.slice(separator + 1)),
+    };
+}
+
+/**
+ * Compares citation parameters by local TemplateData order.
+ *
+ * @param {object} left - Left parameter row.
+ * @param {object} right - Right parameter row.
+ * @returns {number} Sort comparison result.
+ */
+function compareCitationParams(left, right) {
+    return (
+        getParamOrderIndex(left.name) - getParamOrderIndex(right.name) ||
+        left._index - right._index
+    );
+}
+
+/**
+ * Gets a parameter order index, resolving aliases to canonical names.
+ *
+ * @param {string} name - Citation parameter name.
+ * @returns {number} Parameter order index.
+ */
+function getParamOrderIndex(name) {
+    const paramOrder = getCitationTemplateData().paramOrder || [];
+    const canonical = getCanonicalParamName(name);
+    const index = paramOrder.indexOf(canonical);
+
+    if (index !== -1) {
+        return index;
+    }
+
+    return UNKNOWN_PARAM_ORDER_OFFSET;
+}
+
+/**
+ * Resolves a parameter alias to its canonical TemplateData key.
+ *
+ * @param {string} name - Citation parameter name.
+ * @returns {string} Canonical parameter name when known.
+ */
+function getCanonicalParamName(name) {
+    const value = trimFieldText(name);
+    const aliases = getCitationTemplateData().aliases || {};
+
+    if (Object.hasOwn(aliases, value)) {
+        return value;
+    }
+
+    return (
+        Object.entries(aliases).find((entry) =>
+            entry[1].includes(value),
+        )?.[0] || value
+    );
+}
+
+/**
+ * Trims text-like citation fields.
+ *
+ * @param {*} value - Raw field value.
+ * @returns {string} Trimmed field text.
+ */
+function trimFieldText(value) {
+    return String(value || "").trim();
 }
 
 /**

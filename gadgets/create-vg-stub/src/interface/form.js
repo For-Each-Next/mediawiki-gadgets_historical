@@ -16,6 +16,7 @@ import {
     trimFieldValue,
 } from "../shared/form-values.js";
 import { getEnteredSourceUrls } from "../sources/source-references.js";
+import { sortCitationParams } from "../sources/citations.js";
 import {
     buildOfficialNameConversionText,
     sortNoteTaEntries,
@@ -261,6 +262,22 @@ const DIALOG_CSS = new StyleSheet()
         gridTemplateColumns: "minmax(4.2em, 7em) minmax(12em, 1fr) auto",
         marginBottom: "0.75em",
     })
+    .add(".create-vg-stub-citation", {
+        borderBottom: "1px solid var(--border-color-subtle, #eaecf0)",
+        marginBottom: "1em",
+        paddingBottom: "1em",
+    })
+    .add(".create-vg-stub-citation-grid", {
+        display: "grid",
+        gap: "0.25em",
+        gridTemplateColumns: "minmax(5em, 10em) minmax(12em, 1fr) auto",
+        marginBottom: "0.75em",
+    })
+    .add(".create-vg-stub-citation-actions", {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "0.5em",
+    })
     .add(".create-vg-stub-category-actions", {
         alignItems: "center",
         display: "flex",
@@ -330,6 +347,7 @@ class ArticleParameterGroup {
      */
     constructor(key, label, fields, nameGroupKey, options = {}) {
         this.categoryReview = Boolean(options.categoryReview);
+        this.citationReview = Boolean(options.citationReview);
         this.fields = fields;
         this.key = key;
         this.label = label;
@@ -537,6 +555,9 @@ const ARTICLE_PARAMETER_GROUPS = [
             noteTaReview: true,
         },
     ),
+    new ArticleParameterGroup("references", "References", [], null, {
+        citationReview: true,
+    }),
     new ArticleParameterGroup("review", "Checks", [], null, {
         categoryReview: true,
     }),
@@ -590,6 +611,10 @@ export function createDialogComponent(Vue, options) {
     const activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
     const form = Vue.reactive(createFormValues(options.defaultName));
     const categoryState = Vue.reactive({
+        error: "",
+        loading: false,
+    });
+    const citationState = Vue.reactive({
         error: "",
         loading: false,
     });
@@ -675,6 +700,10 @@ export function createDialogComponent(Vue, options) {
         if (tab === "review") {
             refreshReview();
         }
+
+        if (tab === "references") {
+            refreshCitationRows();
+        }
     });
 
     async function openPreSave() {
@@ -743,6 +772,7 @@ export function createDialogComponent(Vue, options) {
                 steamUrl.value = "";
                 Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
                 categoryState.error = "";
+                citationState.error = "";
                 reviewState.error = "";
                 sourceFetchState.error = "";
                 navboxRowsPrepared = false;
@@ -754,6 +784,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after preview text is ready.
              */
             async previewForm() {
+                await refreshCitationRows();
                 await refreshReview();
                 options.onSubmitHistory(form, getCurrentTitle());
                 historyEntries.value = options.getHistoryEntries();
@@ -1087,6 +1118,98 @@ export function createDialogComponent(Vue, options) {
              */
             updateSourceValue(field, value) {
                 form[field.sourceKey] = trimFieldValue(value);
+            },
+
+            /**
+             * Updates one managed citation parameter value.
+             *
+             * @param {number} citationIndex - Citation row index.
+             * @param {number} paramIndex - Parameter row index.
+             * @param {string} field - Parameter field key.
+             * @param {string} value - Raw input value.
+             * @returns {void}
+             */
+            updateCitationParam(citationIndex, paramIndex, field, value) {
+                const citation = form.citationRows[citationIndex];
+
+                if (citation == null) {
+                    return;
+                }
+
+                if (citation.params[paramIndex] == null) {
+                    citation.params.push(createCitationParamRow());
+                }
+
+                citation.params[paramIndex][field] = trimFieldValue(value);
+                citation.modified = true;
+            },
+
+            /**
+             * Sorts one managed citation's parameters.
+             *
+             * @param {number} citationIndex - Citation row index.
+             * @returns {void}
+             */
+            sortCitation(citationIndex) {
+                const citation = form.citationRows[citationIndex];
+
+                if (citation == null) {
+                    return;
+                }
+
+                citation.params = sortManagedCitationParams(citation.params);
+            },
+
+            /**
+             * Appends a blank parameter row to one managed citation.
+             *
+             * @param {number} citationIndex - Citation row index.
+             * @returns {void}
+             */
+            addCitationParam(citationIndex) {
+                const citation = form.citationRows[citationIndex];
+
+                if (citation == null) {
+                    return;
+                }
+
+                citation.params.push(createCitationParamRow());
+                citation.modified = true;
+            },
+
+            /**
+             * Removes one managed citation parameter row.
+             *
+             * @param {number} citationIndex - Citation row index.
+             * @param {number} paramIndex - Parameter row index.
+             * @returns {void}
+             */
+            removeCitationParam(citationIndex, paramIndex) {
+                const citation = form.citationRows[citationIndex];
+
+                if (citation == null) {
+                    return;
+                }
+
+                citation.params.splice(paramIndex, 1);
+                citation.modified = true;
+            },
+
+            /**
+             * Resets one managed citation to its generated parameters.
+             *
+             * @param {number} citationIndex - Citation row index.
+             * @returns {void}
+             */
+            resetCitation(citationIndex) {
+                const citation = form.citationRows[citationIndex];
+
+                if (citation == null) {
+                    return;
+                }
+
+                citation.params = cloneValue(citation.generatedParams || []);
+                citation.modified = false;
             },
 
             /**
@@ -1745,12 +1868,14 @@ export function createDialogComponent(Vue, options) {
                 categoryState,
                 categoryViewOpen,
                 categoryViewState,
+                citationState,
                 companyCategoryOpen,
                 companyCategoryState,
                 groups: ARTICLE_PARAMETER_GROUPS,
                 form,
                 fetchedSteamNameRows,
                 getSteamNameSuggestions,
+                getCitationParamRows,
                 getArticleField,
                 getFieldPlaceholder: options.getFieldPlaceholder.bind(
                     null,
@@ -1819,6 +1944,38 @@ export function createDialogComponent(Vue, options) {
             reviewState.error = error.message || String(error);
         } finally {
             reviewState.loading = false;
+        }
+    }
+
+    /**
+     * Refreshes editable citation rows from the current source URLs.
+     *
+     * @returns {Promise<void>} Resolves after citation rows are ready.
+     */
+    async function refreshCitationRows() {
+        if (options.onPrepareCitations == null) {
+            return;
+        }
+
+        citationState.error = "";
+        citationState.loading = true;
+        sourceFetchState.error = "";
+        sourceFetchState.loading = true;
+
+        try {
+            const rows = await options.onPrepareCitations(form);
+
+            form.citationRows.splice(
+                0,
+                form.citationRows.length,
+                ...rows.map(createCitationRow),
+            );
+        } catch (error) {
+            citationState.error = error.message || String(error);
+            sourceFetchState.error = citationState.error;
+        } finally {
+            citationState.loading = false;
+            sourceFetchState.loading = false;
         }
     }
 
@@ -3011,6 +3168,7 @@ function createFormValues(defaultName) {
             ),
         ),
         categoryRows: [],
+        citationRows: [],
         localizedNames: [createNameRow()],
         name: "",
         noteTaNamesRemoved: false,
@@ -3514,6 +3672,14 @@ function normalizeReceivedFormValues(values) {
         normalized.navboxRows = normalized.navboxRows.map(createNavboxRow);
     }
 
+    if (!Array.isArray(normalized.citationRows)) {
+        normalized.citationRows = [];
+    } else {
+        normalized.citationRows = normalized.citationRows.map(
+            createCitationRow,
+        );
+    }
+
     if (!Object.hasOwn(normalized, "noteTaNamesRemoved")) {
         normalized.noteTaNamesRemoved = false;
     }
@@ -3730,6 +3896,70 @@ function getNavboxTitle(value) {
     const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
 
     return trimFieldValue(match?.[1] || text).replace(/^Template:/iu, "");
+}
+
+/**
+ * Creates one managed citation row.
+ *
+ * @param {object} [value] - Existing row values.
+ * @returns {object} Managed citation row.
+ */
+function createCitationRow(value = {}) {
+    const generatedParams = sortManagedCitationParams(value.generatedParams);
+
+    return {
+        generatedParams,
+        index: Number(value.index) || 1,
+        modified: value.modified === true,
+        params: sortManagedCitationParams(value.params || generatedParams),
+        sourceUrl: trimFieldValue(value.sourceUrl),
+        template: trimFieldValue(value.template) || "cite web",
+    };
+}
+
+/**
+ * Creates one managed citation parameter row.
+ *
+ * @param {object} [value] - Existing parameter values.
+ * @returns {object} Managed citation parameter row.
+ */
+function createCitationParamRow(value = {}) {
+    return {
+        name: trimFieldValue(value.name),
+        value: trimFieldValue(value.value),
+    };
+}
+
+/**
+ * Sorts managed citation parameters and removes fully blank stored rows.
+ *
+ * @param {Array<object>} params - Citation parameter rows.
+ * @returns {Array<object>} Sorted parameter rows.
+ */
+function sortManagedCitationParams(params = []) {
+    return sortCitationParams(
+        params.map(createCitationParamRow).filter(hasCitationParamValue),
+    );
+}
+
+/**
+ * Gets visible parameter rows, including one trailing blank row.
+ *
+ * @param {object} citation - Managed citation row.
+ * @returns {Array<object>} Visible parameter rows.
+ */
+function getCitationParamRows(citation) {
+    return [...(citation.params || []), createCitationParamRow()];
+}
+
+/**
+ * Checks whether a citation parameter row has any entered value.
+ *
+ * @param {object} param - Citation parameter row.
+ * @returns {boolean} Whether the row should be kept.
+ */
+function hasCitationParamValue(param) {
+    return trimFieldValue(param.name) !== "" || trimFieldValue(param.value) !== "";
 }
 
 /**

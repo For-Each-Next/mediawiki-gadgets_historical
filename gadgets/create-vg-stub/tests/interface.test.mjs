@@ -14,6 +14,7 @@ beforeEach(() => {
 
 afterEach(() => {
     globalThis.window = originalWindow;
+    delete globalThis.__CREATE_VG_STUB_FIELD_DATA__;
 });
 
 test("StyleSheet serializes selector arrays and nested media rules", () => {
@@ -231,6 +232,104 @@ test("live source and name row updates trim values", () => {
     assert.equal(moveTarget.value, "Target page");
 });
 
+test("References tab manages editable citation parameters", async () => {
+    globalThis.__CREATE_VG_STUB_FIELD_DATA__ = {
+        "citation-template": {
+            aliases: {
+                "access-date": ["accessdate"],
+                url: ["URL"],
+            },
+            paramOrder: ["url", "title", "date", "access-date"],
+        },
+    };
+
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onPrepareCitations() {
+                return [
+                    {
+                        generatedParams: [
+                            {
+                                name: "title",
+                                value: "Generated title",
+                            },
+                            {
+                                name: "url",
+                                value: "https://example.test/source",
+                            },
+                        ],
+                        index: 1,
+                        params: [
+                            {
+                                name: "title",
+                                value: "Generated title",
+                            },
+                            {
+                                name: "url",
+                                value: "https://example.test/source",
+                            },
+                        ],
+                        sourceUrl: "https://example.test/source",
+                        template: "cite web",
+                    },
+                ];
+            },
+            onPreview() {
+                return {
+                    html: "",
+                    summary: "",
+                    text: "Generated text",
+                };
+            },
+        }),
+    );
+    const { form, getCitationParamRows, groups } = component.setup();
+
+    form.yearSourceUrl = "https://example.test/source";
+    await component.methods.submitForm();
+
+    assert.deepEqual(
+        form.citationRows[0].params.map((param) => param.name),
+        ["url", "title"],
+    );
+    assert.deepEqual(getCitationParamRows(form.citationRows[0]).at(-1), {
+        name: "",
+        value: "",
+    });
+
+    component.methods.updateCitationParam(0, 2, "name", "accessdate");
+    component.methods.updateCitationParam(0, 2, "value", "2026-06-27");
+    component.methods.sortCitation(0);
+
+    assert.deepEqual(
+        form.citationRows[0].params.map((param) => param.name),
+        ["url", "title", "accessdate"],
+    );
+
+    component.methods.removeCitationParam(0, 1);
+    assert.deepEqual(
+        form.citationRows[0].params.map((param) => param.name),
+        ["url", "accessdate"],
+    );
+
+    component.methods.resetCitation(0);
+    assert.deepEqual(
+        form.citationRows[0].params.map((param) => param.name),
+        ["url", "title"],
+    );
+    assert.equal(form.citationRows[0].modified, false);
+    assert.deepEqual(
+        groups.map((group) => group.label).slice(-2),
+        ["References", "Checks"],
+    );
+    assert.equal(
+        component.template.includes("Reference {{ citation.index }}"),
+        true,
+    );
+    assert.equal(component.template.includes("Add param"), true);
+});
+
 test("additional prose uses a textarea and source URL field", () => {
     const component = createDialogComponent(
         createVueStub(),
@@ -247,7 +346,14 @@ test("additional prose uses a textarea and source URL field", () => {
     assert.equal(component.template.includes('<cdx-text-area rows="1"'), true);
     assert.deepEqual(
         groups.map((group) => group.label),
-        ["Titles", "Metadata", "Localized names", "Prose", "Checks"],
+        [
+            "Titles",
+            "Metadata",
+            "Localized names",
+            "Prose",
+            "References",
+            "Checks",
+        ],
     );
     assert.equal(
         component.template.includes(

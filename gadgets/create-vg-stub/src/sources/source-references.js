@@ -5,7 +5,12 @@
  */
 
 import { getArticleSourceFields } from "../article/index.js";
-import { fetchCiteTemplate } from "./citations.js";
+import {
+    buildCiteTemplateFromParts,
+    fetchCiteTemplate,
+    parseCiteTemplate,
+    sortCitationParams,
+} from "./citations.js";
 import {
     buildNameSourceReferenceKey,
     splitSourceUrls,
@@ -74,10 +79,50 @@ export function createCitationStore() {
 export async function fetchSourceReferences(form, citationStore) {
     return Promise.all(
         getEnteredSourceReferenceFields(form).map(async (field) => ({
-            citation: await citationStore.fetch(field.sourceUrl),
+            citation:
+                getManagedCitation(form, field.sourceUrl) ||
+                (await citationStore.fetch(field.sourceUrl)),
             key: field.key,
             sourceUrl: field.sourceUrl,
         })),
+    );
+}
+
+/**
+ * Prepares editable citation rows for all currently entered source URLs.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {object} citationStore - Citation fetch/cache store.
+ * @returns {Promise<Array<object>>} Managed citation rows.
+ */
+export async function prepareManagedCitationRows(form, citationStore) {
+    const existingRows = Array.isArray(form.citationRows)
+        ? form.citationRows
+        : [];
+
+    return Promise.all(
+        getEnteredSourceUrls(form).map(async (sourceUrl, index) => {
+            const generatedCitation = await citationStore.fetch(sourceUrl);
+            const generated = parseCiteTemplate(generatedCitation);
+            const existing = existingRows.find(
+                (row) => trimFieldValue(row.sourceUrl) === sourceUrl,
+            );
+            const generatedParams = sortCitationParams(generated.params);
+
+            return {
+                generatedParams,
+                index: index + 1,
+                modified: existing?.modified === true,
+                params:
+                    existing?.modified === true
+                        ? sortCitationParams(existing.params || [])
+                        : generatedParams,
+                sourceUrl,
+                template: trimFieldValue(existing?.template)
+                    ? existing.template
+                    : generated.template,
+            };
+        }),
     );
 }
 
@@ -113,6 +158,29 @@ export function getEnteredSourceUrls(form) {
                 .filter(Boolean),
         ),
     ];
+}
+
+/**
+ * Builds a managed citation for a source URL when the form has one.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {string} sourceUrl - Source URL.
+ * @returns {string} Managed citation wikitext, or empty string.
+ */
+function getManagedCitation(form, sourceUrl) {
+    if (!Array.isArray(form.citationRows)) {
+        return "";
+    }
+
+    const row = form.citationRows.find(
+        (item) => trimFieldValue(item.sourceUrl) === trimFieldValue(sourceUrl),
+    );
+
+    if (row == null) {
+        return "";
+    }
+
+    return buildCiteTemplateFromParts(row);
 }
 
 /**

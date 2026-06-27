@@ -256,12 +256,12 @@ test("additional prose uses a textarea and source URL field", () => {
         true,
     );
     assert.equal(
-        component.template.indexOf("Prose length:") >
+        component.template.indexOf("{{ getProseWikitext() }}") >
             component.template.indexOf('v-for="field in group.fields"'),
         true,
     );
     assert.equal(
-        component.template.indexOf("Prose length:") <
+        component.template.indexOf("{{ getProseWikitext() }}") <
             component.template.indexOf("<h3>NoteTA items</h3>"),
         true,
     );
@@ -407,6 +407,11 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             getProseSinographs(form) {
                 return form.additionalProse === "" ? 24 : 51;
             },
+            getProseWikitext(form) {
+                return form.additionalProse === ""
+                    ? "《'''Example'''》是電子遊戲。"
+                    : `《'''Example'''》是電子遊戲。${form.additionalProse}`;
+            },
             async onPrepareReview(form) {
                 return form.navboxRows?.length > 0
                     ? form.navboxRows
@@ -417,8 +422,16 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     const { form } = component.setup();
 
     assert.equal(component.methods.getProseSinographs(), 24);
+    assert.equal(
+        component.methods.getProseWikitext(),
+        "《'''Example'''》是電子遊戲。",
+    );
     form.additionalProse = "補充文字";
     assert.equal(component.methods.getProseSinographs(), 51);
+    assert.equal(
+        component.methods.getProseWikitext(),
+        "《'''Example'''》是電子遊戲。補充文字",
+    );
     form.series = "Foo";
     form.navboxRows = [];
 
@@ -1777,6 +1790,9 @@ function createOptionsStub(options = {}) {
         defaultName: "Example",
         getProseSinographs() {
             return 0;
+        },
+        getProseWikitext() {
+            return "";
         },
         getCategoryPageUrl(category) {
             return `/wiki/Category:${category}`;

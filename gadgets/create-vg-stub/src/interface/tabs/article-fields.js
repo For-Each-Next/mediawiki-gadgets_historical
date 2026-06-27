@@ -49,7 +49,11 @@ function createProseLengthTemplate() {
             class: "create-vg-stub-prose-length",
             "v-if": "group.key === 'prose'",
         },
-        [createText("Prose length: {{ getProseSinographs() }} sinographs")],
+        [
+            createText(
+                "{{ getProseWikitext() }} ({{ getProseSinographs() }} sinographs)",
+            ),
+        ],
     );
 }
 

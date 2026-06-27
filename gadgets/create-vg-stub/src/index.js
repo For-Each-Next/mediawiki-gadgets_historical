@@ -185,6 +185,17 @@ const getFormProseSinographs = (form) =>
     });
 
 /**
+ * Builds generated prose wikitext from current form values.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {string} Generated prose wikitext.
+ */
+const getFormProseWikitext = (form) =>
+    createArticleData(form, {
+        defaultName: getDefaultNameFallback(),
+    }).prose.text;
+
+/**
  * Gets placeholder text for one form field.
  *
  * @param {object} form - Dialog form values.
@@ -687,6 +698,7 @@ function init(require) {
         getFieldPlaceholder,
         getFieldPreview,
         getProseSinographs: getFormProseSinographs,
+        getProseWikitext: getFormProseWikitext,
         initialForm:
             previewFormData?.form ||
             movedEdit?.form ||

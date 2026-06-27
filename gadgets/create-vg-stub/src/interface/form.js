@@ -559,6 +559,7 @@ export function addDialogStyles() {
  * @param {string} options.defaultName - Default article title.
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
  * @param {Function} options.getProseSinographs - Prose length calculator.
+ * @param {Function} options.getProseWikitext - Prose wikitext preview builder.
  * @param {Function} options.getCategoryPageUrl - Category page URL builder.
  * @param {Function} options.getTemplatePageUrl - Template page URL builder.
  * @param {object} [options.initialForm] - Initial form values.
@@ -1722,6 +1723,15 @@ export function createDialogComponent(Vue, options) {
              */
             getProseSinographs() {
                 return options.getProseSinographs(form);
+            },
+
+            /**
+             * Gets the current generated prose wikitext.
+             *
+             * @returns {string} Generated prose wikitext.
+             */
+            getProseWikitext() {
+                return options.getProseWikitext(form);
             },
         },
         /**

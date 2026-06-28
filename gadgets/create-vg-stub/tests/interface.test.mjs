@@ -5,7 +5,11 @@
 import assert from "node:assert/strict";
 import test, { afterEach, beforeEach } from "node:test";
 
-import { StyleSheet, createDialogComponent } from "../src/interface/form.js";
+import {
+    StyleSheet,
+    createDialogComponent,
+    createPreSaveGroups,
+} from "../src/interface/form.js";
 
 const originalWindow = globalThis.window;
 beforeEach(() => {
@@ -1579,12 +1583,7 @@ test("submit opens preview without changing tabs", async () => {
     assert.equal(previewCount, 1);
     assert.equal(previewOpen.value, true);
     assert.equal(preSaveOpen.value, false);
-    assert.equal(
-        component.template.includes(
-            "Register on WikiProject Video games' new-page list",
-        ),
-        true,
-    );
+    assert.equal(component.template.includes("preSaveGroups"), true);
 });
 
 test("native submit bridge opens category and pre-save review", async () => {
@@ -1798,9 +1797,106 @@ test("pre-save keeps the current page title when move is suggested", async () =>
         component.template.includes("Use this title before saving"),
         false,
     );
-    assert.equal(component.template.includes("{{ action.label }}"), true);
+    assert.equal(component.template.includes("{{ row.label }}"), true);
     assert.equal(component.template.includes("'Continue'"), false);
     assert.equal(component.template.includes("'Save'"), true);
+});
+
+test("pre-save fixes are grouped by target page", () => {
+    const redirectAction = {
+        displayLabel: "Redirect to [[Samson (遊戲)]]",
+        id: "redirect:薩姆森 (遊戲)",
+        pageTitle: "薩姆森 (遊戲)",
+        selected: true,
+        type: "redirect",
+    };
+    const talkAction = {
+        displayLabel:
+            "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+        id: "talk-banner",
+        pageTitle: "Samson (遊戲)",
+        selected: true,
+        type: "talk-banner",
+    };
+    const categoryAction = {
+        category: "Chibig遊戲",
+        company: "Chibig",
+        displayLabel: "Create category page",
+        englishName: "Category:Chibig games",
+        id: "category:Chibig遊戲",
+        pageTitle: "Category:Chibig遊戲",
+        selected: true,
+        type: "category",
+    };
+
+    assert.deepEqual(
+        createPreSaveGroups(
+            [redirectAction, talkAction, categoryAction],
+            { registerNewPage: true },
+        ),
+        [
+            {
+                key: "薩姆森 (遊戲)",
+                rows: [
+                    {
+                        action: redirectAction,
+                        key: "redirect:薩姆森 (遊戲)",
+                        label: "Redirect to [[Samson (遊戲)]]",
+                        type: "action",
+                    },
+                ],
+                title: "薩姆森 (遊戲)",
+            },
+            {
+                key: "Samson (遊戲)",
+                rows: [
+                    {
+                        action: talkAction,
+                        key: "talk-banner",
+                        label:
+                            "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+                        type: "action",
+                    },
+                    {
+                        key: "register-new-page",
+                        label:
+                            "Register on WikiProject Video games' new-page list",
+                        type: "registration",
+                    },
+                ],
+                title: "Samson (遊戲)",
+            },
+            {
+                key: "Category:Chibig遊戲",
+                rows: [
+                    {
+                        action: categoryAction,
+                        key: "category:Chibig遊戲",
+                        label: "Create category page",
+                        type: "action",
+                    },
+                    {
+                        key: "category:Chibig遊戲:wikidata",
+                        label: "Connect to matching Wikidata item",
+                        type: "note",
+                    },
+                    {
+                        key: "category:Chibig遊戲:talk-banner",
+                        label:
+                            "Tagging {{WikiProject Video games}} to [[Category talk:Chibig遊戲]]",
+                        type: "note",
+                    },
+                    {
+                        key: "category:Chibig遊戲:register-new-page",
+                        label:
+                            "Register on WikiProject Video games' new-page list",
+                        type: "registration",
+                    },
+                ],
+                title: "Category:Chibig遊戲",
+            },
+        ],
+    );
 });
 
 test("pre-save submit uses the current page title with disambiguation", async () => {
@@ -2165,6 +2261,13 @@ test("enwiki lookup ignores failed metadata fetches", async () => {
 
 function createVueStub() {
     return {
+        computed(callback) {
+            return {
+                get value() {
+                    return callback();
+                },
+            };
+        },
         reactive(value) {
             return value;
         },

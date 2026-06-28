@@ -249,6 +249,32 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-error", {
         color: "var(--color-error, #d73333)",
     })
+    .add(".create-vg-stub-pre-save-groups", {
+        display: "grid",
+        gap: "0.875em",
+        marginTop: "0.75em",
+    })
+    .add(".create-vg-stub-pre-save-page", {
+        display: "grid",
+        gap: "0.35em",
+    })
+    .add(".create-vg-stub-pre-save-title", {
+        fontWeight: "600",
+        overflowWrap: "anywhere",
+    })
+    .add(".create-vg-stub-pre-save-list", {
+        display: "grid",
+        gap: "0.35em",
+        listStyle: "disc",
+        margin: "0 0 0 1.5em",
+        padding: "0",
+    })
+    .add(".create-vg-stub-pre-save-item", {
+        paddingLeft: "0.15em",
+    })
+    .add(".create-vg-stub-pre-save-note", {
+        overflowWrap: "anywhere",
+    })
     .add(".create-vg-stub-prose-length", {
         color: "var(--color-subtle, #54595d)",
         fontSize: "0.75em",
@@ -673,6 +699,9 @@ export function createDialogComponent(Vue, options) {
     const preSaveMoveTitle = Vue.ref(currentTitle);
     const preSaveOpen = Vue.ref(false);
     const preSaveActions = Vue.reactive([]);
+    const preSaveGroups = Vue.computed(() =>
+        createPreSaveGroups(preSaveActions, form),
+    );
     const previewOpen = Vue.ref(false);
     const previewText = Vue.ref("");
     const previewSummary = Vue.ref("");
@@ -2053,6 +2082,7 @@ export function createDialogComponent(Vue, options) {
                 preSaveMoveTitle,
                 preSaveOpen,
                 preSaveActions,
+                preSaveGroups,
                 previewOpen,
                 previewText,
                 previewSummary,
@@ -2810,6 +2840,165 @@ function createCompanyCategoryDialogTemplate() {
 }
 
 /**
+ * Groups pre-save fixes by the page they will edit.
+ *
+ * @param {Array<object>} actions - Prepared pre-save action rows.
+ * @param {object} form - Dialog form state.
+ * @returns {Array<object>} Page-grouped pre-save rows.
+ */
+export function createPreSaveGroups(actions, form) {
+    const groups = [];
+    const byTitle = new Map();
+    const actionRows = Array.isArray(actions) ? actions : [];
+
+    for (const action of actionRows) {
+        const title = getPreSaveActionPageTitle(action);
+
+        if (title === "") {
+            continue;
+        }
+
+        const group = getPreSaveGroup(title);
+
+        group.rows.push({
+            action,
+            key: action.id,
+            label: getPreSaveActionDisplayLabel(action),
+            type: "action",
+        });
+
+        for (const note of getPreSaveActionNotes(action)) {
+            group.rows.push({
+                key: `${action.id}:${note.key}`,
+                label: note.label,
+                type: "note",
+            });
+        }
+    }
+
+    const articleTitle = getPreSaveRegistrationArticleTitle(actionRows);
+
+    if (articleTitle !== "") {
+        getPreSaveGroup(articleTitle).rows.push({
+            key: "register-new-page",
+            label: "Register on WikiProject Video games' new-page list",
+            type: "registration",
+        });
+    }
+
+    for (const action of actionRows.filter(isCompanyCategoryPreSaveAction)) {
+        const title = getPreSaveActionPageTitle(action);
+
+        if (title === "") {
+            continue;
+        }
+
+        getPreSaveGroup(title).rows.push({
+            key: `${action.id}:register-new-page`,
+            label: "Register on WikiProject Video games' new-page list",
+            type: "registration",
+        });
+    }
+
+    return groups.filter((group) => group.rows.length > 0);
+
+    function getPreSaveGroup(title) {
+        const normalizedTitle = trimFieldValue(title);
+
+        if (!byTitle.has(normalizedTitle)) {
+            const group = {
+                key: normalizedTitle,
+                title: normalizedTitle,
+                rows: [],
+            };
+
+            byTitle.set(normalizedTitle, group);
+            groups.push(group);
+        }
+
+        return byTitle.get(normalizedTitle);
+    }
+}
+
+/**
+ * Gets the display page title for a pre-save action.
+ *
+ * @param {object} action - Pre-save action row.
+ * @returns {string} Page title.
+ */
+function getPreSaveActionPageTitle(action) {
+    return trimFieldValue(
+        action?.pageTitle ||
+            action?.redirectTitle ||
+            (action?.type === "category" ? `Category:${action.category}` : ""),
+    );
+}
+
+/**
+ * Gets the short display label for a pre-save action.
+ *
+ * @param {object} action - Pre-save action row.
+ * @returns {string} Display label.
+ */
+function getPreSaveActionDisplayLabel(action) {
+    return trimFieldValue(action?.displayLabel) || trimFieldValue(action?.label);
+}
+
+/**
+ * Gets non-selectable notes for bundled work inside a pre-save action.
+ *
+ * @param {object} action - Pre-save action row.
+ * @returns {Array<object>} Display notes.
+ */
+function getPreSaveActionNotes(action) {
+    if (action?.type !== "category" || trimFieldValue(action.company) === "") {
+        return [];
+    }
+
+    const category = trimFieldValue(action.category);
+    const notes = [
+        {
+            key: "talk-banner",
+            label: `Tagging {{WikiProject Video games}} to [[Category talk:${category}]]`,
+        },
+    ];
+
+    if (trimFieldValue(action.englishName) !== "") {
+        notes.unshift({
+            key: "wikidata",
+            label: "Connect to matching Wikidata item",
+        });
+    }
+
+    return notes;
+}
+
+/**
+ * Gets the article page that will be added to the new-page list.
+ *
+ * @param {Array<object>} actions - Prepared pre-save action rows.
+ * @returns {string} Article title.
+ */
+function getPreSaveRegistrationArticleTitle(actions) {
+    const action =
+        actions.find((item) => item.type === "talk-banner") ||
+        actions.find((item) => item.type === "interwiki") ||
+        actions.find((item) => item.type !== "redirect");
+
+    return getPreSaveActionPageTitle(action);
+}
+
+/**
+ * Checks whether an action creates a company category.
+ *
+ * @param {object} action - Pre-save action row.
+ * @returns {boolean} Whether the action creates a company category.
+ */
+function isCompanyCategoryPreSaveAction(action) {
+    return action?.type === "category" && trimFieldValue(action.company) !== "";
+}
+
+/**
  * Creates the pre-save fixes dialog.
  *
  * @returns {object} Pre-save fixes dialog template node.
@@ -2830,35 +3019,83 @@ function createPreSaveDialogTemplate() {
             createElement(
                 "div",
                 {
-                    style: {
-                        display: "grid",
-                        gap: "0.5em",
-                        marginTop: "0.75em",
-                    },
+                    class: "create-vg-stub-pre-save-groups",
                 },
                 [
                     createElement(
-                        "cdx-checkbox",
+                        "section",
                         {
-                            "v-bind:key": "action.id",
-                            "v-for": "action in preSaveActions",
-                            "v-model": "action.selected",
+                            class: "create-vg-stub-pre-save-page",
+                            "v-bind:key": "group.key",
+                            "v-for": "group in preSaveGroups",
                         },
-                        [createText("{{ action.label }}")],
-                    ),
-                ],
-            ),
-            createElement(
-                "cdx-checkbox",
-                {
-                    style: {
-                        marginTop: "0.75em",
-                    },
-                    "v-model": "form.registerNewPage",
-                },
-                [
-                    createText(
-                        "Register on WikiProject Video games' new-page list",
+                        [
+                            createElement(
+                                "div",
+                                {
+                                    class: "create-vg-stub-pre-save-title",
+                                },
+                                [createText("{{ group.title }}")],
+                            ),
+                            createElement(
+                                "ul",
+                                {
+                                    class: "create-vg-stub-pre-save-list",
+                                },
+                                [
+                                    createElement(
+                                        "li",
+                                        {
+                                            class: "create-vg-stub-pre-save-item",
+                                            "v-bind:key": "row.key",
+                                            "v-for": "row in group.rows",
+                                        },
+                                        [
+                                            createElement(
+                                                "cdx-checkbox",
+                                                {
+                                                    "v-if":
+                                                        "row.type === 'action'",
+                                                    "v-model":
+                                                        "row.action.selected",
+                                                },
+                                                [
+                                                    createText(
+                                                        "{{ row.label }}",
+                                                    ),
+                                                ],
+                                            ),
+                                            createElement(
+                                                "cdx-checkbox",
+                                                {
+                                                    "v-else-if":
+                                                        "row.type === 'registration'",
+                                                    "v-model":
+                                                        "form.registerNewPage",
+                                                },
+                                                [
+                                                    createText(
+                                                        "{{ row.label }}",
+                                                    ),
+                                                ],
+                                            ),
+                                            createElement(
+                                                "span",
+                                                {
+                                                    class: "create-vg-stub-pre-save-note",
+                                                    "v-else": "",
+                                                },
+                                                [
+                                                    createText(
+                                                        "{{ row.label }}",
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
                     ),
                 ],
             ),

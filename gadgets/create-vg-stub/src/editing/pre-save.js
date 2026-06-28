@@ -44,8 +44,10 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
 
     if (normalizeTitle(form.wikidataId) !== "") {
         actions.push({
+            displayLabel: `Connect to Wikidata item ${normalizeTitle(form.wikidataId)}`,
             id: "interwiki",
             label: `Connect ${title} to ${normalizeTitle(form.wikidataId)}`,
+            pageTitle: title,
             selected: true,
             type: "interwiki",
             wikidataId: normalizeTitle(form.wikidataId),
@@ -57,8 +59,10 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
     }
 
     actions.push({
+        displayLabel: `Tagging {{WikiProject Video games}} to [[Talk:${finalTitle}]]`,
         id: "talk-banner",
         label: `Add WikiProject Video games banner to Talk:${finalTitle}`,
+        pageTitle: finalTitle,
         selected: true,
         type: "talk-banner",
     });
@@ -96,9 +100,11 @@ function createCategoryAction(row) {
     return {
         category,
         company: normalizeTitle(row.company),
+        displayLabel: "Create category page",
         englishName: normalizeTitle(row.pendingCreation.englishName),
         id: `category:${category}`,
         label: `Create category: ${category}`,
+        pageTitle: `Category:${category}`,
         selected: true,
         text: String(row.pendingCreation.text || ""),
         type: "category",
@@ -295,13 +301,18 @@ function createRedirectAction(row, title, existingKeys) {
         existingKeys.has(normalizeTitleKey(redirectTitle));
 
     return {
+        displayLabel: exists
+            ? "Redirect page already exists"
+            : `Redirect to [[${title}]]`,
         id: `redirect:${redirectTitle}`,
         exists,
         label: exists
             ? `Redirect: ${redirectTitle} (page already exists)`
             : `Redirect name: ${redirectTitle} to ${title}`,
+        pageTitle: redirectTitle,
         redirectTitle,
         selected: row.enabled !== false && !exists,
+        targetTitle: title,
         type: "redirect",
     };
 }

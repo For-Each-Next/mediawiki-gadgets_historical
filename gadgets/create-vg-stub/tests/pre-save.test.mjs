@@ -117,9 +117,11 @@ test("buildPreSaveActions includes staged category creation", () => {
     assert.deepEqual(category, {
         category: "Chibig游戏",
         company: "Chibig",
+        displayLabel: "Create category page",
         englishName: "Category:Chibig games",
         id: "category:Chibig游戏",
         label: "Create category: Chibig游戏",
+        pageTitle: "Category:Chibig游戏",
         selected: true,
         text: "Category text",
         type: "category",

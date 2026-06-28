@@ -27,7 +27,11 @@ export function createText(value) {
 }
 
 /**
- * Creates a dialog action footer.
+ * Creates an action footer.
+ *
+ * Actions are right-aligned by default. Pass a style override such as
+ * `{ justifyContent: "flex-start" }` for groups whose buttons belong on
+ * the left.
  *
  * @param {Array<object>} actions - Footer action button nodes.
  * @param {object} [style] - Extra footer style properties.

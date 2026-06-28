@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import {
+    createActionFooterTemplate,
     createElement,
     createSourceUrlInputTemplate,
     createText,
@@ -113,14 +114,7 @@ function createSteamNameHelperTemplate() {
  * @returns {object} Localized name action button group node.
  */
 function createNameActionsTemplate() {
-    return createElement(
-        "div",
-        {
-            style: {
-                display: "flex",
-                gap: "0.5em",
-            },
-        },
+    return createActionFooterTemplate(
         [
             createElement(
                 "cdx-button",
@@ -139,6 +133,9 @@ function createNameActionsTemplate() {
                 [createText("Clear")],
             ),
         ],
+        {
+            justifyContent: "flex-start",
+        },
     );
 }
 

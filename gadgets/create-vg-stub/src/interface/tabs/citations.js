@@ -1,6 +1,10 @@
 /* eslint-disable */
 
-import { createElement, createText } from "../template/nodes.js";
+import {
+    createActionFooterTemplate,
+    createElement,
+    createText,
+} from "../template/nodes.js";
 
 /**
  * Creates the editable citation management template node.
@@ -46,11 +50,7 @@ export function createCitationGroupTemplate() {
                         },
                         [createCitationParamRowTemplate()],
                     ),
-                    createElement(
-                        "div",
-                        {
-                            class: "create-vg-stub-citation-actions",
-                        },
+                    createActionFooterTemplate(
                         [
                             createElement(
                                 "cdx-button",
@@ -69,6 +69,9 @@ export function createCitationGroupTemplate() {
                                 [createText("Add param")],
                             ),
                         ],
+                        {
+                            justifyContent: "flex-start",
+                        },
                     ),
                 ],
             ),

@@ -573,6 +573,34 @@ test("additional prose uses a textarea and source URL field", () => {
     );
 });
 
+test("group action buttons keep their intended alignment", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+
+    assertActionFooterAlignment(
+        component.template,
+        'v-on:click="clearNameRows(group.nameGroupKey)"',
+        "flex-start",
+    );
+    assertActionFooterAlignment(
+        component.template,
+        'v-on:click="addCitationParam(citationIndex)"',
+        "flex-start",
+    );
+    assertActionFooterAlignment(
+        component.template,
+        'v-on:click="regenerateNoteTaRows"',
+        "flex-end",
+    );
+    assertActionFooterAlignment(
+        component.template,
+        'v-on:click="checkRedirectRows"',
+        "flex-end",
+    );
+});
+
 test("NoteTA tab lists generated title conversion and sorts rows", () => {
     const component = createDialogComponent(
         createVueStub(),
@@ -2514,6 +2542,23 @@ test("enwiki lookup ignores failed metadata fetches", async () => {
     assert.equal(form.wikidataId, "");
     assert.equal(form.englishName, "");
 });
+
+function assertActionFooterAlignment(template, marker, justifyContent) {
+    const markerIndex = template.indexOf(marker);
+    assert.notEqual(markerIndex, -1);
+
+    const footerIndex = template.lastIndexOf("<div style=", markerIndex);
+    assert.notEqual(footerIndex, -1);
+
+    const footerStart = template.slice(
+        footerIndex,
+        template.indexOf(">", footerIndex),
+    );
+    assert.equal(
+        footerStart.includes(`justify-content: ${justifyContent}`),
+        true,
+    );
+}
 
 function createVueStub() {
     return {

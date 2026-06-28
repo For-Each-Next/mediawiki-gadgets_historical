@@ -249,12 +249,28 @@ test("structured history JSON regenerates rows and applies patches", async () =>
                                 name: "title",
                                 value: "Generated title",
                             },
+                            {
+                                name: "language",
+                                value: "en",
+                            },
+                            {
+                                name: "website",
+                                value: "Generated site",
+                            },
                         ],
                         index: 1,
                         params: [
                             {
                                 name: "title",
                                 value: "Generated title",
+                            },
+                            {
+                                name: "language",
+                                value: "en",
+                            },
+                            {
+                                name: "website",
+                                value: "Generated site",
                             },
                         ],
                         sourceUrl: "https://example.test/source",
@@ -296,8 +312,12 @@ test("structured history JSON regenerates rows and applies patches", async () =>
                         sourceUrl: "https://example.test/source",
                         params: [
                             {
-                                name: "title",
-                                value: "Patched title",
+                                name: "language",
+                                value: "zh-Hans",
+                            },
+                            {
+                                name: "website",
+                                value: null,
                             },
                         ],
                     },
@@ -322,7 +342,20 @@ test("structured history JSON regenerates rows and applies patches", async () =>
         form.citationRows[0].sourceUrl,
         "https://example.test/source",
     );
-    assert.equal(form.citationRows[0].params[0].value, "Patched title");
+    assert.equal(
+        form.citationRows[0].params.find((param) => param.name === "title")
+            .value,
+        "Generated title",
+    );
+    assert.equal(
+        form.citationRows[0].params.find((param) => param.name === "language")
+            .value,
+        "zh-Hans",
+    );
+    assert.equal(
+        form.citationRows[0].params.some((param) => param.name === "website"),
+        false,
+    );
     assert.equal(historyJsonOpen.value, false);
     assert.equal(JSON.parse(historyJsonText.value).data.version, 1);
 });

@@ -116,13 +116,33 @@ test("saveFormHistory stores input and minimal source-keyed patches", () => {
                             name: "title",
                             value: "Generated title",
                         },
+                        {
+                            name: "url",
+                            value: "https://example.test/source",
+                        },
+                        {
+                            name: "language",
+                            value: "en",
+                        },
+                        {
+                            name: "website",
+                            value: "Generated site",
+                        },
                     ],
                     index: 1,
                     modified: true,
                     params: [
                         {
                             name: "title",
-                            value: "Patched title",
+                            value: "Generated title",
+                        },
+                        {
+                            name: "url",
+                            value: "https://example.test/source",
+                        },
+                        {
+                            name: "language",
+                            value: "zh-Hans",
                         },
                     ],
                     sourceUrl: "https://example.test/source",
@@ -188,11 +208,17 @@ test("saveFormHistory stores input and minimal source-keyed patches", () => {
         },
     });
     assert.equal(
-        entry.data.patches.citations[0].params[0].value,
-        "Patched title",
-    );
-    assert.equal(
         entry.data.patches.citations[0].sourceUrl,
         "https://example.test/source",
     );
+    assert.deepEqual(entry.data.patches.citations[0].params, [
+        {
+            name: "language",
+            value: "zh-Hans",
+        },
+        {
+            name: "website",
+            value: null,
+        },
+    ]);
 });

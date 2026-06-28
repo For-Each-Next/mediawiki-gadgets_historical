@@ -333,7 +333,7 @@ function getCitationPatches(form) {
         .filter((row) => row.modified === true)
         .map((row) => ({
             sourceUrl: row.sourceUrl,
-            params: cloneValue(row.params || []),
+            params: getCitationParamPatches(row),
             ...createChangedValuePatch(
                 {
                     template: row.template,
@@ -342,6 +342,31 @@ function getCitationPatches(form) {
                     template: "cite web",
                 },
             ),
+        }));
+}
+
+/**
+ * Gets citation parameter patches keyed by parameter name.
+ *
+ * @param {object} row - Citation row.
+ * @returns {Array<object>} Citation parameter patches.
+ */
+function getCitationParamPatches(row) {
+    const params = new Map(
+        (row.params || []).map((param) => [param.name, param.value]),
+    );
+    const generatedParams = new Map(
+        (row.generatedParams || []).map((param) => [param.name, param.value]),
+    );
+    const names = new Set([...params.keys(), ...generatedParams.keys()]);
+
+    return Array.from(names)
+        .filter((name) =>
+            !isSameJsonValue(params.get(name), generatedParams.get(name)),
+        )
+        .map((name) => ({
+            name,
+            value: params.has(name) ? params.get(name) : null,
         }));
 }
 

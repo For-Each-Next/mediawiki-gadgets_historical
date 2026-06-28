@@ -4227,10 +4227,42 @@ function applyCitationPatches(rows, patches = []) {
         return createCitationRow({
             ...row,
             ...cloneValue(patch),
+            params: applyCitationParamPatches(
+                row.generatedParams,
+                patch.params,
+            ),
             modified: true,
             sourceUrl: row.sourceUrl,
         });
     });
+}
+
+/**
+ * Applies citation parameter patches to generated parameters.
+ *
+ * @param {Array<object>} generatedParams - Generated citation parameters.
+ * @param {Array<object>} patches - Citation parameter patches.
+ * @returns {Array<object>} Patched citation parameters.
+ */
+function applyCitationParamPatches(generatedParams = [], patches = []) {
+    const params = new Map(
+        cloneValue(generatedParams).map((param) => [param.name, param]),
+    );
+
+    patches.forEach((patch) => {
+        if (trimFieldValue(patch?.name) === "") {
+            return;
+        }
+
+        if (patch.value == null || trimFieldValue(patch.value) === "") {
+            params.delete(patch.name);
+            return;
+        }
+
+        params.set(patch.name, cloneValue(patch));
+    });
+
+    return Array.from(params.values());
 }
 
 /**

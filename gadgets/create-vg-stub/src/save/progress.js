@@ -4,6 +4,8 @@
  * Persists and renders article-save progress across navigation.
  */
 
+import { NEW_PAGE_LIST_TITLE } from "../handlers/new-page-list.js";
+
 export const SAVE_PROGRESS_STORAGE_KEY = "create-vg-stub-save-progress";
 
 /**
@@ -27,6 +29,7 @@ export function createSaveProgress(
             label: `Save page: ${title}`,
             parts: [{ text: "Save page: " }, { code: title }],
             status: "pending",
+            targetPage: title,
         },
     ];
 
@@ -36,6 +39,7 @@ export function createSaveProgress(
             label: `Move page to ${move.to}`,
             parts: [{ text: "Move page to " }, { code: move.to }],
             status: "pending",
+            targetPage: title,
         });
     }
 
@@ -47,6 +51,7 @@ export function createSaveProgress(
                 label: action.label,
                 parts: buildActionProgressParts(action, title),
                 status: "pending",
+                targetPage: getActionTargetPage(action, title),
             });
         });
 
@@ -56,6 +61,7 @@ export function createSaveProgress(
             label: `Register new page: ${title}`,
             parts: [{ text: "Register new page: " }, { code: title }],
             status: "pending",
+            targetPage: NEW_PAGE_LIST_TITLE,
         });
     }
 
@@ -65,6 +71,37 @@ export function createSaveProgress(
         steps,
         title,
     };
+}
+
+/**
+ * Finds the wiki page updated by a follow-up action.
+ *
+ * @param {object} action - Selected follow-up action.
+ * @param {string} title - Submitted article title.
+ * @returns {string} Target page title.
+ */
+function getActionTargetPage(action, title) {
+    if (action.type === "interwiki") {
+        return action.wikidataId ? `Wikidata:${action.wikidataId}` : title;
+    }
+
+    if (action.type === "redirect") {
+        return action.pageTitle || action.redirectTitle || title;
+    }
+
+    if (action.type === "talk-banner") {
+        return `Talk:${action.pageTitle || title}`;
+    }
+
+    if (action.type === "category") {
+        return action.pageTitle || `Category:${action.category}`;
+    }
+
+    if (action.type === "page-edit") {
+        return action.pageTitle || action.title || title;
+    }
+
+    return action.pageTitle || title;
 }
 
 /**
@@ -207,10 +244,11 @@ export function renderSaveProgress(progress, documentRef = document) {
         skipped: "⏭️",
     };
     const rows = progress.steps
-        .map(
-            (step) =>
-                `<li data-status="${step.status}"><strong>${escapeHtml(statusLabels[step.status] || step.status)}</strong> ${renderStepParts(step)}</li>`,
+        .reduce(
+            (groups, step) => addStepToTargetGroup(groups, step, progress),
+            [],
         )
+        .map((group) => renderProgressGroup(group, statusLabels))
         .join("");
     const error = progress.error
         ? `<p style="color:var(--color-error,#b32424)">${escapeHtml(progress.error)}</p>`
@@ -218,26 +256,99 @@ export function renderSaveProgress(progress, documentRef = document) {
     const complete = progress.steps.every((step) =>
         ["complete", "skipped"].includes(step.status),
     );
-    const closeButton = complete
-        ? '<button type="button" data-action="close" style="background:var(--background-color-interactive-subtle,#f8f9fa);border:1px solid var(--border-color-base,#a2a9b1);color:var(--color-base,#202122);float:right">Close</button>'
-        : "";
+    const title = complete ? "Article creation complete" : "Creating article";
 
     layer.innerHTML =
-        '<div style="background:var(--background-color-base,#fff);border:1px solid var(--border-color-base,#a2a9b1);border-radius:0.25em;box-shadow:var(--box-shadow-drop-medium,0 0.125em 0.5em rgb(0 0 0 / 30%));color:var(--color-base,#202122);max-width:min(90vw,40em);padding:1.5em;width:100%">' +
-        closeButton +
-        `<h2>${complete ? "Article creation complete" : "Creating article"}</h2>` +
-        `<ul style="display:grid;gap:0.5em;padding-left:1.5em">${rows}</ul>` +
+        '<div class="cdx-dialog create-vg-stub-save-progress-dialog" role="dialog" aria-modal="true" aria-labelledby="create-vg-stub-save-progress-title" style="background:var(--background-color-base,#fff);border:1px solid var(--border-color-base,#a2a9b1);box-shadow:var(--box-shadow-drop-medium,0 0.125em 0.5em rgb(0 0 0 / 30%));color:var(--color-base,#202122);display:flex;flex-direction:column;max-height:min(90vh,40em);max-width:min(90vw,40em);width:100%">' +
+        '<header class="cdx-dialog__header" style="border-bottom:1px solid var(--border-color-subtle,#c8ccd1);padding:1em 1.5em">' +
+        `<h2 class="cdx-dialog__title" id="create-vg-stub-save-progress-title" style="font-size:1.25em;font-weight:700;line-height:1.6;margin:0">${title}</h2>` +
+        "</header>" +
+        '<div class="cdx-dialog__body" style="overflow:auto;padding:1em 1.5em">' +
+        `<div style="display:grid;gap:1em">${rows}</div>` +
         error +
+        "</div>" +
         "</div>";
 
-    layer
-        .querySelector('[data-action="close"]')
-        ?.addEventListener("click", () => {
-            sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
-            layer.remove();
-        });
-
     return layer;
+}
+
+/**
+ * Adds a progress step to its target-page group.
+ *
+ * @param {Array<object>} groups - Existing target-page groups.
+ * @param {object} step - Progress step.
+ * @param {object} progress - Save progress state.
+ * @returns {Array<object>} Updated target-page groups.
+ */
+function addStepToTargetGroup(groups, step, progress) {
+    const targetPage =
+        step.targetPage || getStoredStepTargetPage(step, progress);
+    const group = groups.find((item) => item.targetPage === targetPage);
+
+    if (group == null) {
+        groups.push({
+            steps: [step],
+            targetPage,
+        });
+    } else {
+        group.steps.push(step);
+    }
+
+    return groups;
+}
+
+/**
+ * Infers target pages for progress stored before target pages were persisted.
+ *
+ * @param {object} step - Stored progress step.
+ * @param {object} progress - Save progress state.
+ * @returns {string} Target page title.
+ */
+function getStoredStepTargetPage(step, progress) {
+    if (step.id === "new-page-list") {
+        return NEW_PAGE_LIST_TITLE;
+    }
+
+    if (step.id === "talk-banner") {
+        return `Talk:${progress.title}`;
+    }
+
+    if (step.id?.startsWith("category:")) {
+        return `Category:${step.id.slice("category:".length)}`;
+    }
+
+    if (step.id?.startsWith("redirect:")) {
+        return step.id.slice("redirect:".length);
+    }
+
+    if (step.id?.startsWith("page-edit:")) {
+        return step.id.slice("page-edit:".length);
+    }
+
+    return progress.title;
+}
+
+/**
+ * Renders one target-page progress group.
+ *
+ * @param {object} group - Target-page progress group.
+ * @param {object} statusLabels - Status labels keyed by status.
+ * @returns {string} Escaped group markup.
+ */
+function renderProgressGroup(group, statusLabels) {
+    const rows = group.steps
+        .map(
+            (step) =>
+                `<li data-status="${step.status}"><strong>${escapeHtml(statusLabels[step.status] || step.status)}</strong> ${renderStepParts(step)}</li>`,
+        )
+        .join("");
+
+    return (
+        '<section class="create-vg-stub-save-progress-group" style="border:1px solid var(--border-color-subtle,#c8ccd1);padding:0.75em 1em">' +
+        `<h3 style="font-size:1em;font-weight:700;line-height:1.6;margin:0 0 0.5em">Target page: <code>${escapeHtml(group.targetPage)}</code></h3>` +
+        `<ul style="display:grid;gap:0.5em;margin:0;padding-left:1.5em">${rows}</ul>` +
+        "</section>"
+    );
 }
 
 /**

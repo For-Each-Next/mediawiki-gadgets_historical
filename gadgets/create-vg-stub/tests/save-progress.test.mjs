@@ -124,6 +124,93 @@ test("renderSaveProgress uses bullets and code-wrapped titles", () => {
     assert.equal(layer.innerHTML.includes(" to "), true);
 });
 
+test("renderSaveProgress groups steps by edited target page", () => {
+    const documentRef = createDocumentStub();
+    const progress = createSaveProgress(
+        "Example",
+        [
+            {
+                id: "redirect:Alias",
+                label: "Redirect name: Alias to Example",
+                pageTitle: "Alias",
+                redirectTitle: "Alias",
+                selected: true,
+                type: "redirect",
+            },
+            {
+                id: "talk-banner",
+                label: "Add WikiProject Video games banner to Talk:Example",
+                pageTitle: "Example",
+                selected: true,
+                type: "talk-banner",
+            },
+            {
+                id: "page-edit:Template:Example",
+                label: "Edit page: Template:Example",
+                pageTitle: "Template:Example",
+                selected: true,
+                title: "Template:Example",
+                type: "page-edit",
+            },
+        ],
+        {},
+        {
+            enabled: true,
+        },
+    );
+    const layer = renderSaveProgress(progress, documentRef);
+
+    assert.equal(
+        layer.innerHTML.includes("Target page: <code>Example</code>"),
+        true,
+    );
+    assert.equal(
+        layer.innerHTML.includes("Target page: <code>Alias</code>"),
+        true,
+    );
+    assert.equal(
+        layer.innerHTML.includes("Target page: <code>Talk:Example</code>"),
+        true,
+    );
+    assert.equal(
+        layer.innerHTML.includes("Target page: <code>Template:Example</code>"),
+        true,
+    );
+    assert.equal(
+        layer.innerHTML.includes(
+            "Target page: <code>WikiProject:电子游戏/新进条目</code>",
+        ),
+        true,
+    );
+    assert.equal(
+        layer.innerHTML.includes('class="create-vg-stub-save-progress-group"'),
+        true,
+    );
+});
+
+test("renderSaveProgress uses a Codex-style waiting frame", () => {
+    const documentRef = createDocumentStub();
+    const progress = updateSaveProgress(
+        createSaveProgress("Example"),
+        "save",
+        "complete",
+    );
+    const layer = renderSaveProgress(progress, documentRef);
+
+    assert.equal(
+        layer.innerHTML.includes(
+            'class="cdx-dialog create-vg-stub-save-progress-dialog"',
+        ),
+        true,
+    );
+    assert.equal(layer.innerHTML.includes('class="cdx-dialog__header"'), true);
+    assert.equal(layer.innerHTML.includes('class="cdx-dialog__body"'), true);
+    assert.equal(layer.innerHTML.includes('data-action="close"'), false);
+    assert.equal(layer.innerHTML.includes("cdx-button"), false);
+    assert.equal(layer.innerHTML.includes("cdx-dialog__footer"), false);
+    assert.equal(layer.innerHTML.includes("float:right"), false);
+});
+
 function createDocumentStub() {
     let layer;
 

@@ -1183,7 +1183,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.equal(pageEditOpen.value, false);
     assert.deepEqual(existingRow.pendingEdit, {
         create: false,
-        summary: "Update Template:Example series",
+        summary: "Update navbox for [[Example]]",
         text: "{{Edited navbox}}",
         title: "Template:Example series",
     });
@@ -1202,7 +1202,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     component.methods.stagePageEdit();
     assert.deepEqual(missingRow.pendingEdit, {
         create: true,
-        summary: "Create Template:Missing series",
+        summary: "Create navbox for [[Example]]",
         text: "{{New navbox}}",
         title: "Template:Missing series",
     });

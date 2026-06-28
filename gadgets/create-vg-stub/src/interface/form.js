@@ -2512,15 +2512,29 @@ export function createDialogComponent(Vue, options) {
 
         row.pendingEdit = {
             create: pageEditState.create,
-            summary: pageEditState.create
-                ? `Create ${pageEditState.title}`
-                : `Update ${pageEditState.title}`,
+            summary: buildPageEditSummary(pageEditState),
             text: pageEditState.text,
             title: pageEditState.title,
         };
         row.enabled = true;
         row.status = pageEditState.create ? "Pending creation" : "Pending edit";
         pageEditOpen.value = false;
+    }
+
+    /**
+     * Builds the edit summary for one staged page edit.
+     *
+     * @param {object} state - Page edit state.
+     * @returns {string} Edit summary text.
+     */
+    function buildPageEditSummary(state) {
+        const action = state.create ? "Create" : "Update";
+        const title =
+            state.kind === "navbox"
+                ? `navbox for [[${currentTitle}]]`
+                : state.title;
+
+        return `${action} ${title}`;
     }
 
     /**

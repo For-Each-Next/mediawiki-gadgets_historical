@@ -191,9 +191,9 @@ function createNameMarketTemplate() {
             createElement(
                 "span",
                 {
-                    class: "create-vg-stub-name-market-label",
+                    "aria-hidden": "true",
+                    class: "create-vg-stub-name-market-separator",
                 },
-                [createText("Regions:")],
             ),
             createElement(
                 "cdx-checkbox",

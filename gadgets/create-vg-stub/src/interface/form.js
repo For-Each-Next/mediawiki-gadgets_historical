@@ -156,6 +156,11 @@ const DIALOG_CSS = new StyleSheet()
         gridColumn: "1 / -1",
         overflowWrap: "anywhere",
     })
+    .add(".create-vg-stub-name-market-separator", {
+        alignSelf: "center",
+        borderLeft: "1px solid var(--border-color-base, #a2a9b1)",
+        height: "1.5em",
+    })
     .add(".create-vg-stub-horizontal-list", {
         display: "flex",
         flexWrap: "wrap",

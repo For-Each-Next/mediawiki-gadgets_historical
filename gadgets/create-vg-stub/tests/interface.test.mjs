@@ -1704,7 +1704,7 @@ test("Clear resets fields and helper state across all tabs", async () => {
     assert.equal(component.template.includes('v-on:click="clearForm"'), true);
 });
 
-test("localized name rows visually distinguish official and regions", () => {
+test("localized name rows separate official and region checkboxes", () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub(),
@@ -1712,10 +1712,11 @@ test("localized name rows visually distinguish official and regions", () => {
 
     assert.equal(
         component.template.includes(
-            '<span class="create-vg-stub-name-market-label">Regions:</span>',
+            '<span aria-hidden="true" class="create-vg-stub-name-market-separator"></span>',
         ),
         true,
     );
+    assert.equal(component.template.includes("Regions:"), false);
 });
 
 test("Clear removes all localized name rows", () => {

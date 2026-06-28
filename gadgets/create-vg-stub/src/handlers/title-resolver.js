@@ -16,6 +16,7 @@ const DEFAULT_BATCH_SIZE = 50;
  * @param {Function} [config.getRedirectTarget] - Page-property redirect reader.
  * @param {string} [config.prop] - MediaWiki prop query.
  * @param {string} [config.pageProps] - MediaWiki pageprops keys.
+ * @param {boolean} [config.variantFallback] - Whether to query Hans/Hant fallbacks after exact misses.
  * @param {object} [options] - Request options.
  * @param {boolean} [options.bypassCache] - Whether to ignore cached entries.
  * @param {object} [options.cache] - Resolution cache.
@@ -148,77 +149,178 @@ export function normalizeTitleKey(value, namespace) {
 }
 
 async function fetchTitleResolutions(titles, config, options) {
+    if (config.variantFallback === true) {
+        return fetchVariantFallbackTitleResolutions(titles, config, options);
+    }
+
     try {
         const data = await fetchTitleQuery(titles, config, options);
-        const resolutions = Object.fromEntries(
-            titles.map((title) => {
-                const key = normalizeTitleKey(title, config.namespace);
-                const resolution = createResolution(title, data, config);
+        const resolutions = createResolutions(titles, data, config);
+        return finalizeTitleResolutions(resolutions, config, options);
+    } catch (_error) {
+        return createMissingResolutions(titles, config);
+    }
+}
 
-                return [key, resolution];
-            }),
-        );
-        const redirectTargets = uniqueValues(
-            Object.values(resolutions)
-                .map((resolution) => resolution.redirectTarget)
-                .filter(Boolean),
+async function fetchVariantFallbackTitleResolutions(titles, config, options) {
+    try {
+        const directData = await fetchTitleQuery(titles, config, options, {
+            convertTitles: false,
+        });
+        const resolutions = createResolutions(titles, directData, config);
+        const missingTitles = titles.filter(
+            (title) =>
+                !resolutions[normalizeTitleKey(title, config.namespace)]
+                    ?.exists,
         );
 
-        if (redirectTargets.length > 0) {
-            const redirectData = await fetchTitleQuery(
-                redirectTargets,
-                config,
-                options,
+        if (missingTitles.length > 0) {
+            const variantResolutionSets = await Promise.all(
+                ["zh-hans", "zh-hant"].map(async (variant) =>
+                    createResolutions(
+                        missingTitles,
+                        await fetchTitleQuery(
+                            missingTitles,
+                            config,
+                            {
+                                ...options,
+                                variant,
+                            },
+                            {
+                                convertTitles: true,
+                            },
+                        ),
+                        config,
+                    ),
+                ),
             );
 
-            redirectTargets.forEach((title) => {
+            missingTitles.forEach((title) => {
                 const key = normalizeTitleKey(title, config.namespace);
 
-                resolutions[key] = createResolution(
+                resolutions[key] = chooseVariantResolution(
                     title,
-                    redirectData,
-                    config,
+                    config.namespace,
+                    [
+                        resolutions[key],
+                        ...variantResolutionSets.map((set) => set[key]),
+                    ],
                 );
             });
         }
 
-        const finalResolutions = Object.fromEntries(
-            Object.entries(resolutions).map(([key, resolution]) => {
-                const finalResolution = followMetadataRedirect(
-                    resolution,
-                    resolutions,
-                    config,
-                );
-
-                return [key, finalResolution];
-            }),
-        );
-
-        return addResolutionAliases(finalResolutions, config.namespace);
+        return finalizeTitleResolutions(resolutions, config, options);
     } catch (_error) {
-        return Object.fromEntries(
-            titles.map((title) => {
-                const bareTitle = stripNamespace(title, config.namespace);
-                const resolution = {
-                    exists: false,
-                    page: undefined,
-                    redirectTarget: undefined,
-                    requestedTitle: bareTitle,
-                    title: bareTitle,
-                };
-
-                return [
-                    normalizeTitleKey(title, config.namespace),
-                    resolution,
-                ];
-            }),
-        );
+        return createMissingResolutions(titles, config);
     }
 }
 
-async function fetchTitleQuery(titles, config, options) {
+async function finalizeTitleResolutions(resolutions, config, options) {
+    const redirectTargets = uniqueValues(
+        Object.values(resolutions)
+            .map((resolution) => resolution.redirectTarget)
+            .filter(Boolean),
+    );
+
+    if (redirectTargets.length > 0) {
+        const redirectData = await fetchTitleQuery(
+            redirectTargets,
+            config,
+            options,
+        );
+
+        redirectTargets.forEach((title) => {
+            const key = normalizeTitleKey(title, config.namespace);
+
+            resolutions[key] = createResolution(title, redirectData, config);
+        });
+    }
+
+    const finalResolutions = Object.fromEntries(
+        Object.entries(resolutions).map(([key, resolution]) => {
+            const finalResolution = followMetadataRedirect(
+                resolution,
+                resolutions,
+                config,
+            );
+
+            return [key, finalResolution];
+        }),
+    );
+
+    return addResolutionAliases(finalResolutions, config.namespace);
+}
+
+function createResolutions(titles, data, config) {
+    return Object.fromEntries(
+        titles.map((title) => {
+            const key = normalizeTitleKey(title, config.namespace);
+            const resolution = createResolution(title, data, config);
+
+            return [key, resolution];
+        }),
+    );
+}
+
+function createMissingResolutions(titles, config) {
+    return Object.fromEntries(
+        titles.map((title) => {
+            const bareTitle = stripNamespace(title, config.namespace);
+            const resolution = {
+                exists: false,
+                page: undefined,
+                redirectTarget: undefined,
+                requestedTitle: bareTitle,
+                title: bareTitle,
+            };
+
+            return [normalizeTitleKey(title, config.namespace), resolution];
+        }),
+    );
+}
+
+function chooseVariantResolution(requestedTitle, namespace, resolutions) {
+    const existing = resolutions.filter((resolution) => resolution?.exists);
+
+    if (existing.length === 0) {
+        return resolutions.find(Boolean);
+    }
+
+    const requested = stripNamespace(requestedTitle, namespace);
+    const exact = existing.find(
+        (resolution) => stripNamespace(resolution.title, namespace) === requested,
+    );
+
+    if (exact != null) {
+        return exact;
+    }
+
+    return existing
+        .map((resolution) => ({
+            resolution,
+            score: getCommonPrefixLength(
+                requested,
+                stripNamespace(resolution.title, namespace),
+            ),
+        }))
+        .sort((left, right) => right.score - left.score)[0].resolution;
+}
+
+function getCommonPrefixLength(left, right) {
+    const leftChars = Array.from(left);
+    const rightChars = Array.from(right);
+    let index = 0;
+
+    while (leftChars[index] != null && leftChars[index] === rightChars[index]) {
+        index += 1;
+    }
+
+    return index;
+}
+
+async function fetchTitleQuery(titles, config, options, queryOptions = {}) {
     const fetcher = options.fetcher || fetch;
-    const url = buildTitleApiUrl(titles, config);
+    const url = buildTitleApiUrl(titles, config, options, queryOptions);
     const response = await fetcher(url, {
         headers: {
             accept: "application/json",
@@ -232,10 +334,9 @@ async function fetchTitleQuery(titles, config, options) {
     return response.json();
 }
 
-function buildTitleApiUrl(titles, config) {
+function buildTitleApiUrl(titles, config, options, queryOptions) {
     const values = {
         action: "query",
-        converttitles: "1",
         format: "json",
         formatversion: "2",
         redirects: "1",
@@ -244,12 +345,20 @@ function buildTitleApiUrl(titles, config) {
             .join("|"),
     };
 
+    if (queryOptions.convertTitles !== false) {
+        values.converttitles = "1";
+    }
+
     if (config.prop) {
         values.prop = config.prop;
     }
 
     if (config.pageProps) {
         values.ppprop = config.pageProps;
+    }
+
+    if (options.variant) {
+        values.variant = options.variant;
     }
 
     const params = new URLSearchParams(values);

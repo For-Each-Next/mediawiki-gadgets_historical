@@ -201,6 +201,7 @@ async function resolveTemplates(templates, options) {
         templates,
         {
             namespace: TEMPLATE_NAMESPACE,
+            variantFallback: true,
         },
         options,
     );

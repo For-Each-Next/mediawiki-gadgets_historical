@@ -141,19 +141,102 @@ test("resolveReviewedNavboxRows replaces a bare textbox title", async () => {
     ]);
 });
 
+test("resolveReviewedNavboxRows preserves exact converted variants", async () => {
+    const rows = await resolveReviewedNavboxRows(["示例游戏", "示例遊戲"], {
+        fetcher: createTemplateFetcher(
+            ["Template:示例游戏", "Template:示例遊戲"],
+            [
+                {
+                    from: "Template:示例游戏",
+                    to: "Template:示例游戏",
+                    variant: "zh-hans",
+                },
+                {
+                    from: "Template:示例游戏",
+                    to: "Template:示例遊戲",
+                    variant: "zh-hant",
+                },
+                {
+                    from: "Template:示例遊戲",
+                    to: "Template:示例游戏",
+                    variant: "zh-hans",
+                },
+                {
+                    from: "Template:示例遊戲",
+                    to: "Template:示例遊戲",
+                    variant: "zh-hant",
+                },
+            ],
+            [],
+            {
+                directMissing: true,
+            },
+        ),
+    });
+
+    assert.equal(rows[0].status, "OK");
+    assert.equal(rows[0].text, "示例游戏");
+    assert.equal(rows[0].title, "示例游戏");
+    assert.equal(rows[1].status, "OK");
+    assert.equal(rows[1].text, "示例遊戲");
+    assert.equal(rows[1].title, "示例遊戲");
+});
+
+test("resolveReviewedNavboxRows fixes mixed converted variants", async () => {
+    const rows = await resolveReviewedNavboxRows(["示例遊戏"], {
+        fetcher: createTemplateFetcher(
+            ["Template:示例游戏", "Template:示例遊戲"],
+            [
+                {
+                    from: "Template:示例遊戏",
+                    to: "Template:示例游戏",
+                    variant: "zh-hans",
+                },
+                {
+                    from: "Template:示例遊戏",
+                    to: "Template:示例遊戲",
+                    variant: "zh-hant",
+                },
+            ],
+            [],
+            {
+                directMissing: true,
+            },
+        ),
+    });
+
+    assert.equal(rows[0].status, "OK");
+    assert.equal(rows[0].text, "示例遊戲");
+    assert.equal(rows[0].title, "示例遊戲");
+});
+
 function createTemplateFetcher(
     existingTitles,
     converted = [],
     redirects = [],
+    fetcherOptions = {},
 ) {
-    return async function fetcher(url, options) {
-        assert.equal(options.headers.accept, "application/json");
+    return async function fetcher(url, requestOptions) {
+        assert.equal(requestOptions.headers.accept, "application/json");
 
-        const titles = new URL(url, "https://example.test").searchParams
-            .get("titles")
-            .split("|");
+        const params = new URL(url, "https://example.test").searchParams;
+        const convertTitles = params.has("converttitles");
+        const variant = params.get("variant");
+        const titles = params.get("titles").split("|");
+        const appliedConversions = [];
         const resolvedTitles = titles.map((title) => {
-            const conversion = converted.find((item) => item.from === title);
+            const conversion = convertTitles
+                ? converted.find(
+                      (item) =>
+                          item.from === title &&
+                          (item.variant == null || item.variant === variant),
+                  )
+                : undefined;
+
+            if (conversion != null) {
+                appliedConversions.push(conversion);
+            }
+
             const convertedTitle = conversion?.to || title;
             const redirect = redirects.find(
                 (item) => item.from === convertedTitle,
@@ -167,12 +250,15 @@ function createTemplateFetcher(
             async json() {
                 return {
                     query: {
-                        converted,
+                        converted: appliedConversions,
                         redirects,
                         pages: resolvedTitles.map((title) => ({
-                            missing: existingTitles.includes(title)
-                                ? undefined
-                                : true,
+                            missing:
+                                !convertTitles && fetcherOptions.directMissing
+                                    ? true
+                                    : existingTitles.includes(title)
+                                      ? undefined
+                                      : true,
                             title,
                         })),
                     },

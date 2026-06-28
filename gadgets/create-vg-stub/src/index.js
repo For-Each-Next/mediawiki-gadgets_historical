@@ -734,7 +734,7 @@ function init(require) {
         onEnwikiTitleChange: fetchEnwikiMetadata,
         onParsePreview: parsePreviewText,
         onPreview: (...args) => previewForm(...args, citationStore),
-        onFormChange: saveFormDraft,
+        onFormChange: (form) => saveFormDraft(form, defaultName),
         onMoveTarget: (...args) => openTargetPage(...args, citationStore),
         onPrepareCompanyCategory: prepareCompanyCategoryText,
         onPrepareCitations: (form) =>

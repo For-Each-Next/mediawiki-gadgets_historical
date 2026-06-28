@@ -660,6 +660,7 @@ export function createDialogComponent(Vue, options) {
     });
     const historyEntries = Vue.ref(options.getHistoryEntries());
     const historyJsonError = Vue.ref("");
+    const historyJsonEditable = Vue.ref(false);
     const historyJsonOpen = Vue.ref(false);
     const historyJsonText = Vue.ref("");
     const historyOpen = Vue.ref(false);
@@ -947,19 +948,34 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Formats one history entry page label for display.
+             *
+             * @param {object} entry - History entry.
+             * @returns {string} Display page label.
+             */
+            formatHistoryEntryPage(entry) {
+                const page = trimFieldValue(entry.metadata?.page);
+
+                if (entry.metadata?.temporary === true) {
+                    return `${page || "Untitled"} (temporary draft)`;
+                }
+
+                return page || "(untitled)";
+            },
+
+            /**
              * Fills the current form from a history entry.
              *
              * @param {object} entry - History entry.
-             * @param {object} entry.form - Stored form values.
              * @returns {void}
              */
             async fillHistoryEntry(entry) {
                 replaceFormValues(form, getHistoryEntryForm(entry));
                 syncGeneratedNameNoteTaRow(form);
                 navboxRowsPrepared = false;
+                historyOpen.value = false;
                 await refreshCitationRows();
                 await refreshReview();
-                historyOpen.value = false;
             },
 
             /**
@@ -970,7 +986,20 @@ export function createDialogComponent(Vue, options) {
              */
             openHistoryJsonDialog(entry) {
                 historyJsonError.value = "";
+                historyJsonEditable.value = entry.metadata?.temporary === true;
                 historyJsonText.value = JSON.stringify(entry, null, 2);
+                historyJsonOpen.value = true;
+            },
+
+            /**
+             * Opens the history JSON dialog for importing values.
+             *
+             * @returns {void}
+             */
+            openHistoryImportDialog() {
+                historyJsonError.value = "";
+                historyJsonEditable.value = true;
+                historyJsonText.value = "";
                 historyJsonOpen.value = true;
             },
 
@@ -1025,6 +1054,16 @@ export function createDialogComponent(Vue, options) {
              */
             deleteHistoryEntry(id) {
                 options.onDeleteHistoryEntry(id);
+                historyEntries.value = options.getHistoryEntries();
+            },
+
+            /**
+             * Updates the temporary draft row from current form values.
+             *
+             * @returns {void}
+             */
+            updateTemporaryHistoryEntry() {
+                options.onFormChange(form);
                 historyEntries.value = options.getHistoryEntries();
             },
 
@@ -1995,6 +2034,7 @@ export function createDialogComponent(Vue, options) {
                 getEnwikiTipLinks,
                 getWikidataText,
                 historyEntries,
+                historyJsonEditable,
                 historyJsonError,
                 historyJsonOpen,
                 historyJsonText,
@@ -3034,11 +3074,12 @@ function createHistoryJsonDialogTemplate() {
         [
             createElement("p", {}, [
                 createText(
-                    "Copy this JSON for debugging, or edit it and import the form values.",
+                    "Copy exported JSON, or paste history JSON and load the form values.",
                 ),
             ]),
             createElement("cdx-text-area", {
                 class: "create-vg-stub-history-json-text",
+                "v-bind:readonly": "!historyJsonEditable",
                 "v-model": "historyJsonText",
                 rows: "12",
                 spellcheck: "false",
@@ -3067,7 +3108,7 @@ function createHistoryJsonDialogTemplate() {
                                 weight: "primary",
                                 "v-on:click": "importHistoryJson",
                             },
-                            [createText("Fill")],
+                            [createText("Load")],
                         ),
                         createElement(
                             "cdx-button",
@@ -3125,7 +3166,9 @@ function createHistoryEntryTemplate() {
         [
             createElement("div", {}, [
                 createElement("div", {}, [
-                    createText("{{ index + 1 }}. {{ entry.page }}"),
+                    createText(
+                        "{{ index + 1 }}. {{ formatHistoryEntryPage(entry) }}",
+                    ),
                 ]),
                 createElement(
                     "div",
@@ -3135,7 +3178,7 @@ function createHistoryEntryTemplate() {
                             fontSize: "0.75em",
                         },
                     },
-                    [createText("{{ entry.savedAt }}")],
+                    [createText("{{ entry.metadata.savedAt }}")],
                 ),
             ]),
             createElement(
@@ -3143,22 +3186,30 @@ function createHistoryEntryTemplate() {
                 {
                     "v-on:click": "fillHistoryEntry(entry)",
                 },
-                [createText("Fill")],
+                [createText("Load")],
             ),
             createElement(
                 "cdx-button",
                 {
                     "v-on:click": "openHistoryJsonDialog(entry)",
                 },
-                [createText("Import")],
+                [createText("Export")],
             ),
             createElement(
                 "cdx-button",
                 {
-                    "v-if": "!entry.temporary",
+                    "v-if": "!entry.metadata.temporary",
                     "v-on:click": "deleteHistoryEntry(entry.id)",
                 },
                 [createText("Delete")],
+            ),
+            createElement(
+                "cdx-button",
+                {
+                    "v-if": "entry.metadata.temporary",
+                    "v-on:click": "updateTemporaryHistoryEntry",
+                },
+                [createText("Update")],
             ),
         ],
     );
@@ -3180,7 +3231,16 @@ function createHistoryDialogFooterTemplate() {
                 createElement(
                     "cdx-button",
                     {
-                        "v-bind:disabled": "historyEntries.length === 0",
+                        action: "progressive",
+                        "v-on:click": "openHistoryImportDialog",
+                    },
+                    [createText("Import")],
+                ),
+                createElement(
+                    "cdx-button",
+                    {
+                        "v-bind:disabled":
+                            "!historyEntries.some((entry) => !entry.metadata.temporary)",
                         "v-on:click": "clearHistory",
                     },
                     [createText("Clear")],
@@ -3893,17 +3953,14 @@ function normalizeReceivedFormValues(values) {
  * @returns {object} Restorable form values.
  */
 function getHistoryEntryForm(entry) {
-    if (entry?.data?.input != null) {
+    if (
+        Number.isInteger(entry?.id) &&
+        entry?.data?.input != null &&
+        entry?.metadata != null
+    ) {
         return {
             ...cloneValue(entry.data.input),
             historyPatches: cloneValue(entry.data.patches || {}),
-        };
-    }
-
-    if (entry?.input != null) {
-        return {
-            ...cloneValue(entry.input),
-            historyPatches: cloneValue(entry.patches || {}),
         };
     }
 

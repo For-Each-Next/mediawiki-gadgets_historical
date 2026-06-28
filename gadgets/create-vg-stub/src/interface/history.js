@@ -7,6 +7,7 @@
 const HISTORY_LIMIT = 20;
 const HISTORY_STORAGE_KEY = "create-vg-stub-form-history";
 const DRAFT_STORAGE_KEY = "create-vg-stub-form-draft";
+const DRAFT_PAGE_STORAGE_KEY = "create-vg-stub-form-draft-page";
 const DRAFT_SAVED_AT_STORAGE_KEY = "create-vg-stub-form-draft-saved-at";
 const HISTORY_DATA_VERSION = 1;
 const INPUT_FORM_KEYS = new Set([
@@ -67,7 +68,10 @@ export function readFormDraft() {
 export function readFormDraftForPage(page) {
     const draft = readFormDraft();
 
-    if (draft == null || normalizePage(draft.name) !== normalizePage(page)) {
+    if (
+        draft == null ||
+        normalizePage(readFormDraftPage()) !== normalizePage(page)
+    ) {
         return undefined;
     }
 
@@ -81,6 +85,7 @@ export function readFormDraftForPage(page) {
  */
 export function readFormDraftEntry() {
     const form = readFormDraft();
+    const page = normalizePage(readFormDraftPage());
 
     if (form == null) {
         return undefined;
@@ -88,10 +93,12 @@ export function readFormDraftEntry() {
 
     return {
         data: createHistoryData(form),
-        id: "draft",
-        page: normalizePage(form.name) || "(temporary draft)",
-        savedAt: readFormDraftSavedAt(),
-        temporary: true,
+        id: 0,
+        metadata: {
+            page,
+            savedAt: readFormDraftSavedAt(),
+            temporary: true,
+        },
     };
 }
 
@@ -99,10 +106,12 @@ export function readFormDraftEntry() {
  * Saves the current form draft.
  *
  * @param {object} form - Dialog form values.
+ * @param {string} [page] - Page title associated with the draft.
  * @returns {void}
  */
-export function saveFormDraft(form) {
+export function saveFormDraft(form, page = "") {
     writeStorageItem(DRAFT_STORAGE_KEY, cloneValue(form));
+    writeStorageItem(DRAFT_PAGE_STORAGE_KEY, normalizePage(page));
     writeStorageItem(DRAFT_SAVED_AT_STORAGE_KEY, new Date().toLocaleString());
 }
 
@@ -119,7 +128,9 @@ export function readFormHistory() {
 
         const entries = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY));
 
-        return Array.isArray(entries) ? entries : [];
+        return Array.isArray(entries)
+            ? entries.filter(isFormHistoryEntry)
+            : [];
     } catch (_error) {
         return [];
     }
@@ -209,11 +220,13 @@ function createFormHistoryEntry(form, page, citations) {
     return {
         data: createHistoryData(snapshot, citations),
         id: createHistoryEntryId(snapshot, page),
-        page:
-            normalizePage(page) ||
-            normalizePage(snapshot.name) ||
-            "(untitled)",
-        savedAt: new Date().toLocaleString(),
+        metadata: {
+            page:
+                normalizePage(page) ||
+                normalizePage(snapshot.name) ||
+                "(untitled)",
+            savedAt: new Date().toLocaleString(),
+        },
     };
 }
 
@@ -231,14 +244,39 @@ function getFormHistoryEntry(form, page) {
 }
 
 /**
+ * Checks whether a stored value matches the current history entry shape.
+ *
+ * @param {*} entry - Stored history value.
+ * @returns {boolean} Whether the entry can be used as form history.
+ */
+function isFormHistoryEntry(entry) {
+    return (
+        entry != null &&
+        typeof entry === "object" &&
+        Number.isInteger(entry.id) &&
+        entry.data != null &&
+        typeof entry.data === "object" &&
+        entry.metadata != null &&
+        typeof entry.metadata === "object"
+    );
+}
+
+/**
  * Creates a stable history entry ID.
  *
  * @param {object} form - Stored form values.
  * @param {string} page - Page title associated with the snapshot.
- * @returns {string} History entry ID.
+ * @returns {number} History entry ID.
  */
 function createHistoryEntryId(form, page) {
-    return JSON.stringify([normalizePage(page), form]);
+    const text = JSON.stringify([normalizePage(page), form]);
+    let hash = 2166136261;
+
+    for (const character of text) {
+        hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+    }
+
+    return hash >>> 0 || 1;
 }
 
 /**
@@ -546,6 +584,19 @@ function readFormDraftSavedAt() {
         return JSON.parse(localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY));
     } catch (_error) {
         return "Temporary draft";
+    }
+}
+
+/**
+ * Reads the page title associated with the current draft.
+ *
+ * @returns {string} Draft page title.
+ */
+function readFormDraftPage() {
+    try {
+        return JSON.parse(localStorage.getItem(DRAFT_PAGE_STORAGE_KEY));
+    } catch (_error) {
+        return "";
     }
 }
 

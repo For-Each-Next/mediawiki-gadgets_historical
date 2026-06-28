@@ -94,9 +94,11 @@ test("history JSON can be copied, edited, and imported", async () => {
             patches: {},
             version: 1,
         },
-        id: "stored-entry",
-        page: "Stored page",
-        savedAt: "2026-06-13",
+        id: 1,
+        metadata: {
+            page: "Stored page",
+            savedAt: "2026-06-13",
+        },
     };
     const component = createDialogComponent(
         createVueStub(),
@@ -108,6 +110,7 @@ test("history JSON can be copied, edited, and imported", async () => {
     );
     const {
         form,
+        historyJsonEditable,
         historyJsonError,
         historyJsonOpen,
         historyJsonText,
@@ -118,6 +121,7 @@ test("history JSON can be copied, edited, and imported", async () => {
     component.methods.openHistoryJsonDialog(entry);
 
     assert.equal(historyJsonOpen.value, true);
+    assert.equal(historyJsonEditable.value, false);
     assert.deepEqual(JSON.parse(historyJsonText.value), entry);
     assert.equal(
         component.template.includes("create-vg-stub-history-json-text"),
@@ -133,6 +137,11 @@ test("history JSON can be copied, edited, and imported", async () => {
             patches: {},
             version: 1,
         },
+        metadata: {
+            page: "Imported page",
+            savedAt: "2026-06-28",
+        },
+        id: 2,
     });
     await component.methods.importHistoryJson();
 
@@ -142,9 +151,40 @@ test("history JSON can be copied, edited, and imported", async () => {
     assert.equal(historyJsonOpen.value, false);
     assert.equal(historyOpen.value, false);
     assert.equal(
-        component.template.indexOf(">Fill<") <
+        component.template.indexOf(">Load<") <
             component.template.indexOf(">Import<"),
         true,
+    );
+});
+
+test("temporary history JSON remains editable", () => {
+    const entry = {
+        data: {
+            input: {
+                name: "Draft name",
+            },
+            patches: {},
+            version: 1,
+        },
+        id: 0,
+        metadata: {
+            page: "Draft name",
+            savedAt: "2026-06-28",
+            temporary: true,
+        },
+    };
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { historyJsonEditable } = component.setup();
+
+    component.methods.openHistoryJsonDialog(entry);
+
+    assert.equal(historyJsonEditable.value, true);
+    assert.equal(
+        component.methods.formatHistoryEntryPage(entry),
+        "Draft name (temporary draft)",
     );
 });
 
@@ -169,7 +209,7 @@ test("invalid history JSON stays open and preserves the form", async () => {
     assert.notEqual(historyJsonError.value, "");
 });
 
-test("legacy history JSON is rejected", async () => {
+test("old-shape history JSON is rejected", async () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub(),
@@ -261,6 +301,11 @@ test("structured history JSON regenerates rows and applies patches", async () =>
             },
             version: 1,
         },
+        metadata: {
+            page: "Imported name",
+            savedAt: "2026-06-28",
+        },
+        id: 3,
     });
     await component.methods.importHistoryJson();
 

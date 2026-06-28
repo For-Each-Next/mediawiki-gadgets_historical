@@ -269,7 +269,10 @@ test("structured history JSON regenerates rows and applies patches", async () =>
     assert.equal(form.categoryRows[0].category, "Patched games");
     assert.equal(form.categoryRows[0].source, "company");
     assert.equal(form.citationRows[0].modified, true);
-    assert.equal(form.citationRows[0].sourceUrl, "https://example.test/source");
+    assert.equal(
+        form.citationRows[0].sourceUrl,
+        "https://example.test/source",
+    );
     assert.equal(form.citationRows[0].params[0].value, "Patched title");
     assert.equal(historyJsonOpen.value, false);
     assert.equal(JSON.parse(historyJsonText.value).data.version, 1);
@@ -434,10 +437,10 @@ test("References tab manages editable citation parameters", async () => {
         ["url", "title"],
     );
     assert.equal(form.citationRows[0].modified, false);
-    assert.deepEqual(
-        groups.map((group) => group.label).slice(-2),
-        ["References", "Checks"],
-    );
+    assert.deepEqual(groups.map((group) => group.label).slice(-2), [
+        "References",
+        "Checks",
+    ]);
     assert.equal(
         component.template.includes("Reference {{ citation.index }}"),
         true,
@@ -638,6 +641,33 @@ test("review exposes editable navboxes and subtle prose length", async () => {
                     ? form.navboxRows
                     : ["{{Foo series}}"];
             },
+            async onPrepareRedirectRows() {
+                return [
+                    {
+                        enabled: true,
+                        exists: false,
+                        status: "Missing",
+                        title: "Example redirect",
+                    },
+                    {
+                        enabled: false,
+                        exists: true,
+                        status: "Exists",
+                        title: "Existing redirect",
+                    },
+                ];
+            },
+            async onCheckRedirectRows(rows) {
+                return rows.map((row) => ({
+                    enabled: row.title !== "Existing redirect",
+                    exists: row.title === "Existing redirect",
+                    status:
+                        row.title === "Existing redirect"
+                            ? "Exists"
+                            : "Missing",
+                    title: row.title,
+                }));
+            },
         }),
     );
     const { form } = component.setup();
@@ -657,6 +687,46 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     form.navboxRows = [];
 
     await component.methods.previewForm();
+    assert.deepEqual(form.redirectRows, [
+        {
+            enabled: true,
+            exists: false,
+            status: "Missing",
+            title: "Example redirect",
+        },
+        {
+            enabled: false,
+            exists: true,
+            status: "Exists",
+            title: "Existing redirect",
+        },
+    ]);
+    assert.equal(
+        component.methods.formatRedirectStatusLabel("Missing"),
+        "New",
+    );
+    form.redirectRows[0].enabled = false;
+    await component.methods.checkRedirectRows();
+    assert.equal(form.redirectRows[0].enabled, true);
+    form.redirectRows[0].title = "Existing redirect";
+    await component.methods.checkRedirectRow(0, {
+        target: {
+            value: "Existing redirect",
+        },
+    });
+    assert.equal(form.redirectRows[0].enabled, false);
+    assert.equal(form.redirectRows[0].exists, true);
+    component.methods.addRedirectRow();
+    assert.equal(form.redirectRows.at(-1).enabled, true);
+    component.methods.removeRedirectRow(form.redirectRows.length - 1);
+    assert.equal(
+        form.redirectRows.some((row) => row.title === ""),
+        false,
+    );
+    component.methods.addCategoryRow();
+    assert.equal(form.categoryRows.length, 1);
+    component.methods.removeCategoryRow(0);
+    assert.equal(form.categoryRows.length, 0);
     assert.deepEqual(form.navboxRows, [
         {
             enabled: true,
@@ -685,9 +755,44 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.deepEqual(form.navboxRows, []);
 
     assert.equal(component.template.includes("<h3>Categories</h3>"), true);
+    assert.equal(
+        component.template.indexOf("<h3>Redirects</h3>") <
+            component.template.indexOf("<h3>Categories</h3>"),
+        true,
+    );
+    assert.equal(
+        component.template.indexOf("<h3>Categories</h3>") <
+            component.template.indexOf("<h3>Navboxes</h3>"),
+        true,
+    );
     assert.equal(component.template.includes("Add category"), true);
+    assert.equal(component.template.includes("Add redirect"), true);
+    assert.equal(component.template.includes("Redirects"), true);
+    assert.equal(component.template.includes("Check redirects"), true);
     assert.equal(component.template.includes("Add navbox"), true);
     assert.equal(component.template.includes("Navboxes"), true);
+    assert.equal(
+        component.template.includes('v-model="redirect.enabled"'),
+        true,
+    );
+    assert.equal(
+        component.template.includes('v-model="redirect.title"'),
+        true,
+    );
+    assert.equal(
+        component.template.includes("create-vg-stub-review-row-converted"),
+        false,
+    );
+    assert.equal(component.template.includes("redirect.variantMixed"), false);
+    assert.equal(component.template.includes("row.variantMixed"), false);
+    assert.equal(
+        component.template.includes("removeRedirectRow(index)"),
+        true,
+    );
+    assert.equal(
+        component.template.includes("removeCategoryRow(index)"),
+        true,
+    );
     assert.equal(
         component.template.includes('v-model="navbox.enabled"'),
         true,
@@ -925,7 +1030,8 @@ test("category helper stages missing category rows for final submission", async 
     assert.equal(companyRow.enabled, true);
     assert.equal(companyRow.status, "Pending creation");
     assert.equal(companyCategoryOpen.value, false);
-    assert.equal(component.template.includes(">Pending</cdx-button>"), true);
+    assert.equal(component.template.includes(">View</cdx-button>"), true);
+    assert.equal(component.template.includes(">Remove</cdx-button>"), true);
     assert.equal(
         component.template.includes(
             'v-on:click="cancelCompanyCategoryCreation"',
@@ -1586,14 +1692,14 @@ test("submit from review opens preview before pre-save fixes", async () => {
     assert.equal(preSaveOpen.value, false);
 });
 
-test("pre-save title choice moves the editing session before saving", async () => {
+test("pre-save keeps the current page title when move is suggested", async () => {
     let submitted;
-    let moved;
+    let moveCount = 0;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
-            onMoveTarget(_form, title) {
-                moved = title;
+            onMoveTarget() {
+                moveCount += 1;
             },
             onPreview() {
                 return {
@@ -1627,25 +1733,32 @@ test("pre-save title choice moves the editing session before saving", async () =
     state.activeTab.value = "review";
     await component.methods.submitForm();
     await component.methods.submitPreviewText();
-    assert.equal(state.preSaveMoveEnabled.value, true);
+    assert.equal(state.preSaveMoveEnabled.value, false);
     assert.equal(state.preSaveMoveTitle.value, "預設中文名");
-    state.preSaveMoveTitle.value = " 中文名 ";
     await component.methods.confirmSubmit();
 
-    assert.equal(moved, "中文名");
-    assert.equal(submitted, undefined);
+    assert.equal(moveCount, 0);
+    assert.equal(submitted.move.enabled, false);
+    assert.equal(submitted.move.to, "Example");
     assert.equal(state.preSaveOpen.value, false);
     assert.equal(
         component.template.includes(
-            "The generated text will use the final title.",
+            "Choose fixes to run after the article is submitted.",
         ),
         true,
     );
+    assert.equal(component.template.includes("Create page at"), false);
+    assert.equal(component.template.includes("Final article title"), false);
+    assert.equal(
+        component.template.includes("Use this title before saving"),
+        false,
+    );
     assert.equal(component.template.includes("{{ action.label }}"), true);
-    assert.equal(component.template.includes("'Continue'"), true);
+    assert.equal(component.template.includes("'Continue'"), false);
+    assert.equal(component.template.includes("'Save'"), true);
 });
 
-test("pre-save title choice can be declined to keep the Latin title", async () => {
+test("pre-save submit uses the current page title", async () => {
     let submitted;
     let moveCount = 0;
     const component = createDialogComponent(
@@ -2018,6 +2131,9 @@ function createOptionsStub(options = {}) {
         getCategoryPageUrl(category) {
             return `/wiki/Category:${category}`;
         },
+        getPageUrl(title) {
+            return `/wiki/${title}`;
+        },
         getTemplatePageUrl(template, edit) {
             return `/wiki/Template:${template}${edit ? "?action=edit" : ""}`;
         },
@@ -2028,6 +2144,9 @@ function createOptionsStub(options = {}) {
         onActivate() {},
         onCategoryRowsRefresh() {},
         onClearHistory() {},
+        async onCheckRedirectRows(rows) {
+            return rows;
+        },
         onCreateCategoryRow() {},
         onDeleteHistoryEntry() {},
         onFormChange() {},
@@ -2038,6 +2157,9 @@ function createOptionsStub(options = {}) {
         },
         onPrepareCompanyCategory() {},
         async onPrepareReview() {
+            return [];
+        },
+        async onPrepareRedirectRows() {
             return [];
         },
         async onPreSavePrepare() {

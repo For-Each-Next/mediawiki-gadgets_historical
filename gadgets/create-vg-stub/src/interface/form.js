@@ -240,6 +240,9 @@ const DIALOG_CSS = new StyleSheet()
         minWidth: "2em",
         padding: "0 0.43em",
     })
+    .add(".create-vg-stub-review-title-cell", {
+        minWidth: "0",
+    })
     .add(".create-vg-stub-company-category-text textarea", {
         fontFamily: "monospace",
     })
@@ -252,6 +255,13 @@ const DIALOG_CSS = new StyleSheet()
         margin: "0.25em 0 0.75em",
     })
     .add(".create-vg-stub-navbox-grid", {
+        display: "grid",
+        gap: "0.25em",
+        gridTemplateColumns:
+            "auto minmax(4.2em, 0.35fr) minmax(12em, 1.6fr) auto auto",
+        marginBottom: "0.75em",
+    })
+    .add(".create-vg-stub-redirect-grid", {
         display: "grid",
         gap: "0.25em",
         gridTemplateColumns:
@@ -596,7 +606,9 @@ export function addDialogStyles() {
  * @param {Function} options.onDeleteHistoryEntry - Form history delete handler.
  * @param {Function} options.onFormChange - Form change handler.
  * @param {Function} options.onMoveTarget - New-page target opener.
+ * @param {Function} options.onCheckRedirectRows - Redirect review row checker.
  * @param {Function} options.onPrepareCompanyCategory - Company category text builder.
+ * @param {Function} options.onPrepareRedirectRows - Redirect review row builder.
  * @param {Function} options.onPrepareReview - Review report builder.
  * @param {Function} options.onSaveNavbox - Navbox template save handler.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
@@ -726,7 +738,7 @@ export function createDialogComponent(Vue, options) {
                 preSaveActions.length,
                 ...(prepared.actions || []),
             );
-            preSaveMoveEnabled.value = prepared.move?.enabled === true;
+            preSaveMoveEnabled.value = false;
             preSaveMoveTitle.value =
                 trimFieldValue(prepared.move?.to) || getCurrentTitle();
         } catch (error) {
@@ -778,6 +790,7 @@ export function createDialogComponent(Vue, options) {
                 reviewState.error = "";
                 sourceFetchState.error = "";
                 navboxRowsPrepared = false;
+                form.redirectRows = null;
             },
 
             /**
@@ -1429,6 +1442,35 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Removes one category row.
+             *
+             * @param {number} index - Category row index.
+             * @returns {void}
+             */
+            removeCategoryRow(index) {
+                form.categoryRows.splice(index, 1);
+            },
+
+            /**
+             * Appends a blank redirect row.
+             *
+             * @returns {void}
+             */
+            addRedirectRow() {
+                ensureRedirectRows(form).push(createRedirectRow());
+            },
+
+            /**
+             * Removes one redirect row.
+             *
+             * @param {number} index - Redirect row index.
+             * @returns {void}
+             */
+            removeRedirectRow(index) {
+                ensureRedirectRows(form).splice(index, 1);
+            },
+
+            /**
              * Appends a blank navbox row.
              *
              * @returns {void}
@@ -1543,6 +1585,41 @@ export function createDialogComponent(Vue, options) {
              */
             async checkNavboxRows() {
                 await refreshNavboxRows(true, false);
+            },
+
+            /**
+             * Refreshes generated redirect rows.
+             *
+             * @returns {Promise<void>} Resolves after redirect rows are refreshed.
+             */
+            async refreshRedirectRows() {
+                await refreshRedirectRows();
+            },
+
+            /**
+             * Checks the current redirect rows.
+             *
+             * @returns {Promise<void>} Resolves after redirect rows are checked.
+             */
+            async checkRedirectRows() {
+                await checkRedirectRows();
+            },
+
+            /**
+             * Checks one edited redirect row after its textbox loses focus.
+             *
+             * @param {number} index - Redirect row index.
+             * @param {Event} event - Text input blur event.
+             * @returns {Promise<void>} Resolves after the row is checked.
+             */
+            async checkRedirectRow(index, event) {
+                const value = event?.target?.value;
+
+                if (value != null && form.redirectRows?.[index] != null) {
+                    form.redirectRows[index].title = trimFieldValue(value);
+                }
+
+                await this.checkRedirectRows();
             },
 
             /**
@@ -1846,6 +1923,33 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Formats a redirect existence status as a compact badge.
+             *
+             * @param {string} status - Redirect existence status.
+             * @returns {string} Compact status label.
+             */
+            formatRedirectStatusLabel(status) {
+                return (
+                    {
+                        Exists: "Exists",
+                        Missing: "New",
+                    }[status] || "Unchecked"
+                );
+            },
+
+            /**
+             * Opens an existing redirect page in the viewer dialog.
+             *
+             * @param {object} row - Redirect review row.
+             * @returns {void}
+             */
+            openRedirectView(row) {
+                const title = trimFieldValue(row.title);
+
+                openPageView(title, options.getPageUrl(title));
+            },
+
+            /**
              * Gets the current generated prose length.
              *
              * @returns {number} Hanzi-equivalent sinograph count.
@@ -1930,7 +2034,10 @@ export function createDialogComponent(Vue, options) {
             categoryState,
             refreshOptions,
         );
-        applyCategoryPatches(form.categoryRows, form.historyPatches?.categories);
+        applyCategoryPatches(
+            form.categoryRows,
+            form.historyPatches?.categories,
+        );
     }
 
     /**
@@ -1945,6 +2052,7 @@ export function createDialogComponent(Vue, options) {
         try {
             await Promise.all([
                 refreshCategoryRows(),
+                refreshRedirectRows(),
                 refreshNavboxRows(false),
             ]);
         } catch (error) {
@@ -2002,7 +2110,9 @@ export function createDialogComponent(Vue, options) {
         }
 
         const rows = applyNavboxPatches(
-            (await options.onPrepareReview(form, rebuild)).map(createNavboxRow),
+            (await options.onPrepareReview(form, rebuild)).map(
+                createNavboxRow,
+            ),
             form.historyPatches?.navboxes,
         );
 
@@ -2027,6 +2137,73 @@ export function createDialogComponent(Vue, options) {
 
         form.navboxRows = rows;
         navboxRowsPrepared = true;
+    }
+
+    /**
+     * Refreshes generated redirect review rows.
+     *
+     * @returns {Promise<void>} Resolves after redirect rows are refreshed.
+     */
+    async function refreshRedirectRows() {
+        if (options.onPrepareRedirectRows == null) {
+            return;
+        }
+
+        if (Array.isArray(form.redirectRows)) {
+            await checkRedirectRows();
+            return;
+        }
+
+        const currentRows = Array.isArray(form.redirectRows)
+            ? form.redirectRows
+            : [];
+        const rows = (
+            await options.onPrepareRedirectRows(form, getCurrentTitle())
+        ).map(createRedirectRow);
+
+        form.redirectRows = rows.map((row) => {
+            const current = currentRows.find(
+                (item) =>
+                    normalizeTitleKey(item.title) ===
+                    normalizeTitleKey(row.title),
+            );
+
+            if (current == null) {
+                return row;
+            }
+
+            row.enabled = !row.exists;
+            return row;
+        });
+    }
+
+    /**
+     * Checks current redirect review rows in place.
+     *
+     * @returns {Promise<void>} Resolves after redirect rows are checked.
+     */
+    async function checkRedirectRows() {
+        if (options.onCheckRedirectRows == null) {
+            return;
+        }
+
+        const currentRows = Array.isArray(form.redirectRows)
+            ? form.redirectRows
+            : [];
+        const rows = (
+            await options.onCheckRedirectRows(currentRows, getCurrentTitle())
+        ).map(createRedirectRow);
+
+        form.redirectRows = rows.map((row, index) => {
+            const current = currentRows[index];
+
+            if (current == null) {
+                return row;
+            }
+
+            row.enabled = !row.exists;
+            return row;
+        });
     }
 
     /**
@@ -2604,33 +2781,9 @@ function createPreSaveDialogTemplate() {
         [
             createElement("p", {}, [
                 createText(
-                    "Choose fixes to run after the article is submitted. The generated text will use the final title.",
+                    "Choose fixes to run after the article is submitted.",
                 ),
             ]),
-            createElement(
-                "cdx-checkbox",
-                {
-                    "v-model": "preSaveMoveEnabled",
-                },
-                [createText("Use this title before saving")],
-            ),
-            createElement(
-                "div",
-                {
-                    "v-if": "preSaveMoveEnabled",
-                    style: {
-                        display: "grid",
-                        gap: "0.5em",
-                        marginLeft: "1.75em",
-                    },
-                },
-                [
-                    createElement("cdx-text-input", {
-                        placeholder: "Final article title",
-                        "v-model": "preSaveMoveTitle",
-                    }),
-                ],
-            ),
             createElement(
                 "div",
                 {
@@ -2699,7 +2852,7 @@ function createPreSaveDialogTemplate() {
                             },
                             [
                                 createText(
-                                    "{{ sourceFetchState.loading ? 'Working' : (preSaveMoveEnabled ? 'Continue' : 'Save') }}",
+                                    "{{ sourceFetchState.loading ? 'Working' : 'Save' }}",
                                 ),
                             ],
                         ),
@@ -3188,6 +3341,7 @@ function createFormValues(defaultName) {
         navboxRows: null,
         noteTaRows: [createNoteTaRow("G1", "Games")],
         publishers: "=",
+        redirectRows: null,
         registerNewPage: true,
         sortKey: "",
     };
@@ -3685,6 +3839,13 @@ function normalizeReceivedFormValues(values) {
         normalized.navboxRows = normalized.navboxRows.map(createNavboxRow);
     }
 
+    if (!Object.hasOwn(normalized, "redirectRows")) {
+        normalized.redirectRows = null;
+    } else if (Array.isArray(normalized.redirectRows)) {
+        normalized.redirectRows =
+            normalized.redirectRows.map(createRedirectRow);
+    }
+
     if (!Array.isArray(normalized.categoryRows)) {
         normalized.categoryRows = [];
     }
@@ -3692,9 +3853,8 @@ function normalizeReceivedFormValues(values) {
     if (!Array.isArray(normalized.citationRows)) {
         normalized.citationRows = [];
     } else {
-        normalized.citationRows = normalized.citationRows.map(
-            createCitationRow,
-        );
+        normalized.citationRows =
+            normalized.citationRows.map(createCitationRow);
     }
 
     if (!Object.hasOwn(normalized, "noteTaNamesRemoved")) {
@@ -3835,7 +3995,10 @@ function applyNavboxPatches(rows, patches = []) {
  */
 function isCategoryPatchTarget(row, patch) {
     if (trimFieldValue(patch.source?.company) !== "") {
-        return trimFieldValue(row.company) === trimFieldValue(patch.source.company);
+        return (
+            trimFieldValue(row.company) ===
+            trimFieldValue(patch.source.company)
+        );
     }
 
     return (
@@ -4016,11 +4179,56 @@ function ensureNavboxRows(form) {
     return form.navboxRows;
 }
 
+/**
+ * Creates one redirect review row.
+ *
+ * @param {*} [value] - Existing row or redirect title.
+ * @returns {object} Redirect review row.
+ */
+function createRedirectRow(value = "") {
+    const title = trimFieldValue(
+        value?.title ?? value?.redirectTitle ?? value,
+    );
+    const exists =
+        value?.exists === true || /^Exists(?::|$)/u.test(value?.status);
+
+    return {
+        enabled: value?.enabled ?? value?.selected ?? !exists,
+        exists,
+        status: value?.status || (exists ? "Exists" : "Missing"),
+        title,
+    };
+}
+
+/**
+ * Ensures the form has editable redirect rows.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<object>} Redirect rows.
+ */
+function ensureRedirectRows(form) {
+    if (!Array.isArray(form.redirectRows)) {
+        form.redirectRows = [];
+    }
+
+    return form.redirectRows;
+}
+
 function hasPreparedNavboxRows(form) {
     return (
         Array.isArray(form.navboxRows) &&
         (form.navboxRows.length > 0 || trimFieldValue(form.series) === "")
     );
+}
+
+/**
+ * Builds a case-insensitive title comparison key.
+ *
+ * @param {*} value - Raw title value.
+ * @returns {string} Title comparison key.
+ */
+function normalizeTitleKey(value) {
+    return trimFieldValue(value).toLocaleLowerCase();
 }
 
 /**
@@ -4114,7 +4322,9 @@ function getCitationParamRows(citation) {
  * @returns {boolean} Whether the row should be kept.
  */
 function hasCitationParamValue(param) {
-    return trimFieldValue(param.name) !== "" || trimFieldValue(param.value) !== "";
+    return (
+        trimFieldValue(param.name) !== "" || trimFieldValue(param.value) !== ""
+    );
 }
 
 /**

@@ -65,9 +65,11 @@ import { buildEditSummary } from "./editing/summary.js";
 import { updateMovedTitleText } from "./editing/title-move.js";
 import {
     buildPreSaveActions,
+    buildRedirectRows,
+    buildRedirectRowsFromTitles,
     buildRedirectTitles,
-    buildTitleFix,
     fetchExistingPageTitles,
+    getRedirectTitleCheckTitles,
     runSelectedActions,
 } from "./editing/pre-save.js";
 import { saveNavboxTemplate } from "./handlers/navbox-pages.js";
@@ -165,6 +167,14 @@ function getDefaultName() {
  */
 const getCategoryPageUrl = (category) =>
     mw.util.getUrl(`Category:${category}`);
+
+/**
+ * Builds a page URL.
+ *
+ * @param {string} title - Page title.
+ * @returns {string} Page URL.
+ */
+const getPageUrl = (title) => mw.util.getUrl(title);
 
 /**
  * Builds a template page URL.
@@ -696,6 +706,7 @@ function init(require) {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
         defaultName,
         getCategoryPageUrl,
+        getPageUrl,
         getTemplatePageUrl,
         getHistoryEntries: readFormHistoryEntries,
         getFieldPlaceholder,
@@ -728,21 +739,44 @@ function init(require) {
         onPrepareCompanyCategory: prepareCompanyCategoryText,
         onPrepareCitations: (form) =>
             prepareManagedCitationRows(form, citationStore),
-        onPrepareReview: prepareNavboxRows,
-        async onPreSavePrepare(form, title) {
+        async onPrepareRedirectRows(form, title) {
             const redirectTitles = buildRedirectTitles(form, title);
             const existingRedirectTitles = await fetchExistingPageTitles(
                 new mw.Api(),
-                redirectTitles,
+                getRedirectTitleCheckTitles(redirectTitles),
             );
-            const metadata = { form, title };
+
+            return buildRedirectRows(form, title, existingRedirectTitles);
+        },
+        async onCheckRedirectRows(rows, title) {
+            const redirectTitles = rows.map((row) => row.title);
+            const existingRedirectTitles = await fetchExistingPageTitles(
+                new mw.Api(),
+                getRedirectTitleCheckTitles(redirectTitles),
+            );
+
+            return buildRedirectRowsFromTitles(
+                redirectTitles,
+                title,
+                existingRedirectTitles,
+            );
+        },
+        onPrepareReview: prepareNavboxRows,
+        async onPreSavePrepare(form, title) {
+            const redirectTitles = Array.isArray(form.redirectRows)
+                ? form.redirectRows.map((row) => row.title)
+                : buildRedirectTitles(form, title);
+            const existingRedirectTitles = await fetchExistingPageTitles(
+                new mw.Api(),
+                getRedirectTitleCheckTitles(redirectTitles),
+            );
+            const metadata = { finalTitle: title, form, title };
             const actions = buildPreSaveActions(
                 metadata,
                 existingRedirectTitles,
             );
-            const move = buildTitleFix(form, title);
 
-            return { actions, move };
+            return { actions, move: { enabled: false, to: title } };
         },
         onSaveNavbox: saveNavboxTemplate,
         onSourceUrlChange: (url) => citationStore.prefetch(url),

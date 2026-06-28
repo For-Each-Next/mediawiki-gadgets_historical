@@ -35,8 +35,10 @@ const UNASSESSED_TALK_PAGE_BANNER = buildTemplateText(
 export function buildPreSaveActions(selection, existingRedirectTitles = []) {
     const form = selection.form || {};
     const title = normalizeTitle(selection.title);
+    const finalTitle = normalizeTitle(selection.finalTitle) || title;
+    const existingRows = createExistingTitleRows(existingRedirectTitles);
     const existingKeys = new Set(
-        existingRedirectTitles.map(normalizeTitleKey),
+        existingRows.filter((row) => row.exists).map((row) => row.key),
     );
     const actions = [];
 
@@ -50,51 +52,57 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
         });
     }
 
-    buildRedirectTitles(form, title).forEach((redirectTitle) => {
-        const exists = existingKeys.has(normalizeTitleKey(redirectTitle));
-
-        actions.push({
-            id: `redirect:${redirectTitle}`,
-            exists,
-            label: exists
-                ? `Redirect: ${redirectTitle} (page already exists)`
-                : `Redirect name: ${redirectTitle} to ${title}`,
-            redirectTitle,
-            selected: !exists,
-            type: "redirect",
-        });
-    });
+    for (const row of getPreSaveRedirectRows(form, title)) {
+        actions.push(createRedirectAction(row, title, existingKeys));
+    }
 
     actions.push({
         id: "talk-banner",
-        label: `Add WikiProject Video games banner to Talk:${title}`,
+        label: `Add WikiProject Video games banner to Talk:${finalTitle}`,
         selected: true,
         type: "talk-banner",
     });
 
-    (form.categoryRows || [])
-        .filter(
-            (row) =>
-                row.enabled !== false &&
-                row.pendingCreation != null &&
-                normalizeTitle(row.category) !== "",
-        )
-        .forEach((row) => {
-            const category = normalizeTitle(row.category);
-
-            actions.push({
-                category,
-                company: normalizeTitle(row.company),
-                englishName: normalizeTitle(row.pendingCreation.englishName),
-                id: `category:${category}`,
-                label: `Create category: ${category}`,
-                selected: true,
-                text: String(row.pendingCreation.text || ""),
-                type: "category",
-            });
-        });
+    for (const row of (form.categoryRows || []).filter(isPreSaveCategoryRow)) {
+        actions.push(createCategoryAction(row));
+    }
 
     return actions;
+}
+
+/**
+ * Checks whether a category row should become a pre-save action.
+ *
+ * @param {object} row - Category review row.
+ * @returns {boolean} Whether the category should be staged.
+ */
+function isPreSaveCategoryRow(row) {
+    return (
+        row.enabled !== false &&
+        row.pendingCreation != null &&
+        normalizeTitle(row.category) !== ""
+    );
+}
+
+/**
+ * Creates a category pre-save action.
+ *
+ * @param {object} row - Category review row.
+ * @returns {object} Category pre-save action.
+ */
+function createCategoryAction(row) {
+    const category = normalizeTitle(row.category);
+
+    return {
+        category,
+        company: normalizeTitle(row.company),
+        englishName: normalizeTitle(row.pendingCreation.englishName),
+        id: `category:${category}`,
+        label: `Create category: ${category}`,
+        selected: true,
+        text: String(row.pendingCreation.text || ""),
+        type: "category",
+    };
 }
 
 /**
@@ -113,6 +121,75 @@ export function buildTitleFix(form, articleTitle) {
         enabled,
         to: enabled ? chineseTitle : title,
     };
+}
+
+/**
+ * Builds generated redirect review rows.
+ *
+ * @param {object} form - Submitted dialog form.
+ * @param {string} articleTitle - Saved article title.
+ * @param {Array<string>} existingRedirectTitles - Existing page titles.
+ * @returns {Array<object>} Redirect review rows.
+ */
+export function buildRedirectRows(
+    form,
+    articleTitle,
+    existingRedirectTitles = [],
+) {
+    return buildRedirectRowsFromTitles(
+        buildRedirectTitles(form, articleTitle),
+        articleTitle,
+        existingRedirectTitles,
+    );
+}
+
+/**
+ * Builds redirect review rows from entered title values.
+ *
+ * @param {Array<string>} titles - Redirect candidate titles.
+ * @param {string} articleTitle - Saved article title.
+ * @param {Array<string>} existingRedirectTitles - Existing page titles.
+ * @returns {Array<object>} Redirect review rows.
+ */
+export function buildRedirectRowsFromTitles(
+    titles,
+    articleTitle,
+    existingRedirectTitles = [],
+) {
+    const existingRows = createExistingTitleRows(existingRedirectTitles);
+    const targetKey = normalizeTitleKey(articleTitle);
+    const seen = new Set();
+
+    return titles.map(normalizeTitle).flatMap(normalizeRedirectReviewTitle);
+
+    function normalizeRedirectReviewTitle(title) {
+        const normalizedTitle = normalizeMixedChineseVariantTitle(title);
+        const key = normalizeTitleKey(normalizedTitle);
+
+        if (key === "") {
+            return [];
+        }
+
+        const existing = findExistingTitleRow(normalizedTitle, existingRows);
+        const exists = existing?.exists === true;
+        const resolvedTitle = normalizedTitle;
+        const resolvedKey = normalizeTitleKey(resolvedTitle);
+
+        if (resolvedKey === targetKey || seen.has(resolvedKey)) {
+            return [];
+        }
+
+        seen.add(resolvedKey);
+
+        return [
+            {
+                enabled: !exists,
+                exists,
+                status: getExistenceStatus(exists),
+                title: resolvedTitle,
+            },
+        ];
+    }
 }
 
 /**
@@ -169,6 +246,251 @@ function buildChineseRedirectTitles(form, articleTitle) {
 }
 
 /**
+ * Gets rows to convert into pre-save redirect actions.
+ *
+ * @param {object} form - Submitted dialog form.
+ * @param {string} articleTitle - Saved article title.
+ * @returns {Array<object>} Redirect rows.
+ */
+function getPreSaveRedirectRows(form, articleTitle) {
+    const rows = Array.isArray(form.redirectRows)
+        ? form.redirectRows
+        : buildRedirectRows(form, articleTitle);
+    const targetKey = normalizeTitleKey(articleTitle);
+    const seen = new Set();
+
+    return rows.flatMap(normalizePreSaveRedirectRow);
+
+    function normalizePreSaveRedirectRow(row) {
+        const title = normalizeTitle(row.title ?? row.redirectTitle);
+        const key = normalizeTitleKey(title);
+
+        if (key === "" || key === targetKey || seen.has(key)) {
+            return [];
+        }
+
+        seen.add(key);
+        return [
+            {
+                enabled: row.enabled !== false && row.selected !== false,
+                exists: row.exists === true,
+                title,
+            },
+        ];
+    }
+}
+
+/**
+ * Creates a redirect pre-save action.
+ *
+ * @param {object} row - Redirect review row.
+ * @param {string} title - Saved article title.
+ * @param {Set<string>} existingKeys - Existing redirect title keys.
+ * @returns {object} Redirect pre-save action.
+ */
+function createRedirectAction(row, title, existingKeys) {
+    const redirectTitle = normalizeTitle(row.title);
+    const exists =
+        row.exists === true ||
+        existingKeys.has(normalizeTitleKey(redirectTitle));
+
+    return {
+        id: `redirect:${redirectTitle}`,
+        exists,
+        label: exists
+            ? `Redirect: ${redirectTitle} (page already exists)`
+            : `Redirect name: ${redirectTitle} to ${title}`,
+        redirectTitle,
+        selected: row.enabled !== false && !exists,
+        type: "redirect",
+    };
+}
+
+/**
+ * Normalizes existing title matches into keyed rows.
+ *
+ * @param {Array<object|string>} values - Existing title matches.
+ * @returns {Array<object>} Existing title rows.
+ */
+function createExistingTitleRows(values) {
+    return values.map(createExistingTitleRow);
+}
+
+/**
+ * Normalizes one existing title match.
+ *
+ * @param {object|string} value - Existing title match.
+ * @returns {object} Existing title row.
+ */
+function createExistingTitleRow(value) {
+    if (value != null && typeof value === "object") {
+        const requestedTitle = normalizeTitle(value.requestedTitle);
+        const title = normalizeTitle(value.title);
+
+        return {
+            exists: value.exists !== false,
+            key: normalizeTitleKey(requestedTitle || title),
+            requestedTitle,
+            title,
+        };
+    }
+
+    const title = normalizeTitle(value);
+
+    return {
+        exists: true,
+        key: normalizeTitleKey(title),
+        requestedTitle: title,
+        title,
+    };
+}
+
+/**
+ * Finds an existing title match for the requested row.
+ *
+ * @param {string} title - Requested title.
+ * @param {Array<object>} rows - Existing title rows.
+ * @returns {object|undefined} Existing title row.
+ */
+function findExistingTitleRow(title, rows) {
+    return rows.find((item) => item.key === normalizeTitleKey(title));
+}
+
+const CHINESE_VARIANT_PAIRS = [
+    ["萨", "薩"],
+    ["游", "遊"],
+    ["戏", "戲"],
+    ["发", "發"],
+    ["开", "開"],
+    ["电", "電"],
+    ["软", "軟"],
+    ["体", "體"],
+    ["国", "國"],
+    ["产", "產"],
+    ["华", "華"],
+    ["门", "門"],
+    ["风", "風"],
+    ["龙", "龍"],
+    ["马", "馬"],
+    ["鸟", "鳥"],
+    ["鱼", "魚"],
+    ["台", "臺"],
+    ["众", "眾"],
+    ["网", "網"],
+    ["与", "與"],
+    ["云", "雲"],
+    ["专", "專"],
+    ["业", "業"],
+];
+const SIMPLIFIED_TO_TRADITIONAL = new Map(CHINESE_VARIANT_PAIRS);
+const TRADITIONAL_TO_SIMPLIFIED = new Map(
+    CHINESE_VARIANT_PAIRS.map(([simplified, traditional]) => [
+        traditional,
+        simplified,
+    ]),
+);
+
+/**
+ * Builds unique titles to check, including both pure Chinese variants.
+ *
+ * @param {Array<string>} titles - Requested titles.
+ * @returns {Array<string>} Titles to query.
+ */
+export function getRedirectTitleCheckTitles(titles) {
+    const seen = new Set();
+    const values = [];
+
+    for (const title of titles.map(normalizeTitle)) {
+        for (const value of getRedirectTitleCheckVariants(title)) {
+            const key = normalizeTitleKey(value);
+
+            if (key === "" || seen.has(key)) {
+                continue;
+            }
+
+            seen.add(key);
+            values.push(value);
+        }
+    }
+
+    return values;
+}
+
+/**
+ * Gets the requested title plus pure simplified and traditional forms.
+ *
+ * @param {string} title - Requested title.
+ * @returns {Array<string>} Candidate titles.
+ */
+function getRedirectTitleCheckVariants(title) {
+    return [
+        title,
+        convertChineseVariantTitle(title, "simplified"),
+        convertChineseVariantTitle(title, "traditional"),
+    ];
+}
+
+/**
+ * Normalizes mixed Chinese variant title text to the first detected style.
+ *
+ * @param {string} title - Requested title.
+ * @returns {string} Normalized title.
+ */
+function normalizeMixedChineseVariantTitle(title) {
+    const style = getFirstChineseVariantStyle(title);
+
+    return style == null ? title : convertChineseVariantTitle(title, style);
+}
+
+/**
+ * Gets the first variant-specific style used in a title.
+ *
+ * @param {string} title - Requested title.
+ * @returns {string|undefined} Variant style.
+ */
+function getFirstChineseVariantStyle(title) {
+    for (const char of Array.from(title)) {
+        if (SIMPLIFIED_TO_TRADITIONAL.has(char)) {
+            return "simplified";
+        }
+
+        if (TRADITIONAL_TO_SIMPLIFIED.has(char)) {
+            return "traditional";
+        }
+    }
+
+    return undefined;
+}
+
+/**
+ * Converts known Chinese variant pairs in a title.
+ *
+ * @param {string} title - Requested title.
+ * @param {string} style - Target variant style.
+ * @returns {string} Converted title.
+ */
+function convertChineseVariantTitle(title, style) {
+    const table =
+        style === "simplified"
+            ? TRADITIONAL_TO_SIMPLIFIED
+            : SIMPLIFIED_TO_TRADITIONAL;
+
+    return Array.from(title)
+        .map((char) => table.get(char) || char)
+        .join("");
+}
+
+/**
+ * Gets the compact existence status.
+ *
+ * @param {boolean} exists - Whether the page exists.
+ * @returns {string} Status text.
+ */
+function getExistenceStatus(exists) {
+    return exists ? "Exists" : "Missing";
+}
+
+/**
  * Gets entered Chinese localized names.
  *
  * @param {object} form - Submitted dialog form.
@@ -202,11 +524,11 @@ function getOriginalName(value) {
 }
 
 /**
- * Fetches redirect candidate titles that already exist.
+ * Fetches redirect candidate title existence and conversion matches.
  *
  * @param {object} api - MediaWiki API client.
  * @param {Array<string>} titles - Redirect candidate titles.
- * @returns {Promise<Array<string>>} Existing page titles.
+ * @returns {Promise<Array<object>>} Page title matches.
  */
 export async function fetchExistingPageTitles(api, titles) {
     if (titles.length === 0) {
@@ -215,12 +537,42 @@ export async function fetchExistingPageTitles(api, titles) {
 
     const data = await api.get({
         action: "query",
+        converttitles: "1",
         titles: titles.join("|"),
     });
+    const conversionMap = new Map(
+        (data?.query?.converted || []).map((item) => [
+            normalizeTitleKey(item.from),
+            normalizeTitle(item.to),
+        ]),
+    );
+    const existingKeys = new Set(
+        Object.values(data?.query?.pages || {})
+            .filter((page) => page.missing == null)
+            .map((page) => normalizeTitleKey(page.title)),
+    );
 
-    return Object.values(data?.query?.pages || {})
-        .filter((page) => page.missing == null)
-        .map((page) => normalizeTitle(page.title));
+    return titles.map(normalizeTitle).flatMap(createExistingPageTitleMatch);
+
+    function createExistingPageTitleMatch(title) {
+        const convertedTitle =
+            conversionMap.get(normalizeTitleKey(title)) || title;
+        const exists = existingKeys.has(normalizeTitleKey(convertedTitle));
+        const converted =
+            normalizeTitleKey(convertedTitle) !== normalizeTitleKey(title);
+
+        if (!exists && !converted) {
+            return [];
+        }
+
+        return [
+            {
+                exists,
+                requestedTitle: title,
+                title: convertedTitle,
+            },
+        ];
+    }
 }
 
 /**

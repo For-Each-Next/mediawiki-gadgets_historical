@@ -18,6 +18,7 @@ export function createCategoryGroupTemplate() {
             "v-if": "group.categoryReview",
         },
         [
+            createRedirectReviewTemplate(),
             createElement("h3", {}, [createText("Categories")]),
             createElement(
                 "div",
@@ -59,6 +60,102 @@ export function createCategoryGroupTemplate() {
             createNavboxReviewTemplate(),
         ],
     );
+}
+
+/**
+ * Creates redirect review rows.
+ *
+ * @returns {object} Redirect review template node.
+ */
+function createRedirectReviewTemplate() {
+    return createElement("section", {}, [
+        createElement("h3", {}, [createText("Redirects")]),
+        createElement(
+            "div",
+            {
+                class: "create-vg-stub-redirect-grid",
+            },
+            [
+                createElement(
+                    "template",
+                    {
+                        "v-bind:key": "index",
+                        "v-for":
+                            "(redirect, index) in form.redirectRows || []",
+                    },
+                    [
+                        createElement("cdx-checkbox", {
+                            "v-model": "redirect.enabled",
+                        }),
+                        createElement(
+                            "span",
+                            {
+                                class: "create-vg-stub-category-status",
+                                "v-bind:title": "redirect.status",
+                            },
+                            [
+                                createText(
+                                    "{{ formatRedirectStatusLabel(redirect.status) }}",
+                                ),
+                            ],
+                        ),
+                        createElement(
+                            "div",
+                            {
+                                class: "create-vg-stub-review-title-cell",
+                            },
+                            [
+                                createElement("cdx-text-input", {
+                                    "v-model": "redirect.title",
+                                    "v-on:blur":
+                                        "checkRedirectRow(index, $event)",
+                                }),
+                            ],
+                        ),
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-if": "redirect.title",
+                                "v-on:click": "openRedirectView(redirect)",
+                            },
+                            [createText("View")],
+                        ),
+                        createElement("span", {
+                            "v-else": "",
+                        }),
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-on:click": "removeRedirectRow(index)",
+                            },
+                            [createText("Remove")],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        createActionFooterTemplate([
+            createElement(
+                "cdx-button",
+                {
+                    "v-on:click": "addRedirectRow",
+                },
+                [createText("Add redirect")],
+            ),
+            createElement(
+                "cdx-button",
+                {
+                    "v-bind:disabled": "reviewState.loading",
+                    "v-on:click": "checkRedirectRows",
+                },
+                [
+                    createText(
+                        "{{ reviewState.loading ? 'Checking' : 'Check redirects' }}",
+                    ),
+                ],
+            ),
+        ]),
+    ]);
 }
 
 /**
@@ -104,18 +201,10 @@ function createNavboxReviewTemplate() {
                         createElement(
                             "cdx-button",
                             {
-                                "v-if": "navbox.status === 'OK'",
+                                "v-if": "navbox.title",
                                 "v-on:click": "openNavboxView(navbox)",
                             },
                             [createText("View")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-else-if": "navbox.title",
-                                "v-on:click": "createNavbox(navbox)",
-                            },
-                            [createText("Create")],
                         ),
                         createElement("span", {
                             "v-else": "",
@@ -187,10 +276,18 @@ function createCategoryRowTemplate() {
                 },
                 [createText("{{ formatCategorySourceLabel(row.source) }}")],
             ),
-            createElement("cdx-text-input", {
-                "v-model": "row.category",
-                "v-on:blur": "checkCategoryRow(index, $event)",
-            }),
+            createElement(
+                "div",
+                {
+                    class: "create-vg-stub-review-title-cell",
+                },
+                [
+                    createElement("cdx-text-input", {
+                        "v-model": "row.category",
+                        "v-on:blur": "checkCategoryRow(index, $event)",
+                    }),
+                ],
+            ),
             createElement("span", {}),
             createElement(
                 "div",
@@ -202,25 +299,7 @@ function createCategoryRowTemplate() {
                         "cdx-button",
                         {
                             class: "create-vg-stub-category-action",
-                            "v-if": "canCreateCategory(row)",
-                            "v-on:click": "openCategoryCreate(row)",
-                        },
-                        [createText("Create")],
-                    ),
-                    createElement(
-                        "cdx-button",
-                        {
-                            class: "create-vg-stub-category-action",
-                            "v-else-if": "row.pendingCreation",
-                            "v-on:click": "openCategoryCreate(row)",
-                        },
-                        [createText("Pending")],
-                    ),
-                    createElement(
-                        "cdx-button",
-                        {
-                            class: "create-vg-stub-category-action",
-                            "v-else-if": "row.category",
+                            "v-if": "row.category",
                             "v-on:click": "openCategoryView(row)",
                         },
                         [createText("View")],
@@ -244,6 +323,14 @@ function createCategoryRowTemplate() {
                                 createText("{{stub}}"),
                             ]),
                         ],
+                    ),
+                    createElement(
+                        "cdx-button",
+                        {
+                            class: "create-vg-stub-category-action",
+                            "v-on:click": "removeCategoryRow(index)",
+                        },
+                        [createText("Remove")],
                     ),
                 ],
             ),

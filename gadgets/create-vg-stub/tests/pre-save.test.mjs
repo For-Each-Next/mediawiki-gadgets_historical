@@ -9,11 +9,14 @@ import {
     TALK_PAGE_BANNER,
     addTalkPageBanner,
     buildPreSaveActions,
+    buildRedirectRows,
+    buildRedirectRowsFromTitles,
     buildRedirectTitles,
     buildTitleFix,
     connectWikidataSitelink,
     createRedirect,
     fetchExistingPageTitles,
+    getRedirectTitleCheckTitles,
     movePage,
     runSelectedActions,
 } from "../src/editing/pre-save.js";
@@ -75,6 +78,20 @@ test("buildPreSaveActions includes interwiki, redirects, and talk banner", () =>
             ["redirect", true],
             ["talk-banner", true],
         ],
+    );
+});
+
+test("buildPreSaveActions labels the talk banner with the final title", () => {
+    const actions = buildPreSaveActions({
+        finalTitle: "Samson (遊戲)",
+        form: {},
+        title: "Samson",
+    });
+    const talkBanner = actions.find((action) => action.type === "talk-banner");
+
+    assert.equal(
+        talkBanner.label,
+        "Add WikiProject Video games banner to Talk:Samson (遊戲)",
     );
 });
 
@@ -143,6 +160,188 @@ test("buildPreSaveActions hints existing redirects and unchecks them", () => {
     );
 });
 
+test("buildRedirectRows marks existing redirect candidates", () => {
+    assert.deepEqual(
+        buildRedirectRows(
+            {
+                localizedNames: [
+                    { hans: true, name: "示例游戏" },
+                    { hant: true, name: "示例遊戲" },
+                ],
+            },
+            "Example",
+            ["示例遊戲"],
+        ),
+        [
+            {
+                enabled: true,
+                exists: false,
+                status: "Missing",
+                title: "示例游戏",
+            },
+            {
+                enabled: false,
+                exists: true,
+                status: "Exists",
+                title: "示例遊戲",
+            },
+        ],
+    );
+});
+
+test("buildRedirectRows uses exact style existing redirect titles", () => {
+    assert.deepEqual(
+        buildRedirectRowsFromTitles(["示例游戏"], "Example", [
+            {
+                exists: true,
+                requestedTitle: "示例游戏",
+                title: "示例遊戲",
+            },
+        ]),
+        [
+            {
+                enabled: false,
+                exists: true,
+                status: "Exists",
+                title: "示例游戏",
+            },
+        ],
+    );
+});
+
+test("buildRedirectRows keeps exact style new redirect titles", () => {
+    assert.deepEqual(
+        buildRedirectRowsFromTitles(["示例游戏"], "Example", [
+            {
+                exists: false,
+                requestedTitle: "示例游戏",
+                title: "示例遊戲",
+            },
+        ]),
+        [
+            {
+                enabled: true,
+                exists: false,
+                status: "Missing",
+                title: "示例游戏",
+            },
+        ],
+    );
+});
+
+test("buildRedirectRows auto-fixes mixed parenthesized game titles", () => {
+    assert.deepEqual(
+        buildRedirectRowsFromTitles(
+            ["薩姆森 (游戏)", "萨姆森 (遊戲)"],
+            "Example",
+            [
+                {
+                    exists: false,
+                    requestedTitle: "薩姆森 (游戏)",
+                    title: "薩姆森 (遊戲)",
+                },
+                {
+                    exists: false,
+                    requestedTitle: "萨姆森 (游戏)",
+                    title: "萨姆森 (游戏)",
+                },
+            ],
+        ),
+        [
+            {
+                enabled: true,
+                exists: false,
+                status: "Missing",
+                title: "薩姆森 (遊戲)",
+            },
+            {
+                enabled: true,
+                exists: false,
+                status: "Missing",
+                title: "萨姆森 (游戏)",
+            },
+        ],
+    );
+});
+
+test("getRedirectTitleCheckTitles includes both pure styles", () => {
+    assert.deepEqual(getRedirectTitleCheckTitles(["薩姆森 (游戏)"]), [
+        "薩姆森 (游戏)",
+        "萨姆森 (游戏)",
+        "薩姆森 (遊戲)",
+    ]);
+});
+
+test("buildRedirectRowsFromTitles checks typed redirect titles", () => {
+    assert.deepEqual(
+        buildRedirectRowsFromTitles(
+            [" 手动重定向 ", "示例游戏", "Example"],
+            "Example",
+            ["示例游戏"],
+        ),
+        [
+            {
+                enabled: true,
+                exists: false,
+                status: "Missing",
+                title: "手动重定向",
+            },
+            {
+                enabled: false,
+                exists: true,
+                status: "Exists",
+                title: "示例游戏",
+            },
+        ],
+    );
+});
+
+test("buildPreSaveActions respects unchecked redirect rows", () => {
+    const actions = buildPreSaveActions({
+        form: {
+            redirectRows: [
+                {
+                    enabled: false,
+                    title: "Skipped",
+                },
+                {
+                    enabled: true,
+                    title: "Created",
+                },
+            ],
+        },
+        title: "Example",
+    });
+    const redirects = actions.filter((action) => action.type === "redirect");
+
+    assert.deepEqual(
+        redirects.map((action) => [action.redirectTitle, action.selected]),
+        [
+            ["Skipped", false],
+            ["Created", true],
+        ],
+    );
+});
+
+test("buildPreSaveActions unchecks existing redirect rows", () => {
+    const actions = buildPreSaveActions({
+        form: {
+            redirectRows: [
+                {
+                    enabled: true,
+                    exists: true,
+                    title: "Existing",
+                },
+            ],
+        },
+        title: "Example",
+    });
+    const redirect = actions.find((action) => action.type === "redirect");
+
+    assert.equal(redirect.selected, false);
+    assert.equal(redirect.exists, true);
+});
+
 test("buildTitleFix defaults an English title to the first Chinese name", () => {
     assert.deepEqual(
         buildTitleFix(
@@ -159,6 +358,23 @@ test("buildTitleFix defaults an English title to the first Chinese name", () => 
         {
             enabled: true,
             to: "示例遊戲",
+        },
+    );
+});
+
+test("buildTitleFix keeps a chosen Chinese Wikipedia suffix title", () => {
+    assert.deepEqual(
+        buildTitleFix(
+            {
+                englishName: "Samson",
+                enwikiTitle: "Samson (video game)",
+                localizedNames: [{ hant: true, name: "薩姆森" }],
+            },
+            "Samson (遊戲)",
+        ),
+        {
+            enabled: false,
+            to: "Samson (遊戲)",
         },
     );
 });
@@ -204,13 +420,74 @@ test("fetchExistingPageTitles returns only existing pages", async () => {
 
     assert.deepEqual(
         await fetchExistingPageTitles(api, ["已存在", "不存在"]),
-        ["已存在"],
+        [
+            {
+                requestedTitle: "已存在",
+                exists: true,
+                title: "已存在",
+            },
+        ],
     );
     assert.deepEqual(calls[0], [
         "get",
         {
             action: "query",
+            converttitles: "1",
             titles: "已存在|不存在",
+        },
+    ]);
+});
+
+test("fetchExistingPageTitles treats converted titles as existing", async () => {
+    const api = createApiStub([], {
+        query: {
+            converted: [
+                {
+                    from: "示例游戏",
+                    to: "示例遊戲",
+                },
+            ],
+            pages: {
+                12: {
+                    pageid: 12,
+                    title: "示例遊戲",
+                },
+            },
+        },
+    });
+
+    assert.deepEqual(await fetchExistingPageTitles(api, ["示例游戏"]), [
+        {
+            exists: true,
+            requestedTitle: "示例游戏",
+            title: "示例遊戲",
+        },
+    ]);
+});
+
+test("fetchExistingPageTitles returns missing converted title matches", async () => {
+    const api = createApiStub([], {
+        query: {
+            converted: [
+                {
+                    from: "示例游戏",
+                    to: "示例遊戲",
+                },
+            ],
+            pages: {
+                "-1": {
+                    missing: "",
+                    title: "示例遊戲",
+                },
+            },
+        },
+    });
+
+    assert.deepEqual(await fetchExistingPageTitles(api, ["示例游戏"]), [
+        {
+            exists: false,
+            requestedTitle: "示例游戏",
+            title: "示例遊戲",
         },
     ]);
 });

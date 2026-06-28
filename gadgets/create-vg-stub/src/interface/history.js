@@ -14,6 +14,7 @@ const GENERATED_FORM_KEYS = new Set([
     "citationRows",
     "navboxRows",
     "navboxText",
+    "redirectRows",
     "sourceReferences",
     "historyPatches",
 ]);

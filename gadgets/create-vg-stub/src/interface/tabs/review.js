@@ -107,6 +107,8 @@ function createRedirectReviewTemplate() {
                             [
                                 createElement("cdx-text-input", {
                                     "v-model": "redirect.title",
+                                    "v-on:update:model-value":
+                                        "updateRedirectRowTitle(index, $event)",
                                     "v-on:blur":
                                         "checkRedirectRow(index, $event)",
                                 }),
@@ -196,6 +198,8 @@ function createNavboxReviewTemplate() {
                         ),
                         createElement("cdx-text-input", {
                             "v-model": "navbox.text",
+                            "v-on:update:model-value":
+                                "updateNavboxRow(index, $event)",
                             "v-on:blur": "checkNavboxRow(index, $event)",
                         }),
                         createElement(
@@ -284,6 +288,8 @@ function createCategoryRowTemplate() {
                 [
                     createElement("cdx-text-input", {
                         "v-model": "row.category",
+                        "v-on:update:model-value":
+                            "updateCategoryRowCategory(index, $event)",
                         "v-on:blur": "checkCategoryRow(index, $event)",
                     }),
                 ],

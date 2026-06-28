@@ -707,6 +707,9 @@ test("NoteTA tab lists generated title conversion and sorts rows", () => {
 });
 
 test("review exposes editable navboxes and subtle prose length", async () => {
+    let categoryRefreshCount = 0;
+    let navboxCheckCount = 0;
+    let redirectCheckCount = 0;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
@@ -718,7 +721,27 @@ test("review exposes editable navboxes and subtle prose length", async () => {
                     ? "《'''Example'''》是電子遊戲。"
                     : `《'''Example'''》是電子遊戲。${form.additionalProse}`;
             },
+            onCategoryRowsRefresh(form) {
+                categoryRefreshCount += 1;
+                form.categoryRows.forEach((row) => {
+                    row.status = "OK";
+                });
+            },
+            onCreateCategoryRow() {
+                return {
+                    category: "Example games",
+                    enabled: true,
+                    source: "manual",
+                };
+            },
+            onUpdateCategoryRowCategory(row, category) {
+                return {
+                    ...row,
+                    category,
+                };
+            },
             async onPrepareReview(form) {
+                navboxCheckCount += 1;
                 return form.navboxRows?.length > 0
                     ? form.navboxRows
                     : ["{{Foo series}}"];
@@ -740,6 +763,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
                 ];
             },
             async onCheckRedirectRows(rows) {
+                redirectCheckCount += 1;
                 return rows.map((row) => ({
                     enabled: row.title !== "Existing redirect",
                     exists: row.title === "Existing redirect",
@@ -769,14 +793,20 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     form.navboxRows = [];
 
     await component.methods.previewForm();
+    assert.equal(categoryRefreshCount, 1);
+    assert.equal(navboxCheckCount, 1);
     assert.deepEqual(form.redirectRows, [
         {
+            fixed: true,
+            fixedTitle: "Example redirect",
             enabled: true,
             exists: false,
             status: "Missing",
             title: "Example redirect",
         },
         {
+            fixed: true,
+            fixedTitle: "Existing redirect",
             enabled: false,
             exists: true,
             status: "Exists",
@@ -789,13 +819,18 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     );
     form.redirectRows[0].enabled = false;
     await component.methods.checkRedirectRows();
-    assert.equal(form.redirectRows[0].enabled, true);
-    form.redirectRows[0].title = "Existing redirect";
+    assert.equal(redirectCheckCount, 0);
+    assert.equal(form.redirectRows[0].enabled, false);
+    component.methods.updateRedirectRowTitle(0, "Existing redirect");
+    assert.equal(form.redirectRows[0].fixed, false);
     await component.methods.checkRedirectRow(0, {
         target: {
             value: "Existing redirect",
         },
     });
+    assert.equal(redirectCheckCount, 1);
+    assert.equal(form.redirectRows[0].fixed, true);
+    assert.equal(form.redirectRows[0].fixedTitle, "Existing redirect");
     assert.equal(form.redirectRows[0].enabled, false);
     assert.equal(form.redirectRows[0].exists, true);
     component.methods.addRedirectRow();
@@ -807,10 +842,28 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     );
     component.methods.addCategoryRow();
     assert.equal(form.categoryRows.length, 1);
+    await component.methods.refreshCategoryRows();
+    assert.equal(categoryRefreshCount, 2);
+    assert.equal(form.categoryRows[0].fixed, true);
+    assert.equal(form.categoryRows[0].fixedCategory, "Example games");
+    await component.methods.refreshCategoryRows();
+    assert.equal(categoryRefreshCount, 2);
+    component.methods.updateCategoryRowCategory(0, "Changed games");
+    assert.equal(form.categoryRows[0].fixed, false);
+    await component.methods.checkCategoryRow(0, {
+        target: {
+            value: "Changed games",
+        },
+    });
+    assert.equal(categoryRefreshCount, 3);
+    assert.equal(form.categoryRows[0].fixed, true);
+    assert.equal(form.categoryRows[0].fixedCategory, "Changed games");
     component.methods.removeCategoryRow(0);
     assert.equal(form.categoryRows.length, 0);
     assert.deepEqual(form.navboxRows, [
         {
+            fixed: true,
+            fixedText: "{{Foo series}}",
             enabled: true,
             status: "",
             text: "{{Foo series}}",
@@ -819,13 +872,21 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     ]);
     form.navboxRows[0].enabled = false;
     await component.methods.checkNavboxRows();
+    assert.equal(navboxCheckCount, 1);
     assert.equal(form.navboxRows[0].enabled, false);
     component.methods.updateNavboxRow(0, "{{Edited series}}");
+    assert.equal(form.navboxRows[0].fixed, false);
+    await component.methods.checkNavboxRows();
+    assert.equal(navboxCheckCount, 2);
+    assert.equal(form.navboxRows[0].fixed, true);
+    assert.equal(form.navboxRows[0].fixedText, "{{Edited series}}");
     component.methods.addNavboxRow();
     component.methods.updateNavboxRow(1, "{{Manual navbox}}");
     component.methods.removeNavboxRow(0);
     assert.deepEqual(form.navboxRows, [
         {
+            fixed: false,
+            fixedText: "",
             enabled: true,
             status: "",
             text: "{{Manual navbox}}",
@@ -872,6 +933,12 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         true,
     );
     assert.equal(
+        component.template.includes(
+            'v-on:update:model-value="updateRedirectRowTitle(index, $event)"',
+        ),
+        true,
+    );
+    assert.equal(
         component.template.includes("removeCategoryRow(index)"),
         true,
     );
@@ -903,11 +970,23 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes('v-model="row.category"'), true);
     assert.equal(
         component.template.includes(
+            'v-on:update:model-value="updateCategoryRowCategory(index, $event)"',
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
             'v-on:blur="checkCategoryRow(index, $event)"',
         ),
         true,
     );
     assert.equal(component.template.includes('v-model="navbox.text"'), true);
+    assert.equal(
+        component.template.includes(
+            'v-on:update:model-value="updateNavboxRow(index, $event)"',
+        ),
+        true,
+    );
     assert.equal(
         component.template.includes(
             'v-on:blur="checkNavboxRow(index, $event)"',

@@ -754,7 +754,9 @@ export function createDialogComponent(Vue, options) {
     });
 
     async function openPreSave() {
-        await refreshReview();
+        await refreshReview({
+            recheck: true,
+        });
         sourceFetchState.error = "";
         sourceFetchState.loading = true;
         preSaveMoveTitle.value = getCurrentTitle();
@@ -1179,6 +1181,12 @@ export function createDialogComponent(Vue, options) {
                 if (field.key === "enwikiTitle") {
                     refreshEnwikiMetadata();
                 }
+
+                if (field.key === "series") {
+                    navboxRowsPrepared = false;
+                }
+
+                markCategoryRowsUnfixed(form.categoryRows);
             },
 
             /**
@@ -1303,6 +1311,7 @@ export function createDialogComponent(Vue, options) {
              */
             updateFormValue(key, value) {
                 form[key] = trimFieldValue(value);
+                markCategoryRowsUnfixed(form.categoryRows);
             },
 
             /**
@@ -1341,6 +1350,7 @@ export function createDialogComponent(Vue, options) {
                     field.key,
                     text,
                 );
+                markCategoryRowsUnfixed(form.categoryRows);
             },
 
             /**
@@ -1482,6 +1492,7 @@ export function createDialogComponent(Vue, options) {
             async rebuildCategoryRows() {
                 await refreshCategoryRows({
                     bypassCache: true,
+                    recheck: true,
                 });
             },
 
@@ -1511,6 +1522,21 @@ export function createDialogComponent(Vue, options) {
              */
             addRedirectRow() {
                 ensureRedirectRows(form).push(createRedirectRow());
+            },
+
+            /**
+             * Updates one redirect row title from live input.
+             *
+             * @param {number} index - Redirect row index.
+             * @param {string} value - Raw title input.
+             * @returns {void}
+             */
+            updateRedirectRowTitle(index, value) {
+                const row = form.redirectRows?.[index];
+
+                if (row != null) {
+                    setRedirectRowTitle(row, value);
+                }
             },
 
             /**
@@ -1607,7 +1633,7 @@ export function createDialogComponent(Vue, options) {
             updateNavboxRow(index, navbox) {
                 const row = ensureNavboxRows(form)[index];
 
-                row.text = navbox;
+                setNavboxRowText(row, navbox);
                 row.title = getNavboxTitle(navbox);
                 row.status = "";
             },
@@ -1652,7 +1678,7 @@ export function createDialogComponent(Vue, options) {
             /**
              * Checks the current redirect rows.
              *
-             * @returns {Promise<void>} Resolves after redirect rows are checked.
+             * @returns {Promise<void>} Resolves after redirect rows are fixed.
              */
             async checkRedirectRows() {
                 await checkRedirectRows();
@@ -1663,13 +1689,13 @@ export function createDialogComponent(Vue, options) {
              *
              * @param {number} index - Redirect row index.
              * @param {Event} event - Text input blur event.
-             * @returns {Promise<void>} Resolves after the row is checked.
+             * @returns {Promise<void>} Resolves after the row is fixed.
              */
             async checkRedirectRow(index, event) {
                 const value = event?.target?.value;
 
                 if (value != null && form.redirectRows?.[index] != null) {
-                    form.redirectRows[index].title = trimFieldValue(value);
+                    setRedirectRowTitle(form.redirectRows[index], value);
                 }
 
                 await this.checkRedirectRows();
@@ -1761,10 +1787,13 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             updateCategoryRowCategory(index, category) {
+                const current = form.categoryRows[index];
+
                 form.categoryRows[index] = options.onUpdateCategoryRowCategory(
                     form.categoryRows[index],
                     trimFieldValue(category),
                 );
+                syncCategoryRowFixedState(form.categoryRows[index], current);
             },
 
             /**
@@ -2083,7 +2112,17 @@ export function createDialogComponent(Vue, options) {
      *
      * @returns {Promise<void>} Resolves after rows are refreshed.
      */
-    async function refreshCategoryRows(refreshOptions) {
+    async function refreshCategoryRows(refreshOptions = {}) {
+        if (
+            shouldSkipFixedRows(
+                refreshOptions,
+                form.categoryRows,
+                isCategoryRowFixed,
+            )
+        ) {
+            return;
+        }
+
         await options.onCategoryRowsRefresh(
             form,
             categoryState,
@@ -2093,6 +2132,7 @@ export function createDialogComponent(Vue, options) {
             form.categoryRows,
             form.historyPatches?.categories,
         );
+        markCategoryRowsFixed(form.categoryRows);
     }
 
     /**
@@ -2100,15 +2140,27 @@ export function createDialogComponent(Vue, options) {
      *
      * @returns {Promise<void>} Resolves after review data is refreshed.
      */
-    async function refreshReview() {
+    async function refreshReview(refreshOptions = {}) {
         reviewState.error = "";
         reviewState.loading = true;
 
         try {
+            const categoryRefreshOptions =
+                refreshOptions.recheck === true
+                    ? {
+                          ...refreshOptions,
+                          bypassCache: true,
+                      }
+                    : refreshOptions;
+
             await Promise.all([
-                refreshCategoryRows(),
-                refreshRedirectRows(),
-                refreshNavboxRows(false),
+                refreshCategoryRows(categoryRefreshOptions),
+                refreshRedirectRows(refreshOptions),
+                refreshNavboxRows(
+                    refreshOptions.recheck === true,
+                    false,
+                    refreshOptions,
+                ),
             ]);
         } catch (error) {
             reviewState.error = error.message || String(error);
@@ -2159,14 +2211,27 @@ export function createDialogComponent(Vue, options) {
      * @param {boolean} force - Whether to replace reviewed rows.
      * @returns {Promise<void>} Resolves after navbox rows are refreshed.
      */
-    async function refreshNavboxRows(force, rebuild = false) {
+    async function refreshNavboxRows(force, rebuild = false, refreshOptions = {}) {
         if (!force && navboxRowsPrepared) {
+            return;
+        }
+
+        if (
+            force &&
+            !rebuild &&
+            shouldSkipFixedRows(
+                refreshOptions,
+                form.navboxRows,
+                isNavboxRowFixed,
+            )
+        ) {
+            navboxRowsPrepared = true;
             return;
         }
 
         const rows = applyNavboxPatches(
             (await options.onPrepareReview(form, rebuild)).map(
-                createNavboxRow,
+                (row) => createNavboxRow(row, true),
             ),
             form.historyPatches?.navboxes,
         );
@@ -2199,13 +2264,13 @@ export function createDialogComponent(Vue, options) {
      *
      * @returns {Promise<void>} Resolves after redirect rows are refreshed.
      */
-    async function refreshRedirectRows() {
+    async function refreshRedirectRows(refreshOptions = {}) {
         if (options.onPrepareRedirectRows == null) {
             return;
         }
 
         if (Array.isArray(form.redirectRows)) {
-            await checkRedirectRows();
+            await checkRedirectRows(refreshOptions);
             return;
         }
 
@@ -2214,7 +2279,7 @@ export function createDialogComponent(Vue, options) {
             : [];
         const rows = (
             await options.onPrepareRedirectRows(form, getCurrentTitle())
-        ).map(createRedirectRow);
+        ).map((row) => createRedirectRow(row, true));
 
         form.redirectRows = rows.map((row) => {
             const current = currentRows.find(
@@ -2235,9 +2300,9 @@ export function createDialogComponent(Vue, options) {
     /**
      * Checks current redirect review rows in place.
      *
-     * @returns {Promise<void>} Resolves after redirect rows are checked.
+     * @returns {Promise<void>} Resolves after redirect rows are fixed.
      */
-    async function checkRedirectRows() {
+    async function checkRedirectRows(refreshOptions = {}) {
         if (options.onCheckRedirectRows == null) {
             return;
         }
@@ -2245,9 +2310,20 @@ export function createDialogComponent(Vue, options) {
         const currentRows = Array.isArray(form.redirectRows)
             ? form.redirectRows
             : [];
+
+        if (
+            shouldSkipFixedRows(
+                refreshOptions,
+                currentRows,
+                isRedirectRowFixed,
+            )
+        ) {
+            return;
+        }
+
         const rows = (
             await options.onCheckRedirectRows(currentRows, getCurrentTitle())
-        ).map(createRedirectRow);
+        ).map((row) => createRedirectRow(row, true));
 
         form.redirectRows = rows.map((row, index) => {
             const current = currentRows[index];
@@ -4533,21 +4609,113 @@ function ensureNavboxRows(form) {
  * Creates one redirect review row.
  *
  * @param {*} [value] - Existing row or redirect title.
+ * @param {boolean} [fixed] - Whether the row title was just fixed.
  * @returns {object} Redirect review row.
  */
-function createRedirectRow(value = "") {
+function createRedirectRow(value = "", fixed = value?.fixed === true) {
     const title = trimFieldValue(
         value?.title ?? value?.redirectTitle ?? value,
     );
     const exists =
         value?.exists === true || /^Exists(?::|$)/u.test(value?.status);
+    const fixedTitle = fixed
+        ? title
+        : trimFieldValue(value?.fixedTitle);
 
     return {
+        fixed:
+            fixed &&
+            normalizeTitleKey(fixedTitle) === normalizeTitleKey(title),
+        fixedTitle,
         enabled: value?.enabled ?? value?.selected ?? !exists,
         exists,
         status: value?.status || (exists ? "Exists" : "Missing"),
         title,
     };
+}
+
+/**
+ * Marks category rows as fixed for their current category titles.
+ *
+ * @param {Array<object>} rows - Category rows.
+ * @returns {void}
+ */
+function markCategoryRowsFixed(rows) {
+    rows.forEach((row) => {
+        row.fixed = true;
+        row.fixedCategory = trimFieldValue(row.category);
+    });
+}
+
+/**
+ * Marks category rows as needing a fresh review refresh.
+ *
+ * @param {Array<object>} rows - Category rows.
+ * @returns {void}
+ */
+function markCategoryRowsUnfixed(rows) {
+    rows.forEach((row) => {
+        row.fixed = false;
+    });
+}
+
+/**
+ * Preserves or clears a category row fixed flag after its normalized title update.
+ *
+ * @param {object} row - Updated category row.
+ * @param {object} current - Previous category row.
+ * @returns {void}
+ */
+function syncCategoryRowFixedState(row, current) {
+    row.fixedCategory = trimFieldValue(current?.fixedCategory);
+    row.fixed =
+        current?.fixed === true &&
+        normalizeTitleKey(row.fixedCategory) ===
+            normalizeTitleKey(row.category);
+}
+
+/**
+ * Checks whether a category row is fixed for its current title.
+ *
+ * @param {object} row - Category row.
+ * @returns {boolean} Whether the row is current.
+ */
+function isCategoryRowFixed(row) {
+    return (
+        row.fixed === true &&
+        normalizeTitleKey(row.fixedCategory) ===
+            normalizeTitleKey(row.category)
+    );
+}
+
+/**
+ * Updates a redirect row title and marks stale checks as unfixed.
+ *
+ * @param {object} row - Redirect review row.
+ * @param {string} value - Raw title value.
+ * @returns {void}
+ */
+function setRedirectRowTitle(row, value) {
+    const title = trimFieldValue(value);
+
+    row.title = title;
+
+    if (normalizeTitleKey(row.fixedTitle) !== normalizeTitleKey(title)) {
+        row.fixed = false;
+    }
+}
+
+/**
+ * Checks whether a redirect row has been fixed for its current title.
+ *
+ * @param {object} row - Redirect review row.
+ * @returns {boolean} Whether the row is current.
+ */
+function isRedirectRowFixed(row) {
+    return (
+        row.fixed === true &&
+        normalizeTitleKey(row.fixedTitle) === normalizeTitleKey(row.title)
+    );
 }
 
 /**
@@ -4585,17 +4753,65 @@ function normalizeTitleKey(value) {
  * Creates one editable navbox row.
  *
  * @param {*} [value] - Existing row or navbox wikitext.
+ * @param {boolean} [fixed] - Whether the row text was just fixed.
  * @returns {object} Navbox row.
  */
-function createNavboxRow(value = "") {
+function createNavboxRow(value = "", fixed = value?.fixed === true) {
     const text = trimFieldValue(value?.text ?? value);
+    const fixedText = fixed ? text : trimFieldValue(value?.fixedText);
 
     return {
+        fixed: fixed && fixedText === text,
+        fixedText,
         enabled: value?.enabled !== false,
         status: value?.status || "",
         text,
         title: value?.title || getNavboxTitle(text),
     };
+}
+
+/**
+ * Updates a navbox row text and marks stale checks as unfixed.
+ *
+ * @param {object} row - Navbox review row.
+ * @param {string} value - Raw navbox text.
+ * @returns {void}
+ */
+function setNavboxRowText(row, value) {
+    const text = trimFieldValue(value);
+
+    row.text = text;
+
+    if (row.fixedText !== text) {
+        row.fixed = false;
+    }
+}
+
+/**
+ * Checks whether a navbox row is fixed for its current text.
+ *
+ * @param {object} row - Navbox row.
+ * @returns {boolean} Whether the row is current.
+ */
+function isNavboxRowFixed(row) {
+    return row.fixed === true && row.fixedText === row.text;
+}
+
+/**
+ * Checks whether a review row refresh can reuse current fixed rows.
+ *
+ * @param {object} refreshOptions - Review refresh options.
+ * @param {Array<object>} rows - Review rows.
+ * @param {Function} isFixed - Row check-state predicate.
+ * @returns {boolean} Whether the refresh can be skipped.
+ */
+function shouldSkipFixedRows(refreshOptions, rows, isFixed) {
+    return (
+        refreshOptions.recheck !== true &&
+        Array.isArray(rows) &&
+        rows.length > 0 &&
+        rows.every(isFixed)
+    );
 }
 
 /**

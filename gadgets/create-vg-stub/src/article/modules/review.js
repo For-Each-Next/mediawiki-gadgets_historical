@@ -8,7 +8,7 @@ import { trimFieldValue } from "../../shared/form-values.js";
 import { defineArticleModule } from "../module.js";
 
 export const reviewModule = defineArticleModule({
-    fields: ["categoryRows", "navboxRows", "navboxText"],
+    fields: ["categoryRows", "stubTagRows", "navboxRows", "navboxText"],
     key: "review",
 
     /**
@@ -22,6 +22,9 @@ export const reviewModule = defineArticleModule({
             categoryRows: Array.isArray(form.categoryRows)
                 ? form.categoryRows
                 : [],
+            stubTagRows: Array.isArray(form.stubTagRows)
+                ? form.stubTagRows
+                : null,
             navboxRows: Array.isArray(form.navboxRows) ? form.navboxRows : [],
             navboxText: trimFieldValue(form.navboxText),
         };
@@ -37,6 +40,7 @@ export const reviewModule = defineArticleModule({
         const navboxes = form.navboxRows.map(normalizeNavbox);
         const metadata = {
             categoryRows: form.categoryRows,
+            stubTagRows: form.stubTagRows,
             navboxText: form.navboxText,
         };
         const output = {

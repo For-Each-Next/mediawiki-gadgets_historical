@@ -103,6 +103,36 @@ test("buildStubTagText uses its own checkbox independently of categories", () =>
     );
 });
 
+test("buildStubTagText uses editable stub tag rows", () => {
+    assert.equal(
+        buildStubTagText({
+            categoryRows: [
+                {
+                    category: "类型游戏",
+                    enabled: true,
+                    stubTag: "genre-stub",
+                    stubTagEnabled: true,
+                },
+            ],
+            stubTagRows: [
+                {
+                    enabled: false,
+                    stubTag: "genre-stub",
+                },
+                {
+                    enabled: true,
+                    stubTag: "{{manual-stub}}",
+                },
+                {
+                    enabled: true,
+                    stubTag: "",
+                },
+            ],
+        }),
+        "{{manual-stub}}",
+    );
+});
+
 test("buildStubTagText follows related prose order independently of categories", () => {
     assert.equal(
         buildStubTagText({

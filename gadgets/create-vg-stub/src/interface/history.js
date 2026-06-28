@@ -36,6 +36,7 @@ const INPUT_FORM_KEYS = new Set([
     "series",
     "seriesSourceUrl",
     "sortKey",
+    "stubTagRows",
     "year",
     "yearSourceUrl",
 ]);

@@ -72,20 +72,43 @@ export function buildStubTagText(params) {
  * @returns {Array<object>} Stub-tag review rows.
  */
 export function getStubTagRows(params) {
+    if (Array.isArray(params.stubTagRows)) {
+        return getReviewedStubTagRows(params.stubTagRows);
+    }
+
     const rows = sortCategoryRowsByProse(
         params.categoryRows || [],
         params.prose?.text || "",
     ).filter(hasStubTag);
-    const stubTags = uniqueValues(rows.map((row) => trimValue(row.stubTag)));
+    const stubTags = uniqueValues(
+        rows.map((row) => normalizeStubTag(row.stubTag)),
+    );
 
     return stubTags.map((stubTag) => ({
         enabled: rows.some(
             (row) =>
-                trimValue(row.stubTag) === stubTag &&
+                normalizeStubTag(row.stubTag) === stubTag &&
                 row.stubTagEnabled === true,
         ),
         stubTag,
     }));
+}
+
+function getReviewedStubTagRows(rows) {
+    const stubTags = uniqueValues(
+        rows.map((row) => normalizeStubTag(row.stubTag)),
+    );
+
+    return stubTags
+        .filter(Boolean)
+        .map((stubTag) => ({
+            enabled: rows.some(
+                (row) =>
+                    normalizeStubTag(row.stubTag) === stubTag &&
+                    row.enabled !== false,
+            ),
+            stubTag,
+        }));
 }
 
 function isRenderableCategoryRow(row) {
@@ -97,7 +120,7 @@ function isRenderableCategoryRow(row) {
 function hasStubTag(row) {
     return (
         normalizeCategoryTitle(row.category) !== "" &&
-        trimValue(row.stubTag) !== ""
+        normalizeStubTag(row.stubTag) !== ""
     );
 }
 
@@ -184,6 +207,13 @@ function buildCategoryLink(row) {
 function normalizeCategoryTitle(value) {
     return trimValue(value)
         .replace(/^Category:/iu, "")
+        .trim();
+}
+
+function normalizeStubTag(value) {
+    return trimValue(value)
+        .replace(/^\{\{/u, "")
+        .replace(/\}\}$/u, "")
         .trim();
 }
 

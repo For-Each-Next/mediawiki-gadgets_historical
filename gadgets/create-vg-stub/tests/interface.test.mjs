@@ -899,6 +899,10 @@ test("review exposes editable navboxes and subtle prose length", async () => {
 
     assert.equal(component.template.includes("<h3>Categories</h3>"), true);
     assert.equal(
+        component.template.includes("<section><h3>Categories</h3>"),
+        true,
+    );
+    assert.equal(
         component.template.indexOf("<h3>Redirects</h3>") <
             component.template.indexOf("<h3>Categories</h3>"),
         true,
@@ -943,29 +947,44 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         true,
     );
     assert.equal(
+        component.template.includes("create-vg-stub-category-actions"),
+        false,
+    );
+    assert.equal(
         component.template.includes('v-model="navbox.enabled"'),
         true,
     );
     assert.equal(component.template.includes('v-model="row.enabled"'), true);
     assert.equal(
         component.template.includes('v-model="row.stubTagEnabled"'),
-        true,
+        false,
     );
-    assert.equal(component.template.includes("{{stub}}"), true);
+    assert.equal(component.template.includes("{{stub}}"), false);
+    assert.equal(component.template.includes("<h3>Stub tags</h3>"), true);
     assert.equal(
         component.template.includes(
-            "'Whether adding {{' + row.stubTag + '}}'",
+            'v-for="(stubTag, index) in stubTagRows"',
         ),
         true,
     );
-    assert.equal(component.template.includes("<h3>Stub tags</h3>"), false);
+    assert.equal(
+        component.template.includes(
+            'v-on:update:model-value="updateStubTagRow(index, $event)"',
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes('v-on:click="removeStubTagRow(index)"'),
+        true,
+    );
+    assert.equal(component.template.includes("Add stub tag"), true);
+    assert.equal(
+        component.template.includes('class="create-vg-stub-review-action"'),
+        true,
+    );
     assert.equal(
         component.template.includes('v-on:click="resetCategoryRow(index)"'),
         false,
-    );
-    assert.equal(
-        component.template.includes('class="create-vg-stub-category-action"'),
-        true,
     );
     assert.equal(component.template.includes('v-model="row.category"'), true);
     assert.equal(
@@ -1011,6 +1030,75 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         assert.equal(button?.includes('action="progressive"'), false);
         assert.equal(button?.includes('weight="primary"'), false);
     }
+});
+
+test("review exposes editable stub tags below category rows", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onCategoryRowsRefresh(form) {
+                form.categoryRows = [
+                    {
+                        category: "Foo games",
+                        enabled: true,
+                        originalStubTagEnabled: true,
+                        stubTag: "Foo-stub",
+                        stubTagEnabled: true,
+                    },
+                    {
+                        category: "Foo series",
+                        enabled: true,
+                        originalStubTagEnabled: false,
+                        stubTag: "Foo-stub",
+                        stubTagEnabled: false,
+                    },
+                    {
+                        category: "Bar games",
+                        enabled: true,
+                        originalStubTagEnabled: false,
+                        stubTag: "Bar-stub",
+                        stubTagEnabled: false,
+                    },
+                ];
+            },
+        }),
+    );
+    const { form, stubTagRows } = component.setup();
+
+    assert.deepEqual(stubTagRows.value, []);
+    await component.methods.refreshCategoryRows();
+
+    assert.deepEqual(stubTagRows.value, [
+        {
+            enabled: true,
+            originalEnabled: true,
+            originalStubTag: "Foo-stub",
+            stubTag: "Foo-stub",
+        },
+        {
+            enabled: false,
+            originalEnabled: false,
+            originalStubTag: "Bar-stub",
+            stubTag: "Bar-stub",
+        },
+    ]);
+
+    stubTagRows.value[0].enabled = false;
+    component.methods.updateStubTagRow(0, "{{Foo-alt-stub}}");
+    component.methods.addStubTagRow();
+    component.methods.updateStubTagRow(2, "Manual-stub");
+    component.methods.removeStubTagRow(1);
+    assert.deepEqual(
+        form.stubTagRows.map((row) => [row.enabled, row.stubTag]),
+        [
+            [false, "Foo-alt-stub"],
+            [true, "Manual-stub"],
+        ],
+    );
+    assert.equal(
+        component.methods.formatStubTagLabel("{{Bar-stub}}"),
+        "{{Bar-stub}}",
+    );
 });
 
 test("navbox review shows status and opens view or create dialogs", async () => {

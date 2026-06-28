@@ -294,6 +294,13 @@ const DIALOG_CSS = new StyleSheet()
             "auto minmax(4.2em, 0.35fr) minmax(12em, 1.6fr) auto auto",
         marginBottom: "0.75em",
     })
+    .add(".create-vg-stub-stub-tag-grid", {
+        display: "grid",
+        gap: "0.25em",
+        gridTemplateColumns:
+            "auto minmax(4.2em, 6em) minmax(12em, 1.6fr) auto",
+        marginBottom: "0.75em",
+    })
     .add(".create-vg-stub-noteta-grid", {
         display: "grid",
         gap: "0.25em",
@@ -316,19 +323,8 @@ const DIALOG_CSS = new StyleSheet()
         flexWrap: "wrap",
         gap: "0.5em",
     })
-    .add(".create-vg-stub-category-actions", {
-        alignItems: "center",
-        display: "flex",
-        gap: "1em",
-    })
-    .add(".create-vg-stub-category-action", {
+    .add(".create-vg-stub-review-action", {
         width: "5em",
-    })
-    .add(".create-vg-stub-category-stub-tag", {
-        alignItems: "center",
-        display: "inline-flex",
-        gap: "0.25em",
-        whiteSpace: "nowrap",
     })
     .media("(max-width: 40em)", (sheet) => {
         sheet.add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
@@ -702,6 +698,7 @@ export function createDialogComponent(Vue, options) {
     const preSaveGroups = Vue.computed(() =>
         createPreSaveGroups(preSaveActions, form),
     );
+    const stubTagRows = Vue.computed(() => form.stubTagRows || []);
     const previewOpen = Vue.ref(false);
     const previewText = Vue.ref("");
     const previewSummary = Vue.ref("");
@@ -1490,6 +1487,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after category rows are rebuilt.
              */
             async rebuildCategoryRows() {
+                form.stubTagRows = null;
                 await refreshCategoryRows({
                     bypassCache: true,
                     recheck: true,
@@ -1513,6 +1511,40 @@ export function createDialogComponent(Vue, options) {
              */
             removeCategoryRow(index) {
                 form.categoryRows.splice(index, 1);
+            },
+
+            /**
+             * Appends a blank stub-tag row.
+             *
+             * @returns {void}
+             */
+            addStubTagRow() {
+                ensureStubTagRows(form).push(createStubTagRow());
+            },
+
+            /**
+             * Updates one stub-tag row.
+             *
+             * @param {number} index - Stub-tag row index.
+             * @param {string} stubTag - Stub template name.
+             * @returns {void}
+             */
+            updateStubTagRow(index, stubTag) {
+                const row = ensureStubTagRows(form)[index];
+
+                if (row != null) {
+                    row.stubTag = trimStubTagValue(stubTag);
+                }
+            },
+
+            /**
+             * Removes one stub-tag row.
+             *
+             * @param {number} index - Stub-tag row index.
+             * @returns {void}
+             */
+            removeStubTagRow(index) {
+                ensureStubTagRows(form).splice(index, 1);
             },
 
             /**
@@ -1990,6 +2022,16 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Formats a stub template name for display.
+             *
+             * @param {string} stubTag - Stub template name.
+             * @returns {string} Template call label.
+             */
+            formatStubTagLabel(stubTag) {
+                return `{{${trimStubTagValue(stubTag)}}}`;
+            },
+
+            /**
              * Formats a navbox existence status as a compact badge.
              *
              * @param {string} status - Navbox existence status.
@@ -2102,6 +2144,7 @@ export function createDialogComponent(Vue, options) {
                 sourceFetchState,
                 steamNameChoices: STEAM_NAME_CHOICES,
                 steamUrl,
+                stubTagRows,
             };
         },
         template: createDialogTemplate(),
@@ -2133,6 +2176,7 @@ export function createDialogComponent(Vue, options) {
             form.historyPatches?.categories,
         );
         markCategoryRowsFixed(form.categoryRows);
+        initializeStubTagRows(form);
     }
 
     /**
@@ -2586,6 +2630,99 @@ function formatCategorySourceLabel(source) {
     const label = labels[base] || base;
 
     return modified ? `${label}†` : label;
+}
+
+/**
+ * Initializes editable stub-tag rows from generated category metadata.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {void}
+ */
+function initializeStubTagRows(form) {
+    if (form.stubTagRows != null) {
+        return;
+    }
+
+    form.stubTagRows = buildStubTagRowsFromCategories(form.categoryRows);
+}
+
+/**
+ * Builds unique stub-tag rows from category rows.
+ *
+ * @param {Array<object>} rows - Category review rows.
+ * @returns {Array<object>} Stub-tag review rows.
+ */
+function buildStubTagRowsFromCategories(rows) {
+    const tags = [];
+
+    (rows || []).forEach((row) => {
+        const stubTag = trimStubTagValue(row.stubTag);
+
+        if (stubTag !== "" && !tags.includes(stubTag)) {
+            tags.push(stubTag);
+        }
+    });
+
+    return tags.map((stubTag) =>
+        createStubTagRow({
+            enabled: (rows || []).some(
+                (row) =>
+                    trimStubTagValue(row.stubTag) === stubTag &&
+                    row.stubTagEnabled === true,
+            ),
+            originalEnabled: (rows || []).some(
+                (row) =>
+                    trimStubTagValue(row.stubTag) === stubTag &&
+                    row.originalStubTagEnabled === true,
+            ),
+            originalStubTag: stubTag,
+            stubTag,
+        }),
+    );
+}
+
+/**
+ * Ensures the form has editable stub-tag rows.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Array<object>} Stub-tag rows.
+ */
+function ensureStubTagRows(form) {
+    if (!Array.isArray(form.stubTagRows)) {
+        form.stubTagRows = [];
+    }
+
+    return form.stubTagRows;
+}
+
+/**
+ * Creates one stub-tag review row.
+ *
+ * @param {*} [value] - Existing row or template name.
+ * @returns {object} Stub-tag review row.
+ */
+function createStubTagRow(value = "") {
+    const stubTag = trimStubTagValue(value?.stubTag ?? value);
+
+    return {
+        enabled: value?.enabled !== false,
+        originalEnabled: value?.originalEnabled === true,
+        originalStubTag: trimStubTagValue(value?.originalStubTag || stubTag),
+        stubTag,
+    };
+}
+
+/**
+ * Normalizes a stub template name entered by the user.
+ *
+ * @param {*} value - Stub template name.
+ * @returns {string} Template name without braces.
+ */
+function trimStubTagValue(value) {
+    return trimFieldValue(value)
+        .replace(/^\{\{/u, "")
+        .replace(/\}\}$/u, "")
+        .trim();
 }
 
 /**
@@ -3741,6 +3878,7 @@ function createFormValues(defaultName) {
         redirectRows: null,
         registerNewPage: true,
         sortKey: "",
+        stubTagRows: null,
     };
 }
 
@@ -4245,6 +4383,12 @@ function normalizeReceivedFormValues(values) {
 
     if (!Array.isArray(normalized.categoryRows)) {
         normalized.categoryRows = [];
+    }
+
+    if (!Object.hasOwn(normalized, "stubTagRows")) {
+        normalized.stubTagRows = null;
+    } else if (Array.isArray(normalized.stubTagRows)) {
+        normalized.stubTagRows = normalized.stubTagRows.map(createStubTagRow);
     }
 
     if (!Array.isArray(normalized.citationRows)) {

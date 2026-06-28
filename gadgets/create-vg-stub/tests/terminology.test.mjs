@@ -43,6 +43,12 @@ test("get resolves aliases case-insensitively and accepts plural types", () => {
     assert.equal(get("genres", "rpg", "short name"), "角色扮演");
 });
 
+test("company categories can override generated English category names", () => {
+    assert.deepEqual(get("company", "Focus Entertainment", "categories"), [
+        "Focus娛樂遊戲",
+    ]);
+});
+
 test("Roguelike uses a lowercase display name and unpiped link", () => {
     assert.equal(get("genre", "roguelike", "name"), "roguelike");
     assert.equal(get("genre", "roguelike", "page"), "Roguelike");

@@ -1155,6 +1155,14 @@ test("navbox review stages source-preview edits and creates", async () => {
         component.methods.formatNavboxStatusLabel("Not exists"),
         "Missing",
     );
+    assert.equal(
+        component.methods.formatNavboxStatusLabel("Pending creation"),
+        "Pending",
+    );
+    assert.equal(
+        component.methods.formatNavboxStatusLabel("Pending edit"),
+        "Pending",
+    );
     assert.equal(component.methods.formatNavboxStatusLabel(""), "Unchecked");
 
     const existingRow = {
@@ -1183,11 +1191,19 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.equal(pageEditOpen.value, false);
     assert.deepEqual(existingRow.pendingEdit, {
         create: false,
+        previousStatus: "OK",
         summary: "Update navbox for [[Example]]",
         text: "{{Edited navbox}}",
         title: "Template:Example series",
     });
     assert.equal(existingRow.status, "Pending edit");
+    await component.methods.openNavboxEdit(existingRow);
+    assert.equal(pageEditState.pending, true);
+    assert.equal(component.template.includes(">Reset</cdx-button>"), true);
+    component.methods.resetPageEdit();
+    assert.equal(pageEditOpen.value, false);
+    assert.equal(existingRow.pendingEdit, undefined);
+    assert.equal(existingRow.status, "OK");
 
     const missingRow = {
         enabled: true,
@@ -1202,6 +1218,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     component.methods.stagePageEdit();
     assert.deepEqual(missingRow.pendingEdit, {
         create: true,
+        previousStatus: "Not exists",
         summary: "Create navbox for [[Example]]",
         text: "{{New navbox}}",
         title: "Template:Missing series",
@@ -1209,7 +1226,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.equal(missingRow.status, "Pending creation");
     assert.equal(
         component.template.includes(
-            "{{ navbox.status === 'OK' ? 'Edit' : 'Create' }}",
+            "{{ navbox.pendingEdit ? 'Pending' : navbox.status === 'OK' ? 'Edit' : 'Create' }}",
         ),
         true,
     );
@@ -1486,11 +1503,17 @@ test("category review stages source-preview edits and company creates", async ()
     component.methods.stagePageEdit();
     assert.deepEqual(existingRow.pendingEdit, {
         create: false,
+        previousStatus: "OK",
         summary: "Update Category:动作游戏",
         text: "[[Category:Edited]]",
         title: "Category:动作游戏",
     });
     assert.equal(existingRow.status, "Pending edit");
+    await component.methods.openCategoryEdit(existingRow);
+    assert.equal(pageEditState.pending, true);
+    component.methods.resetPageEdit();
+    assert.equal(existingRow.pendingEdit, undefined);
+    assert.equal(existingRow.status, "OK");
 
     const companyRow = {
         category: "Foo Studio游戏",
@@ -1514,7 +1537,7 @@ test("category review stages source-preview edits and company creates", async ()
     assert.equal(companyRow.status, "Pending creation");
     assert.equal(
         component.template.includes(
-            "{{ row.status === 'OK' ? 'Edit' : 'Create' }}",
+            "{{ row.pendingCreation || row.pendingEdit ? 'Pending' : row.status === 'OK' ? 'Edit' : 'Create' }}",
         ),
         true,
     );

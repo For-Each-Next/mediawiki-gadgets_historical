@@ -225,7 +225,7 @@ function createNavboxReviewTemplate() {
                             },
                             [
                                 createText(
-                                    "{{ navbox.status === 'OK' ? 'Edit' : 'Create' }}",
+                                    "{{ navbox.pendingEdit ? 'Pending' : navbox.status === 'OK' ? 'Edit' : 'Create' }}",
                                 ),
                             ],
                         ),
@@ -393,7 +393,7 @@ function createCategoryRowTemplate() {
                 },
                 [
                     createText(
-                        "{{ row.status === 'OK' ? 'Edit' : 'Create' }}",
+                        "{{ row.pendingCreation || row.pendingEdit ? 'Pending' : row.status === 'OK' ? 'Edit' : 'Create' }}",
                     ),
                 ],
             ),

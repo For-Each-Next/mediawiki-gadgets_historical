@@ -89,6 +89,13 @@ export function createPageEditDialogTemplate() {
                     label: "Stage",
                 }),
                 createButton({
+                    action: "destructive",
+                    click: "resetPageEdit",
+                    disabled: "pageEditState.loading",
+                    label: "Reset",
+                    show: "pageEditState.pending",
+                }),
+                createButton({
                     click: "closePageEditDialog",
                     label: "Cancel",
                 }),
@@ -247,6 +254,7 @@ function createPrimaryButton(options) {
  * @param {string} options.click - Click handler expression.
  * @param {string} [options.disabled] - Disabled binding expression.
  * @param {string} options.label - Button label or interpolation.
+ * @param {string} [options.show] - Visibility binding expression.
  * @param {string} [options.weight] - Codex weight.
  * @returns {object} Button node.
  */
@@ -261,6 +269,10 @@ function createButton(options) {
 
     if (options.disabled) {
         attributes["v-bind:disabled"] = options.disabled;
+    }
+
+    if (options.show) {
+        attributes["v-if"] = options.show;
     }
 
     if (options.weight) {

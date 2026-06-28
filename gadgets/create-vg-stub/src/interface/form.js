@@ -687,6 +687,8 @@ export function createDialogComponent(Vue, options) {
         html: "",
         kind: "",
         loading: false,
+        pending: false,
+        previousStatus: "",
         row: null,
         text: "",
         title: "",
@@ -2011,6 +2013,15 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Cancels staged source changes for the current review row.
+             *
+             * @returns {void}
+             */
+            resetPageEdit() {
+                resetPageEdit();
+            },
+
+            /**
              * Stages the edited page source for final submission.
              *
              * @returns {void}
@@ -2050,6 +2061,8 @@ export function createDialogComponent(Vue, options) {
                     {
                         "Not exists": "Missing",
                         OK: "OK",
+                        "Pending creation": "Pending",
+                        "Pending edit": "Pending",
                     }[status] || "Unchecked"
                 );
             },
@@ -2426,6 +2439,9 @@ export function createDialogComponent(Vue, options) {
             html: "",
             kind: params.kind,
             loading: true,
+            pending: params.row.pendingEdit != null,
+            previousStatus:
+                params.row.pendingEdit?.previousStatus || params.row.status,
             row: params.row,
             text: "",
             title: params.title,
@@ -2512,12 +2528,32 @@ export function createDialogComponent(Vue, options) {
 
         row.pendingEdit = {
             create: pageEditState.create,
+            previousStatus:
+                row.pendingEdit?.previousStatus || pageEditState.previousStatus,
             summary: buildPageEditSummary(pageEditState),
             text: pageEditState.text,
             title: pageEditState.title,
         };
         row.enabled = true;
         row.status = pageEditState.create ? "Pending creation" : "Pending edit";
+        pageEditOpen.value = false;
+    }
+
+    /**
+     * Cancels staged source changes for the current review row.
+     *
+     * @returns {void}
+     */
+    function resetPageEdit() {
+        const row = pageEditState.row;
+
+        if (row == null || row.pendingEdit == null) {
+            return;
+        }
+
+        row.status =
+            row.pendingEdit.previousStatus || pageEditState.previousStatus;
+        delete row.pendingEdit;
         pageEditOpen.value = false;
     }
 

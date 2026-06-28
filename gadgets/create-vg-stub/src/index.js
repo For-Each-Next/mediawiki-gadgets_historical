@@ -681,13 +681,14 @@ function getPageName() {
 function init(require) {
     const Vue = require("vue");
     const Codex = require("@wikimedia/codex");
-    const categoryStore = createCategoryCacheStore(getPageName());
+    const currentPageName = getPageName();
+    const categoryStore = createCategoryCacheStore(currentPageName);
     const citationStore = createCitationStore();
     const defaultName = getDefaultName();
-    const movedEdit = getMovedEdit(getPageName());
+    const movedEdit = getMovedEdit(currentPageName);
     const previewFormData =
         mw.config.get("wgAction") === "submit"
-            ? getPreviewFormData(getPageName())
+            ? getPreviewFormData(currentPageName)
             : undefined;
     let saveInterceptorActive = false;
 
@@ -704,7 +705,7 @@ function init(require) {
 
     const dialogOptions = {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
-        currentTitle: getPageName(),
+        currentTitle: currentPageName,
         defaultName,
         getCategoryPageUrl,
         getPageUrl,
@@ -717,7 +718,7 @@ function init(require) {
         initialForm:
             previewFormData?.form ||
             movedEdit?.form ||
-            readFormDraftForPage(defaultName),
+            readFormDraftForPage(currentPageName),
         initialOpen:
             previewFormData != null ||
             (movedEdit != null && movedEdit.preview !== true),
@@ -735,7 +736,7 @@ function init(require) {
         onEnwikiTitleChange: fetchEnwikiMetadata,
         onParsePreview: parsePreviewText,
         onPreview: (...args) => previewForm(...args, citationStore),
-        onFormChange: (form) => saveFormDraft(form, defaultName),
+        onFormChange: (form) => saveFormDraft(form, currentPageName),
         onMoveTarget: (...args) => openTargetPage(...args, citationStore),
         onPrepareCompanyCategory: prepareCompanyCategoryText,
         onPrepareCitations: (form) =>

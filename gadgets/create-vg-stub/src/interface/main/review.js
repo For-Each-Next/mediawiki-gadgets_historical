@@ -366,7 +366,7 @@ function createCategoryRowTemplate() {
                 "span",
                 {
                     class: "create-vg-stub-category-status",
-                    "v-bind:title": "row.source",
+                    "v-bind:title": "formatCategorySourceTitle(row.source)",
                 },
                 [createText("{{ formatCategorySourceLabel(row.source) }}")],
             ),

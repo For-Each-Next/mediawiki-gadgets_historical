@@ -1164,6 +1164,21 @@ test("navbox review stages source-preview edits and creates", async () => {
         "Pending",
     );
     assert.equal(component.methods.formatNavboxStatusLabel(""), "Unchecked");
+    assert.equal(component.methods.formatCategorySourceLabel("found"), "Found");
+    assert.equal(component.methods.formatCategorySourceLabel("known"), "Known");
+    assert.equal(
+        component.methods.formatCategorySourceLabel("known †"),
+        "Known†",
+    );
+    assert.equal(
+        component.methods.formatCategorySourceTitle("known †"),
+        "Known (modified)",
+    );
+    assert.equal(
+        component.methods.formatCategorySourceLabel("suggested"),
+        "Suggested",
+    );
+    assert.equal(component.methods.formatCategorySourceLabel("manual"), "Manual");
 
     const existingRow = {
         enabled: true,
@@ -1539,6 +1554,16 @@ test("category review stages source-preview edits and company creates", async ()
         component.template.includes(
             "{{ row.pendingCreation || row.pendingEdit ? 'Pending' : row.status === 'OK' ? 'Edit' : 'Create' }}",
         ),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
+            "{{ formatCategorySourceLabel(row.source) }}",
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes("formatCategorySourceTitle(row.source)"),
         true,
     );
     assert.equal(

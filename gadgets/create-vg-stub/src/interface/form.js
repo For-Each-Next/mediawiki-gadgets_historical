@@ -2041,6 +2041,16 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Formats a category row source tooltip.
+             *
+             * @param {string} source - Category row source.
+             * @returns {string} Source tooltip.
+             */
+            formatCategorySourceTitle(source) {
+                return formatCategorySourceTitle(source);
+            },
+
+            /**
              * Formats a stub template name for display.
              *
              * @param {string} stubTag - Stub template name.
@@ -2797,18 +2807,45 @@ export function createDialogComponent(Vue, options) {
  * @returns {string} Compact source label.
  */
 function formatCategorySourceLabel(source) {
+    const { label, modified } = getCategorySourceDisplay(source);
+
+    return modified ? `${label}†` : label;
+}
+
+/**
+ * Formats a category row source tooltip.
+ *
+ * @param {string} source - Category row source.
+ * @returns {string} Source tooltip.
+ */
+function formatCategorySourceTitle(source) {
+    const { label, modified } = getCategorySourceDisplay(source);
+
+    return modified ? `${label} (modified)` : label;
+}
+
+/**
+ * Gets display metadata for a category source.
+ *
+ * @param {string} source - Category row source.
+ * @returns {object} Source display metadata.
+ */
+function getCategorySourceDisplay(source) {
     const value = String(source || "").trim();
     const modified = value.endsWith("†");
     const base = modified ? value.replace(/\s*†$/u, "") : value;
     const labels = {
         found: "Found",
-        known: "Data",
+        known: "Known",
         manual: "Manual",
-        suggested: "Built",
+        suggested: "Suggested",
     };
     const label = labels[base] || base;
 
-    return modified ? `${label}†` : label;
+    return {
+        label,
+        modified,
+    };
 }
 
 /**

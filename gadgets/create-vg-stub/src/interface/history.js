@@ -9,14 +9,34 @@ const HISTORY_STORAGE_KEY = "create-vg-stub-form-history";
 const DRAFT_STORAGE_KEY = "create-vg-stub-form-draft";
 const DRAFT_SAVED_AT_STORAGE_KEY = "create-vg-stub-form-draft-saved-at";
 const HISTORY_DATA_VERSION = 1;
-const GENERATED_FORM_KEYS = new Set([
-    "categoryRows",
-    "citationRows",
-    "navboxRows",
-    "navboxText",
-    "redirectRows",
-    "sourceReferences",
-    "historyPatches",
+const INPUT_FORM_KEYS = new Set([
+    "additionalProse",
+    "additionalProseSourceUrl",
+    "developers",
+    "developersSourceUrl",
+    "englishName",
+    "englishNameSourceUrl",
+    "enwikiTitle",
+    "genres",
+    "genresSourceUrl",
+    "localizedNames",
+    "metacriticScore",
+    "metacriticScoreSourceUrl",
+    "name",
+    "openCriticRecommend",
+    "openCriticRecommendSourceUrl",
+    "originalName",
+    "originalNameSourceUrl",
+    "platforms",
+    "platformsSourceUrl",
+    "publishers",
+    "publishersSourceUrl",
+    "registerNewPage",
+    "series",
+    "seriesSourceUrl",
+    "sortKey",
+    "year",
+    "yearSourceUrl",
 ]);
 
 /**
@@ -243,8 +263,8 @@ function createHistoryData(form) {
  */
 function createInputData(form) {
     return Object.fromEntries(
-        Object.entries(cloneValue(form)).filter(
-            ([key]) => !GENERATED_FORM_KEYS.has(key),
+        Object.entries(cloneValue(form)).filter(([key]) =>
+            INPUT_FORM_KEYS.has(key),
         ),
     );
 }

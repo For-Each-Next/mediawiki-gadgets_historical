@@ -107,8 +107,17 @@ test("saveFormHistory stores input and minimal source-keyed patches", () => {
             ],
             developers: "Example Studio",
             developersSourceUrl: "https://example.test/source",
+            localizedNames: [
+                {
+                    hans: true,
+                    name: "示例游戏",
+                    official: true,
+                    sourceUrl: "https://example.test/name",
+                },
+            ],
             name: "Example",
             year: "2026",
+            yearSourceUrl: "https://example.test/year",
         },
         "Example",
         {
@@ -127,7 +136,13 @@ test("saveFormHistory stores input and minimal source-keyed patches", () => {
         entry.data.input.developersSourceUrl,
         "https://example.test/source",
     );
+    assert.equal(entry.data.input.yearSourceUrl, "https://example.test/year");
     assert.equal(Object.hasOwn(entry.data.input, "categoryRows"), false);
+    assert.equal(Object.hasOwn(entry.data.input, "citationRows"), false);
+    assert.equal(
+        entry.data.input.localizedNames[0].sourceUrl,
+        "https://example.test/name",
+    );
     assert.deepEqual(entry.data.patches.categories[0], {
         category: "Patched games",
         source: {

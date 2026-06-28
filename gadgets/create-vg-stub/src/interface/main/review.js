@@ -4,7 +4,7 @@ import {
     createActionFooterTemplate,
     createElement,
     createText,
-} from "../template/nodes.js";
+} from "../template.js";
 
 /**
  * Creates the review panel and category grid template node.
@@ -221,9 +221,13 @@ function createNavboxReviewTemplate() {
                             {
                                 class: "create-vg-stub-review-action",
                                 "v-if": "navbox.title",
-                                "v-on:click": "openNavboxView(navbox)",
+                                "v-on:click": "openNavboxEdit(navbox)",
                             },
-                            [createText("View")],
+                            [
+                                createText(
+                                    "{{ navbox.status === 'OK' ? 'Edit' : 'Create' }}",
+                                ),
+                            ],
                         ),
                         createElement("span", {
                             "v-else": "",
@@ -385,9 +389,13 @@ function createCategoryRowTemplate() {
                 {
                     class: "create-vg-stub-review-action",
                     "v-if": "row.category",
-                    "v-on:click": "openCategoryView(row)",
+                    "v-on:click": "openCategoryEdit(row)",
                 },
-                [createText("View")],
+                [
+                    createText(
+                        "{{ row.status === 'OK' ? 'Edit' : 'Create' }}",
+                    ),
+                ],
             ),
             createElement("span", {
                 "v-else": "",

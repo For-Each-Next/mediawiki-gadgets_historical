@@ -1129,25 +1129,26 @@ test("review exposes editable stub tags below category rows", async () => {
     );
 });
 
-test("navbox review shows status and opens view or create dialogs", async () => {
-    const saved = [];
+test("navbox review stages source-preview edits and creates", async () => {
+    let fetchedTitle = "";
+    const parsed = [];
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
+            async onFetchPageText(title) {
+                fetchedTitle = title;
+                return "{{Existing navbox}}";
+            },
+            onParsePreview(text, title) {
+                parsed.push([text, title]);
+                return `<p>${text}</p>`;
+            },
             async onPrepareReview(form) {
                 return form.navboxRows || [];
             },
-            async onSaveNavbox(title, text) {
-                saved.push([title, text]);
-            },
         }),
     );
-    const {
-        categoryViewOpen,
-        categoryViewState,
-        navboxCreateOpen,
-        navboxCreateState,
-    } = component.setup();
+    const { pageEditOpen, pageEditState } = component.setup();
 
     assert.equal(component.methods.formatNavboxStatusLabel("OK"), "OK");
     assert.equal(
@@ -1156,27 +1157,64 @@ test("navbox review shows status and opens view or create dialogs", async () => 
     );
     assert.equal(component.methods.formatNavboxStatusLabel(""), "Unchecked");
 
-    component.methods.openNavboxView({
+    const existingRow = {
+        enabled: true,
+        status: "OK",
+        text: "{{Example series}}",
         title: "Example series",
-    });
-    assert.equal(categoryViewOpen.value, true);
-    assert.equal(categoryViewState.title, "Template:Example series");
-    assert.equal(categoryViewState.url, "/wiki/Template:Example series");
+    };
+    await component.methods.openNavboxEdit(existingRow);
+    assert.equal(fetchedTitle, "Template:Example series");
+    assert.equal(pageEditOpen.value, true);
+    assert.equal(pageEditState.title, "Template:Example series");
+    assert.equal(pageEditState.text, "{{Existing navbox}}");
+    assert.deepEqual(parsed.at(-1), [
+        "{{Existing navbox}}",
+        "Template:Example series",
+    ]);
 
-    component.methods.createNavbox({
+    pageEditState.text = "{{Edited navbox}}";
+    await component.methods.refreshPageEditPreview();
+    assert.deepEqual(parsed.at(-1), [
+        "{{Edited navbox}}",
+        "Template:Example series",
+    ]);
+    component.methods.stagePageEdit();
+    assert.equal(pageEditOpen.value, false);
+    assert.deepEqual(existingRow.pendingEdit, {
+        create: false,
+        summary: "Update Template:Example series",
+        text: "{{Edited navbox}}",
+        title: "Template:Example series",
+    });
+    assert.equal(existingRow.status, "Pending edit");
+
+    const missingRow = {
+        enabled: true,
+        status: "Not exists",
+        text: "{{Missing series}}",
         title: "Missing series",
+    };
+    await component.methods.openNavboxEdit(missingRow);
+    assert.equal(pageEditState.title, "Template:Missing series");
+    assert.equal(pageEditState.text, "");
+    pageEditState.text = "{{New navbox}}";
+    component.methods.stagePageEdit();
+    assert.deepEqual(missingRow.pendingEdit, {
+        create: true,
+        summary: "Create Template:Missing series",
+        text: "{{New navbox}}",
+        title: "Template:Missing series",
     });
-    assert.equal(navboxCreateOpen.value, true);
-    assert.equal(navboxCreateState.title, "Missing series");
-    assert.equal(navboxCreateState.text, "");
-
-    navboxCreateState.text = "{{Navbox}}";
-    await component.methods.saveNavbox();
-    assert.deepEqual(saved, [["Missing series", "{{Navbox}}"]]);
-    assert.equal(navboxCreateOpen.value, false);
-    assert.equal(component.template.includes("Create Template:"), true);
+    assert.equal(missingRow.status, "Pending creation");
     assert.equal(
-        component.template.includes('v-model="navboxCreateState.text"'),
+        component.template.includes(
+            "{{ navbox.status === 'OK' ? 'Edit' : 'Create' }}",
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes('v-model="pageEditState.text"'),
         true,
     );
 });
@@ -1307,7 +1345,12 @@ test("category helper stages missing category rows for final submission", async 
     assert.equal(companyRow.enabled, true);
     assert.equal(companyRow.status, "Pending creation");
     assert.equal(companyCategoryOpen.value, false);
-    assert.equal(component.template.includes(">View</cdx-button>"), true);
+    assert.equal(
+        component.template.includes('v-on:click="openCategoryEdit(row)"'),
+        true,
+    );
+    assert.equal(component.template.includes("openCategoryView"), false);
+    assert.equal(component.template.includes("'Edit' : 'Create'"), true);
     assert.equal(component.template.includes(">Remove</cdx-button>"), true);
     assert.equal(
         component.template.includes(
@@ -1411,38 +1454,83 @@ test("pending category button reopens review and can cancel creation", async () 
     assert.equal(row.status, "Not exists");
 });
 
-test("category viewer opens for existing company and other category rows", () => {
+test("category review stages source-preview edits and company creates", async () => {
+    let fetchedTitle = "";
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
-            getCategoryPageUrl(category) {
-                return `/wiki/Category:${category}`;
+            async onFetchPageText(title) {
+                fetchedTitle = title;
+                return "[[Category:Existing]]";
+            },
+            onParsePreview(text, title) {
+                return `<p>${title}: ${text}</p>`;
+            },
+            async onPrepareCompanyCategory(row) {
+                return `Text for ${row.company}`;
             },
         }),
     );
-    const { categoryViewOpen, categoryViewState } = component.setup();
+    const { pageEditOpen, pageEditState } = component.setup();
 
-    component.methods.openCategoryView({
+    const existingRow = {
+        category: "动作游戏",
+        enabled: true,
+        status: "OK",
+    };
+    await component.methods.openCategoryEdit(existingRow);
+    assert.equal(fetchedTitle, "Category:动作游戏");
+    assert.equal(pageEditOpen.value, true);
+    assert.equal(pageEditState.text, "[[Category:Existing]]");
+    pageEditState.text = "[[Category:Edited]]";
+    component.methods.stagePageEdit();
+    assert.deepEqual(existingRow.pendingEdit, {
+        create: false,
+        summary: "Update Category:动作游戏",
+        text: "[[Category:Edited]]",
+        title: "Category:动作游戏",
+    });
+    assert.equal(existingRow.status, "Pending edit");
+
+    const companyRow = {
         category: "Foo Studio游戏",
         company: "Foo Studio",
-        status: "OK",
+        enabled: false,
+        status: "Not exists",
+    };
+    await component.methods.openCategoryEdit(companyRow);
+    assert.equal(pageEditState.title, "Category:Foo Studio游戏");
+    assert.equal(pageEditState.text, "Text for Foo Studio");
+    assert.equal(pageEditState.company, "Foo Studio");
+    pageEditState.englishName = "Foo Studio games";
+    pageEditState.text += "\nEdited";
+    component.methods.stagePageEdit();
+    assert.deepEqual(companyRow.pendingCreation, {
+        englishName: "Foo Studio games",
+        previousStatus: "Not exists",
+        text: "Text for Foo Studio\nEdited",
     });
-
-    assert.equal(categoryViewOpen.value, true);
-    assert.equal(categoryViewState.title, "Category:Foo Studio游戏");
-    assert.equal(categoryViewState.url, "/wiki/Category:Foo Studio游戏");
-
-    component.methods.closeCategoryView();
-    assert.equal(categoryViewOpen.value, false);
-
-    component.methods.openCategoryView({
-        category: "动作游戏",
-        status: "OK",
-    });
-    assert.equal(categoryViewState.url, "/wiki/Category:动作游戏");
-    assert.equal(component.template.includes(">View</cdx-button>"), true);
+    assert.equal(companyRow.enabled, true);
+    assert.equal(companyRow.status, "Pending creation");
     assert.equal(
-        component.template.includes('v-bind:src="categoryViewState.url"'),
+        component.template.includes(
+            "{{ row.status === 'OK' ? 'Edit' : 'Create' }}",
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes('v-on:click="openCategoryEdit(row)"'),
+        true,
+    );
+    assert.equal(
+        component.template.includes("English Wikipedia category"),
+        true,
+    );
+    assert.equal(
+        component.methods.canCreateCategory({
+        category: "动作游戏",
+        status: "Not exists",
+    }),
         true,
     );
 });
@@ -2589,14 +2677,8 @@ function createOptionsStub(options = {}) {
         getProseWikitext() {
             return "";
         },
-        getCategoryPageUrl(category) {
-            return `/wiki/Category:${category}`;
-        },
         getPageUrl(title) {
             return `/wiki/${title}`;
-        },
-        getTemplatePageUrl(template, edit) {
-            return `/wiki/Template:${template}${edit ? "?action=edit" : ""}`;
         },
         getFieldPlaceholder() {},
         getHistoryEntries() {
@@ -2611,6 +2693,9 @@ function createOptionsStub(options = {}) {
         onCreateCategoryRow() {},
         onDeleteHistoryEntry() {},
         onFormChange() {},
+        onFetchPageText() {
+            return "";
+        },
         onPreview() {},
         onMoveTarget() {},
         onParsePreview() {
@@ -2631,7 +2716,6 @@ function createOptionsStub(options = {}) {
         onResetCategoryRow() {},
         onSaveCategory() {},
         onSaveCompanyCategory() {},
-        onSaveNavbox() {},
         onSubmit() {},
         onSubmitHistory() {},
         onUpdateCategoryRowCategory() {},

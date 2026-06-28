@@ -72,7 +72,6 @@ import {
     getRedirectTitleCheckTitles,
     runSelectedActions,
 } from "./editing/pre-save.js";
-import { saveNavboxTemplate } from "./handlers/navbox-pages.js";
 import { registerNewPage } from "./handlers/new-page-list.js";
 import {
     addMissingPageEditTrigger,
@@ -160,31 +159,12 @@ function getDefaultName() {
 }
 
 /**
- * Builds a category page URL.
- *
- * @param {string} category - Category title without namespace.
- * @returns {string} Category page URL.
- */
-const getCategoryPageUrl = (category) =>
-    mw.util.getUrl(`Category:${category}`);
-
-/**
  * Builds a page URL.
  *
  * @param {string} title - Page title.
  * @returns {string} Page URL.
  */
 const getPageUrl = (title) => mw.util.getUrl(title);
-
-/**
- * Builds a template page URL.
- *
- * @param {string} template - Template title without namespace.
- * @param {boolean} edit - Whether to open the edit form.
- * @returns {string} Template page URL.
- */
-const getTemplatePageUrl = (template, edit = false) =>
-    mw.util.getUrl(`Template:${template}`, edit ? { action: "edit" } : {});
 
 /**
  * Counts generated prose from current form values.
@@ -304,7 +284,7 @@ async function previewForm(form, sourceFetchState, citationStore) {
  * @param {string} text - Wikitext to parse.
  * @returns {Promise<string>} Parsed preview HTML.
  */
-async function parsePreviewText(text) {
+async function parsePreviewText(text, title = getPageName()) {
     const response = await new mw.Api().post({
         action: "parse",
         contentmodel: "wikitext",
@@ -312,10 +292,41 @@ async function parsePreviewText(text) {
         formatversion: 2,
         prop: "text",
         text,
-        title: getPageName(),
+        title,
     });
 
     return response?.parse?.text || "";
+}
+
+/**
+ * Fetches the current source for one wiki page.
+ *
+ * @param {string} title - Full page title.
+ * @returns {Promise<string>} Page source text.
+ */
+async function fetchPageText(title) {
+    const response = await new mw.Api().get({
+        action: "query",
+        formatversion: "2",
+        prop: "revisions",
+        rvprop: "content",
+        rvslots: "main",
+        titles: title,
+    });
+    const pages = response?.query?.pages || [];
+    const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
+    const revision = page?.revisions?.[0];
+
+    if (page == null || page.missing != null || revision == null) {
+        throw new Error(`Unable to read ${title}.`);
+    }
+
+    return (
+        revision.slots?.main?.content ??
+        revision.slots?.main?.["*"] ??
+        revision["*"] ??
+        ""
+    );
 }
 
 /**
@@ -707,9 +718,7 @@ function init(require) {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
         currentTitle: currentPageName,
         defaultName,
-        getCategoryPageUrl,
         getPageUrl,
-        getTemplatePageUrl,
         getHistoryEntries: readFormHistoryEntries,
         getFieldPlaceholder,
         getFieldPreview,
@@ -737,6 +746,7 @@ function init(require) {
         onParsePreview: parsePreviewText,
         onPreview: (...args) => previewForm(...args, citationStore),
         onFormChange: (form) => saveFormDraft(form, currentPageName),
+        onFetchPageText: fetchPageText,
         onMoveTarget: (...args) => openTargetPage(...args, citationStore),
         onPrepareCompanyCategory: prepareCompanyCategoryText,
         onPrepareCitations: (form) =>
@@ -780,7 +790,6 @@ function init(require) {
 
             return { actions, move: { enabled: false, to: title } };
         },
-        onSaveNavbox: saveNavboxTemplate,
         onSourceUrlChange: (url) => citationStore.prefetch(url),
         onSteamNamesFetch: (url, options) =>
             fetchSteamNameRows(url, citationStore, options),

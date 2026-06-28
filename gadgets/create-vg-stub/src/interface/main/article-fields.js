@@ -5,7 +5,7 @@ import {
     createFieldPreviewTemplate,
     createSourceUrlInputTemplate,
     createText,
-} from "../template/nodes.js";
+} from "../template.js";
 
 /**
  * Creates the article field group template node.

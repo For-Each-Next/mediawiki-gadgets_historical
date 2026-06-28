@@ -5,7 +5,7 @@ import {
     createElement,
     createSourceUrlInputTemplate,
     createText,
-} from "../template/nodes.js";
+} from "../template.js";
 
 /**
  * Creates the localized name group template node.

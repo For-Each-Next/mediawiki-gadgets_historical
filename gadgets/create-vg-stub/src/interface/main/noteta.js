@@ -4,7 +4,7 @@ import {
     createActionFooterTemplate,
     createElement,
     createText,
-} from "../template/nodes.js";
+} from "../template.js";
 
 /**
  * Creates editable NoteTA rows.

@@ -21,13 +21,17 @@ import {
     buildOfficialNameConversionText,
     sortNoteTaEntries,
 } from "../wikitext/note-ta.js";
-import { createTabsTemplate } from "./tabs/index.js";
+import {
+    createPageEditDialogTemplate,
+    createPreviewDialogTemplate,
+} from "./source-preview.js";
+import { createTabsTemplate } from "./main/index.js";
 import {
     createActionFooterTemplate,
     createElement,
     createText,
     renderTemplate,
-} from "./template/nodes.js";
+} from "./template.js";
 
 export {
     buildNameSourceReferenceKey,
@@ -621,8 +625,6 @@ export function addDialogStyles() {
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
  * @param {Function} options.getProseSinographs - Prose length calculator.
  * @param {Function} options.getProseWikitext - Prose wikitext preview builder.
- * @param {Function} options.getCategoryPageUrl - Category page URL builder.
- * @param {Function} options.getTemplatePageUrl - Template page URL builder.
  * @param {object} [options.initialForm] - Initial form values.
  * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
  * @param {Function} [options.getFieldPreview] - Field wikitext preview builder.
@@ -638,7 +640,7 @@ export function addDialogStyles() {
  * @param {Function} options.onPrepareCompanyCategory - Company category text builder.
  * @param {Function} options.onPrepareRedirectRows - Redirect review row builder.
  * @param {Function} options.onPrepareReview - Review report builder.
- * @param {Function} options.onSaveNavbox - Navbox template save handler.
+ * @param {Function} options.onFetchPageText - Existing page source fetcher.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
  * @param {Function} options.onParsePreview - Wikitext preview parser.
  * @param {Function} options.onPreview - Editor preview handler.
@@ -676,10 +678,16 @@ export function createDialogComponent(Vue, options) {
         pending: false,
         text: "",
     });
-    const navboxCreateOpen = Vue.ref(false);
-    const navboxCreateState = Vue.reactive({
+    const pageEditOpen = Vue.ref(false);
+    const pageEditState = Vue.reactive({
+        create: false,
+        company: "",
+        englishName: "",
         error: "",
+        html: "",
+        kind: "",
         loading: false,
+        row: null,
         text: "",
         title: "",
     });
@@ -1756,64 +1764,18 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
-             * Opens an existing navbox template.
+             * Opens an editable navbox template source preview.
              *
              * @param {object} row - Navbox review row.
-             * @returns {void}
+             * @returns {Promise<void>} Resolves after the editor is ready.
              */
-            openNavboxView(row) {
-                openPageView(
-                    `Template:${row.title}`,
-                    options.getTemplatePageUrl(row.title, false),
-                );
-            },
-
-            /**
-             * Opens the missing navbox template editor.
-             *
-             * @param {object} row - Navbox review row.
-             * @returns {void}
-             */
-            createNavbox(row) {
-                Object.assign(navboxCreateState, {
-                    error: "",
-                    loading: false,
-                    text: "",
-                    title: row.title,
+            async openNavboxEdit(row) {
+                await openPageEdit({
+                    create: row.status !== "OK",
+                    kind: "navbox",
+                    row,
+                    title: `Template:${row.title}`,
                 });
-                navboxCreateOpen.value = true;
-            },
-
-            /**
-             * Closes the navbox template editor.
-             *
-             * @returns {void}
-             */
-            closeNavboxCreate() {
-                navboxCreateOpen.value = false;
-            },
-
-            /**
-             * Saves the navbox template and refreshes its status.
-             *
-             * @returns {Promise<void>} Resolves after the template is saved.
-             */
-            async saveNavbox() {
-                navboxCreateState.error = "";
-                navboxCreateState.loading = true;
-
-                try {
-                    await options.onSaveNavbox(
-                        navboxCreateState.title,
-                        navboxCreateState.text,
-                    );
-                    navboxCreateOpen.value = false;
-                    await refreshNavboxRows(true, false);
-                } catch (error) {
-                    navboxCreateState.error = error.message || String(error);
-                } finally {
-                    navboxCreateState.loading = false;
-                }
             },
 
             /**
@@ -1993,18 +1955,20 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
-             * Opens one category page in the viewer dialog.
+             * Opens an editable category source preview.
              *
              * @param {object} row - Category review row.
-             * @returns {void}
+             * @returns {Promise<void>} Resolves after the editor is ready.
              */
-            openCategoryView(row) {
+            async openCategoryEdit(row) {
                 const category = trimFieldValue(row.category);
 
-                openPageView(
-                    `Category:${category}`,
-                    options.getCategoryPageUrl(category),
-                );
+                await openPageEdit({
+                    create: row.status !== "OK",
+                    kind: "category",
+                    row,
+                    title: `Category:${category}`,
+                });
             },
 
             /**
@@ -2014,6 +1978,45 @@ export function createDialogComponent(Vue, options) {
              */
             closeCategoryView() {
                 categoryViewOpen.value = false;
+            },
+
+            /**
+             * Refreshes the edited page source preview.
+             *
+             * @returns {Promise<void>} Resolves after the preview is refreshed.
+             */
+            async refreshPageEditPreview() {
+                pageEditState.error = "";
+                pageEditState.loading = true;
+
+                try {
+                    pageEditState.html = await options.onParsePreview(
+                        pageEditState.text,
+                        pageEditState.title,
+                    );
+                } catch (error) {
+                    pageEditState.error = error.message || String(error);
+                } finally {
+                    pageEditState.loading = false;
+                }
+            },
+
+            /**
+             * Closes the page edit dialog without staging changes.
+             *
+             * @returns {void}
+             */
+            closePageEditDialog() {
+                pageEditOpen.value = false;
+            },
+
+            /**
+             * Stages the edited page source for final submission.
+             *
+             * @returns {void}
+             */
+            stagePageEdit() {
+                stagePageEdit();
             },
 
             /**
@@ -2107,6 +2110,8 @@ export function createDialogComponent(Vue, options) {
                 categoryState,
                 categoryViewOpen,
                 categoryViewState,
+                pageEditOpen,
+                pageEditState,
                 citationState,
                 companyCategoryOpen,
                 companyCategoryState,
@@ -2132,8 +2137,6 @@ export function createDialogComponent(Vue, options) {
                 moveOpen,
                 moveTarget,
                 nameMarkets: NAME_MARKETS,
-                navboxCreateOpen,
-                navboxCreateState,
                 open,
                 reviewState,
                 preSaveMoveEnabled,
@@ -2397,6 +2400,127 @@ export function createDialogComponent(Vue, options) {
         categoryViewState.title = title;
         categoryViewState.url = url;
         categoryViewOpen.value = true;
+    }
+
+    /**
+     * Opens a source editor for a page action staged at final submit.
+     *
+     * @param {object} params - Page edit parameters.
+     * @param {boolean} params.create - Whether the page is missing.
+     * @param {string} params.kind - Edited row kind.
+     * @param {object} params.row - Review row to update.
+     * @param {string} params.title - Full page title.
+     * @returns {Promise<void>} Resolves after the editor is populated.
+     */
+    async function openPageEdit(params) {
+        Object.assign(pageEditState, {
+            create: params.create,
+            company:
+                params.kind === "category"
+                    ? trimFieldValue(params.row.company)
+                    : "",
+            englishName: trimFieldValue(
+                params.row.pendingCreation?.englishName,
+            ),
+            error: "",
+            html: "",
+            kind: params.kind,
+            loading: true,
+            row: params.row,
+            text: "",
+            title: params.title,
+        });
+        pageEditOpen.value = true;
+
+        try {
+            pageEditState.text =
+                getStagedPageText(params.row, params.kind) ??
+                (params.create
+                    ? await getNewPageEditText(params)
+                    : await options.onFetchPageText(params.title));
+            pageEditState.html = await options.onParsePreview(
+                pageEditState.text,
+                params.title,
+            );
+        } catch (error) {
+            pageEditState.error = error.message || String(error);
+        } finally {
+            pageEditState.loading = false;
+        }
+    }
+
+    /**
+     * Gets already staged source text for a review row.
+     *
+     * @param {object} row - Review row.
+     * @param {string} kind - Review row kind.
+     * @returns {string|undefined} Staged source text.
+     */
+    function getStagedPageText(row, kind) {
+        if (kind === "category" && row.pendingCreation != null) {
+            return String(row.pendingCreation.text || "");
+        }
+
+        if (row.pendingEdit != null) {
+            return String(row.pendingEdit.text || "");
+        }
+
+        return undefined;
+    }
+
+    /**
+     * Gets the initial source for a missing page.
+     *
+     * @param {object} params - Page edit parameters.
+     * @returns {Promise<string>} Initial source text.
+     */
+    async function getNewPageEditText(params) {
+        if (
+            params.kind === "category" &&
+            trimFieldValue(params.row.company) !== ""
+        ) {
+            return options.onPrepareCompanyCategory(params.row);
+        }
+
+        return "";
+    }
+
+    /**
+     * Stages the current page edit for the final submit.
+     *
+     * @returns {void}
+     */
+    function stagePageEdit() {
+        const row = pageEditState.row;
+
+        if (row == null) {
+            return;
+        }
+
+        if (pageEditState.kind === "category" && pageEditState.create) {
+            row.pendingCreation = {
+                englishName: trimFieldValue(pageEditState.englishName),
+                previousStatus:
+                    row.pendingCreation?.previousStatus || row.status,
+                text: pageEditState.text,
+            };
+            row.enabled = true;
+            row.status = "Pending creation";
+            pageEditOpen.value = false;
+            return;
+        }
+
+        row.pendingEdit = {
+            create: pageEditState.create,
+            summary: pageEditState.create
+                ? `Create ${pageEditState.title}`
+                : `Update ${pageEditState.title}`,
+            text: pageEditState.text,
+            title: pageEditState.title,
+        };
+        row.enabled = true;
+        row.status = pageEditState.create ? "Pending creation" : "Pending edit";
+        pageEditOpen.value = false;
     }
 
     /**
@@ -2776,163 +2900,13 @@ function createDialogTemplate() {
         createDialogTemplateRoot(),
         createPreSaveDialogTemplate(),
         createCompanyCategoryDialogTemplate(),
-        createNavboxDialogTemplate(),
         createCategoryViewDialogTemplate(),
+        createPageEditDialogTemplate(),
         createMoveDialogTemplate(),
         createPreviewDialogTemplate(),
         createHistoryDialogTemplate(),
         createHistoryJsonDialogTemplate(),
     ]);
-}
-
-/**
- * Creates the editable generated wikitext preview dialog.
- *
- * @returns {object} Preview dialog template node.
- */
-function createPreviewDialogTemplate() {
-    return createElement(
-        "cdx-dialog",
-        {
-            class: "create-vg-stub-preview-dialog",
-            "v-model:open": "previewOpen",
-            title: "Generated wikitext preview",
-        },
-        [
-            createElement(
-                "div",
-                {
-                    class: "create-vg-stub-preview-layout",
-                },
-                [
-                    createElement("cdx-text-area", {
-                        class: "create-vg-stub-preview-text",
-                        "v-model": "previewText",
-                        rows: "18",
-                        spellcheck: "false",
-                        style: {
-                            fontFamily: "monospace",
-                        },
-                    }),
-                    createElement("div", {
-                        class: "create-vg-stub-preview-rendered mw-parser-output",
-                        "v-html": "previewHtml",
-                    }),
-                ],
-            ),
-            createElement(
-                "p",
-                {
-                    class: "create-vg-stub-error",
-                    "v-if": "sourceFetchState.error",
-                },
-                [createText("{{ sourceFetchState.error }}")],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-slot:footer": "",
-                },
-                [
-                    createActionFooterTemplate([
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-bind:disabled": "sourceFetchState.loading",
-                                "v-on:click": "refreshParsedPreview",
-                            },
-                            [
-                                createText(
-                                    "{{ sourceFetchState.loading ? 'Working' : 'Update preview' }}",
-                                ),
-                            ],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                action: "progressive",
-                                weight: "primary",
-                                "v-bind:disabled":
-                                    "sourceFetchState.loading || !previewText.trim()",
-                                "v-on:click": "submitPreviewText",
-                            },
-                            [createText("Continue")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-on:click": "closePreviewDialog",
-                            },
-                            [createText("Dismiss")],
-                        ),
-                    ]),
-                ],
-            ),
-        ],
-    );
-}
-
-/**
- * Creates the missing navbox template editor dialog.
- *
- * @returns {object} Navbox template dialog node.
- */
-function createNavboxDialogTemplate() {
-    return createElement(
-        "cdx-dialog",
-        {
-            "v-bind:title": "'Create Template:' + navboxCreateState.title",
-            "v-model:open": "navboxCreateOpen",
-        },
-        [
-            createElement("cdx-text-area", {
-                rows: "10",
-                "v-bind:disabled": "navboxCreateState.loading",
-                "v-model": "navboxCreateState.text",
-            }),
-            createElement(
-                "p",
-                {
-                    class: "create-vg-stub-error",
-                    "v-if": "navboxCreateState.error",
-                },
-                [createText("{{ navboxCreateState.error }}")],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-slot:footer": "",
-                },
-                [
-                    createActionFooterTemplate([
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-bind:disabled": "navboxCreateState.loading",
-                                "v-on:click": "closeNavboxCreate",
-                            },
-                            [createText("Cancel")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                action: "progressive",
-                                "v-bind:disabled":
-                                    "navboxCreateState.loading || !navboxCreateState.text.trim()",
-                                "v-on:click": "saveNavbox",
-                                weight: "primary",
-                            },
-                            [
-                                createText(
-                                    "{{ navboxCreateState.loading ? 'Working' : 'Save' }}",
-                                ),
-                            ],
-                        ),
-                    ]),
-                ],
-            ),
-        ],
-    );
 }
 
 /**
@@ -4916,6 +4890,11 @@ function createNavboxRow(value = "", fixed = value?.fixed === true) {
         status: value?.status || "",
         text,
         title: value?.title || getNavboxTitle(text),
+        ...(value?.pendingEdit == null
+            ? {}
+            : {
+                  pendingEdit: value.pendingEdit,
+              }),
     };
 }
 

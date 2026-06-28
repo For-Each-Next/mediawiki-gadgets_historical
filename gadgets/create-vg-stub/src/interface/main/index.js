@@ -1,6 +1,6 @@
 /* eslint-disable */
 
-import { createElement } from "../template/nodes.js";
+import { createElement } from "../template.js";
 import { createFieldGroupTemplate } from "./article-fields.js";
 import { createCitationGroupTemplate } from "./citations.js";
 import { createNameGroupTemplate } from "./localized-names.js";

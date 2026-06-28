@@ -71,6 +71,14 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
         actions.push(createCategoryAction(row));
     }
 
+    for (const row of (form.categoryRows || []).filter(isPreSavePageEditRow)) {
+        actions.push(createPageEditAction(row.pendingEdit));
+    }
+
+    for (const row of (form.navboxRows || []).filter(isPreSavePageEditRow)) {
+        actions.push(createPageEditAction(row.pendingEdit));
+    }
+
     return actions;
 }
 
@@ -85,6 +93,21 @@ function isPreSaveCategoryRow(row) {
         row.enabled !== false &&
         row.pendingCreation != null &&
         normalizeTitle(row.category) !== ""
+    );
+}
+
+/**
+ * Checks whether a row has a staged page edit.
+ *
+ * @param {object} row - Review row.
+ * @returns {boolean} Whether the row should become a page edit action.
+ */
+function isPreSavePageEditRow(row) {
+    return (
+        row.enabled !== false &&
+        row.pendingEdit != null &&
+        normalizeTitle(row.pendingEdit.title) !== "" &&
+        String(row.pendingEdit.text || "").trim() !== ""
     );
 }
 
@@ -108,6 +131,32 @@ function createCategoryAction(row) {
         selected: true,
         text: String(row.pendingCreation.text || ""),
         type: "category",
+    };
+}
+
+/**
+ * Creates a generic staged page edit action.
+ *
+ * @param {object} edit - Staged page edit.
+ * @returns {object} Page edit pre-save action.
+ */
+function createPageEditAction(edit) {
+    const title = normalizeTitle(edit.title);
+    const create = edit.create === true;
+
+    return {
+        create,
+        displayLabel: create ? "Create page" : "Edit page",
+        id: `page-edit:${title}`,
+        label: `${create ? "Create" : "Edit"} page: ${title}`,
+        pageTitle: title,
+        selected: true,
+        summary:
+            normalizeTitle(edit.summary) ||
+            `${create ? "Create" : "Update"} ${title}`,
+        text: String(edit.text || ""),
+        title,
+        type: "page-edit",
     };
 }
 
@@ -718,7 +767,34 @@ async function runSelectedAction(action, options) {
         }
 
         await save(action.category, action.text, action.englishName);
+        return;
     }
+
+    if (action.type === "page-edit") {
+        await savePageEdit(options.api, action);
+    }
+}
+
+/**
+ * Saves a staged page edit.
+ *
+ * @param {object} api - MediaWiki API client.
+ * @param {object} action - Page edit action.
+ * @returns {Promise<void>} Resolves after the page is saved.
+ */
+async function savePageEdit(api, action) {
+    const params = {
+        action: "edit",
+        summary: addEditSummarySuffix(action.summary),
+        text: action.text,
+        title: action.title,
+    };
+
+    if (action.create) {
+        params.createonly = true;
+    }
+
+    await api.postWithToken("csrf", params);
 }
 
 /**

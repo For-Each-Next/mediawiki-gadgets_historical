@@ -107,6 +107,13 @@ function buildActionProgressParts(action, title) {
         ];
     }
 
+    if (action.type === "page-edit") {
+        return [
+            { text: `${action.create ? "Create" : "Edit"} page: ` },
+            { code: action.title },
+        ];
+    }
+
     return undefined;
 }
 

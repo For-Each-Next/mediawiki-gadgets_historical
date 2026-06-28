@@ -128,6 +128,66 @@ test("buildPreSaveActions includes staged category creation", () => {
     });
 });
 
+test("buildPreSaveActions includes staged page edits", () => {
+    const actions = buildPreSaveActions({
+        form: {
+            categoryRows: [
+                {
+                    category: "动作游戏",
+                    enabled: true,
+                    pendingEdit: {
+                        summary: "Update Category:动作游戏",
+                        text: "Category text",
+                        title: "Category:动作游戏",
+                    },
+                },
+            ],
+            navboxRows: [
+                {
+                    enabled: true,
+                    pendingEdit: {
+                        create: true,
+                        summary: "Create Template:Example series",
+                        text: "{{Navbox}}",
+                        title: "Template:Example series",
+                    },
+                },
+            ],
+        },
+        title: "Example",
+    });
+
+    assert.deepEqual(
+        actions.filter((action) => action.type === "page-edit"),
+        [
+            {
+                create: false,
+                displayLabel: "Edit page",
+                id: "page-edit:Category:动作游戏",
+                label: "Edit page: Category:动作游戏",
+                pageTitle: "Category:动作游戏",
+                selected: true,
+                summary: "Update Category:动作游戏",
+                text: "Category text",
+                title: "Category:动作游戏",
+                type: "page-edit",
+            },
+            {
+                create: true,
+                displayLabel: "Create page",
+                id: "page-edit:Template:Example series",
+                label: "Create page: Template:Example series",
+                pageTitle: "Template:Example series",
+                selected: true,
+                summary: "Create Template:Example series",
+                text: "{{Navbox}}",
+                title: "Template:Example series",
+                type: "page-edit",
+            },
+        ],
+    );
+});
+
 test("buildPreSaveActions hints existing redirects and unchecks them", () => {
     const actions = buildPreSaveActions(
         {
@@ -694,6 +754,39 @@ test("runSelectedActions creates staged categories", async () => {
 
     assert.deepEqual(calls, [
         ["Chibig游戏", "Category text", "Category:Chibig games"],
+    ]);
+});
+
+test("runSelectedActions saves staged page edits", async () => {
+    const calls = [];
+
+    await runSelectedActions(
+        [
+            {
+                create: true,
+                selected: true,
+                summary: "Create Template:Example series",
+                text: "{{Navbox}}",
+                title: "Template:Example series",
+                type: "page-edit",
+            },
+        ],
+        {
+            api: createApiStub(calls),
+            title: "Target",
+        },
+    );
+
+    assert.deepEqual(calls[0], [
+        "postWithToken",
+        "csrf",
+        {
+            action: "edit",
+            createonly: true,
+            summary: `Create Template:Example series ${EDIT_SUMMARY_SUFFIX}`,
+            text: "{{Navbox}}",
+            title: "Template:Example series",
+        },
     ]);
 });
 

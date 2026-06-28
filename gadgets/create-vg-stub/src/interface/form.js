@@ -809,21 +809,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             clearForm() {
-                replaceFormValues(form, {
-                    ...createFormValues(""),
-                    publishers: "",
-                });
-                syncGeneratedNameNoteTaRow(form);
-                activeTab.value = ARTICLE_PARAMETER_GROUPS[0].key;
-                fetchedSteamNameRows.value = [];
-                steamUrl.value = "";
-                Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
-                categoryState.error = "";
-                citationState.error = "";
-                reviewState.error = "";
-                sourceFetchState.error = "";
-                navboxRowsPrepared = false;
-                form.redirectRows = null;
+                clearFormState();
             },
 
             /**
@@ -1002,9 +988,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             async fillHistoryEntry(entry) {
-                replaceFormValues(form, getHistoryEntryForm(entry));
-                syncGeneratedNameNoteTaRow(form);
-                navboxRowsPrepared = false;
+                await restoreHistoryForm(getHistoryEntryForm(entry));
                 historyOpen.value = false;
                 await refreshCitationRows();
                 await refreshReview();
@@ -1066,9 +1050,7 @@ export function createDialogComponent(Vue, options) {
                         );
                     }
 
-                    replaceFormValues(form, importedForm);
-                    syncGeneratedNameNoteTaRow(form);
-                    navboxRowsPrepared = false;
+                    await restoreHistoryForm(importedForm);
                     await refreshCitationRows();
                     await refreshReview();
                     historyJsonOpen.value = false;
@@ -2467,6 +2449,45 @@ export function createDialogComponent(Vue, options) {
         }
 
         enwikiLookupLoading.value = false;
+    }
+
+    /**
+     * Restores form values from history and refreshes enwiki metadata.
+     *
+     * @param {object} values - Restored form values.
+     * @returns {Promise<void>} Resolves after enwiki metadata is refreshed.
+     */
+    async function restoreHistoryForm(values) {
+        enwikiLookupSerial.value += 1;
+        enwikiLookupLoading.value = false;
+        clearFormState();
+        replaceFormValues(form, values);
+        syncGeneratedNameNoteTaRow(form);
+        navboxRowsPrepared = false;
+        await refreshEnwikiMetadata();
+    }
+
+    /**
+     * Clears form values and helper state.
+     *
+     * @returns {void}
+     */
+    function clearFormState() {
+        replaceFormValues(form, {
+            ...createFormValues(""),
+            publishers: "",
+        });
+        syncGeneratedNameNoteTaRow(form);
+        activeTab.value = ARTICLE_PARAMETER_GROUPS[0].key;
+        fetchedSteamNameRows.value = [];
+        steamUrl.value = "";
+        Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
+        categoryState.error = "";
+        citationState.error = "";
+        reviewState.error = "";
+        sourceFetchState.error = "";
+        navboxRowsPrepared = false;
+        form.redirectRows = null;
     }
 }
 

@@ -2035,6 +2035,62 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
     ]);
 });
 
+test("history fill rechecks enwiki wikidata for the loaded title", async () => {
+    let resolveMetadata;
+    const metadataPromise = new Promise((resolve) => {
+        resolveMetadata = resolve;
+    });
+    const calls = [];
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onEnwikiTitleChange(title) {
+                calls.push(title);
+
+                if (title === "Lookup Game") {
+                    return metadataPromise;
+                }
+
+                return {
+                    title,
+                    wikidataId: "Q999",
+                };
+            },
+        }),
+    );
+    const { form } = component.setup();
+
+    form.enwikiTitle = "Lookup Game";
+    const lookup = component.methods.updateEnwikiTitle();
+
+    await component.methods.fillHistoryEntry({
+        data: {
+            input: {
+                enwikiTitle: "Stored Game",
+                name: "Stored name",
+            },
+            patches: {},
+            version: 1,
+        },
+        id: 1,
+        metadata: {
+            page: "Stored name",
+            savedAt: "2026-06-28",
+        },
+    });
+
+    resolveMetadata({
+        title: "Lookup Game",
+        wikidataId: "Q123",
+    });
+    await lookup;
+
+    assert.equal(form.enwikiTitle, "Stored Game");
+    assert.equal(form.name, "Stored name");
+    assert.equal(form.wikidataId, "Q999");
+    assert.deepEqual(calls, ["Lookup Game", "Stored Game"]);
+});
+
 test("enwiki lookup offers Metacritic search without an ID", async () => {
     const component = createDialogComponent(
         createVueStub(),

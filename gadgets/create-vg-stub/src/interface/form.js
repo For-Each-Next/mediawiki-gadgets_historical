@@ -433,9 +433,9 @@ const ARTICLE_PARAMETER_GROUPS = [
                 placeholder: "Page title in English Wikipedia",
             },
         ),
-        new ArticleParameterField("name", "Title", "name", null, {
+        new ArticleParameterField("name", "Main title", "name", null, {
             breakBefore: true,
-            placeholder: "Leave blank to use the page title",
+            placeholder: "Leave blank to use the page title in article text",
         }),
         new ArticleParameterField(
             "originalName",
@@ -589,7 +589,8 @@ export function addDialogStyles() {
  *
  * @param {object} Vue - ResourceLoader Vue module.
  * @param {object} options - Dialog options.
- * @param {string} options.defaultName - Default article title.
+ * @param {string} options.currentTitle - Current page title.
+ * @param {string} options.defaultName - Default article display title.
  * @param {Function} options.getFieldPlaceholder - Field placeholder builder.
  * @param {Function} options.getProseSinographs - Prose length calculator.
  * @param {Function} options.getProseWikitext - Prose wikitext preview builder.
@@ -622,6 +623,8 @@ export function addDialogStyles() {
  * @returns {object} Vue component options.
  */
 export function createDialogComponent(Vue, options) {
+    const currentTitle =
+        trimFieldValue(options.currentTitle) || options.defaultName;
     const activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
     const form = Vue.reactive(createFormValues(options.defaultName));
     const categoryState = Vue.reactive({
@@ -664,10 +667,10 @@ export function createDialogComponent(Vue, options) {
     const historyJsonOpen = Vue.ref(false);
     const historyJsonText = Vue.ref("");
     const historyOpen = Vue.ref(false);
-    const moveTarget = Vue.ref(options.defaultName);
+    const moveTarget = Vue.ref(currentTitle);
     const moveOpen = Vue.ref(false);
     const preSaveMoveEnabled = Vue.ref(false);
-    const preSaveMoveTitle = Vue.ref(options.defaultName);
+    const preSaveMoveTitle = Vue.ref(currentTitle);
     const preSaveOpen = Vue.ref(false);
     const preSaveActions = Vue.reactive([]);
     const previewOpen = Vue.ref(false);
@@ -2260,12 +2263,12 @@ export function createDialogComponent(Vue, options) {
     }
 
     /**
-     * Gets the entered title, falling back to the current page title.
+     * Gets the current page title.
      *
-     * @returns {string} Current article title.
+     * @returns {string} Current page title.
      */
     function getCurrentTitle() {
-        return trimFieldValue(form.name) || options.defaultName;
+        return currentTitle;
     }
 
     /**

@@ -1803,19 +1803,28 @@ test("pre-save keeps the current page title when move is suggested", async () =>
     assert.equal(component.template.includes("'Save'"), true);
 });
 
-test("pre-save submit uses the current page title", async () => {
+test("pre-save submit uses the current page title with disambiguation", async () => {
+    let preparedTitle;
     let submitted;
+    let submittedHistoryPage;
     let moveCount = 0;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
+            currentTitle: "Samson (遊戲)",
+            defaultName: "Samson",
             onMoveTarget() {
                 moveCount += 1;
             },
             onSubmit(_form, _state, _close, preSave) {
                 submitted = preSave;
             },
-            async onPreSavePrepare() {
+            onSubmitHistory(_form, page) {
+                submittedHistoryPage = page;
+            },
+            async onPreSavePrepare(_form, title) {
+                preparedTitle = title;
+
                 return {
                     actions: [],
                     move: {
@@ -1828,14 +1837,16 @@ test("pre-save submit uses the current page title", async () => {
     );
     const state = component.setup();
 
-    state.activeTab.value = "review";
-    await component.methods.submitForm();
+    state.form.name = "Article prose title";
+    await window.createVgStubDialog.submit();
     state.preSaveMoveEnabled.value = false;
     await component.methods.confirmSubmit();
 
     assert.equal(moveCount, 0);
+    assert.equal(preparedTitle, "Samson (遊戲)");
+    assert.equal(submittedHistoryPage, "Samson (遊戲)");
     assert.equal(submitted.move.enabled, false);
-    assert.equal(submitted.move.to, "Example");
+    assert.equal(submitted.move.to, "Samson (遊戲)");
 });
 
 test("enwiki lookup fills wikidata and blank English title", async () => {

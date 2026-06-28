@@ -704,6 +704,7 @@ function init(require) {
 
     const dialogOptions = {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
+        currentTitle: getPageName(),
         defaultName,
         getCategoryPageUrl,
         getPageUrl,

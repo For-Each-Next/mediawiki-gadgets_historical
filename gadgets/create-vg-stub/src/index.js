@@ -79,6 +79,7 @@ import {
 } from "./interface/page-trigger.js";
 import {
     failSaveProgress,
+    reportSaveProgressError,
     renderStoredSaveProgress,
     setSaveProgressStep,
     startSaveProgress,
@@ -846,6 +847,9 @@ async function runPendingSaveActions(require) {
             onActionComplete(action) {
                 setSaveProgressStep(action.id, "complete");
             },
+            onActionFailed(action) {
+                setSaveProgressStep(action.id, "skipped");
+            },
             onActionSkipped(action) {
                 setSaveProgressStep(action.id, "skipped");
             },
@@ -895,7 +899,12 @@ async function runPendingSaveActions(require) {
         }
 
         clearPendingSaveData();
-        sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
+
+        if (result.failed.length > 0) {
+            reportSaveProgressError(formatPendingActionFailures(result.failed));
+        } else {
+            sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
+        }
 
         if (
             normalizePageTitle(result.title) !==
@@ -908,6 +917,24 @@ async function runPendingSaveActions(require) {
     } catch (error) {
         failSaveProgress(error);
     }
+}
+
+/**
+ * Formats a final report for follow-up actions skipped after retries.
+ *
+ * @param {Array<object>} actions - Failed follow-up actions.
+ * @returns {string} Failure report.
+ */
+function formatPendingActionFailures(actions) {
+    const labels = actions
+        .map((action) => action.label || action.id)
+        .filter((label) => trimFieldValue(label) !== "");
+
+    if (labels.length === 0) {
+        return "Some follow-up actions failed after 3 attempts.";
+    }
+
+    return `Failed after 3 attempts: ${labels.join("; ")}`;
 }
 
 const currentAction = mw.config.get("wgAction");

@@ -7,6 +7,8 @@
 import { buildTemplateCall, buildTemplateText } from "../shared/utils.js";
 import { addEditSummarySuffix } from "./summary.js";
 
+const MAX_ACTION_ATTEMPTS = 3;
+
 export const TALK_PAGE_BANNER = buildTemplateText(
     "WikiProject banner shell",
     [
@@ -648,6 +650,7 @@ export async function fetchExistingPageTitles(api, titles) {
  * @param {Function} [options.onMoveComplete] - Successful move callback.
  * @param {Function} [options.onMoveStart] - Move start callback.
  * @param {Function} [options.onActionComplete] - Action success callback.
+ * @param {Function} [options.onActionFailed] - Action failure callback.
  * @param {Function} [options.onActionSkipped] - Action skipped callback.
  * @param {Function} [options.onActionStart] - Action start callback.
  * @param {Function} [options.saveCategory] - Generic category save handler.
@@ -658,6 +661,7 @@ export async function fetchExistingPageTitles(api, titles) {
  */
 export async function runSelectedActions(actions, options) {
     const completed = [];
+    const failed = [];
     const originalTitle = normalizeTitle(options.title);
     const moveTitle = normalizeTitle(options.move?.to);
     const shouldMove =
@@ -686,17 +690,24 @@ export async function runSelectedActions(actions, options) {
         }
 
         options.onActionStart?.(action);
-        await runSelectedAction(action, {
-            ...options,
-            title: finalTitle,
-        });
-        action.selected = false;
-        completed.push(action);
-        options.onActionComplete?.(action);
+        try {
+            await runSelectedActionWithRetry(action, {
+                ...options,
+                title: finalTitle,
+            });
+            action.selected = false;
+            completed.push(action);
+            options.onActionComplete?.(action);
+        } catch (error) {
+            action.selected = false;
+            failed.push(action);
+            options.onActionFailed?.(action, error);
+        }
     }
 
     return {
         completed,
+        failed,
         title: finalTitle,
     };
 }
@@ -773,6 +784,28 @@ async function runSelectedAction(action, options) {
     if (action.type === "page-edit") {
         await savePageEdit(options.api, action);
     }
+}
+
+/**
+ * Runs one selected follow-up action with bounded retries.
+ *
+ * @param {object} action - Action row.
+ * @param {object} options - Execution options.
+ * @returns {Promise<void>} Resolves after the action succeeds.
+ */
+async function runSelectedActionWithRetry(action, options) {
+    let lastError;
+
+    for (let attempt = 1; attempt <= MAX_ACTION_ATTEMPTS; attempt += 1) {
+        try {
+            await runSelectedAction(action, options);
+            return;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError;
 }
 
 /**

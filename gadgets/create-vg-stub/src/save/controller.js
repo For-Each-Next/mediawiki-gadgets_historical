@@ -74,6 +74,24 @@ export function failSaveProgress(error) {
 }
 
 /**
+ * Stores a non-fatal progress error and keeps completed rows visible.
+ *
+ * @param {Error|string} error - Save error report.
+ * @returns {void}
+ */
+export function reportSaveProgressError(error) {
+    const progress = readSaveProgress();
+
+    if (progress == null) {
+        return;
+    }
+
+    progress.error = error.message || String(error);
+    storeSaveProgress(progress);
+    renderSaveProgress(progress);
+}
+
+/**
  * Renders stored save progress when available.
  *
  * @returns {void}

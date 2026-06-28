@@ -850,8 +850,9 @@ test("runSelectedActions moves first and targets the final title", async () => {
     assert.equal(result.title, "New");
 });
 
-test("runSelectedActions reports a completed move before later edits", async () => {
+test("runSelectedActions retries failed actions and continues", async () => {
     const calls = [];
+    const events = [];
     let movedTitle = "";
     const api = {
         async get() {
@@ -864,39 +865,115 @@ test("runSelectedActions reports a completed move before later edits", async () 
         async postWithToken(_token, params) {
             calls.push(params);
 
-            if (params.action === "edit") {
+            if (params.action === "edit" && params.title === "Alias") {
                 throw new Error("Edit failed");
             }
         },
     };
+    const actions = [
+        {
+            id: "redirect:Alias",
+            redirectTitle: "Alias",
+            selected: true,
+            type: "redirect",
+        },
+        {
+            id: "redirect:Other",
+            redirectTitle: "Other",
+            selected: true,
+            type: "redirect",
+        },
+    ];
 
-    await assert.rejects(
-        runSelectedActions(
-            [
-                {
-                    redirectTitle: "Alias",
-                    selected: true,
-                    type: "redirect",
-                },
-            ],
-            {
-                api,
-                move: {
-                    enabled: true,
-                    leaveRedirect: true,
-                    to: "New",
-                },
-                onMoveComplete(title) {
-                    movedTitle = title;
-                },
-                title: "Old",
-            },
-        ),
-        /Edit failed/u,
-    );
+    const result = await runSelectedActions(actions, {
+        api,
+        move: {
+            enabled: true,
+            leaveRedirect: true,
+            to: "New",
+        },
+        onActionComplete(action) {
+            events.push(["complete", action.id]);
+        },
+        onActionFailed(action, error) {
+            events.push(["failed", action.id, error.message]);
+        },
+        onMoveComplete(title) {
+            movedTitle = title;
+        },
+        title: "Old",
+    });
 
     assert.equal(calls[0].action, "move");
+    assert.equal(calls.filter((params) => params.title === "Alias").length, 3);
+    assert.equal(
+        calls.some((params) => params.title === "Other"),
+        true,
+    );
+    assert.deepEqual(events, [
+        ["failed", "redirect:Alias", "Edit failed"],
+        ["complete", "redirect:Other"],
+    ]);
+    assert.deepEqual(result.completed, [
+        {
+            id: "redirect:Other",
+            redirectTitle: "Other",
+            selected: false,
+            type: "redirect",
+        },
+    ]);
+    assert.deepEqual(result.failed, [
+        {
+            id: "redirect:Alias",
+            redirectTitle: "Alias",
+            selected: false,
+            type: "redirect",
+        },
+    ]);
+    assert.equal(actions[0].selected, false);
+    assert.equal(actions[1].selected, false);
     assert.equal(movedTitle, "New");
+});
+
+test("runSelectedActions succeeds after a transient failure", async () => {
+    const calls = [];
+    let failures = 0;
+    const api = {
+        async get(params) {
+            calls.push(["get", params]);
+            return {
+                query: {
+                    pages: {},
+                },
+            };
+        },
+        async postWithToken(_token, params) {
+            calls.push(["postWithToken", params]);
+
+            if (failures === 0) {
+                failures += 1;
+                throw new Error("Temporary failure");
+            }
+        },
+    };
+
+    const result = await runSelectedActions(
+        [
+            {
+                redirectTitle: "Alias",
+                selected: true,
+                type: "redirect",
+            },
+        ],
+        {
+            api,
+            title: "Target",
+        },
+    );
+
+    assert.equal(calls.length, 2);
+    assert.equal(result.completed.length, 1);
+    assert.equal(result.failed.length, 0);
 });
 
 test("runSelectedActions reports live action progress", async () => {

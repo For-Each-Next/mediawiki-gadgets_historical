@@ -15,12 +15,13 @@ import { addEditSummarySuffix } from "../editing/summary.js";
  * @returns {Promise<void>} Resolves after the template is saved.
  */
 export async function saveNavboxTemplate(template, text, api = new mw.Api()) {
+    const title = `Template:${template}`;
     const params = {
         action: "edit",
         createonly: true,
-        summary: addEditSummarySuffix("Create video game navbox template"),
+        summary: addEditSummarySuffix(`create '${title}'`),
         text,
-        title: `Template:${template}`,
+        title,
     };
 
     await api.postWithToken("csrf", params);

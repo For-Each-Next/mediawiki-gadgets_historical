@@ -20,15 +20,22 @@ export const EDIT_SUMMARY_SUFFIX = getTextTemplate("editing.summaryIcon");
  * @returns {string} Generated edit summary.
  */
 export function buildEditSummary(metadata) {
+    const nameText = buildNameSummaryText(metadata.displayName);
+    const yearText =
+        nameText === ""
+            ? ""
+            : buildYearDetailText(buildYearSummaryText(metadata.year));
+    const proseText =
+        nameText === ""
+            ? ""
+            : buildProseDetailText(
+                  buildProseCountText(metadata.proseSinographs),
+              );
     const values = {
         icon: EDIT_SUMMARY_SUFFIX,
-        name: buildNameSummaryText(
-            metadata.displayName,
-            metadata.wikidataId,
-            metadata.enwikiTitle,
-        ),
-        proseCount: buildProseCountText(metadata.proseSinographs),
-        year: buildYearSummaryText(metadata.year),
+        name: `${nameText}${yearText}${proseText}`,
+        proseCount: "",
+        year: "",
     };
     const summary = formatText("editing.summary", values).trim();
 
@@ -92,35 +99,41 @@ function buildProseCountText(count) {
 }
 
 /**
+ * Builds parenthesized year detail text for an edit summary.
+ *
+ * @param {string} year - Year detail fragment.
+ * @returns {string} Year detail summary text.
+ */
+function buildYearDetailText(year) {
+    const text = String(year || "").trim();
+
+    return text === "" ? "" : ` (${text})`;
+}
+
+/**
+ * Builds prose-count detail text for an edit summary.
+ *
+ * @param {string} proseCount - Prose-count fragment.
+ * @returns {string} Prose-count detail summary text.
+ */
+function buildProseDetailText(proseCount) {
+    const text = String(proseCount || "").trim();
+
+    return text === "" ? "" : `, ${text}`;
+}
+
+/**
  * Builds the game title text for an edit summary.
  *
  * @param {string} displayName - Summary display title.
- * @param {string} wikidataId - Wikidata entity ID.
- * @param {string} enwikiTitle - English Wikipedia page title.
  * @returns {string} Game title summary text.
  */
-function buildNameSummaryText(displayName, wikidataId, enwikiTitle) {
+function buildNameSummaryText(displayName) {
     const label = String(displayName || "").trim();
-    const entityId = String(wikidataId || "").trim();
-    const title = String(enwikiTitle || "").trim();
 
     if (label === "") {
         return "";
     }
 
-    if (entityId !== "") {
-        return `«${formatText("editing.wikidataName", {
-            id: entityId,
-            label,
-        })}»`;
-    }
-
-    if (title === "") {
-        return `«${label}»`;
-    }
-
-    return `«${formatText("editing.enwikiName", {
-        label,
-        title,
-    })}»`;
+    return `create '«${formatText("editing.localName", { label })}»'`;
 }

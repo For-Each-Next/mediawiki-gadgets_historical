@@ -1207,7 +1207,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.deepEqual(existingRow.pendingEdit, {
         create: false,
         previousStatus: "OK",
-        summary: "Update navbox for [[Example]]",
+        summary: "modify 'Template:Example series', with link to '[[Example]]'",
         text: "{{Edited navbox}}",
         title: "Template:Example series",
     });
@@ -1234,7 +1234,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.deepEqual(missingRow.pendingEdit, {
         create: true,
         previousStatus: "Not exists",
-        summary: "Create navbox for [[Example]]",
+        summary: "create 'Template:Missing series', with link to '[[Example]]'",
         text: "{{New navbox}}",
         title: "Template:Missing series",
     });
@@ -1330,13 +1330,24 @@ test("category helper stages missing category rows for final submission", async 
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
+            async onEnwikiTitleChange(title) {
+                assert.equal(title, "Category:Foo Studio games");
+
+                return {
+                    wikidataId: "Q123",
+                };
+            },
             async onPrepareCompanyCategory(row) {
                 return `Text for ${row.company}`;
             },
         }),
     );
-    const { companyCategoryOpen, companyCategoryState, form } =
-        component.setup();
+    const {
+        companyCategoryLookupLoading,
+        companyCategoryOpen,
+        companyCategoryState,
+        form,
+    } = component.setup();
     const companyRow = {
         category: "Foo Studio游戏",
         company: "Foo Studio",
@@ -1366,6 +1377,13 @@ test("category helper stages missing category rows for final submission", async 
     assert.equal(companyCategoryState.text, "Text for Foo Studio");
 
     companyCategoryState.englishName = "Foo Studio games";
+    await component.methods.refreshCompanyCategoryMetadata();
+    assert.equal(companyCategoryState.wikidataId, "Q123");
+    assert.equal(companyCategoryLookupLoading.value, false);
+    assert.equal(
+        component.methods.getCompanyCategoryWikidataUrl(),
+        "https://www.wikidata.org/wiki/Q123",
+    );
     companyCategoryState.text += "\nEdited";
     await component.methods.saveCompanyCategory();
 
@@ -1373,6 +1391,7 @@ test("category helper stages missing category rows for final submission", async 
         englishName: "Foo Studio games",
         previousStatus: "",
         text: "Text for Foo Studio\nEdited",
+        wikidataId: "Q123",
     });
     assert.equal(companyRow.enabled, true);
     assert.equal(companyRow.status, "Pending creation");
@@ -1392,7 +1411,7 @@ test("category helper stages missing category rows for final submission", async 
     );
     assert.equal(
         component.template.includes(
-            "'Category:' + companyCategoryState.category",
+            "(companyCategoryState.pending ? 'Modify ' : 'Create ')",
         ),
         true,
     );
@@ -1401,9 +1420,17 @@ test("category helper stages missing category rows for final submission", async 
         true,
     );
     assert.equal(
+        component.template.includes("companyCategoryState.wikidataId"),
+        true,
+    );
+    assert.equal(
+        component.template.includes("getCompanyCategoryWikidataUrl"),
+        true,
+    );
+    assert.equal(
         component.template.indexOf("English Wikipedia category") >
             component.template.indexOf(
-                "'Category:' + companyCategoryState.category",
+                "(companyCategoryState.pending ? 'Modify ' : 'Create ')",
             ),
         true,
     );
@@ -1426,6 +1453,7 @@ test("category helper stages missing category rows for final submission", async 
         englishName: "",
         previousStatus: "Not exists",
         text: "Category text",
+        wikidataId: "",
     });
     assert.equal(
         component.methods.canCreateCategory({
@@ -1519,7 +1547,7 @@ test("category review stages source-preview edits and company creates", async ()
     assert.deepEqual(existingRow.pendingEdit, {
         create: false,
         previousStatus: "OK",
-        summary: "Update Category:动作游戏",
+        summary: "modify 'Category:动作游戏'",
         text: "[[Category:Edited]]",
         title: "Category:动作游戏",
     });
@@ -2047,7 +2075,13 @@ test("submit opens editable source and parsed preview first", async () => {
         true,
     );
     assert.equal(component.template.includes('v-model="previewText"'), true);
+    assert.equal(component.template.includes('v-model="previewSummary"'), true);
     assert.equal(component.template.includes('v-html="previewHtml"'), true);
+    assert.equal(
+        component.template.includes('v-bind:title="getArticlePreviewTitle()"'),
+        true,
+    );
+    assert.equal(component.template.includes("Edit summary"), true);
     assert.equal(
         component.template.includes("create-vg-stub-preview-text"),
         true,

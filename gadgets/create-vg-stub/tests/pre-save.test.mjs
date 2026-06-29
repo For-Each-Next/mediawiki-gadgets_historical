@@ -136,7 +136,7 @@ test("buildPreSaveActions includes staged page edits", () => {
                     category: "动作游戏",
                     enabled: true,
                     pendingEdit: {
-                        summary: "Update Category:动作游戏",
+                        summary: "modify 'Category:动作游戏'",
                         text: "Category text",
                         title: "Category:动作游戏",
                     },
@@ -147,7 +147,7 @@ test("buildPreSaveActions includes staged page edits", () => {
                     enabled: true,
                     pendingEdit: {
                         create: true,
-                        summary: "Create Template:Example series",
+                        summary: "create Template:Example series",
                         text: "{{Navbox}}",
                         title: "Template:Example series",
                     },
@@ -167,7 +167,7 @@ test("buildPreSaveActions includes staged page edits", () => {
                 label: "Edit page: Category:动作游戏",
                 pageTitle: "Category:动作游戏",
                 selected: true,
-                summary: "Update Category:动作游戏",
+                summary: "modify 'Category:动作游戏'",
                 text: "Category text",
                 title: "Category:动作游戏",
                 type: "page-edit",
@@ -179,7 +179,7 @@ test("buildPreSaveActions includes staged page edits", () => {
                 label: "Create page: Template:Example series",
                 pageTitle: "Template:Example series",
                 selected: true,
-                summary: "Create Template:Example series",
+                summary: "create Template:Example series",
                 text: "{{Navbox}}",
                 title: "Template:Example series",
                 type: "page-edit",
@@ -568,7 +568,7 @@ test("connectWikidataSitelink posts the zhwiki sitelink", async () => {
             id: "Q123",
             linksite: "zhwiki",
             linktitle: "示例",
-            summary: `Connect zhwiki sitelink to [[:w:zh:示例]] ${EDIT_SUMMARY_SUFFIX}`,
+            summary: `see '[[w:zh:示例]]' ${EDIT_SUMMARY_SUFFIX}`,
         },
     ]);
 });
@@ -585,7 +585,7 @@ test("connectWikidataSitelink uses an interwiki category summary link", async ()
 
     assert.equal(
         calls[0][2].summary,
-        `Connect zhwiki sitelink to [[:w:zh:Category:Private Division游戏]] ${EDIT_SUMMARY_SUFFIX}`,
+        `see '[[w:zh:Category:Private Division游戏]]' ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
 
@@ -598,7 +598,7 @@ test("createRedirect uses createonly and redirect wikitext", async () => {
     assert.deepEqual(calls[0][2], {
         action: "edit",
         createonly: true,
-        summary: `Redirect to [[示例]] ${EDIT_SUMMARY_SUFFIX}`,
+        summary: `create '示例游戏', redirect to [[示例]] ${EDIT_SUMMARY_SUFFIX}`,
         text: "#REDIRECT [[示例]]",
         title: "示例游戏",
     });
@@ -624,7 +624,7 @@ test("addTalkPageBanner appends the requested banner", async () => {
     assert.equal(calls[1][2].appendtext, `\n\n${TALK_PAGE_BANNER}`);
     assert.equal(
         calls[1][2].summary,
-        `Add WikiProject Video games banner ${EDIT_SUMMARY_SUFFIX}`,
+        `modify 'Talk:示例', tagging {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
 
@@ -765,7 +765,7 @@ test("runSelectedActions saves staged page edits", async () => {
             {
                 create: true,
                 selected: true,
-                summary: "Create Template:Example series",
+                summary: "create Template:Example series",
                 text: "{{Navbox}}",
                 title: "Template:Example series",
                 type: "page-edit",
@@ -783,7 +783,7 @@ test("runSelectedActions saves staged page edits", async () => {
         {
             action: "edit",
             createonly: true,
-            summary: `Create Template:Example series ${EDIT_SUMMARY_SUFFIX}`,
+            summary: `create Template:Example series ${EDIT_SUMMARY_SUFFIX}`,
             text: "{{Navbox}}",
             title: "Template:Example series",
         },

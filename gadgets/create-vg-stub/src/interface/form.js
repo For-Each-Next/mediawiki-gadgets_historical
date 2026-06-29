@@ -677,7 +677,10 @@ export function createDialogComponent(Vue, options) {
         loading: false,
         pending: false,
         text: "",
+        wikidataId: "",
     });
+    const companyCategoryLookupLoading = Vue.ref(false);
+    const companyCategoryLookupSerial = Vue.ref(0);
     const pageEditOpen = Vue.ref(false);
     const pageEditState = Vue.reactive({
         create: false,
@@ -1837,7 +1840,9 @@ export function createDialogComponent(Vue, options) {
                     loading: false,
                     pending: pendingCreation != null,
                     text: String(pendingCreation?.text || ""),
+                    wikidataId: trimFieldValue(pendingCreation?.wikidataId),
                 });
+                companyCategoryLookupLoading.value = false;
                 companyCategoryOpen.value = true;
 
                 if (pendingCreation != null) {
@@ -1918,6 +1923,9 @@ export function createDialogComponent(Vue, options) {
                         previousStatus:
                             row.pendingCreation?.previousStatus || row.status,
                         text: companyCategoryState.text,
+                        wikidataId: trimFieldValue(
+                            companyCategoryState.wikidataId,
+                        ),
                     };
                     row.enabled = true;
                     row.status = "Pending creation";
@@ -1940,6 +1948,28 @@ export function createDialogComponent(Vue, options) {
                 return (
                     trimFieldValue(row.company) !== "" && row.status !== "OK"
                 );
+            },
+
+            /**
+             * Refreshes metadata for the company-category English title.
+             *
+             * @returns {Promise<void>} Resolves after lookup state is updated.
+             */
+            async refreshCompanyCategoryMetadata() {
+                await refreshCompanyCategoryMetadata();
+            },
+
+            /**
+             * Gets the Wikidata URL for the staged company category.
+             *
+             * @returns {string} Wikidata entity URL.
+             */
+            getCompanyCategoryWikidataUrl() {
+                const id = trimFieldValue(companyCategoryState.wikidataId);
+
+                return id === ""
+                    ? ""
+                    : `https://www.wikidata.org/wiki/${encodeURIComponent(id)}`;
             },
 
             /**
@@ -2137,6 +2167,7 @@ export function createDialogComponent(Vue, options) {
                 pageEditState,
                 citationState,
                 companyCategoryOpen,
+                companyCategoryLookupLoading,
                 companyCategoryState,
                 groups: ARTICLE_PARAMETER_GROUPS,
                 form,
@@ -2144,6 +2175,7 @@ export function createDialogComponent(Vue, options) {
                 getSteamNameSuggestions,
                 getCitationParamRows,
                 getArticleField,
+                getArticlePreviewTitle,
                 getFieldPlaceholder: options.getFieldPlaceholder.bind(
                     null,
                     form,
@@ -2574,13 +2606,13 @@ export function createDialogComponent(Vue, options) {
      * @returns {string} Edit summary text.
      */
     function buildPageEditSummary(state) {
-        const action = state.create ? "Create" : "Update";
-        const title =
+        const action = state.create ? "create" : "modify";
+        const suffix =
             state.kind === "navbox"
-                ? `navbox for [[${currentTitle}]]`
-                : state.title;
+                ? `, with link to '[[${currentTitle}]]'`
+                : "";
 
-        return `${action} ${title}`;
+        return `${action} '${state.title}'${suffix}`;
     }
 
     /**
@@ -2590,6 +2622,15 @@ export function createDialogComponent(Vue, options) {
      */
     function getCurrentTitle() {
         return currentTitle;
+    }
+
+    /**
+     * Gets the editable article preview dialog title.
+     *
+     * @returns {string} Preview dialog title.
+     */
+    function getArticlePreviewTitle() {
+        return `Create '${getCurrentTitle()}'`;
     }
 
     /**
@@ -2761,6 +2802,42 @@ export function createDialogComponent(Vue, options) {
     }
 
     /**
+     * Refreshes Wikidata metadata for the company-category English title.
+     *
+     * @returns {Promise<void>} Resolves after lookup state is updated.
+     */
+    async function refreshCompanyCategoryMetadata() {
+        const title = normalizeEnglishCategoryTitle(
+            companyCategoryState.englishName,
+        );
+        const serial = companyCategoryLookupSerial.value + 1;
+
+        companyCategoryLookupSerial.value = serial;
+        companyCategoryState.wikidataId = "";
+        companyCategoryLookupLoading.value =
+            title !== "" && options.onEnwikiTitleChange != null;
+
+        if (title === "" || options.onEnwikiTitleChange == null) {
+            return;
+        }
+
+        let metadata;
+
+        try {
+            metadata = await options.onEnwikiTitleChange(title);
+        } catch (_error) {
+            metadata = {};
+        }
+
+        if (serial !== companyCategoryLookupSerial.value) {
+            return;
+        }
+
+        companyCategoryState.wikidataId = trimFieldValue(metadata.wikidataId);
+        companyCategoryLookupLoading.value = false;
+    }
+
+    /**
      * Restores form values from history and refreshes enwiki metadata.
      *
      * @param {object} values - Restored form values.
@@ -2846,6 +2923,22 @@ function getCategorySourceDisplay(source) {
         label,
         modified,
     };
+}
+
+/**
+ * Normalizes an English Wikipedia category title.
+ *
+ * @param {string} title - User-entered English category name.
+ * @returns {string} Canonical English category title, or an empty string.
+ */
+function normalizeEnglishCategoryTitle(title) {
+    const value = trimFieldValue(title);
+
+    if (value === "") {
+        return "";
+    }
+
+    return /^Category:/iu.test(value) ? value : `Category:${value}`;
 }
 
 /**
@@ -3045,7 +3138,8 @@ function createCompanyCategoryDialogTemplate() {
     return createElement(
         "cdx-dialog",
         {
-            "v-bind:title": "'Category:' + companyCategoryState.category",
+            "v-bind:title":
+                "(companyCategoryState.pending ? 'Modify ' : 'Create ') + '\\'Category:' + companyCategoryState.category + '\\''",
             "v-model:open": "companyCategoryOpen",
         },
         [
@@ -3072,8 +3166,43 @@ function createCompanyCategoryDialogTemplate() {
                     createElement("cdx-text-input", {
                         placeholder: "e.g. Private Division games",
                         "v-bind:disabled": "companyCategoryState.loading",
+                        "v-on:blur": "refreshCompanyCategoryMetadata",
                         "v-model": "companyCategoryState.englishName",
                     }),
+                    createElement(
+                        "p",
+                        {
+                            "v-if": "companyCategoryLookupLoading",
+                            style: {
+                                margin: "0.25em 0 0",
+                            },
+                        },
+                        [createText("checking Wikidata...")],
+                    ),
+                    createElement(
+                        "p",
+                        {
+                            "v-else-if": "companyCategoryState.wikidataId",
+                            style: {
+                                margin: "0.25em 0 0",
+                            },
+                        },
+                        [
+                            createElement(
+                                "a",
+                                {
+                                    "v-bind:href":
+                                        "getCompanyCategoryWikidataUrl()",
+                                    target: "_blank",
+                                },
+                                [
+                                    createText(
+                                        "{{ companyCategoryState.wikidataId }}",
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
                 ],
             ),
             createElement("cdx-text-area", {

@@ -115,7 +115,10 @@ test("saveCompanyCategory creates, connects, and tags the category", async () =>
         {
             action: "edit",
             createonly: true,
-            summary: `Create company video game category ${EDIT_SUMMARY_SUFFIX}`,
+            summary:
+                `create 'Category:Foo Studio游戏', also see ` +
+                `'[[:w:en:Category:Foo Studio games]]' and '[[:d:Q123]]' ` +
+                EDIT_SUMMARY_SUFFIX,
             text: "Category text",
             title: "Category:Foo Studio游戏",
         },
@@ -129,8 +132,7 @@ test("saveCompanyCategory creates, connects, and tags the category", async () =>
                 linksite: "zhwiki",
                 linktitle: "Category:Foo Studio游戏",
                 summary:
-                    `Connect zhwiki sitelink to ` +
-                    `[[:w:zh:Category:Foo Studio游戏]] ` +
+                    `see '[[w:zh:Category:Foo Studio游戏]]' ` +
                     EDIT_SUMMARY_SUFFIX,
             },
         ],
@@ -206,7 +208,7 @@ test("createWikidataCategoryItem creates one item with both sitelinks", async ()
     assert.equal(calls[0][1].new, "item");
     assert.equal(
         calls[0][1].summary.includes(
-            "Connect Category:Chibig games and Category:Chibig游戏",
+            "connect [[Category:Chibig games]] and [[Category:Chibig游戏]]",
         ),
         true,
     );
@@ -227,7 +229,7 @@ test("saveCategoryPage creates a generic category without overwriting", async ()
             {
                 action: "edit",
                 createonly: true,
-                summary: `Create video game category ${EDIT_SUMMARY_SUFFIX}`,
+                summary: `create 'Category:动作游戏' ${EDIT_SUMMARY_SUFFIX}`,
                 text: "Category text",
                 title: "Category:动作游戏",
             },

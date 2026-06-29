@@ -91,7 +91,7 @@ export async function saveCompanyCategory(
     await saveCategoryPage(
         category,
         text,
-        "Create company video game category",
+        buildCompanyCategorySummary(category, englishTitle, metadata),
         api,
     );
 
@@ -118,6 +118,52 @@ export async function saveCompanyCategory(
     }
 
     await addTalkPageBanner(api, categoryTitle);
+}
+
+/**
+ * Builds the edit summary for creating a company category.
+ *
+ * @param {string} category - Category title without namespace.
+ * @param {string} englishTitle - English Wikipedia category title.
+ * @param {object|null} metadata - English Wikipedia metadata.
+ * @param {string} [metadata.wikidataId] - Wikidata entity ID.
+ * @returns {string} Edit summary before the gadget suffix.
+ */
+function buildCompanyCategorySummary(category, englishTitle, metadata) {
+    const links = [
+        buildEnwikiSummaryLink(englishTitle),
+        buildWikidataSummaryLink(metadata?.wikidataId),
+    ].filter(Boolean);
+    const suffix =
+        links.length === 0
+            ? ""
+            : `, also see ${links.map((link) => `'${link}'`).join(" and ")}`;
+
+    return `create '${CATEGORY_NAMESPACE}${category}'${suffix}`;
+}
+
+/**
+ * Builds an English Wikipedia summary link.
+ *
+ * @param {string} title - English Wikipedia page title.
+ * @returns {string} Summary link, or an empty string.
+ */
+function buildEnwikiSummaryLink(title) {
+    const value = String(title || "").trim();
+
+    return value === "" ? "" : `[[:w:en:${value}]]`;
+}
+
+/**
+ * Builds a Wikidata summary link.
+ *
+ * @param {string} id - Wikidata entity ID.
+ * @returns {string} Summary link, or an empty string.
+ */
+function buildWikidataSummaryLink(id) {
+    const value = String(id || "").trim();
+
+    return value === "" ? "" : `[[:d:${value}]]`;
 }
 
 /**
@@ -149,7 +195,7 @@ export async function createWikidataCategoryItem(
         }),
         new: "item",
         summary: addEditSummarySuffix(
-            `Connect ${englishTitle} and ${chineseTitle}`,
+            `connect [[${englishTitle}]] and [[${chineseTitle}]]`,
         ),
     });
 }
@@ -166,15 +212,16 @@ export async function createWikidataCategoryItem(
 export async function saveCategoryPage(
     category,
     text,
-    summary = "Create video game category",
+    summary = "",
     api = new mw.Api(),
 ) {
+    const categoryTitle = `${CATEGORY_NAMESPACE}${category}`;
     const params = {
         action: "edit",
         createonly: true,
-        summary: addEditSummarySuffix(summary),
+        summary: addEditSummarySuffix(summary || `create '${categoryTitle}'`),
         text,
-        title: `${CATEGORY_NAMESPACE}${category}`,
+        title: categoryTitle,
     };
 
     await api.postWithToken("csrf", params);

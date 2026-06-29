@@ -844,9 +844,7 @@ export async function connectWikidataSitelink(api, wikidataId, title) {
         id: wikidataId,
         linksite: "zhwiki",
         linktitle: title,
-        summary: addEditSummarySuffix(
-            `Connect zhwiki sitelink to ${buildWikidataSummaryLink(title)}`,
-        ),
+        summary: addEditSummarySuffix(`see '${buildWikidataSummaryLink(title)}'`),
     };
 
     await api.postWithToken("csrf", params);
@@ -859,7 +857,7 @@ export async function connectWikidataSitelink(api, wikidataId, title) {
  * @returns {string} Wikitext link suitable for a Wikidata edit summary.
  */
 function buildWikidataSummaryLink(title) {
-    return `[[:w:zh:${title}]]`;
+    return `[[w:zh:${title}]]`;
 }
 
 /**
@@ -874,7 +872,9 @@ export async function createRedirect(api, redirectTitle, targetTitle) {
     const params = {
         action: "edit",
         createonly: true,
-        summary: addEditSummarySuffix(`Redirect to [[${targetTitle}]]`),
+        summary: addEditSummarySuffix(
+            `create '${redirectTitle}', redirect to [[${targetTitle}]]`,
+        ),
         text: `#REDIRECT [[${targetTitle}]]`,
         title: redirectTitle,
     };
@@ -912,7 +912,9 @@ export async function addTalkPageBanner(api, articleTitle) {
     const params = {
         action: "edit",
         appendtext: `${text === "" ? "" : "\n\n"}${banner}`,
-        summary: addEditSummarySuffix("Add WikiProject Video games banner"),
+        summary: addEditSummarySuffix(
+            `modify '${title}', tagging {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner`,
+        ),
         title,
     };
 

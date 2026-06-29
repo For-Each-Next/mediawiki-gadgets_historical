@@ -24,7 +24,7 @@ test("saveNavboxTemplate creates a template without overwriting", async () => {
             {
                 action: "edit",
                 createonly: true,
-                summary: `Create video game navbox template ${EDIT_SUMMARY_SUFFIX}`,
+                summary: `create 'Template:Example series' ${EDIT_SUMMARY_SUFFIX}`,
                 text: "{{Navbox}}",
                 title: "Template:Example series",
             },

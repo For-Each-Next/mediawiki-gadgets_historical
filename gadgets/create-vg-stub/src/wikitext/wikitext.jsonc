@@ -83,10 +83,9 @@
         "summary": "{name}{year}{proseCount} {icon}",
 
         // Optional summary components.
-        "wikidataName": "[[:d:{id}|{label}]]",
-        "enwikiName": "[[:w:en:{title}|{label}]]",
-        "summaryYear": " ([[{year}年電子遊戲界|{year}]])",
-        "proseCount": " [{count} sinographs]",
+        "localName": "[[{label}]]",
+        "summaryYear": "[[{year}年電子遊戲界|{year} video game]]",
+        "proseCount": "{count} equivalent sinographs",
         "summaryIcon": "[[:m:User:For_Each_..._Next/global.js/create_vg_stub.js|🎮]]",
     },
 }

@@ -17,12 +17,16 @@ export function createPreviewDialogTemplate() {
         {
             class: "create-vg-stub-preview-dialog",
             "v-model:open": "previewOpen",
-            title: "Generated wikitext preview",
+            "v-bind:title": "getArticlePreviewTitle()",
         },
         [
             createSourcePreviewLayout({
                 html: "previewHtml",
                 text: "previewText",
+            }),
+            createEditSummaryInput({
+                disabled: "sourceFetchState.loading",
+                model: "previewSummary",
             }),
             createErrorParagraph(
                 "sourceFetchState.error",
@@ -51,6 +55,42 @@ export function createPreviewDialogTemplate() {
 }
 
 /**
+ * Creates an edit-summary textbox.
+ *
+ * @param {object} options - Input bindings.
+ * @param {string} [options.disabled] - Disabled binding expression.
+ * @param {string} options.model - Summary v-model expression.
+ * @returns {object} Edit-summary field node.
+ */
+function createEditSummaryInput(options) {
+    return createElement(
+        "label",
+        {
+            style: {
+                display: "block",
+                marginTop: "1em",
+            },
+        },
+        [
+            createElement(
+                "span",
+                {
+                    style: {
+                        display: "block",
+                        marginBottom: "0.25em",
+                    },
+                },
+                [createText("Edit summary")],
+            ),
+            createElement("cdx-text-input", {
+                "v-bind:disabled": options.disabled || "false",
+                "v-model": options.model,
+            }),
+        ],
+    );
+}
+
+/**
  * Creates the staged page source editor dialog.
  *
  * @returns {object} Page edit dialog template node.
@@ -61,7 +101,7 @@ export function createPageEditDialogTemplate() {
         {
             class: "create-vg-stub-preview-dialog",
             "v-bind:title":
-                "(pageEditState.create ? 'Create ' : 'Edit ') + pageEditState.title",
+                "(pageEditState.create ? 'Create ' : 'Modify ') + '\\'' + pageEditState.title + '\\''",
             "v-model:open": "pageEditOpen",
         },
         [

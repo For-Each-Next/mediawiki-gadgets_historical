@@ -435,6 +435,25 @@ async function submitForm(
 }
 
 /**
+ * Creates an article submit callback with the citation cache bound.
+ *
+ * @param {object} citationStore - Citation fetch/cache store.
+ * @param {Function} [submit] - Submit implementation.
+ * @returns {Function} Dialog submit callback.
+ */
+export function createSubmitHandler(citationStore, submit = submitForm) {
+    return (form, sourceFetchState, closeDialog, preSave, preview) =>
+        submit(
+            form,
+            sourceFetchState,
+            closeDialog,
+            preSave,
+            citationStore,
+            preview,
+        );
+}
+
+/**
  * Builds generated wikitext and metadata from dialog form values.
  *
  * @param {object} form - Dialog form values.
@@ -794,7 +813,7 @@ function init(require) {
         onSourceUrlChange: (url) => citationStore.prefetch(url),
         onSteamNamesFetch: (url, options) =>
             fetchSteamNameRows(url, citationStore, options),
-        onSubmit: (...args) => submitForm(...args, citationStore),
+        onSubmit: createSubmitHandler(citationStore),
         onSubmitHistory: saveCurrentFormHistory,
         onUpdateCategoryRowCategory: updateCategoryRowCategory,
     };

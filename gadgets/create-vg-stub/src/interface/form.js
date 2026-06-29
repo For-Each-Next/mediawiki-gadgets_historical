@@ -891,7 +891,6 @@ export function createDialogComponent(Vue, options) {
              */
             async submitPreviewText() {
                 previewSubmitted.value = true;
-                previewOpen.value = false;
                 await openPreSave();
             },
 
@@ -958,7 +957,6 @@ export function createDialogComponent(Vue, options) {
                 );
 
                 if (sourceFetchState.error === "") {
-                    preSaveOpen.value = false;
                     previewSubmitted.value = false;
                 }
             },

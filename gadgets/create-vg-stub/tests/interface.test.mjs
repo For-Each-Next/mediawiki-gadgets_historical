@@ -2056,12 +2056,13 @@ test("submit opens editable source and parsed preview first", async () => {
     assert.equal(previewHtml.value, "<p>Edited parsed text</p>");
 
     await component.methods.submitPreviewText();
-    assert.equal(previewOpen.value, false);
+    assert.equal(previewOpen.value, true);
     assert.equal(preSaveOpen.value, true);
     assert.equal(submitCount, 0);
 
     await component.methods.confirmSubmit();
     assert.equal(submitCount, 1);
+    assert.equal(preSaveOpen.value, true);
     assert.deepEqual(submittedPreview, {
         summary: "create stub",
         text: "Edited generated text",
@@ -2183,7 +2184,7 @@ test("pre-save keeps the current page title when move is suggested", async () =>
     assert.equal(moveCount, 0);
     assert.equal(submitted.move.enabled, false);
     assert.equal(submitted.move.to, "Example");
-    assert.equal(state.preSaveOpen.value, false);
+    assert.equal(state.preSaveOpen.value, true);
     assert.equal(
         component.template.includes(
             "Choose fixes to run after the article is submitted.",

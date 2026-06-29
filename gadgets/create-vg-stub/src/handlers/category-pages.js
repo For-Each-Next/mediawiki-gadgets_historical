@@ -134,12 +134,11 @@ function buildCompanyCategorySummary(category, englishTitle, metadata) {
         buildEnwikiSummaryLink(englishTitle),
         buildWikidataSummaryLink(metadata?.wikidataId),
     ].filter(Boolean);
-    const suffix =
-        links.length === 0
-            ? ""
-            : `, also see ${links.map((link) => `'${link}'`).join(" and ")}`;
+    if (links.length > 0) {
+        return `see ${links.map((link) => `'${link}'`).join(" and ")}`;
+    }
 
-    return `create '${CATEGORY_NAMESPACE}${category}'${suffix}`;
+    return `create '${CATEGORY_NAMESPACE}${category}'`;
 }
 
 /**

@@ -31,9 +31,11 @@ export function buildEditSummary(metadata) {
             : buildProseDetailText(
                   buildProseCountText(metadata.proseSinographs),
               );
+    const sourceText =
+        nameText === "" ? "" : buildSourceDetailText(metadata);
     const values = {
         icon: EDIT_SUMMARY_SUFFIX,
-        name: `${nameText}${yearText}${proseText}`,
+        name: `${nameText}${yearText}${proseText}${sourceText}`,
         proseCount: "",
         year: "",
     };
@@ -77,9 +79,7 @@ function buildYearSummaryText(year) {
         return "";
     }
 
-    return formatText("editing.summaryYear", {
-        year: match[0],
-    });
+    return match[0];
 }
 
 /**
@@ -123,6 +123,25 @@ function buildProseDetailText(proseCount) {
 }
 
 /**
+ * Builds source-link detail text for an edit summary.
+ *
+ * @param {object} metadata - Edit summary metadata.
+ * @param {string} metadata.enwikiTitle - English Wikipedia page title.
+ * @param {string} metadata.wikidataId - Wikidata entity ID.
+ * @returns {string} Source-link detail text.
+ */
+function buildSourceDetailText(metadata) {
+    const links = [
+        buildEnwikiSummaryLink(metadata.enwikiTitle),
+        buildWikidataSummaryLink(metadata.wikidataId),
+    ].filter(Boolean);
+
+    return links.length === 0
+        ? ""
+        : `; see ${links.map((link) => `'${link}'`).join(" and ")}`;
+}
+
+/**
  * Builds the game title text for an edit summary.
  *
  * @param {string} displayName - Summary display title.
@@ -135,5 +154,29 @@ function buildNameSummaryText(displayName) {
         return "";
     }
 
-    return `create '«${formatText("editing.localName", { label })}»'`;
+    return `create '«${label}»'`;
+}
+
+/**
+ * Builds an English Wikipedia summary link.
+ *
+ * @param {string} title - English Wikipedia page title.
+ * @returns {string} Summary link, or an empty string.
+ */
+function buildEnwikiSummaryLink(title) {
+    const value = String(title || "").trim();
+
+    return value === "" ? "" : `[[:w:en:${value}]]`;
+}
+
+/**
+ * Builds a Wikidata summary link.
+ *
+ * @param {string} id - Wikidata entity ID.
+ * @returns {string} Summary link, or an empty string.
+ */
+function buildWikidataSummaryLink(id) {
+    const value = String(id || "").trim();
+
+    return value === "" ? "" : `[[:d:${value}]]`;
 }

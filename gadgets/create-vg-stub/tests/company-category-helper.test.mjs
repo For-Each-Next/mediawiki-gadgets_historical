@@ -116,8 +116,7 @@ test("saveCompanyCategory creates, connects, and tags the category", async () =>
             action: "edit",
             createonly: true,
             summary:
-                `create 'Category:Foo Studio游戏', also see ` +
-                `'[[:w:en:Category:Foo Studio games]]' and '[[:d:Q123]]' ` +
+                `see '[[:w:en:Category:Foo Studio games]]' and '[[:d:Q123]]' ` +
                 EDIT_SUMMARY_SUFFIX,
             text: "Category text",
             title: "Category:Foo Studio游戏",

@@ -913,7 +913,7 @@ export async function addTalkPageBanner(api, articleTitle) {
         action: "edit",
         appendtext: `${text === "" ? "" : "\n\n"}${banner}`,
         summary: addEditSummarySuffix(
-            `modify '${title}', tagging {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner`,
+            "tagging {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner",
         ),
         title,
     };

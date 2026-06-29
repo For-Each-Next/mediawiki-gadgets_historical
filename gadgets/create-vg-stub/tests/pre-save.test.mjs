@@ -631,7 +631,7 @@ test("addTalkPageBanner appends the requested banner", async () => {
     assert.equal(calls[1][2].appendtext, `\n\n${TALK_PAGE_BANNER}`);
     assert.equal(
         calls[1][2].summary,
-        `modify 'Talk:示例', tagging {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner ${EDIT_SUMMARY_SUFFIX}`,
+        `tagging {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
 

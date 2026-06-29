@@ -188,6 +188,37 @@ test("renderSaveProgress groups steps by edited target page", () => {
     );
 });
 
+test("category progress omits bundled Wikidata work", () => {
+    const documentRef = createDocumentStub();
+    const progress = createSaveProgress("Example", [
+        {
+            category: "Milestone (公司)游戏",
+            englishName: "Category:Milestone games",
+            id: "category:Milestone (公司)游戏",
+            label: "Create category: Milestone (公司)游戏",
+            pageTitle: "Category:Milestone (公司)游戏",
+            selected: true,
+            type: "category",
+        },
+    ]);
+    const layer = renderSaveProgress(progress, documentRef);
+
+    assert.equal(
+        layer.innerHTML.includes("Target page: <code>Wikidata:"),
+        false,
+    );
+    assert.equal(
+        layer.innerHTML.includes("Connect to matching Wikidata"),
+        false,
+    );
+    assert.equal(
+        layer.innerHTML.includes(
+            "<code>Category:Milestone (公司)游戏</code>",
+        ),
+        true,
+    );
+});
+
 test("renderSaveProgress uses a Codex-style waiting frame", () => {
     const documentRef = createDocumentStub();
     const progress = updateSaveProgress(

@@ -65,20 +65,27 @@ test("buildRedirectTitles includes original and English names", () => {
 });
 
 test("buildPreSaveActions includes interwiki, redirects, and talk banner", () => {
+    const actions = buildPreSaveActions({
+        form: {
+            localizedNames: [{ name: "示例遊戲" }],
+            wikidataId: " Q123 ",
+        },
+        title: "Example",
+    });
+
     assert.deepEqual(
-        buildPreSaveActions({
-            form: {
-                localizedNames: [{ name: "示例遊戲" }],
-                wikidataId: " Q123 ",
-            },
-            title: "Example",
-        }).map((action) => [action.type, action.selected]),
+        actions.map((action) => [action.type, action.selected]),
         [
             ["interwiki", true],
             ["redirect", true],
             ["talk-banner", true],
         ],
     );
+    assert.equal(
+        actions[0].displayLabel,
+        "Connect to matching Wikidata item",
+    );
+    assert.equal(actions[0].wikidataId, "Q123");
 });
 
 test("buildPreSaveActions labels the talk banner with the final title", () => {

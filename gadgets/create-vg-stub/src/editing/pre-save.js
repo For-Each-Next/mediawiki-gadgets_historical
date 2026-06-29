@@ -46,7 +46,7 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
 
     if (normalizeTitle(form.wikidataId) !== "") {
         actions.push({
-            displayLabel: `Connect to Wikidata item ${normalizeTitle(form.wikidataId)}`,
+            displayLabel: "Connect to matching Wikidata item",
             id: "interwiki",
             label: `Connect ${title} to ${normalizeTitle(form.wikidataId)}`,
             pageTitle: title,

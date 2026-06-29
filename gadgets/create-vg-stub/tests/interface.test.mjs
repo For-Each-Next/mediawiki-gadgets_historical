@@ -2275,15 +2275,17 @@ test("pre-save fixes are grouped by target page", () => {
                         type: "action",
                     },
                     {
+                        action: categoryAction,
                         key: "category:Chibig遊戲:wikidata",
                         label: "Connect to matching Wikidata item",
-                        type: "note",
+                        type: "bundled-action",
                     },
                     {
+                        action: categoryAction,
                         key: "category:Chibig遊戲:talk-banner",
                         label:
                             "Tagging {{WikiProject Video games}} to [[Category talk:Chibig遊戲]]",
-                        type: "note",
+                        type: "bundled-action",
                     },
                     {
                         key: "category:Chibig遊戲:register-new-page",

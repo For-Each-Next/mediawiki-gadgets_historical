@@ -3298,9 +3298,10 @@ export function createPreSaveGroups(actions, form) {
 
         for (const note of getPreSaveActionNotes(action)) {
             group.rows.push({
+                action,
                 key: `${action.id}:${note.key}`,
                 label: note.label,
-                type: "note",
+                type: "bundled-action",
             });
         }
     }
@@ -3501,6 +3502,20 @@ function createPreSaveDialogTemplate() {
                                                         "row.type === 'registration'",
                                                     "v-model":
                                                         "form.registerNewPage",
+                                                },
+                                                [
+                                                    createText(
+                                                        "{{ row.label }}",
+                                                    ),
+                                                ],
+                                            ),
+                                            createElement(
+                                                "cdx-checkbox",
+                                                {
+                                                    "v-else-if":
+                                                        "row.type === 'bundled-action'",
+                                                    "v-model":
+                                                        "row.action.selected",
                                                 },
                                                 [
                                                     createText(

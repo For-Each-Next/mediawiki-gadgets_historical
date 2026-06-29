@@ -2406,8 +2406,12 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
 
 test("history fill rechecks enwiki wikidata for the loaded title", async () => {
     let resolveMetadata;
+    let resolveCitations;
     const metadataPromise = new Promise((resolve) => {
         resolveMetadata = resolve;
+    });
+    const citationsPromise = new Promise((resolve) => {
+        resolveCitations = resolve;
     });
     const calls = [];
     const component = createDialogComponent(
@@ -2425,14 +2429,18 @@ test("history fill rechecks enwiki wikidata for the loaded title", async () => {
                     wikidataId: "Q999",
                 };
             },
+            onPrepareCitations() {
+                return citationsPromise;
+            },
         }),
     );
-    const { form } = component.setup();
+    const { form, historyOpen } = component.setup();
 
     form.enwikiTitle = "Lookup Game";
     const lookup = component.methods.updateEnwikiTitle();
 
-    await component.methods.fillHistoryEntry({
+    component.methods.openHistoryDialog();
+    const fill = component.methods.fillHistoryEntry({
         data: {
             input: {
                 enwikiTitle: "Stored Game",
@@ -2447,16 +2455,22 @@ test("history fill rechecks enwiki wikidata for the loaded title", async () => {
             savedAt: "2026-06-28",
         },
     });
+    assert.equal(historyOpen.value, true);
 
     resolveMetadata({
         title: "Lookup Game",
         wikidataId: "Q123",
     });
     await lookup;
+    assert.equal(historyOpen.value, true);
+
+    resolveCitations([]);
+    await fill;
 
     assert.equal(form.enwikiTitle, "Stored Game");
     assert.equal(form.name, "Stored name");
     assert.equal(form.wikidataId, "Q999");
+    assert.equal(historyOpen.value, false);
     assert.deepEqual(calls, ["Lookup Game", "Stored Game"]);
 });
 

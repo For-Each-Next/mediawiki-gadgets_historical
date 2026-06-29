@@ -1000,13 +1000,13 @@ export function createDialogComponent(Vue, options) {
              * Fills the current form from a history entry.
              *
              * @param {object} entry - History entry.
-             * @returns {void}
+             * @returns {Promise<void>} Resolves after the restored form is refreshed.
              */
             async fillHistoryEntry(entry) {
                 await restoreHistoryForm(getHistoryEntryForm(entry));
-                historyOpen.value = false;
                 await refreshCitationRows();
                 await refreshReview();
+                historyOpen.value = false;
             },
 
             /**

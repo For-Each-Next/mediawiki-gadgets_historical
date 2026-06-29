@@ -617,15 +617,21 @@
             "益智游戏",
             "益智遊戲"
         ],
-        "categories": ["益智游戏"],
+        "categories": ["益智类电子游戏"],
         "name": "益智",
-        "page": "益智游戏",
+        "page": "益智类电子游戏",
         "stubTags": ["puzzle-videogame-stub"]
     },
     {
-        "aliases": ["益智平台", "益智平台游戏", "益智平臺", "益智平臺遊戲"],
-        "categories": ["益智平台游戏"],
-        "name": "益智平台",
+        "aliases": [
+            "puzzle-platform",
+            "益智平台",
+            "益智平台游戏",
+            "益智平臺",
+            "益智平臺遊戲"
+        ],
+        "categories": ["益智类电子游戏", "平台游戏"],
+        "name": "益智—平台",
         "page": "益智平台游戏",
         "stubTags": ["platform-videogame-stub", "puzzle-videogame-stub"]
     },

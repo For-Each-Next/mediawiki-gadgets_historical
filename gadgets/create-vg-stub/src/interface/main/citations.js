@@ -50,29 +50,23 @@ export function createCitationGroupTemplate() {
                         },
                         [createCitationParamRowTemplate()],
                     ),
-                    createActionFooterTemplate(
-                        [
-                            createElement(
-                                "cdx-button",
-                                {
-                                    "v-on:click":
-                                        "resetCitation(citationIndex)",
-                                },
-                                [createText("Reset")],
-                            ),
-                            createElement(
-                                "cdx-button",
-                                {
-                                    "v-on:click":
-                                        "addCitationParam(citationIndex)",
-                                },
-                                [createText("Add param")],
-                            ),
-                        ],
-                        {
-                            justifyContent: "flex-start",
-                        },
-                    ),
+                    createActionFooterTemplate([
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-on:click": "resetCitation(citationIndex)",
+                            },
+                            [createText("Reset")],
+                        ),
+                        createElement(
+                            "cdx-button",
+                            {
+                                "v-on:click":
+                                    "addCitationParam(citationIndex)",
+                            },
+                            [createText("Add param")],
+                        ),
+                    ]),
                 ],
             ),
             createElement(
@@ -97,23 +91,20 @@ function createCitationParamRowTemplate() {
         "template",
         {
             "v-bind:key": "paramIndex",
-            "v-for":
-                "(param, paramIndex) in getCitationParamRows(citation)",
+            "v-for": "(param, paramIndex) in getCitationParamRows(citation)",
         },
         [
             createElement("cdx-text-input", {
                 placeholder: "Field name",
                 "v-bind:model-value": "param.name",
-                "v-on:change":
-                    "sortCitation(citationIndex)",
+                "v-on:change": "sortCitation(citationIndex)",
                 "v-on:update:model-value":
                     "updateCitationParam(citationIndex, paramIndex, 'name', $event)",
             }),
             createElement("cdx-text-input", {
                 placeholder: "Value",
                 "v-bind:model-value": "param.value",
-                "v-on:change":
-                    "sortCitation(citationIndex)",
+                "v-on:change": "sortCitation(citationIndex)",
                 "v-on:update:model-value":
                     "updateCitationParam(citationIndex, paramIndex, 'value', $event)",
             }),

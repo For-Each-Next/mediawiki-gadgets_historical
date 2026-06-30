@@ -29,9 +29,7 @@ export function createText(value) {
 /**
  * Creates an action footer.
  *
- * Actions are right-aligned by default. Pass a style override such as
- * `{ justifyContent: "flex-start" }` for groups whose buttons belong on
- * the left.
+ * Actions are right-aligned by default.
  *
  * @param {Array<object>} actions - Footer action button nodes.
  * @param {object} [style] - Extra footer style properties.

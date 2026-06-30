@@ -824,6 +824,7 @@ function init(require) {
 
     app.component("CdxDialog", Codex.CdxDialog);
     app.component("CdxButton", Codex.CdxButton);
+    app.component("CdxButtonGroup", Codex.CdxButtonGroup);
     app.component("CdxCheckbox", Codex.CdxCheckbox);
     app.component("CdxField", Codex.CdxField);
     app.component("CdxTab", Codex.CdxTab);
@@ -923,7 +924,9 @@ async function runPendingSaveActions(require) {
         clearPendingSaveData();
 
         if (result.failed.length > 0) {
-            reportSaveProgressError(formatPendingActionFailures(result.failed));
+            reportSaveProgressError(
+                formatPendingActionFailures(result.failed),
+            );
         } else {
             sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
         }

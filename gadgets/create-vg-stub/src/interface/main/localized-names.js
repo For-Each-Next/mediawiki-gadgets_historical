@@ -86,24 +86,12 @@ function createSteamNameHelperTemplate() {
                     ),
                 ],
             ),
-            createElement(
-                "div",
-                {
-                    class: "create-vg-stub-steam-actions",
-                    "v-if": "fetchedSteamNameRows.length",
-                },
-                [
-                    createElement(
-                        "cdx-button",
-                        {
-                            "v-bind:key": "choice.key",
-                            "v-for": "choice in steamNameChoices",
-                            "v-on:click": "applySteamNameChoice(choice.key)",
-                        },
-                        [createText("{{ choice.label }}")],
-                    ),
-                ],
-            ),
+            createElement("cdx-button-group", {
+                class: "create-vg-stub-steam-actions",
+                "v-if": "fetchedSteamNameRows.length",
+                "v-bind:buttons": "steamNameButtons",
+                "v-on:click": "applySteamNameChoice",
+            }),
         ],
     );
 }
@@ -114,29 +102,24 @@ function createSteamNameHelperTemplate() {
  * @returns {object} Localized name action button group node.
  */
 function createNameActionsTemplate() {
-    return createActionFooterTemplate(
-        [
-            createElement(
-                "cdx-button",
-                {
-                    action: "progressive",
-                    "v-on:click": "addNameRow(group.nameGroupKey)",
-                    weight: "primary",
-                },
-                [createText("Add")],
-            ),
-            createElement(
-                "cdx-button",
-                {
-                    "v-on:click": "clearNameRows(group.nameGroupKey)",
-                },
-                [createText("Clear")],
-            ),
-        ],
-        {
-            justifyContent: "flex-start",
-        },
-    );
+    return createActionFooterTemplate([
+        createElement(
+            "cdx-button",
+            {
+                "v-on:click": "clearNameRows(group.nameGroupKey)",
+            },
+            [createText("Clear")],
+        ),
+        createElement(
+            "cdx-button",
+            {
+                action: "progressive",
+                "v-on:click": "addNameRow(group.nameGroupKey)",
+                weight: "primary",
+            },
+            [createText("Add")],
+        ),
+    ]);
 }
 
 /**
@@ -188,13 +171,10 @@ function createNameMarketTemplate() {
                 },
                 [createText("Official")],
             ),
-            createElement(
-                "span",
-                {
-                    "aria-hidden": "true",
-                    class: "create-vg-stub-name-market-separator",
-                },
-            ),
+            createElement("span", {
+                "aria-hidden": "true",
+                class: "create-vg-stub-name-market-separator",
+            }),
             createElement(
                 "cdx-checkbox",
                 {

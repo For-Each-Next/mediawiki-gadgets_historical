@@ -669,7 +669,7 @@ test("page edit source syncs CodeMirror text before staging", async () => {
     assert.equal(row.pendingEdit.text, "{{Edited navbox}}");
 });
 
-test("group action buttons keep their intended alignment", () => {
+test("group action buttons align right and put primary actions last", () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub(),
@@ -678,12 +678,12 @@ test("group action buttons keep their intended alignment", () => {
     assertActionFooterAlignment(
         component.template,
         'v-on:click="clearNameRows(group.nameGroupKey)"',
-        "flex-start",
+        "flex-end",
     );
     assertActionFooterAlignment(
         component.template,
         'v-on:click="addCitationParam(citationIndex)"',
-        "flex-start",
+        "flex-end",
     );
     assertActionFooterAlignment(
         component.template,
@@ -694,6 +694,20 @@ test("group action buttons keep their intended alignment", () => {
         component.template,
         'v-on:click="checkRedirectRows"',
         "flex-end",
+    );
+    assert.equal(
+        component.template.indexOf(
+            'v-on:click="clearNameRows(group.nameGroupKey)"',
+        ) <
+            component.template.indexOf(
+                'v-on:click="addNameRow(group.nameGroupKey)"',
+            ),
+        true,
+    );
+    assert.equal(
+        component.template.indexOf('v-on:click="closeHistoryJsonDialog"') <
+            component.template.indexOf('v-on:click="importHistoryJson"'),
+        true,
     );
 });
 
@@ -1086,9 +1100,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes("{{stub}}"), false);
     assert.equal(component.template.includes("<h3>Stub tags</h3>"), true);
     assert.equal(
-        component.template.includes(
-            'v-for="(stubTag, index) in stubTagRows"',
-        ),
+        component.template.includes('v-for="(stubTag, index) in stubTagRows"'),
         true,
     );
     assert.equal(
@@ -1260,8 +1272,14 @@ test("navbox review stages source-preview edits and creates", async () => {
         "Pending",
     );
     assert.equal(component.methods.formatNavboxStatusLabel(""), "Unchecked");
-    assert.equal(component.methods.formatCategorySourceLabel("found"), "Found");
-    assert.equal(component.methods.formatCategorySourceLabel("known"), "Known");
+    assert.equal(
+        component.methods.formatCategorySourceLabel("found"),
+        "Found",
+    );
+    assert.equal(
+        component.methods.formatCategorySourceLabel("known"),
+        "Known",
+    );
     assert.equal(
         component.methods.formatCategorySourceLabel("known †"),
         "Known†",
@@ -1274,7 +1292,10 @@ test("navbox review stages source-preview edits and creates", async () => {
         component.methods.formatCategorySourceLabel("suggested"),
         "Suggested",
     );
-    assert.equal(component.methods.formatCategorySourceLabel("manual"), "Manual");
+    assert.equal(
+        component.methods.formatCategorySourceLabel("manual"),
+        "Manual",
+    );
 
     const existingRow = {
         enabled: true,
@@ -1303,7 +1324,8 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.deepEqual(existingRow.pendingEdit, {
         create: false,
         previousStatus: "OK",
-        summary: "modify 'Template:Example series', with link to '[[Example]]'",
+        summary:
+            "modify 'Template:Example series', with link to '[[Example]]'",
         text: "{{Edited navbox}}",
         title: "Template:Example series",
     });
@@ -1330,7 +1352,8 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.deepEqual(missingRow.pendingEdit, {
         create: true,
         previousStatus: "Not exists",
-        summary: "create 'Template:Missing series', with link to '[[Example]]'",
+        summary:
+            "create 'Template:Missing series', with link to '[[Example]]'",
         text: "{{New navbox}}",
         title: "Template:Missing series",
     });
@@ -1700,9 +1723,9 @@ test("category review stages source-preview edits and company creates", async ()
     );
     assert.equal(
         component.methods.canCreateCategory({
-        category: "动作游戏",
-        status: "Not exists",
-    }),
+            category: "动作游戏",
+            status: "Not exists",
+        }),
         true,
     );
 });
@@ -1781,6 +1804,15 @@ test("Steam helper stages official localized name choices", async () => {
     assert.deepEqual(
         form.localizedNames.map((row) => row.name),
         [""],
+    );
+    assert.equal(component.template.includes("<cdx-button-group"), true);
+    assert.equal(
+        component.template.includes('v-bind:buttons="steamNameButtons"'),
+        true,
+    );
+    assert.equal(
+        component.template.includes('v-on:click="applySteamNameChoice"'),
+        true,
     );
 
     component.methods.applySteamNameChoice("both");
@@ -2173,7 +2205,10 @@ test("submit opens editable source and parsed preview first", async () => {
     );
     assert.equal(component.template.includes('v-if="previewOpen"'), true);
     assert.equal(component.template.includes('v-model="previewText"'), true);
-    assert.equal(component.template.includes('v-model="previewSummary"'), true);
+    assert.equal(
+        component.template.includes('v-model="previewSummary"'),
+        true,
+    );
     assert.equal(component.template.includes('v-html="previewHtml"'), true);
     assert.equal(
         component.template.includes('v-bind:title="getArticlePreviewTitle()"'),
@@ -2327,10 +2362,9 @@ test("pre-save fixes are grouped by target page", () => {
     };
 
     assert.deepEqual(
-        createPreSaveGroups(
-            [redirectAction, talkAction, categoryAction],
-            { registerNewPage: true },
-        ),
+        createPreSaveGroups([redirectAction, talkAction, categoryAction], {
+            registerNewPage: true,
+        }),
         [
             {
                 key: "薩姆森 (遊戲)",
@@ -2350,14 +2384,12 @@ test("pre-save fixes are grouped by target page", () => {
                     {
                         action: talkAction,
                         key: "talk-banner",
-                        label:
-                            "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+                        label: "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
                         type: "action",
                     },
                     {
                         key: "register-new-page",
-                        label:
-                            "Register on WikiProject Video games' new-page list",
+                        label: "Register on WikiProject Video games' new-page list",
                         type: "registration",
                     },
                 ],
@@ -2381,14 +2413,12 @@ test("pre-save fixes are grouped by target page", () => {
                     {
                         action: categoryAction,
                         key: "category:Chibig遊戲:talk-banner",
-                        label:
-                            "Tagging {{WikiProject Video games}} to [[Category talk:Chibig遊戲]]",
+                        label: "Tagging {{WikiProject Video games}} to [[Category talk:Chibig遊戲]]",
                         type: "bundled-action",
                     },
                     {
                         key: "category:Chibig遊戲:register-new-page",
-                        label:
-                            "Register on WikiProject Video games' new-page list",
+                        label: "Register on WikiProject Video games' new-page list",
                         type: "registration",
                     },
                 ],

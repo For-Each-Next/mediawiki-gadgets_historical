@@ -38,18 +38,17 @@ export function createPreviewDialogTemplate() {
                 createRefreshButton({
                     click: "refreshParsedPreview",
                     disabled: "sourceFetchState.loading",
-                    label:
-                        "{{ sourceFetchState.loading ? 'Working' : 'Update preview' }}",
+                    label: "{{ sourceFetchState.loading ? 'Working' : 'Update preview' }}",
+                }),
+                createButton({
+                    click: "closePreviewDialog",
+                    label: "Dismiss",
                 }),
                 createPrimaryButton({
                     click: "submitPreviewText",
                     disabled:
                         "sourceFetchState.loading || !previewText.trim()",
                     label: "Continue",
-                }),
-                createButton({
-                    click: "closePreviewDialog",
-                    label: "Dismiss",
                 }),
             ]),
         ],
@@ -123,14 +122,7 @@ export function createPageEditDialogTemplate() {
                 createRefreshButton({
                     click: "refreshPageEditPreview",
                     disabled: "pageEditState.loading",
-                    label:
-                        "{{ pageEditState.loading ? 'Working' : 'Update preview' }}",
-                }),
-                createPrimaryButton({
-                    click: "stagePageEdit",
-                    disabled:
-                        "pageEditState.loading || !pageEditState.text.trim()",
-                    label: "Stage",
+                    label: "{{ pageEditState.loading ? 'Working' : 'Update preview' }}",
                 }),
                 createButton({
                     action: "destructive",
@@ -142,6 +134,12 @@ export function createPageEditDialogTemplate() {
                 createButton({
                     click: "closePageEditDialog",
                     label: "Cancel",
+                }),
+                createPrimaryButton({
+                    click: "stagePageEdit",
+                    disabled:
+                        "pageEditState.loading || !pageEditState.text.trim()",
+                    label: "Stage",
                 }),
             ]),
         ],
@@ -208,8 +206,7 @@ function createEnglishCategoryField() {
     return createElement(
         "label",
         {
-            "v-if":
-                "pageEditState.kind === 'category' && pageEditState.create && pageEditState.company",
+            "v-if": "pageEditState.kind === 'category' && pageEditState.create && pageEditState.company",
             style: {
                 display: "block",
                 marginBottom: "0.75em",
@@ -325,5 +322,7 @@ function createButton(options) {
         attributes.weight = options.weight;
     }
 
-    return createElement("cdx-button", attributes, [createText(options.label)]);
+    return createElement("cdx-button", attributes, [
+        createText(options.label),
+    ]);
 }

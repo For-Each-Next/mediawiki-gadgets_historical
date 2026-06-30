@@ -16,7 +16,6 @@ export function createTabsTemplate() {
     return createElement(
         "cdx-tabs",
         {
-            framed: "",
             "v-model:active": "activeTab",
         },
         [
@@ -29,19 +28,11 @@ export function createTabsTemplate() {
                     "v-for": "group in groups",
                 },
                 [
-                    createElement(
-                        "div",
-                        {
-                            class: "create-vg-stub-tab-panel",
-                        },
-                        [
-                            createFieldGroupTemplate(),
-                            createNameGroupTemplate(),
-                            createNoteTaGroupTemplate(),
-                            createCitationGroupTemplate(),
-                            createCategoryGroupTemplate(),
-                        ],
-                    ),
+                    createFieldGroupTemplate(),
+                    createNameGroupTemplate(),
+                    createNoteTaGroupTemplate(),
+                    createCitationGroupTemplate(),
+                    createCategoryGroupTemplate(),
                 ],
             ),
         ],

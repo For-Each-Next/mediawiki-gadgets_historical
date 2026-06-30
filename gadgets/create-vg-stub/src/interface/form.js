@@ -105,9 +105,6 @@ const DIALOG_CSS = new StyleSheet()
         height: "70vh",
         width: "100%",
     })
-    .add(".create-vg-stub-tab-panel", {
-        paddingTop: "0.75em",
-    })
     .add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
         alignItems: "center",
         display: "grid",
@@ -149,9 +146,6 @@ const DIALOG_CSS = new StyleSheet()
         marginBottom: "1em",
     })
     .add(".create-vg-stub-steam-actions", {
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "0.5em",
         gridColumn: "1 / -1",
     })
     .add(".create-vg-stub-steam-suggestion", {
@@ -452,11 +446,12 @@ const STEAM_NAME_CHOICES = [
         label: "Unspecified region",
     },
 ];
+const STEAM_NAME_BUTTONS = STEAM_NAME_CHOICES.map((choice) => ({
+    label: choice.label,
+    value: choice.key,
+}));
 const NOTE_TA_NAMES_SOURCE = "names";
-const CODEMIRROR_MODULES = [
-    "ext.CodeMirror",
-    "ext.CodeMirror.mode.mediawiki",
-];
+const CODEMIRROR_MODULES = ["ext.CodeMirror", "ext.CodeMirror.mode.mediawiki"];
 const ARTICLE_PARAMETER_GROUPS = [
     new ArticleParameterGroup("titles", "Titles", [
         new ArticleParameterField(
@@ -2275,7 +2270,7 @@ export function createDialogComponent(Vue, options) {
                 previewSubmitted,
                 previewTextArea,
                 sourceFetchState,
-                steamNameChoices: STEAM_NAME_CHOICES,
+                steamNameButtons: STEAM_NAME_BUTTONS,
                 steamUrl,
                 stubTagRows,
             };
@@ -2293,7 +2288,9 @@ export function createDialogComponent(Vue, options) {
      */
     function queueSourceEditor(key, textareaRef, textRef) {
         if (typeof Vue.nextTick === "function") {
-            Vue.nextTick(() => initializeSourceEditor(key, textareaRef, textRef));
+            Vue.nextTick(() =>
+                initializeSourceEditor(key, textareaRef, textRef),
+            );
             return;
         }
 
@@ -2519,7 +2516,11 @@ export function createDialogComponent(Vue, options) {
      * @param {boolean} force - Whether to replace reviewed rows.
      * @returns {Promise<void>} Resolves after navbox rows are refreshed.
      */
-    async function refreshNavboxRows(force, rebuild = false, refreshOptions = {}) {
+    async function refreshNavboxRows(
+        force,
+        rebuild = false,
+        refreshOptions = {},
+    ) {
         if (!force && navboxRowsPrepared) {
             return;
         }
@@ -2538,8 +2539,8 @@ export function createDialogComponent(Vue, options) {
         }
 
         const rows = applyNavboxPatches(
-            (await options.onPrepareReview(form, rebuild)).map(
-                (row) => createNavboxRow(row, true),
+            (await options.onPrepareReview(form, rebuild)).map((row) =>
+                createNavboxRow(row, true),
             ),
             form.historyPatches?.navboxes,
         );
@@ -2782,13 +2783,16 @@ export function createDialogComponent(Vue, options) {
         row.pendingEdit = {
             create: pageEditState.create,
             previousStatus:
-                row.pendingEdit?.previousStatus || pageEditState.previousStatus,
+                row.pendingEdit?.previousStatus ||
+                pageEditState.previousStatus,
             summary: buildPageEditSummary(pageEditState),
             text: pageEditState.text,
             title: pageEditState.title,
         };
         row.enabled = true;
-        row.status = pageEditState.create ? "Pending creation" : "Pending edit";
+        row.status = pageEditState.create
+            ? "Pending creation"
+            : "Pending edit";
         destroySourceEditor("pageEdit");
         pageEditOpen.value = false;
     }
@@ -3584,7 +3588,9 @@ function getPreSaveActionPageTitle(action) {
  * @returns {string} Display label.
  */
 function getPreSaveActionDisplayLabel(action) {
-    return trimFieldValue(action?.displayLabel) || trimFieldValue(action?.label);
+    return (
+        trimFieldValue(action?.displayLabel) || trimFieldValue(action?.label)
+    );
 }
 
 /**
@@ -3638,7 +3644,9 @@ function getPreSaveRegistrationArticleTitle(actions) {
  * @returns {boolean} Whether the action creates a company category.
  */
 function isCompanyCategoryPreSaveAction(action) {
-    return action?.type === "category" && trimFieldValue(action.company) !== "";
+    return (
+        action?.type === "category" && trimFieldValue(action.company) !== ""
+    );
 }
 
 /**
@@ -3697,8 +3705,7 @@ function createPreSaveDialogTemplate() {
                                             createElement(
                                                 "cdx-checkbox",
                                                 {
-                                                    "v-if":
-                                                        "row.type === 'action'",
+                                                    "v-if": "row.type === 'action'",
                                                     "v-model":
                                                         "row.action.selected",
                                                 },
@@ -3839,93 +3846,53 @@ function createMainDialogFooterTemplate() {
             "v-slot:footer": "",
         },
         [
-            createSplitActionFooterTemplate(
+            createActionFooterTemplate([
                 createElement(
-                    "div",
+                    "cdx-button",
                     {
-                        style: {
-                            display: "flex",
-                            gap: "0.5em",
-                        },
+                        "v-bind:disabled": "sourceFetchState.loading",
+                        "v-on:click": "openHistoryDialog",
+                    },
+                    [createText("History")],
+                ),
+                createElement(
+                    "cdx-button",
+                    {
+                        "v-bind:disabled": "sourceFetchState.loading",
+                        "v-on:click": "clearForm",
+                    },
+                    [createText("Clear")],
+                ),
+                createElement(
+                    "cdx-button",
+                    {
+                        "v-on:click": "closeDialog",
+                    },
+                    [createText("Cancel")],
+                ),
+                createElement(
+                    "cdx-button",
+                    {
+                        "v-bind:disabled": "sourceFetchState.loading",
+                        "v-on:click": "openMoveDialog",
+                    },
+                    [createText("Move")],
+                ),
+                createElement(
+                    "cdx-button",
+                    {
+                        action: "progressive",
+                        "v-bind:disabled": "sourceFetchState.loading",
+                        "v-on:click": "submitForm",
+                        weight: "primary",
                     },
                     [
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-bind:disabled": "sourceFetchState.loading",
-                                "v-on:click": "openHistoryDialog",
-                            },
-                            [createText("History")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-bind:disabled": "sourceFetchState.loading",
-                                "v-on:click": "clearForm",
-                            },
-                            [createText("Clear")],
+                        createText(
+                            "{{ sourceFetchState.loading ? 'Fetching' : 'Preview and submit' }}",
                         ),
                     ],
                 ),
-                [
-                    createElement(
-                        "cdx-button",
-                        {
-                            "v-on:click": "closeDialog",
-                        },
-                        [createText("Cancel")],
-                    ),
-                    createElement(
-                        "cdx-button",
-                        {
-                            "v-bind:disabled": "sourceFetchState.loading",
-                            "v-on:click": "openMoveDialog",
-                        },
-                        [createText("Move")],
-                    ),
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "progressive",
-                            "v-bind:disabled": "sourceFetchState.loading",
-                            "v-on:click": "submitForm",
-                            weight: "primary",
-                        },
-                        [
-                            createText(
-                                "{{ sourceFetchState.loading ? 'Fetching' : 'Preview and submit' }}",
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-        ],
-    );
-}
-
-/**
- * Creates a dialog action footer with one left-aligned action.
- *
- * @param {object} leadingAction - Left-aligned footer action node.
- * @param {Array<object>} actions - Right-aligned footer action nodes.
- * @returns {object} Dialog action footer node.
- */
-function createSplitActionFooterTemplate(leadingAction, actions) {
-    return createElement(
-        "div",
-        {
-            style: {
-                alignItems: "center",
-                display: "flex",
-                justifyContent: "space-between",
-                width: "100%",
-            },
-        },
-        [
-            leadingAction,
-            createActionFooterTemplate(actions, {
-                width: "auto",
-            }),
+            ]),
         ],
     );
 }
@@ -4001,18 +3968,18 @@ function createHistoryJsonDialogTemplate() {
                         createElement(
                             "cdx-button",
                             {
+                                "v-on:click": "closeHistoryJsonDialog",
+                            },
+                            [createText("Cancel")],
+                        ),
+                        createElement(
+                            "cdx-button",
+                            {
                                 action: "progressive",
                                 weight: "primary",
                                 "v-on:click": "importHistoryJson",
                             },
                             [createText("Load")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-on:click": "closeHistoryJsonDialog",
-                            },
-                            [createText("Cancel")],
                         ),
                     ]),
                 ],
@@ -4128,14 +4095,6 @@ function createHistoryDialogFooterTemplate() {
                 createElement(
                     "cdx-button",
                     {
-                        action: "progressive",
-                        "v-on:click": "openHistoryImportDialog",
-                    },
-                    [createText("Import")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
                         "v-bind:disabled":
                             "!historyEntries.some((entry) => !entry.metadata.temporary)",
                         "v-on:click": "clearHistory",
@@ -4148,6 +4107,14 @@ function createHistoryDialogFooterTemplate() {
                         "v-on:click": "closeHistoryDialog",
                     },
                     [createText("Done")],
+                ),
+                createElement(
+                    "cdx-button",
+                    {
+                        action: "progressive",
+                        "v-on:click": "openHistoryImportDialog",
+                    },
+                    [createText("Import")],
                 ),
             ]),
         ],
@@ -5185,9 +5152,7 @@ function createRedirectRow(value = "", fixed = value?.fixed === true) {
     );
     const exists =
         value?.exists === true || /^Exists(?::|$)/u.test(value?.status);
-    const fixedTitle = fixed
-        ? title
-        : trimFieldValue(value?.fixedTitle);
+    const fixedTitle = fixed ? title : trimFieldValue(value?.fixedTitle);
 
     return {
         fixed:

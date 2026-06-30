@@ -506,7 +506,8 @@ test("References tab manages editable citation parameters", async () => {
             },
         }),
     );
-    const { form, getCitationParamRows, groups } = component.setup();
+    const { activeCitationTab, form, getCitationParamRows, groups } =
+        component.setup();
 
     form.yearSourceUrl = "https://example.test/source";
     await component.methods.submitForm();
@@ -547,10 +548,21 @@ test("References tab manages editable citation parameters", async () => {
     ]);
     assert.equal(
         component.template.includes(
-            "v-bind:caption=\"'Reference ' + citation.index\"",
+            'v-bind:caption="getCitationTabLabel(citation)"',
         ),
         true,
     );
+    assert.equal(
+        component.template.includes(
+            'v-bind:label="getCitationTabLabel(citation)"',
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes('v-model:active="activeCitationTab"'),
+        true,
+    );
+    assert.equal(activeCitationTab.value, "citation-1");
     assert.equal(component.template.includes("<strong>Reference"), false);
     assert.equal(component.template.includes("Clean"), true);
     assert.equal(component.template.includes("Add param"), true);
@@ -1927,13 +1939,15 @@ test("Steam helper stages official localized name choices", async () => {
         true,
     );
     assert.equal(component.template.includes("Add Steam names"), true);
-    assert.equal(component.template.includes("<cdx-button-group"), true);
+    assert.equal(component.template.includes("<cdx-select"), true);
     assert.equal(
-        component.template.includes('v-bind:buttons="steamNameButtons"'),
+        component.template.includes('v-bind:menu-items="steamNameMenuItems"'),
         true,
     );
     assert.equal(
-        component.template.includes('v-on:click="applySteamNameChoice"'),
+        component.template.includes(
+            'v-on:update:selected="applySteamNameChoice"',
+        ),
         true,
     );
 
@@ -1941,28 +1955,24 @@ test("Steam helper stages official localized name choices", async () => {
 
     assert.deepEqual(
         form.localizedNames
-            .slice(0, 2)
+            .slice(0, 1)
             .map((row) => [
                 row.official,
                 row.hans,
                 row.hant,
+                row.ww,
                 row.name,
                 row.sourceUrl,
             ]),
         [
             [
                 true,
-                true,
+                false,
+                false,
                 false,
                 "简体名",
-                "https://store.steampowered.com/app/123/example/?l=schinese",
-            ],
-            [
-                true,
-                false,
-                true,
-                "繁體名",
-                "https://store.steampowered.com/app/123/example/?l=tchinese",
+                "https://store.steampowered.com/app/123/example/?l=schinese\n" +
+                    "https://store.steampowered.com/app/123/example/?l=tchinese",
             ],
         ],
     );
@@ -2027,7 +2037,7 @@ test("Steam helper previews Japanese for a Japanese original title", async () =>
     );
 });
 
-test("Steam helper can merge or blank fetched localized names", async () => {
+test("Steam helper adds both fetched names as one no-region row", async () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
@@ -2057,7 +2067,7 @@ test("Steam helper can merge or blank fetched localized names", async () => {
         "https://store.steampowered.com/app/123/example/",
     );
     await component.methods.addSteamNames();
-    component.methods.applySteamNameChoice("merge");
+    component.methods.applySteamNameChoice("both");
 
     assert.deepEqual(form.localizedNames[0], {
         cn: false,
@@ -2070,21 +2080,8 @@ test("Steam helper can merge or blank fetched localized names", async () => {
             "https://store.steampowered.com/app/123/example/?l=schinese\n" +
             "https://store.steampowered.com/app/123/example/?l=tchinese",
         tw: false,
-        ww: true,
+        ww: false,
     });
-
-    await component.methods.addSteamNames();
-    component.methods.applySteamNameChoice("other");
-
-    assert.equal(form.localizedNames[1].name, "");
-    assert.equal(form.localizedNames[1].ww, false);
-    assert.equal(form.localizedNames[1].hans, false);
-    assert.equal(form.localizedNames[1].hant, false);
-    assert.equal(
-        form.localizedNames[1].sourceUrl,
-        "https://store.steampowered.com/app/123/example/?l=schinese\n" +
-            "https://store.steampowered.com/app/123/example/?l=tchinese",
-    );
 });
 
 test("Clear resets fields and helper state across all tabs", async () => {
@@ -2161,7 +2158,7 @@ test("Clear removes all localized name rows", () => {
     );
 });
 
-test("field preview callback receives live form and preview key", () => {
+test("field preview helper receives live form and preview key", () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
@@ -2179,7 +2176,7 @@ test("field preview callback receives live form and preview key", () => {
     assert.equal(getFieldPreview({ key: "genres" }), "genres: Example");
     assert.equal(
         component.template.includes("create-vg-stub-wikitext-preview"),
-        true,
+        false,
     );
     assert.equal(
         component.template.includes('v-for="link in getEnwikiTipLinks()"'),
@@ -2597,6 +2594,7 @@ test("pre-save submit uses the current page title with disambiguation", async ()
 });
 
 test("enwiki lookup fills wikidata and blank English title", async () => {
+    let fetchedSteamUrl = "";
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
@@ -2611,9 +2609,18 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
                     wikidataId: "Q123",
                 };
             },
+            async onSteamNamesFetch(url, options) {
+                fetchedSteamUrl = url;
+                assert.deepEqual(options, {
+                    includeJapanese: false,
+                });
+
+                return [{ hans: true, name: "简体名" }];
+            },
         }),
     );
-    const { form, getEnwikiTipLinks, steamUrl } = component.setup();
+    const { fetchedSteamNameRows, form, getEnwikiTipLinks, steamUrl } =
+        component.setup();
 
     form.enwikiTitle = "Example Game";
     await component.methods.updateEnwikiTitle();
@@ -2629,6 +2636,10 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
         "https://opencritic.com/game/6789/-",
     );
     assert.equal(steamUrl.value, "https://store.steampowered.com/app/12345/");
+    assert.equal(fetchedSteamUrl, "https://store.steampowered.com/app/12345/");
+    assert.deepEqual(fetchedSteamNameRows.value, [
+        { hans: true, name: "简体名" },
+    ]);
     assert.deepEqual(getEnwikiTipLinks(), [
         {
             label: "Wikidata",
@@ -2886,6 +2897,7 @@ test("enwiki lookup hides fallback links until Wikidata lookup settles", async (
 });
 
 test("enwiki lookup preserves entered source and Steam URLs", async () => {
+    let steamFetchCount = 0;
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
@@ -2897,6 +2909,10 @@ test("enwiki lookup preserves entered source and Steam URLs", async () => {
                     title: "Example Game",
                     wikidataId: "Q123",
                 };
+            },
+            async onSteamNamesFetch() {
+                steamFetchCount += 1;
+                return [];
             },
         }),
     );
@@ -2917,6 +2933,7 @@ test("enwiki lookup preserves entered source and Steam URLs", async () => {
         "https://example.test/opencritic",
     );
     assert.equal(steamUrl.value, "https://store.steampowered.com/app/999/");
+    assert.equal(steamFetchCount, 0);
 });
 
 test("enwiki lookup removes disambiguation from blank English title", async () => {

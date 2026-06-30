@@ -36,13 +36,20 @@ function createSteamNameHelperTemplate() {
             class: "create-vg-stub-steam-helper",
         },
         [
-            createFieldTemplate("Steam app URL", [
-                createElement("cdx-text-input", {
-                    placeholder: "https://store.steampowered.com/app/...",
-                    "v-bind:model-value": "steamUrl",
-                    "v-on:update:model-value": "updateSteamUrl($event)",
-                }),
-            ]),
+            createFieldTemplate(
+                "Steam app URL",
+                [
+                    createElement("cdx-text-input", {
+                        placeholder: "https://store.steampowered.com/app/...",
+                        "v-bind:model-value": "steamUrl",
+                        "v-on:update:model-value": "updateSteamUrl($event)",
+                    }),
+                ],
+                {
+                    helpText: [createSteamNameSuggestionsTemplate()],
+                    helpTextCondition: "fetchedSteamNameRows.length",
+                },
+            ),
             createElement(
                 "cdx-button",
                 {
@@ -51,47 +58,56 @@ function createSteamNameHelperTemplate() {
                 },
                 [createText("Add Steam names")],
             ),
+            createElement("cdx-select", {
+                class: "create-vg-stub-steam-actions",
+                "v-if": "fetchedSteamNameRows.length",
+                "default-label": "Add localized name",
+                "v-bind:menu-items": "steamNameMenuItems",
+                "v-bind:selected": "steamNameChoice",
+                "v-on:update:selected": "applySteamNameChoice",
+            }),
+        ],
+    );
+}
+
+/**
+ * Creates fetched Steam-name help text for the Steam URL field.
+ *
+ * @returns {object} Steam suggestion help-text node.
+ */
+function createSteamNameSuggestionsTemplate() {
+    return createElement(
+        "span",
+        {
+            class:
+                "create-vg-stub-steam-suggestion " +
+                "create-vg-stub-horizontal-list",
+        },
+        [
             createElement(
-                "div",
+                "span",
                 {
-                    class:
-                        "create-vg-stub-steam-suggestion " +
-                        "create-vg-stub-horizontal-list",
-                    "v-if": "fetchedSteamNameRows.length",
+                    class: "create-vg-stub-horizontal-list-item",
+                    "v-bind:key": "suggestion.label",
+                    "v-for":
+                        "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)",
                 },
                 [
+                    createElement("strong", {}, [
+                        createText("{{ suggestion.label }}"),
+                    ]),
+                    createText(" "),
                     createElement(
-                        "span",
+                        "a",
                         {
-                            class: "create-vg-stub-horizontal-list-item",
-                            "v-bind:key": "suggestion.label",
-                            "v-for":
-                                "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)",
+                            "v-bind:href": "suggestion.url",
+                            rel: "noopener noreferrer",
+                            target: "_blank",
                         },
-                        [
-                            createElement("strong", {}, [
-                                createText("{{ suggestion.label }}"),
-                            ]),
-                            createText(" "),
-                            createElement(
-                                "a",
-                                {
-                                    "v-bind:href": "suggestion.url",
-                                    rel: "noopener noreferrer",
-                                    target: "_blank",
-                                },
-                                [createText("{{ suggestion.value }}")],
-                            ),
-                        ],
+                        [createText("{{ suggestion.value }}")],
                     ),
                 ],
             ),
-            createElement("cdx-button-group", {
-                class: "create-vg-stub-steam-actions",
-                "v-if": "fetchedSteamNameRows.length",
-                "v-bind:buttons": "steamNameButtons",
-                "v-on:click": "applySteamNameChoice",
-            }),
         ],
     );
 }

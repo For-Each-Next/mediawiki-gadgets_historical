@@ -28,20 +28,34 @@ export function createCitationGroupTemplate() {
                 [createText("No source URLs entered.")],
             ),
             createElement(
-                "div",
+                "cdx-tabs",
                 {
-                    class: "create-vg-stub-citation",
-                    "v-bind:key": "citation.sourceUrl",
-                    "v-for": "(citation, citationIndex) in form.citationRows",
+                    "v-if": "form.citationRows.length",
+                    "v-model:active": "activeCitationTab",
                 },
                 [
-                    createTableTemplate(
-                        "citationTableColumns",
-                        "getCitationParamTableRows(citation)",
-                        createCitationParamSlotsTemplate(),
+                    createElement(
+                        "cdx-tab",
                         {
-                            "v-bind:caption": "'Reference ' + citation.index",
+                            class: "create-vg-stub-citation",
+                            "v-bind:key": "citation.sourceUrl",
+                            "v-bind:label": "getCitationTabLabel(citation)",
+                            "v-bind:name":
+                                "getCitationTabName(citation, citationIndex)",
+                            "v-for":
+                                "(citation, citationIndex) in form.citationRows",
                         },
+                        [
+                            createTableTemplate(
+                                "citationTableColumns",
+                                "getCitationParamTableRows(citation)",
+                                createCitationParamSlotsTemplate(),
+                                {
+                                    "v-bind:caption":
+                                        "getCitationTabLabel(citation)",
+                                },
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -65,7 +79,7 @@ export function createCitationGroupTemplate() {
 function createCitationParamSlotsTemplate() {
     return [
         createTableHeaderTemplate(
-            "'Reference ' + citation.index",
+            "getCitationTabLabel(citation)",
             [
                 createIconActionLinkTemplate(
                     "Reset",

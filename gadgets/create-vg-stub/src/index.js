@@ -830,6 +830,7 @@ function init(require) {
     app.component("CdxField", Codex.CdxField);
     app.component("CdxIcon", Codex.CdxIcon);
     app.component("CdxInfoChip", Codex.CdxInfoChip);
+    app.component("CdxSelect", Codex.CdxSelect);
     app.component("CdxTab", Codex.CdxTab);
     app.component("CdxTabs", Codex.CdxTabs);
     app.component("CdxTable", Codex.CdxTable);

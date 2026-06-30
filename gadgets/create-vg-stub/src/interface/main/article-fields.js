@@ -3,7 +3,6 @@
 import {
     createElement,
     createFieldTemplate,
-    createFieldPreviewTemplate,
     createPreviewCardTemplate,
     createSourceUrlInputTemplate,
     createText,
@@ -47,11 +46,7 @@ function createIndividualFieldsTemplate() {
                     "v-bind:key": "field.key",
                     "v-for": "field in group.fields",
                 },
-                [
-                    createCompactFieldTemplate(),
-                    createStandardFieldTemplate(),
-                    createFieldPreviewTemplate(),
-                ],
+                [createCompactFieldTemplate(), createStandardFieldTemplate()],
             ),
         ],
     );
@@ -108,7 +103,7 @@ function createGroupedFieldTemplate() {
         {
             class: "create-vg-stub-fieldset-field",
         },
-        [createFieldControlsTemplate(), createFieldPreviewTemplate()],
+        [createFieldControlsTemplate()],
     );
 }
 
@@ -133,10 +128,14 @@ function createMetadataPreviewTemplate() {
  * @returns {object} Full prose review card node.
  */
 function createFullTextPreviewTemplate() {
-    return createPreviewCardTemplate("Full text review", "getProseWikitext()", {
-        condition: "group.fullTextReview && getProseWikitext()",
-        description: "getProseSinographs() + ' relevant sinographs'",
-    });
+    return createPreviewCardTemplate(
+        "Full text review",
+        "getProseWikitext()",
+        {
+            condition: "group.fullTextReview && getProseWikitext()",
+            description: "getProseSinographs() + ' relevant sinographs'",
+        },
+    );
 }
 
 /**
@@ -196,14 +195,18 @@ function createStandardFieldTemplate() {
  */
 function createFieldControlsTemplate(options = {}) {
     const placeholder =
-        options.placeholder || "getFieldPlaceholder(field) || field.placeholder";
+        options.placeholder ||
+        "getFieldPlaceholder(field) || field.placeholder";
 
     return createElement(
         "div",
         {
             class: "create-vg-stub-field-controls",
             "v-bind:class":
-                "{ 'create-vg-stub-field-controls--with-source': field.sourceField }",
+                "{ " +
+                "'create-vg-stub-field-controls--with-source': field.sourceField, " +
+                "'create-vg-stub-field-controls--with-move': field.key === 'name' " +
+                "}",
         },
         [
             createElement(
@@ -233,10 +236,20 @@ function createFieldControlsTemplate(options = {}) {
                         "v-bind:readonly": "field.readonly",
                         "v-bind:model-value": "form[field.key]",
                         "v-on:change": "normalizeFieldValue(field)",
-                        "v-on:paste": "normalizePastedFieldValue(field, $event)",
+                        "v-on:paste":
+                            "normalizePastedFieldValue(field, $event)",
                         "v-on:update:model-value":
                             "updateFieldValue(field, $event)",
                     }),
+                    createElement(
+                        "cdx-button",
+                        {
+                            "v-if": "field.key === 'name'",
+                            "v-bind:disabled": "sourceFetchState.loading",
+                            "v-on:click": "openMoveDialog",
+                        },
+                        [createText("Move")],
+                    ),
                 ],
             ),
             createElement(

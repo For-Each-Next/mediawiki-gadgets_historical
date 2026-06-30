@@ -123,6 +123,10 @@ const DIALOG_CSS = new StyleSheet()
         gap: "0.5em",
         minWidth: "0",
     })
+    .add(".create-vg-stub-field-controls--with-move", {
+        alignItems: "start",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+    })
     .add(".create-vg-stub-field-controls--with-source", {
         alignItems: "start",
         display: "flex",
@@ -152,15 +156,19 @@ const DIALOG_CSS = new StyleSheet()
         },
     )
     .media("(max-width: 40em)", (sheet) => {
-        sheet.add(
-            [
-                ".create-vg-stub-field-controls--with-source > .create-vg-stub-source-url",
-                ".create-vg-stub-field-controls--with-source > .create-vg-stub-source-field",
-            ],
-            {
-                flexBasis: "100%",
-            },
-        );
+        sheet
+            .add(
+                [
+                    ".create-vg-stub-field-controls--with-source > .create-vg-stub-source-url",
+                    ".create-vg-stub-field-controls--with-source > .create-vg-stub-source-field",
+                ],
+                {
+                    flexBasis: "100%",
+                },
+            )
+            .add(".create-vg-stub-field-controls--with-move", {
+                gridTemplateColumns: "1fr",
+            });
     })
     .add(".create-vg-stub-steam-helper", {
         alignItems: "start",
@@ -173,11 +181,10 @@ const DIALOG_CSS = new StyleSheet()
         alignSelf: "start",
     })
     .add(".create-vg-stub-steam-actions", {
-        gridColumn: "1 / -1",
+        minWidth: "12em",
     })
     .add(".create-vg-stub-steam-suggestion", {
         color: "var(--color-subtle, #54595d)",
-        gridColumn: "1 / -1",
         overflowWrap: "anywhere",
     })
     .add(".create-vg-stub-horizontal-list", {
@@ -420,10 +427,6 @@ const NAME_MARKETS = [
 ];
 const STEAM_NAME_CHOICES = [
     {
-        key: "none",
-        label: "None",
-    },
-    {
         key: "hans",
         label: "Hans",
     },
@@ -435,16 +438,8 @@ const STEAM_NAME_CHOICES = [
         key: "both",
         label: "Both",
     },
-    {
-        key: "merge",
-        label: "Worldwide name",
-    },
-    {
-        key: "other",
-        label: "Unspecified region",
-    },
 ];
-const STEAM_NAME_BUTTONS = STEAM_NAME_CHOICES.map((choice) => ({
+const STEAM_NAME_MENU_ITEMS = STEAM_NAME_CHOICES.map((choice) => ({
     label: choice.label,
     value: choice.key,
 }));
@@ -632,6 +627,16 @@ const ARTICLE_PARAMETER_GROUPS = [
         "Text",
         [
             new ArticleParameterField(
+                "name",
+                "Article display title",
+                "name",
+                null,
+                {
+                    placeholder:
+                        "Leave blank to use the page title in article text",
+                },
+            ),
+            new ArticleParameterField(
                 "metacriticScore",
                 "Metacritic score",
                 "scores.metacriticScore",
@@ -652,17 +657,6 @@ const ARTICLE_PARAMETER_GROUPS = [
                     heading: "OpenCritic recommendation",
                     placeholder: "Recommend rate",
                     previewKey: "score",
-                },
-            ),
-            new ArticleParameterField(
-                "name",
-                "Article display title",
-                "name",
-                null,
-                {
-                    breakBefore: true,
-                    placeholder:
-                        "Leave blank to use the page title in article text",
                 },
             ),
             new ArticleParameterField(
@@ -798,6 +792,7 @@ export function createDialogComponent(Vue, options) {
     const historyOpen = Vue.ref(false);
     const moveTarget = Vue.ref(currentTitle);
     const moveOpen = Vue.ref(false);
+    const activeCitationTab = Vue.ref("");
     const preSaveMoveEnabled = Vue.ref(false);
     const preSaveMoveTitle = Vue.ref(currentTitle);
     const preSaveOpen = Vue.ref(false);
@@ -817,6 +812,7 @@ export function createDialogComponent(Vue, options) {
     const enwikiLookupSerial = Vue.ref(0);
     const enwikiMetadata = Vue.reactive(createBlankEnwikiMetadata());
     const fetchedSteamNameRows = Vue.ref([]);
+    const steamNameChoice = Vue.ref(null);
     const steamUrl = Vue.ref("");
     const sourceFetchState = Vue.reactive({
         error: "",
@@ -1649,6 +1645,7 @@ export function createDialogComponent(Vue, options) {
             updateSteamUrl(value) {
                 steamUrl.value = trimFieldValue(value);
                 fetchedSteamNameRows.value = [];
+                steamNameChoice.value = null;
             },
 
             /**
@@ -1657,28 +1654,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after rows are fetched.
              */
             async addSteamNames() {
-                if (options.onSteamNamesFetch == null) {
-                    return;
-                }
-
-                sourceFetchState.error = "";
-                sourceFetchState.loading = true;
-
-                try {
-                    const rows = await options.onSteamNamesFetch(
-                        steamUrl.value,
-                        {
-                            includeJapanese:
-                                getOriginalNameLanguage(form) === "ja",
-                        },
-                    );
-
-                    fetchedSteamNameRows.value = rows;
-                } catch (error) {
-                    sourceFetchState.error = error.message;
-                } finally {
-                    sourceFetchState.loading = false;
-                }
+                await fetchSteamNames();
             },
 
             /**
@@ -1688,28 +1664,27 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             applySteamNameChoice(choice) {
-                if (choice !== "none") {
-                    if (
-                        form.localizedNames.every(
-                            (row) => !hasEnteredNameRowValue(row),
-                        )
-                    ) {
-                        form.localizedNames.splice(
-                            0,
-                            form.localizedNames.length,
-                        );
-                    }
-
-                    buildSteamNameChoiceRows(
-                        fetchedSteamNameRows.value,
-                        choice,
-                    ).forEach((row) => {
-                        fillNameRow(form.localizedNames, row);
-                    });
-                    syncGeneratedNameNoteTaRow(form);
+                if (!choice) {
+                    return;
                 }
 
+                if (
+                    form.localizedNames.every(
+                        (row) => !hasEnteredNameRowValue(row),
+                    )
+                ) {
+                    form.localizedNames.splice(0, form.localizedNames.length);
+                }
+
+                buildSteamNameChoiceRows(
+                    fetchedSteamNameRows.value,
+                    choice,
+                ).forEach((row) => {
+                    fillNameRow(form.localizedNames, row);
+                });
+                syncGeneratedNameNoteTaRow(form);
                 fetchedSteamNameRows.value = [];
+                steamNameChoice.value = null;
             },
 
             /**
@@ -2566,6 +2541,7 @@ export function createDialogComponent(Vue, options) {
          */
         setup() {
             return {
+                activeCitationTab,
                 activeTab,
                 categoryState,
                 categoryViewOpen,
@@ -2585,6 +2561,8 @@ export function createDialogComponent(Vue, options) {
                 getSteamNameSuggestions,
                 getCitationParamRows,
                 getCitationParamTableRows,
+                getCitationTabLabel,
+                getCitationTabName,
                 getArticleField,
                 getArticlePreviewTitle,
                 getFieldPlaceholder: options.getFieldPlaceholder.bind(
@@ -2621,7 +2599,8 @@ export function createDialogComponent(Vue, options) {
                 previewSubmitted,
                 previewTextArea,
                 sourceFetchState,
-                steamNameButtons: STEAM_NAME_BUTTONS,
+                steamNameChoice,
+                steamNameMenuItems: STEAM_NAME_MENU_ITEMS,
                 steamUrl,
                 tableActionIcons: TABLE_ACTION_ICONS,
                 stubTagTableColumns: STUB_TAG_TABLE_COLUMNS,
@@ -2854,6 +2833,7 @@ export function createDialogComponent(Vue, options) {
                 form.citationRows.length,
                 ...patchedRows,
             );
+            syncActiveCitationTab();
         } catch (error) {
             citationState.error = error.message || String(error);
             sourceFetchState.error = citationState.error;
@@ -2861,6 +2841,19 @@ export function createDialogComponent(Vue, options) {
             citationState.loading = false;
             sourceFetchState.loading = false;
         }
+    }
+
+    /**
+     * Keeps the active citation tab pointed at an available row.
+     *
+     * @returns {void}
+     */
+    function syncActiveCitationTab() {
+        const names = form.citationRows.map(getCitationTabName);
+
+        activeCitationTab.value = names.includes(activeCitationTab.value)
+            ? activeCitationTab.value
+            : names[0] || "";
     }
 
     /**
@@ -3315,6 +3308,33 @@ export function createDialogComponent(Vue, options) {
     }
 
     /**
+     * Fetches localized Steam names for the current helper URL.
+     *
+     * @returns {Promise<void>} Resolves after helper rows are updated.
+     */
+    async function fetchSteamNames() {
+        if (options.onSteamNamesFetch == null) {
+            return;
+        }
+
+        sourceFetchState.error = "";
+        sourceFetchState.loading = true;
+
+        try {
+            const rows = await options.onSteamNamesFetch(steamUrl.value, {
+                includeJapanese: getOriginalNameLanguage(form) === "ja",
+            });
+
+            fetchedSteamNameRows.value = rows;
+            steamNameChoice.value = null;
+        } catch (error) {
+            sourceFetchState.error = error.message;
+        } finally {
+            sourceFetchState.loading = false;
+        }
+    }
+
+    /**
      * Refreshes form values derived from the English Wikipedia title.
      *
      * @returns {Promise<void>} Resolves after the lookup is handled.
@@ -3378,11 +3398,20 @@ export function createDialogComponent(Vue, options) {
             );
         }
 
-        if (trimFieldValue(steamUrl.value) === "" && enwikiMetadata.steamId) {
+        const shouldFetchSteamNames =
+            trimFieldValue(steamUrl.value) === "" && enwikiMetadata.steamId;
+
+        if (shouldFetchSteamNames) {
             steamUrl.value = buildSteamUrl(enwikiMetadata.steamId);
+            fetchedSteamNameRows.value = [];
+            steamNameChoice.value = null;
         }
 
         enwikiLookupLoading.value = false;
+
+        if (shouldFetchSteamNames) {
+            await fetchSteamNames();
+        }
     }
 
     /**
@@ -3449,7 +3478,9 @@ export function createDialogComponent(Vue, options) {
         });
         syncGeneratedNameNoteTaRow(form);
         activeTab.value = ARTICLE_PARAMETER_GROUPS[0].key;
+        activeCitationTab.value = "";
         fetchedSteamNameRows.value = [];
+        steamNameChoice.value = null;
         steamUrl.value = "";
         Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
         categoryState.error = "";
@@ -4279,14 +4310,6 @@ function createMainDialogFooterTemplate() {
                 createElement(
                     "cdx-button",
                     {
-                        "v-bind:disabled": "sourceFetchState.loading",
-                        "v-on:click": "openMoveDialog",
-                    },
-                    [createText("Move")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
                         action: "progressive",
                         "v-bind:disabled": "sourceFetchState.loading",
                         "v-on:click": "submitForm",
@@ -4822,15 +4845,7 @@ function buildSteamNameChoiceRows(rows, choice) {
     }
 
     if (choice === "both") {
-        return [hans, hant].filter(Boolean);
-    }
-
-    if (choice === "merge") {
-        return [mergeSteamNameRows(hans, hant, false)].filter(Boolean);
-    }
-
-    if (choice === "other") {
-        return [mergeSteamNameRows(hans, hant, true, false)].filter(Boolean);
+        return [mergeSteamNameRows(hans, hant, false, false)].filter(Boolean);
     }
 
     return [];
@@ -5967,6 +5982,41 @@ function getCitationParamTableRows(citation) {
         index,
         param,
     }));
+}
+
+/**
+ * Builds the stable tab name for a managed citation row.
+ *
+ * @param {object} citation - Managed citation row.
+ * @param {number} index - Citation row index.
+ * @returns {string} Citation tab name.
+ */
+function getCitationTabName(citation, index) {
+    return `citation-${citation.index || index + 1}`;
+}
+
+/**
+ * Builds a compact citation tab label.
+ *
+ * @param {object} citation - Managed citation row.
+ * @returns {string} Citation tab label.
+ */
+function getCitationTabLabel(citation) {
+    return `${citation.index}: ${getCitationSourceDomain(citation.sourceUrl)}`;
+}
+
+/**
+ * Gets a source URL domain for compact display.
+ *
+ * @param {string} sourceUrl - Source URL.
+ * @returns {string} Hostname or source URL fallback.
+ */
+function getCitationSourceDomain(sourceUrl) {
+    try {
+        return new URL(sourceUrl).hostname.replace(/^www\./u, "");
+    } catch (_error) {
+        return trimFieldValue(sourceUrl) || "source";
+    }
 }
 
 /**

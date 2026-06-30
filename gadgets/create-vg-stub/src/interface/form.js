@@ -453,6 +453,10 @@ const STEAM_NAME_CHOICES = [
     },
 ];
 const NOTE_TA_NAMES_SOURCE = "names";
+const CODEMIRROR_MODULES = [
+    "ext.CodeMirror",
+    "ext.CodeMirror.mode.mediawiki",
+];
 const ARTICLE_PARAMETER_GROUPS = [
     new ArticleParameterGroup("titles", "Titles", [
         new ArticleParameterField(
@@ -718,10 +722,12 @@ export function createDialogComponent(Vue, options) {
     );
     const stubTagRows = Vue.computed(() => form.stubTagRows || []);
     const previewOpen = Vue.ref(false);
+    const previewTextArea = Vue.ref(null);
     const previewText = Vue.ref("");
     const previewSummary = Vue.ref("");
     const previewHtml = Vue.ref("");
     const previewSubmitted = Vue.ref(false);
+    const pageEditTextArea = Vue.ref(null);
     const enwikiLookupLoading = Vue.ref(false);
     const enwikiLookupSerial = Vue.ref(0);
     const enwikiMetadata = Vue.reactive(createBlankEnwikiMetadata());
@@ -733,6 +739,8 @@ export function createDialogComponent(Vue, options) {
     });
     const open = Vue.ref(options.initialOpen === true);
     const initialForm = options.initialForm;
+    const sourceEditors = new Map();
+    const sourceEditorLoads = new Set();
 
     if (initialForm != null) {
         replaceFormValues(form, initialForm);
@@ -767,6 +775,35 @@ export function createDialogComponent(Vue, options) {
             refreshCitationRows();
         }
     });
+    Vue.watch(previewOpen, (isOpen) => {
+        if (isOpen) {
+            queueSourceEditor("preview", previewTextArea, previewText);
+        } else {
+            destroySourceEditor("preview");
+        }
+    });
+    Vue.watch(pageEditOpen, (isOpen) => {
+        if (isOpen) {
+            queueSourceEditor("pageEdit", pageEditTextArea, {
+                get value() {
+                    return pageEditState.text;
+                },
+                set value(text) {
+                    pageEditState.text = text;
+                },
+            });
+        } else {
+            destroySourceEditor("pageEdit");
+        }
+    });
+
+    if (typeof Vue.onBeforeUnmount === "function") {
+        Vue.onBeforeUnmount(() => {
+            for (const key of sourceEditors.keys()) {
+                destroySourceEditor(key);
+            }
+        });
+    }
 
     async function openPreSave() {
         await refreshReview({
@@ -853,6 +890,7 @@ export function createDialogComponent(Vue, options) {
                 previewHtml.value = preview.html || "";
                 previewSubmitted.value = false;
                 previewOpen.value = true;
+                queueSourceEditor("preview", previewTextArea, previewText);
             },
 
             /**
@@ -861,6 +899,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after parsed HTML is refreshed.
              */
             async refreshParsedPreview() {
+                syncSourceEditorText("preview", previewText);
                 sourceFetchState.error = "";
                 sourceFetchState.loading = true;
 
@@ -881,6 +920,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             closePreviewDialog() {
+                destroySourceEditor("preview");
                 previewOpen.value = false;
             },
 
@@ -890,7 +930,10 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after checklist preparation.
              */
             async submitPreviewText() {
+                syncSourceEditorText("preview", previewText);
                 previewSubmitted.value = true;
+                destroySourceEditor("preview");
+                previewOpen.value = false;
                 await openPreSave();
             },
 
@@ -909,6 +952,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after save submission starts.
              */
             async confirmSubmit() {
+                syncSourceEditorText("preview", previewText);
                 options.onSubmitHistory(form, getCurrentTitle());
                 historyEntries.value = options.getHistoryEntries();
 
@@ -2016,6 +2060,14 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after the preview is refreshed.
              */
             async refreshPageEditPreview() {
+                syncSourceEditorText("pageEdit", {
+                    get value() {
+                        return pageEditState.text;
+                    },
+                    set value(text) {
+                        pageEditState.text = text;
+                    },
+                });
                 pageEditState.error = "";
                 pageEditState.loading = true;
 
@@ -2037,6 +2089,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             closePageEditDialog() {
+                destroySourceEditor("pageEdit");
                 pageEditOpen.value = false;
             },
 
@@ -2055,6 +2108,14 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             stagePageEdit() {
+                syncSourceEditorText("pageEdit", {
+                    get value() {
+                        return pageEditState.text;
+                    },
+                    set value(text) {
+                        pageEditState.text = text;
+                    },
+                });
                 stagePageEdit();
             },
 
@@ -2163,6 +2224,7 @@ export function createDialogComponent(Vue, options) {
                 categoryViewState,
                 pageEditOpen,
                 pageEditState,
+                pageEditTextArea,
                 citationState,
                 companyCategoryOpen,
                 companyCategoryLookupLoading,
@@ -2202,6 +2264,7 @@ export function createDialogComponent(Vue, options) {
                 previewSummary,
                 previewHtml,
                 previewSubmitted,
+                previewTextArea,
                 sourceFetchState,
                 steamNameChoices: STEAM_NAME_CHOICES,
                 steamUrl,
@@ -2210,6 +2273,137 @@ export function createDialogComponent(Vue, options) {
         },
         template: createDialogTemplate(),
     };
+
+    /**
+     * Queues source editor initialization after Vue has rendered the textarea.
+     *
+     * @param {string} key - Editor instance key.
+     * @param {object} textareaRef - Vue template ref.
+     * @param {object} textRef - Mutable text ref.
+     * @returns {void}
+     */
+    function queueSourceEditor(key, textareaRef, textRef) {
+        if (typeof Vue.nextTick === "function") {
+            Vue.nextTick(() => initializeSourceEditor(key, textareaRef, textRef));
+            return;
+        }
+
+        initializeSourceEditor(key, textareaRef, textRef);
+    }
+
+    /**
+     * Initializes MediaWiki CodeMirror for a source textarea when available.
+     *
+     * @param {string} key - Editor instance key.
+     * @param {object} textareaRef - Vue template ref.
+     * @param {object} textRef - Mutable text ref.
+     * @returns {Promise<void>} Resolves after enhancement attempt.
+     */
+    async function initializeSourceEditor(key, textareaRef, textRef) {
+        const textarea = findTextareaElement(textareaRef.value);
+
+        if (
+            textarea == null ||
+            sourceEditors.has(key) ||
+            sourceEditorLoads.has(key)
+        ) {
+            return;
+        }
+
+        textarea.value = textRef.value;
+        sourceEditorLoads.add(key);
+
+        try {
+            const loader = getCodeMirrorLoader();
+
+            if (loader == null) {
+                return;
+            }
+
+            const require = await loader.using(CODEMIRROR_MODULES);
+            const CodeMirror = require("ext.CodeMirror");
+            const mediawiki = require("ext.CodeMirror.mode.mediawiki");
+            const editor = new CodeMirror(textarea, mediawiki());
+
+            if (typeof editor.initialize === "function") {
+                editor.initialize();
+            }
+
+            sourceEditors.set(key, {
+                editor,
+                textRef,
+                textarea,
+            });
+        } catch (_error) {
+            sourceEditors.delete(key);
+        } finally {
+            sourceEditorLoads.delete(key);
+        }
+    }
+
+    /**
+     * Destroys one source editor instance.
+     *
+     * @param {string} key - Editor instance key.
+     * @returns {void}
+     */
+    function destroySourceEditor(key) {
+        const state = sourceEditors.get(key);
+
+        if (state == null) {
+            return;
+        }
+
+        syncSourceEditorText(key);
+
+        if (typeof state.editor.destroy === "function") {
+            state.editor.destroy();
+        } else if (typeof state.editor.toTextArea === "function") {
+            state.editor.toTextArea();
+        }
+
+        sourceEditors.delete(key);
+    }
+
+    /**
+     * Copies the live editor text into a Vue ref.
+     *
+     * @param {string} key - Editor instance key.
+     * @param {object} [textRef] - Mutable text ref.
+     * @returns {void}
+     */
+    function syncSourceEditorText(key, textRef) {
+        const state = sourceEditors.get(key);
+
+        if (state == null) {
+            return;
+        }
+
+        const text = getCodeMirrorText(state.editor, state.textarea);
+
+        const target = textRef || state.textRef;
+
+        if (target != null) {
+            target.value = text;
+        }
+    }
+
+    /**
+     * Pushes refreshed source text into an existing editor instance.
+     *
+     * @param {string} key - Editor instance key.
+     * @param {string} text - Source text.
+     * @returns {void}
+     */
+    function setSourceEditorText(key, text) {
+        const state = sourceEditors.get(key);
+
+        if (state == null) {
+            return;
+        }
+
+        setCodeMirrorText(state.editor, state.textarea, text);
+    }
 
     /**
      * Refreshes category rows through the owning module.
@@ -2487,6 +2681,14 @@ export function createDialogComponent(Vue, options) {
             title: params.title,
         });
         pageEditOpen.value = true;
+        queueSourceEditor("pageEdit", pageEditTextArea, {
+            get value() {
+                return pageEditState.text;
+            },
+            set value(text) {
+                pageEditState.text = text;
+            },
+        });
 
         try {
             pageEditState.text =
@@ -2494,6 +2696,7 @@ export function createDialogComponent(Vue, options) {
                 (params.create
                     ? await getNewPageEditText(params)
                     : await options.onFetchPageText(params.title));
+            setSourceEditorText("pageEdit", pageEditState.text);
             pageEditState.html = await options.onParsePreview(
                 pageEditState.text,
                 params.title,
@@ -2562,6 +2765,7 @@ export function createDialogComponent(Vue, options) {
             };
             row.enabled = true;
             row.status = "Pending creation";
+            destroySourceEditor("pageEdit");
             pageEditOpen.value = false;
             return;
         }
@@ -2576,6 +2780,7 @@ export function createDialogComponent(Vue, options) {
         };
         row.enabled = true;
         row.status = pageEditState.create ? "Pending creation" : "Pending edit";
+        destroySourceEditor("pageEdit");
         pageEditOpen.value = false;
     }
 
@@ -2594,6 +2799,7 @@ export function createDialogComponent(Vue, options) {
         row.status =
             row.pendingEdit.previousStatus || pageEditState.previousStatus;
         delete row.pendingEdit;
+        destroySourceEditor("pageEdit");
         pageEditOpen.value = false;
     }
 
@@ -5236,6 +5442,104 @@ function sortManagedCitationParams(params = []) {
  */
 function getCitationParamRows(citation) {
     return [...(citation.params || []), createCitationParamRow()];
+}
+
+/**
+ * Gets the MediaWiki ResourceLoader object when it can load CodeMirror.
+ *
+ * @returns {object|undefined} ResourceLoader object.
+ */
+function getCodeMirrorLoader() {
+    if (typeof mw === "undefined" || typeof mw.loader?.using !== "function") {
+        return undefined;
+    }
+
+    return mw.loader;
+}
+
+/**
+ * Finds the native textarea for a Codex TextArea ref.
+ *
+ * @param {*} element - Vue template ref value.
+ * @returns {HTMLTextAreaElement|undefined} Textarea element.
+ */
+function findTextareaElement(element) {
+    if (element == null) {
+        return undefined;
+    }
+
+    if (element.tagName === "TEXTAREA") {
+        return element;
+    }
+
+    if (element.$el != null) {
+        return findTextareaElement(element.$el);
+    }
+
+    if (typeof element.querySelector === "function") {
+        return element.querySelector("textarea") || undefined;
+    }
+
+    return undefined;
+}
+
+/**
+ * Reads text from either MediaWiki's CodeMirror wrapper or the textarea.
+ *
+ * @param {object} editor - CodeMirror editor instance.
+ * @param {HTMLTextAreaElement} textarea - Backing textarea.
+ * @returns {string} Current source text.
+ */
+function getCodeMirrorText(editor, textarea) {
+    if (typeof editor.getValue === "function") {
+        return editor.getValue();
+    }
+
+    if (typeof editor.getText === "function") {
+        return editor.getText();
+    }
+
+    if (editor.view?.state?.doc != null) {
+        return String(editor.view.state.doc);
+    }
+
+    return textarea.value;
+}
+
+/**
+ * Writes text to either MediaWiki's CodeMirror wrapper or the textarea.
+ *
+ * @param {object} editor - CodeMirror editor instance.
+ * @param {HTMLTextAreaElement} textarea - Backing textarea.
+ * @param {string} text - Source text.
+ * @returns {void}
+ */
+function setCodeMirrorText(editor, textarea, text) {
+    if (typeof editor.setValue === "function") {
+        editor.setValue(text);
+        return;
+    }
+
+    if (typeof editor.setText === "function") {
+        editor.setText(text);
+        return;
+    }
+
+    const view = editor.view;
+    const doc = view?.state?.doc;
+
+    if (typeof view?.dispatch === "function" && doc != null) {
+        view.dispatch({
+            changes: {
+                from: 0,
+                insert: text,
+                to: doc.length,
+            },
+        });
+        return;
+    }
+
+    textarea.value = text;
 }
 
 /**

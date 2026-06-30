@@ -16,12 +16,14 @@ export function createPreviewDialogTemplate() {
         "cdx-dialog",
         {
             class: "create-vg-stub-preview-dialog",
+            "v-if": "previewOpen",
             "v-model:open": "previewOpen",
             "v-bind:title": "getArticlePreviewTitle()",
         },
         [
             createSourcePreviewLayout({
                 html: "previewHtml",
+                ref: "previewTextArea",
                 text: "previewText",
             }),
             createEditSummaryInput({
@@ -102,6 +104,7 @@ export function createPageEditDialogTemplate() {
             class: "create-vg-stub-preview-dialog",
             "v-bind:title":
                 "(pageEditState.create ? 'Create ' : 'Modify ') + '\\'' + pageEditState.title + '\\''",
+            "v-if": "pageEditOpen",
             "v-model:open": "pageEditOpen",
         },
         [
@@ -109,6 +112,7 @@ export function createPageEditDialogTemplate() {
             createSourcePreviewLayout({
                 disabled: "pageEditState.loading",
                 html: "pageEditState.html",
+                ref: "pageEditTextArea",
                 text: "pageEditState.text",
             }),
             createErrorParagraph(
@@ -150,6 +154,7 @@ export function createPageEditDialogTemplate() {
  * @param {object} options - Layout bindings.
  * @param {string} [options.disabled] - Disabled binding expression.
  * @param {string} options.html - Rendered HTML binding expression.
+ * @param {string} options.ref - Vue template ref for the textarea.
  * @param {string} options.text - Source text v-model expression.
  * @returns {object} Source preview layout node.
  */
@@ -178,6 +183,7 @@ function createSourcePreviewLayout(options) {
 function createSourceTextArea(options) {
     const attributes = {
         class: "create-vg-stub-preview-text",
+        ref: options.ref,
         "v-model": options.text,
         rows: "18",
         spellcheck: "false",

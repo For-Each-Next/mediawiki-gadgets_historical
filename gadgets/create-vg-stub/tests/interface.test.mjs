@@ -12,12 +12,14 @@ import {
 } from "../src/interface/form.js";
 
 const originalWindow = globalThis.window;
+const originalMw = globalThis.mw;
 beforeEach(() => {
     globalThis.window = {};
 });
 
 afterEach(() => {
     globalThis.window = originalWindow;
+    globalThis.mw = originalMw;
     delete globalThis.__CREATE_VG_STUB_FIELD_DATA__;
 });
 
@@ -571,6 +573,80 @@ test("additional prose uses a textarea and source URL field", () => {
             component.template.indexOf("<h3>NoteTA items</h3>"),
         true,
     );
+});
+
+test("preview source uses MediaWiki CodeMirror and syncs before parsing", async () => {
+    let parsedText = "";
+    const codeMirror = installCodeMirrorStub();
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onPreview() {
+                return {
+                    html: "",
+                    summary: "",
+                    text: "Generated text",
+                };
+            },
+            onParsePreview(text) {
+                parsedText = text;
+                return "<p>Parsed</p>";
+            },
+        }),
+    );
+    const state = component.setup();
+
+    state.previewTextArea.value = createTextareaRef();
+    await component.methods.previewForm();
+    await Promise.resolve();
+
+    assert.deepEqual(codeMirror.modules, [
+        "ext.CodeMirror",
+        "ext.CodeMirror.mode.mediawiki",
+    ]);
+    assert.equal(codeMirror.instances[0].value, "Generated text");
+
+    codeMirror.instances[0].value = "Edited preview text";
+    await component.methods.refreshParsedPreview();
+
+    assert.equal(state.previewText.value, "Edited preview text");
+    assert.equal(parsedText, "Edited preview text");
+});
+
+test("page edit source syncs CodeMirror text before staging", async () => {
+    const codeMirror = installCodeMirrorStub();
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onFetchPageText() {
+                return "{{Existing navbox}}";
+            },
+            onParsePreview() {
+                return "<p>Parsed</p>";
+            },
+            async onPrepareReview(form) {
+                return form.navboxRows || [];
+            },
+        }),
+    );
+    const state = component.setup();
+    const row = {
+        enabled: true,
+        status: "OK",
+        text: "{{Example series}}",
+        title: "Example series",
+    };
+
+    state.pageEditTextArea.value = createTextareaRef();
+    await component.methods.openNavboxEdit(row);
+    await Promise.resolve();
+
+    assert.equal(codeMirror.instances[0].value, "{{Existing navbox}}");
+
+    codeMirror.instances[0].value = "{{Edited navbox}}";
+    component.methods.stagePageEdit();
+
+    assert.equal(row.pendingEdit.text, "{{Edited navbox}}");
 });
 
 test("group action buttons keep their intended alignment", () => {
@@ -2056,7 +2132,7 @@ test("submit opens editable source and parsed preview first", async () => {
     assert.equal(previewHtml.value, "<p>Edited parsed text</p>");
 
     await component.methods.submitPreviewText();
-    assert.equal(previewOpen.value, true);
+    assert.equal(previewOpen.value, false);
     assert.equal(preSaveOpen.value, true);
     assert.equal(submitCount, 0);
 
@@ -2075,6 +2151,7 @@ test("submit opens editable source and parsed preview first", async () => {
         component.template.includes('v-model:open="previewOpen"'),
         true,
     );
+    assert.equal(component.template.includes('v-if="previewOpen"'), true);
     assert.equal(component.template.includes('v-model="previewText"'), true);
     assert.equal(component.template.includes('v-model="previewSummary"'), true);
     assert.equal(component.template.includes('v-html="previewHtml"'), true);
@@ -2757,6 +2834,10 @@ function createVueStub() {
                 },
             };
         },
+        nextTick(callback) {
+            callback();
+        },
+        onBeforeUnmount() {},
         reactive(value) {
             return value;
         },
@@ -2764,6 +2845,67 @@ function createVueStub() {
             return { value };
         },
         watch() {},
+    };
+}
+
+function installCodeMirrorStub() {
+    const codeMirror = {
+        instances: [],
+        modules: [],
+    };
+
+    class CodeMirrorStub {
+        constructor(textarea) {
+            this.textarea = textarea;
+            this.value = textarea.value;
+            codeMirror.instances.push(this);
+        }
+
+        getValue() {
+            return this.value;
+        }
+
+        initialize() {}
+
+        setValue(value) {
+            this.value = value;
+        }
+    }
+
+    globalThis.mw = {
+        loader: {
+            async using(modules) {
+                codeMirror.modules = modules;
+
+                return (module) => {
+                    if (module === "ext.CodeMirror") {
+                        return CodeMirrorStub;
+                    }
+
+                    if (module === "ext.CodeMirror.mode.mediawiki") {
+                        return () => ({ language: "mediawiki" });
+                    }
+
+                    return undefined;
+                };
+            },
+        },
+    };
+
+    return codeMirror;
+}
+
+function createTextareaRef() {
+    const textarea = {
+        tagName: "TEXTAREA",
+        value: "",
+    };
+
+    return {
+        textarea,
+        querySelector(selector) {
+            return selector === "textarea" ? textarea : null;
+        },
     };
 }
 

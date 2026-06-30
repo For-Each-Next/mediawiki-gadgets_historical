@@ -46,9 +46,19 @@ function createNoteTaSlotsTemplate() {
                 "sortNoteTaRows",
             ),
             createIconActionLinkTemplate(
-                "Regenerate",
+                "Reset",
                 "tableActionIcons.regenerate",
                 "regenerateNoteTaRows",
+            ),
+            createIconActionLinkTemplate(
+                "Clean",
+                "tableActionIcons.clean",
+                "cleanNoteTaRows",
+            ),
+            createIconActionLinkTemplate(
+                "Add",
+                "tableActionIcons.cdxIconArticleAdd",
+                "addNoteTaRow",
             ),
         ]),
         createElement(

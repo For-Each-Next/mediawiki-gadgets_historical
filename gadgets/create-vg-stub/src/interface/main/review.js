@@ -125,12 +125,22 @@ function createCategorySlotsTemplate() {
     return [
         createTableHeaderTemplate("Categories", [
             createIconActionLinkTemplate(
-                "Regenerate",
+                "Reset",
                 "tableActionIcons.regenerate",
                 "rebuildCategoryRows",
                 {
                     "aria-disabled": "categoryState.loading",
                 },
+            ),
+            createIconActionLinkTemplate(
+                "Clean",
+                "tableActionIcons.clean",
+                "cleanCategoryRows",
+            ),
+            createIconActionLinkTemplate(
+                "Add",
+                "tableActionIcons.cdxIconArticleAdd",
+                "addCategoryRow",
             ),
         ]),
         createToggleSlotTemplate("enabled", "row.enabled", "Include category"),
@@ -206,7 +216,26 @@ function createRedirectSlotsTemplate() {
     return [
         createTableHeaderTemplate("Redirects", [
             createIconActionLinkTemplate(
-                "Refresh redirects",
+                "Reset",
+                "tableActionIcons.regenerate",
+                "rebuildRedirectRows",
+                {
+                    "aria-disabled": "reviewState.loading",
+                    title: "Reset generated redirects",
+                },
+            ),
+            createIconActionLinkTemplate(
+                "Clean",
+                "tableActionIcons.clean",
+                "cleanRedirectRows",
+            ),
+            createIconActionLinkTemplate(
+                "Add",
+                "tableActionIcons.cdxIconArticleAdd",
+                "addRedirectRow",
+            ),
+            createIconActionLinkTemplate(
+                "Refresh",
                 "tableActionIcons.reload",
                 "checkRedirectRows",
                 {
@@ -279,12 +308,22 @@ function createNavboxSlotsTemplate() {
     return [
         createTableHeaderTemplate("Navboxes", [
             createIconActionLinkTemplate(
-                "Regenerate",
+                "Reset",
                 "tableActionIcons.regenerate",
                 "rebuildNavboxRows",
                 {
                     "aria-disabled": "reviewState.loading",
                 },
+            ),
+            createIconActionLinkTemplate(
+                "Clean",
+                "tableActionIcons.clean",
+                "cleanNavboxRows",
+            ),
+            createIconActionLinkTemplate(
+                "Add",
+                "tableActionIcons.cdxIconArticleAdd",
+                "addNavboxRow",
             ),
         ]),
         createToggleSlotTemplate("enabled", "row.enabled", "Include navbox"),
@@ -350,7 +389,23 @@ function createNavboxSlotsTemplate() {
  */
 function createStubTagSlotsTemplate() {
     return [
-        createTableHeaderTemplate("Stub tags"),
+        createTableHeaderTemplate("Stub tags", [
+            createIconActionLinkTemplate(
+                "Reset",
+                "tableActionIcons.regenerate",
+                "resetStubTagRows",
+            ),
+            createIconActionLinkTemplate(
+                "Clean",
+                "tableActionIcons.clean",
+                "cleanStubTagRows",
+            ),
+            createIconActionLinkTemplate(
+                "Add",
+                "tableActionIcons.cdxIconArticleAdd",
+                "addStubTagRow",
+            ),
+        ]),
         createToggleSlotTemplate("enabled", "row.enabled", "Include stub tag"),
         createElement(
             "template",

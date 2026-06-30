@@ -21,6 +21,26 @@ export function createFieldGroupTemplate() {
             "v-if": "group.fields.length",
         },
         [
+            createGroupedFieldsetTemplate(),
+            createIndividualFieldsTemplate(),
+            createMetadataPreviewTemplate(),
+            createFullTextPreviewTemplate(),
+        ],
+    );
+}
+
+/**
+ * Creates independently labelled article fields.
+ *
+ * @returns {object} Individual field list template node.
+ */
+function createIndividualFieldsTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-if": "!group.fieldsetLabel",
+        },
+        [
             createElement(
                 "template",
                 {
@@ -33,30 +53,62 @@ export function createFieldGroupTemplate() {
                     createFieldPreviewTemplate(),
                 ],
             ),
-            createProseLengthTemplate(),
-            createMetadataPreviewTemplate(),
-            createFullTextPreviewTemplate(),
         ],
     );
 }
 
 /**
- * Creates the prose length status line.
+ * Creates one labelled fieldset for a group of related article fields.
  *
- * @returns {object} Prose length template node.
+ * @returns {object} Grouped fieldset template node.
  */
-function createProseLengthTemplate() {
+function createGroupedFieldsetTemplate() {
     return createElement(
-        "p",
+        "cdx-field",
         {
-            class: "create-vg-stub-prose-length",
-            "v-if": "group.fullTextReview",
+            "is-fieldset": "",
+            "v-if": "group.fieldsetLabel",
         },
         [
-            createText(
-                "{{ getProseWikitext() }} ({{ getProseSinographs() }} sinographs)",
+            createElement(
+                "div",
+                {
+                    class: "create-vg-stub-fieldset-fields",
+                },
+                [
+                    createElement(
+                        "template",
+                        {
+                            "v-bind:key": "field.key",
+                            "v-for": "field in group.fields",
+                        },
+                        [createGroupedFieldTemplate()],
+                    ),
+                ],
+            ),
+            createElement(
+                "template",
+                {
+                    "v-slot:label": "",
+                },
+                [createText("{{ group.fieldsetLabel }}")],
             ),
         ],
+    );
+}
+
+/**
+ * Creates an unlabeled field within a grouped fieldset.
+ *
+ * @returns {object} Grouped field template node.
+ */
+function createGroupedFieldTemplate() {
+    return createElement(
+        "div",
+        {
+            class: "create-vg-stub-fieldset-field",
+        },
+        [createFieldControlsTemplate(), createFieldPreviewTemplate()],
     );
 }
 
@@ -83,6 +135,7 @@ function createMetadataPreviewTemplate() {
 function createFullTextPreviewTemplate() {
     return createPreviewCardTemplate("Full text review", "getProseWikitext()", {
         condition: "group.fullTextReview && getProseWikitext()",
+        description: "getProseSinographs() + ' relevant sinographs'",
     });
 }
 
@@ -99,37 +152,9 @@ function createCompactFieldTemplate() {
             "v-if": "field.compact",
         },
         [
-            createElement(
-                "div",
-                {
-                    class: "create-vg-stub-field-controls",
-                    "v-bind:class":
-                        "{ 'create-vg-stub-field-controls--with-source': field.sourceField }",
-                },
-                [
-                    createElement("cdx-text-input", {
-                        "v-bind:placeholder": "field.placeholder",
-                        "v-bind:model-value": "form[field.key]",
-                        "v-on:change": "normalizeFieldValue(field)",
-                        "v-on:update:model-value":
-                            "updateFieldValue(field, $event)",
-                    }),
-                    createElement(
-                        "template",
-                        {
-                            "v-if": "field.sourceField",
-                        },
-                        [
-                            createSourceUrlInputTemplate({
-                                placeholder: "Source URLs",
-                                model: "form[field.sourceField.sourceKey]",
-                                change: "trimSourceValue(field.sourceField)",
-                                update: "updateSourceValue(field.sourceField, $event)",
-                            }),
-                        ],
-                    ),
-                ],
-            ),
+            createFieldControlsTemplate({
+                placeholder: "field.placeholder",
+            }),
             createElement(
                 "template",
                 {
@@ -149,68 +174,7 @@ function createCompactFieldTemplate() {
 function createStandardFieldTemplate() {
     return createFieldTemplate(
         "field.label",
-        [
-            createElement(
-                "div",
-                {
-                    class: "create-vg-stub-field-controls",
-                    "v-bind:class":
-                        "{ 'create-vg-stub-field-controls--with-source': field.sourceField }",
-                },
-                [
-                    createElement(
-                        "template",
-                        {
-                            "v-if": "field.multiline",
-                        },
-                        [
-                            createElement("cdx-text-area", {
-                                rows: "1",
-                                "v-bind:placeholder":
-                                    "getFieldPlaceholder(field) || field.placeholder",
-                                "v-bind:model-value": "form[field.key]",
-                                "v-on:change": "normalizeFieldValue(field)",
-                                "v-on:update:model-value":
-                                    "updateFieldValue(field, $event)",
-                            }),
-                        ],
-                    ),
-                    createElement(
-                        "template",
-                        {
-                            "v-else": "",
-                        },
-                        [
-                            createElement("cdx-text-input", {
-                                "v-bind:placeholder":
-                                    "getFieldPlaceholder(field) || field.placeholder",
-                                "v-bind:readonly": "field.readonly",
-                                "v-bind:model-value": "form[field.key]",
-                                "v-on:change": "normalizeFieldValue(field)",
-                                "v-on:paste":
-                                    "normalizePastedFieldValue(field, $event)",
-                                "v-on:update:model-value":
-                                    "updateFieldValue(field, $event)",
-                            }),
-                        ],
-                    ),
-                    createElement(
-                        "template",
-                        {
-                            "v-if": "field.sourceField",
-                        },
-                        [
-                            createSourceUrlInputTemplate({
-                                placeholder: "Source URLs",
-                                model: "form[field.sourceField.sourceKey]",
-                                change: "trimSourceValue(field.sourceField)",
-                                update: "updateSourceValue(field.sourceField, $event)",
-                            }),
-                        ],
-                    ),
-                ],
-            ),
-        ],
+        [createFieldControlsTemplate()],
         {
             attributes: {
                 "v-bind:is-fieldset": "!!field.sourceField",
@@ -220,6 +184,76 @@ function createStandardFieldTemplate() {
             helpText: createEnwikiHelpTextTemplate(),
             helpTextCondition: "field.key === 'enwikiTitle'",
         },
+    );
+}
+
+/**
+ * Creates the input and optional source controls for one article field.
+ *
+ * @param {object} [options] - Control options.
+ * @param {string} [options.placeholder] - Placeholder Vue expression.
+ * @returns {object} Field controls node.
+ */
+function createFieldControlsTemplate(options = {}) {
+    const placeholder =
+        options.placeholder || "getFieldPlaceholder(field) || field.placeholder";
+
+    return createElement(
+        "div",
+        {
+            class: "create-vg-stub-field-controls",
+            "v-bind:class":
+                "{ 'create-vg-stub-field-controls--with-source': field.sourceField }",
+        },
+        [
+            createElement(
+                "template",
+                {
+                    "v-if": "field.multiline",
+                },
+                [
+                    createElement("cdx-text-area", {
+                        rows: "1",
+                        "v-bind:placeholder": placeholder,
+                        "v-bind:model-value": "form[field.key]",
+                        "v-on:change": "normalizeFieldValue(field)",
+                        "v-on:update:model-value":
+                            "updateFieldValue(field, $event)",
+                    }),
+                ],
+            ),
+            createElement(
+                "template",
+                {
+                    "v-else": "",
+                },
+                [
+                    createElement("cdx-text-input", {
+                        "v-bind:placeholder": placeholder,
+                        "v-bind:readonly": "field.readonly",
+                        "v-bind:model-value": "form[field.key]",
+                        "v-on:change": "normalizeFieldValue(field)",
+                        "v-on:paste": "normalizePastedFieldValue(field, $event)",
+                        "v-on:update:model-value":
+                            "updateFieldValue(field, $event)",
+                    }),
+                ],
+            ),
+            createElement(
+                "template",
+                {
+                    "v-if": "field.sourceField",
+                },
+                [
+                    createSourceUrlInputTemplate({
+                        placeholder: "Source URLs",
+                        model: "form[field.sourceField.sourceKey]",
+                        change: "trimSourceValue(field.sourceField)",
+                        update: "updateSourceValue(field.sourceField, $event)",
+                    }),
+                ],
+            ),
+        ],
     );
 }
 

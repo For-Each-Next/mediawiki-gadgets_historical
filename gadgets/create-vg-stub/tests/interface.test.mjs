@@ -546,9 +546,13 @@ test("References tab manages editable citation parameters", async () => {
         "Checks",
     ]);
     assert.equal(
-        component.template.includes("{{ 'Reference ' + citation.index }}"),
+        component.template.includes(
+            "v-bind:caption=\"'Reference ' + citation.index\"",
+        ),
         true,
     );
+    assert.equal(component.template.includes("<strong>Reference"), false);
+    assert.equal(component.template.includes("Clean"), true);
     assert.equal(component.template.includes("Add param"), true);
 });
 
@@ -571,8 +575,12 @@ test("additional prose uses a textarea and source URL field", () => {
         ["Metadata", "Titles", "Text", "References", "Checks"],
     );
     assert.equal(
+        component.template.includes("create-vg-stub-prose-length"),
+        false,
+    );
+    assert.equal(
         component.template.includes(
-            '<p class="create-vg-stub-prose-length" v-if="group.fullTextReview">',
+            "getProseSinographs() + ' relevant sinographs'",
         ),
         true,
     );
@@ -584,6 +592,29 @@ test("additional prose uses a textarea and source URL field", () => {
     assert.equal(
         component.template.indexOf("{{ getProseWikitext() }}") <
             component.template.indexOf('caption="NoteTA items"'),
+        true,
+    );
+});
+
+test("foreign title fields share one fieldset label", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { groups } = component.setup();
+    const titlesGroup = groups.find((group) => group.key === "titles");
+
+    assert.equal(titlesGroup.fieldsetLabel, "Foreign titles");
+    assert.deepEqual(
+        titlesGroup.fields.map((field) => field.key),
+        ["originalName", "englishName", "sortKey"],
+    );
+    assert.equal(
+        component.template.includes("create-vg-stub-fieldset-fields"),
+        true,
+    );
+    assert.equal(
+        component.template.includes("{{ group.fieldsetLabel }}"),
         true,
     );
 });
@@ -824,8 +855,14 @@ test("NoteTA tab lists generated title conversion and sorts rows", () => {
         false,
     );
     assert.equal(component.template.includes('aria-label="Sort"'), true);
-    assert.equal(component.template.includes('aria-label="Regenerate"'), true);
+    assert.equal(component.template.includes('aria-label="Reset"'), true);
+    assert.equal(component.template.includes('aria-label="Clean"'), true);
+    assert.equal(component.template.includes('aria-label="Add"'), true);
     assert.equal(component.template.includes('caption="NoteTA items"'), true);
+    assert.equal(
+        component.template.includes("<strong>NoteTA items</strong>"),
+        false,
+    );
     assert.equal(
         component.template.includes("!canRemoveNoteTaRow(row)"),
         false,
@@ -1054,7 +1091,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes('aria-label="Create page"'), true);
     assert.equal(component.template.includes("Include redirect"), true);
     assert.equal(component.template.includes("Redirects"), true);
-    assert.equal(component.template.includes("Refresh redirects"), true);
+    assert.equal(component.template.includes('aria-label="Refresh"'), true);
     assert.equal(
         component.template.includes('v-on:click.prevent="rebuildNavboxRows"'),
         true,
@@ -1230,6 +1267,83 @@ test("review exposes editable stub tags below category rows", async () => {
     assert.equal(
         component.methods.formatStubTagLabel("{{Bar-stub}}"),
         "{{Bar-stub}}",
+    );
+});
+
+test("table clean actions keep one blank editable row", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onCreateCategoryRow() {
+                return { category: "" };
+            },
+        }),
+    );
+    const { form } = component.setup();
+
+    form.citationRows = [
+        {
+            generatedParams: [],
+            index: 1,
+            modified: true,
+            params: [
+                { name: "", value: "" },
+                { name: "url", value: "https://example.test" },
+                { name: "", value: "" },
+            ],
+            sourceUrl: "https://example.test",
+        },
+    ];
+    component.methods.cleanCitationParams(0);
+    assert.deepEqual(form.citationRows[0].params, [
+        { name: "url", value: "https://example.test" },
+    ]);
+
+    form.noteTaRows = [
+        { key: "", value: "" },
+        { key: "", value: "" },
+        { key: "T", value: "Example" },
+    ];
+    component.methods.cleanNoteTaRows();
+    assert.deepEqual(form.noteTaRows, [
+        { key: "T", value: "Example" },
+        { key: "", value: "" },
+    ]);
+
+    form.redirectRows = [{ title: "" }, { title: "" }, { title: "Foo" }];
+    component.methods.cleanRedirectRows();
+    assert.deepEqual(
+        form.redirectRows.map((row) => row.title),
+        ["Foo", ""],
+    );
+
+    form.navboxRows = [{ text: "" }, { text: "" }, { text: "{{Foo}}" }];
+    component.methods.cleanNavboxRows();
+    assert.deepEqual(
+        form.navboxRows.map((row) => row.text),
+        ["{{Foo}}", ""],
+    );
+
+    form.stubTagRows = [
+        { stubTag: "" },
+        { stubTag: "" },
+        { stubTag: "vg-stub" },
+    ];
+    component.methods.cleanStubTagRows();
+    assert.deepEqual(
+        form.stubTagRows.map((row) => row.stubTag),
+        ["vg-stub", ""],
+    );
+
+    form.categoryRows = [
+        { category: "" },
+        { category: "" },
+        { category: "Foo games" },
+    ];
+    component.methods.cleanCategoryRows();
+    assert.deepEqual(
+        form.categoryRows.map((row) => row.category),
+        ["Foo games", ""],
     );
 });
 
@@ -1808,6 +1922,11 @@ test("Steam helper stages official localized name choices", async () => {
         form.localizedNames.map((row) => row.name),
         [""],
     );
+    assert.equal(
+        component.template.includes("create-vg-stub-steam-helper"),
+        true,
+    );
+    assert.equal(component.template.includes("Add Steam names"), true);
     assert.equal(component.template.includes("<cdx-button-group"), true);
     assert.equal(
         component.template.includes('v-bind:buttons="steamNameButtons"'),

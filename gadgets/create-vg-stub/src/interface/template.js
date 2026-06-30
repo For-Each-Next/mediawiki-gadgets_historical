@@ -179,30 +179,25 @@ export function createFieldTemplate(label, children, options = {}) {
 }
 
 /**
- * Creates a Codex table header slot with optional action links.
+ * Creates a Codex table header slot with action links.
  *
- * @param {string} title - Header title text or Vue expression.
+ * The table caption already names the table, so this slot only renders
+ * controls.
+ *
+ * @param {string} _title - Header title text or Vue expression.
  * @param {Array<object|string>} [actions] - Header action links.
- * @param {object} [options] - Header options.
- * @param {boolean} [options.bindTitle] - Whether title is a Vue binding.
+ * @param {object} [_options] - Header options.
  * @returns {object} Header slot template node.
  */
-export function createTableHeaderTemplate(title, actions = [], options = {}) {
+export function createTableHeaderTemplate(_title, actions = [], _options = {}) {
     return createElement(
         "template",
         {
             "v-slot:header": "",
         },
-        [
-            createElement("strong", {}, [
-                createText(options.bindTitle ? `{{ ${title} }}` : title),
-            ]),
-            ...actions.flatMap((action, index) =>
-                index === 0
-                    ? [createText(" "), action]
-                    : [createText(" · "), action],
-            ),
-        ],
+        actions.flatMap((action, index) =>
+            index === 0 ? [action] : [createText(" "), action],
+        ),
     );
 }
 
@@ -254,6 +249,7 @@ export function createFieldPreviewTemplate(fieldExpression = "field") {
  * @param {string} expression - Vue expression resolving to preview text.
  * @param {object} [options] - Card options.
  * @param {string} [options.condition] - Optional Vue condition.
+ * @param {string} [options.description] - Supporting description expression.
  * @returns {object} Wikitext preview card node.
  */
 export function createPreviewCardTemplate(title, expression, options = {}) {
@@ -277,6 +273,18 @@ export function createPreviewCardTemplate(title, expression, options = {}) {
                     "v-slot:supporting-text": "",
                 },
                 [
+                    ...(options.description
+                        ? [
+                              createElement(
+                                  "p",
+                                  {
+                                      class:
+                                          "create-vg-stub-preview-card-description",
+                                  },
+                                  [createText(`{{ ${options.description} }}`)],
+                              ),
+                          ]
+                        : []),
                     createElement(
                         "pre",
                         {

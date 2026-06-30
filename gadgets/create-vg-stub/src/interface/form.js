@@ -163,10 +163,14 @@ const DIALOG_CSS = new StyleSheet()
         );
     })
     .add(".create-vg-stub-steam-helper", {
+        alignItems: "start",
         display: "grid",
         gap: "0.75em",
         gridTemplateColumns: "minmax(0, 1fr) auto",
         marginBottom: "1.25em",
+    })
+    .add(".create-vg-stub-steam-helper > .cdx-button", {
+        alignSelf: "start",
     })
     .add(".create-vg-stub-steam-actions", {
         gridColumn: "1 / -1",
@@ -224,8 +228,19 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-field-note", {
         margin: "0.25em 0 1em",
     })
+    .add(".create-vg-stub-fieldset-fields", {
+        display: "grid",
+        gap: "0.75em",
+    })
+    .add(".create-vg-stub-fieldset-field .create-vg-stub-field-note", {
+        marginBottom: "0",
+    })
     .add(".create-vg-stub-preview-card", {
         margin: "1em 0",
+    })
+    .add(".create-vg-stub-preview-card-description", {
+        color: "var(--color-subtle, #54595d)",
+        margin: "0 0 0.5em",
     })
     .add(".create-vg-stub-preview-card-text", {
         fontFamily: "monospace",
@@ -365,6 +380,7 @@ class ArticleParameterGroup {
         this.categoryReview = Boolean(options.categoryReview);
         this.citationReview = Boolean(options.citationReview);
         this.description = options.description || "";
+        this.fieldsetLabel = options.fieldsetLabel || "";
         this.fields = fields;
         this.fullTextReview = Boolean(options.fullTextReview);
         this.key = key;
@@ -482,6 +498,9 @@ const TABLE_ACTION_ICONS = {
     regenerate: {
         path: "M10 3a7 7 0 0 1 6.2 3.8L18 5v5h-5l1.8-1.8A5 5 0 1 0 15 12h2a7 7 0 1 1-7-9z",
     },
+    clean: {
+        path: "M5 3h10v2H5zm2 4h6l1 10H6zm2 2v6h1V9zm2 0v6h1V9z",
+    },
     reload: {
         path: "M10 3a7 7 0 0 1 6.2 3.8L18 5v5h-5l1.8-1.8A5 5 0 1 0 15 12h2a7 7 0 1 1-7-9z",
     },
@@ -564,8 +583,6 @@ const ARTICLE_PARAMETER_GROUPS = [
         ],
         null,
         {
-            description:
-                "Start with English Wikipedia metadata and the original infobox facts used for prose, categories, and references.",
             previewKey: "attribution",
         },
     ),
@@ -606,6 +623,7 @@ const ARTICLE_PARAMETER_GROUPS = [
         {
             description:
                 "Review foreign titles, fetch Steam names, add Chinese name parts, and maintain the NoteTA table.",
+            fieldsetLabel: "Foreign titles",
             noteTaReview: true,
         },
     ),
@@ -1401,6 +1419,25 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Removes blank editable parameters from one managed citation.
+             *
+             * @param {number} citationIndex - Citation row index.
+             * @returns {void}
+             */
+            cleanCitationParams(citationIndex) {
+                const citation = form.citationRows[citationIndex];
+
+                if (citation == null) {
+                    return;
+                }
+
+                citation.params = (citation.params || []).filter(
+                    hasCitationParamValue,
+                );
+                citation.modified = true;
+            },
+
+            /**
              * Removes one managed citation parameter row.
              *
              * @param {number} citationIndex - Citation row index.
@@ -1728,12 +1765,36 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Removes surplus blank category rows.
+             *
+             * @returns {void}
+             */
+            cleanCategoryRows() {
+                form.categoryRows = cleanEditableRows(
+                    form.categoryRows,
+                    isBlankCategoryRow,
+                    () => options.onCreateCategoryRow(),
+                );
+            },
+
+            /**
              * Appends a blank stub-tag row.
              *
              * @returns {void}
              */
             addStubTagRow() {
                 ensureStubTagRows(form).push(createStubTagRow());
+            },
+
+            /**
+             * Resets stub-tag rows from current category metadata.
+             *
+             * @returns {void}
+             */
+            resetStubTagRows() {
+                form.stubTagRows = buildStubTagRowsFromCategories(
+                    form.categoryRows,
+                );
             },
 
             /**
@@ -1762,12 +1823,37 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Removes surplus blank stub-tag rows.
+             *
+             * @returns {void}
+             */
+            cleanStubTagRows() {
+                form.stubTagRows = cleanEditableRows(
+                    ensureStubTagRows(form),
+                    isBlankStubTagRow,
+                    createStubTagRow,
+                );
+            },
+
+            /**
              * Appends a blank redirect row.
              *
              * @returns {void}
              */
             addRedirectRow() {
                 ensureRedirectRows(form).push(createRedirectRow());
+            },
+
+            /**
+             * Resets generated redirect rows.
+             *
+             * @returns {Promise<void>} Resolves after rows are refreshed.
+             */
+            async rebuildRedirectRows() {
+                form.redirectRows = null;
+                await refreshRedirectRows({
+                    recheck: true,
+                });
             },
 
             /**
@@ -1796,12 +1882,39 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Removes surplus blank redirect rows.
+             *
+             * @returns {void}
+             */
+            cleanRedirectRows() {
+                form.redirectRows = cleanEditableRows(
+                    ensureRedirectRows(form),
+                    isBlankRedirectRow,
+                    createRedirectRow,
+                );
+            },
+
+            /**
              * Appends a blank navbox row.
              *
              * @returns {void}
              */
             addNavboxRow() {
                 ensureNavboxRows(form).push(createNavboxRow());
+                navboxRowsPrepared = true;
+            },
+
+            /**
+             * Removes surplus blank navbox rows.
+             *
+             * @returns {void}
+             */
+            cleanNavboxRows() {
+                form.navboxRows = cleanEditableRows(
+                    ensureNavboxRows(form),
+                    isBlankNavboxRow,
+                    createNavboxRow,
+                );
                 navboxRowsPrepared = true;
             },
 
@@ -1829,6 +1942,25 @@ export function createDialogComponent(Vue, options) {
                 }
 
                 rows.splice(index, 1);
+            },
+
+            /**
+             * Removes surplus blank NoteTA rows.
+             *
+             * @returns {void}
+             */
+            cleanNoteTaRows() {
+                const rows = ensureNoteTaRows(form);
+
+                rows.splice(
+                    0,
+                    rows.length,
+                    ...cleanEditableRows(
+                        rows,
+                        isBlankNoteTaRow,
+                        createNoteTaRow,
+                    ),
+                );
             },
 
             /**
@@ -3454,6 +3586,45 @@ function ensureStubTagRows(form) {
     }
 
     return form.stubTagRows;
+}
+
+/**
+ * Removes surplus blank editable rows while keeping one blank row if present.
+ *
+ * @param {Array<object>} rows - Editable rows.
+ * @param {Function} isBlank - Blank row predicate.
+ * @param {Function} createBlank - Blank row factory.
+ * @returns {Array<object>} Cleaned editable rows.
+ */
+function cleanEditableRows(rows, isBlank, createBlank) {
+    const nonBlankRows = rows.filter((row) => !isBlank(row));
+    const hasBlankRow = rows.some(isBlank);
+
+    if (hasBlankRow || nonBlankRows.length === 0) {
+        return [...nonBlankRows, createBlank()];
+    }
+
+    return nonBlankRows;
+}
+
+/**
+ * Checks whether a category row is blank.
+ *
+ * @param {object} row - Category row.
+ * @returns {boolean} Whether the row is blank.
+ */
+function isBlankCategoryRow(row) {
+    return trimFieldValue(row?.category) === "";
+}
+
+/**
+ * Checks whether a stub-tag row is blank.
+ *
+ * @param {object} row - Stub-tag row.
+ * @returns {boolean} Whether the row is blank.
+ */
+function isBlankStubTagRow(row) {
+    return trimStubTagValue(row?.stubTag) === "";
 }
 
 /**
@@ -5461,6 +5632,18 @@ function ensureNoteTaRows(form) {
 }
 
 /**
+ * Checks whether a NoteTA row is blank.
+ *
+ * @param {object} row - NoteTA row.
+ * @returns {boolean} Whether the row is blank.
+ */
+function isBlankNoteTaRow(row) {
+    return (
+        trimFieldValue(row?.key) === "" && trimFieldValue(row?.value) === ""
+    );
+}
+
+/**
  * Ensures the form has editable navbox rows.
  *
  * @param {object} form - Dialog form values.
@@ -5499,6 +5682,16 @@ function createRedirectRow(value = "", fixed = value?.fixed === true) {
         status: value?.status || (exists ? "Exists" : "Missing"),
         title,
     };
+}
+
+/**
+ * Checks whether a redirect row is blank.
+ *
+ * @param {object} row - Redirect row.
+ * @returns {boolean} Whether the row is blank.
+ */
+function isBlankRedirectRow(row) {
+    return trimFieldValue(row?.title) === "";
 }
 
 /**
@@ -5640,6 +5833,16 @@ function createNavboxRow(value = "", fixed = value?.fixed === true) {
                   pendingEdit: value.pendingEdit,
               }),
     };
+}
+
+/**
+ * Checks whether a navbox row is blank.
+ *
+ * @param {object} row - Navbox row.
+ * @returns {boolean} Whether the row is blank.
+ */
+function isBlankNavboxRow(row) {
+    return trimFieldValue(row?.text) === "";
 }
 
 /**

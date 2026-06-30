@@ -1,7 +1,6 @@
 /* eslint-disable */
 
 import {
-    createActionFooterTemplate,
     createElement,
     createIconActionLinkTemplate,
     createTableHeaderTemplate,
@@ -73,6 +72,16 @@ function createCitationParamSlotsTemplate() {
                     "tableActionIcons.regenerate",
                     "resetCitation(citationIndex)",
                 ),
+                createIconActionLinkTemplate(
+                    "Clean",
+                    "tableActionIcons.clean",
+                    "cleanCitationParams(citationIndex)",
+                ),
+                createIconActionLinkTemplate(
+                    "Add param",
+                    "tableActionIcons.cdxIconArticleAdd",
+                    "addCitationParam(citationIndex)",
+                ),
             ],
             {
                 bindTitle: true,
@@ -131,13 +140,6 @@ function createCitationParamSlotsTemplate() {
                 "v-slot:footer": "",
             },
             [
-                createActionFooterTemplate([
-                    createIconActionLinkTemplate(
-                        "Add param",
-                        "tableActionIcons.cdxIconArticleAdd",
-                        "addCitationParam(citationIndex)",
-                    ),
-                ]),
                 createElement(
                     "a",
                     {

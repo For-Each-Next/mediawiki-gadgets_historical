@@ -510,7 +510,7 @@
         "stubTags": ["Atari-console-stub"]
     },
     {
-        "aliases": ["mac", "Classic Mac OS"],
+        "aliases": ["Classic Mac", "Macintosh"],
         "name": "Classic Mac OS",
         "page": "Classic Mac OS",
         "categories": ["Mac OS游戏"],
@@ -669,7 +669,7 @@
         "stubTags": ["videogame-stub"]
     },
     {
-        "aliases": ["osx", "macOS", "OS X"],
+        "aliases": ["osx", "mac", "macOS", "OS X"],
         "name": "macOS",
         "page": "macOS",
         "categories": ["macOS游戏"],

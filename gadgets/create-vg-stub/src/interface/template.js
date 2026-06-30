@@ -52,6 +52,62 @@ export function createActionFooterTemplate(actions, style = {}) {
 }
 
 /**
+ * Creates a link that performs an in-place table row action.
+ *
+ * @param {string} label - Link label text or Vue expression.
+ * @param {string} click - Click handler expression.
+ * @param {object} [attributes] - Extra link attributes.
+ * @param {boolean} [attributes.bindLabel] - Whether label is a Vue binding.
+ * @returns {object} Action link node.
+ */
+export function createActionLinkTemplate(label, click, attributes = {}) {
+    const { bindLabel, ...linkAttributes } = attributes;
+
+    return createElement(
+        "a",
+        {
+            href: "#",
+            ...linkAttributes,
+            "v-on:click.prevent": click,
+        },
+        [createText(bindLabel ? `{{ ${label} }}` : label)],
+    );
+}
+
+/**
+ * Creates an icon-only link that performs an in-place table row action.
+ *
+ * @param {string} label - Accessible link label.
+ * @param {string} icon - Vue expression resolving to a Codex icon.
+ * @param {string} click - Click handler expression.
+ * @param {object} [attributes] - Extra link attributes.
+ * @returns {object} Icon action link node.
+ */
+export function createIconActionLinkTemplate(
+    label,
+    icon,
+    click,
+    attributes = {},
+) {
+    return createElement(
+        "a",
+        {
+            "aria-label": label,
+            href: "#",
+            title: label,
+            ...attributes,
+            "v-on:click.prevent": click,
+        },
+        [
+            createElement("cdx-icon", {
+                "v-bind:icon": icon,
+                size: "medium",
+            }),
+        ],
+    );
+}
+
+/**
  * Creates a source URL textarea template node.
  *
  * @param {object} options - Source URL field options.
@@ -78,6 +134,98 @@ export function createSourceUrlInputTemplate(options) {
     }
 
     return createElement("cdx-text-area", attributes);
+}
+
+/**
+ * Creates a Codex field with a label slot.
+ *
+ * @param {string} label - Field label text or Vue expression.
+ * @param {Array<object|string>} children - Field contents.
+ * @param {object} [options] - Field options.
+ * @param {object} [options.attributes] - Field root attributes.
+ * @param {boolean} [options.bindLabel] - Whether label is a Vue binding.
+ * @param {Array<object|string>} [options.helpText] - Help text slot contents.
+ * @param {string} [options.helpTextCondition] - Optional Vue condition for help text.
+ * @returns {object} Codex field node.
+ */
+export function createFieldTemplate(label, children, options = {}) {
+    const fieldChildren = [
+        ...children,
+        createElement(
+            "template",
+            {
+                "v-slot:label": "",
+            },
+            [createText(options.bindLabel ? `{{ ${label} }}` : label)],
+        ),
+    ];
+
+    if (options.helpText) {
+        fieldChildren.push(
+            createElement(
+                "template",
+                {
+                    ...(options.helpTextCondition
+                        ? { "v-if": options.helpTextCondition }
+                        : {}),
+                    "v-slot:help-text": "",
+                },
+                options.helpText,
+            ),
+        );
+    }
+
+    return createElement("cdx-field", options.attributes || {}, fieldChildren);
+}
+
+/**
+ * Creates a Codex table header slot with optional action links.
+ *
+ * @param {string} title - Header title text or Vue expression.
+ * @param {Array<object|string>} [actions] - Header action links.
+ * @param {object} [options] - Header options.
+ * @param {boolean} [options.bindTitle] - Whether title is a Vue binding.
+ * @returns {object} Header slot template node.
+ */
+export function createTableHeaderTemplate(title, actions = [], options = {}) {
+    return createElement(
+        "template",
+        {
+            "v-slot:header": "",
+        },
+        [
+            createElement("strong", {}, [
+                createText(options.bindTitle ? `{{ ${title} }}` : title),
+            ]),
+            ...actions.flatMap((action, index) =>
+                index === 0
+                    ? [createText(" "), action]
+                    : [createText(" · "), action],
+            ),
+        ],
+    );
+}
+
+/**
+ * Creates a Codex table template.
+ *
+ * @param {string} columns - Vue expression resolving to table columns.
+ * @param {string} data - Vue expression resolving to table data.
+ * @param {Array<object|string>} slots - Table slot templates.
+ * @param {object} [attributes] - Extra table attributes.
+ * @param {string} [attributes.caption] - Accessible table caption.
+ * @returns {object} Codex table node.
+ */
+export function createTableTemplate(columns, data, slots, attributes = {}) {
+    return createElement(
+        "cdx-table",
+        {
+            ...attributes,
+            "v-bind:columns": columns,
+            "v-bind:data": data,
+        },
+        slots,
+    );
 }
 
 /**

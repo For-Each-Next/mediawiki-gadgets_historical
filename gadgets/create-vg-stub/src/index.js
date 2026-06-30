@@ -827,8 +827,10 @@ function init(require) {
     app.component("CdxButtonGroup", Codex.CdxButtonGroup);
     app.component("CdxCheckbox", Codex.CdxCheckbox);
     app.component("CdxField", Codex.CdxField);
+    app.component("CdxIcon", Codex.CdxIcon);
     app.component("CdxTab", Codex.CdxTab);
     app.component("CdxTabs", Codex.CdxTabs);
+    app.component("CdxTable", Codex.CdxTable);
     app.component("CdxTextArea", Codex.CdxTextArea);
     app.component("CdxTextInput", Codex.CdxTextInput);
     app.mount(createHost());

@@ -1,8 +1,10 @@
 /* eslint-disable */
 
 import {
-    createActionFooterTemplate,
     createElement,
+    createIconActionLinkTemplate,
+    createTableHeaderTemplate,
+    createTableTemplate,
     createText,
 } from "../template.js";
 
@@ -33,40 +35,14 @@ export function createCitationGroupTemplate() {
                     "v-for": "(citation, citationIndex) in form.citationRows",
                 },
                 [
-                    createElement("h3", {}, [
-                        createText("Reference {{ citation.index }}"),
-                    ]),
-                    createElement(
-                        "p",
+                    createTableTemplate(
+                        "citationTableColumns",
+                        "getCitationParamTableRows(citation)",
+                        createCitationParamSlotsTemplate(),
                         {
-                            class: "create-vg-stub-wikitext-preview",
+                            "v-bind:caption": "'Reference ' + citation.index",
                         },
-                        [createText("{{ citation.sourceUrl }}")],
                     ),
-                    createElement(
-                        "div",
-                        {
-                            class: "create-vg-stub-citation-grid",
-                        },
-                        [createCitationParamRowTemplate()],
-                    ),
-                    createActionFooterTemplate([
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-on:click": "resetCitation(citationIndex)",
-                            },
-                            [createText("Reset")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-on:click":
-                                    "addCitationParam(citationIndex)",
-                            },
-                            [createText("Add param")],
-                        ),
-                    ]),
                 ],
             ),
             createElement(
@@ -86,37 +62,84 @@ export function createCitationGroupTemplate() {
  *
  * @returns {object} Citation parameter row template node.
  */
-function createCitationParamRowTemplate() {
-    return createElement(
-        "template",
-        {
-            "v-bind:key": "paramIndex",
-            "v-for": "(param, paramIndex) in getCitationParamRows(citation)",
-        },
-        [
-            createElement("cdx-text-input", {
-                placeholder: "Field name",
-                "v-bind:model-value": "param.name",
-                "v-on:change": "sortCitation(citationIndex)",
-                "v-on:update:model-value":
-                    "updateCitationParam(citationIndex, paramIndex, 'name', $event)",
-            }),
-            createElement("cdx-text-input", {
-                placeholder: "Value",
-                "v-bind:model-value": "param.value",
-                "v-on:change": "sortCitation(citationIndex)",
-                "v-on:update:model-value":
-                    "updateCitationParam(citationIndex, paramIndex, 'value', $event)",
-            }),
-            createElement(
-                "cdx-button",
-                {
-                    "v-bind:disabled": "paramIndex >= citation.params.length",
-                    "v-on:click":
-                        "removeCitationParam(citationIndex, paramIndex)",
-                },
-                [createText("Remove")],
-            ),
-        ],
-    );
+function createCitationParamSlotsTemplate() {
+    return [
+        createTableHeaderTemplate(
+            "'Reference ' + citation.index",
+            [
+                createIconActionLinkTemplate(
+                    "Reset",
+                    "tableActionIcons.regenerate",
+                    "resetCitation(citationIndex)",
+                ),
+            ],
+            {
+                bindTitle: true,
+            },
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:item-name": "{ row }",
+            },
+            [
+                createElement("cdx-text-input", {
+                    placeholder: "Field name",
+                    "v-bind:model-value": "row.param.name",
+                    "v-on:change": "sortCitation(citationIndex)",
+                    "v-on:update:model-value":
+                        "updateCitationParam(citationIndex, row.index, 'name', $event)",
+                }),
+            ],
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:item-value": "{ row }",
+            },
+            [
+                createElement("cdx-text-input", {
+                    placeholder: "Value",
+                    "v-bind:model-value": "row.param.value",
+                    "v-on:change": "sortCitation(citationIndex)",
+                    "v-on:update:model-value":
+                        "updateCitationParam(citationIndex, row.index, 'value', $event)",
+                }),
+            ],
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:item-actions": "{ row }",
+            },
+            [
+                createIconActionLinkTemplate(
+                    "Remove",
+                    "tableActionIcons.remove",
+                    "removeCitationParam(citationIndex, row.index)",
+                    {
+                        class: "create-vg-stub-destructive-action",
+                        "v-if": "row.index < citation.params.length",
+                    },
+                ),
+            ],
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:footer": "",
+            },
+            [
+                createElement(
+                    "a",
+                    {
+                        "v-bind:href": "citation.sourceUrl",
+                        rel: "noopener noreferrer",
+                        target: "_blank",
+                    },
+                    [createText("{{ citation.sourceUrl }}")],
+                ),
+            ],
+        ),
+    ];
 }

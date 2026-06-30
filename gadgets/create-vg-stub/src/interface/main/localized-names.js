@@ -1,8 +1,9 @@
 /* eslint-disable */
 
 import {
-    createActionFooterTemplate,
     createElement,
+    createFieldTemplate,
+    createIconActionLinkTemplate,
     createSourceUrlInputTemplate,
     createText,
 } from "../template.js";
@@ -18,11 +19,7 @@ export function createNameGroupTemplate() {
         {
             "v-if": "group.nameGroupKey",
         },
-        [
-            createSteamNameHelperTemplate(),
-            createNameRowTemplate(),
-            createNameActionsTemplate(),
-        ],
+        [createSteamNameHelperTemplate(), createNameFieldsTemplate()],
     );
 }
 
@@ -38,11 +35,13 @@ function createSteamNameHelperTemplate() {
             class: "create-vg-stub-steam-helper",
         },
         [
-            createElement("cdx-text-input", {
-                placeholder: "Steam app URL",
-                "v-bind:model-value": "steamUrl",
-                "v-on:update:model-value": "updateSteamUrl($event)",
-            }),
+            createFieldTemplate("Steam app URL", [
+                createElement("cdx-text-input", {
+                    placeholder: "https://store.steampowered.com/app/...",
+                    "v-bind:model-value": "steamUrl",
+                    "v-on:update:model-value": "updateSteamUrl($event)",
+                }),
+            ]),
             createElement(
                 "cdx-button",
                 {
@@ -97,90 +96,120 @@ function createSteamNameHelperTemplate() {
 }
 
 /**
- * Creates localized name row action buttons.
+ * Creates the localized name field list template node.
  *
- * @returns {object} Localized name action button group node.
+ * @returns {object} Localized name field list template node.
  */
-function createNameActionsTemplate() {
-    return createActionFooterTemplate([
-        createElement(
-            "cdx-button",
-            {
-                "v-on:click": "clearNameRows(group.nameGroupKey)",
-            },
-            [createText("Clear")],
-        ),
-        createElement(
-            "cdx-button",
-            {
-                action: "progressive",
-                "v-on:click": "addNameRow(group.nameGroupKey)",
-                weight: "primary",
-            },
-            [createText("Add")],
-        ),
-    ]);
-}
-
-/**
- * Creates a localized name row template node.
- *
- * @returns {object} Localized name row template node.
- */
-function createNameRowTemplate() {
+function createNameFieldsTemplate() {
     return createElement(
         "div",
         {
-            class: "create-vg-stub-name-row",
-            "v-bind:key": "index",
-            "v-for": "(row, index) in form[group.nameGroupKey]",
+            class: "create-vg-stub-name-fields",
         },
         [
             createElement(
-                "div",
+                "template",
                 {
-                    class: "create-vg-stub-name-controls",
+                    "v-bind:key": "index",
+                    "v-for": "(row, index) in form[group.nameGroupKey]",
                 },
-                [createNameMarketTemplate(), createNameInputTemplate()],
+                [createNameFieldTemplate()],
+            ),
+            createElement(
+                "p",
+                {
+                    "v-if": "form[group.nameGroupKey].length > 1",
+                },
+                [
+                    createIconActionLinkTemplate(
+                        "Clear all localized names",
+                        "tableActionIcons.remove",
+                        "clearNameRows(group.nameGroupKey)",
+                        {
+                            class: "create-vg-stub-destructive-action",
+                        },
+                    ),
+                ],
             ),
         ],
     );
 }
 
 /**
- * Creates the localized name market checkbox group template node.
+ * Creates one localized name fieldset.
  *
- * @returns {object} Localized name market checkbox group node.
+ * @returns {object} Localized name fieldset node.
  */
-function createNameMarketTemplate() {
+function createNameFieldTemplate() {
+    return createElement(
+        "cdx-field",
+        {
+            "is-fieldset": "",
+        },
+        [
+            createNameSettingsRowTemplate(),
+            createNameValueSourceTemplate(),
+            createElement(
+                "template",
+                {
+                    "v-slot:label": "",
+                },
+                [
+                    createText("{{ 'Localized name ' + (index + 1) }} "),
+                    createNameRemoveTemplate(),
+                ],
+            ),
+        ],
+    );
+}
+
+/**
+ * Creates the localized name value/source row.
+ *
+ * @returns {object} Localized name value/source row node.
+ */
+function createNameValueSourceTemplate() {
     return createElement(
         "div",
         {
-            style: {
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "0.75em",
-                marginBottom: "0.5em",
-            },
+            class:
+                "create-vg-stub-field-controls " +
+                "create-vg-stub-field-controls--with-source",
+        },
+        [createNameTitleTemplate(), createNameSourceTemplate()],
+    );
+}
+
+/**
+ * Creates the localized name official/regions row.
+ *
+ * @returns {object} Localized name official/regions row node.
+ */
+function createNameSettingsRowTemplate() {
+    return createElement(
+        "div",
+        {
+            class: "create-vg-stub-name-settings-row",
         },
         [
             createElement(
                 "cdx-checkbox",
                 {
-                    "v-model": "row.official",
+                    class: "create-vg-stub-name-official-checkbox",
+                    "v-bind:model-value": "row.official",
+                    "v-on:update:model-value":
+                        "updateNameOfficial(group.nameGroupKey, index, $event)",
                 },
-                [createText("Official")],
+                [createText("Official?")],
             ),
-            createElement("span", {
-                "aria-hidden": "true",
-                class: "create-vg-stub-name-market-separator",
-            }),
             createElement(
                 "cdx-checkbox",
                 {
                     "v-bind:key": "market.key",
                     "v-for": "market in nameMarkets",
-                    "v-model": "row[market.key]",
+                    "v-bind:model-value": "row[market.key]",
+                    "v-on:update:model-value":
+                        "updateNameMarket(group.nameGroupKey, index, market.key, $event)",
                 },
                 [createText("{{ market.label }}")],
             ),
@@ -189,31 +218,46 @@ function createNameMarketTemplate() {
 }
 
 /**
- * Creates the localized name text input group template node.
+ * Creates the localized name title input cell content.
  *
- * @returns {object} Localized name text input group node.
+ * @returns {object} Localized name title input node.
  */
-function createNameInputTemplate() {
-    return createElement(
-        "div",
+function createNameTitleTemplate() {
+    return createElement("cdx-text-input", {
+        placeholder: "Title",
+        "v-bind:model-value": "row.name",
+        "v-on:change": "updateNameRow(group.nameGroupKey, index, 'name')",
+        "v-on:update:model-value":
+            "updateNameRowValue(group.nameGroupKey, index, 'name', $event)",
+    });
+}
+
+/**
+ * Creates the localized name source row content.
+ *
+ * @returns {object} Localized name source input node.
+ */
+function createNameSourceTemplate() {
+    return createSourceUrlInputTemplate({
+        placeholder: "Source URLs",
+        model: "row.sourceUrl",
+        change: "updateNameRow(group.nameGroupKey, index, 'sourceUrl')",
+        update: "updateNameRowValue(group.nameGroupKey, index, 'sourceUrl', $event)",
+    });
+}
+
+/**
+ * Creates the localized name remove row action.
+ *
+ * @returns {object} Localized name remove row action.
+ */
+function createNameRemoveTemplate() {
+    return createIconActionLinkTemplate(
+        "Remove localized name",
+        "tableActionIcons.remove",
+        "removeNameRow(group.nameGroupKey, index)",
         {
-            class: "create-vg-stub-field-controls",
+            class: "create-vg-stub-destructive-action",
         },
-        [
-            createElement("cdx-text-input", {
-                placeholder: "Title",
-                "v-bind:model-value": "row.name",
-                "v-on:change":
-                    "updateNameRow(group.nameGroupKey, index, 'name')",
-                "v-on:update:model-value":
-                    "updateNameRowValue(group.nameGroupKey, index, 'name', $event)",
-            }),
-            createSourceUrlInputTemplate({
-                placeholder: "Source URLs",
-                model: "row.sourceUrl",
-                change: "updateNameRow(group.nameGroupKey, index, 'sourceUrl')",
-                update: "updateNameRowValue(group.nameGroupKey, index, 'sourceUrl', $event)",
-            }),
-        ],
     );
 }

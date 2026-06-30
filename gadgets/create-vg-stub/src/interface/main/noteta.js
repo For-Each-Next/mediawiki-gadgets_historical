@@ -1,8 +1,10 @@
 /* eslint-disable */
 
 import {
-    createActionFooterTemplate,
     createElement,
+    createIconActionLinkTemplate,
+    createTableHeaderTemplate,
+    createTableTemplate,
     createText,
 } from "../template.js";
 
@@ -18,37 +20,14 @@ export function createNoteTaGroupTemplate() {
             "v-if": "group.noteTaReview",
         },
         [
-            createElement("h3", {}, [createText("NoteTA items")]),
-            createElement(
-                "div",
+            createTableTemplate(
+                "notetaTableColumns",
+                "form.noteTaRows",
+                createNoteTaSlotsTemplate(),
                 {
-                    class: "create-vg-stub-noteta-grid",
+                    caption: "NoteTA items",
                 },
-                [createNoteTaRowTemplate()],
             ),
-            createActionFooterTemplate([
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-on:click": "addNoteTaRow",
-                    },
-                    [createText("Add NoteTA")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-on:click": "sortNoteTaRows",
-                    },
-                    [createText("Sort")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-on:click": "regenerateNoteTaRows",
-                    },
-                    [createText("Regenerate")],
-                ),
-            ]),
         ],
     );
 }
@@ -58,33 +37,63 @@ export function createNoteTaGroupTemplate() {
  *
  * @returns {object} NoteTA row template node.
  */
-function createNoteTaRowTemplate() {
-    return createElement(
-        "template",
-        {
-            "v-bind:key": "index",
-            "v-for": "(row, index) in form.noteTaRows",
-        },
-        [
-            createElement("cdx-text-input", {
-                placeholder: "T, G1, 1, or blank",
-                "v-bind:model-value": "row.key",
-                "v-on:update:model-value":
-                    "updateNoteTaRow(index, 'key', $event)",
-            }),
-            createElement("cdx-text-input", {
-                placeholder: "Games or zh-cn:...; zh-tw:...;",
-                "v-bind:model-value": "row.value",
-                "v-on:update:model-value":
-                    "updateNoteTaRow(index, 'value', $event)",
-            }),
-            createElement(
-                "cdx-button",
-                {
-                    "v-on:click": "removeNoteTaRow(index)",
-                },
-                [createText("Remove")],
+function createNoteTaSlotsTemplate() {
+    return [
+        createTableHeaderTemplate("NoteTA items", [
+            createIconActionLinkTemplate(
+                "Sort",
+                "tableActionIcons.sort",
+                "sortNoteTaRows",
             ),
-        ],
-    );
+            createIconActionLinkTemplate(
+                "Regenerate",
+                "tableActionIcons.regenerate",
+                "regenerateNoteTaRows",
+            ),
+        ]),
+        createElement(
+            "template",
+            {
+                "v-slot:item-key": "{ row }",
+            },
+            [
+                createElement("cdx-text-input", {
+                    placeholder: "T, G1, 1, or blank",
+                    "v-bind:model-value": "row.key",
+                    "v-on:update:model-value":
+                        "updateNoteTaRow(form.noteTaRows.indexOf(row), 'key', $event)",
+                }),
+            ],
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:item-value": "{ row }",
+            },
+            [
+                createElement("cdx-text-input", {
+                    placeholder: "Games or zh-cn:...; zh-tw:...;",
+                    "v-bind:model-value": "row.value",
+                    "v-on:update:model-value":
+                        "updateNoteTaRow(form.noteTaRows.indexOf(row), 'value', $event)",
+                }),
+            ],
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:item-actions": "{ row }",
+            },
+            [
+                createIconActionLinkTemplate(
+                    "Remove",
+                    "tableActionIcons.remove",
+                    "removeNoteTaRow(form.noteTaRows.indexOf(row))",
+                    {
+                        class: "create-vg-stub-destructive-action",
+                    },
+                ),
+            ],
+        ),
+    ];
 }

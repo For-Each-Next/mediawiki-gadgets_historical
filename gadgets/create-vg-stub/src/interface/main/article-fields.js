@@ -2,6 +2,7 @@
 
 import {
     createElement,
+    createFieldTemplate,
     createFieldPreviewTemplate,
     createSourceUrlInputTemplate,
     createText,
@@ -28,7 +29,6 @@ export function createFieldGroupTemplate() {
                 [
                     createCompactFieldTemplate(),
                     createStandardFieldTemplate(),
-                    createWikidataNoteTemplate(),
                     createFieldPreviewTemplate(),
                 ],
             ),
@@ -64,24 +64,18 @@ function createProseLengthTemplate() {
  */
 function createCompactFieldTemplate() {
     return createElement(
-        "div",
+        "cdx-field",
         {
-            class: "create-vg-stub-field-row",
+            "v-bind:is-fieldset": "!!field.sourceField",
             "v-if": "field.compact",
         },
         [
-            createFieldSeparatorTemplate("compact"),
-            createElement(
-                "div",
-                {
-                    class: "create-vg-stub-field-label",
-                },
-                [createText("{{ field.heading || field.label }}")],
-            ),
             createElement(
                 "div",
                 {
                     class: "create-vg-stub-field-controls",
+                    "v-bind:class":
+                        "{ 'create-vg-stub-field-controls--with-source': field.sourceField }",
                 },
                 [
                     createElement("cdx-text-input", {
@@ -107,6 +101,13 @@ function createCompactFieldTemplate() {
                     ),
                 ],
             ),
+            createElement(
+                "template",
+                {
+                    "v-slot:label": "",
+                },
+                [createText("{{ field.heading || field.label }}")],
+            ),
         ],
     );
 }
@@ -117,25 +118,15 @@ function createCompactFieldTemplate() {
  * @returns {object} Standard article field template node.
  */
 function createStandardFieldTemplate() {
-    return createElement(
-        "div",
-        {
-            class: "create-vg-stub-field-row",
-            "v-else-if": "!field.compact",
-        },
+    return createFieldTemplate(
+        "field.label",
         [
-            createFieldSeparatorTemplate(),
-            createElement(
-                "div",
-                {
-                    class: "create-vg-stub-field-label",
-                },
-                [createText("{{ field.label }}")],
-            ),
             createElement(
                 "div",
                 {
                     class: "create-vg-stub-field-controls",
+                    "v-bind:class":
+                        "{ 'create-vg-stub-field-controls--with-source': field.sourceField }",
                 },
                 [
                     createElement(
@@ -191,90 +182,77 @@ function createStandardFieldTemplate() {
                 ],
             ),
         ],
-    );
-}
-
-/**
- * Creates the Wikidata note template node after the Enwiki title field.
- *
- * @returns {object} Wikidata note template node.
- */
-function createWikidataNoteTemplate() {
-    return createElement(
-        "div",
         {
-            class:
-                "create-vg-stub-wikitext-preview " +
-                "create-vg-stub-field-note create-vg-stub-horizontal-list",
-            "v-if": "field.key === 'enwikiTitle'",
+            attributes: {
+                "v-bind:is-fieldset": "!!field.sourceField",
+                "v-else-if": "!field.compact",
+            },
+            bindLabel: true,
+            helpText: createEnwikiHelpTextTemplate(),
+            helpTextCondition: "field.key === 'enwikiTitle'",
         },
-        [
-            createElement(
-                "template",
-                {
-                    "v-if": "getEnwikiTipLinks().length",
-                },
-                [
-                    createElement(
-                        "span",
-                        {
-                            class: "create-vg-stub-horizontal-list-item",
-                            "v-bind:key": "link.label",
-                            "v-for": "link in getEnwikiTipLinks()",
-                        },
-                        [
-                            createElement("strong", {}, [
-                                createText("{{ link.label }}"),
-                            ]),
-                            createText(" "),
-                            createElement(
-                                "a",
-                                {
-                                    "v-if": "link.url",
-                                    "v-bind:href": "link.url",
-                                    rel: "noopener noreferrer",
-                                    target: "_blank",
-                                },
-                                [createText("{{ link.value }}")],
-                            ),
-                            createElement(
-                                "span",
-                                {
-                                    "v-else": "",
-                                },
-                                [createText("{{ link.value }}")],
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-else": "",
-                },
-                [createText("Wikidata: {{ getWikidataText() }}")],
-            ),
-        ],
     );
 }
 
 /**
- * Creates a field separator template node.
+ * Creates the English Wikipedia field help text.
  *
- * @param {string} [variant] - Separator display variant.
- * @returns {object} Field separator template node.
+ * @returns {Array<object|string>} English Wikipedia help text nodes.
  */
-function createFieldSeparatorTemplate(variant) {
-    return createElement("hr", {
-        class: [
-            "create-vg-stub-field-separator",
-            variant === "compact"
-                ? "create-vg-stub-field-separator-compact"
-                : "",
-        ]
-            .filter(Boolean)
-            .join(" "),
-        "v-if": "field.breakBefore",
-    });
+function createEnwikiHelpTextTemplate() {
+    return [
+        createElement(
+            "template",
+            {
+                "v-if": "getEnwikiTipLinks().length",
+            },
+            [
+                createElement(
+                    "span",
+                    {
+                        class:
+                            "create-vg-stub-enwiki-help " +
+                            "create-vg-stub-horizontal-list",
+                    },
+                    [
+                        createElement(
+                            "span",
+                            {
+                                class: "create-vg-stub-horizontal-list-item",
+                                "v-bind:key": "link.label",
+                                "v-for": "link in getEnwikiTipLinks()",
+                            },
+                            [
+                                createText("{{ link.label }} "),
+                                createElement(
+                                    "a",
+                                    {
+                                        "v-if": "link.url",
+                                        "v-bind:href": "link.url",
+                                        rel: "noopener noreferrer",
+                                        target: "_blank",
+                                    },
+                                    [createText("{{ link.value }}")],
+                                ),
+                                createElement(
+                                    "span",
+                                    {
+                                        "v-else": "",
+                                    },
+                                    [createText("{{ link.value }}")],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        createElement(
+            "template",
+            {
+                "v-else": "",
+            },
+            [createText("Wikidata: {{ getWikidataText() }}")],
+        ),
+    ];
 }

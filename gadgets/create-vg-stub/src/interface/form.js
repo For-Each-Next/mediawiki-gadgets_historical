@@ -89,8 +89,8 @@ export class StyleSheet {
 
 const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-dialog.cdx-dialog", {
-        maxWidth: "min(96vw, 60em)",
-        width: "min(96vw, 60em)",
+        maxWidth: "min(96vw, 76em)",
+        width: "min(96vw, 76em)",
     })
     .add(".create-vg-stub-category-view-dialog.cdx-dialog", {
         maxWidth: "min(96vw, 60em)",
@@ -105,59 +105,76 @@ const DIALOG_CSS = new StyleSheet()
         height: "70vh",
         width: "100%",
     })
-    .add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
-        alignItems: "center",
-        display: "grid",
-        gap: "0.75em",
-    })
-    .add(".create-vg-stub-field-row", {
-        gridTemplateColumns: "5.75em minmax(0, 1fr)",
-        marginBottom: "0.75em",
-    })
-    .add(".create-vg-stub-field-separator", {
-        border: "0",
-        borderTop: "1px solid var(--border-color-subtle, #eaecf0)",
-        gridColumn: "1 / -1",
-        margin: "1em 0",
-    })
-    .add(".create-vg-stub-field-separator-compact", {
-        margin: "1em 0 0.75em",
-    })
-    .add(".create-vg-stub-name-row", {
-        borderBottom: "1px solid var(--border-color-subtle, #eaecf0)",
-        gridTemplateColumns: "minmax(0, 1fr)",
+    .add(".create-vg-stub-dialog .cdx-field", {
         marginBottom: "1em",
-        paddingBottom: "1em",
     })
-    .add(".create-vg-stub-field-label", {
-        fontWeight: "600",
-        lineHeight: "1.35",
-        overflowWrap: "anywhere",
+    .add(".create-vg-stub-dialog section", {
+        marginBottom: "2em",
     })
-    .add([".create-vg-stub-field-controls", ".create-vg-stub-name-controls"], {
+    .add(".create-vg-stub-dialog table", {
+        margin: "1em 0",
+        width: "100%",
+    })
+    .add(".create-vg-stub-dialog th", {
+        whiteSpace: "nowrap",
+    })
+    .add(".create-vg-stub-field-controls", {
         display: "grid",
-        gap: "0",
+        gap: "0.5em",
         minWidth: "0",
+    })
+    .add(".create-vg-stub-field-controls--with-source", {
+        alignItems: "start",
+        display: "flex",
+        flexWrap: "wrap",
+    })
+    .add(".create-vg-stub-field-controls--with-source > .cdx-field", {
+        marginBottom: "0",
+    })
+    .add(
+        [
+            ".create-vg-stub-field-controls--with-source > :not(.create-vg-stub-source-url):not(.create-vg-stub-source-field)",
+        ],
+        {
+            flex: "999 1 360px",
+            minWidth: "min(100%, 360px)",
+        },
+    )
+    .add(
+        [
+            ".create-vg-stub-field-controls--with-source > .create-vg-stub-source-url",
+            ".create-vg-stub-field-controls--with-source > .create-vg-stub-source-field",
+        ],
+        {
+            flex: "1 0 240px",
+            maxWidth: "100%",
+            minWidth: "min(100%, 240px)",
+        },
+    )
+    .media("(max-width: 40em)", (sheet) => {
+        sheet.add(
+            [
+                ".create-vg-stub-field-controls--with-source > .create-vg-stub-source-url",
+                ".create-vg-stub-field-controls--with-source > .create-vg-stub-source-field",
+            ],
+            {
+                flexBasis: "100%",
+            },
+        );
     })
     .add(".create-vg-stub-steam-helper", {
         display: "grid",
-        gap: "0.5em",
+        gap: "0.75em",
         gridTemplateColumns: "minmax(0, 1fr) auto",
-        marginBottom: "1em",
+        marginBottom: "1.25em",
     })
     .add(".create-vg-stub-steam-actions", {
         gridColumn: "1 / -1",
     })
     .add(".create-vg-stub-steam-suggestion", {
         color: "var(--color-subtle, #54595d)",
-        fontSize: "0.75em",
         gridColumn: "1 / -1",
         overflowWrap: "anywhere",
-    })
-    .add(".create-vg-stub-name-market-separator", {
-        alignSelf: "center",
-        borderLeft: "1px solid var(--border-color-base, #a2a9b1)",
-        height: "1.5em",
     })
     .add(".create-vg-stub-horizontal-list", {
         display: "flex",
@@ -167,15 +184,32 @@ const DIALOG_CSS = new StyleSheet()
         content: '" · "',
         whiteSpace: "pre",
     })
+    .add(".create-vg-stub-name-settings-row", {
+        alignItems: "center",
+        display: "flex",
+        flexWrap: "nowrap",
+        gap: "0.75em 1em",
+        marginBottom: "0.5em",
+        overflowX: "auto",
+        whiteSpace: "nowrap",
+    })
+    .add(".create-vg-stub-name-settings-row > .cdx-checkbox", {
+        flex: "0 0 auto",
+        marginBottom: "0",
+        marginTop: "0",
+    })
+    .add(".create-vg-stub-name-official-checkbox", {
+        marginRight: "1.5em",
+    })
     .add(
         [
             ".create-vg-stub-source-url textarea",
             "textarea.create-vg-stub-source-url",
         ],
         {
-            fontSize: "0.75em",
-            height: "2.67em",
-            minHeight: "2.67em",
+            fontSize: "0.875em",
+            lineHeight: "1.4",
+            minHeight: "2.25em",
             resize: "vertical",
         },
     )
@@ -188,7 +222,7 @@ const DIALOG_CSS = new StyleSheet()
         overflowWrap: "anywhere",
     })
     .add(".create-vg-stub-field-note", {
-        margin: "-0.5em 0 0.75em",
+        margin: "0.25em 0 1em",
     })
     .add(
         [
@@ -220,31 +254,8 @@ const DIALOG_CSS = new StyleSheet()
                 maxHeight: "60vh",
             });
     })
-    .add(".create-vg-stub-category-grid", {
-        display: "grid",
-        gap: "0.25em",
-        gridTemplateColumns:
-            "auto minmax(4.2em, 6em) minmax(12em, 1.6fr) auto auto",
-        marginBottom: "0.75em",
-    })
-    .add(".create-vg-stub-category-status", {
-        alignItems: "center",
-        alignSelf: "center",
-        background: "var(--background-color-neutral-subtle, #f8f9fa)",
-        border: "1px solid var(--border-color-base, #a2a9b1)",
-        borderRadius: "2px",
-        color: "var(--color-base, #202122)",
-        display: "inline-flex",
-        fontSize: "0.875em",
-        fontWeight: "600",
-        height: "2em",
-        justifyContent: "center",
-        lineHeight: "1",
-        minWidth: "2em",
-        padding: "0 0.43em",
-    })
-    .add(".create-vg-stub-review-title-cell", {
-        minWidth: "0",
+    .add(".create-vg-stub-destructive-action", {
+        color: "var(--color-destructive, #d73333)",
     })
     .add(".create-vg-stub-company-category-text textarea", {
         fontFamily: "monospace",
@@ -280,59 +291,14 @@ const DIALOG_CSS = new StyleSheet()
     })
     .add(".create-vg-stub-prose-length", {
         color: "var(--color-subtle, #54595d)",
-        fontSize: "0.75em",
-        margin: "0.25em 0 0.75em",
-    })
-    .add(".create-vg-stub-navbox-grid", {
-        display: "grid",
-        gap: "0.25em",
-        gridTemplateColumns:
-            "auto minmax(4.2em, 0.35fr) minmax(12em, 1.6fr) auto auto",
-        marginBottom: "0.75em",
-    })
-    .add(".create-vg-stub-redirect-grid", {
-        display: "grid",
-        gap: "0.25em",
-        gridTemplateColumns:
-            "auto minmax(4.2em, 0.35fr) minmax(12em, 1.6fr) auto auto",
-        marginBottom: "0.75em",
-    })
-    .add(".create-vg-stub-stub-tag-grid", {
-        display: "grid",
-        gap: "0.25em",
-        gridTemplateColumns:
-            "auto minmax(4.2em, 6em) minmax(12em, 1.6fr) auto",
-        marginBottom: "0.75em",
-    })
-    .add(".create-vg-stub-noteta-grid", {
-        display: "grid",
-        gap: "0.25em",
-        gridTemplateColumns: "minmax(4.2em, 7em) minmax(12em, 1fr) auto",
-        marginBottom: "0.75em",
+        margin: "0.5em 0 1em",
     })
     .add(".create-vg-stub-citation", {
         borderBottom: "1px solid var(--border-color-subtle, #eaecf0)",
-        marginBottom: "1em",
-        paddingBottom: "1em",
-    })
-    .add(".create-vg-stub-citation-grid", {
-        display: "grid",
-        gap: "0.25em",
-        gridTemplateColumns: "minmax(5em, 10em) minmax(12em, 1fr) auto",
-        marginBottom: "0.75em",
-    })
-    .add(".create-vg-stub-citation-actions", {
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "0.5em",
-    })
-    .add(".create-vg-stub-review-action", {
-        width: "5em",
+        margin: "1.25em 0",
+        paddingBottom: "1.25em",
     })
     .media("(max-width: 40em)", (sheet) => {
-        sheet.add([".create-vg-stub-field-row", ".create-vg-stub-name-row"], {
-            gridTemplateColumns: "1fr",
-        });
         sheet.add(".create-vg-stub-steam-helper", {
             gridTemplateColumns: "1fr",
         });
@@ -385,6 +351,7 @@ class ArticleParameterGroup {
     constructor(key, label, fields, nameGroupKey, options = {}) {
         this.categoryReview = Boolean(options.categoryReview);
         this.citationReview = Boolean(options.citationReview);
+        this.description = options.description || "";
         this.fields = fields;
         this.key = key;
         this.label = label;
@@ -452,130 +419,224 @@ const STEAM_NAME_BUTTONS = STEAM_NAME_CHOICES.map((choice) => ({
 }));
 const NOTE_TA_NAMES_SOURCE = "names";
 const CODEMIRROR_MODULES = ["ext.CodeMirror", "ext.CodeMirror.mode.mediawiki"];
+const CATEGORY_TABLE_COLUMNS = [
+    { id: "enabled", label: "Include" },
+    { id: "source", label: "Source" },
+    { id: "category", label: "Category" },
+    { id: "page", label: "Page" },
+    { id: "actions", label: "Actions" },
+];
+const CITATION_TABLE_COLUMNS = [
+    { id: "name", label: "Parameter" },
+    { id: "value", label: "Value" },
+    { id: "actions", label: "Actions" },
+];
+const NAVBOX_TABLE_COLUMNS = [
+    { id: "enabled", label: "Include" },
+    { id: "status", label: "Status" },
+    { id: "text", label: "Navbox" },
+    { id: "page", label: "Page" },
+    { id: "actions", label: "Actions" },
+];
+const NOTETA_TABLE_COLUMNS = [
+    { id: "key", label: "Rule" },
+    { id: "value", label: "Conversion" },
+    { id: "actions", label: "Actions" },
+];
+const REDIRECT_TABLE_COLUMNS = [
+    { id: "enabled", label: "Include" },
+    { id: "status", label: "Status" },
+    { id: "title", label: "Redirect" },
+    { id: "page", label: "Page" },
+    { id: "actions", label: "Actions" },
+];
+const STUB_TAG_TABLE_COLUMNS = [
+    { id: "enabled", label: "Include" },
+    { id: "type", label: "Type" },
+    { id: "stubTag", label: "Template" },
+    { id: "page", label: "Page" },
+    { id: "actions", label: "Actions" },
+];
+const TABLE_ACTION_ICONS = {
+    cdxIconArticleAdd: {
+        path: "M3 3h8l4 4v2h-2V8h-3V5H5v12h5v2H3zm12 8h2v3h3v2h-3v3h-2v-3h-3v-2h3z",
+    },
+    cdxIconEdit: {
+        path: "M14.7 2.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L7 16H3v-4zM5 12.8V14h1.2l8.4-8.4-1.2-1.2z",
+    },
+    regenerate: {
+        path: "M10 3a7 7 0 0 1 6.2 3.8L18 5v5h-5l1.8-1.8A5 5 0 1 0 15 12h2a7 7 0 1 1-7-9z",
+    },
+    reload: {
+        path: "M10 3a7 7 0 0 1 6.2 3.8L18 5v5h-5l1.8-1.8A5 5 0 1 0 15 12h2a7 7 0 1 1-7-9z",
+    },
+    remove: {
+        path: "M6 7h2v9H6zm6 0h2v9h-2zM5 4h10l-1-2H6zm-2 1h14v2H3zm2 3h10l-1 10H6z",
+    },
+    sort: {
+        path: "M6 3h8v2H6zm-3 5h14v2H3zm3 5h8v2H6z",
+    },
+};
 const ARTICLE_PARAMETER_GROUPS = [
-    new ArticleParameterGroup("titles", "Titles", [
-        new ArticleParameterField(
-            "enwikiTitle",
-            "Enwiki",
-            "enwikiTitle",
-            null,
-            {
-                placeholder: "Page title in English Wikipedia",
-            },
-        ),
-        new ArticleParameterField("name", "Main title", "name", null, {
-            breakBefore: true,
-            placeholder: "Leave blank to use the page title in article text",
-        }),
-        new ArticleParameterField(
-            "originalName",
-            "Original title",
-            "originalName",
-            getSourceReferenceField("originalName"),
-            {
-                placeholder: "ja:タイトル or en:Title",
-            },
-        ),
-        new ArticleParameterField(
-            "englishName",
-            "English title",
-            "englishName",
-            getSourceReferenceField("englishName"),
-            {
-                placeholder: "Localized title",
-                previewKey: "names",
-            },
-        ),
-        new ArticleParameterField("sortKey", "Sort key", "sortKey", null, {
-            placeholder: "Leave blank to use the generated value",
-        }),
-        new ArticleParameterField(
-            "metacriticScore",
-            "Score",
-            "scores.metacriticScore",
-            getSourceReferenceField("metacriticScore"),
-            {
-                breakBefore: true,
-                compact: true,
-                heading: "MC score",
-                placeholder: "ps4:95 or 95",
-            },
-        ),
-        new ArticleParameterField(
-            "openCriticRecommend",
-            "Critics Recommend",
-            "scores.openCriticRecommend",
-            getSourceReferenceField("openCriticRecommend"),
-            {
-                compact: true,
-                heading: "OC score",
-                placeholder: "Recommend rate",
-                previewKey: "score",
-            },
-        ),
-    ]),
-    new ArticleParameterGroup("attribution", "Metadata", [
-        new ArticleParameterField(
-            "developers",
-            "Dev",
-            "companies.developers",
-            getSourceReferenceField("developers"),
-            {
-                placeholder: "Names",
-            },
-        ),
-        new ArticleParameterField(
-            "publishers",
-            "Pub",
-            "companies.publishers",
-            getSourceReferenceField("publishers"),
-            {
-                placeholder: "Names",
-            },
-        ),
-        new ArticleParameterField(
-            "series",
-            "Series",
-            "series",
-            getSourceReferenceField("series"),
-            {
-                placeholder: "Title",
-            },
-        ),
-        new ArticleParameterField(
-            "platforms",
-            "Plat",
-            "platforms",
-            getSourceReferenceField("platforms"),
-            {
-                placeholder: "Names",
-            },
-        ),
-        new ArticleParameterField(
-            "year",
-            "Year",
-            "year",
-            getSourceReferenceField("year"),
-            {
-                placeholder: "YYYY",
-            },
-        ),
-        new ArticleParameterField(
-            "genres",
-            "Genre",
-            "genres",
-            getSourceReferenceField("genres"),
-            {
-                placeholder: "Names",
-                previewKey: "attribution",
-            },
-        ),
-    ]),
+    new ArticleParameterGroup(
+        "titles",
+        "Titles",
+        [
+            new ArticleParameterField(
+                "enwikiTitle",
+                "English Wikipedia page",
+                "enwikiTitle",
+                null,
+                {
+                    placeholder: "Page title in English Wikipedia",
+                },
+            ),
+            new ArticleParameterField(
+                "name",
+                "Article display title",
+                "name",
+                null,
+                {
+                    breakBefore: true,
+                    placeholder:
+                        "Leave blank to use the page title in article text",
+                },
+            ),
+            new ArticleParameterField(
+                "originalName",
+                "Original-language title",
+                "originalName",
+                getSourceReferenceField("originalName"),
+                {
+                    placeholder: "ja:タイトル or en:Title",
+                },
+            ),
+            new ArticleParameterField(
+                "englishName",
+                "English localized title",
+                "englishName",
+                getSourceReferenceField("englishName"),
+                {
+                    placeholder: "Localized title",
+                    previewKey: "names",
+                },
+            ),
+            new ArticleParameterField(
+                "sortKey",
+                "Default sort key",
+                "sortKey",
+                null,
+                {
+                    placeholder: "Leave blank to use the generated value",
+                },
+            ),
+            new ArticleParameterField(
+                "metacriticScore",
+                "Metacritic score",
+                "scores.metacriticScore",
+                getSourceReferenceField("metacriticScore"),
+                {
+                    breakBefore: true,
+                    compact: true,
+                    heading: "Metacritic score",
+                    placeholder: "ps4:95 or 95",
+                },
+            ),
+            new ArticleParameterField(
+                "openCriticRecommend",
+                "OpenCritic recommendation",
+                "scores.openCriticRecommend",
+                getSourceReferenceField("openCriticRecommend"),
+                {
+                    compact: true,
+                    heading: "OpenCritic recommendation",
+                    placeholder: "Recommend rate",
+                    previewKey: "score",
+                },
+            ),
+        ],
+        null,
+        {
+            description:
+                "Start with the article identity, source-backed localized titles, sorting, and optional review-score facts.",
+        },
+    ),
+    new ArticleParameterGroup(
+        "attribution",
+        "Metadata",
+        [
+            new ArticleParameterField(
+                "developers",
+                "Developers",
+                "companies.developers",
+                getSourceReferenceField("developers"),
+                {
+                    placeholder: "Names",
+                },
+            ),
+            new ArticleParameterField(
+                "publishers",
+                "Publishers",
+                "companies.publishers",
+                getSourceReferenceField("publishers"),
+                {
+                    placeholder: "Names",
+                },
+            ),
+            new ArticleParameterField(
+                "series",
+                "Series",
+                "series",
+                getSourceReferenceField("series"),
+                {
+                    placeholder: "Title",
+                },
+            ),
+            new ArticleParameterField(
+                "platforms",
+                "Platforms",
+                "platforms",
+                getSourceReferenceField("platforms"),
+                {
+                    placeholder: "Names",
+                },
+            ),
+            new ArticleParameterField(
+                "year",
+                "Release year",
+                "year",
+                getSourceReferenceField("year"),
+                {
+                    placeholder: "YYYY",
+                },
+            ),
+            new ArticleParameterField(
+                "genres",
+                "Genres",
+                "genres",
+                getSourceReferenceField("genres"),
+                {
+                    placeholder: "Names",
+                    previewKey: "attribution",
+                },
+            ),
+        ],
+        null,
+        {
+            description:
+                "Add the core infobox facts used to generate categories, prose, and source-backed references.",
+        },
+    ),
     new ArticleParameterGroup(
         "localizedNames",
         "Localized names",
         [],
         "localizedNames",
+        {
+            description:
+                "Collect official Chinese and regional titles, with optional Steam-assisted suggestions.",
+            noteTaReview: true,
+        },
     ),
     new ArticleParameterGroup(
         "prose",
@@ -594,14 +655,19 @@ const ARTICLE_PARAMETER_GROUPS = [
         ],
         null,
         {
-            noteTaReview: true,
+            description:
+                "Review the generated lead and add any source-backed sentences that should follow it.",
         },
     ),
     new ArticleParameterGroup("references", "References", [], null, {
         citationReview: true,
+        description:
+            "Normalize citation parameters for every source URL entered in the article fields.",
     }),
     new ArticleParameterGroup("review", "Checks", [], null, {
         categoryReview: true,
+        description:
+            "Confirm follow-up pages, redirects, categories, navboxes, and stub tags before saving.",
     }),
 ];
 
@@ -1207,10 +1273,15 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             normalizeFieldValue(field) {
+                const value =
+                    field.key === "enwikiTitle"
+                        ? normalizeEnwikiTitleValue(form[field.key])
+                        : form[field.key];
+
                 form[field.key] = formatArticleFormField(
                     form,
                     field.key,
-                    form[field.key],
+                    value,
                 );
             },
 
@@ -1233,10 +1304,15 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             updateFieldValue(field, value) {
+                const normalizedValue =
+                    field.key === "enwikiTitle"
+                        ? normalizeEnwikiTitleValue(value)
+                        : value;
+
                 form[field.key] = formatArticleFormField(
                     form,
                     field.key,
-                    value,
+                    normalizedValue,
                 );
 
                 if (field.key === "enwikiTitle") {
@@ -1393,13 +1469,31 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             normalizePastedFieldValue(field, event) {
-                if (!isArticleListField(field.key)) {
-                    return;
-                }
-
                 const clipboardData =
                     event.clipboardData || event.originalEvent.clipboardData;
                 const text = clipboardData.getData("text");
+
+                if (field.key === "enwikiTitle") {
+                    const title = extractEnwikiTitleFromUrl(text);
+
+                    if (title === "") {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    form[field.key] = formatArticleFormField(
+                        form,
+                        field.key,
+                        title,
+                    );
+                    refreshEnwikiMetadata();
+                    markCategoryRowsUnfixed(form.categoryRows);
+                    return;
+                }
+
+                if (!isArticleListField(field.key)) {
+                    return;
+                }
 
                 if (!hasFirstLevelFieldSeparator(text)) {
                     return;
@@ -1426,6 +1520,7 @@ export function createDialogComponent(Vue, options) {
                 form[key][index][field] = trimFieldValue(
                     form[key][index][field],
                 );
+                ensureTrailingNameRow(form[key]);
                 syncGeneratedNameNoteTaRow(form);
             },
 
@@ -1440,6 +1535,42 @@ export function createDialogComponent(Vue, options) {
              */
             updateNameRowValue(key, index, field, value) {
                 form[key][index][field] = trimFieldValue(value);
+                ensureTrailingNameRow(form[key]);
+                syncGeneratedNameNoteTaRow(form);
+            },
+
+            /**
+             * Updates whether a localized name row is official.
+             *
+             * @param {string} key - Localized name group key.
+             * @param {number} index - Row index.
+             * @param {boolean} value - Whether the row is official.
+             * @returns {void}
+             */
+            updateNameOfficial(key, index, value) {
+                form[key][index].official = Boolean(value);
+                ensureTrailingNameRow(form[key]);
+                syncGeneratedNameNoteTaRow(form);
+            },
+
+            /**
+             * Updates one localized name row region.
+             *
+             * @param {string} key - Localized name group key.
+             * @param {number} index - Row index.
+             * @param {string} market - Region key.
+             * @param {boolean} value - Whether the region is selected.
+             * @returns {void}
+             */
+            updateNameMarket(key, index, market, value) {
+                const row = form[key][index];
+
+                if (row == null) {
+                    return;
+                }
+
+                row[market] = Boolean(value);
+                ensureTrailingNameRow(form[key]);
                 syncGeneratedNameNoteTaRow(form);
             },
 
@@ -1451,6 +1582,19 @@ export function createDialogComponent(Vue, options) {
              */
             addNameRow(key) {
                 form[key].push(createNameRow());
+            },
+
+            /**
+             * Removes one localized name row.
+             *
+             * @param {string} key - Localized name group key.
+             * @param {number} index - Row index.
+             * @returns {void}
+             */
+            removeNameRow(key, index) {
+                form[key].splice(index, 1);
+                ensureTrailingNameRow(form[key]);
+                syncGeneratedNameNoteTaRow(form);
             },
 
             /**
@@ -1532,7 +1676,7 @@ export function createDialogComponent(Vue, options) {
              * @returns {void}
              */
             clearNameRows(key) {
-                form[key] = [];
+                form[key] = [createNameRow()];
                 syncGeneratedNameNoteTaRow(form);
             },
 
@@ -2154,6 +2298,60 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Gets a category page URL for a review row.
+             *
+             * @param {object} row - Category review row.
+             * @returns {string} Category page URL.
+             */
+            getCategoryPageUrl(row) {
+                const category = trimFieldValue(row?.category);
+
+                return category === ""
+                    ? ""
+                    : options.getPageUrl(`Category:${category}`);
+            },
+
+            /**
+             * Gets a redirect page URL for a review row.
+             *
+             * @param {object} row - Redirect review row.
+             * @returns {string} Redirect page URL.
+             */
+            getRedirectPageUrl(row) {
+                const title = trimFieldValue(row?.title);
+
+                return title === "" ? "" : options.getPageUrl(title);
+            },
+
+            /**
+             * Gets a navbox template page URL for a review row.
+             *
+             * @param {object} row - Navbox review row.
+             * @returns {string} Navbox template page URL.
+             */
+            getNavboxPageUrl(row) {
+                const title = trimFieldValue(row?.title);
+
+                return title === ""
+                    ? ""
+                    : options.getPageUrl(`Template:${title}`);
+            },
+
+            /**
+             * Gets a stub template page URL for a review row.
+             *
+             * @param {object} row - Stub-tag review row.
+             * @returns {string} Stub template page URL.
+             */
+            getStubTagPageUrl(row) {
+                const stubTag = trimStubTagValue(row?.stubTag);
+
+                return stubTag === ""
+                    ? ""
+                    : options.getPageUrl(`Template:${stubTag}`);
+            },
+
+            /**
              * Formats a navbox existence status as a compact badge.
              *
              * @param {string} status - Navbox existence status.
@@ -2183,18 +2381,6 @@ export function createDialogComponent(Vue, options) {
                         Missing: "New",
                     }[status] || "Unchecked"
                 );
-            },
-
-            /**
-             * Opens an existing redirect page in the viewer dialog.
-             *
-             * @param {object} row - Redirect review row.
-             * @returns {void}
-             */
-            openRedirectView(row) {
-                const title = trimFieldValue(row.title);
-
-                openPageView(title, options.getPageUrl(title));
             },
 
             /**
@@ -2229,6 +2415,8 @@ export function createDialogComponent(Vue, options) {
                 pageEditOpen,
                 pageEditState,
                 pageEditTextArea,
+                categoryTableColumns: CATEGORY_TABLE_COLUMNS,
+                citationTableColumns: CITATION_TABLE_COLUMNS,
                 citationState,
                 companyCategoryOpen,
                 companyCategoryLookupLoading,
@@ -2237,7 +2425,7 @@ export function createDialogComponent(Vue, options) {
                 form,
                 fetchedSteamNameRows,
                 getSteamNameSuggestions,
-                getCitationParamRows,
+                getCitationParamTableRows,
                 getArticleField,
                 getArticlePreviewTitle,
                 getFieldPlaceholder: options.getFieldPlaceholder.bind(
@@ -2256,8 +2444,11 @@ export function createDialogComponent(Vue, options) {
                 moveOpen,
                 moveTarget,
                 nameMarkets: NAME_MARKETS,
+                navboxTableColumns: NAVBOX_TABLE_COLUMNS,
+                notetaTableColumns: NOTETA_TABLE_COLUMNS,
                 open,
                 reviewState,
+                redirectTableColumns: REDIRECT_TABLE_COLUMNS,
                 preSaveMoveEnabled,
                 preSaveMoveTitle,
                 preSaveOpen,
@@ -2272,6 +2463,8 @@ export function createDialogComponent(Vue, options) {
                 sourceFetchState,
                 steamNameButtons: STEAM_NAME_BUTTONS,
                 steamUrl,
+                tableActionIcons: TABLE_ACTION_ICONS,
+                stubTagTableColumns: STUB_TAG_TABLE_COLUMNS,
                 stubTagRows,
             };
         },
@@ -4512,6 +4705,37 @@ function fillNameRow(rows, values) {
 }
 
 /**
+ * Ensures localized name rows end with a blank row.
+ *
+ * @param {Array<object>} rows - Localized name rows.
+ * @returns {void}
+ */
+function ensureTrailingNameRow(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) {
+        rows.push(createNameRow());
+        return;
+    }
+
+    if (hasAnyNameRowValue(rows[rows.length - 1])) {
+        rows.push(createNameRow());
+    }
+}
+
+/**
+ * Checks whether a localized name row has any edited value.
+ *
+ * @param {object} row - Localized name row.
+ * @returns {boolean} Whether the row has any user-facing value.
+ */
+function hasAnyNameRowValue(row) {
+    return (
+        hasEnteredNameRowValue(row) ||
+        Boolean(row.official) ||
+        getNameRowSelectedMarkets(row).length > 0
+    );
+}
+
+/**
  * Checks whether a localized name row has entered text.
  *
  * @param {object} row - Localized name row.
@@ -4644,6 +4868,53 @@ function createEnwikiTipPlaceholders(value) {
         value,
         url: "",
     }));
+}
+
+/**
+ * Normalizes an English Wikipedia field value.
+ *
+ * @param {*} value - Raw field value.
+ * @returns {string} Normalized title or trimmed value.
+ */
+function normalizeEnwikiTitleValue(value) {
+    return extractEnwikiTitleFromUrl(value) || trimFieldValue(value);
+}
+
+/**
+ * Extracts an English Wikipedia title from a pasted URL.
+ *
+ * @param {*} value - Raw pasted value.
+ * @returns {string} English Wikipedia page title, or an empty string.
+ */
+function extractEnwikiTitleFromUrl(value) {
+    const text = trimFieldValue(value);
+
+    if (text === "") {
+        return "";
+    }
+
+    try {
+        const url = new URL(text);
+        const host = url.hostname.toLowerCase();
+
+        if (host !== "en.wikipedia.org" && host !== "en.m.wikipedia.org") {
+            return "";
+        }
+
+        const prefix = "/wiki/";
+
+        if (!url.pathname.startsWith(prefix)) {
+            return "";
+        }
+
+        const title = decodeURIComponent(url.pathname.slice(prefix.length))
+            .replace(/_/gu, " ")
+            .trim();
+
+        return title;
+    } catch (error) {
+        return "";
+    }
 }
 
 /**
@@ -5416,6 +5687,19 @@ function sortManagedCitationParams(params = []) {
  */
 function getCitationParamRows(citation) {
     return [...(citation.params || []), createCitationParamRow()];
+}
+
+/**
+ * Gets visible citation parameter rows for Codex Table.
+ *
+ * @param {object} citation - Managed citation row.
+ * @returns {Array<object>} Visible parameter table rows.
+ */
+function getCitationParamTableRows(citation) {
+    return getCitationParamRows(citation).map((param, index) => ({
+        index,
+        param,
+    }));
 }
 
 /**

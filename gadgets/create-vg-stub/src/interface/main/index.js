@@ -1,6 +1,6 @@
 /* eslint-disable */
 
-import { createElement } from "../template.js";
+import { createElement, createText } from "../template.js";
 import { createFieldGroupTemplate } from "./article-fields.js";
 import { createCitationGroupTemplate } from "./citations.js";
 import { createNameGroupTemplate } from "./localized-names.js";
@@ -28,6 +28,14 @@ export function createTabsTemplate() {
                     "v-for": "group in groups",
                 },
                 [
+                    createElement(
+                        "p",
+                        {
+                            class: "create-vg-stub-tab-description",
+                            "v-if": "group.description",
+                        },
+                        [createText("{{ group.description }}")],
+                    ),
                     createFieldGroupTemplate(),
                     createNameGroupTemplate(),
                     createNoteTaGroupTemplate(),

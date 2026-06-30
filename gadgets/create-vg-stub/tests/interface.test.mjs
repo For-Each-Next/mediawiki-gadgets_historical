@@ -90,6 +90,26 @@ test("opening the tool activates submit handling", () => {
     assert.equal(open.value, true);
 });
 
+test("main dialog title includes the current page title", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            currentTitle: "Example Game",
+        }),
+    );
+
+    component.setup();
+
+    assert.equal(
+        component.template.includes('v-bind:title="getDialogTitle()"'),
+        true,
+    );
+    assert.equal(
+        component.methods.getDialogTitle(),
+        "Create a stub for Example Game",
+    );
+});
+
 test("history JSON can be copied, edited, and imported", async () => {
     const entry = {
         data: {

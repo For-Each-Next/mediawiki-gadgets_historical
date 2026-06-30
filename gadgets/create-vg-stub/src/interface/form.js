@@ -858,6 +858,15 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Gets the main dialog title.
+             *
+             * @returns {string} Main dialog title.
+             */
+            getDialogTitle() {
+                return `Create a stub for ${getCurrentTitle()}`;
+            },
+
+            /**
              * Clears all form and helper data across every tab.
              *
              * @returns {void}
@@ -3802,7 +3811,7 @@ function createDialogTemplateRoot() {
         {
             class: "create-vg-stub-dialog",
             "v-model:open": "open",
-            title: "Create a video game stub article",
+            "v-bind:title": "getDialogTitle()",
         },
         [
             createTabsTemplate(),

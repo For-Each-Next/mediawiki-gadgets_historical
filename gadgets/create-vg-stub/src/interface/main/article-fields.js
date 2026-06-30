@@ -4,6 +4,7 @@ import {
     createElement,
     createFieldTemplate,
     createFieldPreviewTemplate,
+    createPreviewCardTemplate,
     createSourceUrlInputTemplate,
     createText,
 } from "../template.js";
@@ -17,7 +18,7 @@ export function createFieldGroupTemplate() {
     return createElement(
         "template",
         {
-            "v-if": "!group.nameGroupKey",
+            "v-if": "group.fields.length",
         },
         [
             createElement(
@@ -33,6 +34,8 @@ export function createFieldGroupTemplate() {
                 ],
             ),
             createProseLengthTemplate(),
+            createMetadataPreviewTemplate(),
+            createFullTextPreviewTemplate(),
         ],
     );
 }
@@ -47,7 +50,7 @@ function createProseLengthTemplate() {
         "p",
         {
             class: "create-vg-stub-prose-length",
-            "v-if": "group.key === 'prose'",
+            "v-if": "group.fullTextReview",
         },
         [
             createText(
@@ -55,6 +58,32 @@ function createProseLengthTemplate() {
             ),
         ],
     );
+}
+
+/**
+ * Creates the metadata wikitext preview card.
+ *
+ * @returns {object} Metadata preview card node.
+ */
+function createMetadataPreviewTemplate() {
+    return createPreviewCardTemplate(
+        "Original metadata wikitext",
+        "getGroupPreview(group)",
+        {
+            condition: "group.previewKey && getGroupPreview(group)",
+        },
+    );
+}
+
+/**
+ * Creates the full generated prose review card.
+ *
+ * @returns {object} Full prose review card node.
+ */
+function createFullTextPreviewTemplate() {
+    return createPreviewCardTemplate("Full text review", "getProseWikitext()", {
+        condition: "group.fullTextReview && getProseWikitext()",
+    });
 }
 
 /**

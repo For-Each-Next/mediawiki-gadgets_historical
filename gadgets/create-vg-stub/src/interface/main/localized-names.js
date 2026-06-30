@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import {
+    createActionFooterTemplate,
     createElement,
     createFieldTemplate,
     createIconActionLinkTemplate,
@@ -115,22 +116,29 @@ function createNameFieldsTemplate() {
                 },
                 [createNameFieldTemplate()],
             ),
-            createElement(
-                "p",
-                {
-                    "v-if": "form[group.nameGroupKey].length > 1",
-                },
-                [
-                    createIconActionLinkTemplate(
-                        "Clear all localized names",
-                        "tableActionIcons.remove",
-                        "clearNameRows(group.nameGroupKey)",
-                        {
-                            class: "create-vg-stub-destructive-action",
-                        },
-                    ),
-                ],
-            ),
+            createActionFooterTemplate([
+                createElement(
+                    "template",
+                    {
+                        "v-if": "form[group.nameGroupKey].length > 1",
+                    },
+                    [
+                        createIconActionLinkTemplate(
+                            "Clear all localized names",
+                            "tableActionIcons.remove",
+                            "clearNameRows(group.nameGroupKey)",
+                            {
+                                class: "create-vg-stub-destructive-action",
+                            },
+                        ),
+                    ],
+                ),
+                createIconActionLinkTemplate(
+                    "Add localized name",
+                    "tableActionIcons.cdxIconArticleAdd",
+                    "addNameRow(group.nameGroupKey)",
+                ),
+            ]),
         ],
     );
 }
@@ -202,6 +210,10 @@ function createNameSettingsRowTemplate() {
                 },
                 [createText("Official?")],
             ),
+            createElement("span", {
+                "aria-hidden": "true",
+                class: "create-vg-stub-name-market-separator",
+            }),
             createElement(
                 "cdx-checkbox",
                 {

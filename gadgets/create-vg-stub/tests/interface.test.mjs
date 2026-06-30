@@ -546,7 +546,7 @@ test("References tab manages editable citation parameters", async () => {
         "Checks",
     ]);
     assert.equal(
-        component.template.includes("Reference {{ citation.index }}"),
+        component.template.includes("{{ 'Reference ' + citation.index }}"),
         true,
     );
     assert.equal(component.template.includes("Add param"), true);
@@ -568,18 +568,11 @@ test("additional prose uses a textarea and source URL field", () => {
     assert.equal(component.template.includes('<cdx-text-area rows="1"'), true);
     assert.deepEqual(
         groups.map((group) => group.label),
-        [
-            "Titles",
-            "Metadata",
-            "Localized names",
-            "Prose",
-            "References",
-            "Checks",
-        ],
+        ["Metadata", "Titles", "Text", "References", "Checks"],
     );
     assert.equal(
         component.template.includes(
-            '<p class="create-vg-stub-prose-length" v-if="group.key === \'prose\'">',
+            '<p class="create-vg-stub-prose-length" v-if="group.fullTextReview">',
         ),
         true,
     );
@@ -590,7 +583,7 @@ test("additional prose uses a textarea and source URL field", () => {
     );
     assert.equal(
         component.template.indexOf("{{ getProseWikitext() }}") <
-            component.template.indexOf("<h3>NoteTA items</h3>"),
+            component.template.indexOf('caption="NoteTA items"'),
         true,
     );
 });
@@ -677,30 +670,25 @@ test("group action buttons align right and put primary actions last", () => {
 
     assertActionFooterAlignment(
         component.template,
-        'v-on:click="clearNameRows(group.nameGroupKey)"',
+        'v-on:click.prevent="clearNameRows(group.nameGroupKey)"',
         "flex-end",
     );
     assertActionFooterAlignment(
         component.template,
-        'v-on:click="addCitationParam(citationIndex)"',
+        'v-on:click.prevent="addCitationParam(citationIndex)"',
         "flex-end",
     );
     assertActionFooterAlignment(
         component.template,
-        'v-on:click="regenerateNoteTaRows"',
-        "flex-end",
-    );
-    assertActionFooterAlignment(
-        component.template,
-        'v-on:click="checkRedirectRows"',
+        'v-on:click.prevent="checkRedirectRows"',
         "flex-end",
     );
     assert.equal(
-        component.template.indexOf(
-            'v-on:click="clearNameRows(group.nameGroupKey)"',
-        ) <
             component.template.indexOf(
-                'v-on:click="addNameRow(group.nameGroupKey)"',
+                'v-on:click.prevent="clearNameRows(group.nameGroupKey)"',
+            ) <
+            component.template.indexOf(
+                'v-on:click.prevent="addNameRow(group.nameGroupKey)"',
             ),
         true,
     );
@@ -835,9 +823,9 @@ test("NoteTA tab lists generated title conversion and sorts rows", () => {
         form.noteTaRows.some((row) => row.key === "T"),
         false,
     );
-    assert.equal(component.template.includes(">Sort<"), true);
-    assert.equal(component.template.includes(">Regenerate<"), true);
-    assert.equal(component.template.includes("<h3>NoteTA items</h3>"), true);
+    assert.equal(component.template.includes('aria-label="Sort"'), true);
+    assert.equal(component.template.includes('aria-label="Regenerate"'), true);
+    assert.equal(component.template.includes('caption="NoteTA items"'), true);
     assert.equal(
         component.template.includes("!canRemoveNoteTaRow(row)"),
         false,
@@ -1035,33 +1023,49 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     await component.methods.previewForm();
     assert.deepEqual(form.navboxRows, []);
 
-    assert.equal(component.template.includes("<h3>Categories</h3>"), true);
+    assert.equal(component.template.includes('caption="Categories"'), true);
+    assert.equal(component.template.includes("<cdx-info-chip"), true);
     assert.equal(
-        component.template.includes("<section><h3>Categories</h3>"),
+        component.template.includes(
+            'v-bind:status="getRedirectStatusChipStatus(row.status)"',
+        ),
         true,
     );
     assert.equal(
-        component.template.indexOf("<h3>Redirects</h3>") <
-            component.template.indexOf("<h3>Categories</h3>"),
+        component.template.includes(
+            'v-bind:status="getNavboxStatusChipStatus(row.status)"',
+        ),
         true,
     );
     assert.equal(
-        component.template.indexOf("<h3>Categories</h3>") <
-            component.template.indexOf("<h3>Navboxes</h3>"),
+        component.template.includes('<section><cdx-table caption="Categories"'),
         true,
     );
-    assert.equal(component.template.includes("Add category"), true);
-    assert.equal(component.template.includes("Add redirect"), true);
+    assert.equal(
+        component.template.indexOf('caption="Redirects"') <
+            component.template.indexOf('caption="Categories"'),
+        true,
+    );
+    assert.equal(
+        component.template.indexOf('caption="Categories"') <
+            component.template.indexOf('caption="Navboxes"'),
+        true,
+    );
+    assert.equal(component.template.includes('aria-label="Create page"'), true);
+    assert.equal(component.template.includes("Include redirect"), true);
     assert.equal(component.template.includes("Redirects"), true);
-    assert.equal(component.template.includes("Check redirects"), true);
-    assert.equal(component.template.includes("Add navbox"), true);
+    assert.equal(component.template.includes("Refresh redirects"), true);
+    assert.equal(
+        component.template.includes('v-on:click.prevent="rebuildNavboxRows"'),
+        true,
+    );
     assert.equal(component.template.includes("Navboxes"), true);
     assert.equal(
-        component.template.includes('v-model="redirect.enabled"'),
+        component.template.includes('v-model="row.enabled"'),
         true,
     );
     assert.equal(
-        component.template.includes('v-model="redirect.title"'),
+        component.template.includes('v-slot:item-title="{ row }"'),
         true,
     );
     assert.equal(
@@ -1071,17 +1075,21 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes("redirect.variantMixed"), false);
     assert.equal(component.template.includes("row.variantMixed"), false);
     assert.equal(
-        component.template.includes("removeRedirectRow(index)"),
-        true,
-    );
-    assert.equal(
         component.template.includes(
-            'v-on:update:model-value="updateRedirectRowTitle(index, $event)"',
+            "removeRedirectRow((form.redirectRows || []).indexOf(row))",
         ),
         true,
     );
     assert.equal(
-        component.template.includes("removeCategoryRow(index)"),
+        component.template.includes(
+            "updateRedirectRowTitle((form.redirectRows || []).indexOf(row), $event)",
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
+            "removeCategoryRow(form.categoryRows.indexOf(row))",
+        ),
         true,
     );
     assert.equal(
@@ -1089,7 +1097,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         false,
     );
     assert.equal(
-        component.template.includes('v-model="navbox.enabled"'),
+        component.template.includes('v-model="row.enabled"'),
         true,
     );
     assert.equal(component.template.includes('v-model="row.enabled"'), true);
@@ -1098,24 +1106,25 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         false,
     );
     assert.equal(component.template.includes("{{stub}}"), false);
-    assert.equal(component.template.includes("<h3>Stub tags</h3>"), true);
+    assert.equal(component.template.includes('caption="Stub tags"'), true);
     assert.equal(
-        component.template.includes('v-for="(stubTag, index) in stubTagRows"'),
+        component.template.includes('v-bind:data="stubTagRows"'),
         true,
     );
     assert.equal(
         component.template.includes(
-            'v-on:update:model-value="updateStubTagRow(index, $event)"',
+            "updateStubTagRow(stubTagRows.indexOf(row), $event)",
         ),
         true,
     );
     assert.equal(
-        component.template.includes('v-on:click="removeStubTagRow(index)"'),
+        component.template.includes(
+            'v-on:click.prevent="removeStubTagRow(stubTagRows.indexOf(row))"',
+        ),
         true,
     );
-    assert.equal(component.template.includes("Add stub tag"), true);
     assert.equal(
-        component.template.includes('class="create-vg-stub-review-action"'),
+        component.template.includes("create-vg-stub-destructive-action"),
         true,
     );
     assert.equal(
@@ -1125,47 +1134,34 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes('v-model="row.category"'), true);
     assert.equal(
         component.template.includes(
-            'v-on:update:model-value="updateCategoryRowCategory(index, $event)"',
+            "updateCategoryRowCategory(form.categoryRows.indexOf(row), $event)",
         ),
         true,
     );
     assert.equal(
         component.template.includes(
-            'v-on:blur="checkCategoryRow(index, $event)"',
+            "checkCategoryRow(form.categoryRows.indexOf(row), $event)",
         ),
         true,
     );
-    assert.equal(component.template.includes('v-model="navbox.text"'), true);
+    assert.equal(component.template.includes('v-model="row.text"'), true);
     assert.equal(
         component.template.includes(
-            'v-on:update:model-value="updateNavboxRow(index, $event)"',
+            "updateNavboxRow((form.navboxRows || []).indexOf(row), $event)",
         ),
         true,
     );
     assert.equal(
         component.template.includes(
-            'v-on:blur="checkNavboxRow(index, $event)"',
+            "checkNavboxRow((form.navboxRows || []).indexOf(row), $event)",
         ),
         true,
     );
     assert.equal(
-        component.template.includes('v-on:click="checkNavboxRows"'),
+        component.template.includes('v-on:click.prevent="checkNavboxRows"'),
         false,
     );
     assert.equal(component.template.includes("Footer:"), false);
-    for (const action of [
-        "addCategoryRow",
-        "rebuildCategoryRows",
-        "addNavboxRow",
-        "rebuildNavboxRows",
-    ]) {
-        const button = component.template.match(
-            new RegExp(`<cdx-button[^>]*v-on:click="${action}"[^>]*>`, "u"),
-        )?.[0];
-
-        assert.equal(button?.includes('action="progressive"'), false);
-        assert.equal(button?.includes('weight="primary"'), false);
-    }
 });
 
 test("review exposes editable stub tags below category rows", async () => {
@@ -1360,7 +1356,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.equal(missingRow.status, "Pending creation");
     assert.equal(
         component.template.includes(
-            "{{ navbox.pendingEdit ? 'Pending' : navbox.status === 'OK' ? 'Edit' : 'Create' }}",
+            'v-on:click.prevent="openNavboxEdit(row)"',
         ),
         true,
     );
@@ -1516,12 +1512,17 @@ test("category helper stages missing category rows for final submission", async 
     assert.equal(companyRow.status, "Pending creation");
     assert.equal(companyCategoryOpen.value, false);
     assert.equal(
-        component.template.includes('v-on:click="openCategoryEdit(row)"'),
+        component.template.includes(
+            'v-on:click.prevent="openCategoryEdit(row)"',
+        ),
         true,
     );
     assert.equal(component.template.includes("openCategoryView"), false);
-    assert.equal(component.template.includes("'Edit' : 'Create'"), true);
-    assert.equal(component.template.includes(">Remove</cdx-button>"), true);
+    assert.equal(component.template.includes('aria-label="Create page"'), true);
+    assert.equal(
+        component.template.includes("create-vg-stub-destructive-action"),
+        true,
+    );
     assert.equal(
         component.template.includes(
             'v-on:click="cancelCompanyCategoryCreation"',
@@ -1699,7 +1700,7 @@ test("category review stages source-preview edits and company creates", async ()
     assert.equal(companyRow.status, "Pending creation");
     assert.equal(
         component.template.includes(
-            "{{ row.pendingCreation || row.pendingEdit ? 'Pending' : row.status === 'OK' ? 'Edit' : 'Create' }}",
+            'v-on:click.prevent="openCategoryEdit(row)"',
         ),
         true,
     );
@@ -1714,7 +1715,9 @@ test("category review stages source-preview edits and company creates", async ()
         true,
     );
     assert.equal(
-        component.template.includes('v-on:click="openCategoryEdit(row)"'),
+        component.template.includes(
+            'v-on:click.prevent="openCategoryEdit(row)"',
+        ),
         true,
     );
     assert.equal(
@@ -1987,7 +1990,7 @@ test("Clear resets fields and helper state across all tabs", async () => {
     await component.methods.addSteamNames();
     component.methods.clearForm();
 
-    assert.equal(activeTab.value, "titles");
+    assert.equal(activeTab.value, "metadata");
     assert.equal(form.name, "");
     assert.equal(form.publishers, "");
     assert.deepEqual(form.categoryRows, []);
@@ -2030,10 +2033,10 @@ test("Clear removes all localized name rows", () => {
     ];
     component.methods.clearNameRows("localizedNames");
 
-    assert.deepEqual(form.localizedNames, []);
+    assert.deepEqual(form.localizedNames, [createExpectedBlankNameRow()]);
     assert.equal(
         component.template.includes(
-            'v-on:click="clearNameRows(group.nameGroupKey)">Clear</cdx-button>',
+            'v-on:click.prevent="clearNameRows(group.nameGroupKey)"',
         ),
         true,
     );
@@ -2064,7 +2067,7 @@ test("field preview callback receives live form and preview key", () => {
         true,
     );
     assert.equal(
-        component.template.includes("<strong>{{ link.label }}</strong>"),
+        component.template.includes("{{ link.label }} "),
         true,
     );
     assert.equal(
@@ -2096,10 +2099,10 @@ test("submit opens preview without changing tabs", async () => {
     );
     const { activeTab, preSaveOpen, previewOpen } = component.setup();
 
-    assert.equal(activeTab.value, "titles");
+    assert.equal(activeTab.value, "metadata");
     await component.methods.submitForm();
 
-    assert.equal(activeTab.value, "titles");
+    assert.equal(activeTab.value, "metadata");
     assert.equal(refreshCount, 1);
     assert.equal(previewCount, 1);
     assert.equal(previewOpen.value, true);
@@ -2956,6 +2959,20 @@ function createTextareaRef() {
         querySelector(selector) {
             return selector === "textarea" ? textarea : null;
         },
+    };
+}
+
+function createExpectedBlankNameRow() {
+    return {
+        cn: false,
+        hans: false,
+        hant: false,
+        hk: false,
+        name: "",
+        official: false,
+        sourceUrl: "",
+        tw: false,
+        ww: false,
     };
 }
 

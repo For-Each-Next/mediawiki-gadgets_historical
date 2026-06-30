@@ -140,17 +140,11 @@ function createCategorySlotsTemplate() {
                 "v-slot:item-source": "{ row }",
             },
             [
-                createElement(
-                    "span",
+                createInfoChipTemplate(
+                    "formatCategorySourceLabel(row.source)",
                     {
-                        "v-bind:title":
-                            "formatCategorySourceTitle(row.source)",
+                        title: "formatCategorySourceTitle(row.source)",
                     },
-                    [
-                        createText(
-                            "{{ formatCategorySourceLabel(row.source) }}",
-                        ),
-                    ],
                 ),
             ],
         ),
@@ -226,6 +220,7 @@ function createRedirectSlotsTemplate() {
             "status",
             "row.status",
             "formatRedirectStatusLabel(row.status)",
+            "getRedirectStatusChipStatus(row.status)",
         ),
         createElement(
             "template",
@@ -297,6 +292,7 @@ function createNavboxSlotsTemplate() {
             "status",
             "row.status",
             "formatNavboxStatusLabel(row.status)",
+            "getNavboxStatusChipStatus(row.status)",
         ),
         createElement(
             "template",
@@ -362,13 +358,10 @@ function createStubTagSlotsTemplate() {
                 "v-slot:item-type": "{ row }",
             },
             [
-                createElement(
-                    "span",
-                    {
-                        "v-bind:title": "formatStubTagLabel(row.stubTag)",
-                    },
-                    [createText("Stub")],
-                ),
+                createInfoChipTemplate("Stub", {
+                    bindLabel: false,
+                    title: "formatStubTagLabel(row.stubTag)",
+                }),
             ],
         ),
         createElement(
@@ -439,23 +432,37 @@ function createToggleSlotTemplate(column, model, label) {
  * @param {string} column - Column slot suffix.
  * @param {string} title - Status tooltip expression.
  * @param {string} label - Status label expression.
+ * @param {string} [status] - InfoChip status expression.
  * @returns {object} Table slot node.
  */
-function createStatusSlotTemplate(column, title, label) {
+function createStatusSlotTemplate(column, title, label, status = "'notice'") {
     return createElement(
         "template",
         {
             [`v-slot:item-${column}`]: "{ row }",
         },
-        [
-            createElement(
-                "span",
-                {
-                    "v-bind:title": title,
-                },
-                [createText(`{{ ${label} }}`)],
-            ),
-        ],
+        [createInfoChipTemplate(label, { status, title })],
+    );
+}
+
+/**
+ * Creates an InfoChip table-cell tag.
+ *
+ * @param {string} label - Label text or Vue expression.
+ * @param {object} [options] - Chip options.
+ * @param {boolean} [options.bindLabel] - Whether label is a Vue binding.
+ * @param {string} [options.status] - InfoChip status expression.
+ * @param {string} [options.title] - Tooltip expression.
+ * @returns {object} InfoChip node.
+ */
+function createInfoChipTemplate(label, options = {}) {
+    return createElement(
+        "cdx-info-chip",
+        {
+            "v-bind:status": options.status || "'notice'",
+            ...(options.title ? { "v-bind:title": options.title } : {}),
+        },
+        [createText(options.bindLabel === false ? label : `{{ ${label} }}`)],
     );
 }
 

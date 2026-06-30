@@ -248,6 +248,49 @@ export function createFieldPreviewTemplate(fieldExpression = "field") {
 }
 
 /**
+ * Creates a Codex card showing a wikitext preview fragment.
+ *
+ * @param {string} title - Card title.
+ * @param {string} expression - Vue expression resolving to preview text.
+ * @param {object} [options] - Card options.
+ * @param {string} [options.condition] - Optional Vue condition.
+ * @returns {object} Wikitext preview card node.
+ */
+export function createPreviewCardTemplate(title, expression, options = {}) {
+    return createElement(
+        "cdx-card",
+        {
+            class: "create-vg-stub-preview-card",
+            "v-if": options.condition || expression,
+        },
+        [
+            createElement(
+                "template",
+                {
+                    "v-slot:title": "",
+                },
+                [createText(title)],
+            ),
+            createElement(
+                "template",
+                {
+                    "v-slot:supporting-text": "",
+                },
+                [
+                    createElement(
+                        "pre",
+                        {
+                            class: "create-vg-stub-preview-card-text",
+                        },
+                        [createText(`{{ ${expression} }}`)],
+                    ),
+                ],
+            ),
+        ],
+    );
+}
+
+/**
  * Serializes a template node to markup.
  *
  * @param {object|Array<object>} node - Template node.

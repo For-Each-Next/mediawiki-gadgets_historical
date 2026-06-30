@@ -224,6 +224,19 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-field-note", {
         margin: "0.25em 0 1em",
     })
+    .add(".create-vg-stub-preview-card", {
+        margin: "1em 0",
+    })
+    .add(".create-vg-stub-preview-card-text", {
+        fontFamily: "monospace",
+        fontSize: "0.8125em",
+        lineHeight: "1.4",
+        margin: "0",
+        maxHeight: "14em",
+        overflow: "auto",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+    })
     .add(
         [
             ".create-vg-stub-preview-text textarea",
@@ -353,10 +366,12 @@ class ArticleParameterGroup {
         this.citationReview = Boolean(options.citationReview);
         this.description = options.description || "";
         this.fields = fields;
+        this.fullTextReview = Boolean(options.fullTextReview);
         this.key = key;
         this.label = label;
         this.nameGroupKey = nameGroupKey;
         this.noteTaReview = Boolean(options.noteTaReview);
+        this.previewKey = options.previewKey || "";
     }
 }
 
@@ -479,8 +494,8 @@ const TABLE_ACTION_ICONS = {
 };
 const ARTICLE_PARAMETER_GROUPS = [
     new ArticleParameterGroup(
-        "titles",
-        "Titles",
+        "metadata",
+        "Metadata",
         [
             new ArticleParameterField(
                 "enwikiTitle",
@@ -491,80 +506,6 @@ const ARTICLE_PARAMETER_GROUPS = [
                     placeholder: "Page title in English Wikipedia",
                 },
             ),
-            new ArticleParameterField(
-                "name",
-                "Article display title",
-                "name",
-                null,
-                {
-                    breakBefore: true,
-                    placeholder:
-                        "Leave blank to use the page title in article text",
-                },
-            ),
-            new ArticleParameterField(
-                "originalName",
-                "Original-language title",
-                "originalName",
-                getSourceReferenceField("originalName"),
-                {
-                    placeholder: "ja:タイトル or en:Title",
-                },
-            ),
-            new ArticleParameterField(
-                "englishName",
-                "English localized title",
-                "englishName",
-                getSourceReferenceField("englishName"),
-                {
-                    placeholder: "Localized title",
-                    previewKey: "names",
-                },
-            ),
-            new ArticleParameterField(
-                "sortKey",
-                "Default sort key",
-                "sortKey",
-                null,
-                {
-                    placeholder: "Leave blank to use the generated value",
-                },
-            ),
-            new ArticleParameterField(
-                "metacriticScore",
-                "Metacritic score",
-                "scores.metacriticScore",
-                getSourceReferenceField("metacriticScore"),
-                {
-                    breakBefore: true,
-                    compact: true,
-                    heading: "Metacritic score",
-                    placeholder: "ps4:95 or 95",
-                },
-            ),
-            new ArticleParameterField(
-                "openCriticRecommend",
-                "OpenCritic recommendation",
-                "scores.openCriticRecommend",
-                getSourceReferenceField("openCriticRecommend"),
-                {
-                    compact: true,
-                    heading: "OpenCritic recommendation",
-                    placeholder: "Recommend rate",
-                    previewKey: "score",
-                },
-            ),
-        ],
-        null,
-        {
-            description:
-                "Start with the article identity, source-backed localized titles, sorting, and optional review-score facts.",
-        },
-    ),
-    new ArticleParameterGroup(
-        "attribution",
-        "Metadata",
-        [
             new ArticleParameterField(
                 "developers",
                 "Developers",
@@ -624,24 +565,88 @@ const ARTICLE_PARAMETER_GROUPS = [
         null,
         {
             description:
-                "Add the core infobox facts used to generate categories, prose, and source-backed references.",
+                "Start with English Wikipedia metadata and the original infobox facts used for prose, categories, and references.",
+            previewKey: "attribution",
         },
     ),
     new ArticleParameterGroup(
-        "localizedNames",
-        "Localized names",
-        [],
+        "titles",
+        "Titles",
+        [
+            new ArticleParameterField(
+                "originalName",
+                "Original-language title",
+                "originalName",
+                getSourceReferenceField("originalName"),
+                {
+                    placeholder: "ja:タイトル or en:Title",
+                },
+            ),
+            new ArticleParameterField(
+                "englishName",
+                "English-language title",
+                "englishName",
+                getSourceReferenceField("englishName"),
+                {
+                    placeholder: "Localized title",
+                    previewKey: "names",
+                },
+            ),
+            new ArticleParameterField(
+                "sortKey",
+                "Default sort key",
+                "sortKey",
+                null,
+                {
+                    placeholder: "Leave blank to use the generated value",
+                },
+            ),
+        ],
         "localizedNames",
         {
             description:
-                "Collect official Chinese and regional titles, with optional Steam-assisted suggestions.",
+                "Review foreign titles, fetch Steam names, add Chinese name parts, and maintain the NoteTA table.",
             noteTaReview: true,
         },
     ),
     new ArticleParameterGroup(
-        "prose",
-        "Prose",
+        "text",
+        "Text",
         [
+            new ArticleParameterField(
+                "metacriticScore",
+                "Metacritic score",
+                "scores.metacriticScore",
+                getSourceReferenceField("metacriticScore"),
+                {
+                    compact: true,
+                    heading: "Metacritic score",
+                    placeholder: "ps4:95 or 95",
+                },
+            ),
+            new ArticleParameterField(
+                "openCriticRecommend",
+                "OpenCritic recommendation",
+                "scores.openCriticRecommend",
+                getSourceReferenceField("openCriticRecommend"),
+                {
+                    compact: true,
+                    heading: "OpenCritic recommendation",
+                    placeholder: "Recommend rate",
+                    previewKey: "score",
+                },
+            ),
+            new ArticleParameterField(
+                "name",
+                "Article display title",
+                "name",
+                null,
+                {
+                    breakBefore: true,
+                    placeholder:
+                        "Leave blank to use the page title in article text",
+                },
+            ),
             new ArticleParameterField(
                 "additionalProse",
                 "Additional prose",
@@ -656,7 +661,8 @@ const ARTICLE_PARAMETER_GROUPS = [
         null,
         {
             description:
-                "Review the generated lead and add any source-backed sentences that should follow it.",
+                "Fix generated review-score text, the display title, and additional prose before reviewing the full lead text.",
+            fullTextReview: true,
         },
     ),
     new ArticleParameterGroup("references", "References", [], null, {
@@ -2369,6 +2375,16 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Gets the InfoChip status for a navbox existence state.
+             *
+             * @param {string} status - Navbox existence status.
+             * @returns {string} Codex InfoChip status.
+             */
+            getNavboxStatusChipStatus(status) {
+                return getReviewStatusChipStatus(status);
+            },
+
+            /**
              * Formats a redirect existence status as a compact badge.
              *
              * @param {string} status - Redirect existence status.
@@ -2381,6 +2397,16 @@ export function createDialogComponent(Vue, options) {
                         Missing: "New",
                     }[status] || "Unchecked"
                 );
+            },
+
+            /**
+             * Gets the InfoChip status for a redirect existence state.
+             *
+             * @param {string} status - Redirect existence status.
+             * @returns {string} Codex InfoChip status.
+             */
+            getRedirectStatusChipStatus(status) {
+                return getReviewStatusChipStatus(status);
             },
 
             /**
@@ -2425,6 +2451,7 @@ export function createDialogComponent(Vue, options) {
                 form,
                 fetchedSteamNameRows,
                 getSteamNameSuggestions,
+                getCitationParamRows,
                 getCitationParamTableRows,
                 getArticleField,
                 getArticlePreviewTitle,
@@ -2433,6 +2460,7 @@ export function createDialogComponent(Vue, options) {
                     form,
                 ),
                 getFieldPreview,
+                getGroupPreview,
                 getEnwikiTipLinks,
                 getWikidataText,
                 historyEntries,
@@ -3057,6 +3085,20 @@ export function createDialogComponent(Vue, options) {
         return (
             options.getFieldPreview(form, field.previewKey || field.key) || ""
         );
+    }
+
+    /**
+     * Builds a small wikitext preview for one group.
+     *
+     * @param {object} group - Article parameter group.
+     * @returns {string} Preview wikitext, or an empty string.
+     */
+    function getGroupPreview(group) {
+        if (options.getFieldPreview == null || !group.previewKey) {
+            return "";
+        }
+
+        return options.getFieldPreview(form, group.previewKey) || "";
     }
 
     /**
@@ -4767,6 +4809,28 @@ function getArticleFields() {
  */
 function getArticleField(key) {
     return getArticleFields().find((field) => field.key === key);
+}
+
+/**
+ * Maps review existence states to Codex InfoChip statuses.
+ *
+ * @param {string} status - Review status value.
+ * @returns {string} Codex InfoChip status.
+ */
+function getReviewStatusChipStatus(status) {
+    if (status === "OK" || status === "Exists") {
+        return "success";
+    }
+
+    if (String(status || "").startsWith("Pending")) {
+        return "progressive";
+    }
+
+    if (status === "Missing" || status === "Not exists") {
+        return "warning";
+    }
+
+    return "notice";
 }
 
 /**

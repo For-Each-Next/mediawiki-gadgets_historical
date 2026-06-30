@@ -154,7 +154,7 @@ function buildNameSummaryText(displayName) {
         return "";
     }
 
-    return `create '«${label}»'`;
+    return `create «${label}»`;
 }
 
 /**

@@ -886,7 +886,7 @@ export async function createRedirect(api, redirectTitle, targetTitle) {
         action: "edit",
         createonly: true,
         summary: addEditSummarySuffix(
-            `create '${redirectTitle}', redirect to [[${targetTitle}]]`,
+            `redirect "${redirectTitle}" to "[[${targetTitle}]]"`,
         ),
         text: `#REDIRECT [[${targetTitle}]]`,
         title: redirectTitle,
@@ -926,7 +926,7 @@ export async function addTalkPageBanner(api, articleTitle) {
         action: "edit",
         appendtext: `${text === "" ? "" : "\n\n"}${banner}`,
         summary: addEditSummarySuffix(
-            "tagging {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner",
+            "tagging the {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner",
         ),
         title,
     };

@@ -652,7 +652,7 @@ test("createRedirect uses createonly and redirect wikitext", async () => {
     assert.deepEqual(calls[0][2], {
         action: "edit",
         createonly: true,
-        summary: `create '示例游戏', redirect to [[示例]] ${EDIT_SUMMARY_SUFFIX}`,
+        summary: `redirect "示例游戏" to "[[示例]]" ${EDIT_SUMMARY_SUFFIX}`,
         text: "#REDIRECT [[示例]]",
         title: "示例游戏",
     });
@@ -678,7 +678,7 @@ test("addTalkPageBanner appends the requested banner", async () => {
     assert.equal(calls[1][2].appendtext, `\n\n${TALK_PAGE_BANNER}`);
     assert.equal(
         calls[1][2].summary,
-        `tagging {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner ${EDIT_SUMMARY_SUFFIX}`,
+        `tagging the {{[[Template:WikiProject Video games|WikiProject Video games]]}} banner ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
 

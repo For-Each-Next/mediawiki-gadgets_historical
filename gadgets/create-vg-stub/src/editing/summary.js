@@ -20,11 +20,10 @@ export const EDIT_SUMMARY_SUFFIX = getTextTemplate("editing.summaryIcon");
  * @returns {string} Generated edit summary.
  */
 export function buildEditSummary(metadata) {
-    const nameText = buildNameSummaryText(metadata.displayName);
-    const yearText =
-        nameText === ""
-            ? ""
-            : buildYearDetailText(buildYearSummaryText(metadata.year));
+    const nameText = buildArticleCreationSummaryText(
+        metadata.displayName,
+        metadata.year,
+    );
     const proseText =
         nameText === ""
             ? ""
@@ -35,7 +34,7 @@ export function buildEditSummary(metadata) {
         nameText === "" ? "" : buildSourceDetailText(metadata);
     const values = {
         icon: EDIT_SUMMARY_SUFFIX,
-        name: `${nameText}${yearText}${proseText}${sourceText}`,
+        name: `${nameText}${proseText}${sourceText}`,
         proseCount: "",
         year: "",
     };
@@ -99,18 +98,6 @@ function buildProseCountText(count) {
 }
 
 /**
- * Builds parenthesized year detail text for an edit summary.
- *
- * @param {string} year - Year detail fragment.
- * @returns {string} Year detail summary text.
- */
-function buildYearDetailText(year) {
-    const text = String(year || "").trim();
-
-    return text === "" ? "" : ` (${text})`;
-}
-
-/**
  * Builds prose-count detail text for an edit summary.
  *
  * @param {string} proseCount - Prose-count fragment.
@@ -119,7 +106,7 @@ function buildYearDetailText(year) {
 function buildProseDetailText(proseCount) {
     const text = String(proseCount || "").trim();
 
-    return text === "" ? "" : `, ${text}`;
+    return text === "" ? "" : `, with ${text}`;
 }
 
 /**
@@ -138,23 +125,25 @@ function buildSourceDetailText(metadata) {
 
     return links.length === 0
         ? ""
-        : `; see ${links.map((link) => `'${link}'`).join(" and ")}`;
+        : `; also see ${links.map((link) => `"${link}"`).join(" and ")}`;
 }
 
 /**
- * Builds the game title text for an edit summary.
+ * Builds the article creation text for an edit summary.
  *
  * @param {string} displayName - Summary display title.
- * @returns {string} Game title summary text.
+ * @param {string} year - Release year.
+ * @returns {string} Article creation summary text.
  */
-function buildNameSummaryText(displayName) {
+function buildArticleCreationSummaryText(displayName, year) {
     const label = String(displayName || "").trim();
+    const yearText = buildYearSummaryText(year);
 
     if (label === "") {
         return "";
     }
 
-    return `create «${label}»`;
+    return `create an article for the ${yearText === "" ? "" : `${yearText} `}video game «${label}»`;
 }
 
 /**

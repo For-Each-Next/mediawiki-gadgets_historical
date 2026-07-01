@@ -45,7 +45,7 @@ export async function registerNewPage(
                 nocreate: true,
                 starttimestamp: page.starttimestamp,
                 summary: addEditSummarySuffix(
-                    `register '[[${articleTitle}]]' as a new page`,
+                    `register the new article "[[${articleTitle}]]"`,
                 ),
                 text,
                 title: NEW_PAGE_LIST_TITLE,

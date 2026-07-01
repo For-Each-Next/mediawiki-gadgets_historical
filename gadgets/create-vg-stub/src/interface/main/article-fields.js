@@ -39,6 +39,46 @@ function createIndividualFieldsTemplate() {
         {
             "v-if": "!group.fieldsetLabel",
         },
+        [createMetadataFieldsTemplate(), createDefaultFieldsTemplate()],
+    );
+}
+
+/**
+ * Creates the metadata fields with the source-backed rows in a table.
+ *
+ * @returns {object} Metadata field template node.
+ */
+function createMetadataFieldsTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-if": "group.key === 'metadata'",
+        },
+        [
+            createElement(
+                "template",
+                {
+                    "v-bind:key": "field.key",
+                    "v-for": "field in group.fields.slice(0, 1)",
+                },
+                [createCompactFieldTemplate(), createStandardFieldTemplate()],
+            ),
+            createMetadataFieldTableTemplate(),
+        ],
+    );
+}
+
+/**
+ * Creates the default stacked fields for non-special groups.
+ *
+ * @returns {object} Default field template node.
+ */
+function createDefaultFieldsTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-else": "",
+        },
         [
             createElement(
                 "template",
@@ -48,6 +88,51 @@ function createIndividualFieldsTemplate() {
                 },
                 [createCompactFieldTemplate(), createStandardFieldTemplate()],
             ),
+        ],
+    );
+}
+
+/**
+ * Creates the metadata source-backed field table.
+ *
+ * @returns {object} Metadata field table node.
+ */
+function createMetadataFieldTableTemplate() {
+    return createElement(
+        "table",
+        {
+            class: "create-vg-stub-metadata-table",
+        },
+        [
+            createElement("tbody", {}, [
+                createElement(
+                    "tr",
+                    {
+                        "v-bind:key": "field.key",
+                        "v-for": "field in group.fields.slice(1)",
+                    },
+                    [
+                        createElement(
+                            "th",
+                            {
+                                scope: "row",
+                            },
+                            [createText("{{ field.label }}")],
+                        ),
+                        createElement("td", {}, [
+                            createArticleFieldValueInputTemplate(),
+                        ]),
+                        createElement("td", {}, [
+                            createSourceUrlInputTemplate({
+                                placeholder: "Source URLs",
+                                model: "form[field.sourceField.sourceKey]",
+                                change: "trimSourceValue(field.sourceField)",
+                                update: "updateSourceValue(field.sourceField, $event)",
+                            }),
+                        ]),
+                    ],
+                ),
+            ]),
         ],
     );
 }
@@ -133,7 +218,7 @@ function createFullTextPreviewTemplate() {
         "getProseWikitext()",
         {
             condition: "group.fullTextReview && getProseWikitext()",
-            description: "getProseSinographs() + ' relevant sinographs'",
+            description: "getProseSinographs() + ' equivalent sinographs'",
         },
     );
 }
@@ -215,13 +300,9 @@ function createFieldControlsTemplate(options = {}) {
                     "v-if": "field.multiline",
                 },
                 [
-                    createElement("cdx-text-area", {
-                        rows: "1",
-                        "v-bind:placeholder": placeholder,
-                        "v-bind:model-value": "form[field.key]",
-                        "v-on:change": "normalizeFieldValue(field)",
-                        "v-on:update:model-value":
-                            "updateFieldValue(field, $event)",
+                    createArticleFieldValueInputTemplate({
+                        multiline: true,
+                        placeholder,
                     }),
                 ],
             ),
@@ -231,15 +312,8 @@ function createFieldControlsTemplate(options = {}) {
                     "v-else": "",
                 },
                 [
-                    createElement("cdx-text-input", {
-                        "v-bind:placeholder": placeholder,
-                        "v-bind:readonly": "field.readonly",
-                        "v-bind:model-value": "form[field.key]",
-                        "v-on:change": "normalizeFieldValue(field)",
-                        "v-on:paste":
-                            "normalizePastedFieldValue(field, $event)",
-                        "v-on:update:model-value":
-                            "updateFieldValue(field, $event)",
+                    createArticleFieldValueInputTemplate({
+                        placeholder,
                     }),
                     createElement(
                         "cdx-button",
@@ -268,6 +342,39 @@ function createFieldControlsTemplate(options = {}) {
             ),
         ],
     );
+}
+
+/**
+ * Creates the value input for one article field.
+ *
+ * @param {object} [options] - Input options.
+ * @param {boolean} [options.multiline] - Whether to render a textarea.
+ * @param {string} [options.placeholder] - Placeholder Vue expression.
+ * @returns {object} Article field value input node.
+ */
+function createArticleFieldValueInputTemplate(options = {}) {
+    const placeholder =
+        options.placeholder ||
+        "getFieldPlaceholder(field) || field.placeholder";
+
+    if (options.multiline) {
+        return createElement("cdx-text-area", {
+            rows: "1",
+            "v-bind:placeholder": placeholder,
+            "v-bind:model-value": "form[field.key]",
+            "v-on:change": "normalizeFieldValue(field)",
+            "v-on:update:model-value": "updateFieldValue(field, $event)",
+        });
+    }
+
+    return createElement("cdx-text-input", {
+        "v-bind:placeholder": placeholder,
+        "v-bind:readonly": "field.readonly",
+        "v-bind:model-value": "form[field.key]",
+        "v-on:change": "normalizeFieldValue(field)",
+        "v-on:paste": "normalizePastedFieldValue(field, $event)",
+        "v-on:update:model-value": "updateFieldValue(field, $event)",
+    });
 }
 
 /**

@@ -592,7 +592,7 @@ test("additional prose uses a textarea and source URL field", () => {
     );
     assert.equal(
         component.template.includes(
-            "getProseSinographs() + ' relevant sinographs'",
+            "getProseSinographs() + ' equivalent sinographs'",
         ),
         true,
     );
@@ -604,6 +604,41 @@ test("additional prose uses a textarea and source URL field", () => {
     assert.equal(
         component.template.indexOf("{{ getProseWikitext() }}") <
             component.template.indexOf('caption="NoteTA items"'),
+        true,
+    );
+});
+
+test("metadata source fields render in a table", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { groups } = component.setup();
+    const metadataGroup = groups.find((group) => group.key === "metadata");
+
+    assert.deepEqual(
+        metadataGroup.fields.map((field) => field.key),
+        [
+            "enwikiTitle",
+            "developers",
+            "publishers",
+            "series",
+            "platforms",
+            "year",
+            "genres",
+        ],
+    );
+    assert.equal(
+        component.template.includes("create-vg-stub-metadata-table"),
+        true,
+    );
+    assert.equal(
+        component.template.includes('v-for="field in group.fields.slice(1)"'),
+        true,
+    );
+    assert.equal(component.template.includes("{{ field.label }}"), true);
+    assert.equal(
+        component.template.includes("form[field.sourceField.sourceKey]"),
         true,
     );
 });

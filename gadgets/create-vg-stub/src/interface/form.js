@@ -118,6 +118,43 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-dialog th", {
         whiteSpace: "nowrap",
     })
+    .add(".create-vg-stub-metadata-table", {
+        borderCollapse: "separate",
+        borderSpacing: "0 0.5em",
+    })
+    .add(".create-vg-stub-metadata-table th", {
+        padding: "0 0.75em 0 0",
+        textAlign: "left",
+        verticalAlign: "middle",
+        width: "10em",
+    })
+    .add(".create-vg-stub-metadata-table td", {
+        padding: "0",
+        verticalAlign: "top",
+    })
+    .add(".create-vg-stub-metadata-table td + td", {
+        paddingLeft: "0.5em",
+        width: "32%",
+    })
+    .media("(max-width: 40em)", (sheet) => {
+        sheet
+            .add(".create-vg-stub-metadata-table", {
+                borderSpacing: "0",
+            })
+            .add(".create-vg-stub-metadata-table tr", {
+                display: "grid",
+                gap: "0.35em",
+                marginBottom: "0.75em",
+            })
+            .add(".create-vg-stub-metadata-table th", {
+                padding: "0",
+                width: "auto",
+            })
+            .add(".create-vg-stub-metadata-table td + td", {
+                paddingLeft: "0",
+                width: "auto",
+            });
+    })
     .add(".create-vg-stub-field-controls", {
         display: "grid",
         gap: "0.5em",

@@ -213,7 +213,7 @@ async function buildFallbackCiteWebTemplate(url, options = {}) {
         {
             itemType: "webpage",
             title: isSteamUrl(trimmedUrl)
-                ? trimmedUrl
+                ? ""
                 : await fetchFallbackTitle(trimmedUrl, options),
             url: trimmedUrl,
             websiteTitle: getFallbackWebsiteTitle(url),
@@ -242,7 +242,7 @@ function isSteamUrl(url) {
  * @param {string} url - Source URL.
  * @param {object} options - Fetch options.
  * @param {Function} [options.fetcher] - Fetch implementation.
- * @returns {Promise<string>} Page title, or the URL when unavailable.
+ * @returns {Promise<string>} Page title, or an empty string when unavailable.
  */
 async function fetchFallbackTitle(url, options) {
     const fetcher = options.fetcher || fetch;
@@ -255,12 +255,12 @@ async function fetchFallbackTitle(url, options) {
         });
 
         if (!response.ok) {
-            return url;
+            return "";
         }
 
-        return extractHtmlTitle(await response.text()) || url;
+        return extractHtmlTitle(await response.text());
     } catch (_error) {
-        return url;
+        return "";
     }
 }
 
@@ -371,11 +371,23 @@ function buildCitationValues(citation, options) {
         date: citation.date,
         language: citation.language,
         publisher: citation.publisher,
-        title: citation.title,
+        title: normalizeCitationTitle(citation.title),
         url: citation.url || options.url,
         via: citation.via,
         website: citation.websiteTitle || citation.publicationTitle,
     };
+}
+
+/**
+ * Removes generated titles that are only a URL.
+ *
+ * @param {string} title - Generated citation title.
+ * @returns {string} Normalized citation title.
+ */
+function normalizeCitationTitle(title) {
+    const value = trimFieldText(title);
+
+    return parseUrl(value) == null ? value : "";
 }
 
 /**

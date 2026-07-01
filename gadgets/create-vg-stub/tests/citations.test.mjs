@@ -318,6 +318,45 @@ test("fetchCiteTemplate falls back to source page title on Citoid 404", async ()
     );
 });
 
+test("fetchCiteTemplate omits fallback title when source title fetch fails", async () => {
+    const text = await fetchCiteTemplate(
+        "https://www.example.test/missing-page?page=1",
+        {
+            fetcher(url) {
+                return {
+                    ok: false,
+                    status: url.startsWith("/api/rest_v1/") ? 404 : 500,
+                };
+            },
+            now: new Date("2026-05-24T00:00:00Z"),
+        },
+    );
+
+    assert.equal(
+        text,
+        "{{cite web|access-date=2026-05-24|url=https://www.example.test/missing-page?page=1|website=example.test}}",
+    );
+});
+
+test("buildCiteTemplate omits URL-only titles", () => {
+    const text = buildCiteTemplate(
+        {
+            itemType: "webpage",
+            title: "https://example.test/article",
+            url: "https://example.test/article",
+        },
+        {
+            now: new Date("2026-05-24T00:00:00Z"),
+            rules: RULES,
+        },
+    );
+
+    assert.equal(
+        text,
+        "{{cite web|access-date=2026-05-24|url=https://example.test/article}}",
+    );
+});
+
 test("buildCiteTemplate removes Gamer author by host rule", () => {
     const text = buildCiteTemplate(
         {
@@ -509,7 +548,7 @@ test("fetchCiteTemplate avoids direct Steam fallback fetches", async () => {
     );
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|language=zh-Hans|title=https://store.steampowered.com/app/123/example/?l=schinese|url=https://store.steampowered.com/app/123/example/?l=schinese|via=Steam}}",
+        "{{cite web|access-date=2026-05-24|language=zh-Hans|url=https://store.steampowered.com/app/123/example/?l=schinese|via=Steam}}",
     );
 });
 

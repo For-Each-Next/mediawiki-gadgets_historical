@@ -7,8 +7,9 @@ import test from "node:test";
 
 import {
     createSaveProgress,
+    getSaveProgressGroups,
+    isSaveProgressComplete,
     readSaveProgress,
-    renderSaveProgress,
     storeSaveProgress,
     updateSaveProgress,
 } from "../src/save/progress.js";
@@ -74,8 +75,7 @@ test("save progress updates and round-trips through storage", () => {
     assert.equal(readSaveProgress(storage).steps[0].status, "running");
 });
 
-test("renderSaveProgress uses bullets and code-wrapped titles", () => {
-    const documentRef = createDocumentStub();
+test("createSaveProgress stores semantic title fragments", () => {
     const progress = createSaveProgress("夏爾故事：魔戒遊戲", [
         {
             id: "interwiki",
@@ -105,27 +105,23 @@ test("renderSaveProgress uses bullets and code-wrapped titles", () => {
             type: "category",
         },
     ]);
-    const layer = renderSaveProgress(progress, documentRef);
 
-    assert.equal(layer.innerHTML.includes("<ul"), true);
-    assert.equal(layer.innerHTML.includes("<ol"), false);
-    assert.equal(
-        layer.innerHTML.includes("<code>夏爾故事：魔戒遊戲</code>"),
-        true,
+    assert.deepEqual(
+        progress.steps.find((step) => step.id === "interwiki").parts,
+        [
+            { text: "Connect " },
+            { code: "夏爾故事：魔戒遊戲" },
+            { text: " to " },
+            { code: "Q125570677" },
+        ],
     );
-    assert.equal(layer.innerHTML.includes("<code>Q125570677</code>"), true);
-    assert.equal(layer.innerHTML.includes("✅"), false);
-    assert.equal(layer.innerHTML.includes("⏸️"), true);
-    assert.equal(
-        layer.innerHTML.includes("<code>Category:Chibig游戏</code>"),
-        true,
+    assert.deepEqual(
+        progress.steps.find((step) => step.id === "category:Chibig游戏").parts,
+        [{ text: "Create category: " }, { code: "Category:Chibig游戏" }],
     );
-    assert.equal(layer.innerHTML.includes(" -&gt; "), false);
-    assert.equal(layer.innerHTML.includes(" to "), true);
 });
 
-test("renderSaveProgress groups steps by edited target page", () => {
-    const documentRef = createDocumentStub();
+test("getSaveProgressGroups groups steps by edited target page", () => {
     const progress = createSaveProgress(
         "Example",
         [
@@ -158,38 +154,21 @@ test("renderSaveProgress groups steps by edited target page", () => {
             enabled: true,
         },
     );
-    const layer = renderSaveProgress(progress, documentRef);
+    const groups = getSaveProgressGroups(progress);
 
-    assert.equal(
-        layer.innerHTML.includes("Target page: <code>Example</code>"),
-        true,
-    );
-    assert.equal(
-        layer.innerHTML.includes("Target page: <code>Alias</code>"),
-        true,
-    );
-    assert.equal(
-        layer.innerHTML.includes("Target page: <code>Talk:Example</code>"),
-        true,
-    );
-    assert.equal(
-        layer.innerHTML.includes("Target page: <code>Template:Example</code>"),
-        true,
-    );
-    assert.equal(
-        layer.innerHTML.includes(
-            "Target page: <code>WikiProject:电子游戏/新进条目</code>",
-        ),
-        true,
-    );
-    assert.equal(
-        layer.innerHTML.includes('class="create-vg-stub-save-progress-group"'),
-        true,
+    assert.deepEqual(
+        groups.map((group) => group.targetPage),
+        [
+            "Example",
+            "Alias",
+            "Talk:Example",
+            "Template:Example",
+            "WikiProject:电子游戏/新进条目",
+        ],
     );
 });
 
 test("category progress omits bundled Wikidata work", () => {
-    const documentRef = createDocumentStub();
     const progress = createSaveProgress("Example", [
         {
             category: "Milestone (公司)游戏",
@@ -201,67 +180,40 @@ test("category progress omits bundled Wikidata work", () => {
             type: "category",
         },
     ]);
-    const layer = renderSaveProgress(progress, documentRef);
+    const groups = getSaveProgressGroups(progress);
 
     assert.equal(
-        layer.innerHTML.includes("Target page: <code>Wikidata:"),
+        groups.some((group) => group.targetPage.startsWith("Wikidata:")),
         false,
     );
     assert.equal(
-        layer.innerHTML.includes("Connect to matching Wikidata"),
-        false,
-    );
-    assert.equal(
-        layer.innerHTML.includes(
-            "<code>Category:Milestone (公司)游戏</code>",
-        ),
+        groups.some((group) => group.targetPage === "Category:Milestone (公司)游戏"),
         true,
     );
 });
 
-test("renderSaveProgress uses a Codex-style waiting frame", () => {
-    const documentRef = createDocumentStub();
+test("isSaveProgressComplete recognizes terminal progress", () => {
     const progress = updateSaveProgress(
         createSaveProgress("Example"),
         "save",
         "complete",
     );
-    const layer = renderSaveProgress(progress, documentRef);
 
+    assert.equal(isSaveProgressComplete(progress), true);
     assert.equal(
-        layer.innerHTML.includes(
-            'class="cdx-dialog create-vg-stub-save-progress-dialog"',
+        isSaveProgressComplete(
+            updateSaveProgress(createSaveProgress("Example"), "save", "failed"),
         ),
         true,
     );
-    assert.equal(layer.innerHTML.includes('class="cdx-dialog__header"'), true);
-    assert.equal(layer.innerHTML.includes('class="cdx-dialog__body"'), true);
-    assert.equal(layer.innerHTML.includes('data-action="close"'), false);
-    assert.equal(layer.innerHTML.includes("cdx-button"), false);
-    assert.equal(layer.innerHTML.includes("cdx-dialog__footer"), false);
-    assert.equal(layer.innerHTML.includes("float:right"), false);
+    assert.equal(
+        isSaveProgressComplete(
+            updateSaveProgress(
+                createSaveProgress("Example"),
+                "save",
+                "retrying",
+            ),
+        ),
+        false,
+    );
 });
-
-function createDocumentStub() {
-    let layer;
-
-    return {
-        body: {
-            append(element) {
-                layer = element;
-            },
-        },
-        createElement() {
-            return {
-                innerHTML: "",
-                querySelector() {
-                    return null;
-                },
-                style: {},
-            };
-        },
-        getElementById() {
-            return layer;
-        },
-    };
-}

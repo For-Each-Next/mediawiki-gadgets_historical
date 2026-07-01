@@ -48,7 +48,6 @@ import {
     getPreviewFormData,
     normalizePageTitle,
     storeMovedEdit,
-    storePendingSaveData,
     storePreviewFormData,
 } from "./editing/session.js";
 import {
@@ -81,9 +80,7 @@ import {
 import {
     failSaveProgress,
     reportSaveProgressError,
-    renderStoredSaveProgress,
     setSaveProgressStep,
-    startSaveProgress,
 } from "./save/controller.js";
 import { SAVE_PROGRESS_STORAGE_KEY } from "./save/progress.js";
 import {
@@ -397,7 +394,6 @@ async function submitForm(
                   name: moveTitle,
               }
             : form;
-        const editFormAvailable = document.getElementById("editform") != null;
         const previewText =
             typeof preview?.text === "string" ? preview.text : undefined;
         const preserveEditor = previewText == null && shouldPreserveEditor();
@@ -408,12 +404,12 @@ async function submitForm(
         const summary =
             typeof preview?.summary === "string"
                 ? preview.summary
-                : stub == null
-                  ? ""
-                  : buildEditSummary(
+                : stub != null
+                  ? buildEditSummary(
                         createEditSummaryMetadata(submittedForm, stub),
-                    );
-        const text = previewText ?? stub?.text;
+                    )
+                  : readEditSummary();
+        const text = previewText ?? stub?.text ?? readEditText();
         const pending = {
             actions: preSave.actions,
             move: shouldMove
@@ -426,42 +422,179 @@ async function submitForm(
                   },
             registration: preSave.registration,
         };
+        const api = new mw.Api();
 
-        storePendingSaveData(submittedForm, getPageName(), {
-            actions: pending.actions,
-            move: pending.move,
-            registration: pending.registration,
-        });
-        startSaveProgress(getPageName(), pending);
+        preSave.progress?.start(getPageName(), pending);
+        await saveSubmittedArticle(api, getPageName(), text, summary);
+        preSave.progress?.set("save", "complete");
 
-        if (!editFormAvailable) {
-            const params = {
-                action: "edit",
-                createonly: true,
-                summary,
-                text,
-                title: getPageName(),
-            };
+        const result = await runSubmittedFollowUpActions(
+            api,
+            pending,
+            getPageName(),
+            preSave.progress,
+        );
 
-            await new mw.Api().postWithToken("csrf", params);
-            setSaveProgressStep("save", "complete");
-            window.location.href = mw.util.getUrl(getPageName());
-        } else {
-            if (previewText != null || !preserveEditor) {
-                writeEditText(text);
-                writeEditSummary(summary);
-            }
-
-            submitEditForm();
+        if (result.failed.length > 0) {
+            preSave.progress?.report(
+                formatPendingActionFailures(result.failed),
+            );
+            return;
         }
 
-        closeDialog();
+        window.location.href = mw.util.getUrl(result.title);
     } catch (error) {
-        failSaveProgress(error);
+        preSave.progress?.fail(error);
         sourceFetchState.error = error.message;
     } finally {
         sourceFetchState.loading = false;
     }
+}
+
+/**
+ * Saves the submitted article text through the API.
+ *
+ * @param {object} api - MediaWiki API client.
+ * @param {string} title - Submitted page title.
+ * @param {string} text - Submitted article wikitext.
+ * @param {string} summary - Edit summary.
+ * @returns {Promise<void>} Resolves after the article is saved.
+ */
+async function saveSubmittedArticle(api, title, text, summary) {
+    const params = {
+        action: "edit",
+        summary,
+        text,
+        title,
+    };
+
+    if (mw.config.get("wgArticleId") === 0) {
+        params.createonly = true;
+    }
+
+    await api.postWithToken("csrf", params);
+}
+
+/**
+ * Runs follow-up actions for an article saved from the pre-save dialog.
+ *
+ * @param {object} api - MediaWiki API client.
+ * @param {object} pending - Pending follow-up actions.
+ * @param {string} title - Submitted article title.
+ * @param {object} [progress] - In-dialog progress reporter.
+ * @returns {Promise<object>} Follow-up action result.
+ */
+async function runSubmittedFollowUpActions(api, pending, title, progress) {
+    let currentTitle = title;
+    const actionOptions = {
+        api,
+        move: pending.move,
+        onActionComplete(action) {
+            progress?.set(action.id, "complete");
+        },
+        onActionFailed(action) {
+            progress?.set(action.id, "failed");
+        },
+        onActionRetry(action) {
+            progress?.set(action.id, "retrying");
+        },
+        onActionSkipped(action) {
+            progress?.set(action.id, "skipped");
+        },
+        onActionStart(action) {
+            progress?.set(action.id, "running");
+        },
+        onMoveComplete(movedTitle) {
+            currentTitle = movedTitle;
+            progress?.set("move", "complete");
+        },
+        onMoveStart() {
+            progress?.set("move", "running");
+        },
+        title: currentTitle,
+        wikidataApi: new mw.ForeignApi("https://www.wikidata.org/w/api.php"),
+        saveCategory: (category, text) =>
+            saveCategoryPage(category, text, undefined, api),
+        saveCompanyCategory: (category, text, englishName) =>
+            saveCompanyCategory(category, text, englishName, {
+                api,
+                wikidataApi: new mw.ForeignApi(
+                    "https://www.wikidata.org/w/api.php",
+                ),
+            }),
+    };
+    const result = await runSelectedActions(
+        pending.actions || [],
+        actionOptions,
+    );
+
+    if (pending.registration?.enabled === true) {
+        progress?.set("new-page-list", "running");
+        await registerNewPage(
+            api,
+            result.title,
+            result.completed
+                .filter(
+                    (action) =>
+                        action.type === "category" &&
+                        trimFieldValue(action.company) !== "",
+                )
+                .map((action) => action.category),
+        );
+        progress?.set("new-page-list", "complete");
+    }
+
+    return result;
+}
+
+/**
+ * Refreshes missing company-category Wikidata IDs before showing pre-save work.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {Promise<void>} Resolves after category metadata is refreshed.
+ */
+async function refreshPreSaveCategoryWikidata(form) {
+    const rows = Array.isArray(form.categoryRows) ? form.categoryRows : [];
+
+    await Promise.all(
+        rows
+            .filter(
+                (row) =>
+                    row?.enabled !== false &&
+                    row?.pendingCreation != null &&
+                    trimFieldValue(row.pendingCreation.englishName) !== "" &&
+                    trimFieldValue(row.pendingCreation.wikidataId) === "",
+            )
+            .map(async (row) => {
+                try {
+                    const metadata = await fetchEnwikiMetadata(
+                        normalizeEnglishCategoryTitle(
+                            row.pendingCreation.englishName,
+                        ),
+                    );
+
+                    row.pendingCreation.wikidataId = trimFieldValue(
+                        metadata.wikidataId,
+                    );
+                } catch (_error) {
+                    row.pendingCreation.wikidataId = "";
+                }
+            }),
+    );
+}
+
+/**
+ * Normalizes an English Wikipedia category title for metadata lookup.
+ *
+ * @param {string} title - User-entered English category title.
+ * @returns {string} Category title with namespace.
+ */
+function normalizeEnglishCategoryTitle(title) {
+    const value = trimFieldValue(title);
+
+    return value === "" || /^Category:/iu.test(value)
+        ? value
+        : `Category:${value}`;
 }
 
 /**
@@ -875,6 +1008,7 @@ function init(require) {
         },
         onPrepareReview: prepareNavboxRows,
         async onPreSavePrepare(form, title) {
+            await refreshPreSaveCategoryWikidata(form);
             const redirectTitles = Array.isArray(form.redirectRows)
                 ? form.redirectRows.map((row) => row.title)
                 : buildRedirectTitles(form, title);
@@ -907,6 +1041,7 @@ function init(require) {
     app.component("CdxField", Codex.CdxField);
     app.component("CdxIcon", Codex.CdxIcon);
     app.component("CdxInfoChip", Codex.CdxInfoChip);
+    app.component("CdxProgressIndicator", Codex.CdxProgressIndicator);
     app.component("CdxSelect", Codex.CdxSelect);
     app.component("CdxTab", Codex.CdxTab);
     app.component("CdxTabs", Codex.CdxTabs);
@@ -924,7 +1059,6 @@ function init(require) {
     }
 
     addToolboxLink();
-    renderStoredSaveProgress();
     restoreMovedEditText();
 }
 
@@ -953,7 +1087,10 @@ async function runPendingSaveActions(require) {
                 setSaveProgressStep(action.id, "complete");
             },
             onActionFailed(action) {
-                setSaveProgressStep(action.id, "skipped");
+                setSaveProgressStep(action.id, "failed");
+            },
+            onActionRetry(action) {
+                setSaveProgressStep(action.id, "retrying");
             },
             onActionSkipped(action) {
                 setSaveProgressStep(action.id, "skipped");

@@ -45,14 +45,16 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
     const actions = [];
 
     if (normalizeTitle(form.wikidataId) !== "") {
+        const wikidataId = normalizeTitle(form.wikidataId);
+
         actions.push({
-            displayLabel: "Connect to matching Wikidata item",
+            displayLabel: `Connect to [[d:${wikidataId}]]`,
             id: "interwiki",
-            label: `Connect ${title} to ${normalizeTitle(form.wikidataId)}`,
+            label: `Connect ${title} to ${wikidataId}`,
             pageTitle: title,
             selected: true,
             type: "interwiki",
-            wikidataId: normalizeTitle(form.wikidataId),
+            wikidataId,
         });
     }
 
@@ -141,6 +143,7 @@ function createCategoryAction(row) {
         selected: true,
         text: String(row.pendingCreation.text || ""),
         type: "category",
+        wikidataId: normalizeTitle(row.pendingCreation.wikidataId),
     };
 }
 
@@ -664,6 +667,7 @@ export async function fetchExistingPageTitles(api, titles) {
  * @param {Function} [options.onMoveStart] - Move start callback.
  * @param {Function} [options.onActionComplete] - Action success callback.
  * @param {Function} [options.onActionFailed] - Action failure callback.
+ * @param {Function} [options.onActionRetry] - Action retry callback.
  * @param {Function} [options.onActionSkipped] - Action skipped callback.
  * @param {Function} [options.onActionStart] - Action start callback.
  * @param {Function} [options.saveCategory] - Generic category save handler.
@@ -815,6 +819,10 @@ async function runSelectedActionWithRetry(action, options) {
             return;
         } catch (error) {
             lastError = error;
+
+            if (attempt < MAX_ACTION_ATTEMPTS) {
+                options.onActionRetry?.(action, error, attempt);
+            }
         }
     }
 

@@ -16,6 +16,12 @@ import {
     trimFieldValue,
 } from "../shared/form-values.js";
 import { getEnteredSourceUrls } from "../sources/source-references.js";
+import {
+    createSaveProgress,
+    getSaveProgressGroups,
+    isSaveProgressComplete,
+    updateSaveProgress,
+} from "../save/progress.js";
 import { sortCitationParams } from "../sources/citations.js";
 import {
     buildOfficialNameConversionText,
@@ -142,6 +148,23 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-review-table th:nth-child(5)", {
         width: "5.5em",
     })
+    .add(".create-vg-stub-review-row-marker", {
+        display: "none",
+    })
+    .add(
+        ".create-vg-stub-review-table tr:has(.create-vg-stub-review-row-marker--redirect-conflict) > td",
+        {
+            backgroundColor:
+                "var(--background-color-error-subtle, #fee7e6)",
+        },
+    )
+    .add(
+        ".create-vg-stub-review-table tr:has(.create-vg-stub-review-row-marker--category-add) > td",
+        {
+            backgroundColor:
+                "var(--background-color-progressive-subtle, #eaf3ff)",
+        },
+    )
     .add(".create-vg-stub-icon-tooltip", {
         background: "var(--background-color-inverted, #202122)",
         borderRadius: "2px",
@@ -378,6 +401,60 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-pre-save-item", {
         paddingLeft: "0.15em",
     })
+    .add(".create-vg-stub-pre-save-progress", {
+        display: "grid",
+        gap: "0.875em",
+        marginTop: "0.75em",
+    })
+    .add(".create-vg-stub-pre-save-progress-list", {
+        display: "grid",
+        gap: "0.35em",
+        listStyle: "none",
+        margin: "0",
+        padding: "0",
+    })
+    .add(".create-vg-stub-pre-save-progress-row", {
+        alignItems: "start",
+        display: "grid",
+        gap: "0.4em",
+        gridTemplateColumns: "min-content minmax(0, 1fr)",
+        margin: "0 -0.35em",
+        padding: "0.2em 0.35em",
+    })
+    .add(".create-vg-stub-pre-save-progress-row--running", {
+        backgroundColor:
+            "var(--background-color-progressive-subtle, #eaf3ff)",
+        boxShadow: "inset 3px 0 0 var(--color-progressive, #36c)",
+    })
+    .add(".create-vg-stub-pre-save-progress-row--retrying", {
+        backgroundColor: "var(--background-color-warning-subtle, #fef6e7)",
+        boxShadow: "inset 3px 0 0 var(--color-warning, #edab00)",
+    })
+    .add(".create-vg-stub-pre-save-progress-row--failed", {
+        backgroundColor: "var(--background-color-error-subtle, #fee7e6)",
+        boxShadow: "inset 3px 0 0 var(--color-error, #d73333)",
+    })
+    .add(".create-vg-stub-pre-save-status-icon", {
+        marginTop: "0.15em",
+    })
+    .add(".create-vg-stub-pre-save-status-icon--complete", {
+        color: "var(--color-success, #14866d)",
+    })
+    .add(".create-vg-stub-pre-save-status-icon--failed", {
+        color: "var(--color-error, #d73333)",
+    })
+    .add(".create-vg-stub-pre-save-status-icon--pending", {
+        color: "var(--color-subtle, #54595d)",
+    })
+    .add(".create-vg-stub-pre-save-status-icon--running", {
+        color: "var(--color-progressive, #36c)",
+    })
+    .add(".create-vg-stub-pre-save-status-icon--retrying", {
+        color: "var(--color-warning, #edab00)",
+    })
+    .add(".create-vg-stub-pre-save-status-icon--skipped", {
+        color: "var(--color-warning, #edab00)",
+    })
     .add(".create-vg-stub-pre-save-note", {
         overflowWrap: "anywhere",
     })
@@ -582,6 +659,26 @@ const TABLE_ACTION_ICONS = {
     },
     sort: {
         path: "M6 3h8v2H6zm-3 5h14v2H3zm3 5h8v2H6z",
+    },
+};
+const PRE_SAVE_STATUS_ICONS = {
+    complete: {
+        path: "M8.8 13.6 4.6 9.4 3.2 10.8 8.8 16.4 18 7.2 16.6 5.8z",
+    },
+    failed: {
+        path: "m5.4 4 4.6 4.6L14.6 4 16 5.4 11.4 10l4.6 4.6-1.4 1.4-4.6-4.6L5.4 16 4 14.6 8.6 10 4 5.4z",
+    },
+    pending: {
+        path: "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10z",
+    },
+    running: {
+        path: "M10 3a7 7 0 1 0 7 7h-2a5 5 0 1 1-5-5z",
+    },
+    retrying: {
+        path: "M10 3a7 7 0 0 1 6.2 3.8L18 5v5h-5l1.8-1.8A5 5 0 1 0 15 12h2a7 7 0 1 1-7-9z",
+    },
+    skipped: {
+        path: "M4 5v10l7-5zm8 0h2v10h-2z",
     },
 };
 const ARTICLE_PARAMETER_GROUPS = [
@@ -879,6 +976,10 @@ export function createDialogComponent(Vue, options) {
     const preSaveGroups = Vue.computed(() =>
         createPreSaveGroups(preSaveActions, form),
     );
+    const preSaveProgress = Vue.ref(null);
+    const preSaveProgressGroups = Vue.computed(() =>
+        getSaveProgressGroups(preSaveProgress.value),
+    );
     const stubTagRows = Vue.computed(() => form.stubTagRows || []);
     const previewOpen = Vue.ref(false);
     const previewTextArea = Vue.ref(null);
@@ -971,6 +1072,7 @@ export function createDialogComponent(Vue, options) {
         sourceFetchState.error = "";
         sourceFetchState.loading = true;
         preSaveMoveTitle.value = getCurrentTitle();
+        preSaveProgress.value = null;
         preSaveOpen.value = true;
 
         try {
@@ -1004,6 +1106,78 @@ export function createDialogComponent(Vue, options) {
             await openPreSave();
         },
     };
+
+    /**
+     * Creates callbacks used by the submit path to update this dialog.
+     *
+     * @returns {object} Progress reporter callbacks.
+     */
+    function createPreSaveProgressReporter() {
+        return {
+            fail(error) {
+                if (preSaveProgress.value == null) {
+                    return;
+                }
+
+                const running = preSaveProgress.value.steps.find(
+                    (step) => step.status === "running",
+                );
+
+                preSaveProgress.value = {
+                    ...preSaveProgress.value,
+                    error: error.message || String(error),
+                };
+
+                if (running != null) {
+                    setPreSaveProgressStep(running.id, "failed");
+                }
+            },
+            report(error) {
+                if (preSaveProgress.value == null) {
+                    return;
+                }
+
+                preSaveProgress.value = {
+                    ...preSaveProgress.value,
+                    error: error.message || String(error),
+                };
+            },
+            set(id, status) {
+                setPreSaveProgressStep(id, status);
+            },
+            start(title, pending) {
+                preSaveProgress.value = updateSaveProgress(
+                    createSaveProgress(
+                        title,
+                        pending.actions || [],
+                        pending.move || {},
+                        pending.registration || {},
+                    ),
+                    "save",
+                    "running",
+                );
+            },
+        };
+    }
+
+    /**
+     * Updates one in-dialog progress step.
+     *
+     * @param {string} id - Progress step ID.
+     * @param {string} status - New status.
+     * @returns {void}
+     */
+    function setPreSaveProgressStep(id, status) {
+        if (preSaveProgress.value == null) {
+            return;
+        }
+
+        preSaveProgress.value = updateSaveProgress(
+            preSaveProgress.value,
+            id,
+            status,
+        );
+    }
 
     if (
         options.initialEnwikiLookup === true &&
@@ -1168,6 +1342,7 @@ export function createDialogComponent(Vue, options) {
                             enabled: false,
                             to: getCurrentTitle(),
                         },
+                        progress: createPreSaveProgressReporter(),
                         registration: {
                             enabled: form.registerNewPage !== false,
                         },
@@ -1188,6 +1363,119 @@ export function createDialogComponent(Vue, options) {
             openHistoryDialog() {
                 historyEntries.value = options.getHistoryEntries();
                 historyOpen.value = true;
+            },
+
+            /**
+             * Gets the label for the currently running pre-save step.
+             *
+             * @returns {string} Running step label.
+             */
+            getPreSaveCurrentStepLabel() {
+                const step = preSaveProgress.value?.steps.find(
+                    (item) =>
+                        item.status === "running" ||
+                        item.status === "retrying",
+                );
+
+                return step == null ? "Working" : step.label;
+            },
+
+            /**
+             * Gets the icon used for a pre-save progress status.
+             *
+             * @param {string} status - Progress status.
+             * @returns {object} Codex icon definition.
+             */
+            getPreSaveStatusIcon(status) {
+                return (
+                    PRE_SAVE_STATUS_ICONS[status] ||
+                    PRE_SAVE_STATUS_ICONS.pending
+                );
+            },
+
+            /**
+             * Gets the status icon CSS class for one progress row.
+             *
+             * @param {string} status - Progress status.
+             * @returns {string} CSS class list.
+             */
+            getPreSaveStatusIconClass(status) {
+                const normalized = PRE_SAVE_STATUS_ICONS[status]
+                    ? status
+                    : "pending";
+
+                return `create-vg-stub-pre-save-status-icon create-vg-stub-pre-save-status-icon--${normalized}`;
+            },
+
+            /**
+             * Gets the CSS class for one progress row.
+             *
+             * @param {object} step - Progress step.
+             * @returns {string} CSS class list.
+             */
+            getPreSaveProgressRowClass(step) {
+                const status = trimFieldValue(step?.status);
+                const active = ["failed", "retrying", "running"].includes(
+                    status,
+                );
+
+                return active
+                    ? `create-vg-stub-pre-save-progress-row create-vg-stub-pre-save-progress-row--${status}`
+                    : "create-vg-stub-pre-save-progress-row";
+            },
+
+            /**
+             * Gets semantic text fragments for one progress step.
+             *
+             * @param {object} step - Progress step.
+             * @returns {Array<object>} Display fragments.
+             */
+            getPreSaveStepParts(step) {
+                return Array.isArray(step?.parts)
+                    ? step.parts
+                    : [{ text: step?.label || "" }];
+            },
+
+            /**
+             * Checks whether the pre-save progress is still running.
+             *
+             * @returns {boolean} Whether progress has active work.
+             */
+            isPreSaveProgressRunning() {
+                return (
+                    preSaveProgress.value != null &&
+                    !isSaveProgressComplete(preSaveProgress.value)
+                );
+            },
+
+            /**
+             * Checks whether a checked missing category row should stand out.
+             *
+             * @param {object} row - Category review row.
+             * @returns {boolean} Whether the row should be highlighted.
+             */
+            isCategoryAddReviewRow(row) {
+                return (
+                    row?.enabled !== false &&
+                    trimFieldValue(row?.category) !== "" &&
+                    (row?.pendingCreation != null ||
+                        row?.status === "Not exists" ||
+                        row?.status === "Pending creation")
+                );
+            },
+
+            /**
+             * Checks whether a checked redirect row targets an existing page.
+             *
+             * @param {object} row - Redirect review row.
+             * @returns {boolean} Whether the row should be highlighted.
+             */
+            isRedirectConflictReviewRow(row) {
+                return (
+                    row?.enabled !== false &&
+                    trimFieldValue(row?.title) !== "" &&
+                    row?.exists === true
+                );
             },
 
             /**
@@ -2748,6 +3036,8 @@ export function createDialogComponent(Vue, options) {
                 preSaveOpen,
                 preSaveActions,
                 preSaveGroups,
+                preSaveProgress,
+                preSaveProgressGroups,
                 previewOpen,
                 previewText,
                 previewSummary,
@@ -4222,6 +4512,10 @@ export function createPreSaveGroups(actions, form) {
     const actionRows = Array.isArray(actions) ? actions : [];
 
     for (const action of actionRows) {
+        if (action?.selected === false) {
+            continue;
+        }
+
         const title = getPreSaveActionPageTitle(action);
 
         if (title === "") {
@@ -4249,7 +4543,7 @@ export function createPreSaveGroups(actions, form) {
 
     const articleTitle = getPreSaveRegistrationArticleTitle(actionRows);
 
-    if (articleTitle !== "") {
+    if (articleTitle !== "" && form?.registerNewPage !== false) {
         getPreSaveGroup(articleTitle).rows.push({
             key: "register-new-page",
             label: "Register on WikiProject Video games' new-page list",
@@ -4258,6 +4552,10 @@ export function createPreSaveGroups(actions, form) {
     }
 
     for (const action of actionRows.filter(isCompanyCategoryPreSaveAction)) {
+        if (action?.selected === false || form?.registerNewPage === false) {
+            continue;
+        }
+
         const title = getPreSaveActionPageTitle(action);
 
         if (title === "") {
@@ -4336,10 +4634,17 @@ function getPreSaveActionNotes(action) {
         },
     ];
 
-    if (trimFieldValue(action.englishName) !== "") {
+    const wikidataId = trimFieldValue(action.wikidataId);
+
+    if (wikidataId !== "") {
         notes.unshift({
             key: "wikidata",
-            label: "Connect to matching Wikidata item",
+            label: `Connect to [[d:${wikidataId}]]`,
+        });
+    } else if (trimFieldValue(action.englishName) !== "") {
+        notes.unshift({
+            key: "wikidata",
+            label: "Connect matching Wikidata category item",
         });
     }
 
@@ -4353,10 +4658,11 @@ function getPreSaveActionNotes(action) {
  * @returns {string} Article title.
  */
 function getPreSaveRegistrationArticleTitle(actions) {
+    const selectedActions = actions.filter((action) => action?.selected !== false);
     const action =
-        actions.find((item) => item.type === "talk-banner") ||
-        actions.find((item) => item.type === "interwiki") ||
-        actions.find((item) => item.type !== "redirect");
+        selectedActions.find((item) => item.type === "talk-banner") ||
+        selectedActions.find((item) => item.type === "interwiki") ||
+        selectedActions.find((item) => item.type !== "redirect");
 
     return getPreSaveActionPageTitle(action);
 }
@@ -4388,13 +4694,14 @@ function createPreSaveDialogTemplate() {
         [
             createElement("p", {}, [
                 createText(
-                    "Choose fixes to run after the article is submitted.",
+                    "{{ preSaveProgress == null ? 'Choose fixes to run after the article is submitted.' : 'Running selected fixes after the article is submitted.' }}",
                 ),
             ]),
             createElement(
                 "div",
                 {
                     class: "create-vg-stub-pre-save-groups",
+                    "v-if": "preSaveProgress == null",
                 },
                 [
                     createElement(
@@ -4488,12 +4795,120 @@ function createPreSaveDialogTemplate() {
                 ],
             ),
             createElement(
+                "div",
+                {
+                    class: "create-vg-stub-pre-save-progress",
+                    "v-else": "",
+                },
+                [
+                    createElement(
+                        "cdx-progress-indicator",
+                        {
+                            "show-label": "",
+                            "v-if": "isPreSaveProgressRunning()",
+                        },
+                        [createText("{{ getPreSaveCurrentStepLabel() }}")],
+                    ),
+                    createElement(
+                        "section",
+                        {
+                            class: "create-vg-stub-pre-save-page",
+                            "v-bind:key": "group.targetPage",
+                            "v-for": "group in preSaveProgressGroups",
+                        },
+                        [
+                            createElement(
+                                "div",
+                                {
+                                    class: "create-vg-stub-pre-save-title",
+                                },
+                                [createText("{{ group.targetPage }}")],
+                            ),
+                            createElement(
+                                "ul",
+                                {
+                                    class: "create-vg-stub-pre-save-progress-list",
+                                },
+                                [
+                                    createElement(
+                                        "li",
+                                        {
+                                            "v-bind:class":
+                                                "getPreSaveProgressRowClass(step)",
+                                            "v-bind:key": "step.id",
+                                            "v-for": "step in group.steps",
+                                        },
+                                        [
+                                            createElement("cdx-icon", {
+                                                "v-bind:class":
+                                                    "getPreSaveStatusIconClass(step.status)",
+                                                "v-bind:icon":
+                                                    "getPreSaveStatusIcon(step.status)",
+                                            }),
+                                            createElement(
+                                                "span",
+                                                {},
+                                                [
+                                                    createElement(
+                                                        "template",
+                                                        {
+                                                            "v-bind:key":
+                                                                "index",
+                                                            "v-for":
+                                                                "(part, index) in getPreSaveStepParts(step)",
+                                                        },
+                                                        [
+                                                            createElement(
+                                                                "code",
+                                                                {
+                                                                    "v-if":
+                                                                        "part.code != null",
+                                                                },
+                                                                [
+                                                                    createText(
+                                                                        "{{ part.code }}",
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                            createElement(
+                                                                "template",
+                                                                {
+                                                                    "v-else":
+                                                                        "",
+                                                                },
+                                                                [
+                                                                    createText(
+                                                                        "{{ part.text }}",
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            createElement(
                 "p",
                 {
                     class: "create-vg-stub-error",
                     "v-if": "sourceFetchState.error",
                 },
                 [createText("{{ sourceFetchState.error }}")],
+            ),
+            createElement(
+                "p",
+                {
+                    class: "create-vg-stub-error",
+                    "v-if": "preSaveProgress && preSaveProgress.error",
+                },
+                [createText("{{ preSaveProgress.error }}")],
             ),
             createElement(
                 "template",
@@ -4514,7 +4929,8 @@ function createPreSaveDialogTemplate() {
                             "cdx-button",
                             {
                                 action: "progressive",
-                                "v-bind:disabled": "sourceFetchState.loading",
+                                "v-bind:disabled":
+                                    "sourceFetchState.loading || preSaveProgress != null",
                                 "v-on:click": "confirmSubmit",
                                 weight: "primary",
                             },

@@ -74,6 +74,31 @@ export function createSaveProgress(
 }
 
 /**
+ * Gets progress steps grouped by the wiki page they update.
+ *
+ * @param {object} progress - Save progress state.
+ * @returns {Array<object>} Target-page progress groups.
+ */
+export function getSaveProgressGroups(progress) {
+    return (progress?.steps || []).reduce(
+        (groups, step) => addStepToTargetGroup(groups, step, progress),
+        [],
+    );
+}
+
+/**
+ * Checks whether all progress steps have finished.
+ *
+ * @param {object} progress - Save progress state.
+ * @returns {boolean} Whether every step has a terminal status.
+ */
+export function isSaveProgressComplete(progress) {
+    return (progress?.steps || []).every((step) =>
+        ["complete", "failed", "skipped"].includes(step.status),
+    );
+}
+
+/**
  * Finds the wiki page updated by a follow-up action.
  *
  * @param {object} action - Selected follow-up action.
@@ -209,70 +234,6 @@ export function readSaveProgress(storage = sessionStorage) {
 }
 
 /**
- * Renders or updates the save progress layer.
- *
- * @param {object} progress - Save progress state.
- * @param {Document} [documentRef] - Document implementation.
- * @returns {HTMLElement} Progress layer.
- */
-export function renderSaveProgress(progress, documentRef = document) {
-    let layer = documentRef.getElementById("create-vg-stub-save-progress");
-
-    if (layer == null) {
-        layer = documentRef.createElement("div");
-        layer.id = "create-vg-stub-save-progress";
-        const layerStyles = {
-            alignItems: "center",
-            background:
-                "var(--background-color-backdrop-light, rgb(0 0 0 / 45%))",
-            display: "flex",
-            inset: "0",
-            justifyContent: "center",
-            position: "fixed",
-            zIndex: "10000",
-        };
-
-        Object.assign(layer.style, layerStyles);
-        documentRef.body.append(layer);
-    }
-
-    const statusLabels = {
-        complete: "✅",
-        failed: "❌",
-        pending: "⏸️",
-        running: "⏳",
-        skipped: "⏭️",
-    };
-    const rows = progress.steps
-        .reduce(
-            (groups, step) => addStepToTargetGroup(groups, step, progress),
-            [],
-        )
-        .map((group) => renderProgressGroup(group, statusLabels))
-        .join("");
-    const error = progress.error
-        ? `<p style="color:var(--color-error,#b32424)">${escapeHtml(progress.error)}</p>`
-        : "";
-    const complete = progress.steps.every((step) =>
-        ["complete", "skipped"].includes(step.status),
-    );
-    const title = complete ? "Article creation complete" : "Creating article";
-
-    layer.innerHTML =
-        '<div class="cdx-dialog create-vg-stub-save-progress-dialog" role="dialog" aria-modal="true" aria-labelledby="create-vg-stub-save-progress-title" style="background:var(--background-color-base,#fff);border:1px solid var(--border-color-base,#a2a9b1);box-shadow:var(--box-shadow-drop-medium,0 0.125em 0.5em rgb(0 0 0 / 30%));color:var(--color-base,#202122);display:flex;flex-direction:column;max-height:min(90vh,40em);max-width:min(90vw,40em);width:100%">' +
-        '<header class="cdx-dialog__header" style="border-bottom:1px solid var(--border-color-subtle,#c8ccd1);padding:1em 1.5em">' +
-        `<h2 class="cdx-dialog__title" id="create-vg-stub-save-progress-title" style="font-size:1.25em;font-weight:700;line-height:1.6;margin:0">${title}</h2>` +
-        "</header>" +
-        '<div class="cdx-dialog__body" style="overflow:auto;padding:1em 1.5em">' +
-        `<div style="display:grid;gap:1em">${rows}</div>` +
-        error +
-        "</div>" +
-        "</div>";
-
-    return layer;
-}
-
-/**
  * Adds a progress step to its target-page group.
  *
  * @param {Array<object>} groups - Existing target-page groups.
@@ -326,62 +287,4 @@ function getStoredStepTargetPage(step, progress) {
     }
 
     return progress.title;
-}
-
-/**
- * Renders one target-page progress group.
- *
- * @param {object} group - Target-page progress group.
- * @param {object} statusLabels - Status labels keyed by status.
- * @returns {string} Escaped group markup.
- */
-function renderProgressGroup(group, statusLabels) {
-    const rows = group.steps
-        .map(
-            (step) =>
-                `<li data-status="${step.status}"><strong>${escapeHtml(statusLabels[step.status] || step.status)}</strong> ${renderStepParts(step)}</li>`,
-        )
-        .join("");
-
-    return (
-        '<section class="create-vg-stub-save-progress-group" style="border:1px solid var(--border-color-subtle,#c8ccd1);padding:0.75em 1em">' +
-        `<h3 style="font-size:1em;font-weight:700;line-height:1.6;margin:0 0 0.5em">Target page: <code>${escapeHtml(group.targetPage)}</code></h3>` +
-        `<ul style="display:grid;gap:0.5em;margin:0;padding-left:1.5em">${rows}</ul>` +
-        "</section>"
-    );
-}
-
-/**
- * Renders one progress step's semantic text fragments.
- *
- * @param {object} step - Progress step.
- * @returns {string} Escaped progress markup.
- */
-function renderStepParts(step) {
-    if (!Array.isArray(step.parts)) {
-        return escapeHtml(step.label);
-    }
-
-    return step.parts
-        .map((part) =>
-            part.code == null
-                ? escapeHtml(part.text || "")
-                : `<code>${escapeHtml(part.code)}</code>`,
-        )
-        .join("");
-}
-
-/**
- * Escapes text inserted into progress markup.
- *
- * @param {*} value - Raw value.
- * @returns {string} Escaped HTML.
- */
-function escapeHtml(value) {
-    return String(value)
-        .replace(/&/gu, "&amp;")
-        .replace(/</gu, "&lt;")
-        .replace(/>/gu, "&gt;")
-        .replace(/"/gu, "&quot;")
-        .replace(/'/gu, "&#039;");
 }

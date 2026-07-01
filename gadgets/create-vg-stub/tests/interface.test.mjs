@@ -1219,6 +1219,34 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         true,
     );
     assert.equal(component.template.includes("Include redirect"), true);
+    assert.equal(
+        component.template.includes(
+            "create-vg-stub-review-row-marker--redirect-conflict",
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
+            "create-vg-stub-review-row-marker--category-add",
+        ),
+        true,
+    );
+    assert.equal(
+        component.methods.isRedirectConflictReviewRow({
+            enabled: true,
+            exists: true,
+            title: "Existing redirect",
+        }),
+        true,
+    );
+    assert.equal(
+        component.methods.isCategoryAddReviewRow({
+            category: "Missing games",
+            enabled: true,
+            status: "Not exists",
+        }),
+        true,
+    );
     assert.equal(component.template.includes("Redirects"), true);
     assert.equal(component.template.includes('aria-label="Refresh"'), true);
     assert.equal(
@@ -2693,6 +2721,7 @@ test("pre-save fixes are grouped by target page", () => {
         pageTitle: "Category:Chibig遊戲",
         selected: true,
         type: "category",
+        wikidataId: "Q123",
     };
 
     assert.deepEqual(
@@ -2741,7 +2770,7 @@ test("pre-save fixes are grouped by target page", () => {
                     {
                         action: categoryAction,
                         key: "category:Chibig遊戲:wikidata",
-                        label: "Connect to matching Wikidata item",
+                        label: "Connect to [[d:Q123]]",
                         type: "bundled-action",
                     },
                     {
@@ -2758,6 +2787,70 @@ test("pre-save fixes are grouped by target page", () => {
                 ],
                 title: "Category:Chibig遊戲",
             },
+        ],
+    );
+});
+
+test("pre-save fixes omit review rows that are not included", () => {
+    const redirectAction = {
+        displayLabel: "Redirect to [[Samson (遊戲)]]",
+        id: "redirect:薩姆森 (遊戲)",
+        pageTitle: "薩姆森 (遊戲)",
+        selected: false,
+        type: "redirect",
+    };
+    const talkAction = {
+        displayLabel:
+            "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+        id: "talk-banner",
+        pageTitle: "Samson (遊戲)",
+        selected: true,
+        type: "talk-banner",
+    };
+
+    assert.deepEqual(
+        createPreSaveGroups([redirectAction, talkAction], {
+            registerNewPage: false,
+        }),
+        [
+            {
+                key: "Samson (遊戲)",
+                rows: [
+                    {
+                        action: talkAction,
+                        key: "talk-banner",
+                        label: "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+                        type: "action",
+                    },
+                ],
+                title: "Samson (遊戲)",
+            },
+        ],
+    );
+});
+
+test("pre-save category fixes show Wikidata work without a known item", () => {
+    const categoryAction = {
+        category: "Frontier Developments游戏",
+        company: "Frontier Developments",
+        displayLabel: "Create category page",
+        englishName: "Category:Frontier Developments games",
+        id: "category:Frontier Developments游戏",
+        pageTitle: "Category:Frontier Developments游戏",
+        selected: true,
+        type: "category",
+        wikidataId: "",
+    };
+    const groups = createPreSaveGroups([categoryAction], {
+        registerNewPage: false,
+    });
+
+    assert.deepEqual(
+        groups[0].rows.map((row) => row.label),
+        [
+            "Create category page",
+            "Connect matching Wikidata category item",
+            "Tagging {{WikiProject Video games}} to [[Category talk:Frontier Developments游戏]]",
         ],
     );
 });

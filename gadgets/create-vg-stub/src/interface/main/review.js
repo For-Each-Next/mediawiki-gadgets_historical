@@ -155,7 +155,13 @@ function createCategorySlotsTemplate() {
                 "addCategoryRow",
             ),
         ]),
-        createToggleSlotTemplate("enabled", "row.enabled", "Include category"),
+        createToggleSlotTemplate(
+            "enabled",
+            "row.enabled",
+            "Include category",
+            "isCategoryAddReviewRow(row)",
+            "create-vg-stub-review-row-marker--category-add",
+        ),
         createElement(
             "template",
             {
@@ -256,7 +262,13 @@ function createRedirectSlotsTemplate() {
                 },
             ),
         ]),
-        createToggleSlotTemplate("enabled", "row.enabled", "Include redirect"),
+        createToggleSlotTemplate(
+            "enabled",
+            "row.enabled",
+            "Include redirect",
+            "isRedirectConflictReviewRow(row)",
+            "create-vg-stub-review-row-marker--redirect-conflict",
+        ),
         createStatusSlotTemplate(
             "status",
             "row.status",
@@ -477,21 +489,41 @@ function createStubTagSlotsTemplate() {
  * @param {string} column - Column slot suffix.
  * @param {string} model - Vue model expression.
  * @param {string} label - Accessible checkbox label.
+ * @param {string} [markerCondition] - Vue condition for row highlight marker.
+ * @param {string} [markerClass] - Highlight marker CSS class.
  * @returns {object} Table slot node.
  */
-function createToggleSlotTemplate(column, model, label) {
+function createToggleSlotTemplate(
+    column,
+    model,
+    label,
+    markerCondition = "",
+    markerClass = "",
+) {
+    const children = [
+        createElement("cdx-checkbox", {
+            "aria-label": label,
+            title: label,
+            "v-model": model,
+        }),
+    ];
+
+    if (markerCondition !== "") {
+        children.push(
+            createElement("span", {
+                "aria-hidden": "true",
+                class: `create-vg-stub-review-row-marker ${markerClass}`,
+                "v-if": markerCondition,
+            }),
+        );
+    }
+
     return createElement(
         "template",
         {
             [`v-slot:item-${column}`]: "{ row }",
         },
-        [
-            createElement("cdx-checkbox", {
-                "aria-label": label,
-                title: label,
-                "v-model": model,
-            }),
-        ],
+        children,
     );
 }
 

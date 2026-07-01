@@ -81,10 +81,7 @@ test("buildPreSaveActions includes interwiki, redirects, and talk banner", () =>
             ["talk-banner", true],
         ],
     );
-    assert.equal(
-        actions[0].displayLabel,
-        "Connect to matching Wikidata item",
-    );
+    assert.equal(actions[0].displayLabel, "Connect to [[d:Q123]]");
     assert.equal(actions[0].wikidataId, "Q123");
 });
 
@@ -132,6 +129,7 @@ test("buildPreSaveActions includes staged category creation", () => {
         selected: true,
         text: "Category text",
         type: "category",
+        wikidataId: "",
     });
 });
 
@@ -952,6 +950,9 @@ test("runSelectedActions retries failed actions and continues", async () => {
         onActionFailed(action, error) {
             events.push(["failed", action.id, error.message]);
         },
+        onActionRetry(action, error, attempt) {
+            events.push(["retry", action.id, error.message, attempt]);
+        },
         onMoveComplete(title) {
             movedTitle = title;
         },
@@ -965,6 +966,8 @@ test("runSelectedActions retries failed actions and continues", async () => {
         true,
     );
     assert.deepEqual(events, [
+        ["retry", "redirect:Alias", "Edit failed", 1],
+        ["retry", "redirect:Alias", "Edit failed", 2],
         ["failed", "redirect:Alias", "Edit failed"],
         ["complete", "redirect:Other"],
     ]);
@@ -991,6 +994,7 @@ test("runSelectedActions retries failed actions and continues", async () => {
 
 test("runSelectedActions succeeds after a transient failure", async () => {
     const calls = [];
+    const events = [];
     let failures = 0;
     const api = {
         async get(params) {
@@ -1021,11 +1025,15 @@ test("runSelectedActions succeeds after a transient failure", async () => {
         ],
         {
             api,
+            onActionRetry(action, error, attempt) {
+                events.push([action.redirectTitle, error.message, attempt]);
+            },
             title: "Target",
         },
     );
 
     assert.equal(calls.length, 2);
+    assert.deepEqual(events, [["Alias", "Temporary failure", 1]]);
     assert.equal(result.completed.length, 1);
     assert.equal(result.failed.length, 0);
 });

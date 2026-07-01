@@ -7,7 +7,6 @@
 import {
     createSaveProgress,
     readSaveProgress,
-    renderSaveProgress,
     storeSaveProgress,
     updateSaveProgress,
 } from "./progress.js";
@@ -17,7 +16,7 @@ import {
  *
  * @param {string} title - Submitted article title.
  * @param {object} pending - Pending follow-up actions.
- * @returns {void}
+ * @returns {object} Started progress state.
  */
 export function startSaveProgress(title, pending) {
     const progress = createSaveProgress(
@@ -26,9 +25,10 @@ export function startSaveProgress(title, pending) {
         pending.move || {},
         pending.registration || {},
     );
+    const started = updateSaveProgress(progress, "save", "running");
 
-    storeSaveProgress(updateSaveProgress(progress, "save", "running"));
-    renderStoredSaveProgress();
+    storeSaveProgress(started);
+    return started;
 }
 
 /**
@@ -36,30 +36,32 @@ export function startSaveProgress(title, pending) {
  *
  * @param {string} id - Progress row ID.
  * @param {string} status - New status.
- * @returns {void}
+ * @returns {object|undefined} Updated progress state.
  */
 export function setSaveProgressStep(id, status) {
     const progress = readSaveProgress();
 
     if (progress == null) {
-        return;
+        return undefined;
     }
 
-    storeSaveProgress(updateSaveProgress(progress, id, status));
-    renderStoredSaveProgress();
+    const updated = updateSaveProgress(progress, id, status);
+
+    storeSaveProgress(updated);
+    return updated;
 }
 
 /**
  * Stores a progress failure and keeps the layer visible.
  *
  * @param {Error} error - Save error.
- * @returns {void}
+ * @returns {object|undefined} Failed progress state.
  */
 export function failSaveProgress(error) {
     const progress = readSaveProgress();
 
     if (progress == null) {
-        return;
+        return undefined;
     }
 
     progress.error = error.message || String(error);
@@ -70,36 +72,23 @@ export function failSaveProgress(error) {
             : updateSaveProgress(progress, running.id, "failed");
 
     storeSaveProgress(failed);
-    renderSaveProgress(failed);
+    return failed;
 }
 
 /**
  * Stores a non-fatal progress error and keeps completed rows visible.
  *
  * @param {Error|string} error - Save error report.
- * @returns {void}
+ * @returns {object|undefined} Reported progress state.
  */
 export function reportSaveProgressError(error) {
     const progress = readSaveProgress();
 
     if (progress == null) {
-        return;
+        return undefined;
     }
 
     progress.error = error.message || String(error);
     storeSaveProgress(progress);
-    renderSaveProgress(progress);
-}
-
-/**
- * Renders stored save progress when available.
- *
- * @returns {void}
- */
-export function renderStoredSaveProgress() {
-    const progress = readSaveProgress();
-
-    if (progress != null) {
-        renderSaveProgress(progress);
-    }
+    return progress;
 }

@@ -5155,7 +5155,7 @@ function createMainDialogFooterTemplate() {
                         },
                         [
                             createText(
-                                "{{ previewLoading ? 'Preparing preview' : sourceFetchState.loading ? 'Fetching' : 'Preview and submit' }}",
+                                "{{ previewLoading ? 'Preparing preview' : sourceFetchState.loading ? 'Fetching' : 'Submit' }}",
                             ),
                         ],
                     ),

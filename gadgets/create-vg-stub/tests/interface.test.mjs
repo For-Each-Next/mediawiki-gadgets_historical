@@ -2653,7 +2653,7 @@ test("submit opens editable source and parsed preview first", async () => {
     );
     assert.equal(component.template.includes("font-family: monospace"), true);
     assert.equal(component.template.includes('v-on:click="submitForm"'), true);
-    assert.equal(component.template.includes("'Preview and submit'"), true);
+    assert.equal(component.template.includes("'Submit'"), true);
     assert.equal(component.template.includes(">Continue<"), true);
     assert.equal(
         component.template.indexOf(">Move<") <

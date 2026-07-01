@@ -45,7 +45,7 @@ export async function registerNewPage(
                 nocreate: true,
                 starttimestamp: page.starttimestamp,
                 summary: addEditSummarySuffix(
-                    `register the new article "[[${articleTitle}]]"`,
+                    buildNewPageListSummary(articleTitle, companyCategories),
                 ),
                 text,
                 title: NEW_PAGE_LIST_TITLE,
@@ -57,6 +57,30 @@ export async function registerNewPage(
             }
         }
     }
+}
+
+/**
+ * Builds the edit summary for a new-page-list registration.
+ *
+ * @param {string} articleTitle - Created article title.
+ * @param {Array<string>} companyCategories - Category titles, with or without namespace.
+ * @returns {string} Edit summary.
+ */
+function buildNewPageListSummary(articleTitle, companyCategories) {
+    const categories = companyCategories
+        .map(normalizeCategoryTitle)
+        .filter(Boolean)
+        .map((category) => `[[${category}]]`);
+    const article = `[[${articleTitle}]]`;
+
+    if (categories.length === 0) {
+        return `register the new article "${article}"`;
+    }
+
+    return (
+        `register the new article "${article}" and ` +
+        `categor${categories.length === 1 ? "y" : "ies"} ${categories.join(" and ")}`
+    );
 }
 
 /**

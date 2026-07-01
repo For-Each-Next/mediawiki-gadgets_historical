@@ -63,7 +63,7 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
     }
 
     actions.push({
-        displayLabel: `Tagging {{WikiProject Video games}} to [[Talk:${finalTitle}]]`,
+        displayLabel: `Tag banner on [[Talk:${finalTitle}]]`,
         id: "talk-banner",
         label: `Add WikiProject Video games banner to Talk:${finalTitle}`,
         pageTitle: finalTitle,
@@ -695,7 +695,7 @@ export async function runSelectedActions(actions, options) {
         options.onMoveComplete?.(finalTitle);
     }
 
-    for (const action of actions.filter((item) => item.selected)) {
+    for (const action of getSelectedActionsInRunOrder(actions)) {
         if (
             action.type === "redirect" &&
             normalizeTitleKey(action.redirectTitle) ===
@@ -727,6 +727,21 @@ export async function runSelectedActions(actions, options) {
         failed,
         title: finalTitle,
     };
+}
+
+/**
+ * Gets selected actions in the execution order.
+ *
+ * @param {Array<object>} actions - Action rows.
+ * @returns {Array<object>} Selected action rows.
+ */
+function getSelectedActionsInRunOrder(actions) {
+    const selected = actions.filter((item) => item.selected);
+
+    return [
+        ...selected.filter((action) => action.type !== "interwiki"),
+        ...selected.filter((action) => action.type === "interwiki"),
+    ];
 }
 
 /**

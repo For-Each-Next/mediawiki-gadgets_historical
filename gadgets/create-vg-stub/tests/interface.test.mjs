@@ -617,7 +617,12 @@ test("additional prose uses a textarea and source URL field", () => {
     assert.equal(field.multiline, true);
     assert.equal(field.sourceField.sourceKey, "additionalProseSourceUrl");
     assert.equal(field.placeholder, "Text appended after the generated prose");
-    assert.equal(component.template.includes('<cdx-text-area rows="1"'), true);
+    assert.equal(
+        component.template.includes(
+            '<cdx-text-area class="create-vg-stub-article-field-text" rows="1"',
+        ),
+        true,
+    );
     assert.deepEqual(
         groups.map((group) => group.label),
         ["Metadata", "Titles", "Text", "References", "Checks"],
@@ -1902,10 +1907,14 @@ test("pending category button reopens review and can cancel creation", async () 
     assert.equal(prepareCount, 0);
     assert.equal(component.template.includes("Review Category:"), false);
     assert.equal(component.template.includes("Create Category:"), false);
-    assert.equal(component.template.includes(">Cancel</cdx-button>"), true);
+    assert.equal(component.template.includes(">Close</cdx-button>"), true);
     assert.equal(component.template.includes(">Delete</cdx-button>"), true);
-    assert.equal(component.template.includes(">Done</cdx-button>"), true);
-    assert.equal(component.template.includes(">Close</cdx-button>"), false);
+    assert.equal(
+        component.template.includes(
+            "{{ companyCategoryState.loading ? 'Working' : 'Save' }}",
+        ),
+        true,
+    );
     assert.equal(component.template.includes('action="destructive"'), true);
 
     component.methods.cancelCompanyCategoryCreation();
@@ -2347,7 +2356,10 @@ test("Clear resets fields and helper state across all tabs", async () => {
         "https://store.steampowered.com/app/123/example/",
     );
     await component.methods.addSteamNames();
-    component.methods.clearForm();
+    await component.methods.handleMainActionSelect.call(
+        component.methods,
+        "clear",
+    );
 
     assert.equal(activeTab.value, "metadata");
     assert.equal(form.name, "");
@@ -2355,7 +2367,57 @@ test("Clear resets fields and helper state across all tabs", async () => {
     assert.deepEqual(form.categoryRows, []);
     assert.equal(steamUrl.value, "");
     assert.deepEqual(fetchedSteamNameRows.value, []);
-    assert.equal(component.template.includes('v-on:click="clearForm"'), true);
+    assert.equal(component.template.includes("<cdx-menu-button"), true);
+    assert.equal(component.template.includes("mainActionMenuItems"), true);
+});
+
+test("main action menu opens history and reloads derived data", async () => {
+    let citationRefreshes = 0;
+    let metadataRefreshes = 0;
+    let categoryRefreshOptions;
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onEnwikiTitleChange() {
+                metadataRefreshes += 1;
+
+                return {};
+            },
+            async onPrepareCitations() {
+                citationRefreshes += 1;
+
+                return [];
+            },
+            async onCategoryRowsRefresh(_form, _state, options) {
+                categoryRefreshOptions = options;
+            },
+        }),
+    );
+    const { form, historyOpen, mainActionMenuItems, mainActionMenuSelection } =
+        component.setup();
+
+    form.enwikiTitle = "Menu Game";
+    await component.methods.handleMainActionSelect.call(
+        component.methods,
+        "history",
+    );
+    assert.equal(historyOpen.value, true);
+
+    await component.methods.handleMainActionSelect.call(
+        component.methods,
+        "reload",
+    );
+    assert.equal(mainActionMenuSelection.value, null);
+    assert.deepEqual(
+        mainActionMenuItems.map((item) => item.label),
+        ["History", "Reload", "Clear"],
+    );
+    assert.equal(metadataRefreshes, 1);
+    assert.equal(citationRefreshes, 1);
+    assert.deepEqual(categoryRefreshOptions, {
+        bypassCache: true,
+        recheck: true,
+    });
 });
 
 test("localized name rows separate official and region checkboxes", () => {
@@ -2466,7 +2528,7 @@ test("submit opens preview without changing tabs", async () => {
     assert.equal(previewCount, 1);
     assert.equal(previewOpen.value, true);
     assert.equal(preSaveOpen.value, false);
-    assert.equal(component.template.includes("preSaveGroups"), true);
+    assert.equal(component.template.includes("getVisiblePreSaveGroups"), true);
 });
 
 test("native submit bridge opens category and pre-save review", async () => {
@@ -2705,8 +2767,7 @@ test("pre-save fixes are grouped by target page", () => {
         type: "redirect",
     };
     const talkAction = {
-        displayLabel:
-            "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+        displayLabel: "Tag banner on [[Talk:Samson (遊戲)]]",
         id: "talk-banner",
         pageTitle: "Samson (遊戲)",
         selected: true,
@@ -2747,12 +2808,12 @@ test("pre-save fixes are grouped by target page", () => {
                     {
                         action: talkAction,
                         key: "talk-banner",
-                        label: "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+                        label: "Tag banner on [[Talk:Samson (遊戲)]]",
                         type: "action",
                     },
                     {
                         key: "register-new-page",
-                        label: "Register on WikiProject Video games' new-page list",
+                        label: "Register on WikiProject new-page list",
                         type: "registration",
                     },
                 ],
@@ -2769,20 +2830,20 @@ test("pre-save fixes are grouped by target page", () => {
                     },
                     {
                         action: categoryAction,
-                        key: "category:Chibig遊戲:wikidata",
-                        label: "Connect to [[d:Q123]]",
-                        type: "bundled-action",
-                    },
-                    {
-                        action: categoryAction,
                         key: "category:Chibig遊戲:talk-banner",
-                        label: "Tagging {{WikiProject Video games}} to [[Category talk:Chibig遊戲]]",
+                        label: "Tag banner on [[Category talk:Chibig遊戲]]",
                         type: "bundled-action",
                     },
                     {
                         key: "category:Chibig遊戲:register-new-page",
-                        label: "Register on WikiProject Video games' new-page list",
+                        label: "Register on WikiProject new-page list",
                         type: "registration",
+                    },
+                    {
+                        action: categoryAction,
+                        key: "category:Chibig遊戲:wikidata",
+                        label: "Connect to [[d:Q123]]",
+                        type: "bundled-action",
                     },
                 ],
                 title: "Category:Chibig遊戲",
@@ -2800,8 +2861,7 @@ test("pre-save fixes omit review rows that are not included", () => {
         type: "redirect",
     };
     const talkAction = {
-        displayLabel:
-            "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+        displayLabel: "Tag banner on [[Talk:Samson (遊戲)]]",
         id: "talk-banner",
         pageTitle: "Samson (遊戲)",
         selected: true,
@@ -2819,7 +2879,7 @@ test("pre-save fixes omit review rows that are not included", () => {
                     {
                         action: talkAction,
                         key: "talk-banner",
-                        label: "Tagging {{WikiProject Video games}} to [[Talk:Samson (遊戲)]]",
+                        label: "Tag banner on [[Talk:Samson (遊戲)]]",
                         type: "action",
                     },
                 ],
@@ -2849,8 +2909,8 @@ test("pre-save category fixes show Wikidata work without a known item", () => {
         groups[0].rows.map((row) => row.label),
         [
             "Create category page",
+            "Tag banner on [[Category talk:Frontier Developments游戏]]",
             "Connect matching Wikidata category item",
-            "Tagging {{WikiProject Video games}} to [[Category talk:Frontier Developments游戏]]",
         ],
     );
 });
@@ -3002,7 +3062,7 @@ test("history fill rechecks enwiki wikidata for the loaded title", async () => {
             },
         }),
     );
-    const { form, historyOpen } = component.setup();
+    const { form, historyLoading, historyOpen } = component.setup();
 
     form.enwikiTitle = "Lookup Game";
     const lookup = component.methods.updateEnwikiTitle();
@@ -3023,6 +3083,8 @@ test("history fill rechecks enwiki wikidata for the loaded title", async () => {
             savedAt: "2026-06-28",
         },
     });
+    assert.equal(historyLoading.value, true);
+    assert.equal(component.template.includes("<cdx-progress-bar"), true);
     assert.equal(historyOpen.value, true);
 
     resolveMetadata({
@@ -3038,6 +3100,7 @@ test("history fill rechecks enwiki wikidata for the loaded title", async () => {
     assert.equal(form.enwikiTitle, "Stored Game");
     assert.equal(form.name, "Stored name");
     assert.equal(form.wikidataId, "Q999");
+    assert.equal(historyLoading.value, false);
     assert.equal(historyOpen.value, false);
     assert.deepEqual(calls, ["Lookup Game", "Stored Game"]);
 });

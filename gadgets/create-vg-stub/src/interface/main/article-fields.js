@@ -372,6 +372,7 @@ function createArticleFieldValueInputTemplate(options = {}) {
 
     if (options.multiline) {
         return createElement("cdx-text-area", {
+            class: "create-vg-stub-article-field-text",
             rows: "1",
             "v-bind:placeholder": placeholder,
             "v-bind:model-value": `form[${field}.key]`,

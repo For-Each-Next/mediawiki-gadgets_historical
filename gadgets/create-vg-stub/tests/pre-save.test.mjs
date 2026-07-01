@@ -781,6 +781,52 @@ test("runSelectedActions uses the Wikidata API for interwiki edits", async () =>
     assert.equal(wikidataCalls[0][2].action, "wbsetsitelink");
 });
 
+test("runSelectedActions runs local edits before Wikidata edits", async () => {
+    const calls = [];
+    const api = {
+        async get() {
+            return {
+                query: {
+                    pages: {},
+                },
+            };
+        },
+        async postWithToken(_token, params) {
+            calls.push(["local", params.action, params.title]);
+        },
+    };
+    const wikidataApi = {
+        async postWithToken(_token, params) {
+            calls.push(["wikidata", params.action, params.linktitle]);
+        },
+    };
+
+    await runSelectedActions(
+        [
+            {
+                selected: true,
+                type: "interwiki",
+                wikidataId: "Q123",
+            },
+            {
+                redirectTitle: "Alias",
+                selected: true,
+                type: "redirect",
+            },
+        ],
+        {
+            api,
+            title: "Target",
+            wikidataApi,
+        },
+    );
+
+    assert.deepEqual(calls, [
+        ["local", "edit", "Alias"],
+        ["wikidata", "wbsetsitelink", "Target"],
+    ]);
+});
+
 test("runSelectedActions creates staged categories", async () => {
     const calls = [];
 

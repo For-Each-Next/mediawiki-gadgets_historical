@@ -420,6 +420,7 @@ async function submitForm(
                 : {
                       enabled: false,
                   },
+            progressGroups: preSave.progressGroups,
             registration: preSave.registration,
         };
         const api = new mw.Api();
@@ -1041,6 +1042,8 @@ function init(require) {
     app.component("CdxField", Codex.CdxField);
     app.component("CdxIcon", Codex.CdxIcon);
     app.component("CdxInfoChip", Codex.CdxInfoChip);
+    app.component("CdxMenuButton", Codex.CdxMenuButton);
+    app.component("CdxProgressBar", Codex.CdxProgressBar);
     app.component("CdxProgressIndicator", Codex.CdxProgressIndicator);
     app.component("CdxSelect", Codex.CdxSelect);
     app.component("CdxTab", Codex.CdxTab);

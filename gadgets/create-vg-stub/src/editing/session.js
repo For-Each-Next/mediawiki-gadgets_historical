@@ -29,6 +29,7 @@ export function storePendingSaveData(
             actions: preSave.actions,
             form,
             move: preSave.move,
+            progressGroups: preSave.progressGroups,
             registration: preSave.registration,
             title,
         }),

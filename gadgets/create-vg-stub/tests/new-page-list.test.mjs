@@ -173,3 +173,45 @@ test("registerNewPage retries edit conflicts with fresh page text", async () => 
         "== 2026年 ==\n* 6月14日 - {{vgc|Example}}\n* 6月13日 - {{vgc|Older}}",
     );
 });
+
+test("registerNewPage edit summary mentions added categories", async () => {
+    const edits = [];
+    const api = {
+        async get() {
+            return {
+                curtimestamp: "2026-06-14T00:00:00Z",
+                query: {
+                    pages: [
+                        {
+                            revisions: [
+                                {
+                                    slots: {
+                                        main: {
+                                            content: "== 2026年 ==",
+                                        },
+                                    },
+                                    timestamp: "2026-06-13T00:00:00Z",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            };
+        },
+        async postWithToken(token, params) {
+            edits.push([token, params]);
+        },
+    };
+
+    await registerNewPage(
+        api,
+        "Example",
+        ["Example公司游戏"],
+        new Date("2026-06-14T00:00:00Z"),
+    );
+
+    assert.equal(
+        edits[0][1].summary,
+        `register the new article "[[Example]]" and category [[Category:Example公司游戏]] ${EDIT_SUMMARY_SUFFIX}`,
+    );
+});

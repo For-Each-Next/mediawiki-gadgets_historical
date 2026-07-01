@@ -46,7 +46,7 @@ test("createSaveProgress builds save, move, and selected action rows", () => {
             ["save", "Save page: Example", "pending"],
             ["move", "Move page to 示例", "pending"],
             ["redirect:Alias", "Create redirect Alias", "pending"],
-            ["new-page-list", "Register new page: Example", "pending"],
+            ["new-page-list", "Register on WikiProject new-page list", "pending"],
         ],
     );
 });
@@ -168,10 +168,11 @@ test("getSaveProgressGroups groups steps by edited target page", () => {
     );
 });
 
-test("category progress omits bundled Wikidata work", () => {
+test("category progress includes bundled Wikidata and talk-page work", () => {
     const progress = createSaveProgress("Example", [
         {
             category: "Milestone (公司)游戏",
+            company: "Milestone (公司)",
             englishName: "Category:Milestone games",
             id: "category:Milestone (公司)游戏",
             label: "Create category: Milestone (公司)游戏",
@@ -181,14 +182,102 @@ test("category progress omits bundled Wikidata work", () => {
         },
     ]);
     const groups = getSaveProgressGroups(progress);
-
-    assert.equal(
-        groups.some((group) => group.targetPage.startsWith("Wikidata:")),
-        false,
+    const categoryGroup = groups.find(
+        (group) => group.targetPage === "Category:Milestone (公司)游戏",
     );
-    assert.equal(
-        groups.some((group) => group.targetPage === "Category:Milestone (公司)游戏"),
-        true,
+
+    assert.deepEqual(
+        categoryGroup.steps.map((step) => [step.id, step.label]),
+        [
+            [
+                "category:Milestone (公司)游戏",
+                "Create category: Milestone (公司)游戏",
+            ],
+            [
+                "category:Milestone (公司)游戏:talk-banner",
+                "Add WikiProject Video games banner to Category talk:Milestone (公司)游戏",
+            ],
+            [
+                "category:Milestone (公司)游戏:wikidata",
+                "Connect matching Wikidata category item",
+            ],
+        ],
+    );
+});
+
+test("category progress updates bundled work with the parent action", () => {
+    const progress = updateSaveProgress(
+        createSaveProgress("Example", [
+            {
+                category: "Chibig游戏",
+                company: "Chibig",
+                englishName: "Category:Chibig games",
+                id: "category:Chibig游戏",
+                label: "Create category: Chibig游戏",
+                pageTitle: "Category:Chibig游戏",
+                selected: true,
+                type: "category",
+                wikidataId: "Q123",
+            },
+        ]),
+        "category:Chibig游戏",
+        "complete",
+    );
+
+    assert.deepEqual(
+        progress.steps
+            .filter((step) => step.id.startsWith("category:Chibig游戏"))
+            .map((step) => [step.id, step.status]),
+        [
+            ["category:Chibig游戏", "complete"],
+            ["category:Chibig游戏:talk-banner", "complete"],
+            ["category:Chibig游戏:wikidata", "complete"],
+        ],
+    );
+});
+
+test("checklist progress can show article and category registration together", () => {
+    const progress = updateSaveProgress(
+        createSaveProgress(
+            "Example",
+            [],
+            {},
+            {},
+            [
+                {
+                    rows: [
+                        {
+                            key: "register-new-page",
+                            label: "Register on WikiProject new-page list",
+                            type: "registration",
+                        },
+                    ],
+                    title: "Example",
+                },
+                {
+                    rows: [
+                        {
+                            key: "category:Chibig游戏:register-new-page",
+                            label: "Register on WikiProject new-page list",
+                            type: "registration",
+                        },
+                    ],
+                    title: "Category:Chibig游戏",
+                },
+            ],
+        ),
+        "new-page-list",
+        "running",
+    );
+
+    assert.deepEqual(
+        progress.steps
+            .filter((step) => step.id === "new-page-list")
+            .map((step) => [step.targetPage, step.status]),
+        [
+            ["Example", "running"],
+            ["Category:Chibig游戏", "running"],
+        ],
     );
 });
 

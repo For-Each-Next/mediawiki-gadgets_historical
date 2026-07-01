@@ -34,23 +34,29 @@ export function createPreviewDialogTemplate() {
                 "sourceFetchState.error",
                 "{{ sourceFetchState.error }}",
             ),
-            createFooterSlot([
-                createRefreshButton({
-                    click: "refreshParsedPreview",
-                    disabled: "sourceFetchState.loading",
-                    label: "{{ sourceFetchState.loading ? 'Working' : 'Update preview' }}",
-                }),
-                createButton({
-                    click: "closePreviewDialog",
-                    label: "Dismiss",
-                }),
-                createPrimaryButton({
-                    click: "submitPreviewText",
-                    disabled:
-                        "sourceFetchState.loading || !previewText.trim()",
-                    label: "Continue",
-                }),
-            ]),
+            createFooterSlot({
+                left: [
+                    createButton({
+                        action: "destructive",
+                        click: "closePreviewDialog",
+                        label: "Dismiss",
+                        weight: "quiet",
+                    }),
+                ],
+                right: [
+                    createRefreshButton({
+                        click: "refreshParsedPreview",
+                        disabled: "sourceFetchState.loading",
+                        label: "{{ sourceFetchState.loading ? 'Working' : 'Update preview' }}",
+                    }),
+                    createPrimaryButton({
+                        click: "submitPreviewText",
+                        disabled:
+                            "sourceFetchState.loading || !previewText.trim()",
+                        label: "Continue",
+                    }),
+                ],
+            }),
         ],
     );
 }
@@ -118,30 +124,36 @@ export function createPageEditDialogTemplate() {
                 "pageEditState.error",
                 "{{ pageEditState.error }}",
             ),
-            createFooterSlot([
-                createRefreshButton({
-                    click: "refreshPageEditPreview",
-                    disabled: "pageEditState.loading",
-                    label: "{{ pageEditState.loading ? 'Working' : 'Update preview' }}",
-                }),
-                createButton({
-                    action: "destructive",
-                    click: "resetPageEdit",
-                    disabled: "pageEditState.loading",
-                    label: "Reset",
-                    show: "pageEditState.pending",
-                }),
-                createButton({
-                    click: "closePageEditDialog",
-                    label: "Cancel",
-                }),
-                createPrimaryButton({
-                    click: "stagePageEdit",
-                    disabled:
-                        "pageEditState.loading || !pageEditState.text.trim()",
-                    label: "Stage",
-                }),
-            ]),
+            createFooterSlot({
+                left: [
+                    createButton({
+                        action: "destructive",
+                        click: "closePageEditDialog",
+                        label: "Cancel",
+                        weight: "quiet",
+                    }),
+                ],
+                right: [
+                    createRefreshButton({
+                        click: "refreshPageEditPreview",
+                        disabled: "pageEditState.loading",
+                        label: "{{ pageEditState.loading ? 'Working' : 'Update preview' }}",
+                    }),
+                    createButton({
+                        action: "destructive",
+                        click: "resetPageEdit",
+                        disabled: "pageEditState.loading",
+                        label: "Reset",
+                        show: "pageEditState.pending",
+                    }),
+                    createPrimaryButton({
+                        click: "stagePageEdit",
+                        disabled:
+                            "pageEditState.loading || !pageEditState.text.trim()",
+                        label: "Stage",
+                    }),
+                ],
+            }),
         ],
     );
 }
@@ -252,7 +264,7 @@ function createErrorParagraph(condition, message) {
 /**
  * Wraps dialog action buttons in a footer slot.
  *
- * @param {Array<object>} actions - Button nodes.
+ * @param {Array<object>|object} actions - Button nodes or action groups.
  * @returns {object} Footer slot node.
  */
 function createFooterSlot(actions) {

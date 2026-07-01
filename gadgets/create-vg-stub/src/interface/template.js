@@ -29,13 +29,18 @@ export function createText(value) {
 /**
  * Creates an action footer.
  *
- * Actions are right-aligned by default.
+ * Actions are right-aligned by default. Pass `{ left, right }` to split
+ * dismissive and primary actions across the footer.
  *
- * @param {Array<object>} actions - Footer action button nodes.
+ * @param {Array<object>|object} actions - Footer action button nodes.
  * @param {object} [style] - Extra footer style properties.
  * @returns {object} Dialog action footer node.
  */
 export function createActionFooterTemplate(actions, style = {}) {
+    if (!Array.isArray(actions)) {
+        return createSplitActionFooterTemplate(actions, style);
+    }
+
     return createElement(
         "div",
         {
@@ -48,6 +53,53 @@ export function createActionFooterTemplate(actions, style = {}) {
             },
         },
         actions,
+    );
+}
+
+/**
+ * Creates an action footer with left and right action groups.
+ *
+ * @param {object} groups - Footer action groups.
+ * @param {Array<object>} [groups.left] - Left-aligned actions.
+ * @param {Array<object>} [groups.right] - Right-aligned actions.
+ * @param {object} [style] - Extra footer style properties.
+ * @returns {object} Dialog action footer node.
+ */
+function createSplitActionFooterTemplate(groups, style = {}) {
+    return createElement(
+        "div",
+        {
+            style: {
+                alignItems: "center",
+                display: "flex",
+                gap: "0.5em",
+                justifyContent: "space-between",
+                width: "100%",
+                ...style,
+            },
+        },
+        [
+            createElement(
+                "div",
+                {
+                    style: {
+                        display: "flex",
+                        gap: "0.5em",
+                    },
+                },
+                groups.left || [],
+            ),
+            createElement(
+                "div",
+                {
+                    style: {
+                        display: "flex",
+                        gap: "0.5em",
+                    },
+                },
+                groups.right || [],
+            ),
+        ],
     );
 }
 

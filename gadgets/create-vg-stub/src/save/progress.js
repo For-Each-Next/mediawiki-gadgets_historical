@@ -15,6 +15,7 @@ export const SAVE_PROGRESS_STORAGE_KEY = "create-vg-stub-save-progress";
  * @param {Array<object>} actions - Pre-save action rows.
  * @param {object} [move] - Optional move action.
  * @param {object} [registration] - Optional new-page-list action.
+ * @param {Array<object>} [progressGroups] - Checked pre-save progress groups.
  * @returns {object} Save progress state.
  */
 export function createSaveProgress(
@@ -22,6 +23,7 @@ export function createSaveProgress(
     actions = [],
     move = {},
     registration = {},
+    progressGroups = [],
 ) {
     const steps = [
         {
@@ -43,26 +45,33 @@ export function createSaveProgress(
         });
     }
 
-    actions
-        .filter((action) => action.selected)
-        .forEach((action) => {
-            steps.push({
-                id: action.id,
-                label: action.label,
-                parts: buildActionProgressParts(action, title),
-                status: "pending",
-                targetPage: getActionTargetPage(action, title),
-            });
-        });
+    const checklistSteps = buildChecklistProgressSteps(progressGroups);
 
-    if (registration.enabled === true) {
-        steps.push({
-            id: "new-page-list",
-            label: `Register new page: ${title}`,
-            parts: [{ text: "Register new page: " }, { code: title }],
-            status: "pending",
-            targetPage: NEW_PAGE_LIST_TITLE,
-        });
+    if (checklistSteps.length > 0) {
+        steps.push(...checklistSteps);
+    } else {
+        actions
+            .filter((action) => action.selected)
+            .forEach((action) => {
+                steps.push({
+                    id: action.id,
+                    label: action.label,
+                    parts: buildActionProgressParts(action, title),
+                    status: "pending",
+                    targetPage: getActionTargetPage(action, title),
+                });
+                steps.push(...buildBundledActionProgressSteps(action));
+            });
+
+        if (registration.enabled === true) {
+            steps.push({
+                id: "new-page-list",
+                label: "Register on WikiProject new-page list",
+                parts: [{ text: "Register on WikiProject new-page list" }],
+                status: "pending",
+                targetPage: NEW_PAGE_LIST_TITLE,
+            });
+        }
     }
 
     return {
@@ -191,7 +200,10 @@ export function updateSaveProgress(progress, id, status) {
     return {
         ...progress,
         steps: progress.steps.map((step) =>
-            step.id === id
+            step.id === id ||
+            step.id?.startsWith(`${id}:`) ||
+            (id === "new-page-list" &&
+                step.id?.endsWith(":register-new-page"))
                 ? {
                       ...step,
                       status,
@@ -231,6 +243,117 @@ export function readSaveProgress(storage = sessionStorage) {
         storage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
         return undefined;
     }
+}
+
+/**
+ * Builds progress rows from checked pre-save groups.
+ *
+ * @param {Array<object>} groups - Checked pre-save groups.
+ * @returns {Array<object>} Progress rows.
+ */
+function buildChecklistProgressSteps(groups) {
+    if (!Array.isArray(groups)) {
+        return [];
+    }
+
+    return groups.flatMap((group) => {
+        const targetPage = normalizeActionText(group?.title);
+
+        if (targetPage === "" || !Array.isArray(group?.rows)) {
+            return [];
+        }
+
+        return group.rows.flatMap((row) => {
+            const id = getChecklistProgressStepId(row);
+            const label = normalizeActionText(row?.label);
+
+            if (id === "" || label === "") {
+                return [];
+            }
+
+            return [
+                {
+                    id,
+                    label,
+                    parts: [{ text: label }],
+                    status: "pending",
+                    targetPage,
+                },
+            ];
+        });
+    });
+}
+
+/**
+ * Gets the progress ID for one checked pre-save row.
+ *
+ * @param {object} row - Checked pre-save row.
+ * @returns {string} Progress step ID.
+ */
+function getChecklistProgressStepId(row) {
+    if (row?.type === "registration") {
+        return "new-page-list";
+    }
+
+    return normalizeActionText(row?.key || row?.id);
+}
+
+/**
+ * Builds progress rows for work bundled inside one selected action.
+ *
+ * @param {object} action - Selected follow-up action.
+ * @returns {Array<object>} Bundled progress rows.
+ */
+function buildBundledActionProgressSteps(action) {
+    if (
+        action.type !== "category" ||
+        normalizeActionText(action.company) === ""
+    ) {
+        return [];
+    }
+
+    const categoryTitle =
+        action.pageTitle ||
+        `Category:${normalizeActionText(action.category)}`;
+    const steps = [];
+    const wikidataId = normalizeActionText(action.wikidataId);
+    const englishName = normalizeActionText(action.englishName);
+
+    steps.push({
+        id: `${action.id}:talk-banner`,
+        label: `Add WikiProject Video games banner to Category talk:${normalizeActionText(action.category)}`,
+        parts: [
+            { text: "Add WikiProject Video games banner to " },
+            { code: `Category talk:${normalizeActionText(action.category)}` },
+        ],
+        status: "pending",
+        targetPage: categoryTitle,
+    });
+
+    if (wikidataId !== "") {
+        steps.push({
+            id: `${action.id}:wikidata`,
+            label: `Connect ${categoryTitle} to ${wikidataId}`,
+            parts: [
+                { text: "Connect " },
+                { code: categoryTitle },
+                { text: " to " },
+                { code: wikidataId },
+            ],
+            status: "pending",
+            targetPage: categoryTitle,
+        });
+    } else if (englishName !== "") {
+        steps.push({
+            id: `${action.id}:wikidata`,
+            label: "Connect matching Wikidata category item",
+            parts: [{ text: "Connect matching Wikidata category item" }],
+            status: "pending",
+            targetPage: categoryTitle,
+        });
+    }
+
+    return steps;
 }
 
 /**
@@ -287,4 +410,14 @@ function getStoredStepTargetPage(step, progress) {
     }
 
     return progress.title;
+}
+
+/**
+ * Normalizes action text values.
+ *
+ * @param {unknown} value - Raw action field.
+ * @returns {string} Trimmed text.
+ */
+function normalizeActionText(value) {
+    return String(value || "").trim();
 }

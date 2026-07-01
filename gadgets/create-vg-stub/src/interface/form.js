@@ -106,6 +106,9 @@ const DIALOG_CSS = new StyleSheet()
         maxWidth: "min(98vw, 100em)",
         width: "min(98vw, 100em)",
     })
+    .add(".create-vg-stub-dialog-status", {
+        margin: "0.75em 0",
+    })
     .add(".create-vg-stub-category-view", {
         border: "1px solid var(--border-color-base, #a2a9b1)",
         height: "70vh",
@@ -294,6 +297,8 @@ const DIALOG_CSS = new StyleSheet()
     })
     .add(
         [
+            ".create-vg-stub-article-field-text textarea",
+            "textarea.create-vg-stub-article-field-text",
             ".create-vg-stub-source-url textarea",
             "textarea.create-vg-stub-source-url",
         ],
@@ -394,32 +399,19 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-pre-save-list", {
         display: "grid",
         gap: "0.35em",
-        listStyle: "disc",
-        margin: "0 0 0 1.5em",
-        padding: "0",
-    })
-    .add(".create-vg-stub-pre-save-item", {
-        paddingLeft: "0.15em",
-    })
-    .add(".create-vg-stub-pre-save-progress", {
-        display: "grid",
-        gap: "0.875em",
-        marginTop: "0.75em",
-    })
-    .add(".create-vg-stub-pre-save-progress-list", {
-        display: "grid",
-        gap: "0.35em",
         listStyle: "none",
         margin: "0",
         padding: "0",
+    })
+    .add(".create-vg-stub-pre-save-item", {
+        margin: "0 -0.35em",
+        padding: "0.2em 0.35em",
     })
     .add(".create-vg-stub-pre-save-progress-row", {
         alignItems: "start",
         display: "grid",
         gap: "0.4em",
         gridTemplateColumns: "min-content minmax(0, 1fr)",
-        margin: "0 -0.35em",
-        padding: "0.2em 0.35em",
     })
     .add(".create-vg-stub-pre-save-progress-row--running", {
         backgroundColor:
@@ -637,6 +629,11 @@ const STUB_TAG_TABLE_COLUMNS = [
     { id: "stubTag", label: "Template", width: REVIEW_COLUMN_WIDTHS.main },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
     { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
+];
+const MAIN_ACTION_MENU_ITEMS = [
+    { label: "History", value: "history" },
+    { label: "Reload", value: "reload" },
+    { label: "Clear", value: "clear" },
 ];
 const TABLE_ACTION_ICONS = {
     cdxIconArticleAdd: {
@@ -965,7 +962,9 @@ export function createDialogComponent(Vue, options) {
     const historyJsonEditable = Vue.ref(false);
     const historyJsonOpen = Vue.ref(false);
     const historyJsonText = Vue.ref("");
+    const historyLoading = Vue.ref(false);
     const historyOpen = Vue.ref(false);
+    const mainActionMenuSelection = Vue.ref(null);
     const moveTarget = Vue.ref(currentTitle);
     const moveOpen = Vue.ref(false);
     const activeCitationTab = Vue.ref("");
@@ -986,6 +985,7 @@ export function createDialogComponent(Vue, options) {
     const previewText = Vue.ref("");
     const previewSummary = Vue.ref("");
     const previewHtml = Vue.ref("");
+    const previewLoading = Vue.ref(false);
     const previewSubmitted = Vue.ref(false);
     const pageEditTextArea = Vue.ref(null);
     const enwikiLookupLoading = Vue.ref(false);
@@ -1152,6 +1152,7 @@ export function createDialogComponent(Vue, options) {
                         pending.actions || [],
                         pending.move || {},
                         pending.registration || {},
+                        pending.progressGroups || [],
                     ),
                     "save",
                     "running",
@@ -1216,30 +1217,73 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Handles a selected main action menu item.
+             *
+             * @param {string} value - Selected menu item value.
+             * @returns {Promise<void>} Resolves after the action finishes.
+             */
+            async handleMainActionSelect(value) {
+                mainActionMenuSelection.value = null;
+
+                if (value === "history") {
+                    this.openHistoryDialog();
+                    return;
+                }
+
+                if (value === "reload") {
+                    await this.reloadForm();
+                    return;
+                }
+
+                if (value === "clear") {
+                    this.clearForm();
+                }
+            },
+
+            /**
+             * Reloads derived form data from the current inputs.
+             *
+             * @returns {Promise<void>} Resolves after refreshes complete.
+             */
+            async reloadForm() {
+                await refreshEnwikiMetadata();
+                await refreshCitationRows();
+                await refreshReview({
+                    recheck: true,
+                });
+            },
+
+            /**
              * Opens an editable generated wikitext preview after review.
              *
              * @returns {Promise<void>} Resolves after preview text is ready.
              */
             async previewForm() {
-                await refreshCitationRows();
-                await refreshReview();
-                options.onSubmitHistory(form, getCurrentTitle());
-                historyEntries.value = options.getHistoryEntries();
-                const preview = await options.onPreview(
-                    form,
-                    sourceFetchState,
-                );
+                previewLoading.value = true;
 
-                if (preview == null) {
-                    return;
+                try {
+                    await refreshCitationRows();
+                    await refreshReview();
+                    options.onSubmitHistory(form, getCurrentTitle());
+                    historyEntries.value = options.getHistoryEntries();
+                    const preview = await options.onPreview(
+                        form,
+                        sourceFetchState,
+                    );
+
+                    if (preview == null) {
+                        return;
+                    }
+
+                    previewText.value = preview.text || "";
+                    previewSummary.value = preview.summary || "";
+                    previewHtml.value = preview.html || "";
+                    previewSubmitted.value = false;
+                    previewOpen.value = true;
+                    queueSourceEditor("preview", previewTextArea, previewText);
+                } finally {
+                    previewLoading.value = false;
                 }
-
-                previewText.value = preview.text || "";
-                previewSummary.value = preview.summary || "";
-                previewHtml.value = preview.html || "";
-                previewSubmitted.value = false;
-                previewOpen.value = true;
-                queueSourceEditor("preview", previewTextArea, previewText);
             },
 
             /**
@@ -1342,6 +1386,9 @@ export function createDialogComponent(Vue, options) {
                             enabled: false,
                             to: getCurrentTitle(),
                         },
+                        progressGroups: serializePreSaveProgressGroups(
+                            preSaveGroups.value,
+                        ),
                         progress: createPreSaveProgressReporter(),
                         registration: {
                             enabled: form.registerNewPage !== false,
@@ -1414,6 +1461,10 @@ export function createDialogComponent(Vue, options) {
              * @returns {string} CSS class list.
              */
             getPreSaveProgressRowClass(step) {
+                if (step == null) {
+                    return "";
+                }
+
                 const status = trimFieldValue(step?.status);
                 const active = ["failed", "retrying", "running"].includes(
                     status,
@@ -1425,15 +1476,25 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
-             * Gets semantic text fragments for one progress step.
+             * Gets the groups currently shown in the pre-save dialog.
              *
-             * @param {object} step - Progress step.
-             * @returns {Array<object>} Display fragments.
+             * @returns {Array<object>} Checkbox or progress groups.
              */
-            getPreSaveStepParts(step) {
-                return Array.isArray(step?.parts)
-                    ? step.parts
-                    : [{ text: step?.label || "" }];
+            getVisiblePreSaveGroups() {
+                if (preSaveProgress.value == null) {
+                    return preSaveGroups.value;
+                }
+
+                return preSaveProgressGroups.value.map((group) => ({
+                    key: group.targetPage,
+                    rows: group.steps.map((step) => ({
+                        key: step.id,
+                        label: step.label,
+                        step,
+                        type: "progress",
+                    })),
+                    title: group.targetPage,
+                }));
             },
 
             /**
@@ -1510,10 +1571,16 @@ export function createDialogComponent(Vue, options) {
              * @returns {Promise<void>} Resolves after the restored form is refreshed.
              */
             async fillHistoryEntry(entry) {
-                await restoreHistoryForm(getHistoryEntryForm(entry));
-                await refreshCitationRows();
-                await refreshReview();
-                historyOpen.value = false;
+                historyLoading.value = true;
+
+                try {
+                    await restoreHistoryForm(getHistoryEntryForm(entry));
+                    await refreshCitationRows();
+                    await refreshReview();
+                    historyOpen.value = false;
+                } finally {
+                    historyLoading.value = false;
+                }
             },
 
             /**
@@ -1572,6 +1639,7 @@ export function createDialogComponent(Vue, options) {
                         );
                     }
 
+                    historyLoading.value = true;
                     await restoreHistoryForm(importedForm);
                     await refreshCitationRows();
                     await refreshReview();
@@ -1579,6 +1647,8 @@ export function createDialogComponent(Vue, options) {
                     historyOpen.value = false;
                 } catch (error) {
                     historyJsonError.value = error.message || String(error);
+                } finally {
+                    historyLoading.value = false;
                 }
             },
 
@@ -3021,7 +3091,10 @@ export function createDialogComponent(Vue, options) {
                 historyJsonError,
                 historyJsonOpen,
                 historyJsonText,
+                historyLoading,
                 historyOpen,
+                mainActionMenuItems: MAIN_ACTION_MENU_ITEMS,
+                mainActionMenuSelection,
                 moveOpen,
                 moveTarget,
                 metadataTableColumns: METADATA_TABLE_COLUMNS,
@@ -3042,6 +3115,7 @@ export function createDialogComponent(Vue, options) {
                 previewText,
                 previewSummary,
                 previewHtml,
+                previewLoading,
                 previewSubmitted,
                 previewTextArea,
                 sourceFetchState,
@@ -4345,15 +4419,19 @@ function createCategoryViewDialogTemplate() {
                     "v-slot:footer": "",
                 },
                 [
-                    createActionFooterTemplate([
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-on:click": "closeCategoryView",
-                            },
-                            [createText("Done")],
-                        ),
-                    ]),
+                    createActionFooterTemplate({
+                        left: [
+                            createElement(
+                                "cdx-button",
+                                {
+                                    action: "destructive",
+                                    "v-on:click": "closeCategoryView",
+                                    weight: "quiet",
+                                },
+                                [createText("Close")],
+                            ),
+                        ],
+                    }),
                 ],
             ),
         ],
@@ -4456,43 +4534,50 @@ function createCompanyCategoryDialogTemplate() {
                     "v-slot:footer": "",
                 },
                 [
-                    createActionFooterTemplate([
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-bind:disabled":
-                                    "companyCategoryState.loading",
-                                "v-on:click": "closeCompanyCategory",
-                            },
-                            [createText("Cancel")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                action: "destructive",
-                                "v-bind:disabled":
-                                    "companyCategoryState.loading",
-                                "v-if": "companyCategoryState.pending",
-                                "v-on:click": "cancelCompanyCategoryCreation",
-                            },
-                            [createText("Delete")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                action: "progressive",
-                                "v-bind:disabled":
-                                    "companyCategoryState.loading || !companyCategoryState.text.trim()",
-                                "v-on:click": "saveCompanyCategory",
-                                weight: "primary",
-                            },
-                            [
-                                createText(
-                                    "{{ companyCategoryState.loading ? 'Working' : 'Save' }}",
-                                ),
-                            ],
-                        ),
-                    ]),
+                    createActionFooterTemplate({
+                        left: [
+                            createElement(
+                                "cdx-button",
+                                {
+                                    action: "destructive",
+                                    "v-bind:disabled":
+                                        "companyCategoryState.loading",
+                                    "v-on:click": "closeCompanyCategory",
+                                    weight: "quiet",
+                                },
+                                [createText("Close")],
+                            ),
+                        ],
+                        right: [
+                            createElement(
+                                "cdx-button",
+                                {
+                                    action: "destructive",
+                                    "v-bind:disabled":
+                                        "companyCategoryState.loading",
+                                    "v-if": "companyCategoryState.pending",
+                                    "v-on:click":
+                                        "cancelCompanyCategoryCreation",
+                                },
+                                [createText("Delete")],
+                            ),
+                            createElement(
+                                "cdx-button",
+                                {
+                                    action: "progressive",
+                                    "v-bind:disabled":
+                                        "companyCategoryState.loading || !companyCategoryState.text.trim()",
+                                    "v-on:click": "saveCompanyCategory",
+                                    weight: "primary",
+                                },
+                                [
+                                    createText(
+                                        "{{ companyCategoryState.loading ? 'Working' : 'Save' }}",
+                                    ),
+                                ],
+                            ),
+                        ],
+                    }),
                 ],
             ),
         ],
@@ -4546,7 +4631,7 @@ export function createPreSaveGroups(actions, form) {
     if (articleTitle !== "" && form?.registerNewPage !== false) {
         getPreSaveGroup(articleTitle).rows.push({
             key: "register-new-page",
-            label: "Register on WikiProject Video games' new-page list",
+            label: "Register on WikiProject new-page list",
             type: "registration",
         });
     }
@@ -4564,12 +4649,14 @@ export function createPreSaveGroups(actions, form) {
 
         getPreSaveGroup(title).rows.push({
             key: `${action.id}:register-new-page`,
-            label: "Register on WikiProject Video games' new-page list",
+            label: "Register on WikiProject new-page list",
             type: "registration",
         });
     }
 
-    return groups.filter((group) => group.rows.length > 0);
+    return groups
+        .filter((group) => group.rows.length > 0)
+        .map(movePreSaveWikidataRowsLast);
 
     function getPreSaveGroup(title) {
         const normalizedTitle = trimFieldValue(title);
@@ -4630,25 +4717,72 @@ function getPreSaveActionNotes(action) {
     const notes = [
         {
             key: "talk-banner",
-            label: `Tagging {{WikiProject Video games}} to [[Category talk:${category}]]`,
+            label: `Tag banner on [[Category talk:${category}]]`,
         },
     ];
 
     const wikidataId = trimFieldValue(action.wikidataId);
 
     if (wikidataId !== "") {
-        notes.unshift({
+        notes.push({
             key: "wikidata",
             label: `Connect to [[d:${wikidataId}]]`,
         });
     } else if (trimFieldValue(action.englishName) !== "") {
-        notes.unshift({
+        notes.push({
             key: "wikidata",
             label: "Connect matching Wikidata category item",
         });
     }
 
     return notes;
+}
+
+/**
+ * Moves Wikidata rows to the end of one pre-save group.
+ *
+ * @param {object} group - Pre-save group.
+ * @returns {object} Group with reordered rows.
+ */
+function movePreSaveWikidataRowsLast(group) {
+    const rows = Array.isArray(group?.rows) ? group.rows : [];
+    const wikidataRows = rows.filter(isPreSaveWikidataRow);
+    const otherRows = rows.filter((row) => !isPreSaveWikidataRow(row));
+
+    return {
+        ...group,
+        rows: [...otherRows, ...wikidataRows],
+    };
+}
+
+/**
+ * Checks whether a pre-save row updates Wikidata.
+ *
+ * @param {object} row - Pre-save row.
+ * @returns {boolean} Whether the row is a Wikidata row.
+ */
+function isPreSaveWikidataRow(row) {
+    const key = trimFieldValue(row?.key);
+
+    return key === "interwiki" || key.endsWith(":wikidata");
+}
+
+/**
+ * Serializes pre-save groups for progress display.
+ *
+ * @param {Array<object>} groups - Pre-save checkbox groups.
+ * @returns {Array<object>} Serializable progress groups.
+ */
+function serializePreSaveProgressGroups(groups) {
+    return (Array.isArray(groups) ? groups : []).map((group) => ({
+        key: trimFieldValue(group?.key),
+        rows: (Array.isArray(group?.rows) ? group.rows : []).map((row) => ({
+            key: trimFieldValue(row?.key),
+            label: trimFieldValue(row?.label),
+            type: trimFieldValue(row?.type),
+        })),
+        title: trimFieldValue(group?.title),
+    }));
 }
 
 /**
@@ -4692,257 +4826,233 @@ function createPreSaveDialogTemplate() {
             title: "Pre-save fixes",
         },
         [
-            createElement("p", {}, [
-                createText(
-                    "{{ preSaveProgress == null ? 'Choose fixes to run after the article is submitted.' : 'Running selected fixes after the article is submitted.' }}",
-                ),
-            ]),
+            createPreSaveIntroTemplate(),
+            createPreSaveProgressIndicatorTemplate(),
+            createPreSaveGroupsTemplate(),
+            ...createPreSaveErrorTemplates(),
+            createPreSaveFooterTemplate(),
+        ],
+    );
+}
+
+/**
+ * Creates the pre-save dialog intro text.
+ *
+ * @returns {object} Intro text node.
+ */
+function createPreSaveIntroTemplate() {
+    return createElement("p", {}, [
+        createText(
+            "{{ preSaveProgress == null ? 'Choose fixes to run after the article is submitted.' : 'Running selected fixes after the article is submitted.' }}",
+        ),
+    ]);
+}
+
+/**
+ * Creates the pre-save progress indicator.
+ *
+ * @returns {object} Progress indicator node.
+ */
+function createPreSaveProgressIndicatorTemplate() {
+    return createElement(
+        "cdx-progress-indicator",
+        {
+            "show-label": "",
+            "v-if": "isPreSaveProgressRunning()",
+        },
+        [createText("{{ getPreSaveCurrentStepLabel() }}")],
+    );
+}
+
+/**
+ * Creates the pre-save page-group list.
+ *
+ * @returns {object} Pre-save group list node.
+ */
+function createPreSaveGroupsTemplate() {
+    return createElement(
+        "div",
+        {
+            class: "create-vg-stub-pre-save-groups",
+        },
+        [createPreSaveGroupTemplate()],
+    );
+}
+
+/**
+ * Creates one pre-save page-group template.
+ *
+ * @returns {object} Pre-save page group node.
+ */
+function createPreSaveGroupTemplate() {
+    return createElement(
+        "section",
+        {
+            class: "create-vg-stub-pre-save-page",
+            "v-bind:key": "group.key",
+            "v-for": "group in getVisiblePreSaveGroups()",
+        },
+        [
             createElement(
                 "div",
                 {
-                    class: "create-vg-stub-pre-save-groups",
-                    "v-if": "preSaveProgress == null",
+                    class: "create-vg-stub-pre-save-title",
                 },
-                [
-                    createElement(
-                        "section",
-                        {
-                            class: "create-vg-stub-pre-save-page",
-                            "v-bind:key": "group.key",
-                            "v-for": "group in preSaveGroups",
-                        },
-                        [
-                            createElement(
-                                "div",
-                                {
-                                    class: "create-vg-stub-pre-save-title",
-                                },
-                                [createText("{{ group.title }}")],
-                            ),
-                            createElement(
-                                "ul",
-                                {
-                                    class: "create-vg-stub-pre-save-list",
-                                },
-                                [
-                                    createElement(
-                                        "li",
-                                        {
-                                            class: "create-vg-stub-pre-save-item",
-                                            "v-bind:key": "row.key",
-                                            "v-for": "row in group.rows",
-                                        },
-                                        [
-                                            createElement(
-                                                "cdx-checkbox",
-                                                {
-                                                    "v-if": "row.type === 'action'",
-                                                    "v-model":
-                                                        "row.action.selected",
-                                                },
-                                                [
-                                                    createText(
-                                                        "{{ row.label }}",
-                                                    ),
-                                                ],
-                                            ),
-                                            createElement(
-                                                "cdx-checkbox",
-                                                {
-                                                    "v-else-if":
-                                                        "row.type === 'registration'",
-                                                    "v-model":
-                                                        "form.registerNewPage",
-                                                },
-                                                [
-                                                    createText(
-                                                        "{{ row.label }}",
-                                                    ),
-                                                ],
-                                            ),
-                                            createElement(
-                                                "cdx-checkbox",
-                                                {
-                                                    "v-else-if":
-                                                        "row.type === 'bundled-action'",
-                                                    "v-model":
-                                                        "row.action.selected",
-                                                },
-                                                [
-                                                    createText(
-                                                        "{{ row.label }}",
-                                                    ),
-                                                ],
-                                            ),
-                                            createElement(
-                                                "span",
-                                                {
-                                                    class: "create-vg-stub-pre-save-note",
-                                                    "v-else": "",
-                                                },
-                                                [
-                                                    createText(
-                                                        "{{ row.label }}",
-                                                    ),
-                                                ],
-                                            ),
-                                        ],
-                                    ),
-                                ],
-                            ),
-                        ],
-                    ),
-                ],
+                [createText("{{ group.title }}")],
             ),
             createElement(
-                "div",
+                "ul",
                 {
-                    class: "create-vg-stub-pre-save-progress",
+                    class: "create-vg-stub-pre-save-list",
+                },
+                [createPreSaveRowTemplate()],
+            ),
+        ],
+    );
+}
+
+/**
+ * Creates one pre-save row template.
+ *
+ * @returns {object} Pre-save row node.
+ */
+function createPreSaveRowTemplate() {
+    return createElement(
+        "li",
+        {
+            class: "create-vg-stub-pre-save-item",
+            "v-bind:class": "getPreSaveProgressRowClass(row.step)",
+            "v-bind:key": "row.key",
+            "v-for": "row in group.rows",
+        },
+        [
+            createPreSaveProgressRowTemplate(),
+            createPreSaveCheckboxTemplate("action", "row.action.selected"),
+            createPreSaveCheckboxTemplate("registration", "form.registerNewPage"),
+            createPreSaveCheckboxTemplate(
+                "bundled-action",
+                "row.action.selected",
+            ),
+            createElement(
+                "span",
+                {
+                    class: "create-vg-stub-pre-save-note",
                     "v-else": "",
                 },
-                [
+                [createText("{{ row.label }}")],
+            ),
+        ],
+    );
+}
+
+/**
+ * Creates the progress rendering branch for one pre-save row.
+ *
+ * @returns {object} Progress row branch node.
+ */
+function createPreSaveProgressRowTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-if": "row.type === 'progress'",
+        },
+        [
+            createElement("cdx-icon", {
+                "v-bind:class": "getPreSaveStatusIconClass(row.step.status)",
+                "v-bind:icon": "getPreSaveStatusIcon(row.step.status)",
+            }),
+            createElement("span", {}, [createText("{{ row.label }}")]),
+        ],
+    );
+}
+
+/**
+ * Creates a checkbox rendering branch for one pre-save row type.
+ *
+ * @param {string} rowType - Pre-save row type.
+ * @param {string} model - Checkbox model expression.
+ * @returns {object} Checkbox branch node.
+ */
+function createPreSaveCheckboxTemplate(rowType, model) {
+    return createElement(
+        "cdx-checkbox",
+        {
+            "v-else-if": `row.type === '${rowType}'`,
+            "v-model": model,
+        },
+        [createText("{{ row.label }}")],
+    );
+}
+
+/**
+ * Creates pre-save dialog error messages.
+ *
+ * @returns {Array<object>} Error message nodes.
+ */
+function createPreSaveErrorTemplates() {
+    return [
+        createElement(
+            "p",
+            {
+                class: "create-vg-stub-error",
+                "v-if": "sourceFetchState.error",
+            },
+            [createText("{{ sourceFetchState.error }}")],
+        ),
+        createElement(
+            "p",
+            {
+                class: "create-vg-stub-error",
+                "v-if": "preSaveProgress && preSaveProgress.error",
+            },
+            [createText("{{ preSaveProgress.error }}")],
+        ),
+    ];
+}
+
+/**
+ * Creates the pre-save dialog footer.
+ *
+ * @returns {object} Dialog footer node.
+ */
+function createPreSaveFooterTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-slot:footer": "",
+        },
+        [
+            createActionFooterTemplate({
+                left: [
                     createElement(
-                        "cdx-progress-indicator",
+                        "cdx-button",
                         {
-                            "show-label": "",
-                            "v-if": "isPreSaveProgressRunning()",
+                            action: "destructive",
+                            "v-bind:disabled": "sourceFetchState.loading",
+                            "v-on:click": "preSaveOpen = false",
+                            weight: "quiet",
                         },
-                        [createText("{{ getPreSaveCurrentStepLabel() }}")],
+                        [createText("Close")],
                     ),
+                ],
+                right: [
                     createElement(
-                        "section",
+                        "cdx-button",
                         {
-                            class: "create-vg-stub-pre-save-page",
-                            "v-bind:key": "group.targetPage",
-                            "v-for": "group in preSaveProgressGroups",
+                            action: "progressive",
+                            "v-bind:disabled":
+                                "sourceFetchState.loading || preSaveProgress != null",
+                            "v-on:click": "confirmSubmit",
+                            weight: "primary",
                         },
                         [
-                            createElement(
-                                "div",
-                                {
-                                    class: "create-vg-stub-pre-save-title",
-                                },
-                                [createText("{{ group.targetPage }}")],
-                            ),
-                            createElement(
-                                "ul",
-                                {
-                                    class: "create-vg-stub-pre-save-progress-list",
-                                },
-                                [
-                                    createElement(
-                                        "li",
-                                        {
-                                            "v-bind:class":
-                                                "getPreSaveProgressRowClass(step)",
-                                            "v-bind:key": "step.id",
-                                            "v-for": "step in group.steps",
-                                        },
-                                        [
-                                            createElement("cdx-icon", {
-                                                "v-bind:class":
-                                                    "getPreSaveStatusIconClass(step.status)",
-                                                "v-bind:icon":
-                                                    "getPreSaveStatusIcon(step.status)",
-                                            }),
-                                            createElement(
-                                                "span",
-                                                {},
-                                                [
-                                                    createElement(
-                                                        "template",
-                                                        {
-                                                            "v-bind:key":
-                                                                "index",
-                                                            "v-for":
-                                                                "(part, index) in getPreSaveStepParts(step)",
-                                                        },
-                                                        [
-                                                            createElement(
-                                                                "code",
-                                                                {
-                                                                    "v-if":
-                                                                        "part.code != null",
-                                                                },
-                                                                [
-                                                                    createText(
-                                                                        "{{ part.code }}",
-                                                                    ),
-                                                                ],
-                                                            ),
-                                                            createElement(
-                                                                "template",
-                                                                {
-                                                                    "v-else":
-                                                                        "",
-                                                                },
-                                                                [
-                                                                    createText(
-                                                                        "{{ part.text }}",
-                                                                    ),
-                                                                ],
-                                                            ),
-                                                        ],
-                                                    ),
-                                                ],
-                                            ),
-                                        ],
-                                    ),
-                                ],
+                            createText(
+                                "{{ sourceFetchState.loading ? 'Working' : 'Save' }}",
                             ),
                         ],
                     ),
                 ],
-            ),
-            createElement(
-                "p",
-                {
-                    class: "create-vg-stub-error",
-                    "v-if": "sourceFetchState.error",
-                },
-                [createText("{{ sourceFetchState.error }}")],
-            ),
-            createElement(
-                "p",
-                {
-                    class: "create-vg-stub-error",
-                    "v-if": "preSaveProgress && preSaveProgress.error",
-                },
-                [createText("{{ preSaveProgress.error }}")],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-slot:footer": "",
-                },
-                [
-                    createActionFooterTemplate([
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-bind:disabled": "sourceFetchState.loading",
-                                "v-on:click": "preSaveOpen = false",
-                            },
-                            [createText("Back")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                action: "progressive",
-                                "v-bind:disabled":
-                                    "sourceFetchState.loading || preSaveProgress != null",
-                                "v-on:click": "confirmSubmit",
-                                weight: "primary",
-                            },
-                            [
-                                createText(
-                                    "{{ sourceFetchState.loading ? 'Working' : 'Save' }}",
-                                ),
-                            ],
-                        ),
-                    ]),
-                ],
-            ),
+            }),
         ],
     );
 }
@@ -4969,7 +5079,32 @@ function createDialogTemplateRoot() {
                 },
                 [createText("{{ sourceFetchState.error }}")],
             ),
+            createMainDialogStatusTemplate(),
             createMainDialogFooterTemplate(),
+        ],
+    );
+}
+
+/**
+ * Creates the main dialog status indicator.
+ *
+ * @returns {object} Dialog status indicator template node.
+ */
+function createMainDialogStatusTemplate() {
+    return createElement(
+        "div",
+        {
+            class: "create-vg-stub-dialog-status",
+            "v-if": "previewLoading",
+        },
+        [
+            createElement(
+                "cdx-progress-indicator",
+                {
+                    "show-label": "",
+                },
+                [createText("Preparing preview")],
+            ),
         ],
     );
 }
@@ -4986,45 +5121,46 @@ function createMainDialogFooterTemplate() {
             "v-slot:footer": "",
         },
         [
-            createActionFooterTemplate([
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-bind:disabled": "sourceFetchState.loading",
-                        "v-on:click": "openHistoryDialog",
-                    },
-                    [createText("History")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-bind:disabled": "sourceFetchState.loading",
-                        "v-on:click": "clearForm",
-                    },
-                    [createText("Clear")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-on:click": "closeDialog",
-                    },
-                    [createText("Cancel")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
-                        action: "progressive",
-                        "v-bind:disabled": "sourceFetchState.loading",
-                        "v-on:click": "submitForm",
-                        weight: "primary",
-                    },
-                    [
-                        createText(
-                            "{{ sourceFetchState.loading ? 'Fetching' : 'Preview and submit' }}",
-                        ),
-                    ],
-                ),
-            ]),
+            createActionFooterTemplate({
+                left: [
+                    createElement(
+                        "cdx-button",
+                        {
+                            action: "destructive",
+                            "v-on:click": "closeDialog",
+                            weight: "quiet",
+                        },
+                        [createText("Close")],
+                    ),
+                ],
+                right: [
+                    createElement(
+                        "cdx-menu-button",
+                        {
+                            "v-bind:disabled": "sourceFetchState.loading",
+                            "v-bind:menu-items": "mainActionMenuItems",
+                            "v-model:selected": "mainActionMenuSelection",
+                            "v-on:update:selected": "handleMainActionSelect",
+                        },
+                        [createText("More")],
+                    ),
+                    createElement(
+                        "cdx-button",
+                        {
+                            action: "progressive",
+                            "v-bind:disabled":
+                                "sourceFetchState.loading || previewLoading",
+                            "v-on:click": "submitForm",
+                            weight: "primary",
+                        },
+                        [
+                            createText(
+                                "{{ previewLoading ? 'Preparing preview' : sourceFetchState.loading ? 'Fetching' : 'Preview and submit' }}",
+                            ),
+                        ],
+                    ),
+                ],
+            }),
         ],
     );
 }
@@ -5042,6 +5178,7 @@ function createHistoryDialogTemplate() {
             title: "Form history",
         },
         [
+            createHistoryProgressBarTemplate(),
             createElement(
                 "p",
                 {
@@ -5073,6 +5210,7 @@ function createHistoryJsonDialogTemplate() {
                     "Copy exported JSON, or paste history JSON and load the form values.",
                 ),
             ]),
+            createHistoryProgressBarTemplate(),
             createElement("cdx-text-area", {
                 class: "create-vg-stub-history-json-text",
                 "v-bind:readonly": "!historyJsonEditable",
@@ -5096,28 +5234,52 @@ function createHistoryJsonDialogTemplate() {
                     "v-slot:footer": "",
                 },
                 [
-                    createActionFooterTemplate([
-                        createElement(
-                            "cdx-button",
-                            {
-                                "v-on:click": "closeHistoryJsonDialog",
-                            },
-                            [createText("Cancel")],
-                        ),
-                        createElement(
-                            "cdx-button",
-                            {
-                                action: "progressive",
-                                weight: "primary",
-                                "v-on:click": "importHistoryJson",
-                            },
-                            [createText("Load")],
-                        ),
-                    ]),
+                    createActionFooterTemplate({
+                        left: [
+                            createElement(
+                                "cdx-button",
+                                {
+                            action: "destructive",
+                            "v-bind:disabled": "historyLoading",
+                            "v-on:click": "closeHistoryJsonDialog",
+                            weight: "quiet",
+                        },
+                        [createText("Close")],
+                    ),
+                ],
+                        right: [
+                            createElement(
+                                "cdx-button",
+                                {
+                                    action: "progressive",
+                                    "v-bind:disabled": "historyLoading",
+                                    weight: "primary",
+                                    "v-on:click": "importHistoryJson",
+                                },
+                                [
+                                    createText(
+                                        "{{ historyLoading ? 'Loading' : 'Load' }}",
+                                    ),
+                                ],
+                            ),
+                        ],
+                    }),
                 ],
             ),
         ],
     );
+}
+
+/**
+ * Creates the history loading progress bar.
+ *
+ * @returns {object} History loading progress bar node.
+ */
+function createHistoryProgressBarTemplate() {
+    return createElement("cdx-progress-bar", {
+        "aria-label": "Loading history entry",
+        "v-if": "historyLoading",
+    });
 }
 
 /**
@@ -5180,13 +5342,15 @@ function createHistoryEntryTemplate() {
             createElement(
                 "cdx-button",
                 {
+                    "v-bind:disabled": "historyLoading",
                     "v-on:click": "fillHistoryEntry(entry)",
                 },
-                [createText("Load")],
+                [createText("{{ historyLoading ? 'Loading' : 'Load' }}")],
             ),
             createElement(
                 "cdx-button",
                 {
+                    "v-bind:disabled": "historyLoading",
                     "v-on:click": "openHistoryJsonDialog(entry)",
                 },
                 [createText("Export")],
@@ -5194,6 +5358,8 @@ function createHistoryEntryTemplate() {
             createElement(
                 "cdx-button",
                 {
+                    action: "destructive",
+                    "v-bind:disabled": "historyLoading",
                     "v-if": "!entry.metadata.temporary",
                     "v-on:click": "deleteHistoryEntry(entry.id)",
                 },
@@ -5202,6 +5368,7 @@ function createHistoryEntryTemplate() {
             createElement(
                 "cdx-button",
                 {
+                    "v-bind:disabled": "historyLoading",
                     "v-if": "entry.metadata.temporary",
                     "v-on:click": "updateTemporaryHistoryEntry",
                 },
@@ -5223,32 +5390,41 @@ function createHistoryDialogFooterTemplate() {
             "v-slot:footer": "",
         },
         [
-            createActionFooterTemplate([
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-bind:disabled":
-                            "!historyEntries.some((entry) => !entry.metadata.temporary)",
-                        "v-on:click": "clearHistory",
-                    },
-                    [createText("Clear")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-on:click": "closeHistoryDialog",
-                    },
-                    [createText("Done")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
-                        action: "progressive",
-                        "v-on:click": "openHistoryImportDialog",
-                    },
-                    [createText("Import")],
-                ),
-            ]),
+            createActionFooterTemplate({
+                left: [
+                    createElement(
+                        "cdx-button",
+                        {
+                            action: "destructive",
+                            "v-bind:disabled": "historyLoading",
+                            "v-on:click": "closeHistoryDialog",
+                            weight: "quiet",
+                        },
+                        [createText("Close")],
+                    ),
+                ],
+                right: [
+                    createElement(
+                        "cdx-button",
+                        {
+                            action: "destructive",
+                            "v-bind:disabled":
+                                "historyLoading || !historyEntries.some((entry) => !entry.metadata.temporary)",
+                            "v-on:click": "clearHistory",
+                        },
+                        [createText("Clear")],
+                    ),
+                    createElement(
+                        "cdx-button",
+                        {
+                            action: "progressive",
+                            "v-bind:disabled": "historyLoading",
+                            "v-on:click": "openHistoryImportDialog",
+                        },
+                        [createText("Import")],
+                    ),
+                ],
+            }),
         ],
     );
 }
@@ -5295,29 +5471,35 @@ function createMoveDialogFooterTemplate() {
             "v-slot:footer": "",
         },
         [
-            createActionFooterTemplate([
-                createElement(
-                    "cdx-button",
-                    {
-                        "v-on:click": "closeMoveDialog",
-                    },
-                    [createText("Cancel")],
-                ),
-                createElement(
-                    "cdx-button",
-                    {
-                        action: "progressive",
-                        "v-bind:disabled": "sourceFetchState.loading",
-                        "v-on:click": "submitMoveTarget",
-                        weight: "primary",
-                    },
-                    [
-                        createText(
-                            "{{ sourceFetchState.loading ? 'Fetching' : 'Open target page' }}",
-                        ),
-                    ],
-                ),
-            ]),
+            createActionFooterTemplate({
+                left: [
+                    createElement(
+                        "cdx-button",
+                        {
+                            action: "destructive",
+                            "v-on:click": "closeMoveDialog",
+                            weight: "quiet",
+                        },
+                        [createText("Close")],
+                    ),
+                ],
+                right: [
+                    createElement(
+                        "cdx-button",
+                        {
+                            action: "progressive",
+                            "v-bind:disabled": "sourceFetchState.loading",
+                            "v-on:click": "submitMoveTarget",
+                            weight: "primary",
+                        },
+                        [
+                            createText(
+                                "{{ sourceFetchState.loading ? 'Fetching' : 'Open target page' }}",
+                            ),
+                        ],
+                    ),
+                ],
+            }),
         ],
     );
 }

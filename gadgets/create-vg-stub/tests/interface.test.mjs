@@ -763,35 +763,23 @@ test("page edit source syncs CodeMirror text before staging", async () => {
     assert.equal(row.pendingEdit.text, "{{Edited navbox}}");
 });
 
-test("group action buttons align right and put primary actions last", () => {
+test("localized name footer actions are hidden", () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub(),
     );
 
-    assertActionFooterAlignment(
-        component.template,
-        'v-on:click.prevent="clearNameRows(group.nameGroupKey)"',
-        "flex-end",
-    );
-    assertActionFooterAlignment(
-        component.template,
-        'v-on:click.prevent="addCitationParam(citationIndex)"',
-        "flex-end",
-    );
-    assertActionFooterAlignment(
-        component.template,
-        'v-on:click.prevent="checkRedirectRows"',
-        "flex-end",
+    assert.equal(
+        component.template.includes(
+            'v-on:click.prevent="clearNameRows(group.nameGroupKey)"',
+        ),
+        false,
     );
     assert.equal(
-            component.template.indexOf(
-                'v-on:click.prevent="clearNameRows(group.nameGroupKey)"',
-            ) <
-            component.template.indexOf(
-                'v-on:click.prevent="addNameRow(group.nameGroupKey)"',
-            ),
-        true,
+        component.template.includes(
+            'v-on:click.prevent="addNameRow(group.nameGroupKey)"',
+        ),
+        false,
     );
     assert.equal(
         component.template.indexOf('v-on:click="closeHistoryJsonDialog"') <
@@ -1045,6 +1033,14 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             status: "Exists",
             title: "Existing redirect",
         },
+        {
+            fixed: false,
+            fixedTitle: "",
+            enabled: true,
+            exists: false,
+            status: "Missing",
+            title: "",
+        },
     ]);
     assert.equal(
         component.methods.formatRedirectStatusLabel("Missing"),
@@ -1071,10 +1067,14 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     component.methods.removeRedirectRow(form.redirectRows.length - 1);
     assert.equal(
         form.redirectRows.some((row) => row.title === ""),
-        false,
+        true,
     );
     component.methods.addCategoryRow();
-    assert.equal(form.categoryRows.length, 1);
+    assert.equal(form.categoryRows.at(-1).category, "");
+    assert.equal(
+        form.categoryRows.some((row) => row.category === "Example games"),
+        true,
+    );
     await component.methods.refreshCategoryRows();
     assert.equal(categoryRefreshCount, 2);
     assert.equal(form.categoryRows[0].fixed, true);
@@ -1092,7 +1092,8 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(form.categoryRows[0].fixed, true);
     assert.equal(form.categoryRows[0].fixedCategory, "Changed games");
     component.methods.removeCategoryRow(0);
-    assert.equal(form.categoryRows.length, 0);
+    assert.equal(form.categoryRows.length, 1);
+    assert.equal(form.categoryRows[0].category, "");
     assert.deepEqual(form.navboxRows, [
         {
             fixed: true,
@@ -1101,6 +1102,14 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             status: "",
             text: "{{Foo series}}",
             title: "Foo series",
+        },
+        {
+            fixed: false,
+            fixedText: "",
+            enabled: true,
+            status: "",
+            text: "",
+            title: "",
         },
     ]);
     form.navboxRows[0].enabled = false;
@@ -1125,10 +1134,27 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             text: "{{Manual navbox}}",
             title: "Manual navbox",
         },
+        {
+            fixed: false,
+            fixedText: "",
+            enabled: true,
+            status: "",
+            text: "",
+            title: "",
+        },
     ]);
     component.methods.removeNavboxRow(0);
     await component.methods.previewForm();
-    assert.deepEqual(form.navboxRows, []);
+    assert.deepEqual(form.navboxRows, [
+        {
+            fixed: false,
+            fixedText: "",
+            enabled: true,
+            status: "",
+            text: "",
+            title: "",
+        },
+    ]);
 
     assert.equal(component.template.includes('caption="Categories"'), true);
     assert.equal(component.template.includes("<cdx-info-chip"), true);
@@ -1158,7 +1184,10 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             component.template.indexOf('caption="Navboxes"'),
         true,
     );
-    assert.equal(component.template.includes('aria-label="Create page"'), true);
+    assert.equal(
+        component.template.includes("getReviewPageActionLabel(row, row.status === 'OK')"),
+        true,
+    );
     assert.equal(component.template.includes("Include redirect"), true);
     assert.equal(component.template.includes("Redirects"), true);
     assert.equal(component.template.includes('aria-label="Refresh"'), true);
@@ -1320,6 +1349,12 @@ test("review exposes editable stub tags below category rows", async () => {
             originalStubTag: "Bar-stub",
             stubTag: "Bar-stub",
         },
+        {
+            enabled: true,
+            originalEnabled: false,
+            originalStubTag: "",
+            stubTag: "",
+        },
     ]);
 
     stubTagRows.value[0].enabled = false;
@@ -1332,6 +1367,7 @@ test("review exposes editable stub tags below category rows", async () => {
         [
             [false, "Foo-alt-stub"],
             [true, "Manual-stub"],
+            [true, ""],
         ],
     );
     assert.equal(
@@ -1702,7 +1738,10 @@ test("category helper stages missing category rows for final submission", async 
         true,
     );
     assert.equal(component.template.includes("openCategoryView"), false);
-    assert.equal(component.template.includes('aria-label="Create page"'), true);
+    assert.equal(
+        component.template.includes("getReviewPageActionLabel(row, row.status === 'OK')"),
+        true,
+    );
     assert.equal(
         component.template.includes("create-vg-stub-destructive-action"),
         true,
@@ -2001,7 +2040,8 @@ test("Steam helper stages official localized name choices", async () => {
         component.template.includes("create-vg-stub-steam-helper"),
         true,
     );
-    assert.equal(component.template.includes("Steam titles"), true);
+    assert.equal(component.template.includes("Steam name helper"), true);
+    assert.equal(component.template.includes("Steam titles"), false);
     assert.equal(component.template.includes("Check"), true);
     assert.equal(component.template.includes("<ul"), true);
     assert.equal(
@@ -2299,7 +2339,7 @@ test("Clear removes all localized name rows", () => {
         component.template.includes(
             'v-on:click.prevent="clearNameRows(group.nameGroupKey)"',
         ),
-        true,
+        false,
     );
 });
 
@@ -3141,23 +3181,6 @@ test("enwiki lookup ignores failed metadata fetches", async () => {
     assert.equal(form.wikidataId, "");
     assert.equal(form.englishName, "");
 });
-
-function assertActionFooterAlignment(template, marker, justifyContent) {
-    const markerIndex = template.indexOf(marker);
-    assert.notEqual(markerIndex, -1);
-
-    const footerIndex = template.lastIndexOf("<div style=", markerIndex);
-    assert.notEqual(footerIndex, -1);
-
-    const footerStart = template.slice(
-        footerIndex,
-        template.indexOf(">", footerIndex),
-    );
-    assert.equal(
-        footerStart.includes(`justify-content: ${justifyContent}`),
-        true,
-    );
-}
 
 function createVueStub() {
     return {

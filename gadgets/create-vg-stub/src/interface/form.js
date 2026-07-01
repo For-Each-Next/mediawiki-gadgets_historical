@@ -112,12 +112,61 @@ const DIALOG_CSS = new StyleSheet()
         marginBottom: "2em",
     })
     .add(".create-vg-stub-dialog table", {
-        margin: "1em 0",
+        margin: "0.5em 0",
         width: "100%",
     })
+    .add(
+        [
+            ".create-vg-stub-dialog .cdx-table th",
+            ".create-vg-stub-dialog .cdx-table td",
+            ".create-vg-stub-dialog .cdx-table__table th",
+            ".create-vg-stub-dialog .cdx-table__table td",
+        ],
+        {
+            paddingBottom: "0.25em",
+            paddingTop: "0.25em",
+        },
+    )
     .add(".create-vg-stub-dialog th", {
         whiteSpace: "nowrap",
     })
+    .add(".create-vg-stub-review-table th:nth-child(1)", {
+        width: "4.5em",
+    })
+    .add(".create-vg-stub-review-table th:nth-child(2)", {
+        width: "6.5em",
+    })
+    .add(".create-vg-stub-review-table th:nth-child(4)", {
+        width: "5.5em",
+    })
+    .add(".create-vg-stub-review-table th:nth-child(5)", {
+        width: "5.5em",
+    })
+    .add(".create-vg-stub-icon-tooltip", {
+        background: "var(--background-color-inverted, #202122)",
+        borderRadius: "2px",
+        color: "var(--color-inverted, #fff)",
+        fontSize: "0.8125em",
+        lineHeight: "1.3",
+        marginLeft: "0.25em",
+        opacity: "0",
+        padding: "0.15em 0.35em",
+        pointerEvents: "none",
+        position: "absolute",
+        transform: "translateY(-0.15em)",
+        transition: "opacity 100ms ease",
+        whiteSpace: "nowrap",
+        zIndex: "1",
+    })
+    .add(
+        [
+            ".cdx-table__header__content a:hover + .create-vg-stub-icon-tooltip",
+            ".cdx-table__header__content a:focus + .create-vg-stub-icon-tooltip",
+        ],
+        {
+            opacity: "1",
+        },
+    )
     .add(".create-vg-stub-field-controls", {
         display: "grid",
         gap: "0.5em",
@@ -462,12 +511,19 @@ const STEAM_NAME_BUTTONS = STEAM_NAME_CHOICES.map((choice) => ({
 const STEAM_NAME_HELPER_ROW = Symbol("create-vg-stub-steam-name-helper");
 const NOTE_TA_NAMES_SOURCE = "names";
 const CODEMIRROR_MODULES = ["ext.CodeMirror", "ext.CodeMirror.mode.mediawiki"];
+const REVIEW_COLUMN_WIDTHS = {
+    actions: "5.5em",
+    enabled: "4.5em",
+    main: "auto",
+    page: "5.5em",
+    status: "6.5em",
+};
 const CATEGORY_TABLE_COLUMNS = [
-    { id: "enabled", label: "Include" },
-    { id: "source", label: "Source" },
-    { id: "category", label: "Category" },
-    { id: "page", label: "Page" },
-    { id: "actions", label: "Actions" },
+    { id: "enabled", label: "Include", width: REVIEW_COLUMN_WIDTHS.enabled },
+    { id: "source", label: "Source", width: REVIEW_COLUMN_WIDTHS.status },
+    { id: "category", label: "Category", width: REVIEW_COLUMN_WIDTHS.main },
+    { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
+    { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
 const CITATION_TABLE_COLUMNS = [
     { id: "name", label: "Parameter" },
@@ -480,11 +536,11 @@ const METADATA_TABLE_COLUMNS = [
     { id: "source", label: "Reference" },
 ];
 const NAVBOX_TABLE_COLUMNS = [
-    { id: "enabled", label: "Include" },
-    { id: "status", label: "Status" },
-    { id: "text", label: "Navbox" },
-    { id: "page", label: "Page" },
-    { id: "actions", label: "Actions" },
+    { id: "enabled", label: "Include", width: REVIEW_COLUMN_WIDTHS.enabled },
+    { id: "status", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
+    { id: "text", label: "Navbox", width: REVIEW_COLUMN_WIDTHS.main },
+    { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
+    { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
 const NOTETA_TABLE_COLUMNS = [
     { id: "key", label: "Rule" },
@@ -492,18 +548,18 @@ const NOTETA_TABLE_COLUMNS = [
     { id: "actions", label: "Actions" },
 ];
 const REDIRECT_TABLE_COLUMNS = [
-    { id: "enabled", label: "Include" },
-    { id: "status", label: "Status" },
-    { id: "title", label: "Redirect" },
-    { id: "page", label: "Page" },
-    { id: "actions", label: "Actions" },
+    { id: "enabled", label: "Include", width: REVIEW_COLUMN_WIDTHS.enabled },
+    { id: "status", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
+    { id: "title", label: "Redirect", width: REVIEW_COLUMN_WIDTHS.main },
+    { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
+    { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
 const STUB_TAG_TABLE_COLUMNS = [
-    { id: "enabled", label: "Include" },
-    { id: "type", label: "Type" },
-    { id: "stubTag", label: "Template" },
-    { id: "page", label: "Page" },
-    { id: "actions", label: "Actions" },
+    { id: "enabled", label: "Include", width: REVIEW_COLUMN_WIDTHS.enabled },
+    { id: "type", label: "Type", width: REVIEW_COLUMN_WIDTHS.status },
+    { id: "stubTag", label: "Template", width: REVIEW_COLUMN_WIDTHS.main },
+    { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
+    { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
 const TABLE_ACTION_ICONS = {
     cdxIconArticleAdd: {
@@ -1739,6 +1795,7 @@ export function createDialogComponent(Vue, options) {
              */
             addCategoryRow() {
                 form.categoryRows.push(options.onCreateCategoryRow());
+                ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
             },
 
             /**
@@ -1749,6 +1806,7 @@ export function createDialogComponent(Vue, options) {
              */
             removeCategoryRow(index) {
                 form.categoryRows.splice(index, 1);
+                ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
             },
 
             /**
@@ -1771,6 +1829,7 @@ export function createDialogComponent(Vue, options) {
              */
             addStubTagRow() {
                 ensureStubTagRows(form).push(createStubTagRow());
+                ensureTrailingStubTagRow(form);
             },
 
             /**
@@ -1782,6 +1841,7 @@ export function createDialogComponent(Vue, options) {
                 form.stubTagRows = buildStubTagRowsFromCategories(
                     form.categoryRows,
                 );
+                ensureTrailingStubTagRow(form);
             },
 
             /**
@@ -1796,6 +1856,7 @@ export function createDialogComponent(Vue, options) {
 
                 if (row != null) {
                     row.stubTag = trimStubTagValue(stubTag);
+                    ensureTrailingStubTagRow(form);
                 }
             },
 
@@ -1807,6 +1868,7 @@ export function createDialogComponent(Vue, options) {
              */
             removeStubTagRow(index) {
                 ensureStubTagRows(form).splice(index, 1);
+                ensureTrailingStubTagRow(form);
             },
 
             /**
@@ -1829,6 +1891,7 @@ export function createDialogComponent(Vue, options) {
              */
             addRedirectRow() {
                 ensureRedirectRows(form).push(createRedirectRow());
+                ensureTrailingRedirectRow(form);
             },
 
             /**
@@ -1855,6 +1918,7 @@ export function createDialogComponent(Vue, options) {
 
                 if (row != null) {
                     setRedirectRowTitle(row, value);
+                    ensureTrailingRedirectRow(form);
                 }
             },
 
@@ -1866,6 +1930,7 @@ export function createDialogComponent(Vue, options) {
              */
             removeRedirectRow(index) {
                 ensureRedirectRows(form).splice(index, 1);
+                ensureTrailingRedirectRow(form);
             },
 
             /**
@@ -1888,6 +1953,7 @@ export function createDialogComponent(Vue, options) {
              */
             addNavboxRow() {
                 ensureNavboxRows(form).push(createNavboxRow());
+                ensureTrailingNavboxRow(form);
                 navboxRowsPrepared = true;
             },
 
@@ -2001,6 +2067,7 @@ export function createDialogComponent(Vue, options) {
                 setNavboxRowText(row, navbox);
                 row.title = getNavboxTitle(navbox);
                 row.status = "";
+                ensureTrailingNavboxRow(form);
             },
 
             /**
@@ -2011,6 +2078,7 @@ export function createDialogComponent(Vue, options) {
              */
             removeNavboxRow(index) {
                 ensureNavboxRows(form).splice(index, 1);
+                ensureTrailingNavboxRow(form);
             },
 
             /**
@@ -2061,6 +2129,7 @@ export function createDialogComponent(Vue, options) {
 
                 if (value != null && form.redirectRows?.[index] != null) {
                     setRedirectRowTitle(form.redirectRows[index], value);
+                    ensureTrailingRedirectRow(form);
                 }
 
                 await this.checkRedirectRows();
@@ -2099,6 +2168,36 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Opens an editable redirect page source preview.
+             *
+             * @param {object} row - Redirect review row.
+             * @returns {Promise<void>} Resolves after the editor is ready.
+             */
+            async openRedirectEdit(row) {
+                await openPageEdit({
+                    create: row.exists !== true,
+                    kind: "redirect",
+                    row,
+                    title: trimFieldValue(row.title),
+                });
+            },
+
+            /**
+             * Opens an editable stub template source preview.
+             *
+             * @param {object} row - Stub-tag review row.
+             * @returns {Promise<void>} Resolves after the editor is ready.
+             */
+            async openStubTagEdit(row) {
+                await openPageEdit({
+                    create: false,
+                    kind: "stubTag",
+                    row,
+                    title: `Template:${trimStubTagValue(row.stubTag)}`,
+                });
+            },
+
+            /**
              * Updates one category row title and its modified marker.
              *
              * @param {number} index - Category row index.
@@ -2113,6 +2212,7 @@ export function createDialogComponent(Vue, options) {
                     trimFieldValue(category),
                 );
                 syncCategoryRowFixedState(form.categoryRows[index], current);
+                ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
             },
 
             /**
@@ -2135,6 +2235,10 @@ export function createDialogComponent(Vue, options) {
 
                 if (value != null && form.categoryRows[index] != null) {
                     form.categoryRows[index].category = trimFieldValue(value);
+                    ensureTrailingCategoryRow(
+                        form,
+                        options.onCreateCategoryRow,
+                    );
                 }
             },
 
@@ -2477,6 +2581,25 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Formats a Check-tab Page action label.
+             *
+             * @param {object} row - Review row.
+             * @param {boolean} exists - Whether the target page exists.
+             * @returns {string} Lowercase action label.
+             */
+            getReviewPageActionLabel(row, exists) {
+                if (
+                    row?.pendingEdit != null ||
+                    row?.pendingCreation != null ||
+                    String(row?.status || "").startsWith("Pending")
+                ) {
+                    return "pending";
+                }
+
+                return exists ? "edit" : "create";
+            },
+
+            /**
              * Formats a navbox existence status as a compact badge.
              *
              * @param {string} status - Navbox existence status.
@@ -2544,6 +2667,16 @@ export function createDialogComponent(Vue, options) {
              */
             getProseWikitext() {
                 return options.getProseWikitext(form);
+            },
+
+            /**
+             * Checks whether a localized name row came from the Steam helper.
+             *
+             * @param {object} row - Localized name row.
+             * @returns {boolean} Whether the row was helper-generated.
+             */
+            isSteamNameHelperRow(row) {
+                return row?.[STEAM_NAME_HELPER_ROW] === true;
             },
         },
         /**
@@ -2766,7 +2899,7 @@ export function createDialogComponent(Vue, options) {
         if (
             shouldSkipFixedRows(
                 refreshOptions,
-                form.categoryRows,
+                form.categoryRows.filter((row) => !isBlankCategoryRow(row)),
                 isCategoryRowFixed,
             )
         ) {
@@ -2783,6 +2916,7 @@ export function createDialogComponent(Vue, options) {
             form.historyPatches?.categories,
         );
         markCategoryRowsFixed(form.categoryRows);
+        ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
         initializeStubTagRows(form);
     }
 
@@ -2890,7 +3024,9 @@ export function createDialogComponent(Vue, options) {
             !rebuild &&
             shouldSkipFixedRows(
                 refreshOptions,
-                form.navboxRows,
+                (form.navboxRows || []).filter(
+                    (row) => !isBlankNavboxRow(row),
+                ),
                 isNavboxRowFixed,
             )
         ) {
@@ -2920,11 +3056,13 @@ export function createDialogComponent(Vue, options) {
                     return current;
                 }),
             );
+            ensureTrailingNavboxRow(form);
             navboxRowsPrepared = true;
             return;
         }
 
         form.navboxRows = rows;
+        ensureTrailingNavboxRow(form);
         navboxRowsPrepared = true;
     }
 
@@ -2964,6 +3102,7 @@ export function createDialogComponent(Vue, options) {
             row.enabled = !row.exists;
             return row;
         });
+        ensureTrailingRedirectRow(form);
     }
 
     /**
@@ -2979,11 +3118,12 @@ export function createDialogComponent(Vue, options) {
         const currentRows = Array.isArray(form.redirectRows)
             ? form.redirectRows
             : [];
+        const rowsToCheck = currentRows.filter((row) => !isBlankRedirectRow(row));
 
         if (
             shouldSkipFixedRows(
                 refreshOptions,
-                currentRows,
+                rowsToCheck,
                 isRedirectRowFixed,
             )
         ) {
@@ -2991,7 +3131,7 @@ export function createDialogComponent(Vue, options) {
         }
 
         const rows = (
-            await options.onCheckRedirectRows(currentRows, getCurrentTitle())
+            await options.onCheckRedirectRows(rowsToCheck, getCurrentTitle())
         ).map((row) => createRedirectRow(row, true));
 
         form.redirectRows = rows.map((row, index) => {
@@ -3004,6 +3144,7 @@ export function createDialogComponent(Vue, options) {
             row.enabled = !row.exists;
             return row;
         });
+        ensureTrailingRedirectRow(form);
     }
 
     /**
@@ -3109,6 +3250,10 @@ export function createDialogComponent(Vue, options) {
             trimFieldValue(params.row.company) !== ""
         ) {
             return options.onPrepareCompanyCategory(params.row);
+        }
+
+        if (params.kind === "redirect") {
+            return `#REDIRECT [[${getCurrentTitle()}]]\n`;
         }
 
         return "";
@@ -3607,6 +3752,7 @@ function initializeStubTagRows(form) {
     }
 
     form.stubTagRows = buildStubTagRowsFromCategories(form.categoryRows);
+    ensureTrailingStubTagRow(form);
 }
 
 /**
@@ -3617,8 +3763,9 @@ function initializeStubTagRows(form) {
  */
 function buildStubTagRowsFromCategories(rows) {
     const tags = [];
+    const safeRows = (rows || []).filter(Boolean);
 
-    (rows || []).forEach((row) => {
+    safeRows.forEach((row) => {
         const stubTag = trimStubTagValue(row.stubTag);
 
         if (stubTag !== "" && !tags.includes(stubTag)) {
@@ -3628,12 +3775,12 @@ function buildStubTagRowsFromCategories(rows) {
 
     return tags.map((stubTag) =>
         createStubTagRow({
-            enabled: (rows || []).some(
+            enabled: safeRows.some(
                 (row) =>
                     trimStubTagValue(row.stubTag) === stubTag &&
                     row.stubTagEnabled === true,
             ),
-            originalEnabled: (rows || []).some(
+            originalEnabled: safeRows.some(
                 (row) =>
                     trimStubTagValue(row.stubTag) === stubTag &&
                     row.originalStubTagEnabled === true,
@@ -3678,6 +3825,81 @@ function cleanEditableRows(rows, isBlank, createBlank) {
 }
 
 /**
+ * Ensures an editable row list has exactly one blank row at the bottom.
+ *
+ * @param {Array<object>} rows - Editable rows.
+ * @param {Function} isBlank - Blank row predicate.
+ * @param {Function} createBlank - Blank row factory.
+ * @returns {void}
+ */
+function ensureTrailingEditableRow(rows, isBlank, createBlank) {
+    const nonBlankRows = rows.filter((row) => !isBlank(row));
+
+    rows.splice(0, rows.length, ...nonBlankRows, createBlank());
+}
+
+/**
+ * Ensures category review rows end with one blank row.
+ *
+ * @param {object} form - Dialog form values.
+ * @param {Function} _createBlank - Unused legacy category row factory.
+ * @returns {void}
+ */
+function ensureTrailingCategoryRow(form, _createBlank) {
+    if (!Array.isArray(form.categoryRows)) {
+        form.categoryRows = [];
+    }
+
+    ensureTrailingEditableRow(
+        form.categoryRows,
+        isBlankCategoryRow,
+        createBlankCategoryRow,
+    );
+}
+
+/**
+ * Ensures redirect review rows end with one blank row.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {void}
+ */
+function ensureTrailingRedirectRow(form) {
+    ensureTrailingEditableRow(
+        ensureRedirectRows(form),
+        isBlankRedirectRow,
+        createRedirectRow,
+    );
+}
+
+/**
+ * Ensures navbox review rows end with one blank row.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {void}
+ */
+function ensureTrailingNavboxRow(form) {
+    ensureTrailingEditableRow(
+        ensureNavboxRows(form),
+        isBlankNavboxRow,
+        createNavboxRow,
+    );
+}
+
+/**
+ * Ensures stub-tag review rows end with one blank row.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {void}
+ */
+function ensureTrailingStubTagRow(form) {
+    ensureTrailingEditableRow(
+        ensureStubTagRows(form),
+        isBlankStubTagRow,
+        createStubTagRow,
+    );
+}
+
+/**
  * Checks whether a category row is blank.
  *
  * @param {object} row - Category row.
@@ -3685,6 +3907,19 @@ function cleanEditableRows(rows, isBlank, createBlank) {
  */
 function isBlankCategoryRow(row) {
     return trimFieldValue(row?.category) === "";
+}
+
+/**
+ * Creates a fallback manual category row.
+ *
+ * @returns {object} Blank category row.
+ */
+function createBlankCategoryRow() {
+    return {
+        category: "",
+        enabled: true,
+        source: "manual",
+    };
 }
 
 /**
@@ -3711,6 +3946,11 @@ function createStubTagRow(value = "") {
         originalEnabled: value?.originalEnabled === true,
         originalStubTag: trimStubTagValue(value?.originalStubTag || stubTag),
         stubTag,
+        ...(value?.pendingEdit == null
+            ? {}
+            : {
+                  pendingEdit: value.pendingEdit,
+              }),
     };
 }
 
@@ -5715,6 +5955,11 @@ function createRedirectRow(value = "", fixed = value?.fixed === true) {
         exists,
         status: value?.status || (exists ? "Exists" : "Missing"),
         title,
+        ...(value?.pendingEdit == null
+            ? {}
+            : {
+                  pendingEdit: value.pendingEdit,
+              }),
     };
 }
 
@@ -5829,7 +6074,8 @@ function ensureRedirectRows(form) {
 function hasPreparedNavboxRows(form) {
     return (
         Array.isArray(form.navboxRows) &&
-        (form.navboxRows.length > 0 || trimFieldValue(form.series) === "")
+        (form.navboxRows.some((row) => !isBlankNavboxRow(row)) ||
+            trimFieldValue(form.series) === "")
     );
 }
 

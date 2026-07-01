@@ -195,9 +195,26 @@ export function createTableHeaderTemplate(_title, actions = [], _options = {}) {
         {
             "v-slot:header": "",
         },
-        actions.flatMap((action, index) =>
-            index === 0 ? [action] : [createText(" "), action],
-        ),
+        actions.flatMap((action, index) => [
+            ...(index === 0 ? [] : [createText(" ")]),
+            action,
+            createElement(
+                "span",
+                {
+                    class: "create-vg-stub-icon-tooltip",
+                    role: "tooltip",
+                },
+                [
+                    createText(
+                        typeof action === "string"
+                            ? ""
+                            : action.attributes?.title ||
+                                  action.attributes?.["aria-label"] ||
+                                  "",
+                    ),
+                ],
+            ),
+        ]),
     );
 }
 

@@ -160,6 +160,29 @@ test("buildPreSaveActions includes staged page edits", () => {
                     },
                 },
             ],
+            redirectRows: [
+                {
+                    enabled: true,
+                    pendingEdit: {
+                        create: true,
+                        summary: "create redirect",
+                        text: "#REDIRECT [[Example]]",
+                        title: "示例游戏",
+                    },
+                    title: "示例游戏",
+                },
+            ],
+            stubTagRows: [
+                {
+                    enabled: true,
+                    pendingEdit: {
+                        summary: "update stub tag",
+                        text: "{{Asbox}}",
+                        title: "Template:vg-stub",
+                    },
+                    stubTag: "vg-stub",
+                },
+            ],
         },
         title: "Example",
     });
@@ -182,6 +205,18 @@ test("buildPreSaveActions includes staged page edits", () => {
             {
                 create: true,
                 displayLabel: "Create page",
+                id: "page-edit:示例游戏",
+                label: "Create page: 示例游戏",
+                pageTitle: "示例游戏",
+                selected: true,
+                summary: "create redirect",
+                text: "#REDIRECT [[Example]]",
+                title: "示例游戏",
+                type: "page-edit",
+            },
+            {
+                create: true,
+                displayLabel: "Create page",
                 id: "page-edit:Template:Example series",
                 label: "Create page: Template:Example series",
                 pageTitle: "Template:Example series",
@@ -189,6 +224,18 @@ test("buildPreSaveActions includes staged page edits", () => {
                 summary: "create Template:Example series",
                 text: "{{Navbox}}",
                 title: "Template:Example series",
+                type: "page-edit",
+            },
+            {
+                create: false,
+                displayLabel: "Edit page",
+                id: "page-edit:Template:vg-stub",
+                label: "Edit page: Template:vg-stub",
+                pageTitle: "Template:vg-stub",
+                selected: true,
+                summary: "update stub tag",
+                text: "{{Asbox}}",
+                title: "Template:vg-stub",
                 type: "page-edit",
             },
         ],

@@ -77,7 +77,15 @@ export function buildPreSaveActions(selection, existingRedirectTitles = []) {
         actions.push(createPageEditAction(row.pendingEdit));
     }
 
+    for (const row of (form.redirectRows || []).filter(isPreSavePageEditRow)) {
+        actions.push(createPageEditAction(row.pendingEdit));
+    }
+
     for (const row of (form.navboxRows || []).filter(isPreSavePageEditRow)) {
+        actions.push(createPageEditAction(row.pendingEdit));
+    }
+
+    for (const row of (form.stubTagRows || []).filter(isPreSavePageEditRow)) {
         actions.push(createPageEditAction(row.pendingEdit));
     }
 
@@ -322,7 +330,12 @@ function getPreSaveRedirectRows(form, articleTitle) {
         const title = normalizeTitle(row.title ?? row.redirectTitle);
         const key = normalizeTitleKey(title);
 
-        if (key === "" || key === targetKey || seen.has(key)) {
+        if (
+            row.pendingEdit != null ||
+            key === "" ||
+            key === targetKey ||
+            seen.has(key)
+        ) {
             return [];
         }
 

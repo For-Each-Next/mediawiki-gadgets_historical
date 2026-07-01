@@ -41,6 +41,9 @@ function createCategoryReviewTemplate() {
             createCategorySlotsTemplate(),
             {
                 caption: "Categories",
+                class:
+                    "create-vg-stub-review-table " +
+                    "create-vg-stub-category-table",
             },
         ),
         createElement(
@@ -67,6 +70,9 @@ function createRedirectReviewTemplate() {
             createRedirectSlotsTemplate(),
             {
                 caption: "Redirects",
+                class:
+                    "create-vg-stub-review-table " +
+                    "create-vg-stub-redirect-table",
             },
         ),
     ]);
@@ -85,6 +91,9 @@ function createNavboxReviewTemplate() {
             createNavboxSlotsTemplate(),
             {
                 caption: "Navboxes",
+                class:
+                    "create-vg-stub-review-table " +
+                    "create-vg-stub-navbox-table",
             },
         ),
         createElement(
@@ -111,6 +120,9 @@ function createStubTagReviewTemplate() {
             createStubTagSlotsTemplate(),
             {
                 caption: "Stub tags",
+                class:
+                    "create-vg-stub-review-table " +
+                    "create-vg-stub-stub-tag-table",
             },
         ),
     ]);
@@ -266,10 +278,11 @@ function createRedirectSlotsTemplate() {
                 }),
             ],
         ),
-        createPageLinkSlotTemplate(
+        createPageEditSlotTemplate(
             "page",
             "row.title",
-            "getRedirectPageUrl(row)",
+            "row.exists",
+            "openRedirectEdit(row)",
         ),
         createElement(
             "template",
@@ -433,10 +446,11 @@ function createStubTagSlotsTemplate() {
                 }),
             ],
         ),
-        createPageLinkSlotTemplate(
+        createPageEditSlotTemplate(
             "page",
             "row.stubTag",
-            "getStubTagPageUrl(row)",
+            "true",
+            "openStubTagEdit(row)",
         ),
         createElement(
             "template",
@@ -522,35 +536,6 @@ function createInfoChipTemplate(label, options = {}) {
 }
 
 /**
- * Creates a table slot with a page-navigation link.
- *
- * @param {string} column - Column slot suffix.
- * @param {string} condition - Vue condition for showing the link.
- * @param {string} href - Vue href expression.
- * @returns {object} Table slot node.
- */
-function createPageLinkSlotTemplate(column, condition, href) {
-    return createElement(
-        "template",
-        {
-            [`v-slot:item-${column}`]: "{ row }",
-        },
-        [
-            createElement(
-                "a",
-                {
-                    "v-if": condition,
-                    "v-bind:href": href,
-                    rel: "noopener noreferrer",
-                    target: "_blank",
-                },
-                [createText("Open")],
-            ),
-        ],
-    );
-}
-
-/**
  * Creates a table slot with an edit/create page action.
  *
  * @param {string} column - Column slot suffix.
@@ -566,21 +551,20 @@ function createPageEditSlotTemplate(column, condition, existing, click) {
             [`v-slot:item-${column}`]: "{ row }",
         },
         [
-            createIconActionLinkTemplate(
-                "Edit page",
-                "tableActionIcons.cdxIconEdit",
-                click,
+            createElement(
+                "a",
                 {
-                    "v-if": `${condition} && ${existing}`,
+                    href: "#",
+                    "v-bind:aria-label":
+                        `getReviewPageActionLabel(row, ${existing}) + ' page'`,
+                    "v-if": condition,
+                    "v-on:click.prevent": click,
                 },
-            ),
-            createIconActionLinkTemplate(
-                "Create page",
-                "tableActionIcons.cdxIconArticleAdd",
-                click,
-                {
-                    "v-if": `${condition} && !(${existing})`,
-                },
+                [
+                    createText(
+                        `{{ getReviewPageActionLabel(row, ${existing}) }}`,
+                    ),
+                ],
             ),
         ],
     );

@@ -5,6 +5,7 @@ import {
     createFieldTemplate,
     createPreviewCardTemplate,
     createSourceUrlInputTemplate,
+    createTableTemplate,
     createText,
 } from "../template.js";
 
@@ -98,43 +99,53 @@ function createDefaultFieldsTemplate() {
  * @returns {object} Metadata field table node.
  */
 function createMetadataFieldTableTemplate() {
-    return createElement(
-        "table",
+    return createTableTemplate(
+        "metadataTableColumns",
+        "getMetadataFieldTableRows(group)",
+        createMetadataFieldTableSlotsTemplate(),
         {
             class: "create-vg-stub-metadata-table",
+            caption: "Metadata fields",
         },
-        [
-            createElement("tbody", {}, [
-                createElement(
-                    "tr",
-                    {
-                        "v-bind:key": "field.key",
-                        "v-for": "field in group.fields.slice(1)",
-                    },
-                    [
-                        createElement(
-                            "th",
-                            {
-                                scope: "row",
-                            },
-                            [createText("{{ field.label }}")],
-                        ),
-                        createElement("td", {}, [
-                            createArticleFieldValueInputTemplate(),
-                        ]),
-                        createElement("td", {}, [
-                            createSourceUrlInputTemplate({
-                                placeholder: "Source URLs",
-                                model: "form[field.sourceField.sourceKey]",
-                                change: "trimSourceValue(field.sourceField)",
-                                update: "updateSourceValue(field.sourceField, $event)",
-                            }),
-                        ]),
-                    ],
-                ),
-            ]),
-        ],
     );
+}
+
+/**
+ * Creates Codex table slots for metadata source-backed fields.
+ *
+ * @returns {Array<object>} Metadata table slot nodes.
+ */
+function createMetadataFieldTableSlotsTemplate() {
+    return [
+        createElement(
+            "template",
+            {
+                "v-slot:item-label": "{ row }",
+            },
+            [createText("{{ row.field.label }}")],
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:item-value": "{ row }",
+            },
+            [createArticleFieldValueInputTemplate({ field: "row.field" })],
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:item-source": "{ row }",
+            },
+            [
+                createSourceUrlInputTemplate({
+                    placeholder: "Source URLs",
+                    model: "form[row.field.sourceField.sourceKey]",
+                    change: "trimSourceValue(row.field.sourceField)",
+                    update: "updateSourceValue(row.field.sourceField, $event)",
+                }),
+            ],
+        ),
+    ];
 }
 
 /**
@@ -199,7 +210,7 @@ function createGroupedFieldTemplate() {
  */
 function createMetadataPreviewTemplate() {
     return createPreviewCardTemplate(
-        "Original metadata wikitext",
+        "Wikitext preview",
         "getGroupPreview(group)",
         {
             condition: "group.previewKey && getGroupPreview(group)",
@@ -348,32 +359,34 @@ function createFieldControlsTemplate(options = {}) {
  * Creates the value input for one article field.
  *
  * @param {object} [options] - Input options.
+ * @param {string} [options.field] - Field Vue expression.
  * @param {boolean} [options.multiline] - Whether to render a textarea.
  * @param {string} [options.placeholder] - Placeholder Vue expression.
  * @returns {object} Article field value input node.
  */
 function createArticleFieldValueInputTemplate(options = {}) {
+    const field = options.field || "field";
     const placeholder =
         options.placeholder ||
-        "getFieldPlaceholder(field) || field.placeholder";
+        `getFieldPlaceholder(${field}) || ${field}.placeholder`;
 
     if (options.multiline) {
         return createElement("cdx-text-area", {
             rows: "1",
             "v-bind:placeholder": placeholder,
-            "v-bind:model-value": "form[field.key]",
-            "v-on:change": "normalizeFieldValue(field)",
-            "v-on:update:model-value": "updateFieldValue(field, $event)",
+            "v-bind:model-value": `form[${field}.key]`,
+            "v-on:change": `normalizeFieldValue(${field})`,
+            "v-on:update:model-value": `updateFieldValue(${field}, $event)`,
         });
     }
 
     return createElement("cdx-text-input", {
         "v-bind:placeholder": placeholder,
-        "v-bind:readonly": "field.readonly",
-        "v-bind:model-value": "form[field.key]",
-        "v-on:change": "normalizeFieldValue(field)",
-        "v-on:paste": "normalizePastedFieldValue(field, $event)",
-        "v-on:update:model-value": "updateFieldValue(field, $event)",
+        "v-bind:readonly": `${field}.readonly`,
+        "v-bind:model-value": `form[${field}.key]`,
+        "v-on:change": `normalizeFieldValue(${field})`,
+        "v-on:paste": `normalizePastedFieldValue(${field}, $event)`,
+        "v-on:update:model-value": `updateFieldValue(${field}, $event)`,
     });
 }
 

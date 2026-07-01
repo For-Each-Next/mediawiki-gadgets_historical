@@ -31,6 +31,7 @@ export function createCitationGroupTemplate() {
                 "cdx-tabs",
                 {
                     "v-if": "form.citationRows.length",
+                    "v-bind:key": "getCitationTabsKey(form.citationRows)",
                     "v-model:active": "activeCitationTab",
                 },
                 [

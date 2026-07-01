@@ -118,43 +118,6 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-dialog th", {
         whiteSpace: "nowrap",
     })
-    .add(".create-vg-stub-metadata-table", {
-        borderCollapse: "separate",
-        borderSpacing: "0 0.5em",
-    })
-    .add(".create-vg-stub-metadata-table th", {
-        padding: "0 0.75em 0 0",
-        textAlign: "left",
-        verticalAlign: "middle",
-        width: "10em",
-    })
-    .add(".create-vg-stub-metadata-table td", {
-        padding: "0",
-        verticalAlign: "top",
-    })
-    .add(".create-vg-stub-metadata-table td + td", {
-        paddingLeft: "0.5em",
-        width: "32%",
-    })
-    .media("(max-width: 40em)", (sheet) => {
-        sheet
-            .add(".create-vg-stub-metadata-table", {
-                borderSpacing: "0",
-            })
-            .add(".create-vg-stub-metadata-table tr", {
-                display: "grid",
-                gap: "0.35em",
-                marginBottom: "0.75em",
-            })
-            .add(".create-vg-stub-metadata-table th", {
-                padding: "0",
-                width: "auto",
-            })
-            .add(".create-vg-stub-metadata-table td + td", {
-                paddingLeft: "0",
-                width: "auto",
-            });
-    })
     .add(".create-vg-stub-field-controls", {
         display: "grid",
         gap: "0.5em",
@@ -493,6 +456,11 @@ const CITATION_TABLE_COLUMNS = [
     { id: "name", label: "Parameter" },
     { id: "value", label: "Value" },
     { id: "actions", label: "Actions" },
+];
+const METADATA_TABLE_COLUMNS = [
+    { id: "label", label: "Field" },
+    { id: "value", label: "Value" },
+    { id: "source", label: "Reference" },
 ];
 const NAVBOX_TABLE_COLUMNS = [
     { id: "enabled", label: "Include" },
@@ -2600,6 +2568,8 @@ export function createDialogComponent(Vue, options) {
                 getCitationParamTableRows,
                 getCitationTabLabel,
                 getCitationTabName,
+                getCitationTabsKey,
+                getMetadataFieldTableRows,
                 getArticleField,
                 getArticlePreviewTitle,
                 getFieldPlaceholder: options.getFieldPlaceholder.bind(
@@ -2618,6 +2588,7 @@ export function createDialogComponent(Vue, options) {
                 historyOpen,
                 moveOpen,
                 moveTarget,
+                metadataTableColumns: METADATA_TABLE_COLUMNS,
                 nameMarkets: NAME_MARKETS,
                 navboxTableColumns: NAVBOX_TABLE_COLUMNS,
                 notetaTableColumns: NOTETA_TABLE_COLUMNS,
@@ -6018,6 +5989,30 @@ function getCitationParamTableRows(citation) {
     return getCitationParamRows(citation).map((param, index) => ({
         index,
         param,
+    }));
+}
+
+/**
+ * Builds a key for remounting dynamic citation tabs.
+ *
+ * @param {Array<object>} rows - Managed citation rows.
+ * @returns {string} Citation tabs key.
+ */
+function getCitationTabsKey(rows) {
+    return rows
+        .map((citation) => trimFieldValue(citation.sourceUrl))
+        .join("\n");
+}
+
+/**
+ * Gets source-backed metadata fields as Codex Table rows.
+ *
+ * @param {object} group - Metadata article parameter group.
+ * @returns {Array<object>} Metadata table rows.
+ */
+function getMetadataFieldTableRows(group) {
+    return group.fields.slice(1).map((field) => ({
+        field,
     }));
 }
 

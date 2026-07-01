@@ -562,6 +562,12 @@ test("References tab manages editable citation parameters", async () => {
         component.template.includes('v-model:active="activeCitationTab"'),
         true,
     );
+    assert.equal(
+        component.template.includes(
+            'v-bind:key="getCitationTabsKey(form.citationRows)"',
+        ),
+        true,
+    );
     assert.equal(activeCitationTab.value, "citation-1");
     assert.equal(component.template.includes("<strong>Reference"), false);
     assert.equal(component.template.includes("Clean"), true);
@@ -613,7 +619,8 @@ test("metadata source fields render in a table", () => {
         createVueStub(),
         createOptionsStub(),
     );
-    const { groups } = component.setup();
+    const { getMetadataFieldTableRows, groups, metadataTableColumns } =
+        component.setup();
     const metadataGroup = groups.find((group) => group.key === "metadata");
 
     assert.deepEqual(
@@ -632,13 +639,29 @@ test("metadata source fields render in a table", () => {
         component.template.includes("create-vg-stub-metadata-table"),
         true,
     );
+    assert.deepEqual(
+        metadataTableColumns.map((column) => column.id),
+        ["label", "value", "source"],
+    );
+    assert.deepEqual(
+        getMetadataFieldTableRows(metadataGroup).map((row) => row.field.key),
+        ["developers", "publishers", "series", "platforms", "year", "genres"],
+    );
     assert.equal(
-        component.template.includes('v-for="field in group.fields.slice(1)"'),
+        component.template.includes(
+            '<cdx-table class="create-vg-stub-metadata-table"',
+        ),
         true,
     );
-    assert.equal(component.template.includes("{{ field.label }}"), true);
     assert.equal(
-        component.template.includes("form[field.sourceField.sourceKey]"),
+        component.template.includes(
+            'v-bind:data="getMetadataFieldTableRows(group)"',
+        ),
+        true,
+    );
+    assert.equal(component.template.includes("{{ row.field.label }}"), true);
+    assert.equal(
+        component.template.includes("form[row.field.sourceField.sourceKey]"),
         true,
     );
 });

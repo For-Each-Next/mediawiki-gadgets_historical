@@ -1951,7 +1951,12 @@ test("Steam helper stages official localized name choices", async () => {
             },
         }),
     );
-    const { fetchedSteamNameRows, form, getSteamNameSuggestions } =
+    const {
+        fetchedSteamNameRows,
+        form,
+        getSteamNameSuggestions,
+        steamNameButtons,
+    } =
         component.setup();
 
     component.methods.updateSteamUrl(
@@ -1996,24 +2001,35 @@ test("Steam helper stages official localized name choices", async () => {
         component.template.includes("create-vg-stub-steam-helper"),
         true,
     );
-    assert.equal(component.template.includes("Add Steam names"), true);
-    assert.equal(component.template.includes("<cdx-select"), true);
+    assert.equal(component.template.includes("Steam titles"), true);
+    assert.equal(component.template.includes("Check"), true);
+    assert.equal(component.template.includes("<ul"), true);
     assert.equal(
-        component.template.includes('v-bind:menu-items="steamNameMenuItems"'),
+        component.template.includes("create-vg-stub-steam-links"),
+        true,
+    );
+    assert.equal(component.template.includes("<cdx-button-group"), true);
+    assert.equal(
+        component.template.includes('v-bind:buttons="steamNameButtons"'),
         true,
     );
     assert.equal(
-        component.template.includes(
-            'v-on:update:selected="applySteamNameChoice"',
-        ),
+        component.template.includes('v-on:click="applySteamNameChoice"'),
         true,
     );
+    assert.deepEqual(steamNameButtons, [
+        { label: "Neither", value: "neither" },
+        { label: "Simp", value: "simp" },
+        { label: "Trad", value: "trad" },
+        { label: "Diff", value: "diff" },
+        { label: "Same", value: "same" },
+    ]);
 
-    component.methods.applySteamNameChoice("both");
+    component.methods.applySteamNameChoice("diff");
 
     assert.deepEqual(
         form.localizedNames
-            .slice(0, 1)
+            .slice(0, 2)
             .map((row) => [
                 row.official,
                 row.hans,
@@ -2025,16 +2041,24 @@ test("Steam helper stages official localized name choices", async () => {
         [
             [
                 true,
-                false,
+                true,
                 false,
                 false,
                 "简体名",
-                "https://store.steampowered.com/app/123/example/?l=schinese\n" +
-                    "https://store.steampowered.com/app/123/example/?l=tchinese",
+                "https://store.steampowered.com/app/123/example/?l=schinese",
+            ],
+            [
+                true,
+                false,
+                true,
+                false,
+                "繁體名",
+                "https://store.steampowered.com/app/123/example/?l=tchinese",
             ],
         ],
     );
-    assert.deepEqual(fetchedSteamNameRows.value, []);
+    assert.equal(form.localizedNames.at(-1).name, "");
+    assert.equal(fetchedSteamNameRows.value.length, 2);
 });
 
 test("Steam helper previews Japanese for a Japanese original title", async () => {
@@ -2088,14 +2112,14 @@ test("Steam helper previews Japanese for a Japanese original title", async () =>
         },
     ]);
 
-    component.methods.applySteamNameChoice("both");
+    component.methods.applySteamNameChoice("diff");
     assert.deepEqual(
         form.localizedNames.map((row) => row.name),
-        ["简体名"],
+        ["简体名", ""],
     );
 });
 
-test("Steam helper adds both fetched names as one no-region row", async () => {
+test("Steam helper applies same names as one no-region row", async () => {
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
@@ -2125,7 +2149,7 @@ test("Steam helper adds both fetched names as one no-region row", async () => {
         "https://store.steampowered.com/app/123/example/",
     );
     await component.methods.addSteamNames();
-    component.methods.applySteamNameChoice("both");
+    component.methods.applySteamNameChoice("same");
 
     assert.deepEqual(form.localizedNames[0], {
         cn: false,
@@ -2140,6 +2164,69 @@ test("Steam helper adds both fetched names as one no-region row", async () => {
         tw: false,
         ww: false,
     });
+});
+
+test("Steam helper overwrites previously applied helper rows", async () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onSteamNamesFetch() {
+                return [
+                    {
+                        hans: true,
+                        name: "简体名",
+                        official: true,
+                        sourceUrl:
+                            "https://store.steampowered.com/app/123/example/?l=schinese",
+                    },
+                    {
+                        hant: true,
+                        name: "繁體名",
+                        official: true,
+                        sourceUrl:
+                            "https://store.steampowered.com/app/123/example/?l=tchinese",
+                    },
+                ];
+            },
+        }),
+    );
+    const { form } = component.setup();
+
+    form.localizedNames[0].name = "Manual name";
+    component.methods.updateSteamUrl(
+        "https://store.steampowered.com/app/123/example/",
+    );
+    await component.methods.addSteamNames();
+
+    component.methods.applySteamNameChoice("diff");
+    form.localizedNames[1].name = "Edited helper row";
+    component.methods.applySteamNameChoice("simp");
+
+    assert.deepEqual(
+        form.localizedNames.map((row) => [
+            row.name,
+            row.hans,
+            row.hant,
+            row.sourceUrl,
+        ]),
+        [
+            ["Manual name", false, false, ""],
+            [
+                "简体名",
+                true,
+                false,
+                "https://store.steampowered.com/app/123/example/?l=schinese",
+            ],
+            ["", false, false, ""],
+        ],
+    );
+
+    component.methods.applySteamNameChoice("neither");
+
+    assert.deepEqual(
+        form.localizedNames.map((row) => row.name),
+        ["Manual name", ""],
+    );
 });
 
 test("Clear resets fields and helper state across all tabs", async () => {

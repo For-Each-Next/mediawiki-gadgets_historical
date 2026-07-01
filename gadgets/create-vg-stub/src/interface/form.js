@@ -171,21 +171,29 @@ const DIALOG_CSS = new StyleSheet()
             });
     })
     .add(".create-vg-stub-steam-helper", {
+        display: "grid",
+        gap: "0.75em",
+        marginBottom: "0.5em",
+    })
+    .add(".create-vg-stub-steam-row", {
         alignItems: "start",
         display: "grid",
         gap: "0.75em",
         gridTemplateColumns: "minmax(0, 1fr) auto",
-        marginBottom: "1.25em",
     })
-    .add(".create-vg-stub-steam-helper > .cdx-button", {
+    .add(".create-vg-stub-steam-row > .cdx-button", {
         alignSelf: "start",
     })
     .add(".create-vg-stub-steam-actions", {
-        minWidth: "12em",
+        justifySelf: "start",
     })
     .add(".create-vg-stub-steam-suggestion", {
         color: "var(--color-subtle, #54595d)",
         overflowWrap: "anywhere",
+    })
+    .add(".create-vg-stub-steam-links", {
+        margin: "0",
+        paddingLeft: "1.5em",
     })
     .add(".create-vg-stub-horizontal-list", {
         display: "flex",
@@ -334,7 +342,7 @@ const DIALOG_CSS = new StyleSheet()
         paddingBottom: "1.25em",
     })
     .media("(max-width: 40em)", (sheet) => {
-        sheet.add(".create-vg-stub-steam-helper", {
+        sheet.add(".create-vg-stub-steam-row", {
             gridTemplateColumns: "1fr",
         });
     })
@@ -427,22 +435,31 @@ const NAME_MARKETS = [
 ];
 const STEAM_NAME_CHOICES = [
     {
-        key: "hans",
-        label: "Hans",
+        key: "neither",
+        label: "Neither",
     },
     {
-        key: "hant",
-        label: "Hant",
+        key: "simp",
+        label: "Simp",
     },
     {
-        key: "both",
-        label: "Both",
+        key: "trad",
+        label: "Trad",
+    },
+    {
+        key: "diff",
+        label: "Diff",
+    },
+    {
+        key: "same",
+        label: "Same",
     },
 ];
-const STEAM_NAME_MENU_ITEMS = STEAM_NAME_CHOICES.map((choice) => ({
+const STEAM_NAME_BUTTONS = STEAM_NAME_CHOICES.map((choice) => ({
     label: choice.label,
     value: choice.key,
 }));
+const STEAM_NAME_HELPER_ROW = Symbol("create-vg-stub-steam-name-helper");
 const NOTE_TA_NAMES_SOURCE = "names";
 const CODEMIRROR_MODULES = ["ext.CodeMirror", "ext.CodeMirror.mode.mediawiki"];
 const CATEGORY_TABLE_COLUMNS = [
@@ -817,7 +834,6 @@ export function createDialogComponent(Vue, options) {
     const enwikiLookupSerial = Vue.ref(0);
     const enwikiMetadata = Vue.reactive(createBlankEnwikiMetadata());
     const fetchedSteamNameRows = Vue.ref([]);
-    const steamNameChoice = Vue.ref(null);
     const steamUrl = Vue.ref("");
     const sourceFetchState = Vue.reactive({
         error: "",
@@ -1650,7 +1666,6 @@ export function createDialogComponent(Vue, options) {
             updateSteamUrl(value) {
                 steamUrl.value = trimFieldValue(value);
                 fetchedSteamNameRows.value = [];
-                steamNameChoice.value = null;
             },
 
             /**
@@ -1673,23 +1688,15 @@ export function createDialogComponent(Vue, options) {
                     return;
                 }
 
-                if (
-                    form.localizedNames.every(
-                        (row) => !hasEnteredNameRowValue(row),
-                    )
-                ) {
-                    form.localizedNames.splice(0, form.localizedNames.length);
-                }
-
-                buildSteamNameChoiceRows(
-                    fetchedSteamNameRows.value,
-                    choice,
-                ).forEach((row) => {
-                    fillNameRow(form.localizedNames, row);
-                });
+                removeSteamAppliedNameRows();
+                buildSteamNameChoiceRows(fetchedSteamNameRows.value, choice)
+                    .map(createNameRowFromValues)
+                    .forEach((row) => {
+                        markSteamNameHelperRow(row);
+                        form.localizedNames.push(row);
+                    });
+                ensureTrailingNameRow(form.localizedNames);
                 syncGeneratedNameNoteTaRow(form);
-                fetchedSteamNameRows.value = [];
-                steamNameChoice.value = null;
             },
 
             /**
@@ -2607,8 +2614,7 @@ export function createDialogComponent(Vue, options) {
                 previewSubmitted,
                 previewTextArea,
                 sourceFetchState,
-                steamNameChoice,
-                steamNameMenuItems: STEAM_NAME_MENU_ITEMS,
+                steamNameButtons: STEAM_NAME_BUTTONS,
                 steamUrl,
                 tableActionIcons: TABLE_ACTION_ICONS,
                 stubTagTableColumns: STUB_TAG_TABLE_COLUMNS,
@@ -3334,7 +3340,6 @@ export function createDialogComponent(Vue, options) {
             });
 
             fetchedSteamNameRows.value = rows;
-            steamNameChoice.value = null;
         } catch (error) {
             sourceFetchState.error = error.message;
         } finally {
@@ -3412,7 +3417,6 @@ export function createDialogComponent(Vue, options) {
         if (shouldFetchSteamNames) {
             steamUrl.value = buildSteamUrl(enwikiMetadata.steamId);
             fetchedSteamNameRows.value = [];
-            steamNameChoice.value = null;
         }
 
         enwikiLookupLoading.value = false;
@@ -3488,7 +3492,6 @@ export function createDialogComponent(Vue, options) {
         activeTab.value = ARTICLE_PARAMETER_GROUPS[0].key;
         activeCitationTab.value = "";
         fetchedSteamNameRows.value = [];
-        steamNameChoice.value = null;
         steamUrl.value = "";
         Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
         categoryState.error = "";
@@ -3498,6 +3501,34 @@ export function createDialogComponent(Vue, options) {
         navboxRowsPrepared = false;
         form.redirectRows = null;
     }
+
+    /**
+     * Removes rows previously inserted by the Steam helper.
+     *
+     * @returns {void}
+     */
+    function removeSteamAppliedNameRows() {
+        form.localizedNames = form.localizedNames.filter(
+            (row) =>
+                row[STEAM_NAME_HELPER_ROW] !== true &&
+                hasAnyNameRowValue(row),
+        );
+    }
+}
+
+/**
+ * Marks a localized-name row as inserted by the Steam helper.
+ *
+ * @param {object} row - Localized-name row.
+ * @returns {object} The marked row.
+ */
+function markSteamNameHelperRow(row) {
+    Object.defineProperty(row, STEAM_NAME_HELPER_ROW, {
+        configurable: true,
+        value: true,
+    });
+
+    return row;
 }
 
 /**
@@ -4844,15 +4875,19 @@ function buildSteamNameChoiceRows(rows, choice) {
     const hans = findSteamNameRow(rows, "hans");
     const hant = findSteamNameRow(rows, "hant");
 
-    if (choice === "hans") {
+    if (choice === "simp") {
         return hans == null ? [] : [hans];
     }
 
-    if (choice === "hant") {
+    if (choice === "trad") {
         return hant == null ? [] : [hant];
     }
 
-    if (choice === "both") {
+    if (choice === "diff") {
+        return [hans, hant].filter(Boolean);
+    }
+
+    if (choice === "same") {
         return [mergeSteamNameRows(hans, hant, false, false)].filter(Boolean);
     }
 
@@ -4914,30 +4949,6 @@ function getNameRowSelectedMarkets(values) {
             (market) => market.key,
         )
     );
-}
-
-/**
- * Fills a matching empty name row or appends a new one.
- *
- * @param {Array<object>} rows - Existing localized name rows.
- * @param {object} values - Localized name values.
- * @returns {void}
- */
-function fillNameRow(rows, values) {
-    const selectedMarkets = getNameRowSelectedMarkets(values);
-    const matchingRow = rows.find(
-        (row) =>
-            !hasEnteredNameRowValue(row) &&
-            Boolean(row.official) === Boolean(values.official) &&
-            selectedMarkets.every((market) => row[market]),
-    );
-
-    if (matchingRow == null) {
-        rows.push(createNameRowFromValues(values));
-        return;
-    }
-
-    Object.assign(matchingRow, createNameRowFromValues(values));
 }
 
 /**

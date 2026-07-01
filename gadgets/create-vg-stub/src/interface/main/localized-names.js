@@ -30,42 +30,56 @@ export function createNameGroupTemplate() {
  * @returns {object} Steam helper template node.
  */
 function createSteamNameHelperTemplate() {
-    return createElement(
-        "div",
-        {
-            class: "create-vg-stub-steam-helper",
-        },
+    return createFieldTemplate(
+        "Steam titles",
         [
-            createFieldTemplate(
-                "Steam app URL",
-                [
-                    createElement("cdx-text-input", {
-                        placeholder: "https://store.steampowered.com/app/...",
-                        "v-bind:model-value": "steamUrl",
-                        "v-on:update:model-value": "updateSteamUrl($event)",
-                    }),
-                ],
-                {
-                    helpText: [createSteamNameSuggestionsTemplate()],
-                    helpTextCondition: "fetchedSteamNameRows.length",
-                },
-            ),
             createElement(
-                "cdx-button",
+                "div",
                 {
-                    "v-bind:disabled": "sourceFetchState.loading",
-                    "v-on:click": "addSteamNames",
+                    class: "create-vg-stub-steam-helper",
                 },
-                [createText("Add Steam names")],
+                [
+                    createElement(
+                        "div",
+                        {
+                            class: "create-vg-stub-steam-row",
+                        },
+                        [
+                            createElement("cdx-text-input", {
+                                placeholder:
+                                    "https://store.steampowered.com/app/...",
+                                "v-bind:model-value": "steamUrl",
+                                "v-on:update:model-value":
+                                    "updateSteamUrl($event)",
+                            }),
+                            createElement(
+                                "cdx-button",
+                                {
+                                    "v-bind:disabled":
+                                        "sourceFetchState.loading",
+                                    "v-on:click": "addSteamNames",
+                                },
+                                [createText("Check")],
+                            ),
+                        ],
+                    ),
+                    createElement(
+                        "div",
+                        {
+                            class: "create-vg-stub-steam-row",
+                            "v-if": "fetchedSteamNameRows.length",
+                        },
+                        [
+                            createSteamNameSuggestionsTemplate(),
+                            createElement("cdx-button-group", {
+                                class: "create-vg-stub-steam-actions",
+                                "v-bind:buttons": "steamNameButtons",
+                                "v-on:click": "applySteamNameChoice",
+                            }),
+                        ],
+                    ),
+                ],
             ),
-            createElement("cdx-select", {
-                class: "create-vg-stub-steam-actions",
-                "v-if": "fetchedSteamNameRows.length",
-                "default-label": "Add localized name",
-                "v-bind:menu-items": "steamNameMenuItems",
-                "v-bind:selected": "steamNameChoice",
-                "v-on:update:selected": "applySteamNameChoice",
-            }),
         ],
     );
 }
@@ -77,17 +91,16 @@ function createSteamNameHelperTemplate() {
  */
 function createSteamNameSuggestionsTemplate() {
     return createElement(
-        "span",
+        "ul",
         {
             class:
                 "create-vg-stub-steam-suggestion " +
-                "create-vg-stub-horizontal-list",
+                "create-vg-stub-steam-links",
         },
         [
             createElement(
-                "span",
+                "li",
                 {
-                    class: "create-vg-stub-horizontal-list-item",
                     "v-bind:key": "suggestion.label",
                     "v-for":
                         "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)",

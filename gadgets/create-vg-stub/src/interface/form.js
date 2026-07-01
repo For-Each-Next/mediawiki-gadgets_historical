@@ -787,6 +787,7 @@ export function addDialogStyles() {
  * @param {Function} options.getProseSinographs - Prose length calculator.
  * @param {Function} options.getProseWikitext - Prose wikitext preview builder.
  * @param {object} [options.initialForm] - Initial form values.
+ * @param {boolean} [options.initialEnwikiLookup] - Whether to lookup the initial enwiki title.
  * @param {number} [options.citationPrefetchDelay] - Citation prefetch debounce delay.
  * @param {Function} [options.getFieldPreview] - Field wikitext preview builder.
  * @param {Function} options.getHistoryEntries - Form history entry provider.
@@ -1003,6 +1004,13 @@ export function createDialogComponent(Vue, options) {
             await openPreSave();
         },
     };
+
+    if (
+        options.initialEnwikiLookup === true &&
+        trimFieldValue(form.enwikiTitle) !== ""
+    ) {
+        refreshEnwikiMetadata();
+    }
 
     return {
         methods: {

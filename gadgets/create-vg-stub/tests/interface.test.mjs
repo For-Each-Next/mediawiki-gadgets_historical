@@ -69,6 +69,36 @@ test("moved editing sessions open the refilled form automatically", () => {
     assert.equal(activationCount, 1);
 });
 
+test("activation from enwiki opens and looks up the source title", async () => {
+    const calls = [];
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            initialEnwikiLookup: true,
+            initialForm: {
+                enwikiTitle: "Example Game (video game)",
+            },
+            initialOpen: true,
+            async onEnwikiTitleChange(title) {
+                calls.push(title);
+
+                return {
+                    title,
+                    wikidataId: "Q123",
+                };
+            },
+        }),
+    );
+    const { form, open } = component.setup();
+
+    await Promise.resolve();
+
+    assert.equal(open.value, true);
+    assert.equal(form.enwikiTitle, "Example Game (video game)");
+    assert.equal(form.wikidataId, "Q123");
+    assert.deepEqual(calls, ["Example Game (video game)"]);
+});
+
 test("opening the tool activates submit handling", () => {
     let activationCount = 0;
     const component = createDialogComponent(

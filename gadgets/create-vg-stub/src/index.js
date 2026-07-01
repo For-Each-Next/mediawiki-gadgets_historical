@@ -74,6 +74,7 @@ import {
 } from "./editing/pre-save.js";
 import { registerNewPage } from "./handlers/new-page-list.js";
 import {
+    addEnwikiCreateTrigger,
     addMissingPageEditTrigger,
     addViewPageTrigger,
 } from "./interface/page-trigger.js";
@@ -90,6 +91,12 @@ import {
     prepareManagedCitationRows,
 } from "./sources/source-references.js";
 import { fetchSteamNameRows } from "./sources/steam-names.js";
+import {
+    ZHWIKI_API_URL,
+    buildZhwikiCreationUrl,
+    readZhwikiActivationForm,
+    resolveZhwikiCreationTitle,
+} from "./sources/zhwiki-activation.js";
 
 const CITATION_PREFETCH_DELAY = 800;
 
@@ -115,6 +122,29 @@ function isMissingPageView() {
  */
 function isEditAction(action) {
     return action === "edit" || action === "submit";
+}
+
+/**
+ * Checks whether the current page is an English Wikipedia article view.
+ *
+ * @returns {boolean} Whether the enwiki launcher should be shown.
+ */
+function isEnwikiArticleView() {
+    return (
+        mw.config.get("wgDBname") === "enwiki" &&
+        mw.config.get("wgAction") === "view" &&
+        mw.config.get("wgNamespaceNumber") === 0 &&
+        mw.config.get("wgArticleId") !== 0
+    );
+}
+
+/**
+ * Checks whether the gadget is running on Chinese Wikipedia.
+ *
+ * @returns {boolean} Whether the full creation dialog can run.
+ */
+function isZhwiki() {
+    return mw.config.get("wgDBname") === "zhwiki";
 }
 
 /**
@@ -707,6 +737,49 @@ function getPageName() {
 }
 
 /**
+ * Adds the English Wikipedia launcher that starts zhwiki creation.
+ *
+ * @returns {void}
+ */
+function initEnwikiLauncher() {
+    const enwikiTitle = getPageName();
+    const fallbackUrl = buildZhwikiCreationUrl(enwikiTitle);
+    let pending = false;
+
+    addEnwikiCreateTrigger(mw.util, async (event) => {
+        event.preventDefault();
+
+        if (pending) {
+            return;
+        }
+
+        pending = true;
+        const tab = window.open(fallbackUrl, "_blank");
+
+        try {
+            const api = new mw.ForeignApi(ZHWIKI_API_URL);
+            const targetTitle = await resolveZhwikiCreationTitle(
+                enwikiTitle,
+                api,
+            );
+            const url = buildZhwikiCreationUrl(enwikiTitle, targetTitle);
+
+            if (tab != null) {
+                tab.location.href = url;
+            } else {
+                window.open(url, "_blank", "noopener");
+            }
+        } catch (_error) {
+            if (tab == null) {
+                window.open(fallbackUrl, "_blank", "noopener");
+            }
+        } finally {
+            pending = false;
+        }
+    }, fallbackUrl);
+}
+
+/**
  * Mounts the Codex dialog and registers the toolbox trigger.
  *
  * @param {Function} require - ResourceLoader module resolver.
@@ -724,6 +797,7 @@ function init(require) {
         mw.config.get("wgAction") === "submit"
             ? getPreviewFormData(currentPageName)
             : undefined;
+    const activationForm = readZhwikiActivationForm(window.location.search);
     let saveInterceptorActive = false;
 
     const activateTool = () => {
@@ -748,12 +822,15 @@ function init(require) {
         getProseSinographs: getFormProseSinographs,
         getProseWikitext: getFormProseWikitext,
         initialForm:
+            activationForm ||
             previewFormData?.form ||
             movedEdit?.form ||
             readFormDraftForPage(currentPageName),
         initialOpen:
+            activationForm != null ||
             previewFormData != null ||
             (movedEdit != null && movedEdit.preview !== true),
+        initialEnwikiLookup: activationForm != null,
         onActivate: activateTool,
         onCategoryRowsRefresh: (form, categoryState, refreshOptions) =>
             refreshFormCategoryRows(
@@ -969,15 +1046,20 @@ function formatPendingActionFailures(actions) {
 
 const currentAction = mw.config.get("wgAction");
 const hasPendingSave =
+    isZhwiki() &&
     currentAction === "view" &&
     mw.config.get("wgArticleId") !== 0 &&
     getPendingSaveData(getPageName()) != null;
 
-if (hasPendingSave) {
+if (isEnwikiArticleView()) {
+    mw.loader
+        .using(["mediawiki.ForeignApi", "mediawiki.util"])
+        .then(initEnwikiLauncher);
+} else if (hasPendingSave) {
     mw.loader
         .using(["mediawiki.api", "mediawiki.ForeignApi", "mediawiki.util"])
         .then(runPendingSaveActions);
-} else if (isEditAction(currentAction) || isMissingPageView()) {
+} else if (isZhwiki() && (isEditAction(currentAction) || isMissingPageView())) {
     mw.loader
         .using([
             "mediawiki.api",

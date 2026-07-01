@@ -54,6 +54,42 @@ export function addViewPageTrigger(mediaWikiUtil, handler) {
         return false;
     }
 
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.addEventListener("click", handler);
+
+    return true;
+}
+
+/**
+ * Adds an English Wikipedia page action that starts zhwiki stub creation.
+ *
+ * @param {object} mediaWikiUtil - MediaWiki utility functions.
+ * @param {Function} handler - Gadget launch handler.
+ * @param {string} href - Fallback zhwiki creation URL.
+ * @returns {boolean} Whether a trigger was added.
+ */
+export function addEnwikiCreateTrigger(mediaWikiUtil, handler, href) {
+    const link =
+        mediaWikiUtil.addPortletLink(
+            "p-cactions",
+            href,
+            "Create zhwiki VG stub",
+            "ca-create-zhwiki-vg-stub",
+        ) ||
+        mediaWikiUtil.addPortletLink(
+            "p-tb",
+            href,
+            "Create zhwiki VG stub",
+            "t-create-zhwiki-vg-stub",
+        );
+
+    if (link == null) {
+        return false;
+    }
+
+    link.target = "_blank";
+    link.rel = "noopener";
     link.addEventListener("click", handler);
 
     return true;

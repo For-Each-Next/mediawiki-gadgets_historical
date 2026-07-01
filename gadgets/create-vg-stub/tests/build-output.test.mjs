@@ -23,7 +23,11 @@ test("userscript output includes Tampermonkey metadata and bundled code", async 
 
     assert.equal(source.startsWith("// ==UserScript==\n"), true);
     assert.match(source, /^\/\/ @name {9}create-vg-stub$/mu);
-    assert.match(source, /^\/\/ @version {6}0\.3\.0$/mu);
+    assert.match(source, /^\/\/ @version {6}0\.4\.0$/mu);
+    assert.match(
+        source,
+        /^\/\/ @match {8}https:\/\/en\.wikipedia\.org\/\*$/mu,
+    );
     assert.match(
         source,
         /^\/\/ @match {8}https:\/\/zh\.wikipedia\.org\/\*$/mu,
@@ -53,26 +57,46 @@ test("userscript output is beautified", async () => {
     assert.equal(await format(source, { parser: "babel" }), source);
 });
 
-test("gadget initializes only for edit actions and missing-page views", async () => {
-    assert.equal(await getLoaderCallCount("view", 1), 0);
-    assert.equal(await getLoaderCallCount("view", 0), 1);
-    assert.equal(await getLoaderCallCount("edit"), 1);
-    assert.equal(await getLoaderCallCount("submit"), 1);
+test("gadget initializes the zhwiki dialog only for edit actions and missing pages", async () => {
+    assert.equal(await getLoaderCallCount("view", 1, "zhwiki"), 0);
+    assert.equal(await getLoaderCallCount("view", 0, "zhwiki"), 1);
+    assert.equal(await getLoaderCallCount("edit", 1, "zhwiki"), 1);
+    assert.equal(await getLoaderCallCount("submit", 1, "zhwiki"), 1);
+    assert.equal(await getLoaderCallCount("edit", 1, "enwiki"), 0);
 });
 
-async function getLoaderCallCount(action, articleId = 1) {
+test("gadget initializes the enwiki launcher on article views", async () => {
+    assert.equal(await getLoaderCallCount("view", 1, "enwiki"), 1);
+    assert.equal(await getLoaderCallCount("view", 0, "enwiki"), 0);
+    assert.equal(await getLoaderCallCount("submit", 1, "enwiki"), 0);
+});
+
+async function getLoaderCallCount(action, articleId = 1, dbName = "") {
     const source = await readFile("dist/create_vg_stub.js", "utf8");
     let calls = 0;
     const sandbox = {
+        window: {
+            location: {
+                search: "",
+            },
+        },
         mw: {
             config: {
                 get(key) {
+                    if (key === "wgDBname") {
+                        return dbName;
+                    }
+
                     if (key === "wgAction") {
                         return action;
                     }
 
                     if (key === "wgArticleId") {
                         return articleId;
+                    }
+
+                    if (key === "wgNamespaceNumber") {
+                        return 0;
                     }
 
                     return "";

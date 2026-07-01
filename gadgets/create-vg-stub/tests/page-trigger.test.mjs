@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    addEnwikiCreateTrigger,
     addMissingPageEditTrigger,
     addViewPageTrigger,
 } from "../src/interface/page-trigger.js";
@@ -94,4 +95,60 @@ test("addViewPageTrigger falls back to the toolbox", () => {
         true,
     );
     assert.deepEqual(calls, ["p-views", "p-tb"]);
+});
+
+test("addEnwikiCreateTrigger adds an action to page actions", () => {
+    const listeners = [];
+    const link = {
+        addEventListener(type, handler) {
+            listeners.push([type, handler]);
+        },
+    };
+    const calls = [];
+    const mediaWikiUtil = {
+        addPortletLink(...args) {
+            calls.push(args);
+            return link;
+        },
+    };
+    const handler = () => {};
+    const updated = addEnwikiCreateTrigger(
+        mediaWikiUtil,
+        handler,
+        "https://zh.wikipedia.org/wiki/Example?action=edit",
+    );
+
+    assert.equal(updated, true);
+    assert.deepEqual(calls, [
+        [
+            "p-cactions",
+            "https://zh.wikipedia.org/wiki/Example?action=edit",
+            "Create zhwiki VG stub",
+            "ca-create-zhwiki-vg-stub",
+        ],
+    ]);
+    assert.equal(link.target, "_blank");
+    assert.equal(link.rel, "noopener");
+    assert.deepEqual(listeners, [["click", handler]]);
+});
+
+test("addEnwikiCreateTrigger falls back to the toolbox", () => {
+    const calls = [];
+
+    assert.equal(
+        addEnwikiCreateTrigger(
+            {
+                addPortletLink(portlet) {
+                    calls.push(portlet);
+                    return portlet === "p-tb"
+                        ? { addEventListener() {} }
+                        : null;
+                },
+            },
+            () => {},
+            "https://zh.wikipedia.org/wiki/Example?action=edit",
+        ),
+        true,
+    );
+    assert.deepEqual(calls, ["p-cactions", "p-tb"]);
 });

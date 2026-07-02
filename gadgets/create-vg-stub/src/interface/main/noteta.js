@@ -5,7 +5,6 @@ import {
     createIconActionLinkTemplate,
     createTableHeaderTemplate,
     createTableTemplate,
-    createText,
 } from "../template.js";
 
 /**

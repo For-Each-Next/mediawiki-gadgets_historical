@@ -156,39 +156,6 @@ export function saveFormHistory(form, page, citations = {}) {
 }
 
 /**
- * Gets citation cache data for a form history page.
- *
- * @param {object} form - Dialog form values.
- * @param {string} page - Page title associated with the snapshot.
- * @returns {object} Citation cache keyed by source URL.
- */
-export function getFormHistoryCitations(form, page) {
-    return {};
-}
-
-/**
- * Updates citation cache data for a form history page.
- *
- * @param {object} form - Dialog form values.
- * @param {string} page - Page title associated with the snapshot.
- * @param {object} citations - Citation cache keyed by source URL.
- * @returns {void}
- */
-export function updateFormHistoryCitations(form, page, citations) {
-    const entry = getFormHistoryEntry(form, page);
-
-    if (entry == null) {
-        return;
-    }
-
-    entry.data = createHistoryData(form);
-    writeFormHistory([
-        entry,
-        ...readFormHistory().filter((item) => item.id !== entry.id),
-    ]);
-}
-
-/**
  * Deletes one form history entry.
  *
  * @param {string} id - History entry ID.
@@ -229,19 +196,6 @@ function createFormHistoryEntry(form, page, citations) {
             savedAt: new Date().toLocaleString(),
         },
     };
-}
-
-/**
- * Gets one form history entry.
- *
- * @param {object} form - Dialog form values.
- * @param {string} page - Page title associated with the snapshot.
- * @returns {object|undefined} Stored history entry.
- */
-function getFormHistoryEntry(form, page) {
-    const id = createHistoryEntryId(form, page);
-
-    return readFormHistory().find((entry) => entry.id === id);
 }
 
 /**
@@ -362,8 +316,9 @@ function getCitationParamPatches(row) {
     const names = new Set([...params.keys(), ...generatedParams.keys()]);
 
     return Array.from(names)
-        .filter((name) =>
-            !isSameJsonValue(params.get(name), generatedParams.get(name)),
+        .filter(
+            (name) =>
+                !isSameJsonValue(params.get(name), generatedParams.get(name)),
         )
         .map((name) => ({
             name,
@@ -563,16 +518,6 @@ function isManualCategoryRow(row) {
  */
 function isModifiedCategoryRow(row) {
     return /†$/u.test(row.source || "");
-}
-
-/**
- * Removes the generated-row modified marker from a label.
- *
- * @param {string} source - Category row source label.
- * @returns {string} Source label without marker.
- */
-function trimModifiedMarker(source) {
-    return String(source || "").replace(/\s*†$/u, "");
 }
 
 /**

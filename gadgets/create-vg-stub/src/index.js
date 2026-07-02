@@ -1103,10 +1103,9 @@ function init(require) {
 /**
  * Runs the preselected follow-up actions on the newly created article.
  *
- * @param {Function} require - ResourceLoader module resolver.
  * @returns {void}
  */
-async function runPendingSaveActions(require) {
+async function runPendingSaveActions() {
     const pending = getPendingSaveData(getPageName());
 
     if (pending == null) {

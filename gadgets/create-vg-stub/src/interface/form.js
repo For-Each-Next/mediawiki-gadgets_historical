@@ -2571,7 +2571,7 @@ export function createDialogComponent(Vue, options) {
              */
             async openNavboxEdit(row) {
                 await openPageEdit({
-                    create: row.status !== "OK",
+                    create: getPageEditCreateState(row, row.status !== "OK"),
                     kind: "navbox",
                     row,
                     title: `Template:${row.title}`,
@@ -2586,7 +2586,7 @@ export function createDialogComponent(Vue, options) {
              */
             async openRedirectEdit(row) {
                 await openPageEdit({
-                    create: row.exists !== true,
+                    create: getPageEditCreateState(row, row.exists !== true),
                     kind: "redirect",
                     row,
                     title: trimFieldValue(row.title),
@@ -2826,7 +2826,7 @@ export function createDialogComponent(Vue, options) {
                 const category = trimFieldValue(row.category);
 
                 await openPageEdit({
-                    create: row.status !== "OK",
+                    create: getPageEditCreateState(row, row.status !== "OK"),
                     kind: "category",
                     row,
                     title: `Category:${category}`,
@@ -3637,7 +3637,8 @@ export function createDialogComponent(Vue, options) {
                     ? trimFieldValue(params.row.company)
                     : "",
             englishName: trimFieldValue(
-                params.row.pendingCreation?.englishName,
+                params.row.pendingEdit?.englishName ||
+                    params.row.pendingCreation?.englishName,
             ),
             error: "",
             html: "",
@@ -3698,6 +3699,25 @@ export function createDialogComponent(Vue, options) {
     }
 
     /**
+     * Gets whether a review-row source editor should create or modify a page.
+     *
+     * @param {object} row - Review row.
+     * @param {boolean} fallbackCreate - Status-derived create state.
+     * @returns {boolean} Whether the editor should stage a create.
+     */
+    function getPageEditCreateState(row, fallbackCreate) {
+        if (row?.pendingEdit != null) {
+            return row.pendingEdit.create === true;
+        }
+
+        if (row?.pendingCreation != null) {
+            return true;
+        }
+
+        return fallbackCreate;
+    }
+
+    /**
      * Gets the initial source for a missing page.
      *
      * @param {object} params - Page edit parameters.
@@ -3746,6 +3766,11 @@ export function createDialogComponent(Vue, options) {
 
         row.pendingEdit = {
             create: pageEditState.create,
+            ...(trimFieldValue(pageEditState.englishName) === ""
+                ? {}
+                : {
+                      englishName: trimFieldValue(pageEditState.englishName),
+                  }),
             previousStatus:
                 row.pendingEdit?.previousStatus ||
                 pageEditState.previousStatus,
@@ -4641,7 +4666,6 @@ function createCompanyCategoryDialogTemplate() {
             createElement(
                 "label",
                 {
-                    "v-if": "companyCategoryState.company",
                     style: {
                         display: "block",
                         marginBottom: "0.75em",

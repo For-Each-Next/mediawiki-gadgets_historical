@@ -1705,6 +1705,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     await component.methods.openNavboxEdit(existingRow);
     assert.equal(fetchedTitle, "Template:Example series");
     assert.equal(pageEditOpen.value, true);
+    assert.equal(pageEditState.create, false);
     assert.equal(pageEditState.title, "Template:Example series");
     assert.equal(pageEditState.text, "{{Existing navbox}}");
     assert.deepEqual(parsed.at(-1), [
@@ -1731,6 +1732,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.equal(existingRow.status, "Pending edit");
     await component.methods.openNavboxEdit(existingRow);
     assert.equal(pageEditState.pending, true);
+    assert.equal(pageEditState.create, false);
     assert.equal(component.template.includes(">Reset</cdx-button>"), true);
     component.methods.resetPageEdit();
     assert.equal(pageEditOpen.value, false);
@@ -1744,12 +1746,15 @@ test("navbox review stages source-preview edits and creates", async () => {
         title: "Missing series",
     };
     await component.methods.openNavboxEdit(missingRow);
+    assert.equal(pageEditState.create, true);
     assert.equal(pageEditState.title, "Template:Missing series");
     assert.equal(pageEditState.text, "");
+    pageEditState.englishName = "Template:Missing series";
     pageEditState.text = "{{New navbox}}";
     component.methods.stagePageEdit();
     assert.deepEqual(missingRow.pendingEdit, {
         create: true,
+        englishName: "Template:Missing series",
         previousStatus: "Not exists",
         summary:
             "create 'Template:Missing series', with link to '[[Example]]'",
@@ -1757,10 +1762,19 @@ test("navbox review stages source-preview edits and creates", async () => {
         title: "Template:Missing series",
     });
     assert.equal(missingRow.status, "Pending creation");
+    await component.methods.openNavboxEdit(missingRow);
+    assert.equal(pageEditState.pending, true);
+    assert.equal(pageEditState.create, true);
+    assert.equal(pageEditState.englishName, "Template:Missing series");
+    assert.equal(pageEditState.text, "{{New navbox}}");
     assert.equal(
         component.template.includes(
             'v-on:click.prevent="openNavboxEdit(row)"',
         ),
+        true,
+    );
+    assert.equal(
+        component.template.includes("English Wikipedia template"),
         true,
     );
     assert.equal(
@@ -1845,11 +1859,12 @@ test("category checks preserve manually entered textbox text", async () => {
 });
 
 test("category helper stages missing category rows for final submission", async () => {
+    const enwikiLookups = [];
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
             async onEnwikiTitleChange(title) {
-                assert.equal(title, "Category:Foo Studio games");
+                enwikiLookups.push(title);
 
                 return {
                     wikidataId: "Q123",
@@ -1896,6 +1911,7 @@ test("category helper stages missing category rows for final submission", async 
 
     companyCategoryState.englishName = "Foo Studio games";
     await component.methods.refreshCompanyCategoryMetadata();
+    assert.equal(enwikiLookups.at(-1), "Category:Foo Studio games");
     assert.equal(companyCategoryState.wikidataId, "Q123");
     assert.equal(companyCategoryLookupLoading.value, false);
     assert.equal(
@@ -1973,13 +1989,17 @@ test("category helper stages missing category rows for final submission", async 
     form.categoryRows = [genericRow];
     await component.methods.openCategoryCreate(genericRow);
     assert.equal(companyCategoryState.text, "");
+    companyCategoryState.englishName = "Action games";
+    await component.methods.refreshCompanyCategoryMetadata();
+    assert.equal(enwikiLookups.at(-1), "Category:Action games");
+    assert.equal(companyCategoryState.wikidataId, "Q123");
     companyCategoryState.text = "Category text";
     await component.methods.saveCompanyCategory();
     assert.deepEqual(genericRow.pendingCreation, {
-        englishName: "",
+        englishName: "Action games",
         previousStatus: "Not exists",
         text: "Category text",
-        wikidataId: "",
+        wikidataId: "Q123",
     });
     assert.equal(
         component.methods.canCreateCategory({
@@ -2134,6 +2154,24 @@ test("category review stages source-preview edits and company creates", async ()
         component.template.includes("English Wikipedia category"),
         true,
     );
+
+    const genericRow = {
+        category: "动作游戏",
+        enabled: false,
+        status: "Not exists",
+    };
+    await component.methods.openCategoryEdit(genericRow);
+    assert.equal(pageEditState.title, "Category:动作游戏");
+    assert.equal(pageEditState.text, "");
+    assert.equal(pageEditState.company, "");
+    pageEditState.englishName = "Action games";
+    pageEditState.text = "Generic category text";
+    component.methods.stagePageEdit();
+    assert.deepEqual(genericRow.pendingCreation, {
+        englishName: "Action games",
+        previousStatus: "Not exists",
+        text: "Generic category text",
+    });
     assert.equal(
         component.methods.canCreateCategory({
             category: "动作游戏",

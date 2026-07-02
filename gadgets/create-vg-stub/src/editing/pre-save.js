@@ -160,6 +160,11 @@ function createPageEditAction(edit) {
     return {
         create,
         displayLabel: create ? "Create page" : "Edit page",
+        ...(normalizeTitle(edit.englishName) === ""
+            ? {}
+            : {
+                  englishName: normalizeTitle(edit.englishName),
+              }),
         id: `page-edit:${title}`,
         label: `${create ? "Create" : "Edit"} page: ${title}`,
         pageTitle: title,

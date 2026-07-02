@@ -113,7 +113,7 @@ export function createPageEditDialogTemplate() {
             "v-model:open": "pageEditOpen",
         },
         [
-            createEnglishCategoryField(),
+            createEnglishPageField(),
             createSourcePreviewLayout({
                 disabled: "pageEditState.loading",
                 html: "pageEditState.html",
@@ -210,15 +210,17 @@ function createSourceTextArea(options) {
 }
 
 /**
- * Creates the optional English category helper field.
+ * Creates the optional English page helper field.
  *
- * @returns {object} English category field node.
+ * @returns {object} English page field node.
  */
-function createEnglishCategoryField() {
+function createEnglishPageField() {
     return createElement(
         "label",
         {
-            "v-if": "pageEditState.kind === 'category' && pageEditState.create && pageEditState.company",
+            "v-if":
+                "pageEditState.create && " +
+                "(pageEditState.kind === 'category' || pageEditState.kind === 'navbox')",
             style: {
                 display: "block",
                 marginBottom: "0.75em",
@@ -233,9 +235,15 @@ function createEnglishCategoryField() {
                         marginBottom: "0.25em",
                     },
                 },
-                [createText("English Wikipedia category")],
+                [
+                    createText(
+                        "{{ pageEditState.kind === 'navbox' ? 'English Wikipedia template' : 'English Wikipedia category' }}",
+                    ),
+                ],
             ),
             createElement("cdx-text-input", {
+                "v-bind:placeholder":
+                    "pageEditState.kind === 'navbox' ? 'e.g. Template:Final Fantasy series' : 'e.g. Action games'",
                 "v-bind:disabled": "pageEditState.loading",
                 "v-model": "pageEditState.englishName",
             }),

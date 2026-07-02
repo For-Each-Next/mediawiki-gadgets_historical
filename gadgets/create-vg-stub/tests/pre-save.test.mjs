@@ -152,6 +152,7 @@ test("buildPreSaveActions includes staged page edits", () => {
                     enabled: true,
                     pendingEdit: {
                         create: true,
+                        englishName: "Template:Example series",
                         summary: "create Template:Example series",
                         text: "{{Navbox}}",
                         title: "Template:Example series",
@@ -215,6 +216,7 @@ test("buildPreSaveActions includes staged page edits", () => {
             {
                 create: true,
                 displayLabel: "Create page",
+                englishName: "Template:Example series",
                 id: "page-edit:Template:Example series",
                 label: "Create page: Template:Example series",
                 pageTitle: "Template:Example series",

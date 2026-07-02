@@ -273,6 +273,18 @@ const DIALOG_CSS = new StyleSheet()
         margin: "0",
         paddingLeft: "1.5em",
     })
+    .add(".create-vg-stub-name-search", {
+        margin: "0",
+        paddingLeft: "1.5em",
+    })
+    .add(".create-vg-stub-name-search > li:not(:first-child)", {
+        marginTop: "0.35em",
+    })
+    .add(".create-vg-stub-review-table .cdx-text-input", {
+        maxWidth: "100%",
+        minWidth: "0",
+        width: "100%",
+    })
     .add(".create-vg-stub-horizontal-list", {
         display: "flex",
         flexWrap: "wrap",

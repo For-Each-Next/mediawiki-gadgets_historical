@@ -96,6 +96,7 @@ import {
 } from "./sources/zhwiki-activation.js";
 
 const CITATION_PREFETCH_DELAY = 800;
+const WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php";
 
 export { submitEditForm };
 
@@ -401,14 +402,18 @@ async function submitForm(
             previewText != null || preserveEditor
                 ? null
                 : await buildStubFromForm(submittedForm, citationStore);
+        const editSummaryMetadata =
+            stub == null
+                ? null
+                : createEditSummaryMetadata(submittedForm, stub);
+        const generatedSummary =
+            editSummaryMetadata == null
+                ? readEditSummary()
+                : buildEditSummary(editSummaryMetadata);
         const summary =
             typeof preview?.summary === "string"
                 ? preview.summary
-                : stub != null
-                  ? buildEditSummary(
-                        createEditSummaryMetadata(submittedForm, stub),
-                    )
-                  : readEditSummary();
+                : generatedSummary;
         const text = previewText ?? stub?.text ?? readEditText();
         const pending = {
             actions: preSave.actions,
@@ -513,15 +518,13 @@ async function runSubmittedFollowUpActions(api, pending, title, progress) {
             progress?.set("move", "running");
         },
         title: currentTitle,
-        wikidataApi: new mw.ForeignApi("https://www.wikidata.org/w/api.php"),
+        wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
         saveCategory: (category, text) =>
             saveCategoryPage(category, text, undefined, api),
         saveCompanyCategory: (category, text, englishName) =>
             saveCompanyCategory(category, text, englishName, {
                 api,
-                wikidataApi: new mw.ForeignApi(
-                    "https://www.wikidata.org/w/api.php",
-                ),
+                wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
             }),
     };
     const result = await runSelectedActions(
@@ -534,13 +537,7 @@ async function runSubmittedFollowUpActions(api, pending, title, progress) {
         await registerNewPage(
             api,
             result.title,
-            result.completed
-                .filter(
-                    (action) =>
-                        action.type === "category" &&
-                        trimFieldValue(action.company) !== "",
-                )
-                .map((action) => action.category),
+            getCompanyCategoryActions(result.completed),
         );
         progress?.set("new-page-list", "complete");
     }
@@ -556,32 +553,65 @@ async function runSubmittedFollowUpActions(api, pending, title, progress) {
  */
 async function refreshPreSaveCategoryWikidata(form) {
     const rows = Array.isArray(form.categoryRows) ? form.categoryRows : [];
+    const pendingRows = rows.filter(shouldRefreshCategoryWikidata);
 
-    await Promise.all(
-        rows
-            .filter(
-                (row) =>
-                    row?.enabled !== false &&
-                    row?.pendingCreation != null &&
-                    trimFieldValue(row.pendingCreation.englishName) !== "" &&
-                    trimFieldValue(row.pendingCreation.wikidataId) === "",
-            )
-            .map(async (row) => {
-                try {
-                    const metadata = await fetchEnwikiMetadata(
-                        normalizeEnglishCategoryTitle(
-                            row.pendingCreation.englishName,
-                        ),
-                    );
+    await Promise.all(pendingRows.map(refreshCategoryWikidata));
+}
 
-                    row.pendingCreation.wikidataId = trimFieldValue(
-                        metadata.wikidataId,
-                    );
-                } catch (_error) {
-                    row.pendingCreation.wikidataId = "";
-                }
-            }),
+/**
+ * Checks whether a staged company category needs Wikidata metadata.
+ *
+ * @param {object} row - Category review row.
+ * @returns {boolean} Whether Wikidata should be refreshed.
+ */
+function shouldRefreshCategoryWikidata(row) {
+    return (
+        row?.enabled !== false &&
+        row?.pendingCreation != null &&
+        trimFieldValue(row.pendingCreation.englishName) !== "" &&
+        trimFieldValue(row.pendingCreation.wikidataId) === ""
     );
+}
+
+/**
+ * Refreshes the Wikidata ID for one staged company category.
+ *
+ * @param {object} row - Category review row.
+ * @returns {Promise<void>} Resolves after the row is updated.
+ */
+async function refreshCategoryWikidata(row) {
+    try {
+        const title = normalizeEnglishCategoryTitle(
+            row.pendingCreation.englishName,
+        );
+        const metadata = await fetchEnwikiMetadata(title);
+
+        row.pendingCreation.wikidataId = trimFieldValue(metadata.wikidataId);
+    } catch (_error) {
+        row.pendingCreation.wikidataId = "";
+    }
+}
+
+/**
+ * Gets completed company-category action titles for page-list registration.
+ *
+ * @param {Array<object>} actions - Completed follow-up actions.
+ * @returns {Array<string>} Category titles.
+ */
+function getCompanyCategoryActions(actions) {
+    return actions.filter(isCompanyCategoryAction).map((action) => {
+        return action.category;
+    });
+}
+
+/**
+ * Checks whether an action represents a company-category creation.
+ *
+ * @param {object} action - Completed follow-up action.
+ * @returns {boolean} Whether the action should register a new page.
+ */
+function isCompanyCategoryAction(action) {
+    return action.type === "category" && trimFieldValue(action.company) !== "";
 }
 
 /**
@@ -880,37 +910,41 @@ function initEnwikiLauncher() {
     const fallbackUrl = buildZhwikiCreationUrl(enwikiTitle);
     let pending = false;
 
-    addEnwikiCreateTrigger(mw.util, async (event) => {
-        event.preventDefault();
+    addEnwikiCreateTrigger(
+        mw.util,
+        async (event) => {
+            event.preventDefault();
 
-        if (pending) {
-            return;
-        }
-
-        pending = true;
-        const tab = window.open(fallbackUrl, "_blank");
-
-        try {
-            const api = new mw.ForeignApi(ZHWIKI_API_URL);
-            const targetTitle = await resolveZhwikiCreationTitle(
-                enwikiTitle,
-                api,
-            );
-            const url = buildZhwikiCreationUrl(enwikiTitle, targetTitle);
-
-            if (tab != null) {
-                tab.location.href = url;
-            } else {
-                window.open(url, "_blank", "noopener");
+            if (pending) {
+                return;
             }
-        } catch (_error) {
-            if (tab == null) {
-                window.open(fallbackUrl, "_blank", "noopener");
+
+            pending = true;
+            const tab = window.open(fallbackUrl, "_blank");
+
+            try {
+                const api = new mw.ForeignApi(ZHWIKI_API_URL);
+                const targetTitle = await resolveZhwikiCreationTitle(
+                    enwikiTitle,
+                    api,
+                );
+                const url = buildZhwikiCreationUrl(enwikiTitle, targetTitle);
+
+                if (tab != null) {
+                    tab.location.href = url;
+                } else {
+                    window.open(url, "_blank", "noopener");
+                }
+            } catch (_error) {
+                if (tab == null) {
+                    window.open(fallbackUrl, "_blank", "noopener");
+                }
+            } finally {
+                pending = false;
             }
-        } finally {
-            pending = false;
-        }
-    }, fallbackUrl);
+        },
+        fallbackUrl,
+    );
 }
 
 /**
@@ -1043,6 +1077,7 @@ function init(require) {
     app.component("CdxIcon", Codex.CdxIcon);
     app.component("CdxInfoChip", Codex.CdxInfoChip);
     app.component("CdxMenuButton", Codex.CdxMenuButton);
+    app.component("CdxMessage", Codex.CdxMessage);
     app.component("CdxProgressBar", Codex.CdxProgressBar);
     app.component("CdxProgressIndicator", Codex.CdxProgressIndicator);
     app.component("CdxSelect", Codex.CdxSelect);
@@ -1109,17 +1144,13 @@ async function runPendingSaveActions(require) {
                 setSaveProgressStep("move", "running");
             },
             title: currentTitle,
-            wikidataApi: new mw.ForeignApi(
-                "https://www.wikidata.org/w/api.php",
-            ),
+            wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
             saveCategory: (category, text) =>
                 saveCategoryPage(category, text, undefined, api),
             saveCompanyCategory: (category, text, englishName) =>
                 saveCompanyCategory(category, text, englishName, {
                     api,
-                    wikidataApi: new mw.ForeignApi(
-                        "https://www.wikidata.org/w/api.php",
-                    ),
+                    wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
                 }),
         };
         const result = await runSelectedActions(
@@ -1132,13 +1163,7 @@ async function runPendingSaveActions(require) {
             await registerNewPage(
                 api,
                 result.title,
-                result.completed
-                    .filter(
-                        (action) =>
-                            action.type === "category" &&
-                            trimFieldValue(action.company) !== "",
-                    )
-                    .map((action) => action.category),
+                getCompanyCategoryActions(result.completed),
             );
             setSaveProgressStep("new-page-list", "complete");
         }
@@ -1199,7 +1224,10 @@ if (isEnwikiArticleView()) {
     mw.loader
         .using(["mediawiki.api", "mediawiki.ForeignApi", "mediawiki.util"])
         .then(runPendingSaveActions);
-} else if (isZhwiki() && (isEditAction(currentAction) || isMissingPageView())) {
+} else if (
+    isZhwiki() &&
+    (isEditAction(currentAction) || isMissingPageView())
+) {
     mw.loader
         .using([
             "mediawiki.api",

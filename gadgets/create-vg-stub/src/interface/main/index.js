@@ -28,14 +28,7 @@ export function createTabsTemplate() {
                     "v-for": "group in groups",
                 },
                 [
-                    createElement(
-                        "p",
-                        {
-                            class: "create-vg-stub-tab-description",
-                            "v-if": "group.description",
-                        },
-                        [createText("{{ group.description }}")],
-                    ),
+                    createTabDescriptionTemplate(),
                     createFieldGroupTemplate(),
                     createNameGroupTemplate(),
                     createNoteTaGroupTemplate(),
@@ -44,5 +37,21 @@ export function createTabsTemplate() {
                 ],
             ),
         ],
+    );
+}
+
+/**
+ * Creates the active tab description.
+ *
+ * @returns {object} Tab description node.
+ */
+function createTabDescriptionTemplate() {
+    return createElement(
+        "p",
+        {
+            class: "create-vg-stub-tab-description",
+            "v-if": "group.description",
+        },
+        [createText("{{ group.description }}")],
     );
 }

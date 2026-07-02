@@ -34,7 +34,10 @@ import {
 import { createTabsTemplate } from "./main/index.js";
 import {
     createActionFooterTemplate,
+    createButtonTemplate,
     createElement,
+    createFieldTemplate,
+    createMessageTemplate,
     createText,
     renderTemplate,
 } from "./template.js";
@@ -142,8 +145,11 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-dialog .cdx-field", {
         marginBottom: "1em",
     })
+    .add(".create-vg-stub-dialog .cdx-message", {
+        margin: "0.75em 0",
+    })
     .add(".create-vg-stub-dialog section", {
-        marginBottom: "2em",
+        marginBottom: "1.5em",
     })
     .add(".create-vg-stub-dialog table", {
         margin: "0.5em 0",
@@ -182,8 +188,7 @@ const DIALOG_CSS = new StyleSheet()
     .add(
         ".create-vg-stub-review-table tr:has(.create-vg-stub-review-row-marker--redirect-conflict) > td",
         {
-            backgroundColor:
-                "var(--background-color-error-subtle, #fee7e6)",
+            backgroundColor: "var(--background-color-error-subtle, #fee7e6)",
         },
     )
     .add(
@@ -213,11 +218,16 @@ const DIALOG_CSS = new StyleSheet()
         [
             ".cdx-table__header__content a:hover + .create-vg-stub-icon-tooltip",
             ".cdx-table__header__content a:focus + .create-vg-stub-icon-tooltip",
+            ".cdx-table__header__content .create-vg-stub-icon-button:hover + .create-vg-stub-icon-tooltip",
+            ".cdx-table__header__content .create-vg-stub-icon-button:focus + .create-vg-stub-icon-tooltip",
         ],
         {
             opacity: "1",
         },
     )
+    .add(".create-vg-stub-icon-button.cdx-button", {
+        minWidth: "2em",
+    })
     .add(".create-vg-stub-field-controls", {
         display: "grid",
         gap: "0.5em",
@@ -420,9 +430,6 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-company-category-text textarea", {
         fontFamily: "monospace",
     })
-    .add(".create-vg-stub-error", {
-        color: "var(--color-error, #d73333)",
-    })
     .add(".create-vg-stub-pre-save-groups", {
         display: "grid",
         gap: "0.875em",
@@ -454,8 +461,7 @@ const DIALOG_CSS = new StyleSheet()
         gridTemplateColumns: "min-content minmax(0, 1fr)",
     })
     .add(".create-vg-stub-pre-save-progress-row--running", {
-        backgroundColor:
-            "var(--background-color-progressive-subtle, #eaf3ff)",
+        backgroundColor: "var(--background-color-progressive-subtle, #eaf3ff)",
         boxShadow: "inset 3px 0 0 var(--color-progressive, #36c)",
     })
     .add(".create-vg-stub-pre-save-progress-row--retrying", {
@@ -493,6 +499,11 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-prose-length", {
         color: "var(--color-subtle, #54595d)",
         margin: "0.5em 0 1em",
+    })
+    .add(".create-vg-stub-tab-description", {
+        color: "var(--color-subtle, #54595d)",
+        margin: "0 0 1em",
+        maxWidth: "48em",
     })
     .add(".create-vg-stub-citation", {
         borderBottom: "1px solid var(--border-color-subtle, #eaecf0)",
@@ -620,6 +631,11 @@ const STEAM_NAME_BUTTONS = STEAM_NAME_CHOICES.map((choice) => ({
 const STEAM_NAME_HELPER_ROW = Symbol("create-vg-stub-steam-name-helper");
 const NOTE_TA_NAMES_SOURCE = "names";
 const CODEMIRROR_MODULES = ["ext.CodeMirror", "ext.CodeMirror.mode.mediawiki"];
+const ARTICLE_TITLE_PLACEHOLDER =
+    "Leave blank to use the page title in article text";
+const HISTORY_EXPORT_ERROR = "Paste history data exported by this tool.";
+const DIALOG_BODY_MASK_CLASS =
+    "{ 'create-vg-stub-dialog-body--masked': previewLoading }";
 const REVIEW_COLUMN_WIDTHS = {
     actions: "5.5em",
     enabled: "4.5em",
@@ -844,8 +860,7 @@ const ARTICLE_PARAMETER_GROUPS = [
                 "name",
                 null,
                 {
-                    placeholder:
-                        "Leave blank to use the page title in article text",
+                    placeholder: ARTICLE_TITLE_PLACEHOLDER,
                 },
             ),
             new ArticleParameterField(
@@ -1149,6 +1164,25 @@ export function createDialogComponent(Vue, options) {
     };
 
     /**
+     * Creates the running save-progress state for a submit attempt.
+     *
+     * @param {string} title - Current page title.
+     * @param {object} pending - Pending follow-up actions.
+     * @returns {object} Running save progress state.
+     */
+    function createRunningSaveProgress(title, pending) {
+        const progress = createSaveProgress(
+            title,
+            pending.actions || [],
+            pending.move || {},
+            pending.registration || {},
+            pending.progressGroups || [],
+        );
+
+        return updateSaveProgress(progress, "save", "running");
+    }
+
+    /**
      * Creates callbacks used by the submit path to update this dialog.
      *
      * @returns {object} Progress reporter callbacks.
@@ -1187,16 +1221,9 @@ export function createDialogComponent(Vue, options) {
                 setPreSaveProgressStep(id, status);
             },
             start(title, pending) {
-                preSaveProgress.value = updateSaveProgress(
-                    createSaveProgress(
-                        title,
-                        pending.actions || [],
-                        pending.move || {},
-                        pending.registration || {},
-                        pending.progressGroups || [],
-                    ),
-                    "save",
-                    "running",
+                preSaveProgress.value = createRunningSaveProgress(
+                    title,
+                    pending,
                 );
             },
         };
@@ -1228,801 +1255,810 @@ export function createDialogComponent(Vue, options) {
         refreshEnwikiMetadata();
     }
 
-    return {
-        methods: {
-            /**
-             * Closes the Codex dialog without writing text.
-             *
-             * @returns {void}
-             */
-            closeDialog() {
-                open.value = false;
+    /**
+     * Creates the pending follow-up action payload for a reviewed submit.
+     *
+     * @returns {object} Pending submit payload.
+     */
+    function createReviewedSubmitPending() {
+        return {
+            actions: preSaveActions,
+            move: {
+                enabled: false,
+                to: getCurrentTitle(),
             },
-
-            /**
-             * Gets the main dialog title.
-             *
-             * @returns {string} Main dialog title.
-             */
-            getDialogTitle() {
-                return `Create a stub for ${getCurrentTitle()}`;
+            progressGroups: serializePreSaveProgressGroups(
+                preSaveGroups.value,
+            ),
+            progress: createPreSaveProgressReporter(),
+            registration: {
+                enabled: form.registerNewPage !== false,
             },
+        };
+    }
 
-            /**
-             * Clears all form and helper data across every tab.
-             *
-             * @returns {void}
-             */
-            clearForm() {
-                clearFormState();
-            },
+    /**
+     * Finds the category row being edited in the company-category dialog.
+     *
+     * @returns {object|undefined} Matching category row.
+     */
+    function findCompanyCategoryRow() {
+        return form.categoryRows.find(isCurrentCompanyCategoryRow);
+    }
 
-            /**
-             * Handles a selected main action menu item.
-             *
-             * @param {string} value - Selected menu item value.
-             * @returns {Promise<void>} Resolves after the action finishes.
-             */
-            async handleMainActionSelect(value) {
-                mainActionMenuSelection.value = null;
+    /**
+     * Checks whether a category row matches the company-category dialog.
+     *
+     * @param {object} row - Category review row.
+     * @returns {boolean} Whether the row matches.
+     */
+    function isCurrentCompanyCategoryRow(row) {
+        return trimFieldValue(row.category) === companyCategoryState.category;
+    }
 
-                if (value === "history") {
-                    this.openHistoryDialog();
-                    return;
-                }
+    /**
+     * Creates the staged company-category creation payload.
+     *
+     * @param {object} row - Category review row.
+     * @returns {object} Pending creation payload.
+     */
+    function createPendingCompanyCategory(row) {
+        return {
+            englishName: trimFieldValue(companyCategoryState.englishName),
+            previousStatus: row.pendingCreation?.previousStatus || row.status,
+            text: companyCategoryState.text,
+            wikidataId: trimFieldValue(companyCategoryState.wikidataId),
+        };
+    }
 
-                if (value === "reload") {
-                    await this.reloadForm();
-                    return;
-                }
+    const methods = {
+        /**
+         * Closes the Codex dialog without writing text.
+         *
+         * @returns {void}
+         */
+        closeDialog() {
+            open.value = false;
+        },
 
-                if (value === "clear") {
-                    this.clearForm();
-                }
-            },
+        /**
+         * Gets the main dialog title.
+         *
+         * @returns {string} Main dialog title.
+         */
+        getDialogTitle() {
+            return `Create a stub for ${getCurrentTitle()}`;
+        },
 
-            /**
-             * Reloads derived form data from the current inputs.
-             *
-             * @returns {Promise<void>} Resolves after refreshes complete.
-             */
-            async reloadForm() {
-                await refreshEnwikiMetadata();
+        /**
+         * Clears all form and helper data across every tab.
+         *
+         * @returns {void}
+         */
+        clearForm() {
+            clearFormState();
+        },
+
+        /**
+         * Handles a selected main action menu item.
+         *
+         * @param {string} value - Selected menu item value.
+         * @returns {Promise<void>} Resolves after the action finishes.
+         */
+        async handleMainActionSelect(value) {
+            mainActionMenuSelection.value = null;
+
+            if (value === "history") {
+                this.openHistoryDialog();
+                return;
+            }
+
+            if (value === "reload") {
+                await this.reloadForm();
+                return;
+            }
+
+            if (value === "clear") {
+                this.clearForm();
+            }
+        },
+
+        /**
+         * Reloads derived form data from the current inputs.
+         *
+         * @returns {Promise<void>} Resolves after refreshes complete.
+         */
+        async reloadForm() {
+            await refreshEnwikiMetadata();
+            await refreshCitationRows();
+            await refreshReview({
+                recheck: true,
+            });
+        },
+
+        /**
+         * Opens an editable generated wikitext preview after review.
+         *
+         * @returns {Promise<void>} Resolves after preview text is ready.
+         */
+        async previewForm() {
+            previewLoading.value = true;
+            previewLoadingMessage.value = "Preparing citations";
+
+            try {
                 await refreshCitationRows();
-                await refreshReview({
-                    recheck: true,
-                });
-            },
-
-            /**
-             * Opens an editable generated wikitext preview after review.
-             *
-             * @returns {Promise<void>} Resolves after preview text is ready.
-             */
-            async previewForm() {
-                previewLoading.value = true;
-                previewLoadingMessage.value = "Preparing citations";
-
-                try {
-                    await refreshCitationRows();
-                    previewLoadingMessage.value = "Checking follow-up pages";
-                    await refreshReview();
-                    previewLoadingMessage.value = "Building preview";
-                    options.onSubmitHistory(form, getCurrentTitle());
-                    historyEntries.value = options.getHistoryEntries();
-                    const preview = await options.onPreview(
-                        form,
-                        sourceFetchState,
-                    );
-
-                    if (preview == null) {
-                        return;
-                    }
-
-                    previewText.value = preview.text || "";
-                    previewSummary.value = preview.summary || "";
-                    previewHtml.value = preview.html || "";
-                    previewSubmitted.value = false;
-                    previewOpen.value = true;
-                    queueSourceEditor("preview", previewTextArea, previewText);
-                } finally {
-                    previewLoading.value = false;
-                    previewLoadingMessage.value = "Preparing preview";
-                }
-            },
-
-            /**
-             * Refreshes the parsed HTML preview from the editable wikitext.
-             *
-             * @returns {Promise<void>} Resolves after parsed HTML is refreshed.
-             */
-            async refreshParsedPreview() {
-                syncSourceEditorText("preview", previewText);
-                sourceFetchState.error = "";
-                sourceFetchState.loading = true;
-
-                try {
-                    previewHtml.value = await options.onParsePreview(
-                        previewText.value,
-                    );
-                } catch (error) {
-                    sourceFetchState.error = error.message || String(error);
-                } finally {
-                    sourceFetchState.loading = false;
-                }
-            },
-
-            /**
-             * Closes the editable preview dialog.
-             *
-             * @returns {void}
-             */
-            closePreviewDialog() {
-                destroySourceEditor("preview");
-                previewOpen.value = false;
-            },
-
-            /**
-             * Opens pre-save checks for the edited preview text.
-             *
-             * @returns {Promise<void>} Resolves after checklist preparation.
-             */
-            async submitPreviewText() {
-                syncSourceEditorText("preview", previewText);
-                previewSubmitted.value = true;
-                destroySourceEditor("preview");
-                previewOpen.value = false;
-                await openPreSave();
-            },
-
-            /**
-             * Opens the editable preview before final submission.
-             *
-             * @returns {Promise<void>} Resolves after preview text is ready.
-             */
-            async submitForm() {
-                await this.previewForm();
-            },
-
-            /**
-             * Saves the article after confirming the pre-save fixes.
-             *
-             * @returns {Promise<void>} Resolves after save submission starts.
-             */
-            async confirmSubmit() {
-                syncSourceEditorText("preview", previewText);
+                previewLoadingMessage.value = "Checking follow-up pages";
+                await refreshReview();
+                previewLoadingMessage.value = "Building preview";
                 options.onSubmitHistory(form, getCurrentTitle());
                 historyEntries.value = options.getHistoryEntries();
+                const preview = await options.onPreview(
+                    form,
+                    sourceFetchState,
+                );
 
-                const moveTitle = trimFieldValue(preSaveMoveTitle.value);
-
-                if (
-                    preSaveMoveEnabled.value &&
-                    moveTitle !== "" &&
-                    moveTitle !== getCurrentTitle()
-                ) {
-                    await options.onMoveTarget(
-                        form,
-                        moveTitle,
-                        sourceFetchState,
-                    );
-
-                    if (sourceFetchState.error === "") {
-                        preSaveOpen.value = false;
-                    }
-
+                if (preview == null) {
                     return;
                 }
 
-                const reviewedPreview = previewSubmitted.value
-                    ? {
-                          summary: previewSummary.value,
-                          text: previewText.value,
-                      }
-                    : undefined;
+                previewText.value = preview.text || "";
+                previewSummary.value = preview.summary || "";
+                previewHtml.value = preview.html || "";
+                previewSubmitted.value = false;
+                previewOpen.value = true;
+                queueSourceEditor("preview", previewTextArea, previewText);
+            } finally {
+                previewLoading.value = false;
+                previewLoadingMessage.value = "Preparing preview";
+            }
+        },
 
-                await options.onSubmit(
-                    form,
-                    sourceFetchState,
-                    this.closeDialog,
-                    {
-                        actions: preSaveActions,
-                        move: {
-                            enabled: false,
-                            to: getCurrentTitle(),
-                        },
-                        progressGroups: serializePreSaveProgressGroups(
-                            preSaveGroups.value,
-                        ),
-                        progress: createPreSaveProgressReporter(),
-                        registration: {
-                            enabled: form.registerNewPage !== false,
-                        },
-                    },
-                    reviewedPreview,
+        /**
+         * Refreshes the parsed HTML preview from the editable wikitext.
+         *
+         * @returns {Promise<void>} Resolves after parsed HTML is refreshed.
+         */
+        async refreshParsedPreview() {
+            syncSourceEditorText("preview", previewText);
+            sourceFetchState.error = "";
+            sourceFetchState.loading = true;
+
+            try {
+                previewHtml.value = await options.onParsePreview(
+                    previewText.value,
                 );
+            } catch (error) {
+                sourceFetchState.error = error.message || String(error);
+            } finally {
+                sourceFetchState.loading = false;
+            }
+        },
+
+        /**
+         * Closes the editable preview dialog.
+         *
+         * @returns {void}
+         */
+        closePreviewDialog() {
+            destroySourceEditor("preview");
+            previewOpen.value = false;
+        },
+
+        /**
+         * Opens pre-save checks for the edited preview text.
+         *
+         * @returns {Promise<void>} Resolves after checklist preparation.
+         */
+        async submitPreviewText() {
+            syncSourceEditorText("preview", previewText);
+            previewSubmitted.value = true;
+            destroySourceEditor("preview");
+            previewOpen.value = false;
+            await openPreSave();
+        },
+
+        /**
+         * Opens the editable preview before final submission.
+         *
+         * @returns {Promise<void>} Resolves after preview text is ready.
+         */
+        async submitForm() {
+            await this.previewForm();
+        },
+
+        /**
+         * Saves the article after confirming the pre-save fixes.
+         *
+         * @returns {Promise<void>} Resolves after save submission starts.
+         */
+        async confirmSubmit() {
+            syncSourceEditorText("preview", previewText);
+            options.onSubmitHistory(form, getCurrentTitle());
+            historyEntries.value = options.getHistoryEntries();
+
+            const moveTitle = trimFieldValue(preSaveMoveTitle.value);
+
+            if (
+                preSaveMoveEnabled.value &&
+                moveTitle !== "" &&
+                moveTitle !== getCurrentTitle()
+            ) {
+                await options.onMoveTarget(form, moveTitle, sourceFetchState);
 
                 if (sourceFetchState.error === "") {
-                    previewSubmitted.value = false;
-                }
-            },
-
-            /**
-             * Opens the form history dialog.
-             *
-             * @returns {void}
-             */
-            openHistoryDialog() {
-                historyEntries.value = options.getHistoryEntries();
-                historyOpen.value = true;
-            },
-
-            /**
-             * Gets the label for the currently running pre-save step.
-             *
-             * @returns {string} Running step label.
-             */
-            getPreSaveCurrentStepLabel() {
-                const step = preSaveProgress.value?.steps.find(
-                    (item) =>
-                        item.status === "running" ||
-                        item.status === "retrying",
-                );
-
-                return step == null ? "Working" : step.label;
-            },
-
-            /**
-             * Gets the icon used for a pre-save progress status.
-             *
-             * @param {string} status - Progress status.
-             * @returns {object} Codex icon definition.
-             */
-            getPreSaveStatusIcon(status) {
-                return (
-                    PRE_SAVE_STATUS_ICONS[status] ||
-                    PRE_SAVE_STATUS_ICONS.pending
-                );
-            },
-
-            /**
-             * Gets the status icon CSS class for one progress row.
-             *
-             * @param {string} status - Progress status.
-             * @returns {string} CSS class list.
-             */
-            getPreSaveStatusIconClass(status) {
-                const normalized = PRE_SAVE_STATUS_ICONS[status]
-                    ? status
-                    : "pending";
-
-                return `create-vg-stub-pre-save-status-icon create-vg-stub-pre-save-status-icon--${normalized}`;
-            },
-
-            /**
-             * Gets the CSS class for one progress row.
-             *
-             * @param {object} step - Progress step.
-             * @returns {string} CSS class list.
-             */
-            getPreSaveProgressRowClass(step) {
-                if (step == null) {
-                    return "";
+                    preSaveOpen.value = false;
                 }
 
-                const status = trimFieldValue(step?.status);
-                const active = ["failed", "retrying", "running"].includes(
-                    status,
-                );
+                return;
+            }
 
-                return active
-                    ? `create-vg-stub-pre-save-progress-row create-vg-stub-pre-save-progress-row--${status}`
-                    : "create-vg-stub-pre-save-progress-row";
-            },
+            const reviewedPreview = previewSubmitted.value
+                ? {
+                      summary: previewSummary.value,
+                      text: previewText.value,
+                  }
+                : undefined;
 
-            /**
-             * Gets the groups currently shown in the pre-save dialog.
-             *
-             * @returns {Array<object>} Checkbox or progress groups.
-             */
-            getVisiblePreSaveGroups() {
-                if (preSaveProgress.value == null) {
-                    return preSaveGroups.value;
-                }
+            await options.onSubmit(
+                form,
+                sourceFetchState,
+                this.closeDialog,
+                createReviewedSubmitPending(),
+                reviewedPreview,
+            );
 
-                return preSaveProgressGroups.value.map((group) => ({
-                    key: group.targetPage,
-                    rows: group.steps.map((step) => ({
-                        key: step.id,
-                        label: step.label,
-                        step,
-                        type: "progress",
-                    })),
-                    title: group.targetPage,
-                }));
-            },
+            if (sourceFetchState.error === "") {
+                previewSubmitted.value = false;
+            }
+        },
 
-            /**
-             * Checks whether the pre-save progress is still running.
-             *
-             * @returns {boolean} Whether progress has active work.
-             */
-            isPreSaveProgressRunning() {
-                return (
-                    preSaveProgress.value != null &&
-                    !isSaveProgressComplete(preSaveProgress.value)
-                );
-            },
+        /**
+         * Opens the form history dialog.
+         *
+         * @returns {void}
+         */
+        openHistoryDialog() {
+            historyEntries.value = options.getHistoryEntries();
+            historyOpen.value = true;
+        },
 
-            /**
-             * Checks whether a checked missing category row should stand out.
-             *
-             * @param {object} row - Category review row.
-             * @returns {boolean} Whether the row should be highlighted.
-             */
-            isCategoryAddReviewRow(row) {
-                return (
-                    row?.enabled !== false &&
-                    trimFieldValue(row?.category) !== "" &&
-                    (row?.pendingCreation != null ||
-                        row?.status === "Not exists" ||
-                        row?.status === "Pending creation")
-                );
-            },
+        /**
+         * Gets the label for the currently running pre-save step.
+         *
+         * @returns {string} Running step label.
+         */
+        getPreSaveCurrentStepLabel() {
+            const step = preSaveProgress.value?.steps.find(
+                (item) =>
+                    item.status === "running" || item.status === "retrying",
+            );
 
-            /**
-             * Checks whether a checked redirect row targets an existing page.
-             *
-             * @param {object} row - Redirect review row.
-             * @returns {boolean} Whether the row should be highlighted.
-             */
-            isRedirectConflictReviewRow(row) {
-                return (
-                    row?.enabled !== false &&
-                    trimFieldValue(row?.title) !== "" &&
-                    row?.exists === true
-                );
-            },
+            return step == null ? "Saving" : step.label;
+        },
 
-            /**
-             * Closes the form history dialog.
-             *
-             * @returns {void}
-             */
-            closeHistoryDialog() {
+        /**
+         * Gets the icon used for a pre-save progress status.
+         *
+         * @param {string} status - Progress status.
+         * @returns {object} Codex icon definition.
+         */
+        getPreSaveStatusIcon(status) {
+            return (
+                PRE_SAVE_STATUS_ICONS[status] || PRE_SAVE_STATUS_ICONS.pending
+            );
+        },
+
+        /**
+         * Gets the status icon CSS class for one progress row.
+         *
+         * @param {string} status - Progress status.
+         * @returns {string} CSS class list.
+         */
+        getPreSaveStatusIconClass(status) {
+            const normalized = PRE_SAVE_STATUS_ICONS[status]
+                ? status
+                : "pending";
+
+            return `create-vg-stub-pre-save-status-icon create-vg-stub-pre-save-status-icon--${normalized}`;
+        },
+
+        /**
+         * Gets the CSS class for one progress row.
+         *
+         * @param {object} step - Progress step.
+         * @returns {string} CSS class list.
+         */
+        getPreSaveProgressRowClass(step) {
+            if (step == null) {
+                return "";
+            }
+
+            const status = trimFieldValue(step?.status);
+            const active = ["failed", "retrying", "running"].includes(status);
+
+            return active
+                ? `create-vg-stub-pre-save-progress-row create-vg-stub-pre-save-progress-row--${status}`
+                : "create-vg-stub-pre-save-progress-row";
+        },
+
+        /**
+         * Gets the groups currently shown in the pre-save dialog.
+         *
+         * @returns {Array<object>} Checkbox or progress groups.
+         */
+        getVisiblePreSaveGroups() {
+            if (preSaveProgress.value == null) {
+                return preSaveGroups.value;
+            }
+
+            return preSaveProgressGroups.value.map((group) => ({
+                key: group.targetPage,
+                rows: group.steps.map((step) => ({
+                    key: step.id,
+                    label: step.label,
+                    step,
+                    type: "progress",
+                })),
+                title: group.targetPage,
+            }));
+        },
+
+        /**
+         * Checks whether the pre-save progress is still running.
+         *
+         * @returns {boolean} Whether progress has active work.
+         */
+        isPreSaveProgressRunning() {
+            return (
+                preSaveProgress.value != null &&
+                !isSaveProgressComplete(preSaveProgress.value)
+            );
+        },
+
+        /**
+         * Checks whether a checked missing category row should stand out.
+         *
+         * @param {object} row - Category review row.
+         * @returns {boolean} Whether the row should be highlighted.
+         */
+        isCategoryAddReviewRow(row) {
+            return (
+                row?.enabled !== false &&
+                trimFieldValue(row?.category) !== "" &&
+                (row?.pendingCreation != null ||
+                    row?.status === "Not exists" ||
+                    row?.status === "Pending creation")
+            );
+        },
+
+        /**
+         * Checks whether a checked redirect row targets an existing page.
+         *
+         * @param {object} row - Redirect review row.
+         * @returns {boolean} Whether the row should be highlighted.
+         */
+        isRedirectConflictReviewRow(row) {
+            return (
+                row?.enabled !== false &&
+                trimFieldValue(row?.title) !== "" &&
+                row?.exists === true
+            );
+        },
+
+        /**
+         * Closes the form history dialog.
+         *
+         * @returns {void}
+         */
+        closeHistoryDialog() {
+            historyOpen.value = false;
+        },
+
+        /**
+         * Formats one history entry page label for display.
+         *
+         * @param {object} entry - History entry.
+         * @returns {string} Display page label.
+         */
+        formatHistoryEntryPage(entry) {
+            const page = trimFieldValue(entry.metadata?.page);
+
+            if (entry.metadata?.temporary === true) {
+                return `${page || "Untitled"} (temporary draft)`;
+            }
+
+            return page || "(untitled)";
+        },
+
+        /**
+         * Fills the current form from a history entry.
+         *
+         * @param {object} entry - History entry.
+         * @returns {Promise<void>} Resolves after the restored form is refreshed.
+         */
+        async fillHistoryEntry(entry) {
+            historyLoading.value = true;
+
+            try {
+                await restoreHistoryForm(getHistoryEntryForm(entry));
+                await refreshCitationRows();
+                await refreshReview();
                 historyOpen.value = false;
-            },
+            } finally {
+                historyLoading.value = false;
+            }
+        },
 
-            /**
-             * Formats one history entry page label for display.
-             *
-             * @param {object} entry - History entry.
-             * @returns {string} Display page label.
-             */
-            formatHistoryEntryPage(entry) {
-                const page = trimFieldValue(entry.metadata?.page);
+        /**
+         * Opens an editable JSON representation of a history entry.
+         *
+         * @param {object} entry - History entry.
+         * @returns {void}
+         */
+        openHistoryJsonDialog(entry) {
+            historyJsonError.value = "";
+            historyJsonEditable.value = entry.metadata?.temporary === true;
+            historyJsonText.value = JSON.stringify(entry, null, 2);
+            historyJsonOpen.value = true;
+        },
 
-                if (entry.metadata?.temporary === true) {
-                    return `${page || "Untitled"} (temporary draft)`;
+        /**
+         * Opens the history JSON dialog for importing values.
+         *
+         * @returns {void}
+         */
+        openHistoryImportDialog() {
+            historyJsonError.value = "";
+            historyJsonEditable.value = true;
+            historyJsonText.value = "";
+            historyJsonOpen.value = true;
+        },
+
+        /**
+         * Closes the history JSON dialog.
+         *
+         * @returns {void}
+         */
+        closeHistoryJsonDialog() {
+            historyJsonOpen.value = false;
+        },
+
+        /**
+         * Imports form values from the history JSON dialog.
+         *
+         * @returns {void}
+         */
+        async importHistoryJson() {
+            historyJsonError.value = "";
+
+            try {
+                const data = JSON.parse(historyJsonText.value);
+                const importedForm = getHistoryEntryForm(data);
+
+                if (
+                    importedForm == null ||
+                    typeof importedForm !== "object" ||
+                    Array.isArray(importedForm)
+                ) {
+                    throw new Error(HISTORY_EXPORT_ERROR);
                 }
 
-                return page || "(untitled)";
-            },
-
-            /**
-             * Fills the current form from a history entry.
-             *
-             * @param {object} entry - History entry.
-             * @returns {Promise<void>} Resolves after the restored form is refreshed.
-             */
-            async fillHistoryEntry(entry) {
                 historyLoading.value = true;
-
-                try {
-                    await restoreHistoryForm(getHistoryEntryForm(entry));
-                    await refreshCitationRows();
-                    await refreshReview();
-                    historyOpen.value = false;
-                } finally {
-                    historyLoading.value = false;
-                }
-            },
-
-            /**
-             * Opens an editable JSON representation of a history entry.
-             *
-             * @param {object} entry - History entry.
-             * @returns {void}
-             */
-            openHistoryJsonDialog(entry) {
-                historyJsonError.value = "";
-                historyJsonEditable.value = entry.metadata?.temporary === true;
-                historyJsonText.value = JSON.stringify(entry, null, 2);
-                historyJsonOpen.value = true;
-            },
-
-            /**
-             * Opens the history JSON dialog for importing values.
-             *
-             * @returns {void}
-             */
-            openHistoryImportDialog() {
-                historyJsonError.value = "";
-                historyJsonEditable.value = true;
-                historyJsonText.value = "";
-                historyJsonOpen.value = true;
-            },
-
-            /**
-             * Closes the history JSON dialog.
-             *
-             * @returns {void}
-             */
-            closeHistoryJsonDialog() {
+                await restoreHistoryForm(importedForm);
+                await refreshCitationRows();
+                await refreshReview();
                 historyJsonOpen.value = false;
-            },
+                historyOpen.value = false;
+            } catch (error) {
+                historyJsonError.value = error.message || String(error);
+            } finally {
+                historyLoading.value = false;
+            }
+        },
 
-            /**
-             * Imports form values from the history JSON dialog.
-             *
-             * @returns {void}
-             */
-            async importHistoryJson() {
-                historyJsonError.value = "";
+        /**
+         * Deletes one history entry.
+         *
+         * @param {string} id - History entry ID.
+         * @returns {void}
+         */
+        deleteHistoryEntry(id) {
+            options.onDeleteHistoryEntry(id);
+            historyEntries.value = options.getHistoryEntries();
+        },
 
-                try {
-                    const data = JSON.parse(historyJsonText.value);
-                    const importedForm = getHistoryEntryForm(data);
+        /**
+         * Updates the temporary draft row from current form values.
+         *
+         * @returns {void}
+         */
+        updateTemporaryHistoryEntry() {
+            options.onFormChange(form);
+            historyEntries.value = options.getHistoryEntries();
+        },
 
-                    if (
-                        importedForm == null ||
-                        typeof importedForm !== "object" ||
-                        Array.isArray(importedForm)
-                    ) {
-                        throw new Error(
-                            "JSON must contain structured history data.",
-                        );
-                    }
+        /**
+         * Clears all form history entries.
+         *
+         * @returns {void}
+         */
+        clearHistory() {
+            options.onClearHistory();
+            historyEntries.value = options.getHistoryEntries();
+        },
 
-                    historyLoading.value = true;
-                    await restoreHistoryForm(importedForm);
-                    await refreshCitationRows();
-                    await refreshReview();
-                    historyJsonOpen.value = false;
-                    historyOpen.value = false;
-                } catch (error) {
-                    historyJsonError.value = error.message || String(error);
-                } finally {
-                    historyLoading.value = false;
-                }
-            },
+        /**
+         * Opens the move target dialog.
+         *
+         * @returns {void}
+         */
+        openMoveDialog() {
+            moveTarget.value = getCurrentTitle();
+            moveOpen.value = true;
+        },
 
-            /**
-             * Deletes one history entry.
-             *
-             * @param {string} id - History entry ID.
-             * @returns {void}
-             */
-            deleteHistoryEntry(id) {
-                options.onDeleteHistoryEntry(id);
-                historyEntries.value = options.getHistoryEntries();
-            },
+        /**
+         * Closes the move target dialog.
+         *
+         * @returns {void}
+         */
+        closeMoveDialog() {
+            moveOpen.value = false;
+        },
 
-            /**
-             * Updates the temporary draft row from current form values.
-             *
-             * @returns {void}
-             */
-            updateTemporaryHistoryEntry() {
-                options.onFormChange(form);
-                historyEntries.value = options.getHistoryEntries();
-            },
+        /**
+         * Updates the move target title from live input.
+         *
+         * @param {string} value - Raw input value.
+         * @returns {void}
+         */
+        updateMoveTarget(value) {
+            moveTarget.value = trimFieldValue(value);
+        },
 
-            /**
-             * Clears all form history entries.
-             *
-             * @returns {void}
-             */
-            clearHistory() {
-                options.onClearHistory();
-                historyEntries.value = options.getHistoryEntries();
-            },
+        /**
+         * Generates current data and opens it in the target page editor.
+         *
+         * @returns {Promise<void>} Resolves after navigation starts.
+         */
+        async submitMoveTarget() {
+            await refreshCategoryRows();
+            options.onSubmitHistory(form, moveTarget.value);
+            historyEntries.value = options.getHistoryEntries();
+            await options.onMoveTarget(
+                form,
+                moveTarget.value,
+                sourceFetchState,
+            );
+        },
 
-            /**
-             * Opens the move target dialog.
-             *
-             * @returns {void}
-             */
-            openMoveDialog() {
-                moveTarget.value = getCurrentTitle();
-                moveOpen.value = true;
-            },
+        /**
+         * Normalizes multiline article field values.
+         *
+         * @param {object} field - Article parameter field.
+         * @param {string} field.key - Form key for the field.
+         * @returns {void}
+         */
+        normalizeFieldValue(field) {
+            const value =
+                field.key === "enwikiTitle"
+                    ? normalizeEnwikiTitleValue(form[field.key])
+                    : form[field.key];
 
-            /**
-             * Closes the move target dialog.
-             *
-             * @returns {void}
-             */
-            closeMoveDialog() {
-                moveOpen.value = false;
-            },
+            form[field.key] = formatArticleFormField(form, field.key, value);
+        },
 
-            /**
-             * Updates the move target title from live input.
-             *
-             * @param {string} value - Raw input value.
-             * @returns {void}
-             */
-            updateMoveTarget(value) {
-                moveTarget.value = trimFieldValue(value);
-            },
+        /**
+         * Trims pasted source URL field values.
+         *
+         * @param {object} field - Source reference field.
+         * @param {string} field.sourceKey - Form key for the source URL.
+         * @returns {void}
+         */
+        trimSourceValue(field) {
+            form[field.sourceKey] = trimFieldValue(form[field.sourceKey]);
+        },
 
-            /**
-             * Generates current data and opens it in the target page editor.
-             *
-             * @returns {Promise<void>} Resolves after navigation starts.
-             */
-            async submitMoveTarget() {
-                await refreshCategoryRows();
-                options.onSubmitHistory(form, moveTarget.value);
-                historyEntries.value = options.getHistoryEntries();
-                await options.onMoveTarget(
-                    form,
-                    moveTarget.value,
-                    sourceFetchState,
-                );
-            },
+        /**
+         * Updates one article field from live input.
+         *
+         * @param {object} field - Article parameter field.
+         * @param {string} value - Raw input value.
+         * @returns {void}
+         */
+        updateFieldValue(field, value) {
+            const normalizedValue =
+                field.key === "enwikiTitle"
+                    ? normalizeEnwikiTitleValue(value)
+                    : value;
 
-            /**
-             * Normalizes multiline article field values.
-             *
-             * @param {object} field - Article parameter field.
-             * @param {string} field.key - Form key for the field.
-             * @returns {void}
-             */
-            normalizeFieldValue(field) {
-                const value =
-                    field.key === "enwikiTitle"
-                        ? normalizeEnwikiTitleValue(form[field.key])
-                        : form[field.key];
+            form[field.key] = formatArticleFormField(
+                form,
+                field.key,
+                normalizedValue,
+            );
 
-                form[field.key] = formatArticleFormField(
-                    form,
-                    field.key,
-                    value,
-                );
-            },
+            if (field.key === "enwikiTitle") {
+                refreshEnwikiMetadata();
+            }
 
-            /**
-             * Trims pasted source URL field values.
-             *
-             * @param {object} field - Source reference field.
-             * @param {string} field.sourceKey - Form key for the source URL.
-             * @returns {void}
-             */
-            trimSourceValue(field) {
-                form[field.sourceKey] = trimFieldValue(form[field.sourceKey]);
-            },
+            if (field.key === "series") {
+                navboxRowsPrepared = false;
+            }
 
-            /**
-             * Updates one article field from live input.
-             *
-             * @param {object} field - Article parameter field.
-             * @param {string} value - Raw input value.
-             * @returns {void}
-             */
-            updateFieldValue(field, value) {
-                const normalizedValue =
-                    field.key === "enwikiTitle"
-                        ? normalizeEnwikiTitleValue(value)
-                        : value;
+            markCategoryRowsUnfixed(form.categoryRows);
+        },
 
-                form[field.key] = formatArticleFormField(
-                    form,
-                    field.key,
-                    normalizedValue,
-                );
+        /**
+         * Updates one source URL field from live input.
+         *
+         * @param {object} field - Source reference field.
+         * @param {string} value - Raw input value.
+         * @returns {void}
+         */
+        updateSourceValue(field, value) {
+            form[field.sourceKey] = trimFieldValue(value);
+        },
 
-                if (field.key === "enwikiTitle") {
-                    refreshEnwikiMetadata();
-                }
+        /**
+         * Updates one managed citation parameter value.
+         *
+         * @param {number} citationIndex - Citation row index.
+         * @param {number} paramIndex - Parameter row index.
+         * @param {string} field - Parameter field key.
+         * @param {string} value - Raw input value.
+         * @returns {void}
+         */
+        updateCitationParam(citationIndex, paramIndex, field, value) {
+            const citation = form.citationRows[citationIndex];
 
-                if (field.key === "series") {
-                    navboxRowsPrepared = false;
-                }
+            if (citation == null) {
+                return;
+            }
 
-                markCategoryRowsUnfixed(form.categoryRows);
-            },
-
-            /**
-             * Updates one source URL field from live input.
-             *
-             * @param {object} field - Source reference field.
-             * @param {string} value - Raw input value.
-             * @returns {void}
-             */
-            updateSourceValue(field, value) {
-                form[field.sourceKey] = trimFieldValue(value);
-            },
-
-            /**
-             * Updates one managed citation parameter value.
-             *
-             * @param {number} citationIndex - Citation row index.
-             * @param {number} paramIndex - Parameter row index.
-             * @param {string} field - Parameter field key.
-             * @param {string} value - Raw input value.
-             * @returns {void}
-             */
-            updateCitationParam(citationIndex, paramIndex, field, value) {
-                const citation = form.citationRows[citationIndex];
-
-                if (citation == null) {
-                    return;
-                }
-
-                if (citation.params[paramIndex] == null) {
-                    citation.params.push(createCitationParamRow());
-                }
-
-                citation.params[paramIndex][field] = trimFieldValue(value);
-                citation.modified = true;
-            },
-
-            /**
-             * Sorts one managed citation's parameters.
-             *
-             * @param {number} citationIndex - Citation row index.
-             * @returns {void}
-             */
-            sortCitation(citationIndex) {
-                const citation = form.citationRows[citationIndex];
-
-                if (citation == null) {
-                    return;
-                }
-
-                citation.params = sortManagedCitationParams(citation.params);
-            },
-
-            /**
-             * Appends a blank parameter row to one managed citation.
-             *
-             * @param {number} citationIndex - Citation row index.
-             * @returns {void}
-             */
-            addCitationParam(citationIndex) {
-                const citation = form.citationRows[citationIndex];
-
-                if (citation == null) {
-                    return;
-                }
-
+            if (citation.params[paramIndex] == null) {
                 citation.params.push(createCitationParamRow());
-                citation.modified = true;
-            },
+            }
 
-            /**
-             * Removes blank editable parameters from one managed citation.
-             *
-             * @param {number} citationIndex - Citation row index.
-             * @returns {void}
-             */
-            cleanCitationParams(citationIndex) {
-                const citation = form.citationRows[citationIndex];
+            citation.params[paramIndex][field] = trimFieldValue(value);
+            citation.modified = true;
+        },
 
-                if (citation == null) {
-                    return;
-                }
+        /**
+         * Sorts one managed citation's parameters.
+         *
+         * @param {number} citationIndex - Citation row index.
+         * @returns {void}
+         */
+        sortCitation(citationIndex) {
+            const citation = form.citationRows[citationIndex];
 
-                citation.params = (citation.params || []).filter(
-                    hasCitationParamValue,
-                );
-                citation.modified = true;
-            },
+            if (citation == null) {
+                return;
+            }
 
-            /**
-             * Removes one managed citation parameter row.
-             *
-             * @param {number} citationIndex - Citation row index.
-             * @param {number} paramIndex - Parameter row index.
-             * @returns {void}
-             */
-            removeCitationParam(citationIndex, paramIndex) {
-                const citation = form.citationRows[citationIndex];
+            citation.params = sortManagedCitationParams(citation.params);
+        },
 
-                if (citation == null) {
-                    return;
-                }
+        /**
+         * Appends a blank parameter row to one managed citation.
+         *
+         * @param {number} citationIndex - Citation row index.
+         * @returns {void}
+         */
+        addCitationParam(citationIndex) {
+            const citation = form.citationRows[citationIndex];
 
-                citation.params.splice(paramIndex, 1);
-                citation.modified = true;
-            },
+            if (citation == null) {
+                return;
+            }
 
-            /**
-             * Resets one managed citation to its generated parameters.
-             *
-             * @param {number} citationIndex - Citation row index.
-             * @returns {void}
-             */
-            resetCitation(citationIndex) {
-                const citation = form.citationRows[citationIndex];
+            citation.params.push(createCitationParamRow());
+            citation.modified = true;
+        },
 
-                if (citation == null) {
-                    return;
-                }
+        /**
+         * Removes blank editable parameters from one managed citation.
+         *
+         * @param {number} citationIndex - Citation row index.
+         * @returns {void}
+         */
+        cleanCitationParams(citationIndex) {
+            const citation = form.citationRows[citationIndex];
 
-                citation.params = cloneValue(citation.generatedParams || []);
-                citation.modified = false;
-            },
+            if (citation == null) {
+                return;
+            }
 
-            /**
-             * Trims one form value by key.
-             *
-             * @param {string} key - Form value key.
-             * @returns {void}
-             */
-            trimFormValue(key) {
-                form[key] = trimFieldValue(form[key]);
-            },
+            citation.params = (citation.params || []).filter(
+                hasCitationParamValue,
+            );
+            citation.modified = true;
+        },
 
-            /**
-             * Updates one form value by key from live input.
-             *
-             * @param {string} key - Form value key.
-             * @param {string} value - Raw input value.
-             * @returns {void}
-             */
-            updateFormValue(key, value) {
-                form[key] = trimFieldValue(value);
-                markCategoryRowsUnfixed(form.categoryRows);
-            },
+        /**
+         * Removes one managed citation parameter row.
+         *
+         * @param {number} citationIndex - Citation row index.
+         * @param {number} paramIndex - Parameter row index.
+         * @returns {void}
+         */
+        removeCitationParam(citationIndex, paramIndex) {
+            const citation = form.citationRows[citationIndex];
 
-            /**
-             * Refreshes English Wikipedia metadata after the enwiki title changes.
-             *
-             * @returns {Promise<void>} Resolves after metadata is refreshed.
-             */
-            async updateEnwikiTitle() {
-                await refreshEnwikiMetadata();
-            },
+            if (citation == null) {
+                return;
+            }
 
-            /**
-             * Normalizes pasted multiline article field values.
-             *
-             * @param {object} field - Article parameter field.
-             * @param {string} field.key - Form key for the field.
-             * @param {*} event - Clipboard paste event.
-             * @returns {void}
-             */
-            normalizePastedFieldValue(field, event) {
-                const clipboardData =
-                    event.clipboardData || event.originalEvent.clipboardData;
-                const text = clipboardData.getData("text");
+            citation.params.splice(paramIndex, 1);
+            citation.modified = true;
+        },
 
-                if (field.key === "enwikiTitle") {
-                    const title = extractEnwikiTitleFromUrl(text);
+        /**
+         * Resets one managed citation to its generated parameters.
+         *
+         * @param {number} citationIndex - Citation row index.
+         * @returns {void}
+         */
+        resetCitation(citationIndex) {
+            const citation = form.citationRows[citationIndex];
 
-                    if (title === "") {
-                        return;
-                    }
+            if (citation == null) {
+                return;
+            }
 
-                    event.preventDefault();
-                    form[field.key] = formatArticleFormField(
-                        form,
-                        field.key,
-                        title,
-                    );
-                    refreshEnwikiMetadata();
-                    markCategoryRowsUnfixed(form.categoryRows);
-                    return;
-                }
+            citation.params = cloneValue(citation.generatedParams || []);
+            citation.modified = false;
+        },
 
-                if (!isArticleListField(field.key)) {
-                    return;
-                }
+        /**
+         * Trims one form value by key.
+         *
+         * @param {string} key - Form value key.
+         * @returns {void}
+         */
+        trimFormValue(key) {
+            form[key] = trimFieldValue(form[key]);
+        },
 
-                if (!hasFirstLevelFieldSeparator(text)) {
+        /**
+         * Updates one form value by key from live input.
+         *
+         * @param {string} key - Form value key.
+         * @param {string} value - Raw input value.
+         * @returns {void}
+         */
+        updateFormValue(key, value) {
+            form[key] = trimFieldValue(value);
+            markCategoryRowsUnfixed(form.categoryRows);
+        },
+
+        /**
+         * Refreshes English Wikipedia metadata after the enwiki title changes.
+         *
+         * @returns {Promise<void>} Resolves after metadata is refreshed.
+         */
+        async updateEnwikiTitle() {
+            await refreshEnwikiMetadata();
+        },
+
+        /**
+         * Normalizes pasted multiline article field values.
+         *
+         * @param {object} field - Article parameter field.
+         * @param {string} field.key - Form key for the field.
+         * @param {*} event - Clipboard paste event.
+         * @returns {void}
+         */
+        normalizePastedFieldValue(field, event) {
+            const clipboardData =
+                event.clipboardData || event.originalEvent.clipboardData;
+            const text = clipboardData.getData("text");
+
+            if (field.key === "enwikiTitle") {
+                const title = extractEnwikiTitleFromUrl(text);
+
+                if (title === "") {
                     return;
                 }
 
@@ -2030,1106 +2066,1095 @@ export function createDialogComponent(Vue, options) {
                 form[field.key] = formatArticleFormField(
                     form,
                     field.key,
-                    text,
+                    title,
                 );
+                refreshEnwikiMetadata();
                 markCategoryRowsUnfixed(form.categoryRows);
-            },
+                return;
+            }
 
-            /**
-             * Trims a localized name row value.
-             *
-             * @param {string} key - Localized name group key.
-             * @param {number} index - Row index.
-             * @param {string} field - Row field key.
-             * @returns {void}
-             */
-            updateNameRow(key, index, field) {
-                form[key][index][field] = trimFieldValue(
-                    form[key][index][field],
-                );
-                ensureTrailingNameRow(form[key]);
-                syncGeneratedNameNoteTaRow(form);
-            },
+            if (!isArticleListField(field.key)) {
+                return;
+            }
 
-            /**
-             * Updates a localized name row value from live input.
-             *
-             * @param {string} key - Localized name group key.
-             * @param {number} index - Row index.
-             * @param {string} field - Row field key.
-             * @param {string} value - Raw input value.
-             * @returns {void}
-             */
-            updateNameRowValue(key, index, field, value) {
-                form[key][index][field] = trimFieldValue(value);
-                ensureTrailingNameRow(form[key]);
-                syncGeneratedNameNoteTaRow(form);
-            },
+            if (!hasFirstLevelFieldSeparator(text)) {
+                return;
+            }
 
-            /**
-             * Updates whether a localized name row is official.
-             *
-             * @param {string} key - Localized name group key.
-             * @param {number} index - Row index.
-             * @param {boolean} value - Whether the row is official.
-             * @returns {void}
-             */
-            updateNameOfficial(key, index, value) {
-                form[key][index].official = Boolean(value);
-                ensureTrailingNameRow(form[key]);
-                syncGeneratedNameNoteTaRow(form);
-            },
+            event.preventDefault();
+            form[field.key] = formatArticleFormField(form, field.key, text);
+            markCategoryRowsUnfixed(form.categoryRows);
+        },
 
-            /**
-             * Updates one localized name row region.
-             *
-             * @param {string} key - Localized name group key.
-             * @param {number} index - Row index.
-             * @param {string} market - Region key.
-             * @param {boolean} value - Whether the region is selected.
-             * @returns {void}
-             */
-            updateNameMarket(key, index, market, value) {
-                const row = form[key][index];
+        /**
+         * Trims a localized name row value.
+         *
+         * @param {string} key - Localized name group key.
+         * @param {number} index - Row index.
+         * @param {string} field - Row field key.
+         * @returns {void}
+         */
+        updateNameRow(key, index, field) {
+            form[key][index][field] = trimFieldValue(form[key][index][field]);
+            ensureTrailingNameRow(form[key]);
+            syncGeneratedNameNoteTaRow(form);
+        },
+
+        /**
+         * Updates a localized name row value from live input.
+         *
+         * @param {string} key - Localized name group key.
+         * @param {number} index - Row index.
+         * @param {string} field - Row field key.
+         * @param {string} value - Raw input value.
+         * @returns {void}
+         */
+        updateNameRowValue(key, index, field, value) {
+            form[key][index][field] = trimFieldValue(value);
+            ensureTrailingNameRow(form[key]);
+            syncGeneratedNameNoteTaRow(form);
+        },
+
+        /**
+         * Updates whether a localized name row is official.
+         *
+         * @param {string} key - Localized name group key.
+         * @param {number} index - Row index.
+         * @param {boolean} value - Whether the row is official.
+         * @returns {void}
+         */
+        updateNameOfficial(key, index, value) {
+            form[key][index].official = Boolean(value);
+            ensureTrailingNameRow(form[key]);
+            syncGeneratedNameNoteTaRow(form);
+        },
+
+        /**
+         * Updates one localized name row region.
+         *
+         * @param {string} key - Localized name group key.
+         * @param {number} index - Row index.
+         * @param {string} market - Region key.
+         * @param {boolean} value - Whether the region is selected.
+         * @returns {void}
+         */
+        updateNameMarket(key, index, market, value) {
+            const row = form[key][index];
+
+            if (row == null) {
+                return;
+            }
+
+            row[market] = Boolean(value);
+            ensureTrailingNameRow(form[key]);
+            syncGeneratedNameNoteTaRow(form);
+        },
+
+        /**
+         * Appends a blank localized name row.
+         *
+         * @param {string} key - Localized name group key.
+         * @returns {void}
+         */
+        addNameRow(key) {
+            form[key].push(createNameRow());
+        },
+
+        /**
+         * Removes one localized name row.
+         *
+         * @param {string} key - Localized name group key.
+         * @param {number} index - Row index.
+         * @returns {void}
+         */
+        removeNameRow(key, index) {
+            form[key].splice(index, 1);
+            ensureTrailingNameRow(form[key]);
+            syncGeneratedNameNoteTaRow(form);
+        },
+
+        /**
+         * Updates the Steam helper URL.
+         *
+         * @param {string} value - Raw Steam URL.
+         * @returns {void}
+         */
+        updateSteamUrl(value) {
+            steamUrl.value = trimFieldValue(value);
+            fetchedSteamNameRows.value = [];
+        },
+
+        /**
+         * Fetches Steam names and stores them as helper suggestions.
+         *
+         * @returns {Promise<void>} Resolves after rows are fetched.
+         */
+        async addSteamNames() {
+            await fetchSteamNames();
+        },
+
+        /**
+         * Applies one Steam name helper suggestion choice.
+         *
+         * @param {string} choice - Steam helper choice key.
+         * @returns {void}
+         */
+        applySteamNameChoice(choice) {
+            if (!choice) {
+                return;
+            }
+
+            removeSteamAppliedNameRows();
+            buildSteamNameChoiceRows(fetchedSteamNameRows.value, choice)
+                .map(createNameRowFromValues)
+                .forEach((row) => {
+                    markSteamNameHelperRow(row);
+                    form.localizedNames.push(row);
+                });
+            ensureTrailingNameRow(form.localizedNames);
+            syncGeneratedNameNoteTaRow(form);
+        },
+
+        /**
+         * Clears all localized name rows.
+         *
+         * @param {string} key - Localized name group key.
+         * @returns {void}
+         */
+        clearNameRows(key) {
+            form[key] = [createNameRow()];
+            syncGeneratedNameNoteTaRow(form);
+        },
+
+        /**
+         * Refreshes generated category rows.
+         *
+         * @returns {Promise<void>} Resolves after category rows are refreshed.
+         */
+        async refreshCategoryRows() {
+            await refreshCategoryRows();
+        },
+
+        /**
+         * Rebuilds category rows, bypassing the stored category query cache.
+         *
+         * @returns {Promise<void>} Resolves after category rows are rebuilt.
+         */
+        async rebuildCategoryRows() {
+            form.stubTagRows = null;
+            await refreshCategoryRows({
+                bypassCache: true,
+                recheck: true,
+            });
+        },
+
+        /**
+         * Adds one manual category row.
+         *
+         * @returns {void}
+         */
+        addCategoryRow() {
+            form.categoryRows.push(options.onCreateCategoryRow());
+            ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
+        },
+
+        /**
+         * Removes one category row.
+         *
+         * @param {number} index - Category row index.
+         * @returns {void}
+         */
+        removeCategoryRow(index) {
+            form.categoryRows.splice(index, 1);
+            ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
+        },
+
+        /**
+         * Removes surplus blank category rows.
+         *
+         * @returns {void}
+         */
+        cleanCategoryRows() {
+            form.categoryRows = cleanEditableRows(
+                form.categoryRows,
+                isBlankCategoryRow,
+                () => options.onCreateCategoryRow(),
+            );
+        },
+
+        /**
+         * Appends a blank stub-tag row.
+         *
+         * @returns {void}
+         */
+        addStubTagRow() {
+            ensureStubTagRows(form).push(createStubTagRow());
+            ensureTrailingStubTagRow(form);
+        },
+
+        /**
+         * Resets stub-tag rows from current category metadata.
+         *
+         * @returns {void}
+         */
+        resetStubTagRows() {
+            form.stubTagRows = buildStubTagRowsFromCategories(
+                form.categoryRows,
+            );
+            ensureTrailingStubTagRow(form);
+        },
+
+        /**
+         * Updates one stub-tag row.
+         *
+         * @param {number} index - Stub-tag row index.
+         * @param {string} stubTag - Stub template name.
+         * @returns {void}
+         */
+        updateStubTagRow(index, stubTag) {
+            const row = ensureStubTagRows(form)[index];
+
+            if (row != null) {
+                row.stubTag = trimStubTagValue(stubTag);
+                ensureTrailingStubTagRow(form);
+            }
+        },
+
+        /**
+         * Removes one stub-tag row.
+         *
+         * @param {number} index - Stub-tag row index.
+         * @returns {void}
+         */
+        removeStubTagRow(index) {
+            ensureStubTagRows(form).splice(index, 1);
+            ensureTrailingStubTagRow(form);
+        },
+
+        /**
+         * Removes surplus blank stub-tag rows.
+         *
+         * @returns {void}
+         */
+        cleanStubTagRows() {
+            form.stubTagRows = cleanEditableRows(
+                ensureStubTagRows(form),
+                isBlankStubTagRow,
+                createStubTagRow,
+            );
+        },
+
+        /**
+         * Appends a blank redirect row.
+         *
+         * @returns {void}
+         */
+        addRedirectRow() {
+            ensureRedirectRows(form).push(createRedirectRow());
+            ensureTrailingRedirectRow(form);
+        },
+
+        /**
+         * Resets generated redirect rows.
+         *
+         * @returns {Promise<void>} Resolves after rows are refreshed.
+         */
+        async rebuildRedirectRows() {
+            form.redirectRows = null;
+            await refreshRedirectRows({
+                recheck: true,
+            });
+        },
+
+        /**
+         * Updates one redirect row title from live input.
+         *
+         * @param {number} index - Redirect row index.
+         * @param {string} value - Raw title input.
+         * @returns {void}
+         */
+        updateRedirectRowTitle(index, value) {
+            const row = form.redirectRows?.[index];
+
+            if (row != null) {
+                setRedirectRowTitle(row, value);
+                ensureTrailingRedirectRow(form);
+            }
+        },
+
+        /**
+         * Removes one redirect row.
+         *
+         * @param {number} index - Redirect row index.
+         * @returns {void}
+         */
+        removeRedirectRow(index) {
+            ensureRedirectRows(form).splice(index, 1);
+            ensureTrailingRedirectRow(form);
+        },
+
+        /**
+         * Removes surplus blank redirect rows.
+         *
+         * @returns {void}
+         */
+        cleanRedirectRows() {
+            form.redirectRows = cleanEditableRows(
+                ensureRedirectRows(form),
+                isBlankRedirectRow,
+                createRedirectRow,
+            );
+        },
+
+        /**
+         * Appends a blank navbox row.
+         *
+         * @returns {void}
+         */
+        addNavboxRow() {
+            ensureNavboxRows(form).push(createNavboxRow());
+            ensureTrailingNavboxRow(form);
+            navboxRowsPrepared = true;
+        },
+
+        /**
+         * Removes surplus blank navbox rows.
+         *
+         * @returns {void}
+         */
+        cleanNavboxRows() {
+            form.navboxRows = cleanEditableRows(
+                ensureNavboxRows(form),
+                isBlankNavboxRow,
+                createNavboxRow,
+            );
+            navboxRowsPrepared = true;
+        },
+
+        /**
+         * Appends a blank NoteTA row.
+         *
+         * @returns {void}
+         */
+        addNoteTaRow() {
+            ensureNoteTaRows(form).push(createNoteTaRow());
+        },
+
+        /**
+         * Removes one NoteTA row.
+         *
+         * @param {number} index - NoteTA row index.
+         * @returns {void}
+         */
+        removeNoteTaRow(index) {
+            const rows = ensureNoteTaRows(form);
+            const row = rows[index];
+
+            if (row?.source === NOTE_TA_NAMES_SOURCE) {
+                form.noteTaNamesRemoved = true;
+            }
+
+            rows.splice(index, 1);
+        },
+
+        /**
+         * Removes surplus blank NoteTA rows.
+         *
+         * @returns {void}
+         */
+        cleanNoteTaRows() {
+            const rows = ensureNoteTaRows(form);
+
+            rows.splice(
+                0,
+                rows.length,
+                ...cleanEditableRows(rows, isBlankNoteTaRow, createNoteTaRow),
+            );
+        },
+
+        /**
+         * Updates one NoteTA row key or value from live input.
+         *
+         * @param {number} index - NoteTA row index.
+         * @param {string} field - Row field key.
+         * @param {string} value - Raw input value.
+         * @returns {void}
+         */
+        updateNoteTaRow(index, field, value) {
+            const row = ensureNoteTaRows(form)[index];
+
+            row[field] = trimFieldValue(value);
+
+            if (row.source === NOTE_TA_NAMES_SOURCE) {
+                row.modified = true;
+            }
+        },
+
+        /**
+         * Sorts NoteTA rows by output source order.
+         *
+         * @returns {void}
+         */
+        sortNoteTaRows() {
+            const rows = ensureNoteTaRows(form);
+
+            rows.splice(0, rows.length, ...sortNoteTaEntries(rows));
+        },
+
+        /**
+         * Rebuilds generated NoteTA rows and preserves manual extras.
+         *
+         * @returns {void}
+         */
+        regenerateNoteTaRows() {
+            regenerateNoteTaRows(form);
+        },
+
+        /**
+         * Updates one navbox row.
+         *
+         * @param {number} index - Navbox row index.
+         * @param {string} navbox - Navbox wikitext.
+         * @returns {void}
+         */
+        updateNavboxRow(index, navbox) {
+            const row = ensureNavboxRows(form)[index];
+
+            setNavboxRowText(row, navbox);
+            row.title = getNavboxTitle(navbox);
+            row.status = "";
+            ensureTrailingNavboxRow(form);
+        },
+
+        /**
+         * Removes one navbox row.
+         *
+         * @param {number} index - Navbox row index.
+         * @returns {void}
+         */
+        removeNavboxRow(index) {
+            ensureNavboxRows(form).splice(index, 1);
+            ensureTrailingNavboxRow(form);
+        },
+
+        /**
+         * Regenerates navbox rows from the current series field.
+         *
+         * @returns {Promise<void>} Resolves after suggestions are refreshed.
+         */
+        async rebuildNavboxRows() {
+            await refreshNavboxRows(true, true);
+        },
+
+        /**
+         * Checks the current navbox rows.
+         *
+         * @returns {Promise<void>} Resolves after statuses are refreshed.
+         */
+        async checkNavboxRows() {
+            await refreshNavboxRows(true, false);
+        },
+
+        /**
+         * Refreshes generated redirect rows.
+         *
+         * @returns {Promise<void>} Resolves after redirect rows are refreshed.
+         */
+        async refreshRedirectRows() {
+            await refreshRedirectRows();
+        },
+
+        /**
+         * Checks the current redirect rows.
+         *
+         * @returns {Promise<void>} Resolves after redirect rows are fixed.
+         */
+        async checkRedirectRows() {
+            await checkRedirectRows();
+        },
+
+        /**
+         * Checks one edited redirect row after its textbox loses focus.
+         *
+         * @param {number} index - Redirect row index.
+         * @param {Event} event - Text input blur event.
+         * @returns {Promise<void>} Resolves after the row is fixed.
+         */
+        async checkRedirectRow(index, event) {
+            const value = event?.target?.value;
+
+            if (value != null && form.redirectRows?.[index] != null) {
+                setRedirectRowTitle(form.redirectRows[index], value);
+                ensureTrailingRedirectRow(form);
+            }
+
+            await this.checkRedirectRows();
+        },
+
+        /**
+         * Checks one edited navbox row after its textbox loses focus.
+         *
+         * @param {number} index - Navbox row index.
+         * @param {Event} event - Text input blur event.
+         * @returns {Promise<void>} Resolves after the textbox is updated.
+         */
+        async checkNavboxRow(index, event) {
+            const value = event?.target?.value;
+
+            if (value != null) {
+                this.updateNavboxRow(index, value);
+            }
+
+            await this.checkNavboxRows();
+        },
+
+        /**
+         * Opens an editable navbox template source preview.
+         *
+         * @param {object} row - Navbox review row.
+         * @returns {Promise<void>} Resolves after the editor is ready.
+         */
+        async openNavboxEdit(row) {
+            await openPageEdit({
+                create: getPageEditCreateState(row, row.status !== "OK"),
+                kind: "navbox",
+                row,
+                title: `Template:${row.title}`,
+            });
+        },
+
+        /**
+         * Opens an editable redirect page source preview.
+         *
+         * @param {object} row - Redirect review row.
+         * @returns {Promise<void>} Resolves after the editor is ready.
+         */
+        async openRedirectEdit(row) {
+            await openPageEdit({
+                create: getPageEditCreateState(row, row.exists !== true),
+                kind: "redirect",
+                row,
+                title: trimFieldValue(row.title),
+            });
+        },
+
+        /**
+         * Opens an editable stub template source preview.
+         *
+         * @param {object} row - Stub-tag review row.
+         * @returns {Promise<void>} Resolves after the editor is ready.
+         */
+        async openStubTagEdit(row) {
+            await openPageEdit({
+                create: false,
+                kind: "stubTag",
+                row,
+                title: `Template:${trimStubTagValue(row.stubTag)}`,
+            });
+        },
+
+        /**
+         * Updates one category row title and its modified marker.
+         *
+         * @param {number} index - Category row index.
+         * @param {string} category - New category title.
+         * @returns {void}
+         */
+        updateCategoryRowCategory(index, category) {
+            const current = form.categoryRows[index];
+
+            form.categoryRows[index] = options.onUpdateCategoryRowCategory(
+                form.categoryRows[index],
+                trimFieldValue(category),
+            );
+            syncCategoryRowFixedState(form.categoryRows[index], current);
+            ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
+        },
+
+        /**
+         * Checks one edited category after its textbox loses focus.
+         *
+         * @param {number} index - Category row index.
+         * @param {Event} event - Text input blur event.
+         * @returns {Promise<void>} Resolves after the textbox is updated.
+         */
+        async checkCategoryRow(index, event) {
+            const value = event?.target?.value;
+
+            if (value != null) {
+                this.updateCategoryRowCategory(index, value);
+            }
+
+            await refreshCategoryRows({
+                bypassCache: true,
+            });
+
+            if (value != null && form.categoryRows[index] != null) {
+                form.categoryRows[index].category = trimFieldValue(value);
+                ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
+            }
+        },
+
+        /**
+         * Opens an editor for one missing category.
+         *
+         * @param {object} row - Category review row.
+         * @returns {Promise<void>} Resolves after the category text is prepared.
+         */
+        async openCategoryCreate(row) {
+            const pendingCreation = row.pendingCreation;
+
+            Object.assign(companyCategoryState, {
+                category: trimFieldValue(row.category),
+                company: trimFieldValue(row.company),
+                englishName: trimFieldValue(pendingCreation?.englishName),
+                error: "",
+                loading: false,
+                pending: pendingCreation != null,
+                text: String(pendingCreation?.text || ""),
+                wikidataId: trimFieldValue(pendingCreation?.wikidataId),
+            });
+            companyCategoryLookupLoading.value = false;
+            companyCategoryOpen.value = true;
+
+            if (pendingCreation != null) {
+                return;
+            }
+
+            if (companyCategoryState.company === "") {
+                return;
+            }
+
+            companyCategoryState.loading = true;
+
+            try {
+                companyCategoryState.text =
+                    await options.onPrepareCompanyCategory(row);
+            } catch (error) {
+                companyCategoryState.error = error.message || String(error);
+            } finally {
+                companyCategoryState.loading = false;
+            }
+        },
+
+        /**
+         * Closes the company category editor.
+         *
+         * @returns {void}
+         */
+        closeCompanyCategory() {
+            companyCategoryOpen.value = false;
+        },
+
+        /**
+         * Cancels the staged category creation.
+         *
+         * @returns {void}
+         */
+        cancelCompanyCategoryCreation() {
+            const row = form.categoryRows.find(
+                (item) =>
+                    trimFieldValue(item.category) ===
+                    companyCategoryState.category,
+            );
+
+            if (row == null || row.pendingCreation == null) {
+                return;
+            }
+
+            row.status = row.pendingCreation.previousStatus || "";
+            delete row.pendingCreation;
+            companyCategoryOpen.value = false;
+        },
+
+        /**
+         * Stages the category for creation after the article is saved.
+         *
+         * @returns {Promise<void>} Resolves after the category is staged.
+         */
+        async saveCompanyCategory() {
+            companyCategoryState.error = "";
+            companyCategoryState.loading = true;
+
+            try {
+                const row = findCompanyCategoryRow();
 
                 if (row == null) {
-                    return;
+                    throw new Error("Category row is unavailable.");
                 }
 
-                row[market] = Boolean(value);
-                ensureTrailingNameRow(form[key]);
-                syncGeneratedNameNoteTaRow(form);
-            },
-
-            /**
-             * Appends a blank localized name row.
-             *
-             * @param {string} key - Localized name group key.
-             * @returns {void}
-             */
-            addNameRow(key) {
-                form[key].push(createNameRow());
-            },
-
-            /**
-             * Removes one localized name row.
-             *
-             * @param {string} key - Localized name group key.
-             * @param {number} index - Row index.
-             * @returns {void}
-             */
-            removeNameRow(key, index) {
-                form[key].splice(index, 1);
-                ensureTrailingNameRow(form[key]);
-                syncGeneratedNameNoteTaRow(form);
-            },
-
-            /**
-             * Updates the Steam helper URL.
-             *
-             * @param {string} value - Raw Steam URL.
-             * @returns {void}
-             */
-            updateSteamUrl(value) {
-                steamUrl.value = trimFieldValue(value);
-                fetchedSteamNameRows.value = [];
-            },
-
-            /**
-             * Fetches Steam names and stores them as helper suggestions.
-             *
-             * @returns {Promise<void>} Resolves after rows are fetched.
-             */
-            async addSteamNames() {
-                await fetchSteamNames();
-            },
-
-            /**
-             * Applies one Steam name helper suggestion choice.
-             *
-             * @param {string} choice - Steam helper choice key.
-             * @returns {void}
-             */
-            applySteamNameChoice(choice) {
-                if (!choice) {
-                    return;
-                }
-
-                removeSteamAppliedNameRows();
-                buildSteamNameChoiceRows(fetchedSteamNameRows.value, choice)
-                    .map(createNameRowFromValues)
-                    .forEach((row) => {
-                        markSteamNameHelperRow(row);
-                        form.localizedNames.push(row);
-                    });
-                ensureTrailingNameRow(form.localizedNames);
-                syncGeneratedNameNoteTaRow(form);
-            },
-
-            /**
-             * Clears all localized name rows.
-             *
-             * @param {string} key - Localized name group key.
-             * @returns {void}
-             */
-            clearNameRows(key) {
-                form[key] = [createNameRow()];
-                syncGeneratedNameNoteTaRow(form);
-            },
-
-            /**
-             * Refreshes generated category rows.
-             *
-             * @returns {Promise<void>} Resolves after category rows are refreshed.
-             */
-            async refreshCategoryRows() {
-                await refreshCategoryRows();
-            },
-
-            /**
-             * Rebuilds category rows, bypassing the stored category query cache.
-             *
-             * @returns {Promise<void>} Resolves after category rows are rebuilt.
-             */
-            async rebuildCategoryRows() {
-                form.stubTagRows = null;
-                await refreshCategoryRows({
-                    bypassCache: true,
-                    recheck: true,
-                });
-            },
-
-            /**
-             * Adds one manual category row.
-             *
-             * @returns {void}
-             */
-            addCategoryRow() {
-                form.categoryRows.push(options.onCreateCategoryRow());
-                ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
-            },
-
-            /**
-             * Removes one category row.
-             *
-             * @param {number} index - Category row index.
-             * @returns {void}
-             */
-            removeCategoryRow(index) {
-                form.categoryRows.splice(index, 1);
-                ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
-            },
-
-            /**
-             * Removes surplus blank category rows.
-             *
-             * @returns {void}
-             */
-            cleanCategoryRows() {
-                form.categoryRows = cleanEditableRows(
-                    form.categoryRows,
-                    isBlankCategoryRow,
-                    () => options.onCreateCategoryRow(),
-                );
-            },
-
-            /**
-             * Appends a blank stub-tag row.
-             *
-             * @returns {void}
-             */
-            addStubTagRow() {
-                ensureStubTagRows(form).push(createStubTagRow());
-                ensureTrailingStubTagRow(form);
-            },
-
-            /**
-             * Resets stub-tag rows from current category metadata.
-             *
-             * @returns {void}
-             */
-            resetStubTagRows() {
-                form.stubTagRows = buildStubTagRowsFromCategories(
-                    form.categoryRows,
-                );
-                ensureTrailingStubTagRow(form);
-            },
-
-            /**
-             * Updates one stub-tag row.
-             *
-             * @param {number} index - Stub-tag row index.
-             * @param {string} stubTag - Stub template name.
-             * @returns {void}
-             */
-            updateStubTagRow(index, stubTag) {
-                const row = ensureStubTagRows(form)[index];
-
-                if (row != null) {
-                    row.stubTag = trimStubTagValue(stubTag);
-                    ensureTrailingStubTagRow(form);
-                }
-            },
-
-            /**
-             * Removes one stub-tag row.
-             *
-             * @param {number} index - Stub-tag row index.
-             * @returns {void}
-             */
-            removeStubTagRow(index) {
-                ensureStubTagRows(form).splice(index, 1);
-                ensureTrailingStubTagRow(form);
-            },
-
-            /**
-             * Removes surplus blank stub-tag rows.
-             *
-             * @returns {void}
-             */
-            cleanStubTagRows() {
-                form.stubTagRows = cleanEditableRows(
-                    ensureStubTagRows(form),
-                    isBlankStubTagRow,
-                    createStubTagRow,
-                );
-            },
-
-            /**
-             * Appends a blank redirect row.
-             *
-             * @returns {void}
-             */
-            addRedirectRow() {
-                ensureRedirectRows(form).push(createRedirectRow());
-                ensureTrailingRedirectRow(form);
-            },
-
-            /**
-             * Resets generated redirect rows.
-             *
-             * @returns {Promise<void>} Resolves after rows are refreshed.
-             */
-            async rebuildRedirectRows() {
-                form.redirectRows = null;
-                await refreshRedirectRows({
-                    recheck: true,
-                });
-            },
-
-            /**
-             * Updates one redirect row title from live input.
-             *
-             * @param {number} index - Redirect row index.
-             * @param {string} value - Raw title input.
-             * @returns {void}
-             */
-            updateRedirectRowTitle(index, value) {
-                const row = form.redirectRows?.[index];
-
-                if (row != null) {
-                    setRedirectRowTitle(row, value);
-                    ensureTrailingRedirectRow(form);
-                }
-            },
-
-            /**
-             * Removes one redirect row.
-             *
-             * @param {number} index - Redirect row index.
-             * @returns {void}
-             */
-            removeRedirectRow(index) {
-                ensureRedirectRows(form).splice(index, 1);
-                ensureTrailingRedirectRow(form);
-            },
-
-            /**
-             * Removes surplus blank redirect rows.
-             *
-             * @returns {void}
-             */
-            cleanRedirectRows() {
-                form.redirectRows = cleanEditableRows(
-                    ensureRedirectRows(form),
-                    isBlankRedirectRow,
-                    createRedirectRow,
-                );
-            },
-
-            /**
-             * Appends a blank navbox row.
-             *
-             * @returns {void}
-             */
-            addNavboxRow() {
-                ensureNavboxRows(form).push(createNavboxRow());
-                ensureTrailingNavboxRow(form);
-                navboxRowsPrepared = true;
-            },
-
-            /**
-             * Removes surplus blank navbox rows.
-             *
-             * @returns {void}
-             */
-            cleanNavboxRows() {
-                form.navboxRows = cleanEditableRows(
-                    ensureNavboxRows(form),
-                    isBlankNavboxRow,
-                    createNavboxRow,
-                );
-                navboxRowsPrepared = true;
-            },
-
-            /**
-             * Appends a blank NoteTA row.
-             *
-             * @returns {void}
-             */
-            addNoteTaRow() {
-                ensureNoteTaRows(form).push(createNoteTaRow());
-            },
-
-            /**
-             * Removes one NoteTA row.
-             *
-             * @param {number} index - NoteTA row index.
-             * @returns {void}
-             */
-            removeNoteTaRow(index) {
-                const rows = ensureNoteTaRows(form);
-                const row = rows[index];
-
-                if (row?.source === NOTE_TA_NAMES_SOURCE) {
-                    form.noteTaNamesRemoved = true;
-                }
-
-                rows.splice(index, 1);
-            },
-
-            /**
-             * Removes surplus blank NoteTA rows.
-             *
-             * @returns {void}
-             */
-            cleanNoteTaRows() {
-                const rows = ensureNoteTaRows(form);
-
-                rows.splice(
-                    0,
-                    rows.length,
-                    ...cleanEditableRows(
-                        rows,
-                        isBlankNoteTaRow,
-                        createNoteTaRow,
-                    ),
-                );
-            },
-
-            /**
-             * Updates one NoteTA row key or value from live input.
-             *
-             * @param {number} index - NoteTA row index.
-             * @param {string} field - Row field key.
-             * @param {string} value - Raw input value.
-             * @returns {void}
-             */
-            updateNoteTaRow(index, field, value) {
-                const row = ensureNoteTaRows(form)[index];
-
-                row[field] = trimFieldValue(value);
-
-                if (row.source === NOTE_TA_NAMES_SOURCE) {
-                    row.modified = true;
-                }
-            },
-
-            /**
-             * Sorts NoteTA rows by output source order.
-             *
-             * @returns {void}
-             */
-            sortNoteTaRows() {
-                const rows = ensureNoteTaRows(form);
-
-                rows.splice(0, rows.length, ...sortNoteTaEntries(rows));
-            },
-
-            /**
-             * Rebuilds generated NoteTA rows and preserves manual extras.
-             *
-             * @returns {void}
-             */
-            regenerateNoteTaRows() {
-                regenerateNoteTaRows(form);
-            },
-
-            /**
-             * Updates one navbox row.
-             *
-             * @param {number} index - Navbox row index.
-             * @param {string} navbox - Navbox wikitext.
-             * @returns {void}
-             */
-            updateNavboxRow(index, navbox) {
-                const row = ensureNavboxRows(form)[index];
-
-                setNavboxRowText(row, navbox);
-                row.title = getNavboxTitle(navbox);
-                row.status = "";
-                ensureTrailingNavboxRow(form);
-            },
-
-            /**
-             * Removes one navbox row.
-             *
-             * @param {number} index - Navbox row index.
-             * @returns {void}
-             */
-            removeNavboxRow(index) {
-                ensureNavboxRows(form).splice(index, 1);
-                ensureTrailingNavboxRow(form);
-            },
-
-            /**
-             * Regenerates navbox rows from the current series field.
-             *
-             * @returns {Promise<void>} Resolves after suggestions are refreshed.
-             */
-            async rebuildNavboxRows() {
-                await refreshNavboxRows(true, true);
-            },
-
-            /**
-             * Checks the current navbox rows.
-             *
-             * @returns {Promise<void>} Resolves after statuses are refreshed.
-             */
-            async checkNavboxRows() {
-                await refreshNavboxRows(true, false);
-            },
-
-            /**
-             * Refreshes generated redirect rows.
-             *
-             * @returns {Promise<void>} Resolves after redirect rows are refreshed.
-             */
-            async refreshRedirectRows() {
-                await refreshRedirectRows();
-            },
-
-            /**
-             * Checks the current redirect rows.
-             *
-             * @returns {Promise<void>} Resolves after redirect rows are fixed.
-             */
-            async checkRedirectRows() {
-                await checkRedirectRows();
-            },
-
-            /**
-             * Checks one edited redirect row after its textbox loses focus.
-             *
-             * @param {number} index - Redirect row index.
-             * @param {Event} event - Text input blur event.
-             * @returns {Promise<void>} Resolves after the row is fixed.
-             */
-            async checkRedirectRow(index, event) {
-                const value = event?.target?.value;
-
-                if (value != null && form.redirectRows?.[index] != null) {
-                    setRedirectRowTitle(form.redirectRows[index], value);
-                    ensureTrailingRedirectRow(form);
-                }
-
-                await this.checkRedirectRows();
-            },
-
-            /**
-             * Checks one edited navbox row after its textbox loses focus.
-             *
-             * @param {number} index - Navbox row index.
-             * @param {Event} event - Text input blur event.
-             * @returns {Promise<void>} Resolves after the textbox is updated.
-             */
-            async checkNavboxRow(index, event) {
-                const value = event?.target?.value;
-
-                if (value != null) {
-                    this.updateNavboxRow(index, value);
-                }
-
-                await this.checkNavboxRows();
-            },
-
-            /**
-             * Opens an editable navbox template source preview.
-             *
-             * @param {object} row - Navbox review row.
-             * @returns {Promise<void>} Resolves after the editor is ready.
-             */
-            async openNavboxEdit(row) {
-                await openPageEdit({
-                    create: getPageEditCreateState(row, row.status !== "OK"),
-                    kind: "navbox",
-                    row,
-                    title: `Template:${row.title}`,
-                });
-            },
-
-            /**
-             * Opens an editable redirect page source preview.
-             *
-             * @param {object} row - Redirect review row.
-             * @returns {Promise<void>} Resolves after the editor is ready.
-             */
-            async openRedirectEdit(row) {
-                await openPageEdit({
-                    create: getPageEditCreateState(row, row.exists !== true),
-                    kind: "redirect",
-                    row,
-                    title: trimFieldValue(row.title),
-                });
-            },
-
-            /**
-             * Opens an editable stub template source preview.
-             *
-             * @param {object} row - Stub-tag review row.
-             * @returns {Promise<void>} Resolves after the editor is ready.
-             */
-            async openStubTagEdit(row) {
-                await openPageEdit({
-                    create: false,
-                    kind: "stubTag",
-                    row,
-                    title: `Template:${trimStubTagValue(row.stubTag)}`,
-                });
-            },
-
-            /**
-             * Updates one category row title and its modified marker.
-             *
-             * @param {number} index - Category row index.
-             * @param {string} category - New category title.
-             * @returns {void}
-             */
-            updateCategoryRowCategory(index, category) {
-                const current = form.categoryRows[index];
-
-                form.categoryRows[index] = options.onUpdateCategoryRowCategory(
-                    form.categoryRows[index],
-                    trimFieldValue(category),
-                );
-                syncCategoryRowFixedState(form.categoryRows[index], current);
-                ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
-            },
-
-            /**
-             * Checks one edited category after its textbox loses focus.
-             *
-             * @param {number} index - Category row index.
-             * @param {Event} event - Text input blur event.
-             * @returns {Promise<void>} Resolves after the textbox is updated.
-             */
-            async checkCategoryRow(index, event) {
-                const value = event?.target?.value;
-
-                if (value != null) {
-                    this.updateCategoryRowCategory(index, value);
-                }
-
-                await refreshCategoryRows({
-                    bypassCache: true,
-                });
-
-                if (value != null && form.categoryRows[index] != null) {
-                    form.categoryRows[index].category = trimFieldValue(value);
-                    ensureTrailingCategoryRow(
-                        form,
-                        options.onCreateCategoryRow,
-                    );
-                }
-            },
-
-            /**
-             * Opens an editor for one missing category.
-             *
-             * @param {object} row - Category review row.
-             * @returns {Promise<void>} Resolves after the category text is prepared.
-             */
-            async openCategoryCreate(row) {
-                const pendingCreation = row.pendingCreation;
-
-                Object.assign(companyCategoryState, {
-                    category: trimFieldValue(row.category),
-                    company: trimFieldValue(row.company),
-                    englishName: trimFieldValue(pendingCreation?.englishName),
-                    error: "",
-                    loading: false,
-                    pending: pendingCreation != null,
-                    text: String(pendingCreation?.text || ""),
-                    wikidataId: trimFieldValue(pendingCreation?.wikidataId),
-                });
-                companyCategoryLookupLoading.value = false;
-                companyCategoryOpen.value = true;
-
-                if (pendingCreation != null) {
-                    return;
-                }
-
-                if (companyCategoryState.company === "") {
-                    return;
-                }
-
-                companyCategoryState.loading = true;
-
-                try {
-                    companyCategoryState.text =
-                        await options.onPrepareCompanyCategory(row);
-                } catch (error) {
-                    companyCategoryState.error =
-                        error.message || String(error);
-                } finally {
-                    companyCategoryState.loading = false;
-                }
-            },
-
-            /**
-             * Closes the company category editor.
-             *
-             * @returns {void}
-             */
-            closeCompanyCategory() {
+                row.pendingCreation = createPendingCompanyCategory(row);
+                row.enabled = true;
+                row.status = "Pending creation";
                 companyCategoryOpen.value = false;
-            },
-
-            /**
-             * Cancels the staged category creation.
-             *
-             * @returns {void}
-             */
-            cancelCompanyCategoryCreation() {
-                const row = form.categoryRows.find(
-                    (item) =>
-                        trimFieldValue(item.category) ===
-                        companyCategoryState.category,
-                );
-
-                if (row == null || row.pendingCreation == null) {
-                    return;
-                }
-
-                row.status = row.pendingCreation.previousStatus || "";
-                delete row.pendingCreation;
-                companyCategoryOpen.value = false;
-            },
-
-            /**
-             * Stages the category for creation after the article is saved.
-             *
-             * @returns {Promise<void>} Resolves after the category is staged.
-             */
-            async saveCompanyCategory() {
-                companyCategoryState.error = "";
-                companyCategoryState.loading = true;
-
-                try {
-                    const row = form.categoryRows.find(
-                        (item) =>
-                            trimFieldValue(item.category) ===
-                            companyCategoryState.category,
-                    );
-
-                    if (row == null) {
-                        throw new Error("Category row is unavailable.");
-                    }
-
-                    row.pendingCreation = {
-                        englishName: trimFieldValue(
-                            companyCategoryState.englishName,
-                        ),
-                        previousStatus:
-                            row.pendingCreation?.previousStatus || row.status,
-                        text: companyCategoryState.text,
-                        wikidataId: trimFieldValue(
-                            companyCategoryState.wikidataId,
-                        ),
-                    };
-                    row.enabled = true;
-                    row.status = "Pending creation";
-                    companyCategoryOpen.value = false;
-                } catch (error) {
-                    companyCategoryState.error =
-                        error.message || String(error);
-                } finally {
-                    companyCategoryState.loading = false;
-                }
-            },
-
-            /**
-             * Checks whether a category row supports the company helper.
-             *
-             * @param {object} row - Category review row.
-             * @returns {boolean} Whether the helper should be shown.
-             */
-            canCreateCompanyCategory(row) {
-                return (
-                    trimFieldValue(row.company) !== "" && row.status !== "OK"
-                );
-            },
-
-            /**
-             * Refreshes metadata for the company-category English title.
-             *
-             * @returns {Promise<void>} Resolves after lookup state is updated.
-             */
-            async refreshCompanyCategoryMetadata() {
-                await refreshCompanyCategoryMetadata();
-            },
-
-            /**
-             * Gets the Wikidata URL for the staged company category.
-             *
-             * @returns {string} Wikidata entity URL.
-             */
-            getCompanyCategoryWikidataUrl() {
-                const id = trimFieldValue(companyCategoryState.wikidataId);
-
-                return id === ""
-                    ? ""
-                    : `https://www.wikidata.org/wiki/${encodeURIComponent(id)}`;
-            },
-
-            /**
-             * Checks whether a category row can be created.
-             *
-             * @param {object} row - Category review row.
-             * @returns {boolean} Whether the category editor should be shown.
-             */
-            canCreateCategory(row) {
-                return (
-                    trimFieldValue(row.category) !== "" &&
-                    row.status !== "OK" &&
-                    row.pendingCreation == null
-                );
-            },
-
-            /**
-             * Opens an editable category source preview.
-             *
-             * @param {object} row - Category review row.
-             * @returns {Promise<void>} Resolves after the editor is ready.
-             */
-            async openCategoryEdit(row) {
-                const category = trimFieldValue(row.category);
-
-                await openPageEdit({
-                    create: getPageEditCreateState(row, row.status !== "OK"),
-                    kind: "category",
-                    row,
-                    title: `Category:${category}`,
-                });
-            },
-
-            /**
-             * Closes the category page viewer.
-             *
-             * @returns {void}
-             */
-            closeCategoryView() {
-                categoryViewOpen.value = false;
-            },
-
-            /**
-             * Refreshes the edited page source preview.
-             *
-             * @returns {Promise<void>} Resolves after the preview is refreshed.
-             */
-            async refreshPageEditPreview() {
-                syncSourceEditorText("pageEdit", {
-                    get value() {
-                        return pageEditState.text;
-                    },
-                    set value(text) {
-                        pageEditState.text = text;
-                    },
-                });
-                pageEditState.error = "";
-                pageEditState.loading = true;
-
-                try {
-                    pageEditState.html = await options.onParsePreview(
-                        pageEditState.text,
-                        pageEditState.title,
-                    );
-                } catch (error) {
-                    pageEditState.error = error.message || String(error);
-                } finally {
-                    pageEditState.loading = false;
-                }
-            },
-
-            /**
-             * Closes the page edit dialog without staging changes.
-             *
-             * @returns {void}
-             */
-            closePageEditDialog() {
-                destroySourceEditor("pageEdit");
-                pageEditOpen.value = false;
-            },
-
-            /**
-             * Cancels staged source changes for the current review row.
-             *
-             * @returns {void}
-             */
-            resetPageEdit() {
-                resetPageEdit();
-            },
-
-            /**
-             * Stages the edited page source for final submission.
-             *
-             * @returns {void}
-             */
-            stagePageEdit() {
-                syncSourceEditorText("pageEdit", {
-                    get value() {
-                        return pageEditState.text;
-                    },
-                    set value(text) {
-                        pageEditState.text = text;
-                    },
-                });
-                stagePageEdit();
-            },
-
-            /**
-             * Formats a category row source as a compact badge label.
-             *
-             * @param {string} source - Category row source.
-             * @returns {string} Compact source label.
-             */
-            formatCategorySourceLabel(source) {
-                return formatCategorySourceLabel(source);
-            },
-
-            /**
-             * Formats a category row source tooltip.
-             *
-             * @param {string} source - Category row source.
-             * @returns {string} Source tooltip.
-             */
-            formatCategorySourceTitle(source) {
-                return formatCategorySourceTitle(source);
-            },
-
-            /**
-             * Formats a stub template name for display.
-             *
-             * @param {string} stubTag - Stub template name.
-             * @returns {string} Template call label.
-             */
-            formatStubTagLabel(stubTag) {
-                return `{{${trimStubTagValue(stubTag)}}}`;
-            },
-
-            /**
-             * Formats a stub-tag row status as a compact badge.
-             *
-             * @param {object} row - Stub-tag review row.
-             * @returns {string} Compact status label.
-             */
-            formatStubTagStatusLabel(row) {
-                return isBlankStubTagRow(row)
-                    ? "empty"
-                    : row?.enabled === false
-                      ? "unchecked"
-                      : isManualStubTagRow(row)
-                        ? "Manual"
-                      : "Ready";
-            },
-
-            /**
-             * Gets the InfoChip status for a stub-tag row.
-             *
-             * @param {object} row - Stub-tag review row.
-             * @returns {string} Codex InfoChip status.
-             */
-            getStubTagStatusChipStatus(row) {
-                return isBlankStubTagRow(row)
-                    ? "notice"
-                    : row?.enabled === false
-                      ? "warning"
-                      : isManualStubTagRow(row)
-                        ? "notice"
-                      : "success";
-            },
-
-            /**
-             * Gets a category page URL for a review row.
-             *
-             * @param {object} row - Category review row.
-             * @returns {string} Category page URL.
-             */
-            getCategoryPageUrl(row) {
-                const category = trimFieldValue(row?.category);
-
-                return category === ""
-                    ? ""
-                    : options.getPageUrl(`Category:${category}`);
-            },
-
-            /**
-             * Gets a redirect page URL for a review row.
-             *
-             * @param {object} row - Redirect review row.
-             * @returns {string} Redirect page URL.
-             */
-            getRedirectPageUrl(row) {
-                const title = trimFieldValue(row?.title);
-
-                return title === "" ? "" : options.getPageUrl(title);
-            },
-
-            /**
-             * Gets a navbox template page URL for a review row.
-             *
-             * @param {object} row - Navbox review row.
-             * @returns {string} Navbox template page URL.
-             */
-            getNavboxPageUrl(row) {
-                const title = trimFieldValue(row?.title);
-
-                return title === ""
-                    ? ""
-                    : options.getPageUrl(`Template:${title}`);
-            },
-
-            /**
-             * Gets a stub template page URL for a review row.
-             *
-             * @param {object} row - Stub-tag review row.
-             * @returns {string} Stub template page URL.
-             */
-            getStubTagPageUrl(row) {
-                const stubTag = trimStubTagValue(row?.stubTag);
-
-                return stubTag === ""
-                    ? ""
-                    : options.getPageUrl(`Template:${stubTag}`);
-            },
-
-            /**
-             * Formats a Check-tab Page action label.
-             *
-             * @param {object} row - Review row.
-             * @param {boolean} exists - Whether the target page exists.
-             * @returns {string} Lowercase action label.
-             */
-            getReviewPageActionLabel(row, exists) {
-                if (
-                    row?.pendingEdit != null ||
-                    row?.pendingCreation != null ||
-                    String(row?.status || "").startsWith("Pending")
-                ) {
-                    return "pending";
-                }
-
-                return exists ? "edit" : "create";
-            },
-
-            /**
-             * Formats a navbox existence status as a compact badge.
-             *
-             * @param {string} status - Navbox existence status.
-             * @returns {string} Compact status label.
-             */
-            formatNavboxStatusLabel(status) {
-                return (
-                    {
-                        "Not exists": "Missing",
-                        OK: "OK",
-                        "Pending creation": "Pending",
-                        "Pending edit": "Pending",
-                    }[status] || "Unchecked"
-                );
-            },
-
-            /**
-             * Gets the InfoChip status for a navbox existence state.
-             *
-             * @param {string} status - Navbox existence status.
-             * @returns {string} Codex InfoChip status.
-             */
-            getNavboxStatusChipStatus(status) {
-                return getReviewStatusChipStatus(status);
-            },
-
-            /**
-             * Formats a redirect existence status as a compact badge.
-             *
-             * @param {string} status - Redirect existence status.
-             * @returns {string} Compact status label.
-             */
-            formatRedirectStatusLabel(status) {
-                return (
-                    {
-                        Exists: "Exists",
-                        Missing: "Ready",
-                    }[status] || "Unchecked"
-                );
-            },
-
-            /**
-             * Gets the InfoChip status for a redirect existence state.
-             *
-             * @param {string} status - Redirect existence status.
-             * @returns {string} Codex InfoChip status.
-             */
-            getRedirectStatusChipStatus(status) {
-                if (status === "Missing") {
-                    return "success";
-                }
-
-                if (status === "Exists") {
-                    return "warning";
-                }
-
-                return getReviewStatusChipStatus(status);
-            },
-
-            /**
-             * Gets the current generated prose length.
-             *
-             * @returns {number} Hanzi-equivalent sinograph count.
-             */
-            getProseSinographs() {
-                return options.getProseSinographs(form);
-            },
-
-            /**
-             * Gets the current generated prose wikitext.
-             *
-             * @returns {string} Generated prose wikitext.
-             */
-            getProseWikitext() {
-                return options.getProseWikitext(form);
-            },
-
-            /**
-             * Checks whether a localized name row came from the Steam helper.
-             *
-             * @param {object} row - Localized name row.
-             * @returns {boolean} Whether the row was helper-generated.
-             */
-            isSteamNameHelperRow(row) {
-                return row?.[STEAM_NAME_HELPER_ROW] === true;
-            },
+            } catch (error) {
+                companyCategoryState.error = error.message || String(error);
+            } finally {
+                companyCategoryState.loading = false;
+            }
         },
+
+        /**
+         * Checks whether a category row supports the company helper.
+         *
+         * @param {object} row - Category review row.
+         * @returns {boolean} Whether the helper should be shown.
+         */
+        canCreateCompanyCategory(row) {
+            return trimFieldValue(row.company) !== "" && row.status !== "OK";
+        },
+
+        /**
+         * Refreshes metadata for the company-category English title.
+         *
+         * @returns {Promise<void>} Resolves after lookup state is updated.
+         */
+        async refreshCompanyCategoryMetadata() {
+            await refreshCompanyCategoryMetadata();
+        },
+
+        /**
+         * Gets the Wikidata URL for the staged company category.
+         *
+         * @returns {string} Wikidata entity URL.
+         */
+        getCompanyCategoryWikidataUrl() {
+            const id = trimFieldValue(companyCategoryState.wikidataId);
+
+            return id === ""
+                ? ""
+                : `https://www.wikidata.org/wiki/${encodeURIComponent(id)}`;
+        },
+
+        /**
+         * Checks whether a category row can be created.
+         *
+         * @param {object} row - Category review row.
+         * @returns {boolean} Whether the category editor should be shown.
+         */
+        canCreateCategory(row) {
+            return (
+                trimFieldValue(row.category) !== "" &&
+                row.status !== "OK" &&
+                row.pendingCreation == null
+            );
+        },
+
+        /**
+         * Opens an editable category source preview.
+         *
+         * @param {object} row - Category review row.
+         * @returns {Promise<void>} Resolves after the editor is ready.
+         */
+        async openCategoryEdit(row) {
+            const category = trimFieldValue(row.category);
+
+            await openPageEdit({
+                create: getPageEditCreateState(row, row.status !== "OK"),
+                kind: "category",
+                row,
+                title: `Category:${category}`,
+            });
+        },
+
+        /**
+         * Closes the category page viewer.
+         *
+         * @returns {void}
+         */
+        closeCategoryView() {
+            categoryViewOpen.value = false;
+        },
+
+        /**
+         * Refreshes the edited page source preview.
+         *
+         * @returns {Promise<void>} Resolves after the preview is refreshed.
+         */
+        async refreshPageEditPreview() {
+            syncSourceEditorText("pageEdit", {
+                get value() {
+                    return pageEditState.text;
+                },
+                set value(text) {
+                    pageEditState.text = text;
+                },
+            });
+            pageEditState.error = "";
+            pageEditState.loading = true;
+
+            try {
+                pageEditState.html = await options.onParsePreview(
+                    pageEditState.text,
+                    pageEditState.title,
+                );
+            } catch (error) {
+                pageEditState.error = error.message || String(error);
+            } finally {
+                pageEditState.loading = false;
+            }
+        },
+
+        /**
+         * Closes the page edit dialog without staging changes.
+         *
+         * @returns {void}
+         */
+        closePageEditDialog() {
+            destroySourceEditor("pageEdit");
+            pageEditOpen.value = false;
+        },
+
+        /**
+         * Cancels staged source changes for the current review row.
+         *
+         * @returns {void}
+         */
+        resetPageEdit() {
+            resetPageEdit();
+        },
+
+        /**
+         * Stages the edited page source for final submission.
+         *
+         * @returns {void}
+         */
+        stagePageEdit() {
+            syncSourceEditorText("pageEdit", {
+                get value() {
+                    return pageEditState.text;
+                },
+                set value(text) {
+                    pageEditState.text = text;
+                },
+            });
+            stagePageEdit();
+        },
+
+        /**
+         * Formats a category row source as a compact badge label.
+         *
+         * @param {string} source - Category row source.
+         * @returns {string} Compact source label.
+         */
+        formatCategorySourceLabel(source) {
+            return formatCategorySourceLabel(source);
+        },
+
+        /**
+         * Formats a category row source tooltip.
+         *
+         * @param {string} source - Category row source.
+         * @returns {string} Source tooltip.
+         */
+        formatCategorySourceTitle(source) {
+            return formatCategorySourceTitle(source);
+        },
+
+        /**
+         * Formats a stub template name for display.
+         *
+         * @param {string} stubTag - Stub template name.
+         * @returns {string} Template call label.
+         */
+        formatStubTagLabel(stubTag) {
+            return `{{${trimStubTagValue(stubTag)}}}`;
+        },
+
+        /**
+         * Formats a stub-tag row status as a compact badge.
+         *
+         * @param {object} row - Stub-tag review row.
+         * @returns {string} Compact status label.
+         */
+        formatStubTagStatusLabel(row) {
+            return isBlankStubTagRow(row)
+                ? "empty"
+                : row?.enabled === false
+                  ? "unchecked"
+                  : isManualStubTagRow(row)
+                    ? "Manual"
+                    : "Ready";
+        },
+
+        /**
+         * Gets the InfoChip status for a stub-tag row.
+         *
+         * @param {object} row - Stub-tag review row.
+         * @returns {string} Codex InfoChip status.
+         */
+        getStubTagStatusChipStatus(row) {
+            return isBlankStubTagRow(row)
+                ? "notice"
+                : row?.enabled === false
+                  ? "warning"
+                  : isManualStubTagRow(row)
+                    ? "notice"
+                    : "success";
+        },
+
+        /**
+         * Gets a category page URL for a review row.
+         *
+         * @param {object} row - Category review row.
+         * @returns {string} Category page URL.
+         */
+        getCategoryPageUrl(row) {
+            const category = trimFieldValue(row?.category);
+
+            return category === ""
+                ? ""
+                : options.getPageUrl(`Category:${category}`);
+        },
+
+        /**
+         * Gets a redirect page URL for a review row.
+         *
+         * @param {object} row - Redirect review row.
+         * @returns {string} Redirect page URL.
+         */
+        getRedirectPageUrl(row) {
+            const title = trimFieldValue(row?.title);
+
+            return title === "" ? "" : options.getPageUrl(title);
+        },
+
+        /**
+         * Gets a navbox template page URL for a review row.
+         *
+         * @param {object} row - Navbox review row.
+         * @returns {string} Navbox template page URL.
+         */
+        getNavboxPageUrl(row) {
+            const title = trimFieldValue(row?.title);
+
+            return title === "" ? "" : options.getPageUrl(`Template:${title}`);
+        },
+
+        /**
+         * Gets a stub template page URL for a review row.
+         *
+         * @param {object} row - Stub-tag review row.
+         * @returns {string} Stub template page URL.
+         */
+        getStubTagPageUrl(row) {
+            const stubTag = trimStubTagValue(row?.stubTag);
+
+            return stubTag === ""
+                ? ""
+                : options.getPageUrl(`Template:${stubTag}`);
+        },
+
+        /**
+         * Formats a Check-tab Page action label.
+         *
+         * @param {object} row - Review row.
+         * @param {boolean} exists - Whether the target page exists.
+         * @returns {string} Lowercase action label.
+         */
+        getReviewPageActionLabel(row, exists) {
+            if (
+                row?.pendingEdit != null ||
+                row?.pendingCreation != null ||
+                String(row?.status || "").startsWith("Pending")
+            ) {
+                return "pending";
+            }
+
+            return exists ? "edit" : "create";
+        },
+
+        /**
+         * Formats a navbox existence status as a compact badge.
+         *
+         * @param {string} status - Navbox existence status.
+         * @returns {string} Compact status label.
+         */
+        formatNavboxStatusLabel(status) {
+            return (
+                {
+                    "Not exists": "Missing",
+                    OK: "OK",
+                    "Pending creation": "Pending",
+                    "Pending edit": "Pending",
+                }[status] || "Unchecked"
+            );
+        },
+
+        /**
+         * Gets the InfoChip status for a navbox existence state.
+         *
+         * @param {string} status - Navbox existence status.
+         * @returns {string} Codex InfoChip status.
+         */
+        getNavboxStatusChipStatus(status) {
+            return getReviewStatusChipStatus(status);
+        },
+
+        /**
+         * Formats a redirect existence status as a compact badge.
+         *
+         * @param {string} status - Redirect existence status.
+         * @returns {string} Compact status label.
+         */
+        formatRedirectStatusLabel(status) {
+            return (
+                {
+                    Exists: "Exists",
+                    Missing: "Ready",
+                }[status] || "Unchecked"
+            );
+        },
+
+        /**
+         * Gets the InfoChip status for a redirect existence state.
+         *
+         * @param {string} status - Redirect existence status.
+         * @returns {string} Codex InfoChip status.
+         */
+        getRedirectStatusChipStatus(status) {
+            if (status === "Missing") {
+                return "success";
+            }
+
+            if (status === "Exists") {
+                return "warning";
+            }
+
+            return getReviewStatusChipStatus(status);
+        },
+
+        /**
+         * Gets the current generated prose length.
+         *
+         * @returns {number} Hanzi-equivalent sinograph count.
+         */
+        getProseSinographs() {
+            return options.getProseSinographs(form);
+        },
+
+        /**
+         * Gets the current generated prose wikitext.
+         *
+         * @returns {string} Generated prose wikitext.
+         */
+        getProseWikitext() {
+            return options.getProseWikitext(form);
+        },
+
+        /**
+         * Checks whether a localized name row came from the Steam helper.
+         *
+         * @param {object} row - Localized name row.
+         * @returns {boolean} Whether the row was helper-generated.
+         */
+        isSteamNameHelperRow(row) {
+            return row?.[STEAM_NAME_HELPER_ROW] === true;
+        },
+    };
+
+    return {
+        methods,
         /**
          * Exposes dialog state and actions to the template.
          *
@@ -3380,6 +3405,23 @@ export function createDialogComponent(Vue, options) {
     }
 
     /**
+     * Gets category refresh options for a review refresh.
+     *
+     * @param {object} refreshOptions - Requested refresh options.
+     * @returns {object} Category refresh options.
+     */
+    function getCategoryRefreshOptions(refreshOptions) {
+        if (refreshOptions.recheck !== true) {
+            return refreshOptions;
+        }
+
+        return {
+            ...refreshOptions,
+            bypassCache: true,
+        };
+    }
+
+    /**
      * Refreshes categories and generated review details.
      *
      * @returns {Promise<void>} Resolves after review data is refreshed.
@@ -3389,16 +3431,8 @@ export function createDialogComponent(Vue, options) {
         reviewState.loading = true;
 
         try {
-            const categoryRefreshOptions =
-                refreshOptions.recheck === true
-                    ? {
-                          ...refreshOptions,
-                          bypassCache: true,
-                      }
-                    : refreshOptions;
-
             await Promise.all([
-                refreshCategoryRows(categoryRefreshOptions),
+                refreshCategoryRows(getCategoryRefreshOptions(refreshOptions)),
                 refreshRedirectRows(refreshOptions),
                 refreshNavboxRows(
                     refreshOptions.recheck === true,
@@ -3464,6 +3498,24 @@ export function createDialogComponent(Vue, options) {
     }
 
     /**
+     * Merges a refreshed navbox row with the current editable row.
+     *
+     * @param {object} row - Refreshed navbox row.
+     * @param {number} index - Row index.
+     * @returns {object} Merged row.
+     */
+    function updatePreparedNavboxRow(row, index) {
+        const current = form.navboxRows[index];
+
+        if (current == null) {
+            return row;
+        }
+
+        Object.assign(current, row);
+        return current;
+    }
+
+    /**
      * Generates navbox rows when needed or explicitly requested.
      *
      * @param {boolean} force - Whether to replace reviewed rows.
@@ -3504,16 +3556,7 @@ export function createDialogComponent(Vue, options) {
             form.navboxRows.splice(
                 0,
                 form.navboxRows.length,
-                ...rows.map((row, index) => {
-                    const current = form.navboxRows[index];
-
-                    if (current == null) {
-                        return row;
-                    }
-
-                    Object.assign(current, row);
-                    return current;
-                }),
+                ...rows.map(updatePreparedNavboxRow),
             );
             ensureTrailingNavboxRow(form);
             navboxRowsPrepared = true;
@@ -3577,7 +3620,9 @@ export function createDialogComponent(Vue, options) {
         const currentRows = Array.isArray(form.redirectRows)
             ? form.redirectRows
             : [];
-        const rowsToCheck = currentRows.filter((row) => !isBlankRedirectRow(row));
+        const rowsToCheck = currentRows.filter(
+            (row) => !isBlankRedirectRow(row),
+        );
 
         if (
             shouldSkipFixedRows(
@@ -4225,8 +4270,7 @@ export function createDialogComponent(Vue, options) {
     function removeSteamAppliedNameRows() {
         form.localizedNames = form.localizedNames.filter(
             (row) =>
-                row[STEAM_NAME_HELPER_ROW] !== true &&
-                hasAnyNameRowValue(row),
+                row[STEAM_NAME_HELPER_ROW] !== true && hasAnyNameRowValue(row),
         );
     }
 }
@@ -4624,29 +4668,48 @@ function createCategoryViewDialogTemplate() {
                 "v-bind:src": "categoryViewState.url",
                 "v-bind:title": "categoryViewState.title",
             }),
-            createElement(
-                "template",
-                {
-                    "v-slot:footer": "",
-                },
-                [
-                    createActionFooterTemplate({
-                        left: [
-                            createElement(
-                                "cdx-button",
-                                {
-                                    action: "destructive",
-                                    "v-on:click": "closeCategoryView",
-                                    weight: "quiet",
-                                },
-                                [createText("Close")],
-                            ),
-                        ],
-                    }),
-                ],
-            ),
+            createCategoryViewFooterTemplate(),
         ],
     );
+}
+
+/**
+ * Creates the category-view dialog footer.
+ *
+ * @returns {object} Dialog footer node.
+ */
+function createCategoryViewFooterTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-slot:footer": "",
+        },
+        [createActionFooterTemplate(createCategoryViewFooterActions())],
+    );
+}
+
+/**
+ * Creates the category-view footer actions.
+ *
+ * @returns {object} Footer action groups.
+ */
+function createCategoryViewFooterActions() {
+    return {
+        left: [createCloseCategoryViewButtonTemplate()],
+    };
+}
+
+/**
+ * Creates the category-view close button.
+ *
+ * @returns {object} Close button node.
+ */
+function createCloseCategoryViewButtonTemplate() {
+    return createButtonTemplate({
+        click: "closeCategoryView",
+        label: "Close",
+        weight: "quiet",
+    });
 }
 
 /**
@@ -4663,135 +4726,155 @@ function createCompanyCategoryDialogTemplate() {
             "v-model:open": "companyCategoryOpen",
         },
         [
-            createElement(
-                "label",
-                {
-                    style: {
-                        display: "block",
-                        marginBottom: "0.75em",
-                    },
-                },
-                [
-                    createElement(
-                        "span",
-                        {
-                            style: {
-                                display: "block",
-                                marginBottom: "0.25em",
-                            },
-                        },
-                        [createText("English Wikipedia category")],
-                    ),
-                    createElement("cdx-text-input", {
-                        placeholder: "e.g. Private Division games",
-                        "v-bind:disabled": "companyCategoryState.loading",
-                        "v-on:blur": "refreshCompanyCategoryMetadata",
-                        "v-model": "companyCategoryState.englishName",
-                    }),
-                    createElement(
-                        "p",
-                        {
-                            "v-if": "companyCategoryLookupLoading",
-                            style: {
-                                margin: "0.25em 0 0",
-                            },
-                        },
-                        [createText("checking Wikidata...")],
-                    ),
-                    createElement(
-                        "p",
-                        {
-                            "v-else-if": "companyCategoryState.wikidataId",
-                            style: {
-                                margin: "0.25em 0 0",
-                            },
-                        },
-                        [
-                            createElement(
-                                "a",
-                                {
-                                    "v-bind:href":
-                                        "getCompanyCategoryWikidataUrl()",
-                                    target: "_blank",
-                                },
-                                [
-                                    createText(
-                                        "{{ companyCategoryState.wikidataId }}",
-                                    ),
-                                ],
-                            ),
-                        ],
-                    ),
-                ],
+            createCompanyCategoryEnglishFieldTemplate(),
+            createCompanyCategoryTextTemplate(),
+            createMessageTemplate(
+                "companyCategoryState.error",
+                "{{ companyCategoryState.error }}",
             ),
-            createElement("cdx-text-area", {
-                class: "create-vg-stub-company-category-text",
-                rows: "10",
-                "v-bind:disabled": "companyCategoryState.loading",
-                "v-model": "companyCategoryState.text",
-            }),
-            createElement(
-                "p",
-                {
-                    class: "create-vg-stub-error",
-                    "v-if": "companyCategoryState.error",
-                },
-                [createText("{{ companyCategoryState.error }}")],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-slot:footer": "",
-                },
-                [
-                    createActionFooterTemplate({
-                        left: [
-                            createElement(
-                                "cdx-button",
-                                {
-                                    action: "destructive",
-                                    "v-bind:disabled":
-                                        "companyCategoryState.loading",
-                                    "v-on:click": "closeCompanyCategory",
-                                    weight: "quiet",
-                                },
-                                [createText("Close")],
-                            ),
-                        ],
-                        right: [
-                            createElement(
-                                "cdx-button",
-                                {
-                                    action: "destructive",
-                                    "v-bind:disabled":
-                                        "companyCategoryState.loading",
-                                    "v-if": "companyCategoryState.pending",
-                                    "v-on:click":
-                                        "cancelCompanyCategoryCreation",
-                                },
-                                [createText("Delete")],
-                            ),
-                            createElement(
-                                "cdx-button",
-                                {
-                                    action: "progressive",
-                                    "v-bind:disabled":
-                                        "companyCategoryState.loading || !companyCategoryState.text.trim()",
-                                    "v-on:click": "saveCompanyCategory",
-                                    weight: "primary",
-                                },
-                                [
-                                    createText(
-                                        "{{ companyCategoryState.loading ? 'Working' : 'Save' }}",
-                                    ),
-                                ],
-                            ),
-                        ],
-                    }),
-                ],
-            ),
+            createCompanyCategoryFooterTemplate(),
         ],
     );
+}
+
+/**
+ * Creates the company-category English Wikipedia field.
+ *
+ * @returns {object} Company-category field node.
+ */
+function createCompanyCategoryEnglishFieldTemplate() {
+    return createFieldTemplate(
+        "English Wikipedia category",
+        [
+            createElement("cdx-text-input", {
+                placeholder: "e.g. Private Division games",
+                "v-bind:disabled": "companyCategoryState.loading",
+                "v-model": "companyCategoryState.englishName",
+                "v-on:blur": "refreshCompanyCategoryMetadata",
+            }),
+        ],
+        {
+            helpText: createCompanyCategoryLookupTemplate(),
+        },
+    );
+}
+
+/**
+ * Creates the company-category lookup feedback.
+ *
+ * @returns {Array<object>} Lookup feedback nodes.
+ */
+function createCompanyCategoryLookupTemplate() {
+    return [
+        createElement(
+            "span",
+            {
+                "v-if": "companyCategoryLookupLoading",
+            },
+            [createText("Checking Wikidata...")],
+        ),
+        createElement(
+            "a",
+            {
+                "v-bind:href": "getCompanyCategoryWikidataUrl()",
+                "v-else-if": "companyCategoryState.wikidataId",
+                rel: "noopener noreferrer",
+                target: "_blank",
+            },
+            [createText("{{ companyCategoryState.wikidataId }}")],
+        ),
+    ];
+}
+
+/**
+ * Creates the company-category wikitext field.
+ *
+ * @returns {object} Company-category text area node.
+ */
+function createCompanyCategoryTextTemplate() {
+    return createFieldTemplate("Category page wikitext", [
+        createElement("cdx-text-area", {
+            class: "create-vg-stub-company-category-text",
+            rows: "10",
+            "v-bind:disabled": "companyCategoryState.loading",
+            "v-model": "companyCategoryState.text",
+        }),
+    ]);
+}
+
+/**
+ * Creates the company-category dialog footer.
+ *
+ * @returns {object} Dialog footer node.
+ */
+function createCompanyCategoryFooterTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-slot:footer": "",
+        },
+        [createActionFooterTemplate(createCompanyCategoryFooterActions())],
+    );
+}
+
+/**
+ * Creates the company-category dialog footer actions.
+ *
+ * @returns {object} Dialog footer action groups.
+ */
+function createCompanyCategoryFooterActions() {
+    return {
+        left: [createCloseCompanyCategoryButtonTemplate()],
+        right: [
+            createDeleteCompanyCategoryButtonTemplate(),
+            createSaveCompanyCategoryButtonTemplate(),
+        ],
+    };
+}
+
+/**
+ * Creates the company-category close button.
+ *
+ * @returns {object} Close button node.
+ */
+function createCloseCompanyCategoryButtonTemplate() {
+    return createButtonTemplate({
+        click: "closeCompanyCategory",
+        disabled: "companyCategoryState.loading",
+        label: "Close",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the company-category delete button.
+ *
+ * @returns {object} Delete button node.
+ */
+function createDeleteCompanyCategoryButtonTemplate() {
+    return createButtonTemplate({
+        action: "destructive",
+        click: "cancelCompanyCategoryCreation",
+        disabled: "companyCategoryState.loading",
+        label: "Delete",
+        show: "companyCategoryState.pending",
+    });
+}
+
+/**
+ * Creates the company-category save button.
+ *
+ * @returns {object} Save button node.
+ */
+function createSaveCompanyCategoryButtonTemplate() {
+    return createButtonTemplate({
+        action: "progressive",
+        click: "saveCompanyCategory",
+        disabled:
+            "companyCategoryState.loading || !companyCategoryState.text.trim()",
+        label: "{{ companyCategoryState.loading ? 'Saving' : 'Save' }}",
+        weight: "primary",
+    });
 }
 
 /**
@@ -5002,7 +5085,9 @@ function serializePreSaveProgressGroups(groups) {
  * @returns {string} Article title.
  */
 function getPreSaveRegistrationArticleTitle(actions) {
-    const selectedActions = actions.filter((action) => action?.selected !== false);
+    const selectedActions = actions.filter(
+        (action) => action?.selected !== false,
+    );
     const action =
         selectedActions.find((item) => item.type === "talk-banner") ||
         selectedActions.find((item) => item.type === "interwiki") ||
@@ -5138,7 +5223,10 @@ function createPreSaveRowTemplate() {
         [
             createPreSaveProgressRowTemplate(),
             createPreSaveCheckboxTemplate("action", "row.action.selected"),
-            createPreSaveCheckboxTemplate("registration", "form.registerNewPage"),
+            createPreSaveCheckboxTemplate(
+                "registration",
+                "form.registerNewPage",
+            ),
             createPreSaveCheckboxTemplate(
                 "bundled-action",
                 "row.action.selected",
@@ -5201,21 +5289,13 @@ function createPreSaveCheckboxTemplate(rowType, model) {
  */
 function createPreSaveErrorTemplates() {
     return [
-        createElement(
-            "p",
-            {
-                class: "create-vg-stub-error",
-                "v-if": "sourceFetchState.error",
-            },
-            [createText("{{ sourceFetchState.error }}")],
+        createMessageTemplate(
+            "sourceFetchState.error",
+            "{{ sourceFetchState.error }}",
         ),
-        createElement(
-            "p",
-            {
-                class: "create-vg-stub-error",
-                "v-if": "preSaveProgress && preSaveProgress.error",
-            },
-            [createText("{{ preSaveProgress.error }}")],
+        createMessageTemplate(
+            "preSaveProgress && preSaveProgress.error",
+            "{{ preSaveProgress.error }}",
         ),
     ];
 }
@@ -5231,40 +5311,49 @@ function createPreSaveFooterTemplate() {
         {
             "v-slot:footer": "",
         },
-        [
-            createActionFooterTemplate({
-                left: [
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "destructive",
-                            "v-bind:disabled": "sourceFetchState.loading",
-                            "v-on:click": "preSaveOpen = false",
-                            weight: "quiet",
-                        },
-                        [createText("Close")],
-                    ),
-                ],
-                right: [
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "progressive",
-                            "v-bind:disabled":
-                                "sourceFetchState.loading || preSaveProgress != null",
-                            "v-on:click": "confirmSubmit",
-                            weight: "primary",
-                        },
-                        [
-                            createText(
-                                "{{ sourceFetchState.loading ? 'Working' : 'Save' }}",
-                            ),
-                        ],
-                    ),
-                ],
-            }),
-        ],
+        [createActionFooterTemplate(createPreSaveFooterActions())],
     );
+}
+
+/**
+ * Creates pre-save footer actions.
+ *
+ * @returns {object} Footer action groups.
+ */
+function createPreSaveFooterActions() {
+    return {
+        left: [createPreSaveCloseButtonTemplate()],
+        right: [createPreSaveSubmitButtonTemplate()],
+    };
+}
+
+/**
+ * Creates the pre-save close button.
+ *
+ * @returns {object} Close button node.
+ */
+function createPreSaveCloseButtonTemplate() {
+    return createButtonTemplate({
+        click: "preSaveOpen = false",
+        disabled: "sourceFetchState.loading",
+        label: "Close",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the pre-save submit button.
+ *
+ * @returns {object} Submit button node.
+ */
+function createPreSaveSubmitButtonTemplate() {
+    return createButtonTemplate({
+        action: "progressive",
+        click: "confirmSubmit",
+        disabled: "sourceFetchState.loading || preSaveProgress != null",
+        label: "{{ sourceFetchState.loading ? 'Preparing' : 'Save' }}",
+        weight: "primary",
+    });
 }
 
 /**
@@ -5285,19 +5374,13 @@ function createDialogTemplateRoot() {
                 "div",
                 {
                     class: "create-vg-stub-dialog-body",
-                    "v-bind:class": "{ 'create-vg-stub-dialog-body--masked': previewLoading }",
+                    "v-bind:class": DIALOG_BODY_MASK_CLASS,
                 },
-                [
-                    createTabsTemplate(),
-                    createMainDialogMaskTemplate(),
-                ],
+                [createTabsTemplate(), createMainDialogMaskTemplate()],
             ),
-            createElement(
-                "p",
-                {
-                    "v-if": "sourceFetchState.error",
-                },
-                [createText("{{ sourceFetchState.error }}")],
+            createMessageTemplate(
+                "sourceFetchState.error",
+                "{{ sourceFetchState.error }}",
             ),
             createMainDialogFooterTemplate(),
         ],
@@ -5322,21 +5405,30 @@ function createMainDialogMaskTemplate() {
                 {
                     class: "create-vg-stub-dialog-mask-panel",
                 },
-                [
-                    createElement("cdx-progress-bar", {
-                        "aria-label": "Preparing preview",
-                    }),
-                    createElement(
-                        "p",
-                        {
-                            class: "create-vg-stub-dialog-mask-text",
-                        },
-                        [createText("{{ previewLoadingMessage }}")],
-                    ),
-                ],
+                createMainDialogMaskPanelContentTemplate(),
             ),
         ],
     );
+}
+
+/**
+ * Creates main dialog loading-mask panel content.
+ *
+ * @returns {Array<object>} Loading-mask content nodes.
+ */
+function createMainDialogMaskPanelContentTemplate() {
+    return [
+        createElement("cdx-progress-bar", {
+            "aria-label": "Preparing preview",
+        }),
+        createElement(
+            "p",
+            {
+                class: "create-vg-stub-dialog-mask-text",
+            },
+            [createText("{{ previewLoadingMessage }}")],
+        ),
+    ];
 }
 
 /**
@@ -5350,49 +5442,71 @@ function createMainDialogFooterTemplate() {
         {
             "v-slot:footer": "",
         },
-        [
-            createActionFooterTemplate({
-                left: [
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "destructive",
-                            "v-on:click": "closeDialog",
-                            weight: "quiet",
-                        },
-                        [createText("Close")],
-                    ),
-                ],
-                right: [
-                    createElement(
-                        "cdx-menu-button",
-                        {
-                            "v-bind:disabled": "sourceFetchState.loading",
-                            "v-bind:menu-items": "mainActionMenuItems",
-                            "v-model:selected": "mainActionMenuSelection",
-                            "v-on:update:selected": "handleMainActionSelect",
-                        },
-                        [createText("More")],
-                    ),
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "progressive",
-                            "v-bind:disabled":
-                                "sourceFetchState.loading || previewLoading",
-                            "v-on:click": "submitForm",
-                            weight: "primary",
-                        },
-                        [
-                            createText(
-                                "{{ previewLoading ? 'Preparing preview' : sourceFetchState.loading ? 'Fetching' : 'Submit' }}",
-                            ),
-                        ],
-                    ),
-                ],
-            }),
-        ],
+        [createActionFooterTemplate(createMainDialogFooterActions())],
     );
+}
+
+/**
+ * Creates main dialog footer actions.
+ *
+ * @returns {object} Footer action groups.
+ */
+function createMainDialogFooterActions() {
+    return {
+        left: [createMainCloseButtonTemplate()],
+        right: [
+            createMainActionMenuTemplate(),
+            createMainSubmitButtonTemplate(),
+        ],
+    };
+}
+
+/**
+ * Creates the main dialog close button.
+ *
+ * @returns {object} Close button node.
+ */
+function createMainCloseButtonTemplate() {
+    return createButtonTemplate({
+        click: "closeDialog",
+        label: "Close",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the main dialog action menu.
+ *
+ * @returns {object} Action menu node.
+ */
+function createMainActionMenuTemplate() {
+    return createElement(
+        "cdx-menu-button",
+        {
+            "v-bind:disabled": "sourceFetchState.loading",
+            "v-bind:menu-items": "mainActionMenuItems",
+            "v-model:selected": "mainActionMenuSelection",
+            "v-on:update:selected": "handleMainActionSelect",
+        },
+        [createText("More")],
+    );
+}
+
+/**
+ * Creates the main dialog submit button.
+ *
+ * @returns {object} Submit button node.
+ */
+function createMainSubmitButtonTemplate() {
+    return createButtonTemplate({
+        action: "progressive",
+        click: "submitForm",
+        disabled: "sourceFetchState.loading || previewLoading",
+        label:
+            "{{ previewLoading ? 'Preparing preview' : " +
+            "sourceFetchState.loading ? 'Loading' : 'Review' }}",
+        weight: "primary",
+    });
 }
 
 /**
@@ -5432,12 +5546,12 @@ function createHistoryJsonDialogTemplate() {
         "cdx-dialog",
         {
             "v-model:open": "historyJsonOpen",
-            title: "History JSON",
+            title: "History data",
         },
         [
             createElement("p", {}, [
                 createText(
-                    "Copy exported JSON, or paste history JSON and load the form values.",
+                    "Copy exported history data, or paste history data to load this form.",
                 ),
             ]),
             createHistoryProgressBarTemplate(),
@@ -5448,56 +5562,69 @@ function createHistoryJsonDialogTemplate() {
                 rows: "12",
                 spellcheck: "false",
             }),
-            createElement(
-                "p",
-                {
-                    "v-if": "historyJsonError",
-                    style: {
-                        color: "var(--color-error, #b32424)",
-                    },
-                },
-                [createText("{{ historyJsonError }}")],
+            createMessageTemplate(
+                "historyJsonError",
+                "{{ historyJsonError }}",
             ),
-            createElement(
-                "template",
-                {
-                    "v-slot:footer": "",
-                },
-                [
-                    createActionFooterTemplate({
-                        left: [
-                            createElement(
-                                "cdx-button",
-                                {
-                            action: "destructive",
-                            "v-bind:disabled": "historyLoading",
-                            "v-on:click": "closeHistoryJsonDialog",
-                            weight: "quiet",
-                        },
-                        [createText("Close")],
-                    ),
-                ],
-                        right: [
-                            createElement(
-                                "cdx-button",
-                                {
-                                    action: "progressive",
-                                    "v-bind:disabled": "historyLoading",
-                                    weight: "primary",
-                                    "v-on:click": "importHistoryJson",
-                                },
-                                [
-                                    createText(
-                                        "{{ historyLoading ? 'Loading' : 'Load' }}",
-                                    ),
-                                ],
-                            ),
-                        ],
-                    }),
-                ],
-            ),
+            createHistoryJsonDialogFooterTemplate(),
         ],
     );
+}
+
+/**
+ * Creates the history JSON dialog footer.
+ *
+ * @returns {object} Dialog footer node.
+ */
+function createHistoryJsonDialogFooterTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-slot:footer": "",
+        },
+        [createActionFooterTemplate(createHistoryJsonFooterActions())],
+    );
+}
+
+/**
+ * Creates history JSON footer actions.
+ *
+ * @returns {object} Footer action groups.
+ */
+function createHistoryJsonFooterActions() {
+    return {
+        left: [createHistoryJsonCloseButtonTemplate()],
+        right: [createHistoryJsonLoadButtonTemplate()],
+    };
+}
+
+/**
+ * Creates the history JSON close button.
+ *
+ * @returns {object} Close button node.
+ */
+function createHistoryJsonCloseButtonTemplate() {
+    return createButtonTemplate({
+        click: "closeHistoryJsonDialog",
+        disabled: "historyLoading",
+        label: "Close",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the history JSON load button.
+ *
+ * @returns {object} Load button node.
+ */
+function createHistoryJsonLoadButtonTemplate() {
+    return createButtonTemplate({
+        action: "progressive",
+        click: "importHistoryJson",
+        disabled: "historyLoading",
+        label: "{{ historyLoading ? 'Loading' : 'Load' }}",
+        weight: "primary",
+    });
 }
 
 /**
@@ -5552,60 +5679,100 @@ function createHistoryEntryTemplate() {
             },
         },
         [
-            createElement("div", {}, [
-                createElement("div", {}, [
-                    createText(
-                        "{{ index + 1 }}. {{ formatHistoryEntryPage(entry) }}",
-                    ),
-                ]),
-                createElement(
-                    "div",
-                    {
-                        style: {
-                            color: "var(--color-subtle, #54595d)",
-                            fontSize: "0.75em",
-                        },
-                    },
-                    [createText("{{ entry.metadata.savedAt }}")],
-                ),
-            ]),
-            createElement(
-                "cdx-button",
-                {
-                    "v-bind:disabled": "historyLoading",
-                    "v-on:click": "fillHistoryEntry(entry)",
-                },
-                [createText("{{ historyLoading ? 'Loading' : 'Load' }}")],
-            ),
-            createElement(
-                "cdx-button",
-                {
-                    "v-bind:disabled": "historyLoading",
-                    "v-on:click": "openHistoryJsonDialog(entry)",
-                },
-                [createText("Export")],
-            ),
-            createElement(
-                "cdx-button",
-                {
-                    action: "destructive",
-                    "v-bind:disabled": "historyLoading",
-                    "v-if": "!entry.metadata.temporary",
-                    "v-on:click": "deleteHistoryEntry(entry.id)",
-                },
-                [createText("Delete")],
-            ),
-            createElement(
-                "cdx-button",
-                {
-                    "v-bind:disabled": "historyLoading",
-                    "v-if": "entry.metadata.temporary",
-                    "v-on:click": "updateTemporaryHistoryEntry",
-                },
-                [createText("Update")],
-            ),
+            createHistoryEntryTextTemplate(),
+            createHistoryEntryLoadButtonTemplate(),
+            createHistoryEntryExportButtonTemplate(),
+            createHistoryEntryDeleteButtonTemplate(),
+            createHistoryEntryUpdateButtonTemplate(),
         ],
     );
+}
+
+/**
+ * Creates the history entry text block.
+ *
+ * @returns {object} History entry text block node.
+ */
+function createHistoryEntryTextTemplate() {
+    return createElement("div", {}, [
+        createElement("div", {}, [
+            createText("{{ index + 1 }}. {{ formatHistoryEntryPage(entry) }}"),
+        ]),
+        createHistoryEntrySavedAtTemplate(),
+    ]);
+}
+
+/**
+ * Creates the history entry saved-at text.
+ *
+ * @returns {object} Saved-at text node.
+ */
+function createHistoryEntrySavedAtTemplate() {
+    return createElement(
+        "div",
+        {
+            style: {
+                color: "var(--color-subtle, #54595d)",
+                fontSize: "0.75em",
+            },
+        },
+        [createText("{{ entry.metadata.savedAt }}")],
+    );
+}
+
+/**
+ * Creates the history entry load button.
+ *
+ * @returns {object} Load button node.
+ */
+function createHistoryEntryLoadButtonTemplate() {
+    return createButtonTemplate({
+        click: "fillHistoryEntry(entry)",
+        disabled: "historyLoading",
+        label: "{{ historyLoading ? 'Loading' : 'Load' }}",
+    });
+}
+
+/**
+ * Creates the history entry export button.
+ *
+ * @returns {object} Export button node.
+ */
+function createHistoryEntryExportButtonTemplate() {
+    return createButtonTemplate({
+        click: "openHistoryJsonDialog(entry)",
+        disabled: "historyLoading",
+        label: "Export",
+    });
+}
+
+/**
+ * Creates the history entry delete button.
+ *
+ * @returns {object} Delete button node.
+ */
+function createHistoryEntryDeleteButtonTemplate() {
+    return createButtonTemplate({
+        action: "destructive",
+        click: "deleteHistoryEntry(entry.id)",
+        disabled: "historyLoading",
+        label: "Delete",
+        show: "!entry.metadata.temporary",
+    });
+}
+
+/**
+ * Creates the temporary history update button.
+ *
+ * @returns {object} Update button node.
+ */
+function createHistoryEntryUpdateButtonTemplate() {
+    return createButtonTemplate({
+        click: "updateTemporaryHistoryEntry",
+        disabled: "historyLoading",
+        label: "Update",
+        show: "entry.metadata.temporary",
+    });
 }
 
 /**
@@ -5619,44 +5786,67 @@ function createHistoryDialogFooterTemplate() {
         {
             "v-slot:footer": "",
         },
-        [
-            createActionFooterTemplate({
-                left: [
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "destructive",
-                            "v-bind:disabled": "historyLoading",
-                            "v-on:click": "closeHistoryDialog",
-                            weight: "quiet",
-                        },
-                        [createText("Close")],
-                    ),
-                ],
-                right: [
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "destructive",
-                            "v-bind:disabled":
-                                "historyLoading || !historyEntries.some((entry) => !entry.metadata.temporary)",
-                            "v-on:click": "clearHistory",
-                        },
-                        [createText("Clear")],
-                    ),
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "progressive",
-                            "v-bind:disabled": "historyLoading",
-                            "v-on:click": "openHistoryImportDialog",
-                        },
-                        [createText("Import")],
-                    ),
-                ],
-            }),
-        ],
+        [createActionFooterTemplate(createHistoryFooterActions())],
     );
+}
+
+/**
+ * Creates history dialog footer actions.
+ *
+ * @returns {object} Footer action groups.
+ */
+function createHistoryFooterActions() {
+    return {
+        left: [createHistoryCloseButtonTemplate()],
+        right: [
+            createHistoryClearButtonTemplate(),
+            createHistoryImportButtonTemplate(),
+        ],
+    };
+}
+
+/**
+ * Creates the history close button.
+ *
+ * @returns {object} Close button node.
+ */
+function createHistoryCloseButtonTemplate() {
+    return createButtonTemplate({
+        click: "closeHistoryDialog",
+        disabled: "historyLoading",
+        label: "Close",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the history clear button.
+ *
+ * @returns {object} Clear button node.
+ */
+function createHistoryClearButtonTemplate() {
+    return createButtonTemplate({
+        action: "destructive",
+        click: "clearHistory",
+        disabled:
+            "historyLoading || " +
+            "!historyEntries.some((entry) => !entry.metadata.temporary)",
+        label: "Clear",
+    });
+}
+
+/**
+ * Creates the history import button.
+ *
+ * @returns {object} Import button node.
+ */
+function createHistoryImportButtonTemplate() {
+    return createButtonTemplate({
+        action: "progressive",
+        click: "openHistoryImportDialog",
+        disabled: "historyLoading",
+        label: "Import",
+    });
 }
 
 /**
@@ -5672,21 +5862,29 @@ function createMoveDialogTemplate() {
             title: "Move stub text",
         },
         [
-            createElement("cdx-text-input", {
-                placeholder: "Target page title",
-                "v-bind:model-value": "moveTarget",
-                "v-on:update:model-value": "updateMoveTarget($event)",
-            }),
-            createElement(
-                "p",
-                {
-                    "v-if": "sourceFetchState.error",
-                },
-                [createText("{{ sourceFetchState.error }}")],
+            createMoveTargetFieldTemplate(),
+            createMessageTemplate(
+                "sourceFetchState.error",
+                "{{ sourceFetchState.error }}",
             ),
             createMoveDialogFooterTemplate(),
         ],
     );
+}
+
+/**
+ * Creates the move target field.
+ *
+ * @returns {object} Move target field node.
+ */
+function createMoveTargetFieldTemplate() {
+    return createFieldTemplate("Target page title", [
+        createElement("cdx-text-input", {
+            placeholder: "Target page title",
+            "v-bind:model-value": "moveTarget",
+            "v-on:update:model-value": "updateMoveTarget($event)",
+        }),
+    ]);
 }
 
 /**
@@ -5700,38 +5898,48 @@ function createMoveDialogFooterTemplate() {
         {
             "v-slot:footer": "",
         },
-        [
-            createActionFooterTemplate({
-                left: [
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "destructive",
-                            "v-on:click": "closeMoveDialog",
-                            weight: "quiet",
-                        },
-                        [createText("Close")],
-                    ),
-                ],
-                right: [
-                    createElement(
-                        "cdx-button",
-                        {
-                            action: "progressive",
-                            "v-bind:disabled": "sourceFetchState.loading",
-                            "v-on:click": "submitMoveTarget",
-                            weight: "primary",
-                        },
-                        [
-                            createText(
-                                "{{ sourceFetchState.loading ? 'Fetching' : 'Open target page' }}",
-                            ),
-                        ],
-                    ),
-                ],
-            }),
-        ],
+        [createActionFooterTemplate(createMoveFooterActions())],
     );
+}
+
+/**
+ * Creates move dialog footer actions.
+ *
+ * @returns {object} Footer action groups.
+ */
+function createMoveFooterActions() {
+    return {
+        left: [createMoveCloseButtonTemplate()],
+        right: [createMoveSubmitButtonTemplate()],
+    };
+}
+
+/**
+ * Creates the move close button.
+ *
+ * @returns {object} Close button node.
+ */
+function createMoveCloseButtonTemplate() {
+    return createButtonTemplate({
+        click: "closeMoveDialog",
+        label: "Close",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the move submit button.
+ *
+ * @returns {object} Submit button node.
+ */
+function createMoveSubmitButtonTemplate() {
+    return createButtonTemplate({
+        action: "progressive",
+        click: "submitMoveTarget",
+        disabled: "sourceFetchState.loading",
+        label: "{{ sourceFetchState.loading ? 'Opening' : 'Open target page' }}",
+        weight: "primary",
+    });
 }
 
 /**

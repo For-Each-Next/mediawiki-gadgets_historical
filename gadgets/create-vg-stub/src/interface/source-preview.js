@@ -2,8 +2,10 @@
 
 import {
     createActionFooterTemplate,
+    createButtonTemplate,
     createElement,
-    createText,
+    createFieldTemplate,
+    createMessageTemplate,
 } from "./template.js";
 
 /**
@@ -34,31 +36,60 @@ export function createPreviewDialogTemplate() {
                 "sourceFetchState.error",
                 "{{ sourceFetchState.error }}",
             ),
-            createFooterSlot({
-                left: [
-                    createButton({
-                        action: "destructive",
-                        click: "closePreviewDialog",
-                        label: "Dismiss",
-                        weight: "quiet",
-                    }),
-                ],
-                right: [
-                    createRefreshButton({
-                        click: "refreshParsedPreview",
-                        disabled: "sourceFetchState.loading",
-                        label: "{{ sourceFetchState.loading ? 'Working' : 'Update preview' }}",
-                    }),
-                    createPrimaryButton({
-                        click: "submitPreviewText",
-                        disabled:
-                            "sourceFetchState.loading || !previewText.trim()",
-                        label: "Continue",
-                    }),
-                ],
-            }),
+            createFooterSlot(createPreviewFooterActions()),
         ],
     );
+}
+
+/**
+ * Creates generated article preview footer actions.
+ *
+ * @returns {object} Footer action groups.
+ */
+function createPreviewFooterActions() {
+    return {
+        left: [createPreviewDismissButton()],
+        right: [createPreviewRefreshButton(), createPreviewContinueButton()],
+    };
+}
+
+/**
+ * Creates the preview dismiss button.
+ *
+ * @returns {object} Dismiss button node.
+ */
+function createPreviewDismissButton() {
+    return createButtonTemplate({
+        click: "closePreviewDialog",
+        label: "Dismiss",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the generated article preview refresh button.
+ *
+ * @returns {object} Refresh button node.
+ */
+function createPreviewRefreshButton() {
+    return createRefreshButton({
+        click: "refreshParsedPreview",
+        disabled: "sourceFetchState.loading",
+        label: "{{ sourceFetchState.loading ? 'Updating' : 'Update preview' }}",
+    });
+}
+
+/**
+ * Creates the generated article preview continue button.
+ *
+ * @returns {object} Continue button node.
+ */
+function createPreviewContinueButton() {
+    return createPrimaryButton({
+        click: "submitPreviewText",
+        disabled: "sourceFetchState.loading || !previewText.trim()",
+        label: "Continue",
+    });
 }
 
 /**
@@ -70,30 +101,19 @@ export function createPreviewDialogTemplate() {
  * @returns {object} Edit-summary field node.
  */
 function createEditSummaryInput(options) {
-    return createElement(
-        "label",
-        {
-            style: {
-                display: "block",
-                marginTop: "1em",
-            },
-        },
+    return createFieldTemplate(
+        "Edit summary",
         [
-            createElement(
-                "span",
-                {
-                    style: {
-                        display: "block",
-                        marginBottom: "0.25em",
-                    },
-                },
-                [createText("Edit summary")],
-            ),
             createElement("cdx-text-input", {
                 "v-bind:disabled": options.disabled || "false",
                 "v-model": options.model,
             }),
         ],
+        {
+            attributes: {
+                class: "create-vg-stub-preview-summary",
+            },
+        },
     );
 }
 
@@ -124,38 +144,79 @@ export function createPageEditDialogTemplate() {
                 "pageEditState.error",
                 "{{ pageEditState.error }}",
             ),
-            createFooterSlot({
-                left: [
-                    createButton({
-                        action: "destructive",
-                        click: "closePageEditDialog",
-                        label: "Cancel",
-                        weight: "quiet",
-                    }),
-                ],
-                right: [
-                    createRefreshButton({
-                        click: "refreshPageEditPreview",
-                        disabled: "pageEditState.loading",
-                        label: "{{ pageEditState.loading ? 'Working' : 'Update preview' }}",
-                    }),
-                    createButton({
-                        action: "destructive",
-                        click: "resetPageEdit",
-                        disabled: "pageEditState.loading",
-                        label: "Reset",
-                        show: "pageEditState.pending",
-                    }),
-                    createPrimaryButton({
-                        click: "stagePageEdit",
-                        disabled:
-                            "pageEditState.loading || !pageEditState.text.trim()",
-                        label: "Stage",
-                    }),
-                ],
-            }),
+            createFooterSlot(createPageEditFooterActions()),
         ],
     );
+}
+
+/**
+ * Creates staged page edit footer actions.
+ *
+ * @returns {object} Footer action groups.
+ */
+function createPageEditFooterActions() {
+    return {
+        left: [createPageEditCancelButton()],
+        right: [
+            createPageEditRefreshButton(),
+            createPageEditResetButton(),
+            createPageEditStageButton(),
+        ],
+    };
+}
+
+/**
+ * Creates the staged page edit cancel button.
+ *
+ * @returns {object} Cancel button node.
+ */
+function createPageEditCancelButton() {
+    return createButtonTemplate({
+        click: "closePageEditDialog",
+        label: "Cancel",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the staged page edit preview-refresh button.
+ *
+ * @returns {object} Refresh button node.
+ */
+function createPageEditRefreshButton() {
+    return createRefreshButton({
+        click: "refreshPageEditPreview",
+        disabled: "pageEditState.loading",
+        label: "{{ pageEditState.loading ? 'Updating' : 'Update preview' }}",
+    });
+}
+
+/**
+ * Creates the staged page edit reset button.
+ *
+ * @returns {object} Reset button node.
+ */
+function createPageEditResetButton() {
+    return createButtonTemplate({
+        action: "destructive",
+        click: "resetPageEdit",
+        disabled: "pageEditState.loading",
+        label: "Reset",
+        show: "pageEditState.pending",
+    });
+}
+
+/**
+ * Creates the staged page edit stage button.
+ *
+ * @returns {object} Stage button node.
+ */
+function createPageEditStageButton() {
+    return createPrimaryButton({
+        click: "stagePageEdit",
+        disabled: "pageEditState.loading || !pageEditState.text.trim()",
+        label: "Stage",
+    });
 }
 
 /**
@@ -215,39 +276,24 @@ function createSourceTextArea(options) {
  * @returns {object} English page field node.
  */
 function createEnglishPageField() {
-    return createElement(
-        "label",
-        {
-            "v-if":
-                "pageEditState.create && " +
-                "(pageEditState.kind === 'category' || pageEditState.kind === 'navbox')",
-            style: {
-                display: "block",
-                marginBottom: "0.75em",
-            },
-        },
+    return createFieldTemplate(
+        "{{ pageEditState.kind === 'navbox' ? 'English Wikipedia template' : 'English Wikipedia category' }}",
         [
-            createElement(
-                "span",
-                {
-                    style: {
-                        display: "block",
-                        marginBottom: "0.25em",
-                    },
-                },
-                [
-                    createText(
-                        "{{ pageEditState.kind === 'navbox' ? 'English Wikipedia template' : 'English Wikipedia category' }}",
-                    ),
-                ],
-            ),
             createElement("cdx-text-input", {
+                "v-bind:disabled": "pageEditState.loading",
                 "v-bind:placeholder":
                     "pageEditState.kind === 'navbox' ? 'e.g. Template:Final Fantasy series' : 'e.g. Action games'",
-                "v-bind:disabled": "pageEditState.loading",
                 "v-model": "pageEditState.englishName",
             }),
         ],
+        {
+            attributes: {
+                "v-if":
+                    "pageEditState.create && " +
+                    "(pageEditState.kind === 'category' || pageEditState.kind === 'navbox')",
+            },
+            bindLabel: false,
+        },
     );
 }
 
@@ -259,14 +305,7 @@ function createEnglishPageField() {
  * @returns {object} Error paragraph node.
  */
 function createErrorParagraph(condition, message) {
-    return createElement(
-        "p",
-        {
-            class: "create-vg-stub-error",
-            "v-if": condition,
-        },
-        [createText(message)],
-    );
+    return createMessageTemplate(condition, message);
 }
 
 /**
@@ -292,7 +331,7 @@ function createFooterSlot(actions) {
  * @returns {object} Button node.
  */
 function createRefreshButton(options) {
-    return createButton(options);
+    return createButtonTemplate(options);
 }
 
 /**
@@ -302,47 +341,9 @@ function createRefreshButton(options) {
  * @returns {object} Button node.
  */
 function createPrimaryButton(options) {
-    return createButton({
+    return createButtonTemplate({
         ...options,
         action: "progressive",
         weight: "primary",
     });
-}
-
-/**
- * Creates a Codex button.
- *
- * @param {object} options - Button options.
- * @param {string} [options.action] - Codex action.
- * @param {string} options.click - Click handler expression.
- * @param {string} [options.disabled] - Disabled binding expression.
- * @param {string} options.label - Button label or interpolation.
- * @param {string} [options.show] - Visibility binding expression.
- * @param {string} [options.weight] - Codex weight.
- * @returns {object} Button node.
- */
-function createButton(options) {
-    const attributes = {
-        "v-on:click": options.click,
-    };
-
-    if (options.action) {
-        attributes.action = options.action;
-    }
-
-    if (options.disabled) {
-        attributes["v-bind:disabled"] = options.disabled;
-    }
-
-    if (options.show) {
-        attributes["v-if"] = options.show;
-    }
-
-    if (options.weight) {
-        attributes.weight = options.weight;
-    }
-
-    return createElement("cdx-button", attributes, [
-        createText(options.label),
-    ]);
 }

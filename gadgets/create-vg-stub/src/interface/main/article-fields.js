@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import {
+    createButtonTemplate,
     createElement,
     createFieldTemplate,
     createPreviewCardTemplate,
@@ -166,16 +167,7 @@ function createGroupedFieldsetTemplate() {
                 {
                     class: "create-vg-stub-fieldset-fields",
                 },
-                [
-                    createElement(
-                        "template",
-                        {
-                            "v-bind:key": "field.key",
-                            "v-for": "field in group.fields",
-                        },
-                        [createGroupedFieldTemplate()],
-                    ),
-                ],
+                [createGroupedFieldListTemplate()],
             ),
             createElement(
                 "template",
@@ -185,6 +177,22 @@ function createGroupedFieldsetTemplate() {
                 [createText("{{ group.fieldsetLabel }}")],
             ),
         ],
+    );
+}
+
+/**
+ * Creates the grouped field loop template.
+ *
+ * @returns {object} Grouped field loop node.
+ */
+function createGroupedFieldListTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-bind:key": "field.key",
+            "v-for": "field in group.fields",
+        },
+        [createGroupedFieldTemplate()],
     );
 }
 
@@ -305,54 +313,94 @@ function createFieldControlsTemplate(options = {}) {
                 "}",
         },
         [
-            createElement(
-                "template",
-                {
-                    "v-if": "field.multiline",
-                },
-                [
-                    createArticleFieldValueInputTemplate({
-                        multiline: true,
-                        placeholder,
-                    }),
-                ],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-else": "",
-                },
-                [
-                    createArticleFieldValueInputTemplate({
-                        placeholder,
-                    }),
-                    createElement(
-                        "cdx-button",
-                        {
-                            "v-if": "field.key === 'name'",
-                            "v-bind:disabled": "sourceFetchState.loading",
-                            "v-on:click": "openMoveDialog",
-                        },
-                        [createText("Move")],
-                    ),
-                ],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-if": "field.sourceField",
-                },
-                [
-                    createSourceUrlInputTemplate({
-                        placeholder: "Source URLs",
-                        model: "form[field.sourceField.sourceKey]",
-                        change: "trimSourceValue(field.sourceField)",
-                        update: "updateSourceValue(field.sourceField, $event)",
-                    }),
-                ],
-            ),
+            createMultilineFieldBranchTemplate(placeholder),
+            createSingleLineFieldBranchTemplate(placeholder),
+            createSourceUrlFieldBranchTemplate(),
         ],
     );
+}
+
+/**
+ * Creates the multiline article field branch.
+ *
+ * @param {string} placeholder - Placeholder Vue expression.
+ * @returns {object} Multiline branch node.
+ */
+function createMultilineFieldBranchTemplate(placeholder) {
+    return createElement(
+        "template",
+        {
+            "v-if": "field.multiline",
+        },
+        [
+            createArticleFieldValueInputTemplate({
+                multiline: true,
+                placeholder,
+            }),
+        ],
+    );
+}
+
+/**
+ * Creates the single-line article field branch.
+ *
+ * @param {string} placeholder - Placeholder Vue expression.
+ * @returns {object} Single-line branch node.
+ */
+function createSingleLineFieldBranchTemplate(placeholder) {
+    return createElement(
+        "template",
+        {
+            "v-else": "",
+        },
+        [
+            createArticleFieldValueInputTemplate({ placeholder }),
+            createMoveTextButtonTemplate(),
+        ],
+    );
+}
+
+/**
+ * Creates the optional source URL field branch.
+ *
+ * @returns {object} Source branch node.
+ */
+function createSourceUrlFieldBranchTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-if": "field.sourceField",
+        },
+        [createSourceUrlInputTemplate(createSourceUrlFieldOptions())],
+    );
+}
+
+/**
+ * Creates source URL field options.
+ *
+ * @returns {object} Source URL field options.
+ */
+function createSourceUrlFieldOptions() {
+    return {
+        change: "trimSourceValue(field.sourceField)",
+        model: "form[field.sourceField.sourceKey]",
+        placeholder: "Source URLs",
+        update: "updateSourceValue(field.sourceField, $event)",
+    };
+}
+
+/**
+ * Creates the move-text button.
+ *
+ * @returns {object} Move-text button node.
+ */
+function createMoveTextButtonTemplate() {
+    return createButtonTemplate({
+        click: "openMoveDialog",
+        disabled: "sourceFetchState.loading",
+        label: "Move text",
+        show: "field.key === 'name'",
+    });
 }
 
 /**
@@ -403,46 +451,7 @@ function createEnwikiHelpTextTemplate() {
             {
                 "v-if": "getEnwikiTipLinks().length",
             },
-            [
-                createElement(
-                    "span",
-                    {
-                        class:
-                            "create-vg-stub-enwiki-help " +
-                            "create-vg-stub-horizontal-list",
-                    },
-                    [
-                        createElement(
-                            "span",
-                            {
-                                class: "create-vg-stub-horizontal-list-item",
-                                "v-bind:key": "link.label",
-                                "v-for": "link in getEnwikiTipLinks()",
-                            },
-                            [
-                                createText("{{ link.label }} "),
-                                createElement(
-                                    "a",
-                                    {
-                                        "v-if": "link.url",
-                                        "v-bind:href": "link.url",
-                                        rel: "noopener noreferrer",
-                                        target: "_blank",
-                                    },
-                                    [createText("{{ link.value }}")],
-                                ),
-                                createElement(
-                                    "span",
-                                    {
-                                        "v-else": "",
-                                    },
-                                    [createText("{{ link.value }}")],
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-            ],
+            [createEnwikiTipListTemplate()],
         ),
         createElement(
             "template",
@@ -452,4 +461,75 @@ function createEnwikiHelpTextTemplate() {
             [createText("Wikidata: {{ getWikidataText() }}")],
         ),
     ];
+}
+
+/**
+ * Creates the English Wikipedia helper link list.
+ *
+ * @returns {object} Helper link list node.
+ */
+function createEnwikiTipListTemplate() {
+    return createElement(
+        "span",
+        {
+            class:
+                "create-vg-stub-enwiki-help " +
+                "create-vg-stub-horizontal-list",
+        },
+        [createEnwikiTipItemTemplate()],
+    );
+}
+
+/**
+ * Creates one English Wikipedia helper item.
+ *
+ * @returns {object} Helper item node.
+ */
+function createEnwikiTipItemTemplate() {
+    return createElement(
+        "span",
+        {
+            class: "create-vg-stub-horizontal-list-item",
+            "v-bind:key": "link.label",
+            "v-for": "link in getEnwikiTipLinks()",
+        },
+        [
+            createText("{{ link.label }} "),
+            createEnwikiTipLinkTemplate(),
+            createEnwikiTipTextTemplate(),
+        ],
+    );
+}
+
+/**
+ * Creates one linked English Wikipedia helper value.
+ *
+ * @returns {object} Helper link node.
+ */
+function createEnwikiTipLinkTemplate() {
+    return createElement(
+        "a",
+        {
+            "v-if": "link.url",
+            "v-bind:href": "link.url",
+            rel: "noopener noreferrer",
+            target: "_blank",
+        },
+        [createText("{{ link.value }}")],
+    );
+}
+
+/**
+ * Creates one plain English Wikipedia helper value.
+ *
+ * @returns {object} Helper text node.
+ */
+function createEnwikiTipTextTemplate() {
+    return createElement(
+        "span",
+        {
+            "v-else": "",
+        },
+        [createText("{{ link.value }}")],
+    );
 }

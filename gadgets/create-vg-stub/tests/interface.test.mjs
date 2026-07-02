@@ -284,7 +284,7 @@ test("old-shape history JSON is rejected", async () => {
     assert.equal(historyJsonOpen.value, true);
     assert.equal(
         historyJsonError.value,
-        "JSON must contain structured history data.",
+        "Paste history data exported by this tool.",
     );
     assert.equal(JSON.parse(historyJsonText.value).form.name, "Stored name");
 });
@@ -600,8 +600,8 @@ test("References tab manages editable citation parameters", async () => {
     );
     assert.equal(activeCitationTab.value, "citation-1");
     assert.equal(component.template.includes("<strong>Reference"), false);
-    assert.equal(component.template.includes("Clean"), true);
-    assert.equal(component.template.includes("Add param"), true);
+    assert.equal(component.template.includes("Remove empty rows"), true);
+    assert.equal(component.template.includes("Add parameter"), true);
 });
 
 test("additional prose uses a textarea and source URL field", () => {
@@ -949,7 +949,10 @@ test("NoteTA tab lists generated title conversion and sorts rows", () => {
     );
     assert.equal(component.template.includes('aria-label="Sort"'), true);
     assert.equal(component.template.includes('aria-label="Reset"'), true);
-    assert.equal(component.template.includes('aria-label="Clean"'), true);
+    assert.equal(
+        component.template.includes('aria-label="Remove empty rows"'),
+        true,
+    );
     assert.equal(component.template.includes('aria-label="Add"'), true);
     assert.equal(component.template.includes('caption="NoteTA items"'), true);
     assert.equal(
@@ -1215,7 +1218,9 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         true,
     );
     assert.equal(
-        component.template.includes('<section><cdx-table caption="Categories"'),
+        component.template.includes(
+            '<section><cdx-table caption="Categories"',
+        ),
         true,
     );
     assert.equal(
@@ -1277,14 +1282,11 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes("Redirects"), true);
     assert.equal(component.template.includes('aria-label="Refresh"'), true);
     assert.equal(
-        component.template.includes('v-on:click.prevent="rebuildNavboxRows"'),
+        component.template.includes('v-on:click="rebuildNavboxRows"'),
         true,
     );
     assert.equal(component.template.includes("Navboxes"), true);
-    assert.equal(
-        component.template.includes('v-model="row.enabled"'),
-        true,
-    );
+    assert.equal(component.template.includes('v-model="row.enabled"'), true);
     assert.equal(
         component.template.includes('v-slot:item-title="{ row }"'),
         true,
@@ -1317,10 +1319,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         component.template.includes("create-vg-stub-category-actions"),
         false,
     );
-    assert.equal(
-        component.template.includes('v-model="row.enabled"'),
-        true,
-    );
+    assert.equal(component.template.includes('v-model="row.enabled"'), true);
     assert.equal(component.template.includes('v-model="row.enabled"'), true);
     assert.equal(
         component.template.includes('v-model="row.stubTagEnabled"'),
@@ -1364,7 +1363,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     );
     assert.equal(
         component.template.includes(
-            'v-on:click.prevent="removeStubTagRow(stubTagRows.indexOf(row))"',
+            'v-on:click="removeStubTagRow(stubTagRows.indexOf(row))"',
         ),
         true,
     );
@@ -1422,9 +1421,7 @@ test("original title lookup is separate from the Steam helper", () => {
         true,
     );
     assert.equal(
-        component.template.includes(
-            '<ul class="create-vg-stub-name-search"',
-        ),
+        component.template.includes('<ul class="create-vg-stub-name-search"'),
         true,
     );
     assert.equal(
@@ -1938,7 +1935,9 @@ test("category helper stages missing category rows for final submission", async 
     );
     assert.equal(component.template.includes("openCategoryView"), false);
     assert.equal(
-        component.template.includes("getReviewPageActionLabel(row, row.status === 'OK')"),
+        component.template.includes(
+            "getReviewPageActionLabel(row, row.status === 'OK')",
+        ),
         true,
     );
     assert.equal(
@@ -2051,7 +2050,7 @@ test("pending category button reopens review and can cancel creation", async () 
     assert.equal(component.template.includes(">Delete</cdx-button>"), true);
     assert.equal(
         component.template.includes(
-            "{{ companyCategoryState.loading ? 'Working' : 'Save' }}",
+            "{{ companyCategoryState.loading ? 'Saving' : 'Save' }}",
         ),
         true,
     );
@@ -2220,8 +2219,7 @@ test("Steam helper stages official localized name choices", async () => {
         form,
         getSteamNameSuggestions,
         steamNameButtons,
-    } =
-        component.setup();
+    } = component.setup();
 
     component.methods.updateSteamUrl(
         " https://store.steampowered.com/app/123/example/ ",
@@ -2645,10 +2643,7 @@ test("field preview helper receives live form and preview key", () => {
         component.template.includes('v-for="link in getEnwikiTipLinks()"'),
         true,
     );
-    assert.equal(
-        component.template.includes("{{ link.label }} "),
-        true,
-    );
+    assert.equal(component.template.includes("{{ link.label }} "), true);
     assert.equal(
         component.template.includes(
             "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)",
@@ -2822,10 +2817,11 @@ test("submit opens editable source and parsed preview first", async () => {
     );
     assert.equal(component.template.includes("font-family: monospace"), true);
     assert.equal(component.template.includes('v-on:click="submitForm"'), true);
-    assert.equal(component.template.includes("'Submit'"), true);
+    assert.equal(component.template.includes("'Review'"), true);
     assert.equal(component.template.includes(">Continue<"), true);
+    assert.equal(component.template.includes("<cdx-message"), true);
     assert.equal(
-        component.template.indexOf(">Move<") <
+        component.template.indexOf(">Move text<") <
             component.template.indexOf('v-on:click="submitForm"'),
         true,
     );

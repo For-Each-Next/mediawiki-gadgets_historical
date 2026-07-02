@@ -27,6 +27,45 @@ export function createText(value) {
 }
 
 /**
+ * Creates a Codex button.
+ *
+ * @param {object} options - Button options.
+ * @param {string} [options.action] - Codex action.
+ * @param {string} options.click - Click handler expression.
+ * @param {string} [options.disabled] - Disabled binding expression.
+ * @param {string} options.label - Button label or interpolation.
+ * @param {string} [options.show] - Visibility binding expression.
+ * @param {string} [options.weight] - Codex weight.
+ * @returns {object} Codex button node.
+ */
+export function createButtonTemplate(options) {
+    const attributes = {
+        type: "button",
+        "v-on:click": options.click,
+    };
+
+    if (options.action) {
+        attributes.action = options.action;
+    }
+
+    if (options.disabled) {
+        attributes["v-bind:disabled"] = options.disabled;
+    }
+
+    if (options.show) {
+        attributes["v-if"] = options.show;
+    }
+
+    if (options.weight) {
+        attributes.weight = options.weight;
+    }
+
+    return createElement("cdx-button", attributes, [
+        createText(options.label),
+    ]);
+}
+
+/**
  * Creates an action footer.
  *
  * Actions are right-aligned by default. Pass `{ left, right }` to split
@@ -46,7 +85,7 @@ export function createActionFooterTemplate(actions, style = {}) {
         {
             style: {
                 display: "flex",
-                gap: "0.5em",
+                gap: "0.75em",
                 justifyContent: "flex-end",
                 width: "100%",
                 ...style,
@@ -72,34 +111,35 @@ function createSplitActionFooterTemplate(groups, style = {}) {
             style: {
                 alignItems: "center",
                 display: "flex",
-                gap: "0.5em",
+                gap: "0.75em",
                 justifyContent: "space-between",
                 width: "100%",
                 ...style,
             },
         },
         [
-            createElement(
-                "div",
-                {
-                    style: {
-                        display: "flex",
-                        gap: "0.5em",
-                    },
-                },
-                groups.left || [],
-            ),
-            createElement(
-                "div",
-                {
-                    style: {
-                        display: "flex",
-                        gap: "0.5em",
-                    },
-                },
-                groups.right || [],
-            ),
+            createActionFooterGroupTemplate(groups.left || []),
+            createActionFooterGroupTemplate(groups.right || []),
         ],
+    );
+}
+
+/**
+ * Creates one action footer group.
+ *
+ * @param {Array<object>} actions - Action button nodes.
+ * @returns {object} Action group node.
+ */
+function createActionFooterGroupTemplate(actions) {
+    return createElement(
+        "div",
+        {
+            style: {
+                display: "flex",
+                gap: "0.75em",
+            },
+        },
+        actions,
     );
 }
 
@@ -127,13 +167,57 @@ export function createActionLinkTemplate(label, click, attributes = {}) {
 }
 
 /**
- * Creates an icon-only link that performs an in-place table row action.
+ * Creates an icon-only button that performs an in-place action.
  *
- * @param {string} label - Accessible link label.
+ * @param {string} label - Accessible button label.
  * @param {string} icon - Vue expression resolving to a Codex icon.
  * @param {string} click - Click handler expression.
- * @param {object} [attributes] - Extra link attributes.
- * @returns {object} Icon action link node.
+ * @param {object} [attributes] - Extra button attributes.
+ * @returns {object} Icon action button node.
+ */
+export function createIconActionButtonTemplate(
+    label,
+    icon,
+    click,
+    attributes = {},
+) {
+    const {
+        "aria-disabled": ariaDisabled,
+        class: className,
+        ...extra
+    } = attributes;
+    const buttonAttributes = {
+        "aria-label": label,
+        class: ["create-vg-stub-icon-button", className]
+            .filter(Boolean)
+            .join(" "),
+        title: label,
+        type: "button",
+        weight: "quiet",
+        ...extra,
+        "v-on:click": click,
+    };
+
+    if (ariaDisabled != null) {
+        buttonAttributes["v-bind:disabled"] = ariaDisabled;
+    }
+
+    return createElement("cdx-button", buttonAttributes, [
+        createElement("cdx-icon", {
+            "v-bind:icon": icon,
+            size: "medium",
+        }),
+    ]);
+}
+
+/**
+ * Creates an icon-only button that performs an in-place action.
+ *
+ * @param {string} label - Accessible button label.
+ * @param {string} icon - Vue expression resolving to a Codex icon.
+ * @param {string} click - Click handler expression.
+ * @param {object} [attributes] - Extra button attributes.
+ * @returns {object} Icon action button node.
  */
 export function createIconActionLinkTemplate(
     label,
@@ -141,22 +225,7 @@ export function createIconActionLinkTemplate(
     click,
     attributes = {},
 ) {
-    return createElement(
-        "a",
-        {
-            "aria-label": label,
-            href: "#",
-            title: label,
-            ...attributes,
-            "v-on:click.prevent": click,
-        },
-        [
-            createElement("cdx-icon", {
-                "v-bind:icon": icon,
-                size: "medium",
-            }),
-        ],
-    );
+    return createIconActionButtonTemplate(label, icon, click, attributes);
 }
 
 /**
@@ -216,18 +285,55 @@ export function createFieldTemplate(label, children, options = {}) {
         fieldChildren.push(
             createElement(
                 "template",
-                {
-                    ...(options.helpTextCondition
-                        ? { "v-if": options.helpTextCondition }
-                        : {}),
-                    "v-slot:help-text": "",
-                },
+                createHelpTextSlotAttributes(options.helpTextCondition),
                 options.helpText,
             ),
         );
     }
 
     return createElement("cdx-field", options.attributes || {}, fieldChildren);
+}
+
+/**
+ * Creates field help-text slot attributes.
+ *
+ * @param {string} [condition] - Optional help-text condition.
+ * @returns {object} Slot attributes.
+ */
+function createHelpTextSlotAttributes(condition) {
+    const attributes = {
+        "v-slot:help-text": "",
+    };
+
+    if (condition) {
+        attributes["v-if"] = condition;
+    }
+
+    return attributes;
+}
+
+/**
+ * Creates a Codex message.
+ *
+ * @param {string} condition - Vue condition expression.
+ * @param {string} message - Message text or interpolation.
+ * @param {object} [options] - Message options.
+ * @param {boolean} [options.inline] - Whether to render as inline feedback.
+ * @param {string} [options.type] - Codex message type.
+ * @returns {object} Codex message node.
+ */
+export function createMessageTemplate(condition, message, options = {}) {
+    const attributes = {
+        class: "create-vg-stub-message",
+        type: options.type || "error",
+        "v-if": condition,
+    };
+
+    if (options.inline) {
+        attributes.inline = "";
+    }
+
+    return createElement("cdx-message", attributes, [createText(message)]);
 }
 
 /**
@@ -241,33 +347,62 @@ export function createFieldTemplate(label, children, options = {}) {
  * @param {object} [_options] - Header options.
  * @returns {object} Header slot template node.
  */
-export function createTableHeaderTemplate(_title, actions = [], _options = {}) {
+export function createTableHeaderTemplate(
+    _title,
+    actions = [],
+    _options = {},
+) {
     return createElement(
         "template",
         {
             "v-slot:header": "",
         },
-        actions.flatMap((action, index) => [
-            ...(index === 0 ? [] : [createText(" ")]),
-            action,
-            createElement(
-                "span",
-                {
-                    class: "create-vg-stub-icon-tooltip",
-                    role: "tooltip",
-                },
-                [
-                    createText(
-                        typeof action === "string"
-                            ? ""
-                            : action.attributes?.title ||
-                                  action.attributes?.["aria-label"] ||
-                                  "",
-                    ),
-                ],
-            ),
-        ]),
+        actions.flatMap(createTableActionTemplate),
     );
+}
+
+/**
+ * Creates one table-header action and tooltip.
+ *
+ * @param {object|string} action - Header action.
+ * @param {number} index - Action index.
+ * @returns {Array<object|string>} Action and tooltip nodes.
+ */
+function createTableActionTemplate(action, index) {
+    const spacer = index === 0 ? [] : [createText(" ")];
+
+    return [...spacer, action, createIconTooltipTemplate(action)];
+}
+
+/**
+ * Creates a tooltip for an icon-only action.
+ *
+ * @param {object|string} action - Header action.
+ * @returns {object} Tooltip node.
+ */
+function createIconTooltipTemplate(action) {
+    return createElement(
+        "span",
+        {
+            class: "create-vg-stub-icon-tooltip",
+            role: "tooltip",
+        },
+        [createText(getActionLabel(action))],
+    );
+}
+
+/**
+ * Gets the accessible label from an action node.
+ *
+ * @param {object|string} action - Header action.
+ * @returns {string} Action label.
+ */
+function getActionLabel(action) {
+    if (typeof action === "string") {
+        return "";
+    }
+
+    return action.attributes?.title || action.attributes?.["aria-label"] || "";
 }
 
 /**
@@ -322,6 +457,11 @@ export function createFieldPreviewTemplate(fieldExpression = "field") {
  * @returns {object} Wikitext preview card node.
  */
 export function createPreviewCardTemplate(title, expression, options = {}) {
+    const supportingText = createPreviewCardSupportingText(
+        expression,
+        options.description,
+    );
+
     return createElement(
         "cdx-card",
         {
@@ -341,29 +481,60 @@ export function createPreviewCardTemplate(title, expression, options = {}) {
                 {
                     "v-slot:supporting-text": "",
                 },
-                [
-                    ...(options.description
-                        ? [
-                              createElement(
-                                  "p",
-                                  {
-                                      class:
-                                          "create-vg-stub-preview-card-description",
-                                  },
-                                  [createText(`{{ ${options.description} }}`)],
-                              ),
-                          ]
-                        : []),
-                    createElement(
-                        "pre",
-                        {
-                            class: "create-vg-stub-preview-card-text",
-                        },
-                        [createText(`{{ ${expression} }}`)],
-                    ),
-                ],
+                supportingText,
             ),
         ],
+    );
+}
+
+/**
+ * Creates supporting text children for a preview card.
+ *
+ * @param {string} expression - Vue expression resolving to preview text.
+ * @param {string} [description] - Supporting description expression.
+ * @returns {Array<object>} Supporting text children.
+ */
+function createPreviewCardSupportingText(expression, description) {
+    const children = [];
+
+    if (description) {
+        children.push(createPreviewCardDescriptionTemplate(description));
+    }
+
+    children.push(createPreviewCardTextTemplate(expression));
+
+    return children;
+}
+
+/**
+ * Creates a preview card description.
+ *
+ * @param {string} description - Supporting description expression.
+ * @returns {object} Description node.
+ */
+function createPreviewCardDescriptionTemplate(description) {
+    return createElement(
+        "p",
+        {
+            class: "create-vg-stub-preview-card-description",
+        },
+        [createText(`{{ ${description} }}`)],
+    );
+}
+
+/**
+ * Creates a preview card text block.
+ *
+ * @param {string} expression - Vue expression resolving to preview text.
+ * @returns {object} Preview text node.
+ */
+function createPreviewCardTextTemplate(expression) {
+    return createElement(
+        "pre",
+        {
+            class: "create-vg-stub-preview-card-text",
+        },
+        [createText(`{{ ${expression} }}`)],
     );
 }
 

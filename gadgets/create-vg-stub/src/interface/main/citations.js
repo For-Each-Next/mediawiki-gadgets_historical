@@ -3,6 +3,7 @@
 import {
     createElement,
     createIconActionLinkTemplate,
+    createMessageTemplate,
     createTableHeaderTemplate,
     createTableTemplate,
     createText,
@@ -25,50 +26,66 @@ export function createCitationGroupTemplate() {
                 {
                     "v-if": "form.citationRows.length === 0",
                 },
-                [createText("No source URLs entered.")],
+                [createText("Add source URLs to article fields.")],
             ),
-            createElement(
-                "cdx-tabs",
-                {
-                    "v-if": "form.citationRows.length",
-                    "v-bind:key": "getCitationTabsKey(form.citationRows)",
-                    "v-model:active": "activeCitationTab",
-                },
-                [
-                    createElement(
-                        "cdx-tab",
-                        {
-                            class: "create-vg-stub-citation",
-                            "v-bind:key": "citation.sourceUrl",
-                            "v-bind:label": "getCitationTabLabel(citation)",
-                            "v-bind:name":
-                                "getCitationTabName(citation, citationIndex)",
-                            "v-for":
-                                "(citation, citationIndex) in form.citationRows",
-                        },
-                        [
-                            createTableTemplate(
-                                "citationTableColumns",
-                                "getCitationParamTableRows(citation)",
-                                createCitationParamSlotsTemplate(),
-                                {
-                                    "v-bind:caption":
-                                        "getCitationTabLabel(citation)",
-                                },
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-            createElement(
-                "p",
-                {
-                    class: "create-vg-stub-error",
-                    "v-if": "citationState.error",
-                },
-                [createText("{{ citationState.error }}")],
+            createCitationTabsTemplate(),
+            createMessageTemplate(
+                "citationState.error",
+                "{{ citationState.error }}",
             ),
         ],
+    );
+}
+
+/**
+ * Creates the citation tabs container.
+ *
+ * @returns {object} Citation tabs node.
+ */
+function createCitationTabsTemplate() {
+    return createElement(
+        "cdx-tabs",
+        {
+            "v-if": "form.citationRows.length",
+            "v-bind:key": "getCitationTabsKey(form.citationRows)",
+            "v-model:active": "activeCitationTab",
+        },
+        [createCitationTabTemplate()],
+    );
+}
+
+/**
+ * Creates one citation tab.
+ *
+ * @returns {object} Citation tab node.
+ */
+function createCitationTabTemplate() {
+    return createElement(
+        "cdx-tab",
+        {
+            class: "create-vg-stub-citation",
+            "v-bind:key": "citation.sourceUrl",
+            "v-bind:label": "getCitationTabLabel(citation)",
+            "v-bind:name": "getCitationTabName(citation, citationIndex)",
+            "v-for": "(citation, citationIndex) in form.citationRows",
+        },
+        [createCitationTableTemplate()],
+    );
+}
+
+/**
+ * Creates the citation parameter table.
+ *
+ * @returns {object} Citation table node.
+ */
+function createCitationTableTemplate() {
+    return createTableTemplate(
+        "citationTableColumns",
+        "getCitationParamTableRows(citation)",
+        createCitationParamSlotsTemplate(),
+        {
+            "v-bind:caption": "getCitationTabLabel(citation)",
+        },
     );
 }
 
@@ -88,12 +105,12 @@ function createCitationParamSlotsTemplate() {
                     "resetCitation(citationIndex)",
                 ),
                 createIconActionLinkTemplate(
-                    "Clean",
+                    "Remove empty rows",
                     "tableActionIcons.clean",
                     "cleanCitationParams(citationIndex)",
                 ),
                 createIconActionLinkTemplate(
-                    "Add param",
+                    "Add parameter",
                     "tableActionIcons.cdxIconArticleAdd",
                     "addCitationParam(citationIndex)",
                 ),
@@ -102,69 +119,120 @@ function createCitationParamSlotsTemplate() {
                 bindTitle: true,
             },
         ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-name": "{ row }",
-            },
-            [
-                createElement("cdx-text-input", {
-                    placeholder: "Field name",
-                    "v-bind:model-value": "row.param.name",
-                    "v-on:change": "sortCitation(citationIndex)",
-                    "v-on:update:model-value":
-                        "updateCitationParam(citationIndex, row.index, 'name', $event)",
-                }),
-            ],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-value": "{ row }",
-            },
-            [
-                createElement("cdx-text-input", {
-                    placeholder: "Value",
-                    "v-bind:model-value": "row.param.value",
-                    "v-on:change": "sortCitation(citationIndex)",
-                    "v-on:update:model-value":
-                        "updateCitationParam(citationIndex, row.index, 'value', $event)",
-                }),
-            ],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-actions": "{ row }",
-            },
-            [
-                createIconActionLinkTemplate(
-                    "Remove",
-                    "tableActionIcons.remove",
-                    "removeCitationParam(citationIndex, row.index)",
-                    {
-                        class: "create-vg-stub-destructive-action",
-                        "v-if": "row.index < citation.params.length",
-                    },
-                ),
-            ],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:footer": "",
-            },
-            [
-                createElement(
-                    "a",
-                    {
-                        "v-bind:href": "citation.sourceUrl",
-                        rel: "noopener noreferrer",
-                        target: "_blank",
-                    },
-                    [createText("{{ citation.sourceUrl }}")],
-                ),
-            ],
-        ),
+        createCitationNameSlotTemplate(),
+        createCitationValueSlotTemplate(),
+        createCitationActionSlotTemplate(),
+        createCitationFooterTemplate(),
     ];
+}
+
+/**
+ * Creates the citation parameter-name slot.
+ *
+ * @returns {object} Parameter-name slot node.
+ */
+function createCitationNameSlotTemplate() {
+    return createInputSlotTemplate("name", {
+        placeholder: "Field name",
+        "v-bind:model-value": "row.param.name",
+        "v-on:change": "sortCitation(citationIndex)",
+        "v-on:update:model-value":
+            "updateCitationParam(citationIndex, row.index, 'name', $event)",
+    });
+}
+
+/**
+ * Creates the citation parameter-value slot.
+ *
+ * @returns {object} Parameter-value slot node.
+ */
+function createCitationValueSlotTemplate() {
+    return createInputSlotTemplate("value", {
+        placeholder: "Value",
+        "v-bind:model-value": "row.param.value",
+        "v-on:change": "sortCitation(citationIndex)",
+        "v-on:update:model-value":
+            "updateCitationParam(citationIndex, row.index, 'value', $event)",
+    });
+}
+
+/**
+ * Creates the citation row action slot.
+ *
+ * @returns {object} Citation action slot node.
+ */
+function createCitationActionSlotTemplate() {
+    return createSlotTemplate("actions", [
+        createIconActionLinkTemplate(
+            "Remove",
+            "tableActionIcons.remove",
+            "removeCitationParam(citationIndex, row.index)",
+            {
+                class: "create-vg-stub-destructive-action",
+                "v-if": "row.index < citation.params.length",
+            },
+        ),
+    ]);
+}
+
+/**
+ * Creates the citation table footer.
+ *
+ * @returns {object} Citation footer slot node.
+ */
+function createCitationFooterTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-slot:footer": "",
+        },
+        [createCitationSourceLinkTemplate()],
+    );
+}
+
+/**
+ * Creates the citation source link.
+ *
+ * @returns {object} Citation source link node.
+ */
+function createCitationSourceLinkTemplate() {
+    return createElement(
+        "a",
+        {
+            "v-bind:href": "citation.sourceUrl",
+            rel: "noopener noreferrer",
+            target: "_blank",
+        },
+        [createText("{{ citation.sourceUrl }}")],
+    );
+}
+
+/**
+ * Creates a table slot containing a text input.
+ *
+ * @param {string} column - Column slot suffix.
+ * @param {object} attributes - Text input attributes.
+ * @returns {object} Text input slot node.
+ */
+function createInputSlotTemplate(column, attributes) {
+    return createSlotTemplate(column, [
+        createElement("cdx-text-input", attributes),
+    ]);
+}
+
+/**
+ * Creates a table slot.
+ *
+ * @param {string} column - Column slot suffix.
+ * @param {Array<object|string>} children - Slot children.
+ * @returns {object} Table slot node.
+ */
+function createSlotTemplate(column, children) {
+    return createElement(
+        "template",
+        {
+            [`v-slot:item-${column}`]: "{ row }",
+        },
+        children,
+    );
 }

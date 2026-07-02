@@ -51,7 +51,7 @@ function createNoteTaSlotsTemplate() {
                 "regenerateNoteTaRows",
             ),
             createIconActionLinkTemplate(
-                "Clean",
+                "Remove empty rows",
                 "tableActionIcons.clean",
                 "cleanNoteTaRows",
             ),
@@ -61,49 +61,84 @@ function createNoteTaSlotsTemplate() {
                 "addNoteTaRow",
             ),
         ]),
-        createElement(
-            "template",
-            {
-                "v-slot:item-key": "{ row }",
-            },
-            [
-                createElement("cdx-text-input", {
-                    placeholder: "T, G1, 1, or blank",
-                    "v-bind:model-value": "row.key",
-                    "v-on:update:model-value":
-                        "updateNoteTaRow(form.noteTaRows.indexOf(row), 'key', $event)",
-                }),
-            ],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-value": "{ row }",
-            },
-            [
-                createElement("cdx-text-input", {
-                    placeholder: "Games or zh-cn:...; zh-tw:...;",
-                    "v-bind:model-value": "row.value",
-                    "v-on:update:model-value":
-                        "updateNoteTaRow(form.noteTaRows.indexOf(row), 'value', $event)",
-                }),
-            ],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-actions": "{ row }",
-            },
-            [
-                createIconActionLinkTemplate(
-                    "Remove",
-                    "tableActionIcons.remove",
-                    "removeNoteTaRow(form.noteTaRows.indexOf(row))",
-                    {
-                        class: "create-vg-stub-destructive-action",
-                    },
-                ),
-            ],
-        ),
+        createNoteTaKeySlotTemplate(),
+        createNoteTaValueSlotTemplate(),
+        createNoteTaActionSlotTemplate(),
     ];
+}
+
+/**
+ * Creates the NoteTA rule-key input slot.
+ *
+ * @returns {object} Rule-key slot node.
+ */
+function createNoteTaKeySlotTemplate() {
+    return createInputSlotTemplate("key", {
+        placeholder: "T, G1, 1, or blank",
+        "v-bind:model-value": "row.key",
+        "v-on:update:model-value":
+            "updateNoteTaRow(form.noteTaRows.indexOf(row), 'key', $event)",
+    });
+}
+
+/**
+ * Creates the NoteTA conversion input slot.
+ *
+ * @returns {object} Conversion slot node.
+ */
+function createNoteTaValueSlotTemplate() {
+    return createInputSlotTemplate("value", {
+        placeholder: "Games or zh-cn:...; zh-tw:...;",
+        "v-bind:model-value": "row.value",
+        "v-on:update:model-value":
+            "updateNoteTaRow(form.noteTaRows.indexOf(row), 'value', $event)",
+    });
+}
+
+/**
+ * Creates the NoteTA row action slot.
+ *
+ * @returns {object} Action slot node.
+ */
+function createNoteTaActionSlotTemplate() {
+    return createSlotTemplate("actions", [
+        createIconActionLinkTemplate(
+            "Remove",
+            "tableActionIcons.remove",
+            "removeNoteTaRow(form.noteTaRows.indexOf(row))",
+            {
+                class: "create-vg-stub-destructive-action",
+            },
+        ),
+    ]);
+}
+
+/**
+ * Creates a table slot containing a text input.
+ *
+ * @param {string} column - Column slot suffix.
+ * @param {object} attributes - Text input attributes.
+ * @returns {object} Text input slot node.
+ */
+function createInputSlotTemplate(column, attributes) {
+    return createSlotTemplate(column, [
+        createElement("cdx-text-input", attributes),
+    ]);
+}
+
+/**
+ * Creates a table slot.
+ *
+ * @param {string} column - Column slot suffix.
+ * @param {Array<object|string>} children - Slot children.
+ * @returns {object} Table slot node.
+ */
+function createSlotTemplate(column, children) {
+    return createElement(
+        "template",
+        {
+            [`v-slot:item-${column}`]: "{ row }",
+        },
+        children,
+    );
 }

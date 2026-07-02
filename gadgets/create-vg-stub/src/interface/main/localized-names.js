@@ -1,12 +1,16 @@
 /* eslint-disable */
 
 import {
+    createButtonTemplate,
     createElement,
     createFieldTemplate,
     createIconActionLinkTemplate,
     createSourceUrlInputTemplate,
     createText,
 } from "../template.js";
+
+const STEAM_NAME_SUGGESTION_SOURCE =
+    "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)";
 
 /**
  * Creates the localized name group template node.
@@ -33,10 +37,9 @@ export function createNameGroupTemplate() {
  * @returns {object} Original-name lookup template node.
  */
 function createOriginalNameSearchTemplate() {
-    return createFieldTemplate(
-        "Original title lookup",
-        [createNameSearchListTemplate()],
-    );
+    return createFieldTemplate("Original title lookup", [
+        createNameSearchListTemplate(),
+    ]);
 }
 
 /**
@@ -123,60 +126,93 @@ function createNameSearchLinkTemplate() {
  * @returns {object} Steam helper template node.
  */
 function createSteamNameHelperTemplate() {
-    return createFieldTemplate(
-        "Steam name helper",
+    return createFieldTemplate("Steam name helper", [
+        createElement(
+            "div",
+            {
+                class: "create-vg-stub-steam-helper",
+            },
+            [
+                createSteamNameInputRowTemplate(),
+                createSteamNameSuggestionRowTemplate(),
+            ],
+        ),
+    ]);
+}
+
+/**
+ * Creates the Steam URL input row.
+ *
+ * @returns {object} Steam URL input row node.
+ */
+function createSteamNameInputRowTemplate() {
+    return createElement(
+        "div",
+        {
+            class: "create-vg-stub-steam-row",
+        },
+        [createSteamUrlInputTemplate(), createSteamNameCheckButtonTemplate()],
+    );
+}
+
+/**
+ * Creates the Steam URL input.
+ *
+ * @returns {object} Steam URL input node.
+ */
+function createSteamUrlInputTemplate() {
+    return createElement("cdx-text-input", {
+        placeholder: "https://store.steampowered.com/app/...",
+        "v-bind:model-value": "steamUrl",
+        "v-on:update:model-value": "updateSteamUrl($event)",
+    });
+}
+
+/**
+ * Creates the Steam-name check button.
+ *
+ * @returns {object} Check button node.
+ */
+function createSteamNameCheckButtonTemplate() {
+    return createButtonTemplate({
+        click: "addSteamNames",
+        disabled: "sourceFetchState.loading",
+        label: "Check",
+    });
+}
+
+/**
+ * Creates the Steam name suggestion row.
+ *
+ * @returns {object} Steam suggestion row node.
+ */
+function createSteamNameSuggestionRowTemplate() {
+    return createElement(
+        "div",
+        {
+            class:
+                "create-vg-stub-steam-row " +
+                "create-vg-stub-steam-row--suggestions",
+            "v-if": "fetchedSteamNameRows.length",
+        },
         [
-            createElement(
-                "div",
-                {
-                    class: "create-vg-stub-steam-helper",
-                },
-                [
-                    createElement(
-                        "div",
-                        {
-                            class: "create-vg-stub-steam-row",
-                        },
-                        [
-                            createElement("cdx-text-input", {
-                                placeholder:
-                                    "https://store.steampowered.com/app/...",
-                                "v-bind:model-value": "steamUrl",
-                                "v-on:update:model-value":
-                                    "updateSteamUrl($event)",
-                            }),
-                            createElement(
-                                "cdx-button",
-                                {
-                                    "v-bind:disabled":
-                                        "sourceFetchState.loading",
-                                    "v-on:click": "addSteamNames",
-                                },
-                                [createText("Check")],
-                            ),
-                        ],
-                    ),
-                    createElement(
-                        "div",
-                        {
-                            class:
-                                "create-vg-stub-steam-row " +
-                                "create-vg-stub-steam-row--suggestions",
-                            "v-if": "fetchedSteamNameRows.length",
-                        },
-                        [
-                            createSteamNameSuggestionsTemplate(),
-                            createElement("cdx-button-group", {
-                                class: "create-vg-stub-steam-actions",
-                                "v-bind:buttons": "steamNameButtons",
-                                "v-on:click": "applySteamNameChoice",
-                            }),
-                        ],
-                    ),
-                ],
-            ),
+            createSteamNameSuggestionsTemplate(),
+            createSteamNameButtonGroupTemplate(),
         ],
     );
+}
+
+/**
+ * Creates the Steam-name choice button group.
+ *
+ * @returns {object} Steam-name button group node.
+ */
+function createSteamNameButtonGroupTemplate() {
+    return createElement("cdx-button-group", {
+        class: "create-vg-stub-steam-actions",
+        "v-bind:buttons": "steamNameButtons",
+        "v-on:click": "applySteamNameChoice",
+    });
 }
 
 /**
@@ -197,26 +233,41 @@ function createSteamNameSuggestionsTemplate() {
                 "li",
                 {
                     "v-bind:key": "suggestion.label",
-                    "v-for":
-                        "suggestion in getSteamNameSuggestions(fetchedSteamNameRows)",
+                    "v-for": STEAM_NAME_SUGGESTION_SOURCE,
                 },
-                [
-                    createElement("strong", {}, [
-                        createText("{{ suggestion.label }}"),
-                    ]),
-                    createText(" "),
-                    createElement(
-                        "a",
-                        {
-                            "v-bind:href": "suggestion.url",
-                            rel: "noopener noreferrer",
-                            target: "_blank",
-                        },
-                        [createText("{{ suggestion.value }}")],
-                    ),
-                ],
+                createSteamNameSuggestionContentTemplate(),
             ),
         ],
+    );
+}
+
+/**
+ * Creates Steam suggestion item content.
+ *
+ * @returns {Array<object|string>} Steam suggestion item content nodes.
+ */
+function createSteamNameSuggestionContentTemplate() {
+    return [
+        createElement("strong", {}, [createText("{{ suggestion.label }}")]),
+        createText(" "),
+        createSteamNameSuggestionLinkTemplate(),
+    ];
+}
+
+/**
+ * Creates a Steam suggestion link.
+ *
+ * @returns {object} Steam suggestion link node.
+ */
+function createSteamNameSuggestionLinkTemplate() {
+    return createElement(
+        "a",
+        {
+            "v-bind:href": "suggestion.url",
+            rel: "noopener noreferrer",
+            target: "_blank",
+        },
+        [createText("{{ suggestion.value }}")],
     );
 }
 
@@ -265,13 +316,7 @@ function createNameFieldTemplate() {
                 },
                 [
                     createText("{{ 'Localized name ' + (index + 1) }} "),
-                    createElement(
-                        "template",
-                        {
-                            "v-if": "isSteamNameHelperRow(row)",
-                        },
-                        [createText("(by Steam helper) ")],
-                    ),
+                    createSteamNameHelperLabelTemplate(),
                     createNameRemoveTemplate(),
                 ],
             ),
@@ -308,32 +353,65 @@ function createNameSettingsRowTemplate() {
             class: "create-vg-stub-name-settings-row",
         },
         [
-            createElement(
-                "cdx-checkbox",
-                {
-                    class: "create-vg-stub-name-official-checkbox",
-                    "v-bind:model-value": "row.official",
-                    "v-on:update:model-value":
-                        "updateNameOfficial(group.nameGroupKey, index, $event)",
-                },
-                [createText("Official?")],
-            ),
+            createOfficialNameCheckboxTemplate(),
             createElement("span", {
                 "aria-hidden": "true",
                 class: "create-vg-stub-name-market-separator",
             }),
-            createElement(
-                "cdx-checkbox",
-                {
-                    "v-bind:key": "market.key",
-                    "v-for": "market in nameMarkets",
-                    "v-bind:model-value": "row[market.key]",
-                    "v-on:update:model-value":
-                        "updateNameMarket(group.nameGroupKey, index, market.key, $event)",
-                },
-                [createText("{{ market.label }}")],
-            ),
+            createNameMarketCheckboxTemplate(),
         ],
+    );
+}
+
+/**
+ * Creates the Steam helper label suffix.
+ *
+ * @returns {object} Steam helper label node.
+ */
+function createSteamNameHelperLabelTemplate() {
+    return createElement(
+        "template",
+        {
+            "v-if": "isSteamNameHelperRow(row)",
+        },
+        [createText("(by Steam helper) ")],
+    );
+}
+
+/**
+ * Creates the official-name checkbox.
+ *
+ * @returns {object} Official-name checkbox node.
+ */
+function createOfficialNameCheckboxTemplate() {
+    return createElement(
+        "cdx-checkbox",
+        {
+            class: "create-vg-stub-name-official-checkbox",
+            "v-bind:model-value": "row.official",
+            "v-on:update:model-value":
+                "updateNameOfficial(group.nameGroupKey, index, $event)",
+        },
+        [createText("Official?")],
+    );
+}
+
+/**
+ * Creates one market checkbox.
+ *
+ * @returns {object} Market checkbox node.
+ */
+function createNameMarketCheckboxTemplate() {
+    return createElement(
+        "cdx-checkbox",
+        {
+            "v-bind:key": "market.key",
+            "v-bind:model-value": "row[market.key]",
+            "v-for": "market in nameMarkets",
+            "v-on:update:model-value":
+                "updateNameMarket(group.nameGroupKey, index, market.key, $event)",
+        },
+        [createText("{{ market.label }}")],
     );
 }
 

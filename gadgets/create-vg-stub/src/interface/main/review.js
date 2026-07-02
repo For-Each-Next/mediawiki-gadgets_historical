@@ -3,6 +3,7 @@
 import {
     createElement,
     createIconActionLinkTemplate,
+    createMessageTemplate,
     createTableHeaderTemplate,
     createTableTemplate,
     createText,
@@ -46,13 +47,9 @@ function createCategoryReviewTemplate() {
                     "create-vg-stub-category-table",
             },
         ),
-        createElement(
-            "p",
-            {
-                class: "create-vg-stub-error",
-                "v-if": "categoryState.error",
-            },
-            [createText("{{ categoryState.error }}")],
+        createMessageTemplate(
+            "categoryState.error",
+            "{{ categoryState.error }}",
         ),
     ]);
 }
@@ -96,14 +93,7 @@ function createNavboxReviewTemplate() {
                     "create-vg-stub-navbox-table",
             },
         ),
-        createElement(
-            "p",
-            {
-                class: "create-vg-stub-error",
-                "v-if": "reviewState.error",
-            },
-            [createText("{{ reviewState.error }}")],
-        ),
+        createMessageTemplate("reviewState.error", "{{ reviewState.error }}"),
     ]);
 }
 
@@ -145,7 +135,7 @@ function createCategorySlotsTemplate() {
                 },
             ),
             createIconActionLinkTemplate(
-                "Clean",
+                "Remove empty rows",
                 "tableActionIcons.clean",
                 "cleanCategoryRows",
             ),
@@ -162,67 +152,66 @@ function createCategorySlotsTemplate() {
             "isCategoryAddReviewRow(row)",
             "create-vg-stub-review-row-marker--category-add",
         ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-source": "{ row }",
-            },
-            [
-                createInfoChipTemplate(
-                    "formatCategorySourceLabel(row.source)",
-                    {
-                        title: "formatCategorySourceTitle(row.source)",
-                    },
-                ),
-            ],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-category": "{ row }",
-            },
-            [
-                createElement("cdx-text-input", {
-                    "v-model": "row.category",
-                    "v-on:update:model-value":
-                        "updateCategoryRowCategory(form.categoryRows.indexOf(row), $event)",
-                    "v-on:blur":
-                        "checkCategoryRow(form.categoryRows.indexOf(row), $event)",
-                }),
-            ],
-        ),
+        createCategorySourceSlotTemplate(),
+        createCategoryTitleSlotTemplate(),
         createPageEditSlotTemplate(
             "page",
             "row.category",
             "row.status === 'OK'",
             "openCategoryEdit(row)",
         ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-actions": "{ row }",
-            },
-            [
-                createIconActionLinkTemplate(
-                    "Refresh",
-                    "tableActionIcons.reload",
-                    "checkCategoryRow(form.categoryRows.indexOf(row))",
-                    {
-                        title: "Refresh this category's page status and edit/create action",
-                        "v-if": "row.category",
-                    },
-                ),
-                createIconActionLinkTemplate(
-                    "Remove",
-                    "tableActionIcons.remove",
-                    "removeCategoryRow(form.categoryRows.indexOf(row))",
-                    {
-                        class: "create-vg-stub-destructive-action",
-                    },
-                ),
-            ],
-        ),
+        createCategoryActionSlotTemplate(),
     ];
+}
+
+/**
+ * Creates the category source slot.
+ *
+ * @returns {object} Category source slot node.
+ */
+function createCategorySourceSlotTemplate() {
+    return createSlotTemplate("source", [
+        createInfoChipTemplate("formatCategorySourceLabel(row.source)", {
+            title: "formatCategorySourceTitle(row.source)",
+        }),
+    ]);
+}
+
+/**
+ * Creates the category title input slot.
+ *
+ * @returns {object} Category title slot node.
+ */
+function createCategoryTitleSlotTemplate() {
+    return createInputSlotTemplate("category", {
+        "v-model": "row.category",
+        "v-on:blur":
+            "checkCategoryRow(form.categoryRows.indexOf(row), $event)",
+        "v-on:update:model-value":
+            "updateCategoryRowCategory(form.categoryRows.indexOf(row), $event)",
+    });
+}
+
+/**
+ * Creates the category row action slot.
+ *
+ * @returns {object} Category action slot node.
+ */
+function createCategoryActionSlotTemplate() {
+    return createActionSlotTemplate([
+        createIconActionLinkTemplate(
+            "Refresh",
+            "tableActionIcons.reload",
+            "checkCategoryRow(form.categoryRows.indexOf(row))",
+            {
+                title: "Refresh this category's page status and edit/create action",
+                "v-if": "row.category",
+            },
+        ),
+        createRemoveActionTemplate(
+            "removeCategoryRow(form.categoryRows.indexOf(row))",
+        ),
+    ]);
 }
 
 /**
@@ -243,7 +232,7 @@ function createRedirectSlotsTemplate() {
                 },
             ),
             createIconActionLinkTemplate(
-                "Clean",
+                "Remove empty rows",
                 "tableActionIcons.clean",
                 "cleanRedirectRows",
             ),
@@ -275,53 +264,52 @@ function createRedirectSlotsTemplate() {
             "formatRedirectStatusLabel(row.status)",
             "getRedirectStatusChipStatus(row.status)",
         ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-title": "{ row }",
-            },
-            [
-                createElement("cdx-text-input", {
-                    "v-model": "row.title",
-                    "v-on:update:model-value":
-                        "updateRedirectRowTitle((form.redirectRows || []).indexOf(row), $event)",
-                    "v-on:blur":
-                        "checkRedirectRow((form.redirectRows || []).indexOf(row), $event)",
-                }),
-            ],
-        ),
+        createRedirectTitleSlotTemplate(),
         createPageEditSlotTemplate(
             "page",
             "row.title",
             "row.exists",
             "openRedirectEdit(row)",
         ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-actions": "{ row }",
-            },
-            [
-                createIconActionLinkTemplate(
-                    "Refresh",
-                    "tableActionIcons.reload",
-                    "checkRedirectRow((form.redirectRows || []).indexOf(row))",
-                    {
-                        title: "Refresh this redirect's existence status",
-                        "v-if": "row.title",
-                    },
-                ),
-                createIconActionLinkTemplate(
-                    "Remove",
-                    "tableActionIcons.remove",
-                    "removeRedirectRow((form.redirectRows || []).indexOf(row))",
-                    {
-                        class: "create-vg-stub-destructive-action",
-                    },
-                ),
-            ],
-        ),
+        createRedirectActionSlotTemplate(),
     ];
+}
+
+/**
+ * Creates the redirect title input slot.
+ *
+ * @returns {object} Redirect title slot node.
+ */
+function createRedirectTitleSlotTemplate() {
+    return createInputSlotTemplate("title", {
+        "v-model": "row.title",
+        "v-on:blur":
+            "checkRedirectRow((form.redirectRows || []).indexOf(row), $event)",
+        "v-on:update:model-value":
+            "updateRedirectRowTitle((form.redirectRows || []).indexOf(row), $event)",
+    });
+}
+
+/**
+ * Creates the redirect row action slot.
+ *
+ * @returns {object} Redirect action slot node.
+ */
+function createRedirectActionSlotTemplate() {
+    return createActionSlotTemplate([
+        createIconActionLinkTemplate(
+            "Refresh",
+            "tableActionIcons.reload",
+            "checkRedirectRow((form.redirectRows || []).indexOf(row))",
+            {
+                title: "Refresh this redirect's existence status",
+                "v-if": "row.title",
+            },
+        ),
+        createRemoveActionTemplate(
+            "removeRedirectRow((form.redirectRows || []).indexOf(row))",
+        ),
+    ]);
 }
 
 /**
@@ -341,7 +329,7 @@ function createNavboxSlotsTemplate() {
                 },
             ),
             createIconActionLinkTemplate(
-                "Clean",
+                "Remove empty rows",
                 "tableActionIcons.clean",
                 "cleanNavboxRows",
             ),
@@ -358,53 +346,52 @@ function createNavboxSlotsTemplate() {
             "formatNavboxStatusLabel(row.status)",
             "getNavboxStatusChipStatus(row.status)",
         ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-text": "{ row }",
-            },
-            [
-                createElement("cdx-text-input", {
-                    "v-model": "row.text",
-                    "v-on:update:model-value":
-                        "updateNavboxRow((form.navboxRows || []).indexOf(row), $event)",
-                    "v-on:blur":
-                        "checkNavboxRow((form.navboxRows || []).indexOf(row), $event)",
-                }),
-            ],
-        ),
+        createNavboxTextSlotTemplate(),
         createPageEditSlotTemplate(
             "page",
             "row.title",
             "row.status === 'OK'",
             "openNavboxEdit(row)",
         ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-actions": "{ row }",
-            },
-            [
-                createIconActionLinkTemplate(
-                    "Refresh",
-                    "tableActionIcons.reload",
-                    "checkNavboxRow((form.navboxRows || []).indexOf(row))",
-                    {
-                        title: "Refresh this navbox's page status and edit/create action",
-                        "v-if": "row.title",
-                    },
-                ),
-                createIconActionLinkTemplate(
-                    "Remove",
-                    "tableActionIcons.remove",
-                    "removeNavboxRow((form.navboxRows || []).indexOf(row))",
-                    {
-                        class: "create-vg-stub-destructive-action",
-                    },
-                ),
-            ],
-        ),
+        createNavboxActionSlotTemplate(),
     ];
+}
+
+/**
+ * Creates the navbox text input slot.
+ *
+ * @returns {object} Navbox text slot node.
+ */
+function createNavboxTextSlotTemplate() {
+    return createInputSlotTemplate("text", {
+        "v-model": "row.text",
+        "v-on:blur":
+            "checkNavboxRow((form.navboxRows || []).indexOf(row), $event)",
+        "v-on:update:model-value":
+            "updateNavboxRow((form.navboxRows || []).indexOf(row), $event)",
+    });
+}
+
+/**
+ * Creates the navbox row action slot.
+ *
+ * @returns {object} Navbox action slot node.
+ */
+function createNavboxActionSlotTemplate() {
+    return createActionSlotTemplate([
+        createIconActionLinkTemplate(
+            "Refresh",
+            "tableActionIcons.reload",
+            "checkNavboxRow((form.navboxRows || []).indexOf(row))",
+            {
+                title: "Refresh this navbox's page status and edit/create action",
+                "v-if": "row.title",
+            },
+        ),
+        createRemoveActionTemplate(
+            "removeNavboxRow((form.navboxRows || []).indexOf(row))",
+        ),
+    ]);
 }
 
 /**
@@ -421,7 +408,7 @@ function createStubTagSlotsTemplate() {
                 "resetStubTagRows",
             ),
             createIconActionLinkTemplate(
-                "Clean",
+                "Remove empty rows",
                 "tableActionIcons.clean",
                 "cleanStubTagRows",
             ),
@@ -432,55 +419,105 @@ function createStubTagSlotsTemplate() {
             ),
         ]),
         createToggleSlotTemplate("enabled", "row.enabled", "Include stub tag"),
-        createElement(
-            "template",
-            {
-                "v-slot:item-type": "{ row }",
-            },
-            [
-                createInfoChipTemplate("formatStubTagStatusLabel(row)", {
-                    status: "getStubTagStatusChipStatus(row)",
-                    title: "formatStubTagLabel(row.stubTag)",
-                }),
-            ],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-stubTag": "{ row }",
-            },
-            [
-                createElement("cdx-text-input", {
-                    placeholder: "Template name without braces",
-                    "v-model": "row.stubTag",
-                    "v-on:update:model-value":
-                        "updateStubTagRow(stubTagRows.indexOf(row), $event)",
-                }),
-            ],
-        ),
+        createStubTagStatusSlotTemplate(),
+        createStubTagInputSlotTemplate(),
         createPageEditSlotTemplate(
             "page",
             "row.stubTag",
             "true",
             "openStubTagEdit(row)",
         ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-actions": "{ row }",
-            },
-            [
-                createIconActionLinkTemplate(
-                    "Remove",
-                    "tableActionIcons.remove",
-                    "removeStubTagRow(stubTagRows.indexOf(row))",
-                    {
-                        class: "create-vg-stub-destructive-action",
-                    },
-                ),
-            ],
-        ),
+        createActionSlotTemplate([
+            createRemoveActionTemplate(
+                "removeStubTagRow(stubTagRows.indexOf(row))",
+            ),
+        ]),
     ];
+}
+
+/**
+ * Creates the stub-tag status slot.
+ *
+ * @returns {object} Stub-tag status slot node.
+ */
+function createStubTagStatusSlotTemplate() {
+    return createSlotTemplate("type", [
+        createInfoChipTemplate("formatStubTagStatusLabel(row)", {
+            status: "getStubTagStatusChipStatus(row)",
+            title: "formatStubTagLabel(row.stubTag)",
+        }),
+    ]);
+}
+
+/**
+ * Creates the stub-tag input slot.
+ *
+ * @returns {object} Stub-tag input slot node.
+ */
+function createStubTagInputSlotTemplate() {
+    return createInputSlotTemplate("stubTag", {
+        placeholder: "Template name without braces",
+        "v-model": "row.stubTag",
+        "v-on:update:model-value":
+            "updateStubTagRow(stubTagRows.indexOf(row), $event)",
+    });
+}
+
+/**
+ * Creates a table slot containing a text input.
+ *
+ * @param {string} column - Column slot suffix.
+ * @param {object} attributes - Text input attributes.
+ * @returns {object} Text input slot node.
+ */
+function createInputSlotTemplate(column, attributes) {
+    return createSlotTemplate(column, [
+        createElement("cdx-text-input", attributes),
+    ]);
+}
+
+/**
+ * Creates a table row action slot.
+ *
+ * @param {Array<object>} actions - Row action nodes.
+ * @returns {object} Row action slot node.
+ */
+function createActionSlotTemplate(actions) {
+    return createSlotTemplate("actions", actions);
+}
+
+/**
+ * Creates a table slot.
+ *
+ * @param {string} column - Column slot suffix.
+ * @param {Array<object|string>} children - Slot children.
+ * @returns {object} Table slot node.
+ */
+function createSlotTemplate(column, children) {
+    return createElement(
+        "template",
+        {
+            [`v-slot:item-${column}`]: "{ row }",
+        },
+        children,
+    );
+}
+
+/**
+ * Creates a remove action button.
+ *
+ * @param {string} click - Click handler expression.
+ * @returns {object} Remove action button node.
+ */
+function createRemoveActionTemplate(click) {
+    return createIconActionLinkTemplate(
+        "Remove",
+        "tableActionIcons.remove",
+        click,
+        {
+            class: "create-vg-stub-destructive-action",
+        },
+    );
 }
 
 /**
@@ -537,13 +574,9 @@ function createToggleSlotTemplate(
  * @returns {object} Table slot node.
  */
 function createStatusSlotTemplate(column, title, label, status = "'notice'") {
-    return createElement(
-        "template",
-        {
-            [`v-slot:item-${column}`]: "{ row }",
-        },
-        [createInfoChipTemplate(label, { status, title })],
-    );
+    return createSlotTemplate(column, [
+        createInfoChipTemplate(label, { status, title }),
+    ]);
 }
 
 /**
@@ -577,27 +610,28 @@ function createInfoChipTemplate(label, options = {}) {
  * @returns {object} Table slot node.
  */
 function createPageEditSlotTemplate(column, condition, existing, click) {
+    return createSlotTemplate(column, [
+        createPageEditLinkTemplate(condition, existing, click),
+    ]);
+}
+
+/**
+ * Creates an edit/create page action link.
+ *
+ * @param {string} condition - Vue condition for showing the action.
+ * @param {string} existing - Vue expression checking whether the page exists.
+ * @param {string} click - Click handler expression.
+ * @returns {object} Page action link node.
+ */
+function createPageEditLinkTemplate(condition, existing, click) {
     return createElement(
-        "template",
+        "a",
         {
-            [`v-slot:item-${column}`]: "{ row }",
+            href: "#",
+            "v-bind:aria-label": `getReviewPageActionLabel(row, ${existing}) + ' page'`,
+            "v-if": condition,
+            "v-on:click.prevent": click,
         },
-        [
-            createElement(
-                "a",
-                {
-                    href: "#",
-                    "v-bind:aria-label":
-                        `getReviewPageActionLabel(row, ${existing}) + ' page'`,
-                    "v-if": condition,
-                    "v-on:click.prevent": click,
-                },
-                [
-                    createText(
-                        `{{ getReviewPageActionLabel(row, ${existing}) }}`,
-                    ),
-                ],
-            ),
-        ],
+        [createText(`{{ getReviewPageActionLabel(row, ${existing}) }}`)],
     );
 }

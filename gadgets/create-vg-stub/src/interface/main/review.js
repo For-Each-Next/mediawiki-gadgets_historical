@@ -438,8 +438,8 @@ function createStubTagSlotsTemplate() {
                 "v-slot:item-type": "{ row }",
             },
             [
-                createInfoChipTemplate("Stub", {
-                    bindLabel: false,
+                createInfoChipTemplate("formatStubTagStatusLabel(row)", {
+                    status: "getStubTagStatusChipStatus(row)",
                     title: "formatStubTagLabel(row.stubTag)",
                 }),
             ],

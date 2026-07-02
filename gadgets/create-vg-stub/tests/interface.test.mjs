@@ -1032,7 +1032,8 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             },
         }),
     );
-    const { form } = component.setup();
+    const state = component.setup();
+    const { form } = state;
 
     assert.equal(component.methods.getProseSinographs(), 24);
     assert.equal(
@@ -1079,7 +1080,15 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     ]);
     assert.equal(
         component.methods.formatRedirectStatusLabel("Missing"),
-        "New",
+        "Ready",
+    );
+    assert.equal(
+        component.methods.getRedirectStatusChipStatus("Missing"),
+        "success",
+    );
+    assert.equal(
+        component.methods.getRedirectStatusChipStatus("Exists"),
+        "warning",
     );
     form.redirectRows[0].enabled = false;
     await component.methods.checkRedirectRows();
@@ -1220,10 +1229,23 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         true,
     );
     assert.equal(
-        component.template.includes("getReviewPageActionLabel(row, row.status === 'OK')"),
+        component.template.includes(
+            "getReviewPageActionLabel(row, row.status === 'OK')",
+        ),
         true,
     );
     assert.equal(component.template.includes("Include redirect"), true);
+    assert.deepEqual(
+        [
+            ...state.categoryTableColumns,
+            ...state.redirectTableColumns,
+            ...state.navboxTableColumns,
+            ...state.stubTagTableColumns,
+        ]
+            .filter((column) => column.id === "enabled")
+            .map((column) => column.label),
+        ["", "", "", ""],
+    );
     assert.equal(
         component.template.includes(
             "create-vg-stub-review-row-marker--redirect-conflict",
@@ -1305,6 +1327,30 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         false,
     );
     assert.equal(component.template.includes("{{stub}}"), false);
+    assert.equal(component.methods.formatStubTagStatusLabel({}), "empty");
+    assert.equal(
+        component.methods.formatStubTagStatusLabel({
+            enabled: false,
+            stubTag: "Foo-stub",
+        }),
+        "unchecked",
+    );
+    assert.equal(
+        component.methods.formatStubTagStatusLabel({
+            enabled: true,
+            originalStubTag: "",
+            stubTag: "Foo-stub",
+        }),
+        "Manual",
+    );
+    assert.equal(
+        component.methods.formatStubTagStatusLabel({
+            enabled: true,
+            originalStubTag: "Foo-stub",
+            stubTag: "Foo-stub",
+        }),
+        "Ready",
+    );
     assert.equal(component.template.includes('caption="Stub tags"'), true);
     assert.equal(
         component.template.includes('v-bind:data="stubTagRows"'),

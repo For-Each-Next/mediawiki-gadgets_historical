@@ -603,7 +603,7 @@ const REVIEW_COLUMN_WIDTHS = {
     status: "6.5em",
 };
 const CATEGORY_TABLE_COLUMNS = [
-    { id: "enabled", label: "Include", width: REVIEW_COLUMN_WIDTHS.enabled },
+    { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     { id: "source", label: "Source", width: REVIEW_COLUMN_WIDTHS.status },
     { id: "category", label: "Category", width: REVIEW_COLUMN_WIDTHS.main },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
@@ -620,7 +620,7 @@ const METADATA_TABLE_COLUMNS = [
     { id: "source", label: "Reference" },
 ];
 const NAVBOX_TABLE_COLUMNS = [
-    { id: "enabled", label: "Include", width: REVIEW_COLUMN_WIDTHS.enabled },
+    { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     { id: "status", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
     { id: "text", label: "Navbox", width: REVIEW_COLUMN_WIDTHS.main },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
@@ -632,15 +632,15 @@ const NOTETA_TABLE_COLUMNS = [
     { id: "actions", label: "Actions" },
 ];
 const REDIRECT_TABLE_COLUMNS = [
-    { id: "enabled", label: "Include", width: REVIEW_COLUMN_WIDTHS.enabled },
+    { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     { id: "status", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
     { id: "title", label: "Redirect", width: REVIEW_COLUMN_WIDTHS.main },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
     { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
 const STUB_TAG_TABLE_COLUMNS = [
-    { id: "enabled", label: "Include", width: REVIEW_COLUMN_WIDTHS.enabled },
-    { id: "type", label: "Type", width: REVIEW_COLUMN_WIDTHS.status },
+    { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
+    { id: "type", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
     { id: "stubTag", label: "Template", width: REVIEW_COLUMN_WIDTHS.main },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
     { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
@@ -2908,6 +2908,38 @@ export function createDialogComponent(Vue, options) {
             },
 
             /**
+             * Formats a stub-tag row status as a compact badge.
+             *
+             * @param {object} row - Stub-tag review row.
+             * @returns {string} Compact status label.
+             */
+            formatStubTagStatusLabel(row) {
+                return isBlankStubTagRow(row)
+                    ? "empty"
+                    : row?.enabled === false
+                      ? "unchecked"
+                      : isManualStubTagRow(row)
+                        ? "Manual"
+                      : "Ready";
+            },
+
+            /**
+             * Gets the InfoChip status for a stub-tag row.
+             *
+             * @param {object} row - Stub-tag review row.
+             * @returns {string} Codex InfoChip status.
+             */
+            getStubTagStatusChipStatus(row) {
+                return isBlankStubTagRow(row)
+                    ? "notice"
+                    : row?.enabled === false
+                      ? "warning"
+                      : isManualStubTagRow(row)
+                        ? "notice"
+                      : "success";
+            },
+
+            /**
              * Gets a category page URL for a review row.
              *
              * @param {object} row - Category review row.
@@ -3017,7 +3049,7 @@ export function createDialogComponent(Vue, options) {
                 return (
                     {
                         Exists: "Exists",
-                        Missing: "New",
+                        Missing: "Ready",
                     }[status] || "Unchecked"
                 );
             },
@@ -3029,6 +3061,14 @@ export function createDialogComponent(Vue, options) {
              * @returns {string} Codex InfoChip status.
              */
             getRedirectStatusChipStatus(status) {
+                if (status === "Missing") {
+                    return "success";
+                }
+
+                if (status === "Exists") {
+                    return "warning";
+                }
+
                 return getReviewStatusChipStatus(status);
             },
 
@@ -4404,6 +4444,19 @@ function createBlankCategoryRow() {
  */
 function isBlankStubTagRow(row) {
     return trimStubTagValue(row?.stubTag) === "";
+}
+
+/**
+ * Checks whether a stub-tag row was entered manually.
+ *
+ * @param {object} row - Stub-tag row.
+ * @returns {boolean} Whether the row was manually entered.
+ */
+function isManualStubTagRow(row) {
+    return (
+        trimStubTagValue(row?.stubTag) !== "" &&
+        trimStubTagValue(row?.originalStubTag) === ""
+    );
 }
 
 /**

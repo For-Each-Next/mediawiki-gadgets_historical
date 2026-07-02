@@ -20,7 +20,7 @@ test("buildEditSummary prefers Wikidata title metadata", () => {
             wikidataId: "Q123",
             year: "2026",
         }),
-        `create an article for the 2026 video game «サンプル», with 59 equivalent sinographs; also see "[[:w:en:Example Game]]" and "[[:d:Q123]]" ${EDIT_SUMMARY_SUFFIX}`,
+        `create 2026 video game «サンプル», with 59 equivalent sinographs; also see "[[:w:en:Example Game]]" and "[[:d:Q123]]" ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
 
@@ -33,7 +33,7 @@ test("buildEditSummary falls back to enwiki title metadata", () => {
             wikidataId: "",
             year: "2026",
         }),
-        `create an article for the 2026 video game «サンプル», with 59 equivalent sinographs; also see "[[:w:en:Example Game]]" ${EDIT_SUMMARY_SUFFIX}`,
+        `create 2026 video game «サンプル», with 59 equivalent sinographs; also see "[[:w:en:Example Game]]" ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
 
@@ -46,7 +46,7 @@ test("buildEditSummary renders plain title without enwiki metadata", () => {
             wikidataId: "",
             year: "2026",
         }),
-        `create an article for the 2026 video game «サンプル», with 59 equivalent sinographs ${EDIT_SUMMARY_SUFFIX}`,
+        `create 2026 video game «サンプル», with 59 equivalent sinographs ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
 

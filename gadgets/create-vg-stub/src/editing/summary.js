@@ -143,7 +143,7 @@ function buildArticleCreationSummaryText(displayName, year) {
         return "";
     }
 
-    return `create an article for the ${yearText === "" ? "" : `${yearText} `}video game «${label}»`;
+    return `create ${yearText === "" ? "" : `${yearText} `}video game «${label}»`;
 }
 
 /**

@@ -2638,9 +2638,20 @@ test("submit opens preview without changing tabs", async () => {
             },
         }),
     );
-    const { activeTab, preSaveOpen, previewOpen } = component.setup();
+    const { activeTab, preSaveOpen, previewLoadingMessage, previewOpen } =
+        component.setup();
 
     assert.equal(activeTab.value, "metadata");
+    assert.equal(previewLoadingMessage.value, "Preparing preview");
+    assert.equal(
+        component.template.includes("create-vg-stub-dialog-mask"),
+        true,
+    );
+    assert.equal(component.template.includes("<cdx-progress-bar"), true);
+    assert.equal(
+        component.template.includes("{{ previewLoadingMessage }}"),
+        true,
+    );
     await component.methods.submitForm();
 
     assert.equal(activeTab.value, "metadata");

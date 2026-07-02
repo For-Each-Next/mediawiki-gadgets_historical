@@ -109,6 +109,31 @@ const DIALOG_CSS = new StyleSheet()
     .add(".create-vg-stub-dialog-status", {
         margin: "0.75em 0",
     })
+    .add(".create-vg-stub-dialog-body", {
+        position: "relative",
+    })
+    .add(".create-vg-stub-dialog-mask", {
+        alignItems: "center",
+        backgroundColor: "rgba(255, 255, 255, 0.84)",
+        display: "flex",
+        inset: "0",
+        justifyContent: "center",
+        position: "absolute",
+        zIndex: "2",
+    })
+    .add(".create-vg-stub-dialog-mask-panel", {
+        backgroundColor: "var(--background-color-base, #fff)",
+        border: "1px solid var(--border-color-subtle, #c8ccd1)",
+        borderRadius: "2px",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
+        maxWidth: "min(24em, calc(100% - 2em))",
+        padding: "1em",
+        width: "18em",
+    })
+    .add(".create-vg-stub-dialog-mask-text", {
+        margin: "0.75em 0 0",
+        textAlign: "center",
+    })
     .add(".create-vg-stub-category-view", {
         border: "1px solid var(--border-color-base, #a2a9b1)",
         height: "70vh",
@@ -1001,6 +1026,7 @@ export function createDialogComponent(Vue, options) {
     const previewSummary = Vue.ref("");
     const previewHtml = Vue.ref("");
     const previewLoading = Vue.ref(false);
+    const previewLoadingMessage = Vue.ref("Preparing preview");
     const previewSubmitted = Vue.ref(false);
     const pageEditTextArea = Vue.ref(null);
     const enwikiLookupLoading = Vue.ref(false);
@@ -1275,10 +1301,13 @@ export function createDialogComponent(Vue, options) {
              */
             async previewForm() {
                 previewLoading.value = true;
+                previewLoadingMessage.value = "Preparing citations";
 
                 try {
                     await refreshCitationRows();
+                    previewLoadingMessage.value = "Checking follow-up pages";
                     await refreshReview();
+                    previewLoadingMessage.value = "Building preview";
                     options.onSubmitHistory(form, getCurrentTitle());
                     historyEntries.value = options.getHistoryEntries();
                     const preview = await options.onPreview(
@@ -1298,6 +1327,7 @@ export function createDialogComponent(Vue, options) {
                     queueSourceEditor("preview", previewTextArea, previewText);
                 } finally {
                     previewLoading.value = false;
+                    previewLoadingMessage.value = "Preparing preview";
                 }
             },
 
@@ -3172,6 +3202,7 @@ export function createDialogComponent(Vue, options) {
                 previewSummary,
                 previewHtml,
                 previewLoading,
+                previewLoadingMessage,
                 previewSubmitted,
                 previewTextArea,
                 sourceFetchState,
@@ -5226,7 +5257,17 @@ function createDialogTemplateRoot() {
             "v-bind:title": "getDialogTitle()",
         },
         [
-            createTabsTemplate(),
+            createElement(
+                "div",
+                {
+                    class: "create-vg-stub-dialog-body",
+                    "v-bind:class": "{ 'create-vg-stub-dialog-body--masked': previewLoading }",
+                },
+                [
+                    createTabsTemplate(),
+                    createMainDialogMaskTemplate(),
+                ],
+            ),
             createElement(
                 "p",
                 {
@@ -5234,31 +5275,41 @@ function createDialogTemplateRoot() {
                 },
                 [createText("{{ sourceFetchState.error }}")],
             ),
-            createMainDialogStatusTemplate(),
             createMainDialogFooterTemplate(),
         ],
     );
 }
 
 /**
- * Creates the main dialog status indicator.
+ * Creates the main dialog loading mask.
  *
- * @returns {object} Dialog status indicator template node.
+ * @returns {object} Dialog loading mask template node.
  */
-function createMainDialogStatusTemplate() {
+function createMainDialogMaskTemplate() {
     return createElement(
         "div",
         {
-            class: "create-vg-stub-dialog-status",
+            class: "create-vg-stub-dialog-mask",
             "v-if": "previewLoading",
         },
         [
             createElement(
-                "cdx-progress-indicator",
+                "div",
                 {
-                    "show-label": "",
+                    class: "create-vg-stub-dialog-mask-panel",
                 },
-                [createText("Preparing preview")],
+                [
+                    createElement("cdx-progress-bar", {
+                        "aria-label": "Preparing preview",
+                    }),
+                    createElement(
+                        "p",
+                        {
+                            class: "create-vg-stub-dialog-mask-text",
+                        },
+                        [createText("{{ previewLoadingMessage }}")],
+                    ),
+                ],
             ),
         ],
     );

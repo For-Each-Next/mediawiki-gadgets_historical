@@ -1363,6 +1363,80 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes("Footer:"), false);
 });
 
+test("original title lookup is separate from the Steam helper", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { form, getNameSearchRows } = component.setup();
+
+    assert.equal(
+        component.template.indexOf("Original title lookup") <
+            component.template.indexOf("Steam name helper"),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
+            '<ul class="create-vg-stub-name-search"',
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes('v-for="row in getNameSearchRows()"'),
+        true,
+    );
+    assert.deepEqual(
+        getNameSearchRows().map((row) => [
+            row.key,
+            row.query,
+            row.links.map((link) => link.label),
+        ]),
+        [["blank", "", ["CN domain", "Bahamut"]]],
+    );
+
+    form.originalName = "zh:黯海";
+    form.englishName = "Silt";
+
+    assert.deepEqual(getNameSearchRows(), [
+        {
+            key: "original",
+            links: [
+                {
+                    label: "CN domain",
+                    url:
+                        "https://www.google.com/search?q=" +
+                        "%22%E9%BB%AF%E6%B5%B7%22%20site%3A*.cn",
+                },
+                {
+                    label: "Bahamut",
+                    url:
+                        "https://www.google.com/search?q=" +
+                        "%22%E9%BB%AF%E6%B5%B7%22%20site%3Agnn.gamer.com.tw",
+                },
+            ],
+            query: "黯海",
+        },
+        {
+            key: "english",
+            links: [
+                {
+                    label: "CN domain",
+                    url:
+                        "https://www.google.com/search?q=" +
+                        "%22Silt%22%20site%3A*.cn",
+                },
+                {
+                    label: "Bahamut",
+                    url:
+                        "https://www.google.com/search?q=" +
+                        "%22Silt%22%20site%3Agnn.gamer.com.tw",
+                },
+            ],
+            query: "Silt",
+        },
+    ]);
+});
+
 test("review exposes editable stub tags below category rows", async () => {
     const component = createDialogComponent(
         createVueStub(),
@@ -2963,6 +3037,10 @@ test("pre-save submit uses the current page title with disambiguation", async ()
 
 test("enwiki lookup fills wikidata and blank English title", async () => {
     let fetchedSteamUrl = "";
+    const openedLinks = [];
+    globalThis.window.open = (url, target) => {
+        openedLinks.push([url, target]);
+    };
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
@@ -3007,6 +3085,10 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
     assert.equal(fetchedSteamUrl, "https://store.steampowered.com/app/12345/");
     assert.deepEqual(fetchedSteamNameRows.value, [
         { hans: true, name: "简体名" },
+    ]);
+    assert.deepEqual(openedLinks, [
+        ["https://www.metacritic.com/game/example-game/", "_blank"],
+        ["https://opencritic.com/game/6789/-", "_blank"],
     ]);
     assert.deepEqual(getEnwikiTipLinks(), [
         {

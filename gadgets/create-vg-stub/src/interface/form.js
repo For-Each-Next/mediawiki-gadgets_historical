@@ -256,6 +256,9 @@ const DIALOG_CSS = new StyleSheet()
         gap: "0.75em",
         gridTemplateColumns: "minmax(0, 1fr) auto",
     })
+    .add(".create-vg-stub-steam-row--suggestions", {
+        alignItems: "center",
+    })
     .add(".create-vg-stub-steam-row > .cdx-button", {
         alignSelf: "start",
     })
@@ -3084,6 +3087,7 @@ export function createDialogComponent(Vue, options) {
                 ),
                 getFieldPreview,
                 getGroupPreview,
+                getNameSearchRows,
                 getEnwikiTipLinks,
                 getWikidataText,
                 historyEntries,
@@ -3839,6 +3843,91 @@ export function createDialogComponent(Vue, options) {
     }
 
     /**
+     * Opens Metacritic and OpenCritic lookup links in new tabs.
+     *
+     * @returns {void}
+     */
+    function openEnwikiReviewLinks() {
+        if (typeof window?.open !== "function") {
+            return;
+        }
+
+        getEnwikiTipLinks()
+            .filter((link) =>
+                ["Metacritic", "OpenCritic"].includes(link.label),
+            )
+            .forEach((link) => {
+                if (link.url) {
+                    window.open(link.url, "_blank");
+                }
+            });
+    }
+
+    /**
+     * Gets original and English title lookup rows.
+     *
+     * @returns {Array<object>} Search row definitions.
+     */
+    function getNameSearchRows() {
+        const rows = [
+            {
+                key: "original",
+                query: getOriginalNameSearchQuery(),
+            },
+            {
+                key: "english",
+                query: getEnglishNameSearchQuery(),
+            },
+        ].filter((row) => row.query !== "");
+
+        return (rows.length === 0 ? [{ key: "blank", query: "" }] : rows).map(
+            (row) => ({
+                ...row,
+                links: buildNameSearchLinks(row.query),
+            }),
+        );
+    }
+
+    /**
+     * Builds title lookup links for one search query.
+     *
+     * @param {string} query - Search query title.
+     * @returns {Array<object>} Search link definitions.
+     */
+    function buildNameSearchLinks(query) {
+        return [
+            {
+                label: "CN domain",
+                url: buildGoogleSiteSearchUrl(query, "*.cn"),
+            },
+            {
+                label: "Bahamut",
+                url: buildGoogleSiteSearchUrl(query, "gnn.gamer.com.tw"),
+            },
+        ];
+    }
+
+    /**
+     * Gets the original-title lookup query.
+     *
+     * @returns {string} Search query title.
+     */
+    function getOriginalNameSearchQuery() {
+        return getBasePageTitle(
+            parsePrefixedValue(form.originalName, "").value,
+        );
+    }
+
+    /**
+     * Gets the English-title lookup query.
+     *
+     * @returns {string} Search query title.
+     */
+    function getEnglishNameSearchQuery() {
+        return getBasePageTitle(form.englishName);
+    }
+
+    /**
      * Fetches localized Steam names for the current helper URL.
      *
      * @returns {Promise<void>} Resolves after helper rows are updated.
@@ -3937,6 +4026,7 @@ export function createDialogComponent(Vue, options) {
         }
 
         enwikiLookupLoading.value = false;
+        openEnwikiReviewLinks();
 
         if (shouldFetchSteamNames) {
             await fetchSteamNames();

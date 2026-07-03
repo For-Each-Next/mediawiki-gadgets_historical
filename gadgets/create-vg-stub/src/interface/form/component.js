@@ -147,6 +147,8 @@ export function createDialogComponent(Vue, options) {
         loading: false,
     });
     const moveOpen = Vue.ref(false);
+    const movePreviewConfirmation = Vue.ref(false);
+    const previewWithoutMoveTitle = Vue.ref("");
     const activeCitationTab = Vue.ref("");
     const preSaveMoveEnabled = Vue.ref(false);
     const preSaveMoveTitle = Vue.ref(currentTitle);
@@ -598,6 +600,11 @@ export function createDialogComponent(Vue, options) {
          * @returns {Promise<void>} Resolves after preview text is ready.
          */
         async submitForm() {
+            if (this.shouldConfirmPageNameMove()) {
+                this.openMovePreviewConfirmation();
+                return;
+            }
+
             await this.previewForm();
         },
 
@@ -1003,6 +1010,19 @@ export function createDialogComponent(Vue, options) {
          */
         openMoveDialog() {
             moveTarget.value = getCurrentTitle();
+            movePreviewConfirmation.value = false;
+            moveOpen.value = true;
+            this.checkMoveTarget();
+        },
+
+        /**
+         * Opens the move target dialog before previewing a renamed page.
+         *
+         * @returns {void}
+         */
+        openMovePreviewConfirmation() {
+            moveTarget.value = getCurrentTitle();
+            movePreviewConfirmation.value = true;
             moveOpen.value = true;
             this.checkMoveTarget();
         },
@@ -1014,6 +1034,7 @@ export function createDialogComponent(Vue, options) {
          */
         closeMoveDialog() {
             moveOpen.value = false;
+            movePreviewConfirmation.value = false;
         },
 
         /**
@@ -1078,6 +1099,33 @@ export function createDialogComponent(Vue, options) {
         },
 
         /**
+         * Checks whether preview needs an explicit move decision first.
+         *
+         * @returns {boolean} Whether to prompt before previewing.
+         */
+        shouldConfirmPageNameMove() {
+            const title = trimFieldValue(form.pageName);
+
+            return (
+                title !== "" &&
+                title !== currentTitle &&
+                title !== previewWithoutMoveTitle.value
+            );
+        },
+
+        /**
+         * Continues previewing after the user chooses not to move.
+         *
+         * @returns {Promise<void>} Resolves after preview text is ready.
+         */
+        async previewWithoutMoving() {
+            previewWithoutMoveTitle.value = trimFieldValue(form.pageName);
+            moveOpen.value = false;
+            movePreviewConfirmation.value = false;
+            await this.previewForm();
+        },
+
+        /**
          * Generates current data and opens it in the target page editor.
          *
          * @returns {Promise<void>} Resolves after navigation starts.
@@ -1086,6 +1134,7 @@ export function createDialogComponent(Vue, options) {
             await this.checkMoveTarget();
             await refreshCategoryRows();
             form.pageName = trimFieldValue(moveTarget.value);
+            movePreviewConfirmation.value = false;
             options.onSubmitHistory(form, getCurrentTitle());
             historyEntries.value = options.getHistoryEntries();
             await options.onMoveTarget(
@@ -1140,6 +1189,13 @@ export function createDialogComponent(Vue, options) {
                 field.key,
                 normalizedValue,
             );
+
+            if (
+                field.key === "pageName" &&
+                trimFieldValue(form.pageName) !== previewWithoutMoveTitle.value
+            ) {
+                previewWithoutMoveTitle.value = "";
+            }
 
             if (field.key === "enwikiTitle") {
                 refreshEnwikiMetadata();
@@ -2596,6 +2652,7 @@ export function createDialogComponent(Vue, options) {
                 mainActionMenuItems: MAIN_ACTION_MENU_ITEMS,
                 mainActionMenuSelection,
                 moveOpen,
+                movePreviewConfirmation,
                 moveTarget,
                 moveTargetState,
                 metadataTableColumns: METADATA_TABLE_COLUMNS,

@@ -2849,6 +2849,66 @@ test("submit opens preview without changing tabs", async () => {
     assert.equal(component.template.includes("getVisiblePreSaveGroups"), true);
 });
 
+test("submit confirms changed page name before previewing", async () => {
+    let moveCount = 0;
+    let previewCount = 0;
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onMoveTarget() {
+                moveCount += 1;
+            },
+            onPreview() {
+                previewCount += 1;
+                return {
+                    html: "",
+                    summary: "",
+                    text: "Generated text",
+                };
+            },
+        }),
+    );
+    const state = component.setup();
+
+    component.methods.updateFieldValue({ key: "pageName" }, "Target page");
+    await component.methods.submitForm();
+
+    assert.equal(state.moveOpen.value, true);
+    assert.equal(state.movePreviewConfirmation.value, true);
+    assert.equal(state.previewOpen.value, false);
+    assert.equal(previewCount, 0);
+    assert.equal(moveCount, 0);
+
+    await component.methods.previewWithoutMoving();
+    assert.equal(state.moveOpen.value, false);
+    assert.equal(state.previewOpen.value, true);
+    assert.equal(previewCount, 1);
+
+    state.previewOpen.value = false;
+    await component.methods.submitForm();
+    assert.equal(state.moveOpen.value, false);
+    assert.equal(state.previewOpen.value, true);
+    assert.equal(previewCount, 2);
+
+    state.previewOpen.value = false;
+    component.methods.updateFieldValue({ key: "pageName" }, "Another page");
+    await component.methods.submitForm();
+
+    assert.equal(state.moveOpen.value, true);
+    assert.equal(state.previewOpen.value, false);
+    assert.equal(previewCount, 2);
+    assert.equal(
+        component.template.includes("Preview without moving"),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
+            "Move to that page name before previewing?",
+        ),
+        true,
+    );
+});
+
 test("native submit bridge opens category and pre-save review", async () => {
     let refreshCount = 0;
     let submitCount = 0;

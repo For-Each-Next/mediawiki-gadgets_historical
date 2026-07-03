@@ -795,6 +795,13 @@ function createMoveDialogTemplate() {
         },
         [
             createMessageTemplate(
+                "movePreviewConfirmation",
+                "Page name differs from the current page. Move to that page name before previewing?",
+                {
+                    type: "notice",
+                },
+            ),
+            createMessageTemplate(
                 "moveTargetState.exists",
                 "Target page exists. Opening it may overwrite or conflict with existing content.",
                 {
@@ -850,7 +857,10 @@ function createMoveDialogFooterTemplate() {
 function createMoveFooterActions() {
     return {
         left: [createMoveCloseButtonTemplate()],
-        right: [createMoveSubmitButtonTemplate()],
+        right: [
+            createMovePreviewWithoutMovingButtonTemplate(),
+            createMoveSubmitButtonTemplate(),
+        ],
     };
 }
 
@@ -863,6 +873,21 @@ function createMoveCloseButtonTemplate() {
     return createButtonTemplate({
         click: "closeMoveDialog",
         label: "Close",
+        weight: "quiet",
+    });
+}
+
+/**
+ * Creates the preview-without-moving button.
+ *
+ * @returns {object} Preview-without-moving button node.
+ */
+function createMovePreviewWithoutMovingButtonTemplate() {
+    return createButtonTemplate({
+        click: "previewWithoutMoving",
+        disabled: "sourceFetchState.loading || moveTargetState.loading",
+        label: "Preview without moving",
+        show: "movePreviewConfirmation",
         weight: "quiet",
     });
 }

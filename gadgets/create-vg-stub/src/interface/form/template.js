@@ -294,8 +294,28 @@ function createDialogTemplateRoot() {
                 "sourceFetchState.error",
                 "{{ sourceFetchState.error }}",
             ),
+            createTableActionTooltipTemplate(),
             createMainDialogFooterTemplate(),
         ],
+    );
+}
+
+/**
+ * Creates the shared table-action tooltip.
+ *
+ * @returns {object} Tooltip node.
+ */
+function createTableActionTooltipTemplate() {
+    return createElement(
+        "span",
+        {
+            class: "create-vg-stub-icon-tooltip",
+            ref: "tableActionTooltipRef",
+            role: "tooltip",
+            "v-bind:style": "tableActionTooltip.style",
+            "v-if": "tableActionTooltip.visible",
+        },
+        [createText("{{ tableActionTooltip.label }}")],
     );
 }
 
@@ -771,9 +791,16 @@ function createMoveDialogTemplate() {
         "cdx-dialog",
         {
             "v-model:open": "moveOpen",
-            title: "Move stub text",
+            title: "Move to page name",
         },
         [
+            createMessageTemplate(
+                "moveTargetState.exists",
+                "Target page exists. Opening it may overwrite or conflict with existing content.",
+                {
+                    type: "warning",
+                },
+            ),
             createMoveTargetFieldTemplate(),
             createMessageTemplate(
                 "sourceFetchState.error",
@@ -790,10 +817,11 @@ function createMoveDialogTemplate() {
  * @returns {object} Move target field node.
  */
 function createMoveTargetFieldTemplate() {
-    return createFieldTemplate("Target page title", [
+    return createFieldTemplate("Page name", [
         createElement("cdx-text-input", {
-            placeholder: "Target page title",
+            placeholder: "Actual wiki page title",
             "v-bind:model-value": "moveTarget",
+            "v-on:blur": "checkMoveTarget",
             "v-on:update:model-value": "updateMoveTarget($event)",
         }),
     ]);
@@ -848,8 +876,10 @@ function createMoveSubmitButtonTemplate() {
     return createButtonTemplate({
         action: "progressive",
         click: "submitMoveTarget",
-        disabled: "sourceFetchState.loading",
-        label: "{{ sourceFetchState.loading ? 'Opening' : 'Open target page' }}",
+        disabled: "sourceFetchState.loading || moveTargetState.loading",
+        label:
+            "{{ sourceFetchState.loading || moveTargetState.loading " +
+            "? 'Opening' : 'Open page name' }}",
         weight: "primary",
     });
 }

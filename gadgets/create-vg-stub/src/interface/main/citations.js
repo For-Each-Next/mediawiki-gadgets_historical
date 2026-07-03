@@ -100,9 +100,13 @@ function createCitationParamSlotsTemplate() {
             "getCitationTabLabel(citation)",
             [
                 createIconActionLinkTemplate(
-                    "Reset",
+                    "Re-fetch",
                     "tableActionIcons.regenerate",
-                    "resetCitation(citationIndex)",
+                    "refetchCitation(citationIndex)",
+                    {
+                        class: "create-vg-stub-destructive-action",
+                        title: "Re-fetch citation template data and overwrite edited parameters",
+                    },
                 ),
                 createIconActionLinkTemplate(
                     "Remove empty rows",
@@ -163,6 +167,14 @@ function createCitationValueSlotTemplate() {
  */
 function createCitationActionSlotTemplate() {
     return createSlotTemplate("actions", [
+        createIconActionLinkTemplate(
+            "Reset",
+            "tableActionIcons.regenerate",
+            "resetCitationParam(citationIndex, row.index)",
+            {
+                "v-if": "row.index < citation.params.length",
+            },
+        ),
         createIconActionLinkTemplate(
             "Remove",
             "tableActionIcons.remove",

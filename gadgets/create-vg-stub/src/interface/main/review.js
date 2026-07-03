@@ -171,8 +171,9 @@ function createCategorySlotsTemplate() {
  */
 function createCategorySourceSlotTemplate() {
     return createSlotTemplate("source", [
-        createInfoChipTemplate("formatCategorySourceLabel(row.source)", {
-            title: "formatCategorySourceTitle(row.source)",
+        createInfoChipTemplate("formatCategoryStatusLabel(row)", {
+            status: "getCategoryStatusChipStatus(row)",
+            title: "formatCategoryStatusTitle(row)",
         }),
     ]);
 }
@@ -261,8 +262,8 @@ function createRedirectSlotsTemplate() {
         createStatusSlotTemplate(
             "status",
             "row.status",
-            "formatRedirectStatusLabel(row.status)",
-            "getRedirectStatusChipStatus(row.status)",
+            "formatRedirectStatusLabel(row)",
+            "getRedirectStatusChipStatus(row)",
         ),
         createRedirectTitleSlotTemplate(),
         createPageEditSlotTemplate(
@@ -339,12 +340,18 @@ function createNavboxSlotsTemplate() {
                 "addNavboxRow",
             ),
         ]),
-        createToggleSlotTemplate("enabled", "row.enabled", "Include navbox"),
+        createToggleSlotTemplate(
+            "enabled",
+            "row.enabled",
+            "Include navbox",
+            "isNavboxAddReviewRow(row)",
+            "create-vg-stub-review-row-marker--navbox-add",
+        ),
         createStatusSlotTemplate(
             "status",
             "row.status",
-            "formatNavboxStatusLabel(row.status)",
-            "getNavboxStatusChipStatus(row.status)",
+            "formatNavboxStatusLabel(row)",
+            "getNavboxStatusChipStatus(row)",
         ),
         createNavboxTextSlotTemplate(),
         createPageEditSlotTemplate(
@@ -418,7 +425,13 @@ function createStubTagSlotsTemplate() {
                 "addStubTagRow",
             ),
         ]),
-        createToggleSlotTemplate("enabled", "row.enabled", "Include stub tag"),
+        createToggleSlotTemplate(
+            "enabled",
+            "row.enabled",
+            "Include stub tag",
+            "isStubTagAddReviewRow(row)",
+            "create-vg-stub-review-row-marker--stub-tag-add",
+        ),
         createStubTagStatusSlotTemplate(),
         createStubTagInputSlotTemplate(),
         createPageEditSlotTemplate(
@@ -456,7 +469,6 @@ function createStubTagStatusSlotTemplate() {
  */
 function createStubTagInputSlotTemplate() {
     return createInputSlotTemplate("stubTag", {
-        placeholder: "Template name without braces",
         "v-model": "row.stubTag",
         "v-on:update:model-value":
             "updateStubTagRow(stubTagRows.indexOf(row), $event)",

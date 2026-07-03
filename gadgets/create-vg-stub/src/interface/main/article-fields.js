@@ -309,7 +309,7 @@ function createFieldControlsTemplate(options = {}) {
             "v-bind:class":
                 "{ " +
                 "'create-vg-stub-field-controls--with-source': field.sourceField, " +
-                "'create-vg-stub-field-controls--with-move': field.key === 'name' " +
+                "'create-vg-stub-field-controls--with-move': field.key === 'pageName' " +
                 "}",
         },
         [
@@ -355,7 +355,7 @@ function createSingleLineFieldBranchTemplate(placeholder) {
         },
         [
             createArticleFieldValueInputTemplate({ placeholder }),
-            createMoveTextButtonTemplate(),
+            createMovePageButtonTemplate(),
         ],
     );
 }
@@ -390,16 +390,16 @@ function createSourceUrlFieldOptions() {
 }
 
 /**
- * Creates the move-text button.
+ * Creates the page move button.
  *
- * @returns {object} Move-text button node.
+ * @returns {object} Page move button node.
  */
-function createMoveTextButtonTemplate() {
+function createMovePageButtonTemplate() {
     return createButtonTemplate({
         click: "openMoveDialog",
         disabled: "sourceFetchState.loading",
-        label: "Move text",
-        show: "field.key === 'name'",
+        label: "Move",
+        show: "field.key === 'pageName' && canMovePageName()",
     });
 }
 

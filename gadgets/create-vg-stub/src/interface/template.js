@@ -195,7 +195,11 @@ export function createIconActionButtonTemplate(
         type: "button",
         weight: "quiet",
         ...extra,
+        "v-on:blur": "hideTableActionTooltip",
         "v-on:click": click,
+        "v-on:focus": "showTableActionTooltip($event)",
+        "v-on:mouseleave": "hideTableActionTooltip",
+        "v-on:mouseenter": "showTableActionTooltip($event)",
     };
 
     if (ariaDisabled != null) {
@@ -362,47 +366,16 @@ export function createTableHeaderTemplate(
 }
 
 /**
- * Creates one table-header action and tooltip.
+ * Creates one table-header action.
  *
  * @param {object|string} action - Header action.
  * @param {number} index - Action index.
- * @returns {Array<object|string>} Action and tooltip nodes.
+ * @returns {Array<object|string>} Action nodes.
  */
 function createTableActionTemplate(action, index) {
     const spacer = index === 0 ? [] : [createText(" ")];
 
-    return [...spacer, action, createIconTooltipTemplate(action)];
-}
-
-/**
- * Creates a tooltip for an icon-only action.
- *
- * @param {object|string} action - Header action.
- * @returns {object} Tooltip node.
- */
-function createIconTooltipTemplate(action) {
-    return createElement(
-        "span",
-        {
-            class: "create-vg-stub-icon-tooltip",
-            role: "tooltip",
-        },
-        [createText(getActionLabel(action))],
-    );
-}
-
-/**
- * Gets the accessible label from an action node.
- *
- * @param {object|string} action - Header action.
- * @returns {string} Action label.
- */
-function getActionLabel(action) {
-    if (typeof action === "string") {
-        return "";
-    }
-
-    return action.attributes?.title || action.attributes?.["aria-label"] || "";
+    return [...spacer, action];
 }
 
 /**

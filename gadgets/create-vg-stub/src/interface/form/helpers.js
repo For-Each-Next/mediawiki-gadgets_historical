@@ -319,6 +319,7 @@ export function createStubTagRow(value = "") {
         enabled: value?.enabled !== false,
         originalEnabled: value?.originalEnabled === true,
         originalStubTag: trimStubTagValue(value?.originalStubTag || stubTag),
+        status: trimFieldValue(value?.status),
         stubTag,
         ...(value?.pendingEdit == null
             ? {}

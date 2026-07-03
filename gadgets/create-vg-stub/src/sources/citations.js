@@ -140,9 +140,7 @@ export function buildCiteTemplate(citation, options = {}) {
         Object.entries(values).filter(hasTemplateValue),
     );
 
-    return `{{${getTemplateName(citation.itemType)}${params
-        .map((param) => formatTemplateParam(param, { formatKey: false }))
-        .join("")}}}`;
+    return formatTemplateCall(getTemplateName(citation.itemType), params);
 }
 
 /**
@@ -175,13 +173,10 @@ export function buildCiteTemplateFromParts(parts) {
         hasTemplateValue([param.name, param.value]),
     );
 
-    return `{{${template}${params
-        .map((param) =>
-            formatTemplateParam([param.name, param.value], {
-                formatKey: false,
-            }),
-        )
-        .join("")}}}`;
+    return formatTemplateCall(
+        template,
+        params.map((param) => [param.name, param.value]),
+    );
 }
 
 /**
@@ -750,6 +745,39 @@ function formatTemplateParam(entry, options = {}) {
     const name = options.formatKey === false ? key : formatTemplateKey(key);
 
     return `|${name}=${escapeTemplateValue(String(value))}`;
+}
+
+/**
+ * Formats one citation template call.
+ *
+ * @param {string} template - Template name.
+ * @param {Array<Array<string>>} params - Template parameter entries.
+ * @returns {string} Template wikitext.
+ */
+function formatTemplateCall(template, params) {
+    const name = trimFieldText(template) || "cite web";
+
+    if (name.toLocaleLowerCase() === "cite web") {
+        return `{{${name}\n${params
+            .map(formatIndentedTemplateParam)
+            .join("\n")}\n}}`;
+    }
+
+    return `{{${name}${params
+        .map((param) => formatTemplateParam(param, { formatKey: false }))
+        .join("")}}}`;
+}
+
+/**
+ * Formats one indented template parameter.
+ *
+ * @param {Array<string>} entry - Template parameter entry.
+ * @returns {string} Template parameter wikitext.
+ */
+function formatIndentedTemplateParam(entry) {
+    const [key, value] = entry;
+
+    return `  | ${key} = ${escapeTemplateValue(String(value))}`;
 }
 
 /**

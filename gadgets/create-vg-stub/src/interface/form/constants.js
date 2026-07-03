@@ -151,8 +151,12 @@ const REVIEW_COLUMN_WIDTHS = {
 };
 export const CATEGORY_TABLE_COLUMNS = [
     { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
-    { id: "source", label: "Source", width: REVIEW_COLUMN_WIDTHS.status },
-    { id: "category", label: "Category", width: REVIEW_COLUMN_WIDTHS.main },
+    { id: "source", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
+    {
+        id: "category",
+        label: "Category name",
+        width: REVIEW_COLUMN_WIDTHS.main,
+    },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
     { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
@@ -169,7 +173,7 @@ export const METADATA_TABLE_COLUMNS = [
 export const NAVBOX_TABLE_COLUMNS = [
     { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     { id: "status", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
-    { id: "text", label: "Navbox", width: REVIEW_COLUMN_WIDTHS.main },
+    { id: "text", label: "Template name", width: REVIEW_COLUMN_WIDTHS.main },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
     { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
@@ -181,14 +185,18 @@ export const NOTETA_TABLE_COLUMNS = [
 export const REDIRECT_TABLE_COLUMNS = [
     { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     { id: "status", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
-    { id: "title", label: "Redirect", width: REVIEW_COLUMN_WIDTHS.main },
+    { id: "title", label: "Page name", width: REVIEW_COLUMN_WIDTHS.main },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
     { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
 export const STUB_TAG_TABLE_COLUMNS = [
     { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     { id: "type", label: "Status", width: REVIEW_COLUMN_WIDTHS.status },
-    { id: "stubTag", label: "Template", width: REVIEW_COLUMN_WIDTHS.main },
+    {
+        id: "stubTag",
+        label: "Template name",
+        width: REVIEW_COLUMN_WIDTHS.main,
+    },
     { id: "page", label: "Page", width: REVIEW_COLUMN_WIDTHS.page },
     { id: "actions", label: "Actions", width: REVIEW_COLUMN_WIDTHS.actions },
 ];
@@ -360,6 +368,15 @@ export const ARTICLE_PARAMETER_GROUPS = [
         "text",
         "Text",
         [
+            new ArticleParameterField(
+                "pageName",
+                "Page name",
+                "pageName",
+                null,
+                {
+                    placeholder: "Actual wiki page title",
+                },
+            ),
             new ArticleParameterField(
                 "name",
                 "Article display title",

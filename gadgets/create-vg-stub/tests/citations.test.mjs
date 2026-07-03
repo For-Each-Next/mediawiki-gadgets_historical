@@ -138,7 +138,15 @@ test("buildCiteTemplate formats Zotero metadata as cite web", () => {
 
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|author=Ada Lovelace|date=2025-01-02|language=en|title=Example {{!}} Title|url=https://example.test/article|website=Example Site}}",
+        "{{cite web\n" +
+            "  | access-date = 2026-05-24\n" +
+            "  | author = Ada Lovelace\n" +
+            "  | date = 2025-01-02\n" +
+            "  | language = en\n" +
+            "  | title = Example {{!}} Title\n" +
+            "  | url = https://example.test/article\n" +
+            "  | website = Example Site\n" +
+            "}}",
     );
 });
 
@@ -158,7 +166,12 @@ test("buildCiteTemplate normalizes non-Chinese language subtags by rule", () => 
 
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|language=en|title=Example|url=https://example.test/article}}",
+        "{{cite web\n" +
+            "  | access-date = 2026-05-24\n" +
+            "  | language = en\n" +
+            "  | title = Example\n" +
+            "  | url = https://example.test/article\n" +
+            "}}",
     );
 });
 
@@ -178,7 +191,12 @@ test("buildCiteTemplate preserves Chinese language subtags by rule", () => {
 
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|language=zh-Hans|title=Example|url=https://example.test/article}}",
+        "{{cite web\n" +
+            "  | access-date = 2026-05-24\n" +
+            "  | language = zh-Hans\n" +
+            "  | title = Example\n" +
+            "  | url = https://example.test/article\n" +
+            "}}",
     );
 });
 
@@ -211,7 +229,11 @@ test("fetchCiteTemplate fetches Citoid data and formats the first item", async (
 
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|title=Example|url=https://example.test/article}}",
+        "{{cite web\n" +
+            "  | access-date = 2026-05-24\n" +
+            "  | title = Example\n" +
+            "  | url = https://example.test/article\n" +
+            "}}",
     );
 });
 
@@ -236,7 +258,7 @@ test("fetchCiteTemplate preserves the entered URL by default", async () => {
         rules: RULES,
     });
 
-    assert.equal(text.includes(`|url=${sourceUrl}`), true);
+    assert.equal(text.includes(`| url = ${sourceUrl}`), true);
     assert.equal(text.includes("/redirected"), false);
 });
 
@@ -265,7 +287,10 @@ test("fetchCiteTemplate follows Citoid redirects when enabled", async () => {
         ],
     });
 
-    assert.equal(text.includes("|url=https://example.test/redirected"), true);
+    assert.equal(
+        text.includes("| url = https://example.test/redirected"),
+        true,
+    );
 });
 
 test("fetchCiteTemplate falls back to source page title on Citoid 404", async () => {
@@ -314,7 +339,12 @@ test("fetchCiteTemplate falls back to source page title on Citoid 404", async ()
     ]);
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|title=Missing & Found {{!}} Example|url=https://www.example.test/missing?page=1|website=example.test}}",
+        "{{cite web\n" +
+            "  | access-date = 2026-05-24\n" +
+            "  | title = Missing & Found {{!}} Example\n" +
+            "  | url = https://www.example.test/missing?page=1\n" +
+            "  | website = example.test\n" +
+            "}}",
     );
 });
 
@@ -334,7 +364,11 @@ test("fetchCiteTemplate omits fallback title when source title fetch fails", asy
 
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|url=https://www.example.test/missing-page?page=1|website=example.test}}",
+        "{{cite web\n" +
+            "  | access-date = 2026-05-24\n" +
+            "  | url = https://www.example.test/missing-page?page=1\n" +
+            "  | website = example.test\n" +
+            "}}",
     );
 });
 
@@ -353,7 +387,10 @@ test("buildCiteTemplate omits URL-only titles", () => {
 
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|url=https://example.test/article}}",
+        "{{cite web\n" +
+            "  | access-date = 2026-05-24\n" +
+            "  | url = https://example.test/article\n" +
+            "}}",
     );
 });
 
@@ -376,7 +413,7 @@ test("buildCiteTemplate removes Gamer author by host rule", () => {
         },
     );
 
-    assert.equal(text.includes("|author="), false);
+    assert.equal(text.includes("| author ="), false);
 });
 
 test("buildCiteTemplate omits OpenCritic date by host rule", () => {
@@ -393,7 +430,7 @@ test("buildCiteTemplate omits OpenCritic date by host rule", () => {
         },
     );
 
-    assert.equal(text.includes("|date="), false);
+    assert.equal(text.includes("| date ="), false);
 });
 
 test("buildCiteTemplate strips Metacritic title suffix by host rule", () => {
@@ -409,8 +446,8 @@ test("buildCiteTemplate strips Metacritic title suffix by host rule", () => {
         },
     );
 
-    assert.equal(text.includes("|title=Example Reviews|"), true);
-    assert.equal(text.includes("|website=Metacritic"), true);
+    assert.equal(text.includes("| title = Example Reviews"), true);
+    assert.equal(text.includes("| website = Metacritic"), true);
 });
 
 test("buildCiteTemplate strips Game Informer title suffix by host rule", () => {
@@ -427,7 +464,7 @@ test("buildCiteTemplate strips Game Informer title suffix by host rule", () => {
         },
     );
 
-    assert.equal(text.includes("|title=Example Preview|"), true);
+    assert.equal(text.includes("| title = Example Preview"), true);
     assert.equal(text.includes(" - Game Informer"), false);
 });
 
@@ -455,7 +492,7 @@ test("fetchCiteTemplate preserves the entered PlayStation URL by default", async
         rules: RULES,
     });
 
-    assert.equal(text.includes(`|url=${sourceUrl}`), true);
+    assert.equal(text.includes(`| url = ${sourceUrl}`), true);
     assert.equal(text.includes("/games/--/"), false);
 });
 
@@ -489,10 +526,10 @@ test("fetchCiteTemplate restores Steam source query by host rule", async () => {
         ),
         true,
     );
-    assert.equal(text.includes("|language=zh-Hans"), true);
-    assert.equal(text.includes("|publisher="), false);
-    assert.equal(text.includes("|via=Steam"), true);
-    assert.equal(text.includes("|website="), false);
+    assert.equal(text.includes("| language = zh-Hans"), true);
+    assert.equal(text.includes("| publisher ="), false);
+    assert.equal(text.includes("| via = Steam"), true);
+    assert.equal(text.includes("| website ="), false);
     assert.equal(text.includes("utm_source"), false);
 });
 
@@ -519,7 +556,7 @@ test("fetchCiteTemplate maps Steam Traditional Chinese query language", async ()
         },
     );
 
-    assert.equal(text.includes("|language=zh-Hant"), true);
+    assert.equal(text.includes("| language = zh-Hant"), true);
 });
 
 test("fetchCiteTemplate avoids direct Steam fallback fetches", async () => {
@@ -548,7 +585,12 @@ test("fetchCiteTemplate avoids direct Steam fallback fetches", async () => {
     );
     assert.equal(
         text,
-        "{{cite web|access-date=2026-05-24|language=zh-Hans|url=https://store.steampowered.com/app/123/example/?l=schinese|via=Steam}}",
+        "{{cite web\n" +
+            "  | access-date = 2026-05-24\n" +
+            "  | language = zh-Hans\n" +
+            "  | url = https://store.steampowered.com/app/123/example/?l=schinese\n" +
+            "  | via = Steam\n" +
+            "}}",
     );
 });
 

@@ -54,6 +54,25 @@ export function createCitationStore() {
         },
 
         /**
+         * Fetches fresh citation wikitext and updates the cache.
+         *
+         * @param {string} url - Source URL.
+         * @returns {Promise<string>} Citation template wikitext.
+         */
+        refetch(url) {
+            const key = trimFieldValue(url);
+
+            delete cache[key];
+            delete pending[key];
+
+            pending[key] = fetchCiteTemplate(key, { cache }).finally(() => {
+                delete pending[key];
+            });
+
+            return pending[key];
+        },
+
+        /**
          * Starts a background citation fetch for a source URL.
          *
          * @param {string} url - Source URL.
@@ -93,16 +112,27 @@ export async function fetchSourceReferences(form, citationStore) {
  *
  * @param {object} form - Dialog form values.
  * @param {object} citationStore - Citation fetch/cache store.
+ * @param {object} [options] - Citation preparation options.
+ * @param {Array<string>} [options.refetchSourceUrls] - Source URLs to re-fetch.
  * @returns {Promise<Array<object>>} Managed citation rows.
  */
-export async function prepareManagedCitationRows(form, citationStore) {
+export async function prepareManagedCitationRows(
+    form,
+    citationStore,
+    options = {},
+) {
     const existingRows = Array.isArray(form.citationRows)
         ? form.citationRows
         : [];
+    const refetchSourceUrls = new Set(
+        (options.refetchSourceUrls || []).map(trimFieldValue),
+    );
 
     return Promise.all(
         getEnteredSourceUrls(form).map(async (sourceUrl, index) => {
-            const generatedCitation = await citationStore.fetch(sourceUrl);
+            const generatedCitation = await (refetchSourceUrls.has(sourceUrl)
+                ? citationStore.refetch(sourceUrl)
+                : citationStore.fetch(sourceUrl));
             const generated = parseCiteTemplate(generatedCitation);
             const existing = existingRows.find(
                 (row) => trimFieldValue(row.sourceUrl) === sourceUrl,

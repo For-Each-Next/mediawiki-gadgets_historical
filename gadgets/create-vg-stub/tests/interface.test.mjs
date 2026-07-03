@@ -401,6 +401,17 @@ test("live field updates trim values and normalize full dates to years", () => {
     component.methods.updateFieldValue({ key: "year" }, " 5 February 2015 ");
     assert.equal(form.year, "2015");
 
+    component.methods.updateFieldValue(
+        { key: "pageName" },
+        "Example (video game)",
+    );
+    assert.equal(form.pageName, "Example (video game)");
+    assert.equal(form.name, "");
+    assert.equal(
+        component.methods.getDialogTitle(),
+        "Create a stub for Example (video game)",
+    );
+
     component.methods.updateFieldValue({ key: "englishName" }, " Example ");
     assert.equal(form.englishName, "Example");
 });
@@ -441,6 +452,8 @@ test("live source and name row updates trim values", () => {
     );
     const { form, moveTarget } = component.setup();
 
+    assert.equal(component.methods.canMovePageName(), false);
+
     component.methods.updateSourceValue(
         { sourceKey: "yearSourceUrl" },
         " https://example.test ",
@@ -456,6 +469,42 @@ test("live source and name row updates trim values", () => {
     assert.equal(form.yearSourceUrl, "https://example.test");
     assert.equal(form.localizedNames[0].name, "簡体名");
     assert.equal(moveTarget.value, "Target page");
+    component.methods.updateFieldValue({ key: "pageName" }, "Target page");
+    assert.equal(component.methods.canMovePageName(), true);
+    component.methods.openMoveDialog();
+    assert.equal(moveTarget.value, "Target page");
+});
+
+test("page-name move dialog checks whether the target page exists", async () => {
+    let checkedTitle = "";
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onCheckPageTitle(title) {
+                checkedTitle = title;
+                return {
+                    exists: title === "Existing page",
+                    title,
+                };
+            },
+        }),
+    );
+    const { form, moveTarget, moveTargetState } = component.setup();
+
+    component.methods.updateFieldValue({ key: "pageName" }, "Existing page");
+    component.methods.openMoveDialog();
+    await component.methods.checkMoveTarget();
+
+    assert.equal(moveTarget.value, "Existing page");
+    assert.equal(checkedTitle, "Existing page");
+    assert.equal(moveTargetState.exists, true);
+    assert.equal(moveTargetState.checkedTitle, "Existing page");
+    assert.equal(form.name, "");
+    assert.equal(component.template.includes("moveTargetState.exists"), true);
+    assert.equal(
+        component.template.includes('v-on:blur="checkMoveTarget"'),
+        true,
+    );
 });
 
 test("References tab manages editable citation parameters", async () => {
@@ -469,16 +518,24 @@ test("References tab manages editable citation parameters", async () => {
         },
     };
 
+    const citationPrepareCalls = [];
     const component = createDialogComponent(
         createVueStub(),
         createOptionsStub({
-            async onPrepareCitations() {
+            async onPrepareCitations(_form, options = {}) {
+                citationPrepareCalls.push(options);
+                const refetched =
+                    options.refetchSourceUrls?.[0] ===
+                    "https://example.test/source";
+
                 return [
                     {
                         generatedParams: [
                             {
                                 name: "title",
-                                value: "Generated title",
+                                value: refetched
+                                    ? "Refetched title"
+                                    : "Generated title",
                             },
                             {
                                 name: "url",
@@ -510,8 +567,13 @@ test("References tab manages editable citation parameters", async () => {
             },
         }),
     );
-    const { activeCitationTab, form, getCitationParamRows, groups } =
-        component.setup();
+    const {
+        activeCitationTab,
+        citationTableColumns,
+        form,
+        getCitationParamRows,
+        groups,
+    } = component.setup();
 
     form.yearSourceUrl = "https://example.test/source";
     await component.methods.submitForm();
@@ -534,6 +596,14 @@ test("References tab manages editable citation parameters", async () => {
         ["url", "title", "accessdate"],
     );
 
+    component.methods.updateCitationParam(0, 1, "value", "Edited title");
+    component.methods.resetCitationParam(0, 1);
+    assert.equal(
+        form.citationRows[0].params.find((param) => param.name === "title")
+            .value,
+        "Generated title",
+    );
+
     component.methods.removeCitationParam(0, 1);
     assert.deepEqual(
         form.citationRows[0].params.map((param) => param.name),
@@ -544,6 +614,20 @@ test("References tab manages editable citation parameters", async () => {
     assert.deepEqual(
         form.citationRows[0].params.map((param) => param.name),
         ["url", "title"],
+    );
+    assert.equal(form.citationRows[0].modified, false);
+    component.methods.updateCitationParam(0, 1, "value", "Edited again");
+    await component.methods.refetchCitation(0);
+    assert.equal(
+        citationPrepareCalls.at(-1).refetchSourceUrls[0],
+        "https://example.test/source",
+    );
+    assert.deepEqual(
+        form.citationRows[0].params.map((param) => [param.name, param.value]),
+        [
+            ["url", "https://example.test/source"],
+            ["title", "Refetched title"],
+        ],
     );
     assert.equal(form.citationRows[0].modified, false);
     assert.deepEqual(groups.map((group) => group.label).slice(-2), [
@@ -573,9 +657,12 @@ test("References tab manages editable citation parameters", async () => {
         true,
     );
     assert.equal(activeCitationTab.value, "citation-1");
+    assert.equal(citationTableColumns[0].width, undefined);
     assert.equal(component.template.includes("<strong>Reference"), false);
+    assert.equal(component.template.includes("Re-fetch"), true);
     assert.equal(component.template.includes("Remove empty rows"), true);
     assert.equal(component.template.includes("Add parameter"), true);
+    assert.equal(component.template.includes("resetCitationParam"), true);
 });
 
 test("additional prose uses a textarea and source URL field", () => {
@@ -1055,10 +1142,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             title: "",
         },
     ]);
-    assert.equal(
-        component.methods.formatRedirectStatusLabel("Missing"),
-        "Ready",
-    );
+    assert.equal(component.methods.formatRedirectStatusLabel("Missing"), "OK");
     assert.equal(
         component.methods.getRedirectStatusChipStatus("Missing"),
         "success",
@@ -1067,12 +1151,24 @@ test("review exposes editable navboxes and subtle prose length", async () => {
         component.methods.getRedirectStatusChipStatus("Exists"),
         "warning",
     );
+    assert.equal(
+        component.methods.formatRedirectStatusLabel("Exists"),
+        "Overwrite",
+    );
     form.redirectRows[0].enabled = false;
     await component.methods.checkRedirectRows();
     assert.equal(redirectCheckCount, 0);
     assert.equal(form.redirectRows[0].enabled, false);
     component.methods.updateRedirectRowTitle(0, "Existing redirect");
     assert.equal(form.redirectRows[0].fixed, false);
+    assert.equal(
+        component.methods.formatRedirectStatusLabel(form.redirectRows[0]),
+        "Unchecked",
+    );
+    assert.equal(
+        component.methods.getRedirectStatusChipStatus(form.redirectRows[0]),
+        "notice",
+    );
     await component.methods.checkRedirectRow(0, {
         target: {
             value: "Existing redirect",
@@ -1181,13 +1277,13 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(component.template.includes("<cdx-info-chip"), true);
     assert.equal(
         component.template.includes(
-            'v-bind:status="getRedirectStatusChipStatus(row.status)"',
+            'v-bind:status="getRedirectStatusChipStatus(row)"',
         ),
         true,
     );
     assert.equal(
         component.template.includes(
-            'v-bind:status="getNavboxStatusChipStatus(row.status)"',
+            'v-bind:status="getNavboxStatusChipStatus(row)"',
         ),
         true,
     );
@@ -1234,6 +1330,18 @@ test("review exposes editable navboxes and subtle prose length", async () => {
     assert.equal(
         component.template.includes(
             "create-vg-stub-review-row-marker--category-add",
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
+            "create-vg-stub-review-row-marker--navbox-add",
+        ),
+        true,
+    );
+    assert.equal(
+        component.template.includes(
+            "create-vg-stub-review-row-marker--stub-tag-add",
         ),
         true,
     );
@@ -1306,7 +1414,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             enabled: false,
             stubTag: "Foo-stub",
         }),
-        "unchecked",
+        "Unchecked",
     );
     assert.equal(
         component.methods.formatStubTagStatusLabel({
@@ -1314,7 +1422,7 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             originalStubTag: "",
             stubTag: "Foo-stub",
         }),
-        "Manual",
+        "Unchecked",
     );
     assert.equal(
         component.methods.formatStubTagStatusLabel({
@@ -1322,7 +1430,15 @@ test("review exposes editable navboxes and subtle prose length", async () => {
             originalStubTag: "Foo-stub",
             stubTag: "Foo-stub",
         }),
-        "Ready",
+        "Unchecked",
+    );
+    assert.equal(
+        component.methods.formatStubTagStatusLabel({
+            enabled: false,
+            status: "OK",
+            stubTag: "Foo-stub",
+        }),
+        "OK",
     );
     assert.equal(component.template.includes('caption="Stub tags"'), true);
     assert.equal(
@@ -1390,8 +1506,8 @@ test("original title lookup is separate from the Steam helper", () => {
     const { form, getNameSearchRows } = component.setup();
 
     assert.equal(
-        component.template.indexOf("Original title lookup") <
-            component.template.indexOf("Steam name helper"),
+        component.template.indexOf("Steam name helper") <
+            component.template.indexOf("Original title lookup"),
         true,
     );
     assert.equal(
@@ -1408,7 +1524,7 @@ test("original title lookup is separate from the Steam helper", () => {
             row.query,
             row.links.map((link) => link.label),
         ]),
-        [["blank", "", ["CN domain", "Bahamut"]]],
+        [["blank", "", ["CN domain", "Bahamut", "zhwp"]]],
     );
 
     form.originalName = "zh:黯海";
@@ -1430,6 +1546,12 @@ test("original title lookup is separate from the Steam helper", () => {
                         "https://www.google.com/search?q=" +
                         "%22%E9%BB%AF%E6%B5%B7%22%20site%3Agnn.gamer.com.tw",
                 },
+                {
+                    label: "zhwp",
+                    url:
+                        "https://cse.google.com.hk/cse" +
+                        "?cx=25f8f2342cbfa4e46&q=%22%E9%BB%AF%E6%B5%B7%22",
+                },
             ],
             query: "黯海",
         },
@@ -1447,6 +1569,12 @@ test("original title lookup is separate from the Steam helper", () => {
                     url:
                         "https://www.google.com/search?q=" +
                         "%22Silt%22%20site%3Agnn.gamer.com.tw",
+                },
+                {
+                    label: "zhwp",
+                    url:
+                        "https://cse.google.com.hk/cse" +
+                        "?cx=25f8f2342cbfa4e46&q=%22Silt%22",
                 },
             ],
             query: "Silt",
@@ -1495,18 +1623,21 @@ test("review exposes editable stub tags below category rows", async () => {
             enabled: true,
             originalEnabled: true,
             originalStubTag: "Foo-stub",
+            status: "",
             stubTag: "Foo-stub",
         },
         {
             enabled: false,
             originalEnabled: false,
             originalStubTag: "Bar-stub",
+            status: "",
             stubTag: "Bar-stub",
         },
         {
             enabled: true,
             originalEnabled: false,
             originalStubTag: "",
+            status: "",
             stubTag: "",
         },
     ]);
@@ -1549,6 +1680,7 @@ test("table clean actions keep one blank editable row", () => {
             params: [
                 { name: "", value: "" },
                 { name: "url", value: "https://example.test" },
+                { name: "title", value: "" },
                 { name: "", value: "" },
             ],
             sourceUrl: "https://example.test",
@@ -1642,6 +1774,55 @@ test("navbox review stages source-preview edits and creates", async () => {
         "Pending",
     );
     assert.equal(component.methods.formatNavboxStatusLabel(""), "Unchecked");
+    assert.equal(
+        component.methods.formatNavboxStatusLabel({ text: "" }),
+        "empty",
+    );
+    assert.equal(
+        component.methods.isNavboxAddReviewRow({
+            enabled: true,
+            status: "Not exists",
+            text: "{{Missing navbox}}",
+        }),
+        true,
+    );
+    assert.equal(
+        component.methods.isStubTagAddReviewRow({
+            enabled: true,
+            status: "Missing",
+            stubTag: "Foo-stub",
+        }),
+        true,
+    );
+    assert.equal(
+        component.methods.formatRedirectStatusLabel({ title: "" }),
+        "empty",
+    );
+    assert.equal(
+        component.methods.formatCategoryStatusLabel({ category: "" }),
+        "empty",
+    );
+    assert.equal(
+        component.methods.formatCategoryStatusLabel({
+            category: "Example games",
+            status: "OK",
+        }),
+        "OK",
+    );
+    assert.equal(
+        component.methods.formatCategoryStatusLabel({
+            category: "Example games",
+            status: "Not exists",
+        }),
+        "Missing",
+    );
+    assert.equal(
+        component.methods.formatCategoryStatusLabel({
+            category: "Example games",
+            status: "",
+        }),
+        "Unchecked",
+    );
     assert.equal(
         component.methods.formatCategorySourceLabel("found"),
         "Found",
@@ -2108,13 +2289,11 @@ test("category review stages source-preview edits and company creates", async ()
         true,
     );
     assert.equal(
-        component.template.includes(
-            "{{ formatCategorySourceLabel(row.source) }}",
-        ),
+        component.template.includes("{{ formatCategoryStatusLabel(row) }}"),
         true,
     );
     assert.equal(
-        component.template.includes("formatCategorySourceTitle(row.source)"),
+        component.template.includes("formatCategoryStatusTitle(row)"),
         true,
     );
     assert.equal(
@@ -2493,6 +2672,7 @@ test("Clear resets fields and helper state across all tabs", async () => {
 
     assert.equal(activeTab.value, "metadata");
     assert.equal(form.name, "");
+    assert.equal(form.pageName, "Example");
     assert.equal(form.publishers, "");
     assert.deepEqual(form.categoryRows, []);
     assert.equal(steamUrl.value, "");
@@ -2729,6 +2909,7 @@ test("submit opens editable source and parsed preview first", async () => {
         previewOpen,
         previewSummary,
         previewText,
+        groups,
     } = component.setup();
 
     await component.methods.submitForm();
@@ -2794,9 +2975,14 @@ test("submit opens editable source and parsed preview first", async () => {
     assert.equal(component.template.includes("'Review'"), true);
     assert.equal(component.template.includes(">Continue<"), true);
     assert.equal(component.template.includes("<cdx-message"), true);
+    assert.equal(component.template.includes(">Move text<"), false);
+    assert.equal(component.template.includes(">Move<"), true);
+    const textFields = groups.find((group) => group.key === "text").fields;
     assert.equal(
-        component.template.indexOf(">Move text<") <
-            component.template.indexOf('v-on:click="submitForm"'),
+        textFields.findIndex((field) => field.label === "Page name") <
+            textFields.findIndex(
+                (field) => field.label === "Article display title",
+            ),
         true,
     );
 });
@@ -3634,6 +3820,9 @@ function createOptionsStub(options = {}) {
         onClearHistory() {},
         async onCheckRedirectRows(rows) {
             return rows;
+        },
+        async onCheckPageTitle() {
+            return { exists: false };
         },
         onCreateCategoryRow() {},
         onDeleteHistoryEntry() {},

@@ -141,6 +141,11 @@ export function createDialogComponent(Vue, options) {
     const historyOpen = Vue.ref(false);
     const mainActionMenuSelection = Vue.ref(null);
     const moveTarget = Vue.ref(currentTitle);
+    const moveTargetState = Vue.reactive({
+        checkedTitle: "",
+        exists: false,
+        loading: false,
+    });
     const moveOpen = Vue.ref(false);
     const activeCitationTab = Vue.ref("");
     const preSaveMoveEnabled = Vue.ref(false);
@@ -173,6 +178,15 @@ export function createDialogComponent(Vue, options) {
         error: "",
         loading: false,
     });
+    const tableActionTooltip = Vue.reactive({
+        label: "",
+        style: {
+            left: "0",
+            top: "0",
+        },
+        visible: false,
+    });
+    const tableActionTooltipRef = Vue.ref(null);
     const open = Vue.ref(options.initialOpen === true);
     const initialForm = options.initialForm;
     const sourceEditors = new Map();
@@ -181,6 +195,7 @@ export function createDialogComponent(Vue, options) {
     if (initialForm != null) {
         replaceFormValues(form, initialForm);
     }
+    syncPageNameFields();
     syncGeneratedNameNoteTaRow(form);
 
     if (options.initialOpen === true) {
@@ -752,6 +767,40 @@ export function createDialogComponent(Vue, options) {
         },
 
         /**
+         * Checks whether a checked missing navbox row should stand out.
+         *
+         * @param {object} row - Navbox review row.
+         * @returns {boolean} Whether the row should be highlighted.
+         */
+        isNavboxAddReviewRow(row) {
+            return (
+                row?.enabled !== false &&
+                trimFieldValue(row?.text) !== "" &&
+                (row?.pendingCreation != null ||
+                    row?.status === "Not exists" ||
+                    row?.status === "Missing" ||
+                    row?.status === "Pending creation")
+            );
+        },
+
+        /**
+         * Checks whether a checked missing stub-tag row should stand out.
+         *
+         * @param {object} row - Stub-tag review row.
+         * @returns {boolean} Whether the row should be highlighted.
+         */
+        isStubTagAddReviewRow(row) {
+            return (
+                row?.enabled !== false &&
+                trimStubTagValue(row?.stubTag) !== "" &&
+                (row?.pendingCreation != null ||
+                    row?.status === "Not exists" ||
+                    row?.status === "Missing" ||
+                    row?.status === "Pending creation")
+            );
+        },
+
+        /**
          * Checks whether a checked redirect row targets an existing page.
          *
          * @param {object} row - Redirect review row.
@@ -888,6 +937,46 @@ export function createDialogComponent(Vue, options) {
         },
 
         /**
+         * Shows the shared table-action tooltip near one icon button.
+         *
+         * @param {Event} event - Focus or mouse event from the action button.
+         * @returns {void}
+         */
+        showTableActionTooltip(event) {
+            const target = event.currentTarget;
+            const label =
+                target?.getAttribute("aria-label") ||
+                target?.getAttribute("title") ||
+                "";
+
+            if (
+                target == null ||
+                label === "" ||
+                typeof target.getBoundingClientRect !== "function"
+            ) {
+                return;
+            }
+
+            const rect = target.getBoundingClientRect();
+            tableActionTooltip.label = label;
+            tableActionTooltip.visible = true;
+            positionTableActionTooltip(rect);
+
+            if (typeof Vue.nextTick === "function") {
+                Vue.nextTick(() => positionTableActionTooltip(rect));
+            }
+        },
+
+        /**
+         * Hides the shared table-action tooltip.
+         *
+         * @returns {void}
+         */
+        hideTableActionTooltip() {
+            tableActionTooltip.visible = false;
+        },
+
+        /**
          * Updates the temporary draft row from current form values.
          *
          * @returns {void}
@@ -915,6 +1004,7 @@ export function createDialogComponent(Vue, options) {
         openMoveDialog() {
             moveTarget.value = getCurrentTitle();
             moveOpen.value = true;
+            this.checkMoveTarget();
         },
 
         /**
@@ -934,6 +1024,57 @@ export function createDialogComponent(Vue, options) {
          */
         updateMoveTarget(value) {
             moveTarget.value = trimFieldValue(value);
+            moveTargetState.checkedTitle = "";
+            moveTargetState.exists = false;
+        },
+
+        /**
+         * Checks whether the current move target page exists.
+         *
+         * @returns {Promise<void>} Resolves after status is refreshed.
+         */
+        async checkMoveTarget() {
+            if (options.onCheckPageTitle == null) {
+                return;
+            }
+
+            const title = trimFieldValue(moveTarget.value);
+
+            moveTargetState.checkedTitle = "";
+            moveTargetState.exists = false;
+
+            if (title === "") {
+                return;
+            }
+
+            moveTargetState.loading = true;
+
+            try {
+                const result = await options.onCheckPageTitle(title);
+
+                if (trimFieldValue(moveTarget.value) !== title) {
+                    return;
+                }
+
+                moveTargetState.checkedTitle = title;
+                moveTargetState.exists = result?.exists === true;
+            } catch (error) {
+                sourceFetchState.error = error.message || String(error);
+            } finally {
+                moveTargetState.loading = false;
+            }
+        },
+
+        /**
+         * Checks whether the entered page name differs from the current page.
+         *
+         * @returns {boolean} Whether the move action should be shown.
+         */
+        canMovePageName() {
+            return (
+                trimFieldValue(form.pageName) !== "" &&
+                trimFieldValue(form.pageName) !== currentTitle
+            );
         },
 
         /**
@@ -942,12 +1083,14 @@ export function createDialogComponent(Vue, options) {
          * @returns {Promise<void>} Resolves after navigation starts.
          */
         async submitMoveTarget() {
+            await this.checkMoveTarget();
             await refreshCategoryRows();
-            options.onSubmitHistory(form, moveTarget.value);
+            form.pageName = trimFieldValue(moveTarget.value);
+            options.onSubmitHistory(form, getCurrentTitle());
             historyEntries.value = options.getHistoryEntries();
             await options.onMoveTarget(
                 form,
-                moveTarget.value,
+                getCurrentTitle(),
                 sourceFetchState,
             );
         },
@@ -1091,7 +1234,7 @@ export function createDialogComponent(Vue, options) {
             }
 
             citation.params = (citation.params || []).filter(
-                hasCitationParamValue,
+                (param) => trimFieldValue(param?.value) !== "",
             );
             citation.modified = true;
         },
@@ -1115,6 +1258,35 @@ export function createDialogComponent(Vue, options) {
         },
 
         /**
+         * Resets one managed citation parameter row to its generated value.
+         *
+         * @param {number} citationIndex - Citation row index.
+         * @param {number} paramIndex - Parameter row index.
+         * @returns {void}
+         */
+        resetCitationParam(citationIndex, paramIndex) {
+            const citation = form.citationRows[citationIndex];
+
+            if (citation == null || citation.params[paramIndex] == null) {
+                return;
+            }
+
+            const generated = findGeneratedCitationParam(citation, paramIndex);
+
+            if (generated == null) {
+                citation.params.splice(paramIndex, 1);
+            } else {
+                citation.params[paramIndex] = cloneValue(generated);
+            }
+
+            citation.params = sortManagedCitationParams(citation.params);
+            citation.modified = !areCitationParamsEqual(
+                citation.params,
+                citation.generatedParams,
+            );
+        },
+
+        /**
          * Resets one managed citation to its generated parameters.
          *
          * @param {number} citationIndex - Citation row index.
@@ -1129,6 +1301,49 @@ export function createDialogComponent(Vue, options) {
 
             citation.params = cloneValue(citation.generatedParams || []);
             citation.modified = false;
+        },
+
+        /**
+         * Re-fetches one managed citation and overwrites edited parameters.
+         *
+         * @param {number} citationIndex - Citation row index.
+         * @returns {Promise<void>} Resolves after the citation is refreshed.
+         */
+        async refetchCitation(citationIndex) {
+            const citation = form.citationRows[citationIndex];
+
+            if (citation == null || options.onPrepareCitations == null) {
+                return;
+            }
+
+            citationState.error = "";
+            citationState.loading = true;
+
+            try {
+                const rows = await options.onPrepareCitations(form, {
+                    refetchSourceUrls: [citation.sourceUrl],
+                });
+                const refreshed = rows
+                    .map(createCitationRow)
+                    .find(
+                        (row) =>
+                            trimFieldValue(row.sourceUrl) ===
+                            trimFieldValue(citation.sourceUrl),
+                    );
+
+                if (refreshed != null) {
+                    form.citationRows.splice(citationIndex, 1, {
+                        ...refreshed,
+                        modified: false,
+                        params: cloneValue(refreshed.generatedParams || []),
+                    });
+                    syncActiveCitationTab();
+                }
+            } catch (error) {
+                citationState.error = error.message || String(error);
+            } finally {
+                citationState.loading = false;
+            }
         },
 
         /**
@@ -2072,6 +2287,39 @@ export function createDialogComponent(Vue, options) {
         },
 
         /**
+         * Formats a category review row status as a compact badge.
+         *
+         * @param {object} row - Category review row.
+         * @returns {string} Compact status label.
+         */
+        formatCategoryStatusLabel(row) {
+            return formatReviewRowStatusLabel(row, isBlankCategoryRow);
+        },
+
+        /**
+         * Formats a category review row status tooltip.
+         *
+         * @param {object} row - Category review row.
+         * @returns {string} Status tooltip.
+         */
+        formatCategoryStatusTitle(row) {
+            const sourceTitle = formatCategorySourceTitle(row?.source);
+            const label = formatReviewRowStatusLabel(row, isBlankCategoryRow);
+
+            return sourceTitle === "" ? label : `${label} (${sourceTitle})`;
+        },
+
+        /**
+         * Gets the InfoChip status for a category row.
+         *
+         * @param {object} row - Category review row.
+         * @returns {string} Codex InfoChip status.
+         */
+        getCategoryStatusChipStatus(row) {
+            return getReviewRowStatusChipStatus(row, isBlankCategoryRow);
+        },
+
+        /**
          * Formats a stub template name for display.
          *
          * @param {string} stubTag - Stub template name.
@@ -2090,11 +2338,7 @@ export function createDialogComponent(Vue, options) {
         formatStubTagStatusLabel(row) {
             return isBlankStubTagRow(row)
                 ? "empty"
-                : row?.enabled === false
-                  ? "unchecked"
-                  : isManualStubTagRow(row)
-                    ? "Manual"
-                    : "Ready";
+                : formatReviewRowStatusLabel(row, isBlankStubTagRow);
         },
 
         /**
@@ -2104,13 +2348,7 @@ export function createDialogComponent(Vue, options) {
          * @returns {string} Codex InfoChip status.
          */
         getStubTagStatusChipStatus(row) {
-            return isBlankStubTagRow(row)
-                ? "notice"
-                : row?.enabled === false
-                  ? "warning"
-                  : isManualStubTagRow(row)
-                    ? "notice"
-                    : "success";
+            return getReviewRowStatusChipStatus(row, isBlankStubTagRow);
         },
 
         /**
@@ -2187,41 +2425,53 @@ export function createDialogComponent(Vue, options) {
         /**
          * Formats a navbox existence status as a compact badge.
          *
-         * @param {string} status - Navbox existence status.
+         * @param {object|string} row - Navbox review row or existence status.
          * @returns {string} Compact status label.
          */
-        formatNavboxStatusLabel(status) {
-            return (
-                {
-                    "Not exists": "Missing",
-                    OK: "OK",
-                    "Pending creation": "Pending",
-                    "Pending edit": "Pending",
-                }[status] || "Unchecked"
-            );
+        formatNavboxStatusLabel(row) {
+            return formatReviewRowStatusLabel(row, isBlankNavboxRow);
         },
 
         /**
          * Gets the InfoChip status for a navbox existence state.
          *
-         * @param {string} status - Navbox existence status.
+         * @param {object|string} row - Navbox review row or existence status.
          * @returns {string} Codex InfoChip status.
          */
-        getNavboxStatusChipStatus(status) {
-            return getReviewStatusChipStatus(status);
+        getNavboxStatusChipStatus(row) {
+            return getReviewRowStatusChipStatus(row, isBlankNavboxRow);
         },
 
         /**
          * Formats a redirect existence status as a compact badge.
          *
-         * @param {string} status - Redirect existence status.
+         * @param {object|string} row - Redirect review row or existence status.
          * @returns {string} Compact status label.
          */
-        formatRedirectStatusLabel(status) {
+        formatRedirectStatusLabel(row) {
+            if (
+                typeof row === "object" &&
+                row != null &&
+                isBlankRedirectRow(row)
+            ) {
+                return "empty";
+            }
+
+            const status =
+                typeof row === "object" && row != null ? row.status : row;
+
+            if (
+                typeof row === "object" &&
+                row != null &&
+                !isRedirectRowFixed(row)
+            ) {
+                return "Unchecked";
+            }
+
             return (
                 {
-                    Exists: "Exists",
-                    Missing: "Ready",
+                    Exists: "Overwrite",
+                    Missing: "OK",
                 }[status] || "Unchecked"
             );
         },
@@ -2229,10 +2479,29 @@ export function createDialogComponent(Vue, options) {
         /**
          * Gets the InfoChip status for a redirect existence state.
          *
-         * @param {string} status - Redirect existence status.
+         * @param {object|string} row - Redirect review row or existence status.
          * @returns {string} Codex InfoChip status.
          */
-        getRedirectStatusChipStatus(status) {
+        getRedirectStatusChipStatus(row) {
+            if (
+                typeof row === "object" &&
+                row != null &&
+                isBlankRedirectRow(row)
+            ) {
+                return "notice";
+            }
+
+            const status =
+                typeof row === "object" && row != null ? row.status : row;
+
+            if (
+                typeof row === "object" &&
+                row != null &&
+                !isRedirectRowFixed(row)
+            ) {
+                return "notice";
+            }
+
             if (status === "Missing") {
                 return "success";
             }
@@ -2328,6 +2597,7 @@ export function createDialogComponent(Vue, options) {
                 mainActionMenuSelection,
                 moveOpen,
                 moveTarget,
+                moveTargetState,
                 metadataTableColumns: METADATA_TABLE_COLUMNS,
                 nameMarkets: NAME_MARKETS,
                 navboxTableColumns: NAVBOX_TABLE_COLUMNS,
@@ -2353,6 +2623,8 @@ export function createDialogComponent(Vue, options) {
                 sourceFetchState,
                 steamNameButtons: STEAM_NAME_BUTTONS,
                 steamUrl,
+                tableActionTooltip,
+                tableActionTooltipRef,
                 tableActionIcons: TABLE_ACTION_ICONS,
                 stubTagTableColumns: STUB_TAG_TABLE_COLUMNS,
                 stubTagRows,
@@ -2360,6 +2632,36 @@ export function createDialogComponent(Vue, options) {
         },
         template: createDialogTemplate(),
     };
+
+    /**
+     * Positions the shared table-action tooltip inside the viewport.
+     *
+     * @param {DOMRect} rect - Trigger button bounds.
+     * @returns {void}
+     */
+    function positionTableActionTooltip(rect) {
+        const tooltip = tableActionTooltipRef.value;
+        const margin = 8;
+        const viewportWidth =
+            globalThis.innerWidth ||
+            globalThis.document?.documentElement?.clientWidth ||
+            0;
+        const width = tooltip?.offsetWidth || 0;
+        const halfWidth = width / 2;
+        const centered = rect.left + rect.width / 2;
+        const minLeft = margin + halfWidth;
+        const maxLeft =
+            viewportWidth > 0 ? viewportWidth - margin - halfWidth : centered;
+        const left =
+            width > 0 && maxLeft >= minLeft
+                ? Math.min(Math.max(centered, minLeft), maxLeft)
+                : centered;
+
+        tableActionTooltip.style = {
+            left: `${left}px`,
+            top: `${rect.bottom + 6}px`,
+        };
+    }
 
     /**
      * Queues source editor initialization after Vue has rendered the textarea.
@@ -2979,7 +3281,7 @@ export function createDialogComponent(Vue, options) {
      * @returns {string} Current page title.
      */
     function getCurrentTitle() {
-        return currentTitle;
+        return trimFieldValue(form.pageName) || currentTitle;
     }
 
     /**
@@ -3164,6 +3466,12 @@ export function createDialogComponent(Vue, options) {
                 label: "Bahamut",
                 url: buildGoogleSiteSearchUrl(query, "gnn.gamer.com.tw"),
             },
+            {
+                label: "zhwp",
+                url:
+                    "https://cse.google.com.hk/cse?cx=25f8f2342cbfa4e46&q=" +
+                    encodeURIComponent(`"${getBasePageTitle(query)}"`),
+            },
         ];
     }
 
@@ -3185,6 +3493,17 @@ export function createDialogComponent(Vue, options) {
      */
     function getEnglishNameSearchQuery() {
         return getBasePageTitle(form.englishName);
+    }
+
+    /**
+     * Ensures page-name fields have current values after form replacement.
+     *
+     * @returns {void}
+     */
+    function syncPageNameFields() {
+        if (trimFieldValue(form.pageName) === "") {
+            form.pageName = currentTitle;
+        }
     }
 
     /**
@@ -3355,6 +3674,7 @@ export function createDialogComponent(Vue, options) {
             ...createFormValues(),
             publishers: "",
         });
+        syncPageNameFields();
         syncGeneratedNameNoteTaRow(form);
         activeTab.value = ARTICLE_PARAMETER_GROUPS[0].key;
         activeCitationTab.value = "";
@@ -3380,6 +3700,78 @@ export function createDialogComponent(Vue, options) {
                 row[STEAM_NAME_HELPER_ROW] !== true && hasAnyNameRowValue(row),
         );
     }
+}
+
+/**
+ * Formats a review row status as a compact badge label.
+ *
+ * @param {object|string} row - Review row or raw status.
+ * @param {Function} isBlank - Blank row checker.
+ * @returns {string} Compact status label.
+ */
+function formatReviewRowStatusLabel(row, isBlank) {
+    if (typeof row === "object" && row != null && isBlank(row)) {
+        return "empty";
+    }
+
+    const status = typeof row === "object" && row != null ? row.status : row;
+
+    return (
+        {
+            Exists: "OK",
+            Missing: "Missing",
+            "Not exists": "Missing",
+            OK: "OK",
+            "Pending creation": "Pending",
+            "Pending edit": "Pending",
+        }[status] || "Unchecked"
+    );
+}
+
+/**
+ * Gets the InfoChip status for a review row.
+ *
+ * @param {object|string} row - Review row or raw status.
+ * @param {Function} isBlank - Blank row checker.
+ * @returns {string} Codex InfoChip status.
+ */
+function getReviewRowStatusChipStatus(row, isBlank) {
+    if (typeof row === "object" && row != null && isBlank(row)) {
+        return "notice";
+    }
+
+    const status = typeof row === "object" && row != null ? row.status : row;
+
+    return getReviewStatusChipStatus(status);
+}
+
+/**
+ * Finds the generated parameter that should restore one citation row.
+ *
+ * @param {object} citation - Managed citation row.
+ * @param {number} paramIndex - Editable parameter index.
+ * @returns {object|undefined} Generated parameter row.
+ */
+function findGeneratedCitationParam(citation, paramIndex) {
+    const param = citation.params[paramIndex];
+    const name = trimFieldValue(param?.name);
+    const generatedParams = citation.generatedParams || [];
+
+    return (
+        generatedParams.find((generated) => generated.name === name) ||
+        generatedParams[paramIndex]
+    );
+}
+
+/**
+ * Checks whether two citation parameter lists have the same values.
+ *
+ * @param {Array<object>} first - First parameter list.
+ * @param {Array<object>} second - Second parameter list.
+ * @returns {boolean} Whether the parameter lists are equal.
+ */
+function areCitationParamsEqual(first = [], second = []) {
+    return JSON.stringify(first) === JSON.stringify(second || []);
 }
 import * as formHelpers from "./helpers.js";
 
@@ -3489,7 +3881,6 @@ const {
     findTextareaElement,
     getCodeMirrorText,
     setCodeMirrorText,
-    hasCitationParamValue,
     cloneValue,
     openDialog,
 } = formHelpers;

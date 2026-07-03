@@ -24,8 +24,8 @@ export function createNameGroupTemplate() {
             "v-if": "group.nameGroupKey",
         },
         [
-            createOriginalNameSearchTemplate(),
             createSteamNameHelperTemplate(),
+            createOriginalNameSearchTemplate(),
             createNameFieldsTemplate(),
         ],
     );

@@ -25,6 +25,7 @@ import {
     saveCompanyCategory,
 } from "./handlers/category-pages.js";
 import { createDialogComponent } from "./interface/form/index.js";
+import { getBasePageTitle } from "./interface/form/helpers.js";
 import { addDialogStyles } from "./interface/styles.js";
 import { trimFieldValue } from "./shared/form-values.js";
 import {
@@ -201,7 +202,7 @@ const getPageUrl = (title) => mw.util.getUrl(title);
  */
 const getFormProseSinographs = (form) =>
     countFormProseSinographs(form, {
-        defaultName: getDefaultNameFallback(),
+        defaultName: getFormDefaultName(form),
     });
 
 /**
@@ -212,7 +213,7 @@ const getFormProseSinographs = (form) =>
  */
 const getFormProseWikitext = (form) =>
     createArticleData(form, {
-        defaultName: getDefaultNameFallback(),
+        defaultName: getFormDefaultName(form),
     }).prose.text;
 
 /**
@@ -225,7 +226,7 @@ const getFormProseWikitext = (form) =>
  */
 function getFieldPlaceholder(form, field) {
     return getArticleFieldPlaceholder(form, field, {
-        defaultName: getDefaultName(),
+        defaultName: getFormDefaultName(form),
     });
 }
 
@@ -238,7 +239,7 @@ function getFieldPlaceholder(form, field) {
  */
 function getFieldPreview(form, previewKey) {
     return getArticleFieldPreview(form, previewKey, {
-        defaultName: getDefaultNameFallback(),
+        defaultName: getFormDefaultName(form),
     });
 }
 
@@ -258,7 +259,7 @@ function getFieldPreview(form, previewKey) {
  */
 export function createArticleParams(form) {
     return createArticleData(form, {
-        defaultName: getDefaultNameFallback(),
+        defaultName: getFormDefaultName(form),
     });
 }
 
@@ -273,6 +274,16 @@ function getDefaultNameFallback() {
     }
 
     return getDefaultName();
+}
+
+/**
+ * Gets the default display title for current form values.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {string} Default display title.
+ */
+function getFormDefaultName(form) {
+    return getBasePageTitle(form?.pageName) || getDefaultNameFallback();
 }
 
 /**
@@ -654,7 +665,7 @@ export function createSubmitHandler(citationStore, submit = submitForm) {
  */
 async function buildStubFromForm(form, citationStore) {
     return buildArticleStubFromForm(form, citationStore, {
-        defaultName: getDefaultNameFallback(),
+        defaultName: getFormDefaultName(form),
     });
 }
 
@@ -721,7 +732,7 @@ async function refreshFormCategoryRows(
         }
 
         const articleOptions = {
-            defaultName: getDefaultNameFallback(),
+            defaultName: getFormDefaultName(form),
         };
         const categoryOptions = {
             bypassCache: options.bypassCache,
@@ -830,7 +841,10 @@ async function openTargetPage(
     sourceFetchState.loading = true;
 
     try {
-        const targetForm = { ...form, name: targetTitle };
+        const targetForm = {
+            ...form,
+            pageName: targetTitle,
+        };
         const preserveEditor = shouldPreserveEditor();
         const [currentStub, stub] = preserveEditor
             ? await Promise.all([
@@ -1014,9 +1028,19 @@ function init(require) {
         onFormChange: (form) => saveFormDraft(form, currentPageName),
         onFetchPageText: fetchPageText,
         onMoveTarget: (...args) => openTargetPage(...args, citationStore),
+        async onCheckPageTitle(title) {
+            const [match] = await fetchExistingPageTitles(new mw.Api(), [
+                title,
+            ]);
+
+            return {
+                exists: match?.exists === true,
+                title: match?.title || title,
+            };
+        },
         onPrepareCompanyCategory: prepareCompanyCategoryText,
-        onPrepareCitations: (form) =>
-            prepareManagedCitationRows(form, citationStore),
+        onPrepareCitations: (form, options) =>
+            prepareManagedCitationRows(form, citationStore, options),
         async onPrepareRedirectRows(form, title) {
             const redirectTitles = buildRedirectTitles(form, title);
             const existingRedirectTitles = await fetchExistingPageTitles(

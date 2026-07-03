@@ -28,6 +28,7 @@ const INPUT_FORM_KEYS = new Set([
     "openCriticRecommendSourceUrl",
     "originalName",
     "originalNameSourceUrl",
+    "pageName",
     "platforms",
     "platformsSourceUrl",
     "publishers",
@@ -191,6 +192,7 @@ function createFormHistoryEntry(form, page, citations) {
         metadata: {
             page:
                 normalizePage(page) ||
+                normalizePage(snapshot.pageName) ||
                 normalizePage(snapshot.name) ||
                 "(untitled)",
             savedAt: new Date().toLocaleString(),

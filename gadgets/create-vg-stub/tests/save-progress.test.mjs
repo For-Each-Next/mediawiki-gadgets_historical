@@ -168,6 +168,52 @@ test("getSaveProgressGroups groups steps by edited target page", () => {
     );
 });
 
+test("getSaveProgressGroups places Wikidata sections after local work", () => {
+    const progress = createSaveProgress(
+        "Example",
+        [
+            {
+                id: "interwiki",
+                label: "Connect Example to Q123",
+                selected: true,
+                type: "interwiki",
+                wikidataId: "Q123",
+            },
+            {
+                id: "redirect:Alias",
+                label: "Redirect name: Alias to Example",
+                pageTitle: "Alias",
+                redirectTitle: "Alias",
+                selected: true,
+                type: "redirect",
+            },
+            {
+                id: "talk-banner",
+                label: "Add WikiProject Video games banner to Talk:Example",
+                pageTitle: "Example",
+                selected: true,
+                type: "talk-banner",
+            },
+        ],
+        {},
+        {
+            enabled: true,
+        },
+    );
+    const groups = getSaveProgressGroups(progress);
+
+    assert.deepEqual(
+        groups.map((group) => group.targetPage),
+        [
+            "Example",
+            "Alias",
+            "Talk:Example",
+            "WikiProject:电子游戏/新进条目",
+            "Wikidata:Q123",
+        ],
+    );
+});
+
 test("category progress includes bundled Wikidata and talk-page work", () => {
     const progress = createSaveProgress("Example", [
         {

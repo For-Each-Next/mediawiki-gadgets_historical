@@ -89,10 +89,15 @@ export function createSaveProgress(
  * @returns {Array<object>} Target-page progress groups.
  */
 export function getSaveProgressGroups(progress) {
-    return (progress?.steps || []).reduce(
+    const groups = (progress?.steps || []).reduce(
         (groups, step) => addStepToTargetGroup(groups, step, progress),
         [],
     );
+
+    return [
+        ...groups.filter((group) => !isWikidataTargetPage(group.targetPage)),
+        ...groups.filter((group) => isWikidataTargetPage(group.targetPage)),
+    ];
 }
 
 /**
@@ -379,6 +384,16 @@ function addStepToTargetGroup(groups, step, progress) {
     }
 
     return groups;
+}
+
+/**
+ * Checks whether a progress group targets Wikidata.
+ *
+ * @param {string} targetPage - Progress group target page.
+ * @returns {boolean} Whether the group targets Wikidata.
+ */
+function isWikidataTargetPage(targetPage) {
+    return normalizeActionText(targetPage).startsWith("Wikidata:");
 }
 
 /**

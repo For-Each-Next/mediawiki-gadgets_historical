@@ -6,10 +6,9 @@ import assert from "node:assert/strict";
 import test, { afterEach, beforeEach } from "node:test";
 
 import {
-    StyleSheet,
     createDialogComponent,
     createPreSaveGroups,
-} from "../src/interface/form.js";
+} from "../src/interface/form/index.js";
 
 const originalWindow = globalThis.window;
 const originalMw = globalThis.mw;
@@ -21,31 +20,6 @@ afterEach(() => {
     globalThis.window = originalWindow;
     globalThis.mw = originalMw;
     delete globalThis.__CREATE_VG_STUB_FIELD_DATA__;
-});
-
-test("StyleSheet serializes selector arrays and nested media rules", () => {
-    const styles = new StyleSheet()
-        .add([".example", ".example-alt"], {
-            fontSize: "12px",
-        })
-        .media("(max-width: 640px)", (sheet) => {
-            sheet.add(".example", {
-                fontSize: "10px",
-            });
-        });
-
-    assert.equal(
-        styles.toString(),
-        ".example,\n" +
-            ".example-alt {\n" +
-            "  font-size: 12px;\n" +
-            "}\n\n" +
-            "@media (max-width: 640px) {\n" +
-            "  .example {\n" +
-            "    font-size: 10px;\n" +
-            "  }\n" +
-            "}",
-    );
 });
 
 test("moved editing sessions open the refilled form automatically", () => {

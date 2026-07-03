@@ -24,11 +24,9 @@ import {
     saveCategoryPage,
     saveCompanyCategory,
 } from "./handlers/category-pages.js";
-import {
-    addDialogStyles,
-    createDialogComponent,
-    trimFieldValue,
-} from "./interface/form.js";
+import { createDialogComponent } from "./interface/form/index.js";
+import { addDialogStyles } from "./interface/styles.js";
+import { trimFieldValue } from "./shared/form-values.js";
 import {
     clearFormHistory,
     deleteFormHistoryEntry,

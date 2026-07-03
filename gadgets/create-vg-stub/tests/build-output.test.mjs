@@ -57,6 +57,13 @@ test("userscript output is beautified", async () => {
     assert.equal(await format(source, { parser: "babel" }), source);
 });
 
+test("stylesheet output includes dialog styles", async () => {
+    const source = await readFile("dist/create_vg_stub.css", "utf8");
+
+    assert.match(source, /\.create-vg-stub-dialog\.cdx-dialog/u);
+    assert.match(source, /\.create-vg-stub-preview-layout/u);
+});
+
 test("gadget initializes the zhwiki dialog only for edit actions and missing pages", async () => {
     assert.equal(await getLoaderCallCount("view", 1, "zhwiki"), 0);
     assert.equal(await getLoaderCallCount("view", 0, "zhwiki"), 1);

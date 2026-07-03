@@ -11,6 +11,7 @@
     "gadgetBuild": {
         "globalName": "createVgStub",
         "outputName": "create_vg_stub",
+        "styleEntryPoint": "src/interface/styles.css",
         "defines": {
             "__CREATE_VG_STUB_FIELD_DATA__": {
                 "jsonDirectories": [
@@ -18,6 +19,9 @@
                     "src/sources",
                     "src/wikitext"
                 ]
+            },
+            "__CREATE_VG_STUB_DIALOG_CSS__": {
+                "textFile": "src/interface/styles.css"
             }
         },
         "userscript": {

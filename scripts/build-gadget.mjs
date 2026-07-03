@@ -38,6 +38,7 @@ if (config.globalName == null) {
 await mkdir(outputDirectory, { recursive: true });
 
 const source = await bundleSource(entryPoint, config);
+const styleSource = await readStyleSource(config.styleEntryPoint);
 const minifyOptions = {
     compress: {
         passes: 2,
@@ -58,14 +59,22 @@ if (code == null) {
     throw new Error("Terser did not return minified code.");
 }
 
-await Promise.all([
+const outputs = [
     writeFile(resolve(outputDirectory, `${outputName}.js`), source),
     writeFile(
         resolve(outputDirectory, `${outputName}.min.js`),
         formatMinifiedOutput(code),
     ),
     writeFile(resolve(outputDirectory, `${outputName}.user.js`), userscript),
-]);
+];
+
+if (styleSource != null) {
+    outputs.push(
+        writeFile(resolve(outputDirectory, `${outputName}.css`), styleSource),
+    );
+}
+
+await Promise.all(outputs);
 
 /**
  * Bundles a gadget package into one browser script.
@@ -99,11 +108,26 @@ async function buildDefines(defineConfig = {}) {
     const entries = await Promise.all(
         Object.entries(defineConfig).map(async ([placeholder, definition]) => [
             placeholder,
-            JSON.stringify(await readJsonDirectories(definition)),
+            JSON.stringify(await readDefineValue(definition)),
         ]),
     );
 
     return Object.fromEntries(entries);
+}
+
+/**
+ * Reads one configured define value.
+ *
+ * @param {object} definition - Define data configuration.
+ * @param {string} [definition.textFile] - Text file to inject.
+ * @returns {Promise<*>} Define value.
+ */
+async function readDefineValue(definition) {
+    if (definition.textFile != null) {
+        return readFile(definition.textFile, "utf8");
+    }
+
+    return readJsonDirectories(definition);
 }
 
 /**
@@ -121,7 +145,7 @@ async function readJsonDirectories(definition) {
 
     if (directories.length === 0) {
         throw new Error(
-            "Each gadgetBuild.defines entry needs jsonDirectory or jsonDirectories.",
+            "Each gadgetBuild.defines entry needs textFile, jsonDirectory, or jsonDirectories.",
         );
     }
 
@@ -182,6 +206,20 @@ function parseDataFile(path, data) {
     }
 
     return JSON.parse(data);
+}
+
+/**
+ * Reads an optional standalone stylesheet source.
+ *
+ * @param {string} [path] - Stylesheet source path.
+ * @returns {Promise<string|null>} Stylesheet source or null.
+ */
+async function readStyleSource(path) {
+    if (path == null) {
+        return null;
+    }
+
+    return readFile(path, "utf8");
 }
 
 /**

@@ -24,6 +24,7 @@ The shared builder creates:
 
 - `dist/create_vg_stub.js` for a MediaWiki user JavaScript page.
 - `dist/create_vg_stub.min.js` for minified MediaWiki publishing.
+- `dist/create_vg_stub.css` for MediaWiki stylesheet publishing.
 - `dist/create_vg_stub.user.js` for Tampermonkey.
 
 Copy the first file's contents to a MediaWiki user JavaScript page, or

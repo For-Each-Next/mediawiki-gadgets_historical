@@ -823,6 +823,34 @@ test("preview source uses MediaWiki CodeMirror and syncs before parsing", async 
     assert.equal(parsedText, "Edited preview text");
 });
 
+test("preview close cancels delayed CodeMirror load and clears source", async () => {
+    const codeMirror = installDelayedCodeMirrorStub();
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onPreview() {
+                return {
+                    html: "<p>Generated parsed text</p>",
+                    summary: "Create stub",
+                    text: "Generated text",
+                };
+            },
+        }),
+    );
+    const state = component.setup();
+
+    state.previewTextArea.value = createTextareaRef();
+    await component.methods.previewForm();
+    component.methods.closePreviewDialog();
+    codeMirror.resolve();
+    await Promise.resolve();
+
+    assert.equal(codeMirror.instances.length, 0);
+    assert.equal(state.previewText.value, "");
+    assert.equal(state.previewSummary.value, "");
+    assert.equal(state.previewHtml.value, "");
+});
+
 test("page edit source syncs CodeMirror text before staging", async () => {
     const codeMirror = installCodeMirrorStub();
     const component = createDialogComponent(
@@ -857,6 +885,39 @@ test("page edit source syncs CodeMirror text before staging", async () => {
     component.methods.stagePageEdit();
 
     assert.equal(row.pendingEdit.text, "{{Edited navbox}}");
+});
+
+test("page edit close cancels delayed CodeMirror load and clears source", async () => {
+    const codeMirror = installDelayedCodeMirrorStub();
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onFetchPageText() {
+                return "{{Existing navbox}}";
+            },
+            onParsePreview() {
+                return "<p>Parsed</p>";
+            },
+        }),
+    );
+    const state = component.setup();
+    const row = {
+        enabled: true,
+        status: "OK",
+        text: "{{Example series}}",
+        title: "Example series",
+    };
+
+    state.pageEditTextArea.value = createTextareaRef();
+    await component.methods.openNavboxEdit(row);
+    component.methods.closePageEditDialog();
+    codeMirror.resolve();
+    await Promise.resolve();
+
+    assert.equal(codeMirror.instances.length, 0);
+    assert.equal(state.pageEditState.text, "");
+    assert.equal(state.pageEditState.html, "");
+    assert.equal(state.pageEditState.row, null);
 });
 
 test("localized name footer actions are hidden", () => {
@@ -3824,6 +3885,62 @@ function installCodeMirrorStub() {
 
                     return undefined;
                 };
+            },
+        },
+    };
+
+    return codeMirror;
+}
+
+function installDelayedCodeMirrorStub() {
+    let resolveUsing;
+    const codeMirror = {
+        instances: [],
+        modules: [],
+        resolve() {
+            resolveUsing();
+        },
+    };
+
+    class CodeMirrorStub {
+        constructor(textarea) {
+            this.textarea = textarea;
+            this.value = textarea.value;
+            codeMirror.instances.push(this);
+        }
+
+        destroy() {}
+
+        getValue() {
+            return this.value;
+        }
+
+        initialize() {}
+
+        setValue(value) {
+            this.value = value;
+        }
+    }
+
+    globalThis.mw = {
+        loader: {
+            using(modules) {
+                codeMirror.modules = modules;
+
+                return new Promise((resolve) => {
+                    resolveUsing = () =>
+                        resolve((module) => {
+                            if (module === "ext.CodeMirror") {
+                                return CodeMirrorStub;
+                            }
+
+                            if (module === "ext.CodeMirror.mode.mediawiki") {
+                                return () => ({ language: "mediawiki" });
+                            }
+
+                            return undefined;
+                        });
+                });
             },
         },
     };

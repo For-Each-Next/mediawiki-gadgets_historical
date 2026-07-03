@@ -193,6 +193,7 @@ export function createDialogComponent(Vue, options) {
     const initialForm = options.initialForm;
     const sourceEditors = new Map();
     const sourceEditorLoads = new Set();
+    let componentMounted = true;
 
     if (initialForm != null) {
         replaceFormValues(form, initialForm);
@@ -252,7 +253,9 @@ export function createDialogComponent(Vue, options) {
 
     if (typeof Vue.onBeforeUnmount === "function") {
         Vue.onBeforeUnmount(() => {
-            for (const key of sourceEditors.keys()) {
+            componentMounted = false;
+
+            for (const key of [...sourceEditors.keys()]) {
                 destroySourceEditor(key);
             }
         });
@@ -579,6 +582,7 @@ export function createDialogComponent(Vue, options) {
         closePreviewDialog() {
             destroySourceEditor("preview");
             previewOpen.value = false;
+            clearPreviewState();
         },
 
         /**
@@ -897,6 +901,7 @@ export function createDialogComponent(Vue, options) {
          */
         closeHistoryJsonDialog() {
             historyJsonOpen.value = false;
+            historyJsonText.value = "";
         },
 
         /**
@@ -2294,6 +2299,7 @@ export function createDialogComponent(Vue, options) {
         closePageEditDialog() {
             destroySourceEditor("pageEdit");
             pageEditOpen.value = false;
+            clearPageEditState();
         },
 
         /**
@@ -2730,13 +2736,17 @@ export function createDialogComponent(Vue, options) {
      */
     function queueSourceEditor(key, textareaRef, textRef) {
         if (typeof Vue.nextTick === "function") {
-            Vue.nextTick(() =>
-                initializeSourceEditor(key, textareaRef, textRef),
-            );
+            Vue.nextTick(() => {
+                if (isSourceEditorOpen(key)) {
+                    initializeSourceEditor(key, textareaRef, textRef);
+                }
+            });
             return;
         }
 
-        initializeSourceEditor(key, textareaRef, textRef);
+        if (isSourceEditorOpen(key)) {
+            initializeSourceEditor(key, textareaRef, textRef);
+        }
     }
 
     /**
@@ -2769,9 +2779,24 @@ export function createDialogComponent(Vue, options) {
             }
 
             const require = await loader.using(CODEMIRROR_MODULES);
+            const currentTextarea = findTextareaElement(textareaRef.value);
+
+            if (
+                !isSourceEditorOpen(key) ||
+                currentTextarea == null ||
+                currentTextarea !== textarea
+            ) {
+                return;
+            }
+
             const CodeMirror = require("ext.CodeMirror");
             const mediawiki = require("ext.CodeMirror.mode.mediawiki");
             const editor = new CodeMirror(textarea, mediawiki());
+
+            if (!isSourceEditorOpen(key)) {
+                destroyLoadedSourceEditor(editor);
+                return;
+            }
 
             if (typeof editor.initialize === "function") {
                 editor.initialize();
@@ -2805,12 +2830,77 @@ export function createDialogComponent(Vue, options) {
         syncSourceEditorText(key);
 
         if (typeof state.editor.destroy === "function") {
-            state.editor.destroy();
+            destroyLoadedSourceEditor(state.editor);
         } else if (typeof state.editor.toTextArea === "function") {
-            state.editor.toTextArea();
+            destroyLoadedSourceEditor(state.editor);
         }
 
         sourceEditors.delete(key);
+    }
+
+    /**
+     * Checks whether an editor key still belongs to an open dialog.
+     *
+     * @param {string} key - Editor instance key.
+     * @returns {boolean} Whether the backing dialog is open.
+     */
+    function isSourceEditorOpen(key) {
+        if (!componentMounted) {
+            return false;
+        }
+
+        if (key === "preview") {
+            return previewOpen.value === true;
+        }
+
+        if (key === "pageEdit") {
+            return pageEditOpen.value === true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Tears down a CodeMirror instance with either supported API.
+     *
+     * @param {object} editor - CodeMirror instance.
+     * @returns {void}
+     */
+    function destroyLoadedSourceEditor(editor) {
+        if (typeof editor.destroy === "function") {
+            editor.destroy();
+            return;
+        }
+
+        if (typeof editor.toTextArea === "function") {
+            editor.toTextArea();
+        }
+    }
+
+    /**
+     * Releases generated preview text and HTML after dismissal.
+     *
+     * @returns {void}
+     */
+    function clearPreviewState() {
+        previewText.value = "";
+        previewSummary.value = "";
+        previewHtml.value = "";
+    }
+
+    /**
+     * Releases fetched page edit text and parsed HTML after dismissal.
+     *
+     * @returns {void}
+     */
+    function clearPageEditState() {
+        Object.assign(pageEditState, {
+            error: "",
+            html: "",
+            row: null,
+            text: "",
+            title: "",
+        });
     }
 
     /**
@@ -3272,6 +3362,7 @@ export function createDialogComponent(Vue, options) {
             row.status = "Pending creation";
             destroySourceEditor("pageEdit");
             pageEditOpen.value = false;
+            clearPageEditState();
             return;
         }
 
@@ -3295,6 +3386,7 @@ export function createDialogComponent(Vue, options) {
             : "Pending edit";
         destroySourceEditor("pageEdit");
         pageEditOpen.value = false;
+        clearPageEditState();
     }
 
     /**
@@ -3314,6 +3406,7 @@ export function createDialogComponent(Vue, options) {
         delete row.pendingEdit;
         destroySourceEditor("pageEdit");
         pageEditOpen.value = false;
+        clearPageEditState();
     }
 
     /**

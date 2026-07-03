@@ -4,9 +4,9 @@
  * Builds edit summaries for generated video game stubs.
  */
 
-import { formatText, getTextTemplate } from "../shared/text-templates.js";
+const GAMEPAD_ICON = "\u{1F3AE}";
 
-export const EDIT_SUMMARY_SUFFIX = getTextTemplate("editing.summaryIcon");
+export const EDIT_SUMMARY_SUFFIX = `[[:m:User:For_Each_..._Next/global.js/create_vg_stub.js|${GAMEPAD_ICON}]]`;
 
 /**
  * Builds a generated-stub edit summary.
@@ -30,17 +30,8 @@ export function buildEditSummary(metadata) {
             : buildProseDetailText(
                   buildProseCountText(metadata.proseSinographs),
               );
-    const sourceText =
-        nameText === "" ? "" : buildSourceDetailText(metadata);
-    const values = {
-        icon: EDIT_SUMMARY_SUFFIX,
-        name: `${nameText}${proseText}${sourceText}`,
-        proseCount: "",
-        year: "",
-    };
-    const summary = formatText("editing.summary", values).trim();
-
-    return summary;
+    const sourceText = nameText === "" ? "" : buildSourceDetailText(metadata);
+    return addEditSummarySuffix(`${nameText}${proseText}${sourceText}`);
 }
 
 /**
@@ -52,16 +43,9 @@ export function buildEditSummary(metadata) {
 export function addEditSummarySuffix(summary) {
     const text = String(summary || "").trim();
 
-    if (text === "") {
-        return EDIT_SUMMARY_SUFFIX;
-    }
-
-    return formatText("editing.summary", {
-        icon: EDIT_SUMMARY_SUFFIX,
-        name: text,
-        proseCount: "",
-        year: "",
-    }).trim();
+    return text === ""
+        ? EDIT_SUMMARY_SUFFIX
+        : `${text} ${EDIT_SUMMARY_SUFFIX}`;
 }
 
 /**
@@ -92,9 +76,7 @@ function buildProseCountText(count) {
         return "";
     }
 
-    return formatText("editing.proseCount", {
-        count: Math.round(count),
-    });
+    return `${Math.round(count)} equivalent sinographs`;
 }
 
 /**

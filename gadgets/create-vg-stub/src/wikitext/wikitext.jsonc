@@ -76,16 +76,4 @@
         "allCompaniesCategory": "各公司电子游戏",
         "companyCategoryDescription": "本分類收錄由[[{company}]]開發、發行的電子遊戲作品。",
     },
-
-    // Text shown in the generated edit summary.
-    "editing": {
-        // Full summary including the linked gadget marker.
-        "summary": "{name}{year}{proseCount} {icon}",
-
-        // Optional summary components.
-        "localName": "[[{label}]]",
-        "summaryYear": "[[{year}年電子遊戲界|{year} video game]]",
-        "proseCount": "{count} equivalent sinographs",
-        "summaryIcon": "[[:m:User:For_Each_..._Next/global.js/create_vg_stub.js|🎮]]",
-    },
 }

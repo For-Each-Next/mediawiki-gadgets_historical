@@ -1,24 +1,29 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
+# Package manager artifacts
+*.tgz
+.npm/
+.pnpm-store/
+/package-lock.json
+
+# Build and coverage output
 build/
 coverage/
-*.tgz
+dist/
 
 # Logs
-logs/
 *.log
+logs/
 npm-debug.log*
+pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
-# Runtime/cache files
+# Runtime and tool caches
 .cache/
-.parcel-cache/
 .eslintcache
+.parcel-cache/
 .stylelintcache
 .turbo/
 .vite/
@@ -28,14 +33,12 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
-# Package manager caches
-.npm/
-.pnpm-store/
-
-# Editor and OS files
-.DS_Store
-Thumbs.db
+# Editors
 .idea/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# OS files
+.DS_Store
+Thumbs.db

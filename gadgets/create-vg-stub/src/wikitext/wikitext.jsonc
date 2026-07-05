@@ -21,6 +21,7 @@
         "yearUnreleased": "尚未推出的",
 
         // Series display text used in prose.
+        "derivativeWorkDisplayTitle": "《{title}》衍生作品",
         "seriesDisplayTitle": "《{title}》系列",
     },
 

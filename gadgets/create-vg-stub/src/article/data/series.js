@@ -45,6 +45,17 @@ export function buildSeriesMetadata(value) {
 }
 
 function buildSeriesItem(series) {
+    const marker = getSeriesMarker(series);
+    const value = marker.value;
+
+    if (marker.derivativeWork) {
+        return buildDerivativeWorkItem(value);
+    }
+
+    return buildSeriesTitleItem(value);
+}
+
+function buildSeriesTitleItem(series) {
     if (!isWikilinkValue(series)) {
         const displayText = formatText("patterns.seriesDisplayTitle", {
             title: series,
@@ -77,6 +88,34 @@ function buildSeriesItem(series) {
     return item;
 }
 
+function buildDerivativeWorkItem(series) {
+    if (!isWikilinkValue(series)) {
+        const displayText = formatText("patterns.derivativeWorkDisplayTitle", {
+            title: series,
+        });
+
+        return {
+            displayText,
+            normalizedText: series,
+            wikitext: displayText,
+        };
+    }
+
+    const parts = getWikilinkParts(series);
+    const label = parts.label || parts.target;
+    const displayLink = buildLinkText(parts.target, label);
+    const displayText = formatText("patterns.derivativeWorkDisplayTitle", {
+        title: displayLink,
+    });
+
+    return {
+        displayText,
+        linkTarget: parts.target,
+        normalizedText: series,
+        wikitext: displayText,
+    };
+}
+
 function normalizeSeriesValues(series) {
     const values = splitFieldValues(series).map(normalizeSeriesValue);
 
@@ -84,10 +123,11 @@ function normalizeSeriesValues(series) {
 }
 
 function normalizeSeriesValue(series) {
-    const value = trimValue(series);
+    const marker = getSeriesMarker(series);
+    const value = marker.value;
 
     if (!isWikilinkValue(value)) {
-        return trimSeriesSuffix(value);
+        return addSeriesMarker(trimSeriesSuffix(value), marker);
     }
 
     const parts = getWikilinkParts(value);
@@ -95,10 +135,35 @@ function normalizeSeriesValue(series) {
     const label = trimSeriesSuffix(parts.label);
 
     if (label === "") {
-        return `[[${target}]]`;
+        return addSeriesMarker(`[[${target}]]`, marker);
     }
 
-    return buildLinkText(target, label);
+    return addSeriesMarker(buildLinkText(target, label), marker);
+}
+
+function getSeriesMarker(series) {
+    const value = trimValue(series);
+    const derivativeWork = value.endsWith("*");
+
+    if (!derivativeWork) {
+        return {
+            derivativeWork,
+            value,
+        };
+    }
+
+    return {
+        derivativeWork,
+        value: trimValue(value.slice(0, -1)),
+    };
+}
+
+function addSeriesMarker(value, marker) {
+    if (!marker.derivativeWork) {
+        return value;
+    }
+
+    return `${value}*`;
 }
 
 function trimSeriesSuffix(value) {
@@ -107,6 +172,7 @@ function trimSeriesSuffix(value) {
 
 function buildSeriesCategoryPlans(series) {
     const plans = series
+        .map((value) => getSeriesMarker(value).value)
         .flatMap((value) => splitLookupFieldValues(value))
         .map(buildSeriesCategoryPlan);
 

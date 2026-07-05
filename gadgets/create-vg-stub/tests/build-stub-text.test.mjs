@@ -487,6 +487,35 @@ test("linked series renders as a linked series title", async () => {
     );
 });
 
+test("starred series renders as derivative work text", async () => {
+    const plainText = await buildStubText({
+        developers: "Foo Studio",
+        genres: "RPG",
+        name: "Example",
+        platforms: "PC",
+        publishers: "Bar Games",
+        series: "Example*",
+        year: "2024",
+    });
+    const linkedText = await buildStubText({
+        developers: "Foo Studio",
+        genres: "RPG",
+        name: "Example",
+        platforms: "",
+        publishers: "Bar Games",
+        series: "[[Example]]*",
+        year: "2024",
+    });
+
+    assert.equal(
+        plainText.includes("作品对应PC平台，属于「《Example》衍生作品」。"),
+        true,
+    );
+    assert.equal(linkedText.includes("作品属于「《[[Example]]》衍生作品」。"), true);
+    assert.equal(plainText.includes("Example*"), false);
+    assert.equal(plainText.includes("衍生作品系列"), false);
+});
+
 test("piped series link preserves target and trims label suffix", async () => {
     const text = await buildStubText({
         developers: "Foo Studio",

@@ -123,7 +123,7 @@ function createMetadataFieldTableSlotsTemplate() {
             {
                 "v-slot:item-label": "{ row }",
             },
-            [createText("{{ row.field.label }}")],
+            [createText("{{ getMetadataFieldLabel(row.field) }}")],
         ),
         createElement(
             "template",

@@ -13,6 +13,7 @@ import {
     parsePrefixedValue,
     trimFieldValue,
 } from "../../shared/form-values.js";
+import { splitFieldValues } from "../../shared/utils.js";
 import {
     createSaveProgress,
     getSaveProgressGroups,
@@ -2594,6 +2595,26 @@ export function createDialogComponent(Vue, options) {
         },
 
         /**
+         * Gets the metadata table field label, including list item counts.
+         *
+         * @param {object} field - Article parameter field.
+         * @param {string} field.key - Form field key.
+         * @param {string} field.label - Field display label.
+         * @returns {string} Field label for metadata table display.
+         */
+        getMetadataFieldLabel(field) {
+            const label = field?.label || "";
+
+            if (!isArticleListField(field?.key)) {
+                return label;
+            }
+
+            const count = splitFieldValues(form[field.key]).length;
+
+            return `${label} (${count})`;
+        },
+
+        /**
          * Checks whether a localized name row came from the Steam helper.
          *
          * @param {object} row - Localized name row.
@@ -2636,6 +2657,7 @@ export function createDialogComponent(Vue, options) {
                 getCitationTabLabel,
                 getCitationTabName,
                 getCitationTabsKey,
+                getMetadataFieldLabel: methods.getMetadataFieldLabel,
                 getMetadataFieldTableRows,
                 getArticleField,
                 getArticlePreviewTitle,

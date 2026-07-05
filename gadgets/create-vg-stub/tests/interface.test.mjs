@@ -745,7 +745,13 @@ test("metadata source fields render in a table", () => {
         createVueStub(),
         createOptionsStub(),
     );
-    const { getMetadataFieldTableRows, groups, metadataTableColumns } =
+    const {
+        form,
+        getMetadataFieldLabel,
+        getMetadataFieldTableRows,
+        groups,
+        metadataTableColumns,
+    } =
         component.setup();
     const metadataGroup = groups.find((group) => group.key === "metadata");
 
@@ -785,10 +791,26 @@ test("metadata source fields render in a table", () => {
         ),
         true,
     );
-    assert.equal(component.template.includes("{{ row.field.label }}"), true);
+    assert.equal(
+        component.template.includes("{{ getMetadataFieldLabel(row.field) }}"),
+        true,
+    );
     assert.equal(
         component.template.includes("form[row.field.sourceField.sourceKey]"),
         true,
+    );
+    form.developers = "Foo Studio; Bar Games";
+    assert.equal(
+        getMetadataFieldLabel(
+            metadataGroup.fields.find((field) => field.key === "developers"),
+        ),
+        "Developers (2)",
+    );
+    assert.equal(
+        getMetadataFieldLabel(
+            metadataGroup.fields.find((field) => field.key === "year"),
+        ),
+        "Release year",
     );
 });
 

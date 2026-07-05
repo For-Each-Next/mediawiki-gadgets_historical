@@ -794,6 +794,19 @@
     },
     {
         "aliases": [
+            "sim racing",
+            "sim racing game",
+            "racing sim",
+            "racing simulation",
+            "racing simulation game"
+        ],
+        "categories": ["競速遊戲"],
+        "name": "Sim racing",
+        "page": "赛车游戏",
+        "stubTags": ["racing-videogame-stub"]
+    },
+    {
+        "aliases": [
             "social sim",
             "social simulation",
             "social simulation game",

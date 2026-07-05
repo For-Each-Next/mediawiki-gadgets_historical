@@ -40,6 +40,10 @@ test("get returns metadata by default and supports projected fields", () => {
 
 test("get resolves aliases case-insensitively and accepts plural types", () => {
     assert.equal(get("platforms", "ps5", "name"), "PlayStation 5");
+    assert.equal(
+        get("platform", "Xbox Series X and S", "name"),
+        "Xbox Series X/S",
+    );
     assert.equal(get("genres", "rpg", "short name"), "角色扮演");
 });
 

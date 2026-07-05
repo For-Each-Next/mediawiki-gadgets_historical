@@ -2036,8 +2036,7 @@ test("navbox review stages source-preview edits and creates", async () => {
     assert.deepEqual(existingRow.pendingEdit, {
         create: false,
         previousStatus: "OK",
-        summary:
-            "modify 'Template:Example series', with link to '[[Example]]'",
+        summary: "add link to '[[Example]]'",
         text: "{{Edited navbox}}",
         title: "Template:Example series",
     });

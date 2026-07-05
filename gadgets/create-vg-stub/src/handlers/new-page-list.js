@@ -78,7 +78,7 @@ function buildNewPageListSummary(articleTitle, companyCategories) {
     }
 
     return (
-        `register the new article "${article}" and ` +
+        `register the new article "${article}" as well as ` +
         `categor${categories.length === 1 ? "y" : "ies"} ${formatSummaryList(categories)}`
     );
 }

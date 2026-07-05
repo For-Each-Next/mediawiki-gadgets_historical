@@ -3449,6 +3449,10 @@ export function createDialogComponent(Vue, options) {
                 ? `, with link to '[[${currentTitle}]]'`
                 : "";
 
+        if (state.kind === "navbox" && !state.create) {
+            return `add link to '[[${currentTitle}]]'`;
+        }
+
         return `${action} '${state.title}'${suffix}`;
     }
 

@@ -212,7 +212,7 @@ test("registerNewPage edit summary mentions added categories", async () => {
 
     assert.equal(
         edits[0][1].summary,
-        `register the new article "[[Example]]" and category [[Category:Example公司游戏]] ${EDIT_SUMMARY_SUFFIX}`,
+        `register the new article "[[Example]]" as well as category [[Category:Example公司游戏]] ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
 
@@ -254,6 +254,6 @@ test("registerNewPage edit summary formats multiple categories", async () => {
 
     assert.equal(
         edits[0][1].summary,
-        `register the new article "[[Thomas & Friends: Wonders of Sodor]]" and categories [[Category:Dovetail Games遊戲]], [[Category:Maximum Games游戏]] and [[Category:Example Studios游戏]] ${EDIT_SUMMARY_SUFFIX}`,
+        `register the new article "[[Thomas & Friends: Wonders of Sodor]]" as well as categories [[Category:Dovetail Games遊戲]], [[Category:Maximum Games游戏]] and [[Category:Example Studios游戏]] ${EDIT_SUMMARY_SUFFIX}`,
     );
 });

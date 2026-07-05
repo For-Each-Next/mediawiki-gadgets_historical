@@ -475,19 +475,13 @@ async function submitForm(
  * @param {string} summary - Edit summary.
  * @returns {Promise<void>} Resolves after the article is saved.
  */
-async function saveSubmittedArticle(api, title, text, summary) {
-    const params = {
+export async function saveSubmittedArticle(api, title, text, summary) {
+    await api.postWithToken("csrf", {
         action: "edit",
         summary,
         text,
         title,
-    };
-
-    if (mw.config.get("wgArticleId") === 0) {
-        params.createonly = true;
-    }
-
-    await api.postWithToken("csrf", params);
+    });
 }
 
 /**

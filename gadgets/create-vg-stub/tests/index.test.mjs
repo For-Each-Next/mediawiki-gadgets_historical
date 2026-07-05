@@ -53,3 +53,76 @@ test("submit handler passes citation store before reviewed preview", async () =>
         preview,
     ]);
 });
+
+test("saving from a missing-page view allows overwrite", async () => {
+    globalThis.mw.config.get = (key) => (key === "wgArticleId" ? 0 : "read");
+    const { saveSubmittedArticle } = await import(
+        `../src/index.js?test=${Date.now()}`
+    );
+    const calls = [];
+    const api = {
+        async postWithToken(token, params) {
+            calls.push([token, params]);
+        },
+    };
+
+    await saveSubmittedArticle(api, "Example", "Text", "create stub");
+
+    assert.deepEqual(calls, [
+        [
+            "csrf",
+            {
+                action: "edit",
+                summary: "create stub",
+                text: "Text",
+                title: "Example",
+            },
+        ],
+    ]);
+});
+
+test("saving an existing article allows overwrite", async () => {
+    globalThis.mw.config.get = (key) => (key === "wgArticleId" ? 123 : "read");
+    const { saveSubmittedArticle } = await import(
+        `../src/index.js?test=${Date.now()}`
+    );
+    const calls = [];
+    const api = {
+        async postWithToken(token, params) {
+            calls.push([token, params]);
+        },
+    };
+
+    await saveSubmittedArticle(api, "Example", "Text", "update stub");
+
+    assert.deepEqual(calls, [
+        [
+            "csrf",
+            {
+                action: "edit",
+                summary: "update stub",
+                text: "Text",
+                title: "Example",
+            },
+        ],
+    ]);
+});
+
+test("article save failures still reject", async () => {
+    globalThis.mw.config.get = (key) => (key === "wgArticleId" ? 0 : "read");
+    const { saveSubmittedArticle } = await import(
+        `../src/index.js?test=${Date.now()}`
+    );
+    const api = {
+        async postWithToken() {
+            throw { code: "abusefilter-disallowed" };
+        },
+    };
+
+    await assert.rejects(
+        () => saveSubmittedArticle(api, "Example", "Text", "create stub"),
+        {
+            code: "abusefilter-disallowed",
+        },
+    );
+});

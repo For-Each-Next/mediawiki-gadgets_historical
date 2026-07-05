@@ -445,6 +445,53 @@ test("live multi-item updates preserve standalone and", () => {
     assert.equal(form.developers, "Tom, Jerry and Mary; Spike Studio");
 });
 
+test("metadata fields complete wiki-link brackets around list items", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { form } = component.setup();
+
+    form.series = "最终幻想系列; 节奏剧场系列";
+    component.methods.updateFieldValue(
+        { key: "series" },
+        "最终幻想系列; 节奏剧场系列]]",
+    );
+    assert.equal(form.series, "最终幻想系列; [[节奏剧场系列]]");
+
+    form.series = "最终幻想系列; 节奏剧场系列";
+    component.methods.updateFieldValue(
+        { key: "series" },
+        "最终幻想系列; [[节奏剧场系列",
+    );
+    assert.equal(form.series, "最终幻想系列; [[节奏剧场系列]]");
+
+    form.developers = "Halfbrick Studios]";
+    component.methods.updateFieldValue(
+        { key: "developers" },
+        "Halfbrick Studios]]",
+    );
+    assert.equal(form.developers, "[[Halfbrick Studios]]");
+
+    form.developers = "Halfbrick Studios]";
+    component.methods.updateFieldValue(
+        { key: "developers" },
+        "Halfbrick Studios] ",
+    );
+    assert.equal(form.developers, "Halfbrick Studios]");
+
+    form.developers = "[";
+    component.methods.updateFieldValue(
+        { key: "developers" },
+        "[[Halfbrick Studios",
+    );
+    assert.equal(form.developers, "[[Halfbrick Studios]]");
+
+    form.englishName = "Example";
+    component.methods.updateFieldValue({ key: "englishName" }, "Example]]");
+    assert.equal(form.englishName, "Example]]");
+});
+
 test("live source and name row updates trim values", () => {
     const component = createDialogComponent(
         createVueStub(),

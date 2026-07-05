@@ -1185,10 +1185,15 @@ export function createDialogComponent(Vue, options) {
          * @returns {void}
          */
         updateFieldValue(field, value) {
+            const completedValue = completeWikiLinkBrackets(
+                field.key,
+                value,
+                form[field.key],
+            );
             const normalizedValue =
                 field.key === "enwikiTitle"
-                    ? normalizeEnwikiTitleValue(value)
-                    : value;
+                    ? normalizeEnwikiTitleValue(completedValue)
+                    : completedValue;
 
             form[field.key] = formatArticleFormField(
                 form,
@@ -3944,6 +3949,192 @@ function findGeneratedCitationParam(citation, paramIndex) {
  */
 function areCitationParamsEqual(first = [], second = []) {
     return JSON.stringify(first) === JSON.stringify(second || []);
+}
+
+const WIKI_LINK_COMPLETION_FIELDS = new Set([
+    "developers",
+    "publishers",
+    "series",
+    "platforms",
+    "genres",
+]);
+
+/**
+ * Completes wiki-link brackets for selected metadata list fields.
+ *
+ * @param {string} key - Form field key.
+ * @param {*} value - Current input value.
+ * @param {*} previousValue - Previous stored field value.
+ * @returns {string} Input value with the matching wiki-link brackets inserted.
+ */
+function completeWikiLinkBrackets(key, value, previousValue) {
+    const text = String(value ?? "");
+
+    if (!WIKI_LINK_COMPLETION_FIELDS.has(key)) {
+        return text;
+    }
+
+    const insertion = getInsertedText(String(previousValue ?? ""), text);
+
+    if (insertion == null) {
+        return text;
+    }
+
+    const openingMarkerIndex = getInsertedMarkerIndex(text, insertion, "[[");
+
+    if (openingMarkerIndex >= 0) {
+        return completeOpeningWikiLink(text, openingMarkerIndex);
+    }
+
+    const closingMarkerIndex = getInsertedMarkerIndex(text, insertion, "]]");
+
+    if (closingMarkerIndex >= 0) {
+        return completeClosingWikiLink(text, closingMarkerIndex);
+    }
+
+    return text;
+}
+
+/**
+ * Finds the single inserted range between two text values.
+ *
+ * @param {string} previousText - Previous text.
+ * @param {string} text - Current text.
+ * @returns {object|null} Inserted text and index, or null when not a simple insertion.
+ */
+function getInsertedText(previousText, text) {
+    if (text.length <= previousText.length) {
+        return null;
+    }
+
+    let start = 0;
+
+    while (
+        start < previousText.length &&
+        previousText[start] === text[start]
+    ) {
+        start += 1;
+    }
+
+    let previousEnd = previousText.length;
+    let textEnd = text.length;
+
+    while (
+        previousEnd > start &&
+        textEnd > start &&
+        previousText[previousEnd - 1] === text[textEnd - 1]
+    ) {
+        previousEnd -= 1;
+        textEnd -= 1;
+    }
+
+    if (previousEnd !== start) {
+        return null;
+    }
+
+    return {
+        index: start,
+        text: text.slice(start, textEnd),
+    };
+}
+
+/**
+ * Locates a completed marker touched by the current insertion.
+ *
+ * @param {string} text - Current text.
+ * @param {object} insertion - Inserted text and index.
+ * @param {string} marker - Marker to find.
+ * @returns {number} Marker index, or -1 when the insertion did not complete it.
+ */
+function getInsertedMarkerIndex(text, insertion, marker) {
+    const start = Math.max(0, insertion.index - marker.length + 1);
+    const end = insertion.index + insertion.text.length;
+
+    for (let index = start; index <= end - marker.length; index += 1) {
+        if (text.slice(index, index + marker.length) === marker) {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
+/**
+ * Completes an opening wiki-link marker by adding its close marker.
+ *
+ * @param {string} text - Current input text.
+ * @param {number} markerIndex - Index where "[[" was inserted.
+ * @returns {string} Completed input text.
+ */
+function completeOpeningWikiLink(text, markerIndex) {
+    const segmentEnd = findListSegmentEnd(text, markerIndex + 2);
+    const segmentAfterMarker = text.slice(markerIndex + 2, segmentEnd);
+
+    if (segmentAfterMarker.includes("]]")) {
+        return text;
+    }
+
+    const trailingWhitespace = segmentAfterMarker.match(/\s*$/u)[0];
+    const insertIndex = segmentEnd - trailingWhitespace.length;
+
+    return `${text.slice(0, insertIndex)}]]${text.slice(insertIndex)}`;
+}
+
+/**
+ * Completes a closing wiki-link marker by adding its open marker.
+ *
+ * @param {string} text - Current input text.
+ * @param {number} markerIndex - Index where "]]" was inserted.
+ * @returns {string} Completed input text.
+ */
+function completeClosingWikiLink(text, markerIndex) {
+    const segmentStart = findListSegmentStart(text, markerIndex);
+    const segmentBeforeMarker = text.slice(segmentStart, markerIndex);
+
+    if (segmentBeforeMarker.includes("[[")) {
+        return text;
+    }
+
+    if (trimFieldValue(segmentBeforeMarker) === "") {
+        return text;
+    }
+
+    const leadingWhitespace = segmentBeforeMarker.match(/^\s*/u)[0];
+    const insertIndex = segmentStart + leadingWhitespace.length;
+
+    return `${text.slice(0, insertIndex)}[[${text.slice(insertIndex)}`;
+}
+
+/**
+ * Finds the start index of the current semicolon/newline-delimited item.
+ *
+ * @param {string} text - Current input text.
+ * @param {number} index - Index inside the current item.
+ * @returns {number} Segment start index.
+ */
+function findListSegmentStart(text, index) {
+    const before = text.slice(0, index);
+    const separatorIndex = Math.max(
+        before.lastIndexOf(";"),
+        before.lastIndexOf("；"),
+        before.lastIndexOf("\n"),
+        before.lastIndexOf("\r"),
+    );
+
+    return separatorIndex < 0 ? 0 : separatorIndex + 1;
+}
+
+/**
+ * Finds the end index of the current semicolon/newline-delimited item.
+ *
+ * @param {string} text - Current input text.
+ * @param {number} index - Index inside the current item.
+ * @returns {number} Segment end index.
+ */
+function findListSegmentEnd(text, index) {
+    const match = text.slice(index).match(/[;；\r\n]/u);
+
+    return match == null ? text.length : index + match.index;
 }
 import * as formHelpers from "./helpers.js";
 

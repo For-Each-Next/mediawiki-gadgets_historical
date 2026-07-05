@@ -70,6 +70,7 @@ export async function prepareCompanyCategoryText(row, api = new mw.Api()) {
  * @param {object} [options] - Save and lookup clients.
  * @param {object} [options.api] - MediaWiki API client.
  * @param {Function} [options.fetchMetadata] - Enwiki metadata fetcher.
+ * @param {Function} [options.onProgress] - Operation progress callback.
  * @param {object} [options.wikidataApi] - Wikidata API client.
  * @returns {Promise<void>} Resolves after the category is saved.
  */
@@ -88,12 +89,18 @@ export async function saveCompanyCategory(
                   englishTitle,
               );
 
-    await saveCategoryPage(
-        category,
-        text,
-        buildCompanyCategorySummary(category, englishTitle, metadata),
-        api,
-    );
+    try {
+        await saveCategoryPage(
+            category,
+            text,
+            buildCompanyCategorySummary(category, englishTitle, metadata),
+            api,
+        );
+        options.onProgress?.("create", "complete");
+    } catch (error) {
+        options.onProgress?.("create", "failed");
+        throw error;
+    }
 
     const categoryTitle = `${CATEGORY_NAMESPACE}${category}`;
 
@@ -102,22 +109,36 @@ export async function saveCompanyCategory(
             options.wikidataApi ||
             new mw.ForeignApi("https://www.wikidata.org/w/api.php");
 
-        if (String(metadata.wikidataId || "").trim() === "") {
-            await createWikidataCategoryItem(
-                wikidataApi,
-                englishTitle,
-                categoryTitle,
-            );
-        } else {
-            await connectWikidataSitelink(
-                wikidataApi,
-                metadata.wikidataId,
-                categoryTitle,
-            );
+        try {
+            options.onProgress?.("wikidata", "running");
+            if (String(metadata.wikidataId || "").trim() === "") {
+                await createWikidataCategoryItem(
+                    wikidataApi,
+                    englishTitle,
+                    categoryTitle,
+                );
+            } else {
+                await connectWikidataSitelink(
+                    wikidataApi,
+                    metadata.wikidataId,
+                    categoryTitle,
+                );
+            }
+            options.onProgress?.("wikidata", "complete");
+        } catch (error) {
+            options.onProgress?.("wikidata", "failed");
+            throw error;
         }
     }
 
-    await addTalkPageBanner(api, categoryTitle);
+    try {
+        options.onProgress?.("talk-banner", "running");
+        await addTalkPageBanner(api, categoryTitle);
+        options.onProgress?.("talk-banner", "complete");
+    } catch (error) {
+        options.onProgress?.("talk-banner", "failed");
+        throw error;
+    }
 }
 
 /**

@@ -206,7 +206,6 @@ export function updateSaveProgress(progress, id, status) {
         ...progress,
         steps: progress.steps.map((step) =>
             step.id === id ||
-            step.id?.startsWith(`${id}:`) ||
             (id === "new-page-list" &&
                 step.id?.endsWith(":register-new-page"))
                 ? {

@@ -701,6 +701,8 @@ export async function runSelectedActions(actions, options) {
     }
 
     for (const action of getSelectedActionsInRunOrder(actions)) {
+        let progressFailureHandled = false;
+
         if (
             action.type === "redirect" &&
             normalizeTitleKey(action.redirectTitle) ===
@@ -715,6 +717,9 @@ export async function runSelectedActions(actions, options) {
         try {
             await runSelectedActionWithRetry(action, {
                 ...options,
+                onActionProgressFailed() {
+                    progressFailureHandled = true;
+                },
                 title: finalTitle,
             });
             action.selected = false;
@@ -723,7 +728,9 @@ export async function runSelectedActions(actions, options) {
         } catch (error) {
             action.selected = false;
             failed.push(action);
-            options.onActionFailed?.(action, error);
+            if (!progressFailureHandled) {
+                options.onActionFailed?.(action, error);
+            }
         }
     }
 
@@ -814,7 +821,26 @@ async function runSelectedAction(action, options) {
             throw new Error("Category save handler is unavailable.");
         }
 
-        await save(action.category, action.text, action.englishName);
+        await save(action.category, action.text, action.englishName, {
+            onProgress(operation, status) {
+                const progressAction = {
+                    ...action,
+                    id:
+                        operation === "create"
+                            ? action.id
+                            : `${action.id}:${operation}`,
+                };
+
+                if (status === "running") {
+                    options.onActionStart?.(progressAction);
+                } else if (status === "complete") {
+                    options.onActionComplete?.(progressAction);
+                } else if (status === "failed") {
+                    options.onActionProgressFailed?.();
+                    options.onActionFailed?.(progressAction);
+                }
+            },
+        });
         return;
     }
 

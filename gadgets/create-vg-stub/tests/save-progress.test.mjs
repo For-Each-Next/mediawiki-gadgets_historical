@@ -251,7 +251,7 @@ test("category progress includes bundled Wikidata and talk-page work", () => {
     );
 });
 
-test("category progress updates bundled work with the parent action", () => {
+test("category progress updates bundled work independently", () => {
     const progress = updateSaveProgress(
         createSaveProgress("Example", [
             {
@@ -276,8 +276,8 @@ test("category progress updates bundled work with the parent action", () => {
             .map((step) => [step.id, step.status]),
         [
             ["category:Chibig游戏", "complete"],
-            ["category:Chibig游戏:talk-banner", "complete"],
-            ["category:Chibig游戏:wikidata", "complete"],
+            ["category:Chibig游戏:talk-banner", "pending"],
+            ["category:Chibig游戏:wikidata", "pending"],
         ],
     );
 });

@@ -853,7 +853,59 @@ test("runSelectedActions creates staged categories", async () => {
     );
 
     assert.deepEqual(calls, [
-        ["Chibig游戏", "Category text", "Category:Chibig games"],
+        [
+            "Chibig游戏",
+            "Category text",
+            "Category:Chibig games",
+            {
+                onProgress: calls[0][3].onProgress,
+            },
+        ],
+    ]);
+});
+
+test("runSelectedActions reports bundled category progress", async () => {
+    const events = [];
+
+    await runSelectedActions(
+        [
+            {
+                category: "Chibig游戏",
+                company: "Chibig",
+                englishName: "Category:Chibig games",
+                id: "category:Chibig游戏",
+                selected: true,
+                text: "Category text",
+                type: "category",
+            },
+        ],
+        {
+            api: createApiStub([]),
+            async saveCompanyCategory(_category, _text, _englishName, options) {
+                options.onProgress("create", "complete");
+                options.onProgress("wikidata", "running");
+                options.onProgress("wikidata", "complete");
+                options.onProgress("talk-banner", "running");
+                options.onProgress("talk-banner", "complete");
+            },
+            onActionComplete(item) {
+                events.push(["complete", item.id]);
+            },
+            onActionStart(item) {
+                events.push(["start", item.id]);
+            },
+            title: "Target",
+        },
+    );
+
+    assert.deepEqual(events, [
+        ["start", "category:Chibig游戏"],
+        ["complete", "category:Chibig游戏"],
+        ["start", "category:Chibig游戏:wikidata"],
+        ["complete", "category:Chibig游戏:wikidata"],
+        ["start", "category:Chibig游戏:talk-banner"],
+        ["complete", "category:Chibig游戏:talk-banner"],
+        ["complete", "category:Chibig游戏"],
     ]);
 });
 

@@ -79,8 +79,22 @@ function buildNewPageListSummary(articleTitle, companyCategories) {
 
     return (
         `register the new article "${article}" and ` +
-        `categor${categories.length === 1 ? "y" : "ies"} ${categories.join(" and ")}`
+        `categor${categories.length === 1 ? "y" : "ies"} ${formatSummaryList(categories)}`
     );
+}
+
+/**
+ * Formats a linked title list for edit-summary prose.
+ *
+ * @param {Array<string>} items - Summary list items.
+ * @returns {string} Comma-separated summary list.
+ */
+function formatSummaryList(items) {
+    if (items.length <= 2) {
+        return items.join(" and ");
+    }
+
+    return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
 /**

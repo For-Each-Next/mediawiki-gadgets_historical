@@ -215,3 +215,45 @@ test("registerNewPage edit summary mentions added categories", async () => {
         `register the new article "[[Example]]" and category [[Category:Example公司游戏]] ${EDIT_SUMMARY_SUFFIX}`,
     );
 });
+
+test("registerNewPage edit summary formats multiple categories", async () => {
+    const edits = [];
+    const api = {
+        async get() {
+            return {
+                curtimestamp: "2026-06-14T00:00:00Z",
+                query: {
+                    pages: [
+                        {
+                            revisions: [
+                                {
+                                    slots: {
+                                        main: {
+                                            content: "== 2026年 ==",
+                                        },
+                                    },
+                                    timestamp: "2026-06-13T00:00:00Z",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            };
+        },
+        async postWithToken(token, params) {
+            edits.push([token, params]);
+        },
+    };
+
+    await registerNewPage(
+        api,
+        "Thomas & Friends: Wonders of Sodor",
+        ["Dovetail Games遊戲", "Maximum Games游戏", "Example Studios游戏"],
+        new Date("2026-06-14T00:00:00Z"),
+    );
+
+    assert.equal(
+        edits[0][1].summary,
+        `register the new article "[[Thomas & Friends: Wonders of Sodor]]" and categories [[Category:Dovetail Games遊戲]], [[Category:Maximum Games游戏]] and [[Category:Example Studios游戏]] ${EDIT_SUMMARY_SUFFIX}`,
+    );
+});

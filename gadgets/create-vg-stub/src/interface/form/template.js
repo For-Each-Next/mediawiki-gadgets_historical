@@ -828,7 +828,6 @@ function createMoveTargetFieldTemplate() {
         createElement("cdx-text-input", {
             placeholder: "Actual wiki page title",
             "v-bind:model-value": "moveTarget",
-            "v-on:blur": "checkMoveTarget",
             "v-on:update:model-value": "updateMoveTarget($event)",
         }),
     ]);

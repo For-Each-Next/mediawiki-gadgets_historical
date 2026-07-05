@@ -503,8 +503,38 @@ test("page-name move dialog checks whether the target page exists", async () => 
     assert.equal(component.template.includes("moveTargetState.exists"), true);
     assert.equal(
         component.template.includes('v-on:blur="checkMoveTarget"'),
-        true,
+        false,
     );
+});
+
+test("move dialog confirms changed target in one action", async () => {
+    let checkedTitle = "";
+    let movedTitle = "";
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onCheckPageTitle(title) {
+                checkedTitle = title;
+                return {
+                    exists: false,
+                    title,
+                };
+            },
+            onMoveTarget(form, title) {
+                movedTitle = title;
+            },
+        }),
+    );
+    const { form, moveTargetState } = component.setup();
+
+    component.methods.openMoveDialog();
+    component.methods.updateMoveTarget(" Target page ");
+    await component.methods.submitMoveTarget();
+
+    assert.equal(checkedTitle, "Target page");
+    assert.equal(movedTitle, "Target page");
+    assert.equal(form.pageName, "Target page");
+    assert.equal(moveTargetState.loading, false);
 });
 
 test("References tab manages editable citation parameters", async () => {

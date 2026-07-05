@@ -2529,6 +2529,12 @@
         "categories": ["Midway Games遊戲"]
     },
     {
+        "aliases": ["Milestone"],
+        "name": "Milestone",
+        "page": "Milestone (公司)",
+        "categories": ["Milestone (公司)游戏"]
+    },
+    {
         "aliases": ["mihoyo", "米哈游"],
         "name": "米哈游",
         "page": "米哈游",

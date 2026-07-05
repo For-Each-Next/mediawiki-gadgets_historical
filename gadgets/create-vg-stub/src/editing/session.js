@@ -94,16 +94,45 @@ export function clearMovedEdit(storage = sessionStorage) {
  *
  * @param {object} form - Previewed dialog form.
  * @param {string} title - Previewed page title.
+ * @param {object} [preview] - Generated preview editor state.
+ * @param {string} [preview.summary] - Generated edit summary.
+ * @param {string} [preview.text] - Real generated wikitext.
  * @param {Storage} [storage] - Session storage implementation.
  * @returns {void}
  */
-export function storePreviewFormData(form, title, storage = sessionStorage) {
+export function storePreviewFormData(
+    form,
+    title,
+    preview = {},
+    storage = sessionStorage,
+) {
+    if (isStorageLike(preview)) {
+        storage = preview;
+        preview = {};
+    }
+
     storage.setItem(
         PREVIEW_FORM_STORAGE_KEY,
         JSON.stringify({
             form,
+            summary: preview.summary,
+            text: preview.text,
             title,
         }),
+    );
+}
+
+/**
+ * Checks whether a value looks like a Web Storage implementation.
+ *
+ * @param {*} value - Candidate storage object.
+ * @returns {boolean} Whether the value supports session storage writes.
+ */
+function isStorageLike(value) {
+    return (
+        value != null &&
+        typeof value.getItem === "function" &&
+        typeof value.setItem === "function"
     );
 }
 

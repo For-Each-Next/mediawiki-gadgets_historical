@@ -27,12 +27,22 @@ test("preview form data round-trips for the matching page", () => {
         },
     };
 
-    storePreviewFormData({ name: "Recent edit" }, "Example_page", storage);
+    storePreviewFormData(
+        { name: "Recent edit" },
+        "Example_page",
+        {
+            summary: "create stub",
+            text: "Generated text",
+        },
+        storage,
+    );
 
     assert.deepEqual(getPreviewFormData("Example page", storage), {
         form: {
             name: "Recent edit",
         },
+        summary: "create stub",
+        text: "Generated text",
         title: "Example_page",
     });
 

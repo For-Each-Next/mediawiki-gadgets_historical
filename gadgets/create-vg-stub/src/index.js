@@ -51,6 +51,7 @@ import {
 } from "./editing/session.js";
 import {
     interceptEditSave,
+    previewEditText,
     readEditSummary,
     readEditText,
     shouldPreserveEditor,
@@ -300,20 +301,35 @@ async function previewForm(form, sourceFetchState, citationStore) {
 
     try {
         const stub = await buildStubFromForm(form, citationStore);
-
         const text = stub.text;
+        const summary = buildEditSummary(createEditSummaryMetadata(form, stub));
+        const previewText = buildNativePreviewText(text, form);
 
-        return {
-            html: await parsePreviewText(text),
-            summary: buildEditSummary(createEditSummaryMetadata(form, stub)),
+        storePreviewFormData(form, getPageName(), {
+            summary,
             text,
-        };
+        });
+        previewEditText(previewText, summary);
+        return undefined;
     } catch (error) {
         sourceFetchState.error = error.message;
         return undefined;
     } finally {
         sourceFetchState.loading = false;
     }
+}
+
+/**
+ * Adds preview-only source that gives source-reading modules a page heading.
+ *
+ * @param {string} text - Generated article wikitext.
+ * @param {object} form - Dialog form values.
+ * @returns {string} Wikitext submitted only to MediaWiki's native preview.
+ */
+function buildNativePreviewText(text, form) {
+    const title = trimFieldValue(form?.pageName) || getPageName();
+
+    return `= ${title} =\n${text}`;
 }
 
 /**
@@ -1001,6 +1017,7 @@ function init(require) {
     };
 
     addDialogStyles();
+    restoreNativePreviewEditText(previewFormData);
 
     const dialogOptions = {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
@@ -1131,6 +1148,24 @@ function init(require) {
 
     addToolboxLink();
     restoreMovedEditText();
+}
+
+/**
+ * Replaces preview-only submitted source with the real generated article text.
+ *
+ * @param {object|undefined} previewFormData - Stored native-preview state.
+ * @returns {void}
+ */
+function restoreNativePreviewEditText(previewFormData) {
+    if (previewFormData?.text == null) {
+        return;
+    }
+
+    writeEditText(previewFormData.text);
+
+    if (previewFormData.summary != null) {
+        writeEditSummary(previewFormData.summary);
+    }
 }
 
 /**

@@ -949,6 +949,40 @@ test("preview source uses MediaWiki CodeMirror and syncs before parsing", async 
     assert.equal(parsedText, "Edited preview text");
 });
 
+test("article preview refresh uses the article preview parser hook", async () => {
+    let articlePreviewText = "";
+    let genericPreviewCount = 0;
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onParseArticlePreview(text) {
+                articlePreviewText = text;
+                return "<p>Native article preview</p>";
+            },
+            onParsePreview() {
+                genericPreviewCount += 1;
+                return "<p>Generic preview</p>";
+            },
+            onPreview() {
+                return {
+                    html: "<p>Initial preview</p>",
+                    summary: "",
+                    text: "Generated text",
+                };
+            },
+        }),
+    );
+    const state = component.setup();
+
+    await component.methods.previewForm();
+    state.previewText.value = "Edited preview text";
+    await component.methods.refreshParsedPreview();
+
+    assert.equal(articlePreviewText, "Edited preview text");
+    assert.equal(genericPreviewCount, 0);
+    assert.equal(state.previewHtml.value, "<p>Native article preview</p>");
+});
+
 test("preview close cancels delayed CodeMirror load and clears source", async () => {
     const codeMirror = installDelayedCodeMirrorStub();
     const component = createDialogComponent(

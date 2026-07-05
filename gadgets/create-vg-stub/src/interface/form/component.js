@@ -74,6 +74,7 @@ import { createDialogTemplate } from "./template.js";
  * @param {Function} options.onPrepareReview - Review report builder.
  * @param {Function} options.onFetchPageText - Existing page source fetcher.
  * @param {Function} options.onEnwikiTitleChange - Enwiki metadata lookup handler.
+ * @param {Function} [options.onParseArticlePreview] - Article preview parser.
  * @param {Function} options.onParsePreview - Wikitext preview parser.
  * @param {Function} options.onPreview - Editor preview handler.
  * @param {Function} options.onPreSavePrepare - Follow-up action builder.
@@ -566,8 +567,12 @@ export function createDialogComponent(Vue, options) {
             sourceFetchState.loading = true;
 
             try {
-                previewHtml.value = await options.onParsePreview(
+                const parseArticlePreview =
+                    options.onParseArticlePreview || options.onParsePreview;
+
+                previewHtml.value = await parseArticlePreview(
                     previewText.value,
+                    form,
                 );
             } catch (error) {
                 sourceFetchState.error = error.message || String(error);

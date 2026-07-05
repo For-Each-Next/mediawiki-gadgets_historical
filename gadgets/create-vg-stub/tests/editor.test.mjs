@@ -8,7 +8,6 @@ import test, { afterEach } from "node:test";
 import {
     hasEditText,
     interceptEditSave,
-    previewEditText,
     readEditSummary,
     readEditText,
     shouldPreserveEditor,
@@ -17,11 +16,9 @@ import {
 } from "../src/editing/editor.js";
 
 const originalDocument = globalThis.document;
-const originalJQuery = globalThis.$;
 
 afterEach(() => {
     globalThis.document = originalDocument;
-    globalThis.$ = originalJQuery;
 });
 
 test("readEditText returns manually edited wikitext", () => {
@@ -137,24 +134,6 @@ test("interceptEditSave allows preview submissions", () => {
     assert.deepEqual(editForm.submissions, [previewButton]);
 });
 
-test("previewEditText writes temporary text and submits preview", () => {
-    const { editForm, previewButton } = createEditForm();
-    const textbox = createTextbox();
-    const summaryInput = { value: "" };
-
-    globalThis.$ = () => ({
-        trigger() {
-            return this;
-        },
-    });
-    globalThis.document = createDocument(editForm, textbox, summaryInput);
-    previewEditText("= Example (video game) =\nGenerated text", "create stub");
-
-    assert.equal(textbox.value, "= Example (video game) =\nGenerated text");
-    assert.equal(summaryInput.value, "create stub");
-    assert.deepEqual(editForm.submissions, [previewButton]);
-});
-
 test("submitEditForm authorizes one reviewed save", () => {
     const { editForm, saveButton } = createEditForm();
     let reviewCount = 0;
@@ -170,24 +149,15 @@ test("submitEditForm authorizes one reviewed save", () => {
     assert.deepEqual(editForm.submissions, [saveButton]);
 });
 
-function createDocument(editForm, textbox, summaryInput) {
+function createDocument(editForm) {
     return {
         getElementById(id) {
             return {
                 editform: editForm,
-                wpSummary: summaryInput,
-                wpTextbox1: textbox,
                 wpPreview: editForm.previewButton,
                 wpSave: editForm.saveButton,
             }[id];
         },
-    };
-}
-
-function createTextbox() {
-    return {
-        focus() {},
-        value: "",
     };
 }
 

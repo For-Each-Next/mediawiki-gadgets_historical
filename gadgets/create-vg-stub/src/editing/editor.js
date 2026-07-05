@@ -110,19 +110,6 @@ export function submitPreviewForm() {
     editForm.requestSubmit(previewButton);
 }
 
-/**
- * Writes temporary preview text and submits the MediaWiki preview form.
- *
- * @param {string} text - Wikitext to parse in MediaWiki's native preview.
- * @param {string} summary - Edit summary to keep with the preview.
- * @returns {void}
- */
-export function previewEditText(text, summary) {
-    writeEditText(text);
-    writeEditSummary(summary);
-    submitPreviewForm();
-}
-
 let allowNextSaveSubmit = false;
 
 /**

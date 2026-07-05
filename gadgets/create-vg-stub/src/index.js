@@ -51,7 +51,6 @@ import {
 } from "./editing/session.js";
 import {
     interceptEditSave,
-    previewEditText,
     readEditSummary,
     readEditText,
     shouldPreserveEditor,
@@ -303,14 +302,12 @@ async function previewForm(form, sourceFetchState, citationStore) {
         const stub = await buildStubFromForm(form, citationStore);
         const text = stub.text;
         const summary = buildEditSummary(createEditSummaryMetadata(form, stub));
-        const previewText = buildNativePreviewText(text, form);
 
-        storePreviewFormData(form, getPageName(), {
+        return {
+            html: await parseArticlePreviewText(text, form),
             summary,
             text,
-        });
-        previewEditText(previewText, summary);
-        return undefined;
+        };
     } catch (error) {
         sourceFetchState.error = error.message;
         return undefined;
@@ -320,16 +317,93 @@ async function previewForm(form, sourceFetchState, citationStore) {
 }
 
 /**
+ * Parses article wikitext through MediaWiki's native edit preview.
+ *
+ * @param {string} text - Generated article wikitext.
+ * @param {object} form - Dialog form values.
+ * @returns {Promise<string>} Parsed preview HTML.
+ */
+async function parseArticlePreviewText(text, form) {
+    return parseNativePreviewText(buildNativePreviewText(text, form));
+}
+
+/**
  * Adds preview-only source that gives source-reading modules a page heading.
  *
  * @param {string} text - Generated article wikitext.
  * @param {object} form - Dialog form values.
- * @returns {string} Wikitext submitted only to MediaWiki's native preview.
+ * @returns {string} Wikitext submitted only to the native preview renderer.
  */
 function buildNativePreviewText(text, form) {
     const title = trimFieldValue(form?.pageName) || getPageName();
 
     return `= ${title} =\n${text}`;
+}
+
+/**
+ * Requests MediaWiki's native edit preview without navigating away.
+ *
+ * @param {string} text - Wikitext submitted to the native preview renderer.
+ * @param {string} [title] - Preview page title.
+ * @returns {Promise<string>} Parsed preview HTML.
+ */
+async function parseNativePreviewText(text, title = getPageName()) {
+    const response = await fetch(
+        mw.util.getUrl(title, {
+            action: "submit",
+        }),
+        {
+            body: buildNativePreviewFormData(text),
+            credentials: "same-origin",
+            method: "POST",
+        },
+    );
+
+    if (!response.ok) {
+        throw new Error(`MediaWiki preview failed: HTTP ${response.status}`);
+    }
+
+    return extractNativePreviewHtml(await response.text());
+}
+
+/**
+ * Builds a form payload compatible with MediaWiki's edit preview.
+ *
+ * @param {string} text - Wikitext submitted to the native preview renderer.
+ * @returns {FormData} Preview form data.
+ */
+function buildNativePreviewFormData(text) {
+    const editForm = document.getElementById("editform");
+    const formData = editForm == null ? new FormData() : new FormData(editForm);
+    const previewButton = document.getElementById("wpPreview");
+
+    formData.set("wpTextbox1", text);
+    formData.set("wpPreview", previewButton?.value || "Show preview");
+    formData.delete("wpSave");
+    formData.delete("wpDiff");
+
+    return formData;
+}
+
+/**
+ * Extracts the rendered preview pane from a MediaWiki edit-preview response.
+ *
+ * @param {string} html - Native preview response document.
+ * @returns {string} Rendered preview HTML.
+ */
+function extractNativePreviewHtml(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const preview = doc.querySelector("#wikiPreview");
+
+    if (preview == null) {
+        throw new Error("MediaWiki preview output was not found.");
+    }
+
+    const parserOutput = preview.matches(".mw-parser-output")
+        ? preview
+        : preview.querySelector(".mw-parser-output");
+
+    return (parserOutput || preview).innerHTML;
 }
 
 /**
@@ -1017,7 +1091,6 @@ function init(require) {
     };
 
     addDialogStyles();
-    restoreNativePreviewEditText(previewFormData);
 
     const dialogOptions = {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
@@ -1051,6 +1124,7 @@ function init(require) {
         onCreateCategoryRow: createManualCategoryRow,
         onDeleteHistoryEntry: deleteFormHistoryEntry,
         onEnwikiTitleChange: fetchEnwikiMetadata,
+        onParseArticlePreview: parseArticlePreviewText,
         onParsePreview: parsePreviewText,
         onPreview: (...args) => previewForm(...args, citationStore),
         onFormChange: (form) => saveFormDraft(form, currentPageName),
@@ -1148,24 +1222,6 @@ function init(require) {
 
     addToolboxLink();
     restoreMovedEditText();
-}
-
-/**
- * Replaces preview-only submitted source with the real generated article text.
- *
- * @param {object|undefined} previewFormData - Stored native-preview state.
- * @returns {void}
- */
-function restoreNativePreviewEditText(previewFormData) {
-    if (previewFormData?.text == null) {
-        return;
-    }
-
-    writeEditText(previewFormData.text);
-
-    if (previewFormData.summary != null) {
-        writeEditSummary(previewFormData.summary);
-    }
 }
 
 /**

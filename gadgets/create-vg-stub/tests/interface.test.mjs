@@ -522,6 +522,33 @@ test("live source and name row updates trim values", () => {
     assert.equal(moveTarget.value, "Target page");
 });
 
+test("source-backed field URL values move to the source field", () => {
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub(),
+    );
+    const { form } = component.setup();
+    const field = {
+        key: "developers",
+        sourceField: {
+            sourceKey: "developersSourceUrl",
+        },
+    };
+
+    component.methods.updateFieldValue(field, " https://example.test/dev ");
+
+    assert.equal(form.developers, "");
+    assert.equal(form.developersSourceUrl, "https://example.test/dev");
+
+    component.methods.updateFieldValue(field, "http://example.test/second");
+
+    assert.equal(form.developers, "");
+    assert.equal(
+        form.developersSourceUrl,
+        "https://example.test/dev\nhttp://example.test/second",
+    );
+});
+
 test("page-name move dialog checks whether the target page exists", async () => {
     let checkedTitle = "";
     const component = createDialogComponent(

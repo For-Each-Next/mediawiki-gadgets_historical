@@ -1186,6 +1186,11 @@ export function createDialogComponent(Vue, options) {
          * @returns {void}
          */
         updateFieldValue(field, value) {
+            if (moveFieldUrlToSource(field, value)) {
+                markCategoryRowsUnfixed(form.categoryRows);
+                return;
+            }
+
             const completedValue = completeWikiLinkBrackets(
                 field.key,
                 value,
@@ -3464,6 +3469,32 @@ export function createDialogComponent(Vue, options) {
      */
     function getCurrentTitle() {
         return trimFieldValue(form.pageName) || currentTitle;
+    }
+
+    /**
+     * Moves a URL entered into a source-backed value field to its source field.
+     *
+     * @param {object} field - Article parameter field.
+     * @param {string} field.key - Form key for the article value.
+     * @param {object} [field.sourceField] - Source reference field.
+     * @param {string} [field.sourceField.sourceKey] - Form key for the source URL.
+     * @param {string} value - Raw input value.
+     * @returns {boolean} Whether the URL was moved.
+     */
+    function moveFieldUrlToSource(field, value) {
+        const sourceKey = field.sourceField?.sourceKey;
+        const sourceUrl = trimFieldValue(value);
+
+        if (sourceKey == null || !/^https?:\/\/\S+$/iu.test(sourceUrl)) {
+            return false;
+        }
+
+        const existingValue = trimFieldValue(form[sourceKey]);
+        form[sourceKey] =
+            existingValue === "" ? sourceUrl : `${existingValue}\n${sourceUrl}`;
+        form[field.key] = "";
+
+        return true;
     }
 
     /**

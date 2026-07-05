@@ -520,6 +520,10 @@ async function runSubmittedFollowUpActions(api, pending, title, progress) {
         onMoveStart() {
             progress?.set("move", "running");
         },
+        onBeforeWikidataActions: (result) =>
+            registerPendingNewPage(api, pending, result, (id, status) => {
+                progress?.set(id, status);
+            }),
         title: currentTitle,
         wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
         saveCategory: (category, text) =>
@@ -535,17 +539,30 @@ async function runSubmittedFollowUpActions(api, pending, title, progress) {
         actionOptions,
     );
 
-    if (pending.registration?.enabled === true) {
-        progress?.set("new-page-list", "running");
-        await registerNewPage(
-            api,
-            result.title,
-            getCompanyCategoryActions(result.completed),
-        );
-        progress?.set("new-page-list", "complete");
+    return result;
+}
+
+/**
+ * Registers the saved article and completed company categories locally.
+ *
+ * @param {object} api - MediaWiki API client.
+ * @param {object} pending - Pending follow-up actions.
+ * @param {object} result - Completed action result state.
+ * @param {Function} setProgress - Progress update callback.
+ * @returns {Promise<void>} Resolves after registration finishes.
+ */
+async function registerPendingNewPage(api, pending, result, setProgress) {
+    if (pending.registration?.enabled !== true) {
+        return;
     }
 
-    return result;
+    setProgress("new-page-list", "running");
+    await registerNewPage(
+        api,
+        result.title,
+        getCompanyCategoryActions(result.completed),
+    );
+    setProgress("new-page-list", "complete");
 }
 
 /**
@@ -1158,6 +1175,10 @@ async function runPendingSaveActions() {
             onMoveStart() {
                 setSaveProgressStep("move", "running");
             },
+            onBeforeWikidataActions: (result) =>
+                registerPendingNewPage(api, pending, result, (id, status) => {
+                    setSaveProgressStep(id, status);
+                }),
             title: currentTitle,
             wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
             saveCategory: (category, text) =>
@@ -1172,16 +1193,6 @@ async function runPendingSaveActions() {
             pending.actions || [],
             actionOptions,
         );
-
-        if (pending.registration?.enabled === true) {
-            setSaveProgressStep("new-page-list", "running");
-            await registerNewPage(
-                api,
-                result.title,
-                getCompanyCategoryActions(result.completed),
-            );
-            setSaveProgressStep("new-page-list", "complete");
-        }
 
         clearPendingSaveData();
 

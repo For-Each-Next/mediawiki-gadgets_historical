@@ -675,6 +675,7 @@ export async function fetchExistingPageTitles(api, titles) {
  * @param {Function} [options.onActionRetry] - Action retry callback.
  * @param {Function} [options.onActionSkipped] - Action skipped callback.
  * @param {Function} [options.onActionStart] - Action start callback.
+ * @param {Function} [options.onBeforeWikidataActions] - Pre-Wikidata hook.
  * @param {Function} [options.saveCategory] - Generic category save handler.
  * @param {Function} [options.saveCompanyCategory] - Company category save handler.
  * @param {object} [options.wikidataApi] - Wikidata API client.
@@ -700,36 +701,46 @@ export async function runSelectedActions(actions, options) {
         options.onMoveComplete?.(finalTitle);
     }
 
-    for (const action of getSelectedActionsInRunOrder(actions)) {
-        let progressFailureHandled = false;
-
-        if (
-            action.type === "redirect" &&
-            normalizeTitleKey(action.redirectTitle) ===
-                normalizeTitleKey(finalTitle)
-        ) {
-            action.selected = false;
-            options.onActionSkipped?.(action);
-            continue;
-        }
-
-        options.onActionStart?.(action);
-        try {
-            await runSelectedActionWithRetry(action, {
-                ...options,
-                onActionProgressFailed() {
-                    progressFailureHandled = true;
-                },
+    for (const phase of getSelectedActionPhases(actions)) {
+        if (phase.type === "wikidata") {
+            await options.onBeforeWikidataActions?.({
+                completed,
+                failed,
                 title: finalTitle,
             });
-            action.selected = false;
-            completed.push(action);
-            options.onActionComplete?.(action);
-        } catch (error) {
-            action.selected = false;
-            failed.push(action);
-            if (!progressFailureHandled) {
-                options.onActionFailed?.(action, error);
+        }
+
+        for (const action of phase.actions) {
+            let progressFailureHandled = false;
+
+            if (
+                action.type === "redirect" &&
+                normalizeTitleKey(action.redirectTitle) ===
+                    normalizeTitleKey(finalTitle)
+            ) {
+                action.selected = false;
+                options.onActionSkipped?.(action);
+                continue;
+            }
+
+            options.onActionStart?.(action);
+            try {
+                await runSelectedActionWithRetry(action, {
+                    ...options,
+                    onActionProgressFailed() {
+                        progressFailureHandled = true;
+                    },
+                    title: finalTitle,
+                });
+                action.selected = false;
+                completed.push(action);
+                options.onActionComplete?.(action);
+            } catch (error) {
+                action.selected = false;
+                failed.push(action);
+                if (!progressFailureHandled) {
+                    options.onActionFailed?.(action, error);
+                }
             }
         }
     }
@@ -742,17 +753,27 @@ export async function runSelectedActions(actions, options) {
 }
 
 /**
- * Gets selected actions in the execution order.
+ * Gets selected actions grouped by the execution phases.
  *
  * @param {Array<object>} actions - Action rows.
- * @returns {Array<object>} Selected action rows.
+ * @returns {Array<object>} Selected action phases.
  */
-function getSelectedActionsInRunOrder(actions) {
+function getSelectedActionPhases(actions) {
     const selected = actions.filter((item) => item.selected);
+    const localActions = selected.filter((action) => action.type !== "interwiki");
+    const wikidataActions = selected.filter(
+        (action) => action.type === "interwiki",
+    );
 
     return [
-        ...selected.filter((action) => action.type !== "interwiki"),
-        ...selected.filter((action) => action.type === "interwiki"),
+        {
+            actions: localActions,
+            type: "local",
+        },
+        {
+            actions: wikidataActions,
+            type: "wikidata",
+        },
     ];
 }
 

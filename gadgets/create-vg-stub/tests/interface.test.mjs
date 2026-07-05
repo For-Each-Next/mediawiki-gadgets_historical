@@ -3508,8 +3508,15 @@ test("pre-save submit uses the current page title with disambiguation", async ()
 test("enwiki lookup fills wikidata and blank English title", async () => {
     let fetchedSteamUrl = "";
     const openedLinks = [];
+    const focusedLinks = [];
     globalThis.window.open = (url, target) => {
         openedLinks.push([url, target]);
+
+        return {
+            focus() {
+                focusedLinks.push(url);
+            },
+        };
     };
     const component = createDialogComponent(
         createVueStub(),
@@ -3560,6 +3567,9 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
         ["https://www.metacritic.com/game/example-game/", "_blank"],
         ["https://opencritic.com/game/6789/-", "_blank"],
     ]);
+    assert.deepEqual(focusedLinks, [
+        "https://www.metacritic.com/game/example-game/",
+    ]);
     assert.deepEqual(getEnwikiTipLinks(), [
         {
             label: "Wikidata",
@@ -3581,6 +3591,40 @@ test("enwiki lookup fills wikidata and blank English title", async () => {
             url: "https://store.steampowered.com/app/12345/",
             value: "12345",
         },
+    ]);
+});
+
+test("enwiki lookup opens review links only once for the same URLs", async () => {
+    const openedLinks = [];
+    globalThis.window.open = (url, target) => {
+        openedLinks.push([url, target]);
+
+        return {
+            focus() {},
+        };
+    };
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            async onEnwikiTitleChange() {
+                return {
+                    metacriticId: "example-game",
+                    openCriticId: "6789",
+                    title: "Example Game",
+                    wikidataId: "Q123",
+                };
+            },
+        }),
+    );
+    const { form } = component.setup();
+
+    form.enwikiTitle = "Example Game";
+    await component.methods.updateEnwikiTitle();
+    await component.methods.updateEnwikiTitle();
+
+    assert.deepEqual(openedLinks, [
+        ["https://www.metacritic.com/game/example-game/", "_blank"],
+        ["https://opencritic.com/game/6789/-", "_blank"],
     ]);
 });
 

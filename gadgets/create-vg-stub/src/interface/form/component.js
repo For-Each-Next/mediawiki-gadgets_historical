@@ -194,6 +194,7 @@ export function createDialogComponent(Vue, options) {
     const initialForm = options.initialForm;
     const sourceEditors = new Map();
     const sourceEditorLoads = new Set();
+    const openedReviewLinkUrls = new Set();
     let componentMounted = true;
 
     if (initialForm != null) {
@@ -3595,15 +3596,26 @@ export function createDialogComponent(Vue, options) {
             return;
         }
 
-        getEnwikiTipLinks()
+        const openedTabs = getEnwikiTipLinks()
             .filter((link) =>
                 ["Metacritic", "OpenCritic"].includes(link.label),
             )
-            .forEach((link) => {
-                if (link.url) {
-                    window.open(link.url, "_blank");
+            .map((link) => {
+                if (!link.url || openedReviewLinkUrls.has(link.url)) {
+                    return null;
                 }
-            });
+
+                openedReviewLinkUrls.add(link.url);
+
+                return window.open(link.url, "_blank");
+            })
+            .filter((tab) => tab != null);
+
+        const firstTab = openedTabs[0];
+
+        if (typeof firstTab?.focus === "function") {
+            firstTab.focus();
+        }
     }
 
     /**

@@ -4,7 +4,7 @@
  * Builds and resolves category review data.
  */
 
-import { uniqueValues } from "../shared/utils.js";
+import { FIELD_REFERENCE_DATA, uniqueValues } from "../shared/utils.js";
 import {
     normalizeTitleKey,
     resolvePageTitles,
@@ -110,12 +110,19 @@ export async function buildCategoryRows(
         generatedRows,
         previousRows,
     );
+    const resolvedGeneratedRows = await resolveCheckableCategoryRows(
+        mergedGeneratedRows,
+        options,
+    );
     const rows = [
-        ...(await resolveCheckableCategoryRows(mergedGeneratedRows, options)),
-        ...(await resolveCategoryRows(
-            getManualCategoryRows(previousRows),
-            options,
-        )),
+        ...resolvedGeneratedRows,
+        ...enrichManualCategoryRows(
+            await resolveCategoryRows(
+                getManualCategoryRows(previousRows),
+                options,
+            ),
+            resolvedGeneratedRows,
+        ),
     ];
 
     return sortRowsByArticleProse(
@@ -549,6 +556,95 @@ function normalizeSourceLabel(source, category, originalCategory) {
  */
 function getManualCategoryRows(rows) {
     return rows.filter(isManualCategoryRow);
+}
+
+/**
+ * Copies generated stub-tag metadata onto matching manual category rows.
+ *
+ * @param {Array<object>} manualRows - Resolved manual category rows.
+ * @param {Array<object>} generatedRows - Resolved generated category rows.
+ * @returns {Array<object>} Manual rows with matching stub metadata.
+ */
+function enrichManualCategoryRows(manualRows, generatedRows) {
+    const generatedByCategory = new Map(
+        generatedRows
+            .filter((row) => trimValue(row.stubTag) !== "")
+            .map((row) => [normalizeCategoryKey(row.category), row]),
+    );
+
+    return manualRows.map((row) => {
+        if (trimValue(row.stubTag) !== "") {
+            return row;
+        }
+
+        const generated =
+            generatedByCategory.get(normalizeCategoryKey(row.category)) ||
+            getConfiguredCategoryStubMetadata(row.category);
+
+        if (generated == null) {
+            return row;
+        }
+
+        return normalizeCategoryRow({
+            ...row,
+            originalStubTagEnabled: generated.originalStubTagEnabled,
+            stubTag: generated.stubTag,
+            stubTagEnabled: generated.stubTagEnabled,
+        });
+    });
+}
+
+/**
+ * Gets configured stub metadata for a category title.
+ *
+ * @param {string} category - Category title.
+ * @returns {object|undefined} Matching stub metadata.
+ */
+function getConfiguredCategoryStubMetadata(category) {
+    for (const definitions of Object.values(FIELD_REFERENCE_DATA)) {
+        if (!Array.isArray(definitions)) {
+            continue;
+        }
+
+        const metadata = findConfiguredCategoryStubMetadata(
+            definitions,
+            category,
+        );
+
+        if (metadata != null) {
+            return metadata;
+        }
+    }
+
+    return undefined;
+}
+
+/**
+ * Finds configured stub metadata in one definition collection.
+ *
+ * @param {Array<object>} definitions - Terminology definitions.
+ * @param {string} category - Category title.
+ * @returns {object|undefined} Matching stub metadata.
+ */
+function findConfiguredCategoryStubMetadata(definitions, category) {
+    const categoryKey = normalizeCategoryKey(category);
+
+    for (const definition of definitions) {
+        const index = (definition.categories || []).findIndex(
+            (item) => normalizeCategoryKey(item) === categoryKey,
+        );
+        const stubTag = definition.stubTags?.[index];
+
+        if (index >= 0 && trimValue(stubTag) !== "") {
+            return {
+                originalStubTagEnabled: true,
+                stubTag,
+                stubTagEnabled: true,
+            };
+        }
+    }
+
+    return undefined;
 }
 
 /**

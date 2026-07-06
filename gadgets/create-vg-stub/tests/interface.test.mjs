@@ -1882,6 +1882,53 @@ test("review exposes editable stub tags below category rows", async () => {
     );
 });
 
+test("category refresh appends new stub tags without dropping manual rows", async () => {
+    let refreshCount = 0;
+    const component = createDialogComponent(
+        createVueStub(),
+        createOptionsStub({
+            onCategoryRowsRefresh(form) {
+                refreshCount += 1;
+                form.categoryRows = [
+                    {
+                        category: "Foo games",
+                        enabled: true,
+                        originalStubTagEnabled: true,
+                        stubTag: "Foo-stub",
+                        stubTagEnabled: true,
+                    },
+                    ...(refreshCount > 1
+                        ? [
+                              {
+                                  category: "Bar games",
+                                  enabled: true,
+                                  originalStubTagEnabled: true,
+                                  stubTag: "Bar-stub",
+                                  stubTagEnabled: true,
+                              },
+                          ]
+                        : []),
+                ];
+            },
+        }),
+    );
+    const { form } = component.setup();
+
+    await component.methods.refreshCategoryRows();
+    component.methods.updateStubTagRow(1, "Manual-stub");
+    await component.methods.reloadForm();
+
+    assert.deepEqual(
+        form.stubTagRows.map((row) => [row.enabled, row.stubTag]),
+        [
+            [true, "Foo-stub"],
+            [true, "Manual-stub"],
+            [true, "Bar-stub"],
+            [true, ""],
+        ],
+    );
+});
+
 test("table clean actions keep one blank editable row", () => {
     const component = createDialogComponent(
         createVueStub(),

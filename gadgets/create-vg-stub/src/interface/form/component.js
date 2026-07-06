@@ -2994,6 +2994,7 @@ export function createDialogComponent(Vue, options) {
                 isCategoryRowFixed,
             )
         ) {
+            syncStubTagRowsFromCategories(form);
             return;
         }
 
@@ -3008,7 +3009,7 @@ export function createDialogComponent(Vue, options) {
         );
         markCategoryRowsFixed(form.categoryRows);
         ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
-        initializeStubTagRows(form);
+        syncStubTagRowsFromCategories(form);
     }
 
     /**
@@ -4196,7 +4197,7 @@ const {
     formatCategorySourceTitle,
     getCategorySourceDisplay,
     normalizeEnglishCategoryTitle,
-    initializeStubTagRows,
+    syncStubTagRowsFromCategories,
     buildStubTagRowsFromCategories,
     ensureStubTagRows,
     cleanEditableRows,

@@ -117,6 +117,39 @@ export function initializeStubTagRows(form) {
 }
 
 /**
+ * Adds newly generated stub-tag rows while preserving editable rows.
+ *
+ * @param {object} form - Dialog form values.
+ * @returns {void}
+ */
+export function syncStubTagRowsFromCategories(form) {
+    if (form.stubTagRows == null) {
+        initializeStubTagRows(form);
+        return;
+    }
+
+    const rows = ensureStubTagRows(form);
+    const existingTags = rows.map((row) => trimStubTagValue(row.stubTag));
+    const additions = buildStubTagRowsFromCategories(form.categoryRows).filter(
+        (row) => {
+            const stubTag = trimStubTagValue(row.stubTag);
+
+            return stubTag !== "" && !existingTags.includes(stubTag);
+        },
+    );
+
+    if (additions.length === 0) {
+        ensureTrailingStubTagRow(form);
+        return;
+    }
+
+    const nonBlankRows = rows.filter((row) => !isBlankStubTagRow(row));
+
+    rows.splice(0, rows.length, ...nonBlankRows, ...additions);
+    ensureTrailingStubTagRow(form);
+}
+
+/**
  * Builds unique stub-tag rows from category rows.
  *
  * @param {Array<object>} rows - Category review rows.

@@ -581,6 +581,29 @@ test("buildCategoryRows preserves manual rows and edited generated rows", async 
     );
 });
 
+test("buildCategoryRows adds stub metadata to matching manual rows", async () => {
+    const manual = {
+        ...createManualCategoryRow(),
+        category: "PlayStation 5游戏",
+    };
+    const rows = await buildCategoryRows(
+        {
+            platforms: "",
+        },
+        paramsFromForm({}),
+        [manual],
+        {
+            fetcher: createCategoryFetcher({
+                "PlayStation 5游戏": "PlayStation 5游戏",
+            }),
+        },
+    );
+    const manualRow = rows.find((row) => row.source === "manual");
+
+    assert.equal(manualRow.stubTag, "PlayStation-stub");
+    assert.equal(manualRow.stubTagEnabled, true);
+});
+
 test("resetGeneratedCategoryRows resets generated rows but keeps manual rows", () => {
     assert.deepEqual(
         resetGeneratedCategoryRows([

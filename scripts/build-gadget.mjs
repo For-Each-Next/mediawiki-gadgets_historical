@@ -119,12 +119,19 @@ async function buildDefines(defineConfig = {}) {
  * Reads one configured define value.
  *
  * @param {object} definition - Define data configuration.
+ * @param {string} [definition.jsonFile] - JSON data file to inject.
  * @param {string} [definition.textFile] - Text file to inject.
  * @returns {Promise<*>} Define value.
  */
 async function readDefineValue(definition) {
     if (definition.textFile != null) {
         return readFile(definition.textFile, "utf8");
+    }
+
+    if (definition.jsonFile != null) {
+        const data = await readFile(definition.jsonFile, "utf8");
+
+        return parseDataFile(definition.jsonFile, data);
     }
 
     return readJsonDirectories(definition);
@@ -145,7 +152,7 @@ async function readJsonDirectories(definition) {
 
     if (directories.length === 0) {
         throw new Error(
-            "Each gadgetBuild.defines entry needs textFile, jsonDirectory, or jsonDirectories.",
+            "Each gadgetBuild.defines entry needs textFile, jsonFile, jsonDirectory, or jsonDirectories.",
         );
     }
 

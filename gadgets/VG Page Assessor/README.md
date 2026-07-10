@@ -1,0 +1,26 @@
+# VG Page Assessor
+
+VG Page Assessor is a Chinese Wikipedia helper for assessing video-game related pages. It adds a toolbox link named `VG Page Assessor`, updates talk-page assessment banners, and can register eligible pages on `WikiProject:电子游戏/新进条目`.
+
+## Features
+
+- Updates the talk-page lead assessment section.
+- Supports class, importance, Video games task forces, and configured additional WikiProjects.
+- Registers eligible pages on the video-game new-page list.
+
+## Build
+
+Run `npm run check`, `npm test`, and `npm run build` from this directory.
+
+Generated files are written to `dist/` as `vg_page_assessor.js`, `vg_page_assessor.min.js`, `vg_page_assessor.css`, and `vg_page_assessor.user.js`.
+
+You can get compressed code from <https://meta.wikimedia.org/wiki/User:For_Each_..._Next/global.js/vg_page_assessor.js>, but it may not update on time.
+
+## Source
+
+- `src/index.js`: dialog UI and save flow.
+- `src/assessment.js`: talk-page assessment wikitext.
+- `src/new-page-list.js`: new-page-list parsing and registration.
+- `src/api.js`: MediaWiki API calls.
+- `src/data.json`: project configuration.
+- `src/styles.css`: dialog styles.

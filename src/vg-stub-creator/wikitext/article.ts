@@ -2,13 +2,12 @@
  * Assembles generated article wikitext from prepared article metadata.
  */
 
-// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import {
     buildCategoryText,
     buildFooterTemplateText,
     buildReferencesText,
     buildStubTagText,
-} from "./index.ts";
+} from ".";
 import { buildSentence1Text } from "./sentence.ts";
 import { formatText } from "../shared/text-templates.ts";
 

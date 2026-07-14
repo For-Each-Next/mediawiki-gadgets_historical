@@ -2,12 +2,11 @@
  * Builds non-prose article outputs from normalized article-part data.
  */
 
-// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import {
     buildDefaultSortText,
     buildInfoboxText,
     buildNoteTaText,
-} from "./index.ts";
+} from ".";
 import { buildNameSourceReferenceKey } from "../shared/form-values.ts";
 
 

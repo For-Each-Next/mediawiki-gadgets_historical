@@ -2,11 +2,10 @@
  * Builds the vg-stub-creator dialog form component.
  */
 
-// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import {
     formatArticleFormField,
     isArticleListField,
-} from "../../article/index.ts";
+} from "../../article";
 import {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,

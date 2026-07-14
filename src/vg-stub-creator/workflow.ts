@@ -2,9 +2,7 @@
  * Coordinates form data, review handlers, and final wikitext.
  */
 
-// noinspection ES6PreferShortImport -- keep explicit .ts extension.
-import { createArticleData as flushRawArticleData } from "./article/index.ts";
-// noinspection ES6PreferShortImport -- keep explicit .ts extension.
+import { createArticleData as flushRawArticleData } from "./article";
 import {
     buildCategoryRows,
     buildFallbackCategoryRows,
@@ -19,7 +17,7 @@ import {
     buildNavboxText,
     buildReviewedNavboxText,
     sortCategoryRowsByProse,
-} from "./wikitext/index.ts";
+} from "./wikitext";
 import { trimFieldValue } from "./shared/form-values.ts";
 import { buildArticleWikitext } from "./wikitext/article.ts";
 import { countGeneratedProseSinographs } from "./wikitext/prose-count.ts";

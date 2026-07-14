@@ -10,6 +10,20 @@ import { addEditSummarySuffix } from "../editing/summary.ts";
 export const NEW_PAGE_LIST_TITLE = "WikiProject:电子游戏/新进条目";
 const MAX_EDIT_ATTEMPTS = 3;
 
+interface NewPageRegistration {
+    articleTitle: string;
+    companyCategories: Array<string>;
+    date: Date;
+}
+
+interface NewPageListEntry {
+    article: string;
+    categories: Array<string>;
+    day: number;
+    month: number;
+    year: number;
+}
+
 
 /**
  * Handles register new page.
@@ -48,7 +62,10 @@ export async function registerNewPage(
 }
 
 /** Runs one new-page-list registration attempt. */
-async function registerNewPageAttempt(api, entry): Promise<void> {
+async function registerNewPageAttempt(
+    api: any,
+    entry: NewPageRegistration,
+): Promise<void> {
     const page = await fetchNewPageList(api);
     const text = addNewPageListEntry(
         page.text,
@@ -171,7 +188,10 @@ export function addNewPageListEntry(
 }
 
 /** Inserts a new year section for a registration. */
-function insertNewPageListYear(source, entry): string {
+function insertNewPageListYear(
+    source: string,
+    entry: NewPageListEntry,
+): string {
     const block = buildDateBlock(
         entry.month,
         entry.day,
@@ -184,7 +204,11 @@ function insertNewPageListYear(source, entry): string {
 }
 
 /** Builds normalized registration entry values. */
-function buildNewPageListEntry(articleTitle, companyCategories, date): any {
+function buildNewPageListEntry(
+    articleTitle: string,
+    companyCategories: Array<string>,
+    date: Date,
+): NewPageListEntry {
     const entry = {
         article: buildVgcCall(articleTitle),
         categories: companyCategories
@@ -249,7 +273,7 @@ async function fetchNewPageList(api: any): Promise<any> {
  */
 function updateYearSection(
     section: string,
-    entry: any,
+    entry: NewPageListEntry,
 ): string {
     const lines = section.split("\n");
     const datePattern = /^\* (\d{1,2})月(\d{1,2})日 - (.*)$/u;
@@ -275,7 +299,11 @@ function updateYearSection(
 }
 
 /** Finds a matching date line. */
-function findDateLine(lines, pattern, entry): number {
+function findDateLine(
+    lines: Array<string>,
+    pattern: RegExp,
+    entry: NewPageListEntry,
+): number {
     return lines.findIndex(function callback(line) {
         const match = line.match(pattern);
         return match != null &&
@@ -285,7 +313,11 @@ function findDateLine(lines, pattern, entry): number {
 }
 
 /** Finds the descending-date insertion point. */
-function findDateInsertIndex(lines, pattern, entry): number {
+function findDateInsertIndex(
+    lines: Array<string>,
+    pattern: RegExp,
+    entry: NewPageListEntry,
+): number {
     return lines.findIndex(function callback(line) {
         const match = line.match(pattern);
         return match != null && (Number(match[1]) < entry.month ||
@@ -295,7 +327,7 @@ function findDateInsertIndex(lines, pattern, entry): number {
 }
 
 /** Finds the first trailing blank line. */
-function findTrailingBlankLines(lines): number {
+function findTrailingBlankLines(lines: Array<string>): number {
     const index = lines.findIndex(function callback(line, lineIndex) {
         const blankTail = lines
             .slice(lineIndex)

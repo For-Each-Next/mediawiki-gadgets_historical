@@ -3,6 +3,11 @@
  */
 
 import {
+    createElement,
+    createEscapedText,
+    renderTemplate,
+} from "../shared/template.ts";
+import {
     CLASS_VALUES,
     IMPORTANCE_VALUES,
     createDefaultAssessment,
@@ -622,7 +627,7 @@ function buildRadioSection(
         '\n        <fieldset class="cdx-fi',
         'eld avgp-section">\n            <',
         'legend class="cdx-label">',
-        buildLegendLabel(label),
+        buildPlainLabel(label),
         "</legend>\n            <div class=",
         '"cdx-field__control">\n         ',
         '       <div class="avgp-button-gr',
@@ -732,7 +737,7 @@ function buildCheckboxSection(
         '\n        <fieldset class="cdx-fi',
         'eld avgp-section">\n            <',
         'legend class="cdx-label">',
-        buildLegendLabel(label),
+        buildPlainLabel(label),
         "</legend>\n            <div class=",
         '"cdx-field__control">\n         ',
         '       <div class="avgp-check-gri',
@@ -1180,22 +1185,6 @@ async function saveDialog(
 
 
 /**
- * Builds one field label for a fieldset legend.
- *
- * @param label - Field label text.
- * @returns Field label HTML.
- */
-function buildLegendLabel(label: string): string {
-    return [
-        '\n        <span class="avgp-label',
-        '-text">',
-        escapeHtml(label),
-        "</span>\n    ",
-    ].join("");
-}
-
-
-/**
  * Builds one field label for an input.
  *
  * @param label - Field label text.
@@ -1203,14 +1192,13 @@ function buildLegendLabel(label: string): string {
  * @returns Field label HTML.
  */
 function buildInputLabel(label: string, id: string): string {
-    return [
-        '\n        <label class="avgp-labe',
-        'l-text" for="',
-        id,
-        '">',
-        escapeHtml(label),
-        "</label>\n    ",
-    ].join("");
+    return renderTemplate(
+        createElement(
+            "label",
+            { class: "avgp-label-text", for: id },
+            [createEscapedText(label)],
+        ),
+    );
 }
 
 
@@ -1221,12 +1209,13 @@ function buildInputLabel(label: string, id: string): string {
  * @returns Label HTML.
  */
 function buildPlainLabel(label: string): string {
-    return [
-        '\n        <span class="avgp-label',
-        '-text">',
-        escapeHtml(label),
-        "</span>\n    ",
-    ].join("");
+    return renderTemplate(
+        createElement(
+            "span",
+            { class: "avgp-label-text" },
+            [createEscapedText(label)],
+        ),
+    );
 }
 
 

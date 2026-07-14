@@ -10,10 +10,10 @@
     "scripts": {
         "build": "npm run build --workspaces --if-present",
         "check": "npm run typecheck && npm run lint && npm run source:check && npm run format:check",
-        "format": "prettier --write .",
-        "format:check": "prettier --check .",
-        "lint": "eslint .",
-        "lint:fix": "eslint . --fix",
+        "format": "prettier --write src scripts",
+        "format:check": "prettier --check src scripts",
+        "lint": "eslint src scripts",
+        "lint:fix": "eslint src scripts --fix",
         "source:check": "node scripts/check-source-style.ts",
         "typecheck": "tsc --noEmit"
     },

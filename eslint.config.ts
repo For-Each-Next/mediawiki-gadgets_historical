@@ -1,5 +1,5 @@
 /**
- * Configures lint rules for gadget source, build scripts, and tests.
+ * Configures lint rules for gadget source and scripts.
  */
 
 import tsParser from "@typescript-eslint/parser";
@@ -47,14 +47,13 @@ export default [
         ignores: [
             "**/node_modules/**",
             "**/dist/**",
-            "**/build/**",
-            "**/coverage/**",
             "**/.cache/**",
-            "**/.vendor/**",
+            "tests/**",
+            "*.config.ts",
         ],
     },
     {
-        files: ["**/*.ts"],
+        files: ["src/**/*.ts", "scripts/**/*.ts"],
         languageOptions: {
             ecmaVersion: "latest",
             globals: {
@@ -80,7 +79,7 @@ export default [
         },
     },
     {
-        files: ["**/*.ts"],
+        files: ["src/**/*.ts", "scripts/**/*.ts"],
         languageOptions: {
             parser: tsParser,
         },

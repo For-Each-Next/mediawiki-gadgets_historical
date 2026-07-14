@@ -10,13 +10,8 @@
         "skipLibCheck": true,
         "strict": false,
         "target": "ES2024",
-        "types": ["node"]
+        "types": ["node", "types-mediawiki"]
     },
-    "include": [
-        "*.config.ts",
-        "node_modules/types-mediawiki",
-        "scripts/**/*.ts",
-        "src/**/*.ts",
-        "tests/**/*.ts"
-    ]
+    "include": ["*.config.ts", "scripts/**/*.ts", "src/**/*.ts"],
+    "exclude": ["tests"]
 }

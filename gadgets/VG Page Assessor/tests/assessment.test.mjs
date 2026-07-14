@@ -13,6 +13,7 @@ import {
     previewTalkPageTopSection,
     shouldRegisterByDefault,
     updateTalkPageAssessment,
+    updateTalkPageTopSection,
 } from "../src/assessment.js";
 
 const projectConfig = {
@@ -165,6 +166,33 @@ test("previews only the top talk-page section", () => {
         expectedShell("Unassessed", [
             "{{WikiProject Video games|importance=}}",
         ]),
+    );
+});
+
+test("saves a preview containing an unmanaged lead template without duplicating it", () => {
+    const source = "{{Translated page|ja|GENDA GiGO Entertainment}}";
+    const assessment = createDefaultAssessment(projectConfig);
+
+    assessment.taskForces.nintendo = true;
+    assessment.otherProjects.company = true;
+
+    const preview = previewTalkPageTopSection(
+        source,
+        assessment,
+        projectConfig,
+    );
+
+    assert.equal(
+        updateTalkPageTopSection(source, preview, projectConfig),
+        [
+            expectedShell("Unassessed", [
+                "{{WikiProject Video games|importance=|nintendo=yes}}",
+                "{{WikiProject Companies}}",
+            ]),
+            "",
+            source,
+            "",
+        ].join("\n"),
     );
 });
 

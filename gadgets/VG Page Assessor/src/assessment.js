@@ -73,7 +73,7 @@ export function createDefaultAssessment(projectConfig) {
  * @returns {string} Updated talk-page wikitext.
  */
 export function updateTalkPageAssessment(text, assessment, projectConfig) {
-    return updateTalkPageTopSection(
+    return replaceManagedTopTemplates(
         text,
         buildAssessmentBanners(assessment, projectConfig, text),
         projectConfig,
@@ -90,17 +90,38 @@ export function updateTalkPageAssessment(text, assessment, projectConfig) {
  */
 export function updateTalkPageTopSection(text, topSection, projectConfig) {
     const source = String(text || "");
-    const banners = String(topSection || "").trim();
+    const replacement = String(topSection || "").trim();
+    const heading = /^=+/mu.exec(source);
+    const remainder = heading == null ? "" : source.slice(heading.index);
+
+    if (remainder === "") {
+        return replacement === "" ? "" : `${replacement}\n`;
+    }
+
+    return replacement === "" ? remainder : `${replacement}\n\n${remainder}`;
+}
+
+/**
+ * Replaces managed assessment templates while preserving other lead content.
+ *
+ * @param {string} text - Existing talk-page wikitext.
+ * @param {string} banners - Replacement assessment banners.
+ * @param {object} projectConfig - Assessment project configuration.
+ * @returns {string} Updated talk-page wikitext.
+ */
+function replaceManagedTopTemplates(text, banners, projectConfig) {
+    const source = String(text || "");
+    const replacement = String(banners || "").trim();
     const cleaned = removeManagedTopTemplates(source, projectConfig).replace(
         /^\s+/u,
         "",
     );
 
     if (cleaned === "") {
-        return `${banners}\n`;
+        return `${replacement}\n`;
     }
 
-    return `${banners}\n\n${cleaned}`;
+    return `${replacement}\n\n${cleaned}`;
 }
 
 /**

@@ -2,6 +2,7 @@
  * Defines vg-stub-creator dialog form metadata and reusable constants.
  */
 
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import { getArticleSourceFields } from "../../article/processor.ts";
 
 

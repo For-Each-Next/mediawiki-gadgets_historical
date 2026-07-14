@@ -2,6 +2,7 @@
  * Collects source URLs and provides shared citation fetching.
  */
 
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import { getArticleSourceFields } from "../article/processor.ts";
 import {
     buildCiteTemplateFromParts,

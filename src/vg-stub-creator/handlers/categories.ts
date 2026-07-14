@@ -8,6 +8,7 @@ import {
     resolvePageTitles,
     stripNamespace,
 } from "./title-resolver.ts";
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import { sortCategoryRowsByProse } from "../wikitext/categories.ts";
 
 const CATEGORY_NAMESPACE = "Category";

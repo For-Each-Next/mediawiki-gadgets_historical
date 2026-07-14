@@ -4,9 +4,9 @@
  * Builds a MediaWiki gadget package and an installable userscript.
  */
 
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, extname, resolve } from "node:path";
-import { build } from "esbuild";
+import { build, transform } from "esbuild";
 import { format } from "prettier";
 import { minify } from "terser";
 import { formatMinifiedOutput } from "../build.config.js";
@@ -37,8 +37,10 @@ if (config.globalName == null) {
 
 await mkdir(outputDirectory, { recursive: true });
 
-const source = await bundleSource(entryPoint, config);
-const styleSource = await readStyleSource(config.styleEntryPoint);
+const [source, minifiedSource] = await Promise.all([
+    bundleSource(entryPoint, config),
+    bundleSource(entryPoint, config, { minifyText: true }),
+]);
 const minifyOptions = {
     compress: {
         passes: 2,
@@ -48,31 +50,28 @@ const minifyOptions = {
     },
     mangle: true,
 };
-const { code } = await minify(source, minifyOptions);
+const minifiedResult = await minify(minifiedSource, minifyOptions);
+
+if (minifiedResult.code == null) {
+    throw new Error("Terser did not return minified code.");
+}
+
+const code = removeHtmlIntertagWhitespace(minifiedResult.code);
 const userscript = await formatUserscript(
     source,
     packageMetadata,
     config.userscript,
 );
 
-if (code == null) {
-    throw new Error("Terser did not return minified code.");
-}
-
 const outputs = [
-    writeFile(resolve(outputDirectory, `${outputName}.js`), source),
     writeFile(
         resolve(outputDirectory, `${outputName}.min.js`),
-        formatMinifiedOutput(code),
+        formatMinifiedOutput(code, packageMetadata),
     ),
     writeFile(resolve(outputDirectory, `${outputName}.user.js`), userscript),
+    rm(resolve(outputDirectory, `${outputName}.js`), { force: true }),
+    rm(resolve(outputDirectory, `${outputName}.css`), { force: true }),
 ];
-
-if (styleSource != null) {
-    outputs.push(
-        writeFile(resolve(outputDirectory, `${outputName}.css`), styleSource),
-    );
-}
 
 await Promise.all(outputs);
 
@@ -81,12 +80,14 @@ await Promise.all(outputs);
  *
  * @param {string} entryPoint - Package entry point.
  * @param {object} buildConfig - Gadget build configuration.
+ * @param {object} [options] - Bundle options.
+ * @param {boolean} [options.minifyText] - Whether to minify injected text.
  * @returns {Promise<string>} Bundled source.
  */
-async function bundleSource(entryPoint, buildConfig) {
+async function bundleSource(entryPoint, buildConfig, options = {}) {
     const buildOptions = {
         bundle: true,
-        define: await buildDefines(buildConfig.defines),
+        define: await buildDefines(buildConfig.defines, options),
         entryPoints: [entryPoint],
         format: "iife",
         globalName: buildConfig.globalName,
@@ -102,13 +103,15 @@ async function bundleSource(entryPoint, buildConfig) {
  * Builds esbuild define values from package configuration.
  *
  * @param {object} [defineConfig] - Defines keyed by placeholder.
+ * @param {object} [options] - Define options.
+ * @param {boolean} [options.minifyText] - Whether to minify injected text.
  * @returns {Promise<object>} Serialized esbuild define values.
  */
-async function buildDefines(defineConfig = {}) {
+async function buildDefines(defineConfig = {}, options = {}) {
     const entries = await Promise.all(
         Object.entries(defineConfig).map(async ([placeholder, definition]) => [
             placeholder,
-            JSON.stringify(await readDefineValue(definition)),
+            JSON.stringify(await readDefineValue(definition, options)),
         ]),
     );
 
@@ -121,11 +124,17 @@ async function buildDefines(defineConfig = {}) {
  * @param {object} definition - Define data configuration.
  * @param {string} [definition.jsonFile] - JSON data file to inject.
  * @param {string} [definition.textFile] - Text file to inject.
+ * @param {object} [options] - Define options.
+ * @param {boolean} [options.minifyText] - Whether to minify injected text.
  * @returns {Promise<*>} Define value.
  */
-async function readDefineValue(definition) {
+async function readDefineValue(definition, options = {}) {
     if (definition.textFile != null) {
-        return readFile(definition.textFile, "utf8");
+        const text = await readFile(definition.textFile, "utf8");
+
+        return options.minifyText
+            ? minifyInjectedText(definition.textFile, text)
+            : text;
     }
 
     if (definition.jsonFile != null) {
@@ -135,6 +144,33 @@ async function readDefineValue(definition) {
     }
 
     return readJsonDirectories(definition);
+}
+
+/**
+ * Minifies injected text formats supported by the build.
+ *
+ * @param {string} path - Source path.
+ * @param {string} text - Source text.
+ * @returns {Promise<string>} Minified or unchanged text.
+ */
+async function minifyInjectedText(path, text) {
+    if (extname(path) !== ".css") {
+        return text;
+    }
+
+    const result = await transform(text, { loader: "css", minify: true });
+
+    return result.code.trim();
+}
+
+/**
+ * Removes escaped indentation that exists only between HTML tags.
+ *
+ * @param {string} code - Minified JavaScript.
+ * @returns {string} JavaScript without inter-tag HTML whitespace.
+ */
+function removeHtmlIntertagWhitespace(code) {
+    return code.replace(/>\\n\s*/gu, ">").replace(/\\n\s*</gu, "<");
 }
 
 /**
@@ -213,20 +249,6 @@ function parseDataFile(path, data) {
     }
 
     return JSON.parse(data);
-}
-
-/**
- * Reads an optional standalone stylesheet source.
- *
- * @param {string} [path] - Stylesheet source path.
- * @returns {Promise<string|null>} Stylesheet source or null.
- */
-async function readStyleSource(path) {
-    if (path == null) {
-        return null;
-    }
-
-    return readFile(path, "utf8");
 }
 
 /**

@@ -44,6 +44,10 @@ const mediaWikiGlobals = {
     mw: "readonly",
 };
 
+const disabledJSDocRules = Object.fromEntries(
+    Object.keys(jsdoc.rules).map((ruleName) => [`jsdoc/${ruleName}`, "off"]),
+);
+
 export default [
     {
         ignores: [
@@ -422,6 +426,39 @@ export default [
         },
     },
     {
+        files: ["**/tests/**/*.{js,mjs,cjs}"],
+        linterOptions: {
+            reportUnusedDisableDirectives: "off",
+        },
+        rules: {
+            ...disabledJSDocRules,
+            "array-callback-return": "off",
+            "class-methods-use-this": "off",
+            complexity: "off",
+            "init-declarations": "off",
+            "max-classes-per-file": "off",
+            "max-len": "off",
+            "max-lines": "off",
+            "max-lines-per-function": "off",
+            "max-nested-callbacks": "off",
+            "max-params": "off",
+            "no-await-in-loop": "off",
+            "no-empty-function": "off",
+            "no-magic-numbers": "off",
+            "no-nested-ternary": "off",
+            "no-restricted-imports": "off",
+            "no-throw-literal": "off",
+            "no-underscore-dangle": "off",
+            "no-unused-vars": "off",
+            "no-useless-call": "off",
+            "no-useless-concat": "off",
+            "prefer-template": "off",
+            "require-await": "off",
+            "sort-imports": "off",
+            "sort-keys": "off",
+        },
+    },
+    {
         files: ["**/*.jsonc"],
         languageOptions: {
             parser: jsoncParser,
@@ -439,7 +476,12 @@ export default [
                 process: "readonly",
             },
         },
+        linterOptions: {
+            reportUnusedDisableDirectives: "off",
+        },
         rules: {
+            ...disabledJSDocRules,
+            "max-lines": "off",
             "no-console": "off",
             "no-magic-numbers": "off",
             "no-restricted-imports": "off",

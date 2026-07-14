@@ -1,0 +1,62 @@
+{
+    "name": "vg-stub-creator",
+    "version": "0.4.17",
+    "description": "Quickly create a video game stub on the Chinese Wikipedia.",
+    "private": true,
+    "license": "CC BY-SA 4.0",
+    "author": "For Each ... Next",
+    "type": "module",
+    "main": "./src/index.js",
+    "browser": "./src/index.js",
+    "gadgetBuild": {
+        "globalName": "vgStubCreator",
+        "outputDirectory": "../../dist/vg-stub-creator",
+        "outputName": "vg_stub_creator",
+        "styleEntryPoint": "src/interface/styles.css",
+        "defines": {
+            "__VG_STUB_CREATOR_FIELD_DATA__": {
+                "jsonDirectories": [
+                    "src/terminologies",
+                    "src/sources",
+                    "src/wikitext"
+                ]
+            },
+            "__VG_STUB_CREATOR_DIALOG_CSS__": {
+                "textFile": "src/interface/styles.css"
+            }
+        },
+        "userscript": {
+            "name": "VG Stub Creator",
+            "match": [
+                "https://en.wikipedia.org/*",
+                "https://zh.wikipedia.org/*"
+            ]
+        }
+    },
+    "files": [
+        "README.md",
+        "src"
+    ],
+    "keywords": [
+        "mediawiki",
+        "gadget",
+        "wikipedia",
+        "zhwiki",
+        "video-games"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/build-gadget.mjs",
+        "check": "npm run lint && node --check src/index.js",
+        "lint": "eslint src",
+        "lint:fix": "eslint src --fix",
+        "test": "node --import ../../tests/vg-stub-creator/setup.mjs --test ../../tests/vg-stub-creator/*.test.mjs",
+        "prepublishOnly": "npm run check"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "devDependencies": {
+        "@wikimedia/codex": "^2.6.0",
+        "vue": "^3.5.39"
+    }
+}

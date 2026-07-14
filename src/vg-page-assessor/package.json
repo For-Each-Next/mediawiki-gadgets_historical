@@ -1,0 +1,52 @@
+{
+    "name": "vg-page-assessor",
+    "version": "1.0.0-rc.2",
+    "description": "Assess Chinese Wikipedia video game talk pages and register pages on the WikiProject new-page list.",
+    "private": true,
+    "license": "CC BY-SA 4.0",
+    "author": "For Each ... Next",
+    "type": "module",
+    "main": "./src/index.js",
+    "browser": "./src/index.js",
+    "gadgetBuild": {
+        "globalName": "vgPageAssessor",
+        "outputDirectory": "../../dist/vg-page-assessor",
+        "outputName": "vg_page_assessor",
+        "styleEntryPoint": "src/styles.css",
+        "defines": {
+            "__ASSESS_VG_PAGE_DATA__": {
+                "jsonFile": "src/data.json"
+            },
+            "__ASSESS_VG_PAGE_DIALOG_CSS__": {
+                "textFile": "src/styles.css"
+            }
+        },
+        "userscript": {
+            "match": [
+                "https://zh.wikipedia.org/*"
+            ]
+        }
+    },
+    "files": [
+        "README.md",
+        "src"
+    ],
+    "keywords": [
+        "mediawiki",
+        "wikipedia",
+        "zhwiki",
+        "video-games",
+        "assessment"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/build-gadget.mjs",
+        "check": "npm run lint && node --check src/index.js",
+        "lint": "eslint src",
+        "lint:fix": "eslint src --fix",
+        "test": "node --test ../../tests/vg-page-assessor/*.test.mjs",
+        "prepublishOnly": "npm run check"
+    },
+    "engines": {
+        "node": ">=20"
+    }
+}

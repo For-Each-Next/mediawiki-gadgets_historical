@@ -1,4 +1,6 @@
-export default [
+import { defineTerminologies } from "./terminology.ts";
+
+export default defineTerminologies([
     {
         aliases: ["4x", "4X game"],
         categories: ["4X电子游戏"],
@@ -1058,4 +1060,4 @@ export default [
         page: "电脑战争游戏",
         stubTags: ["strategy-videogame-stub"],
     },
-];
+]);

@@ -8,6 +8,9 @@ import {
     getReferenceDefinition,
 } from "../shared/utils.ts";
 
+export { Terminology } from "./terminology.ts";
+export type { TerminologyOptions } from "./terminology.ts";
+
 const TYPE_KEYS = {
     companies: "companies",
     company: "companies",

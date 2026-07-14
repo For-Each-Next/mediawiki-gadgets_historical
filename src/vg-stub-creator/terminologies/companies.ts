@@ -1,6 +1,4 @@
-import { defineTerminologies } from "./terminology.ts";
-
-export default defineTerminologies([
+export default [
     {
         aliases: ["07th Expansion"],
         name: "07th Expansion",
@@ -3050,4 +3048,4 @@ export default defineTerminologies([
         page: "Zynga",
         categories: ["Zynga遊戲"],
     },
-]);
+];

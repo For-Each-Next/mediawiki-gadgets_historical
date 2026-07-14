@@ -1,6 +1,4 @@
-import { defineTerminologies } from "./terminology.ts";
-
-export default defineTerminologies([
+export default [
     {
         aliases: ["3do"],
         name: "3DO",
@@ -1285,4 +1283,4 @@ export default defineTerminologies([
         categories: ["ZX81游戏"],
         stubTags: ["videogame-stub"],
     },
-]);
+];

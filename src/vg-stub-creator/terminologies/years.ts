@@ -1,6 +1,4 @@
-import { defineTerminologies } from "./terminology.ts";
-
-export default defineTerminologies([
+export default [
     {
         aliases: ["1971", "71"],
         name: "1971",
@@ -286,4 +284,4 @@ export default defineTerminologies([
         name: "2027",
         categories: ["2027年電子遊戲"],
     },
-]);
+];

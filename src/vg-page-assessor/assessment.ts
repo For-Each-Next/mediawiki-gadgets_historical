@@ -70,6 +70,7 @@ export function createDefaultAssessment(projectConfig: any): any {
  *
  * @param text - Existing talk-page wikitext.
  * @param assessment - Selected assessment values.
+ * @param projectConfig - Assessment project configuration.
  * @returns Updated talk-page wikitext.
  */
 export function updateTalkPageAssessment(
@@ -90,7 +91,6 @@ export function updateTalkPageAssessment(
  *
  * @param text - Existing talk-page wikitext.
  * @param topSection - Replacement top-section wikitext.
- * @param projectConfig - Assessment project configuration.
  * @returns Updated talk-page wikitext.
  */
 export function updateTalkPageTopSection(

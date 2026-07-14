@@ -5,6 +5,7 @@
 import { trimFieldValue } from "../shared/form-values.ts";
 import { buildArticleRenderers } from "../wikitext/outputs.ts";
 import { buildArticleProse } from "../wikitext/prose.ts";
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import { ARTICLE_MODULES } from "./modules/index.ts";
 
 

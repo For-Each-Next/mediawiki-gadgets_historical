@@ -4,6 +4,7 @@
 
 import { trimValue } from "../shared/utils.ts";
 import { formatText, getTextTemplate } from "../shared/text-templates.ts";
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import { get as getTerminology } from "../terminologies/index.ts";
 
 

@@ -42,26 +42,6 @@ export function createManualCategoryRow(): any {
 
 
 /**
- * Resets an edited generated category row.
- *
- * @param row - Category review row.
- * @returns Reset category row.
- */
-export function resetCategoryRow(row: any): any {
-    const source = getBaseSource(row.source);
-
-    return normalizeCategoryRow({
-        ...row,
-        category: row.originalCategory,
-        source,
-        status:
-            source === SOURCE_FITTING ? CATEGORY_STATUS.unchecked : row.status,
-        stubTagEnabled: row.originalStubTagEnabled,
-    });
-}
-
-
-/**
  * Updates an editable category title and refreshes its source marker.
  *
  * @param row - Category review row.

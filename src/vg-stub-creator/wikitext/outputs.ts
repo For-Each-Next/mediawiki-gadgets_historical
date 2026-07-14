@@ -2,6 +2,7 @@
  * Builds non-prose article outputs from normalized article-part data.
  */
 
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import {
     buildDefaultSortText,
     buildInfoboxText,

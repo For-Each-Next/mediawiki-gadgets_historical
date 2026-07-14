@@ -10,6 +10,7 @@ import {
     splitLookupFieldValues,
     uniqueValues,
 } from "../../shared/utils.ts";
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import { get as getTerminology } from "../../terminologies/index.ts";
 
 

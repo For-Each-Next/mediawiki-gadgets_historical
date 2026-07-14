@@ -6,6 +6,7 @@ import {
     createPageEditDialogTemplate,
     createPreviewDialogTemplate,
 } from "../source-preview.ts";
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import { createTabsTemplate } from "../main/index.ts";
 import { createPreSaveDialogTemplate } from "../pre-save.ts";
 import {

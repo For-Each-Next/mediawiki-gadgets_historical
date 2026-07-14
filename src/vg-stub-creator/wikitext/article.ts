@@ -2,6 +2,7 @@
  * Assembles generated article wikitext from prepared article metadata.
  */
 
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import {
     buildCategoryText,
     buildFooterTemplateText,

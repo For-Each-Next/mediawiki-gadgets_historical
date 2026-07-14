@@ -2,7 +2,9 @@
  * Coordinates form data, review handlers, and final wikitext.
  */
 
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import { createArticleData as flushRawArticleData } from "./article/index.ts";
+// noinspection ES6PreferShortImport -- keep explicit .ts extension.
 import {
     buildCategoryRows,
     buildFallbackCategoryRows,

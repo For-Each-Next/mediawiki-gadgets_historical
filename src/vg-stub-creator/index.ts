@@ -24,8 +24,7 @@ import {
     saveCategoryPage,
     saveCompanyCategory,
 } from "./handlers/category-pages.ts";
-// noinspection ES6PreferShortImport -- keep explicit .ts extension.
-import { createDialogComponent } from "./interface/form/component.ts";
+import { createDialogComponent } from "./interface/form";
 import { getBasePageTitle } from "./interface/form/helpers.ts";
 import { addDialogStyles } from "./interface/styles.ts";
 import { trimFieldValue } from "./shared/form-values.ts";

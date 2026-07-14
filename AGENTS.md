@@ -31,7 +31,8 @@
 
 - Use `.ts` for authored source, tests, scripts, and tool configuration when
   the tool supports TypeScript configuration.
-- Use explicit `.ts` extensions for local imports.
+- Prefer the shortest public directory entry point for local imports. Use
+  explicit `.ts` extensions when importing a specific file.
 - Type-check with TypeScript in `noEmit` mode. Use esbuild to emit ES2024
   browser JavaScript into `dist/`.
 - Keep directly executed TypeScript compatible with Node's type-stripping

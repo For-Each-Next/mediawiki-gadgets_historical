@@ -7,8 +7,7 @@ import {
     addTalkPageBanner,
     connectWikidataSitelink,
 } from "../editing/pre-save.ts";
-// noinspection ES6PreferShortImport -- keep explicit .ts extension.
-import { buildDefaultSortText } from "../wikitext/default-sort.ts";
+import { buildDefaultSortText } from "../wikitext";
 import { fetchEnwikiMetadata } from "../sources/crosswiki.ts";
 import { formatText, getTextTemplate } from "../shared/text-templates.ts";
 

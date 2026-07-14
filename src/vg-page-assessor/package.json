@@ -1,24 +1,21 @@
 {
     "name": "vg-page-assessor",
-    "version": "1.0.0-rc.2",
+    "version": "1.0.0-rc.3",
     "description": "Assess Chinese Wikipedia video game talk pages and register pages on the WikiProject new-page list.",
     "private": true,
     "license": "CC BY-SA 4.0",
     "author": "For Each ... Next",
     "type": "module",
-    "main": "./src/index.js",
-    "browser": "./src/index.js",
+    "main": "./index.ts",
+    "browser": "./index.ts",
     "gadgetBuild": {
         "globalName": "vgPageAssessor",
         "outputDirectory": "../../dist/vg-page-assessor",
         "outputName": "vg_page_assessor",
-        "styleEntryPoint": "src/styles.css",
+        "styleEntryPoint": "styles.css",
         "defines": {
-            "__ASSESS_VG_PAGE_DATA__": {
-                "jsonFile": "src/data.json"
-            },
             "__ASSESS_VG_PAGE_DIALOG_CSS__": {
-                "textFile": "src/styles.css"
+                "textFile": "styles.css"
             }
         },
         "userscript": {
@@ -29,7 +26,8 @@
     },
     "files": [
         "README.md",
-        "src"
+        "*.ts",
+        "styles.css"
     ],
     "keywords": [
         "mediawiki",
@@ -39,14 +37,14 @@
         "assessment"
     ],
     "scripts": {
-        "build": "node ../../scripts/build-gadget.mjs",
-        "check": "npm run lint && node --check src/index.js",
-        "lint": "eslint src",
-        "lint:fix": "eslint src --fix",
-        "test": "node --test ../../tests/vg-page-assessor/*.test.mjs",
+        "build": "node ../../scripts/build-gadget.ts",
+        "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "test": "node --test ../../tests/vg-page-assessor/*.test.ts",
         "prepublishOnly": "npm run check"
     },
     "engines": {
-        "node": ">=20"
+        "node": ">=22.18"
     }
 }

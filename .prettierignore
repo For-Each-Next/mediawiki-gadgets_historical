@@ -1,16 +1,3 @@
-node_modules/
-.idea/
-dist/
-build/
-coverage/
-
-*.log
-*.tgz
-
-.DS_Store
-.cache/
-.parcel-cache/
-.turbo/
-.vite/
-.npm/
-.pnpm-store/
+# Two blank lines around file-level declarations conflict with Prettier.
+/build.config.ts
+/src/**/*.ts

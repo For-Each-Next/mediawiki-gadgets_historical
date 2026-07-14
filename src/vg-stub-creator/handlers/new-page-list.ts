@@ -1,0 +1,481 @@
+/**
+ * Describes the new-page-list module.
+ *
+ * Registers newly created pages on the WikiProject Video games new-page
+ * list.
+ */
+
+import { addEditSummarySuffix } from "../editing/summary.ts";
+
+export const NEW_PAGE_LIST_TITLE = "WikiProject:电子游戏/新进条目";
+const MAX_EDIT_ATTEMPTS = 3;
+
+
+/**
+ * Handles register new page.
+ *
+ * Adds an article and its newly created company categories to the
+ * current UTC date on the WikiProject new-page list.
+ *
+ * @param api - MediaWiki API client.
+ * @param articleTitle - Created article title.
+ * @param companyCategories - Category titles, with or
+ * without namespace.
+ * @param date - Registration date.
+ * @returns Resolves after the list is updated.
+ *
+ */
+export async function registerNewPage(
+    api: any,
+    articleTitle: string,
+    companyCategories: Array<string> = [],
+    date: Date = new Date(),
+): Promise<void> {
+    for (let attempt = 0; attempt < MAX_EDIT_ATTEMPTS; attempt += 1) {
+        const page = await fetchNewPageList(api);
+        const text = addNewPageListEntry(
+            page.text,
+            articleTitle,
+            companyCategories,
+            date,
+        );
+
+        if (text === page.text) {
+            return;
+        }
+
+        try {
+            await api.postWithToken("csrf", {
+                action: "edit",
+                basetimestamp: page.basetimestamp,
+                nocreate: true,
+                starttimestamp: page.starttimestamp,
+                summary: addEditSummarySuffix(
+                    buildNewPageListSummary(articleTitle, companyCategories),
+                ),
+                text,
+                title: NEW_PAGE_LIST_TITLE,
+            });
+            return;
+        } catch (error) {
+            if (!isEditConflict(error) || attempt === MAX_EDIT_ATTEMPTS - 1) {
+                throw error;
+            }
+        }
+    }
+}
+
+
+/**
+ * Builds the edit summary for a new-page-list registration.
+ *
+ * @param articleTitle - Created article title.
+ * @param companyCategories - Category titles, with or
+ * without
+ * namespace.
+ * @returns Edit summary.
+ */
+function buildNewPageListSummary(
+    articleTitle: string,
+    companyCategories: Array<string>,
+): string {
+    const categories = companyCategories
+        .map(normalizeCategoryTitle)
+        .filter(Boolean)
+        .map((category) => `[[${category}]]`);
+    const article = `[[${articleTitle}]]`;
+
+    if (categories.length === 0) {
+        return `register the new article "${article}"`;
+    }
+
+    return (
+        `register the new article "${article}" as well as ` +
+        [
+            "categor",
+            categories.length === 1 ? "y" : "ies",
+            " ",
+            formatSummaryList(categories),
+            "",
+        ].join("")
+    );
+}
+
+
+/**
+ * Formats a linked title list for edit-summary prose.
+ *
+ * @param items - Summary list items.
+ * @returns Comma-separated summary list.
+ */
+function formatSummaryList(items: Array<string>): string {
+    if (items.length <= 2) {
+        return items.join(" and ");
+    }
+
+    return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
+
+
+/**
+ * Builds updated new-page-list wikitext.
+ *
+ * @param text - Current list wikitext.
+ * @param articleTitle - Article title to register.
+ * @param companyCategories - Company category titles.
+ * @param date - Registration date.
+ * @returns Updated wikitext.
+ */
+export function addNewPageListEntry(
+    text: string,
+    articleTitle: string,
+    companyCategories: Array<string> = [],
+    date: Date = new Date(),
+): string {
+    const source = String(text || "");
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+    const article = buildVgcCall(articleTitle);
+    const categories = companyCategories
+        .map(normalizeCategoryTitle)
+        .filter(Boolean)
+        .map(buildVgcCall);
+    const yearRange = findYearSection(source, year);
+
+    if (yearRange == null) {
+        return insertYearSection(
+            source,
+            year,
+            buildDateBlock(month, day, article, categories),
+        );
+    }
+
+    const section = source.slice(yearRange.contentStart, yearRange.end);
+    const updatedSection = updateYearSection(
+        section,
+        month,
+        day,
+        article,
+        categories,
+    );
+
+    return (
+        source.slice(0, yearRange.contentStart) +
+        updatedSection +
+        source.slice(yearRange.end)
+    );
+}
+
+
+/**
+ * Fetches current list text and edit-conflict timestamps.
+ *
+ * @param api - MediaWiki API client.
+ * @returns Page text and timestamps.
+ */
+async function fetchNewPageList(api: any): Promise<any> {
+    const response = await api.get({
+        action: "query",
+        curtimestamp: true,
+        formatversion: "2",
+        prop: "revisions",
+        rvprop: "content|timestamp",
+        rvslots: "main",
+        titles: NEW_PAGE_LIST_TITLE,
+    });
+    const pages = response?.query?.pages || [];
+    const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
+    const revision = page?.revisions?.[0];
+
+    if (page == null || page.missing != null || revision == null) {
+        throw new Error(`Unable to read ${NEW_PAGE_LIST_TITLE}.`);
+    }
+
+    return {
+        basetimestamp: revision.timestamp,
+        starttimestamp: response.curtimestamp,
+        text:
+            revision.slots?.main?.content ??
+            revision.slots?.main?.["*"] ??
+            revision["*"] ??
+            "",
+    };
+}
+
+
+/**
+ * Updates or inserts one date block inside a year section.
+ *
+ * @param section - Year-section body.
+ * @param month - UTC month.
+ * @param day - UTC day.
+ * @param article - Article template call.
+ * @param categories - Category template calls.
+ * @returns Updated section body.
+ */
+function updateYearSection(
+    section: string,
+    month: number,
+    day: number,
+    article: string,
+    categories: Array<string>,
+): string {
+    const lines = section.split("\n");
+    const datePattern = /^\* (\d{1,2})月(\d{1,2})日 - (.*)$/u;
+    const targetIndex = lines.findIndex(function callback(line) {
+        const match = line.match(datePattern);
+
+        return (
+            match != null &&
+            Number(match[1]) === month &&
+            Number(match[2]) === day
+        );
+    });
+
+    if (targetIndex !== -1) {
+        appendUnique(lines, targetIndex, article);
+        appendCategories(lines, targetIndex, categories);
+        return lines.join("\n");
+    }
+
+    const insertAt = lines.findIndex(function callback(line) {
+        const match = line.match(datePattern);
+
+        return (
+            match != null &&
+            (Number(match[1]) < month ||
+                (Number(match[1]) === month && Number(match[2]) < day))
+        );
+    });
+    const block = buildDateBlock(month, day, article, categories).split("\n");
+    const trailingWhitespaceIndex = lines.findIndex(
+        function callback(line, index) {
+            return (
+                index > 0 &&
+                line.trim() === "" &&
+                lines
+                    .slice(index)
+                    .every((remaining) => remaining.trim() === "")
+            );
+        },
+    );
+    const fallbackIndex = selectValue(
+        trailingWhitespaceIndex === -1,
+        function trueBranch() {
+            return lines.length;
+        },
+        function falseBranch() {
+            return trailingWhitespaceIndex;
+        },
+    );
+
+    lines.splice(insertAt === -1 ? fallbackIndex : insertAt, 0, ...block);
+    return lines.join("\n");
+}
+
+
+/**
+ * Appends an article call when it is not already present.
+ *
+ * @param lines - Section lines.
+ * @param index - Date-line index.
+ * @param value - Template call.
+ * @returns */
+function appendUnique(
+    lines: Array<string>,
+    index: number,
+    value: string,
+): void {
+    if (lines[index].includes(value)) {
+        return;
+    }
+
+    const separator = / -\s*$/u.test(lines[index]) ? "" : "、";
+
+    lines[index] += `${separator}${value}`;
+}
+
+
+/**
+ * Adds company categories to the date's category continuation line.
+ *
+ * @param lines - Section lines.
+ * @param dateIndex - Date-line index.
+ * @param categories - Category template calls.
+ * @returns */
+function appendCategories(
+    lines: Array<string>,
+    dateIndex: number,
+    categories: Array<string>,
+): void {
+    if (categories.length === 0) {
+        return;
+    }
+
+    const nextDateIndex = lines.findIndex(function callback(line, index) {
+        return index > dateIndex && /^\* \d{1,2}月\d{1,2}日 - /u.test(line);
+    });
+    const blockEnd = nextDateIndex === -1 ? lines.length : nextDateIndex;
+    const categoryIndex = lines.findIndex(function callback(line, index) {
+        return (
+            index > dateIndex &&
+            index < blockEnd &&
+            /^\*:\s*分類：/u.test(line)
+        );
+    });
+
+    if (categoryIndex === -1) {
+        lines.splice(dateIndex + 1, 0, `*:分類：${categories.join("、")}`);
+        return;
+    }
+
+    categories.forEach(function callback(category) {
+        return appendUnique(lines, categoryIndex, category);
+    });
+}
+
+
+/**
+ * Builds a complete date block.
+ *
+ * @param month - UTC month.
+ * @param day - UTC day.
+ * @param article - Article template call.
+ * @param categories - Category template calls.
+ * @returns Date block wikitext.
+ */
+function buildDateBlock(
+    month: number,
+    day: number,
+    article: string,
+    categories: Array<string>,
+): string {
+    return [
+        `* ${month}月${day}日 - ${article}`,
+        ...selectValue(
+            categories.length === 0,
+            function trueBranch() {
+                return [];
+            },
+            function falseBranch() {
+                return [`*:分類：${categories.join("、")}`];
+            },
+        ),
+    ].join("\n");
+}
+
+
+/**
+ * Finds a year section and its content range.
+ *
+ * @param text - Page wikitext.
+ * @param year - UTC year.
+ * @returns Section content range.
+ */
+function findYearSection(text: string, year: number): any | null {
+    const heading = new RegExp(`^== ${year}年 ==\\s*$`, "mu");
+    const match = heading.exec(text);
+
+    if (match == null) {
+        return null;
+    }
+
+    const contentStart = match.index + match[0].length;
+    const nextHeading = /^== .+ ==\s*$/gmu;
+    nextHeading.lastIndex = contentStart;
+    const next = nextHeading.exec(text);
+
+    return {
+        contentStart,
+        end: next?.index ?? text.length,
+    };
+}
+
+
+/**
+ * Inserts a new year section before the first existing year section.
+ *
+ * @param text - Page wikitext.
+ * @param year - UTC year.
+ * @param block - Initial date block.
+ * @returns Updated page wikitext.
+ */
+function insertYearSection(text: string, year: number, block: string): string {
+    const firstYear = /^== \d{4}年 ==\s*$/mu.exec(text);
+    const section = `== ${year}年 ==\n${block}\n\n`;
+
+    if (firstYear == null) {
+        return `${text.replace(/\s*$/u, "")}\n\n${section}`;
+    }
+
+    return (
+        text.slice(0, firstYear.index) + section + text.slice(firstYear.index)
+    );
+}
+
+
+/**
+ * Builds a vgc template call.
+ *
+ * @param title - Page title.
+ * @returns Template call.
+ */
+function buildVgcCall(title: string): string {
+    return `{{vgc|${String(title || "").trim()}}}`;
+}
+
+
+/**
+ * Adds the Category namespace when absent.
+ *
+ * @param category - Category title.
+ * @returns Namespaced category title.
+ */
+function normalizeCategoryTitle(category: string): string {
+    const title = String(category || "").trim();
+
+    if (title === "") {
+        return "";
+    }
+
+    return /^(?:Category|分類):/iu.test(title) ? title : `Category:${title}`;
+}
+
+
+/**
+ * Checks whether a failed API edit should be retried.
+ *
+ * @param error - MediaWiki API rejection.
+ * @returns Whether the error is an edit conflict.
+ */
+function isEditConflict(error: any): boolean {
+    return (
+        error === "editconflict" ||
+        error?.code === "editconflict" ||
+        error?.error?.code === "editconflict"
+    );
+}
+
+
+/**
+ * Selects a lazily evaluated value for a condition.
+ *
+ * @param condition - Condition to evaluate.
+ * @param trueBranch - Branch used when the condition is
+ * true.
+ * @param falseBranch - Branch used when the condition is
+ * false.
+ * @returns Value returned by the selected branch.
+ */
+function selectValue(
+    condition: unknown,
+    trueBranch: (...args: any[]) => any,
+    falseBranch: (...args: any[]) => any,
+): any {
+    if (condition) {
+        return trueBranch();
+    }
+
+    return falseBranch();
+}

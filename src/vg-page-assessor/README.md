@@ -18,9 +18,9 @@ You can get compressed code from <https://meta.wikimedia.org/wiki/User:For_Each_
 
 ## Source
 
-- `src/index.js`: dialog UI and save flow.
-- `src/assessment.js`: talk-page assessment wikitext.
-- `src/new-page-list.js`: new-page-list parsing and registration.
-- `src/api.js`: MediaWiki API calls.
-- `src/data.json`: project configuration.
-- `src/styles.css`: dialog styles.
+- `index.ts`: dialog UI and save flow.
+- `assessment.ts`: talk-page assessment wikitext.
+- `new-page-list.ts`: new-page-list parsing and registration.
+- `api.ts`: MediaWiki API calls.
+- `data.ts`: project configuration.
+- `styles.css`: dialog styles.

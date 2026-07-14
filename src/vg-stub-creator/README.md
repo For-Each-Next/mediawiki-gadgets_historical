@@ -19,13 +19,14 @@ You can get compressed code from <https://meta.wikimedia.org/wiki/User:For_Each_
 
 ## Source
 
-- `src/index.js`: gadget entry point and site activation.
-- `src/workflow.js`: article creation workflow.
-- `src/article/`: form data and article metadata pipeline.
-- `src/wikitext/`: generated article wikitext.
-- `src/interface/`: Codex dialog UI, preview, review, and history views.
-- `src/editing/`: editor integration, edit summaries, and save sessions.
-- `src/handlers/`: category, navbox, title, and new-page-list API helpers.
-- `src/save/`: pre-save action execution and progress state.
-- `src/sources/`: external-source lookup, citations, crosswiki metadata, and Steam names.
-- `src/terminologies/`: configured video-game terminology data.
+- `index.ts`: gadget entry point and site activation.
+- `workflow.ts`: article creation workflow.
+- `article/`: form data and article metadata pipeline.
+- `wikitext/`: generated article wikitext.
+- `interface/`: Codex dialog UI, preview, review, and history views.
+- `editing/`: editor integration, edit summaries, and save sessions.
+- `handlers/`: category, navbox, title, and new-page-list API helpers.
+- `save/`: pre-save action execution and progress state.
+- `sources/`: external-source lookup, citations, crosswiki metadata, and Steam names.
+- `terminologies/`: configured video-game terminology data.
+- `DEVELOPMENT.md`: source architecture and editing guidance.

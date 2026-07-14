@@ -2,28 +2,34 @@
     "name": "mediawiki-gadgets",
     "version": "0.1.0",
     "private": true,
-    "description": "JavaScript development workspace for MediaWiki gadgets.",
+    "description": "TypeScript development workspace for MediaWiki gadgets.",
     "type": "module",
     "workspaces": [
         "src/*"
     ],
     "scripts": {
         "build": "npm run build --workspaces --if-present",
-        "check": "npm run lint && npm run format:check",
+        "check": "npm run typecheck && npm run lint && npm run source:check && npm run format:check",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint .",
-        "lint:fix": "eslint . --fix"
+        "lint:fix": "eslint . --fix",
+        "source:check": "node scripts/check-source-style.ts",
+        "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
+        "@types/node": "^26.1.1",
+        "@typescript-eslint/parser": "^8.64.0",
         "esbuild": "^0.28.0",
         "eslint": "^9.0.0",
         "eslint-plugin-jsdoc": "^50.0.0",
-        "jsonc-eslint-parser": "^3.1.0",
+        "jiti": "^2.7.0",
         "prettier": "^3.0.0",
-        "terser": "^5.48.0"
+        "terser": "^5.48.0",
+        "types-mediawiki": "^2.1.0",
+        "typescript": "^6.0.3"
     },
     "engines": {
-        "node": ">=20"
+        "node": ">=22.18"
     }
 }

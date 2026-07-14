@@ -1,28 +1,21 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.4.17",
+    "version": "0.4.18",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
     "license": "CC BY-SA 4.0",
     "author": "For Each ... Next",
     "type": "module",
-    "main": "./src/index.js",
-    "browser": "./src/index.js",
+    "main": "./index.ts",
+    "browser": "./index.ts",
     "gadgetBuild": {
         "globalName": "vgStubCreator",
         "outputDirectory": "../../dist/vg-stub-creator",
         "outputName": "vg_stub_creator",
-        "styleEntryPoint": "src/interface/styles.css",
+        "styleEntryPoint": "interface/styles.css",
         "defines": {
-            "__VG_STUB_CREATOR_FIELD_DATA__": {
-                "jsonDirectories": [
-                    "src/terminologies",
-                    "src/sources",
-                    "src/wikitext"
-                ]
-            },
             "__VG_STUB_CREATOR_DIALOG_CSS__": {
-                "textFile": "src/interface/styles.css"
+                "textFile": "interface/styles.css"
             }
         },
         "userscript": {
@@ -35,7 +28,17 @@
     },
     "files": [
         "README.md",
-        "src"
+        "DEVELOPMENT.md",
+        "*.ts",
+        "article",
+        "editing",
+        "handlers",
+        "interface",
+        "save",
+        "shared",
+        "sources",
+        "terminologies",
+        "wikitext"
     ],
     "keywords": [
         "mediawiki",
@@ -45,18 +48,18 @@
         "video-games"
     ],
     "scripts": {
-        "build": "node ../../scripts/build-gadget.mjs",
-        "check": "npm run lint && node --check src/index.js",
-        "lint": "eslint src",
-        "lint:fix": "eslint src --fix",
-        "test": "node --import ../../tests/vg-stub-creator/setup.mjs --test ../../tests/vg-stub-creator/*.test.mjs",
+        "build": "node ../../scripts/build-gadget.ts",
+        "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "test": "node --import ../../tests/vg-stub-creator/setup.ts --test ../../tests/vg-stub-creator/*.test.ts",
         "prepublishOnly": "npm run check"
     },
     "engines": {
-        "node": ">=20"
+        "node": ">=22.18"
     },
     "devDependencies": {
         "@wikimedia/codex": "^2.6.0",
-        "vue": "^3.5.39"
+        "vue": "3.5.13"
     }
 }

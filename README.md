@@ -1,6 +1,10 @@
 # mediawiki-gadgets
 
-JavaScript development workspace for MediaWiki gadgets.
+TypeScript development workspace for MediaWiki gadgets. Authored source,
+tests, build scripts, and supported configuration files use TypeScript.
+Only gadget modules reachable from each package's `index.ts` entry point
+are bundled. The `dist/` directory contains browser JavaScript, never
+TypeScript source, tests, scripts, declarations, or configuration files.
 
 Gadget packages live in `src/<gadget-name>`, with matching test suites in
 `tests/<gadget-name>` and generated output in `dist/<gadget-name>`.
@@ -19,14 +23,18 @@ npm install
 npm run build
 ```
 
-Gadgets use the shared `scripts/build-gadget.mjs` builder. Each gadget
+Gadgets use the shared `scripts/build-gadget.ts` builder. Each gadget
 package defines a `build` script that invokes it and a `gadgetBuild`
 object in `package.json` with its global name, output filename,
 userscript matches, and any build-time data definitions.
 
-The shared builder writes a minified MediaWiki script and an installable
-Tampermonkey userscript to the gadget's directory under the root `dist`
-directory.
+The shared builder transpiles and bundles the package's `index.ts` entry graph,
+then writes a minified MediaWiki `.js` file and an installable Tampermonkey
+`.user.js` file to the gadget's directory under the root `dist` directory.
+
+TypeScript performs type checking in `noEmit` mode. Its `ES2025` target and
+library describe the authored code environment, while the esbuild `es2025`
+target independently controls the JavaScript syntax written to `dist/`.
 
 ## Copyright and licensing
 

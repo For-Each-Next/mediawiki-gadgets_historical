@@ -31,36 +31,62 @@ export async function fetchCiteTemplate(
     }
 
     const fetcher = options.fetcher || fetch;
-    const response = await fetcher(buildCitoidUrl(url), {
-        headers: {
-            accept: "application/json",
-        },
-    });
+    const response = await fetchCitoidResponse(url, fetcher);
 
     if (!response.ok) {
-        if (response.status === 404) {
-            const citeTemplate = await buildFallbackCiteWebTemplate(url, {
-                fetcher,
-                now: options.now,
-                rules: options.rules,
-            });
+        const fallback = await handleFailedCitoidResponse(
+            url,
+            response,
+            fetcher,
+            options,
+        );
 
-            setCachedCiteTemplate(url, citeTemplate, options);
+        return fallback;
+    }
 
-            return citeTemplate;
-        }
+    const citeTemplate = await buildCitoidResponseTemplate(
+        url,
+        response,
+        options,
+    );
 
+    setCachedCiteTemplate(url, citeTemplate, options);
+
+    return citeTemplate;
+}
+
+/** Requests citation metadata from Citoid. */
+async function fetchCitoidResponse(url, fetcher) {
+    const response = await fetcher(buildCitoidUrl(url), {
+        headers: { accept: "application/json" },
+    });
+
+    return response;
+}
+
+/** Builds citation wikitext from a successful Citoid response. */
+async function buildCitoidResponseTemplate(url, response, options) {
+    const citation = getFirstCitation(await response.json());
+    const template = buildCiteTemplate(citation, {
+        now: options.now,
+        rules: options.rules,
+        url,
+    });
+
+    return template;
+}
+
+/** Handles a failed Citoid response or builds its web fallback. */
+async function handleFailedCitoidResponse(url, response, fetcher, options) {
+    if (response.status !== 404) {
         throw new Error(`Citoid request failed: HTTP ${response.status}`);
     }
 
-    const citeTemplate = buildCiteTemplate(
-        getFirstCitation(await response.json()),
-        {
-            now: options.now,
-            rules: options.rules,
-            url,
-        },
-    );
+    const citeTemplate = await buildFallbackCiteWebTemplate(url, {
+        fetcher,
+        now: options.now,
+        rules: options.rules,
+    });
 
     setCachedCiteTemplate(url, citeTemplate, options);
 
@@ -910,15 +936,8 @@ function escapeTemplateValue(value: string): string {
  */
 function splitTemplateParts(text: string): Array<string> {
     const value = trimFieldText(text);
-    const body = selectValue(
-        value.startsWith("{{") && value.endsWith("}}"),
-        function trueBranch() {
-            return value.slice(2, -2);
-        },
-        function falseBranch() {
-            return value;
-        },
-    );
+    const wrapped = value.startsWith("{{") && value.endsWith("}}");
+    const body = wrapped ? value.slice(2, -2) : value;
     const parts = [];
     let depth = 0;
     let start = 0;

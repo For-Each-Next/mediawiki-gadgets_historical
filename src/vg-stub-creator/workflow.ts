@@ -172,7 +172,6 @@ export async function prepareCategoryRows(
     };
     const articleData = flushArticleData(articleForm, options.article || {});
     const rows = await buildCategoryRows(
-        form,
         articleData,
         previousRows,
         options.categories || {},

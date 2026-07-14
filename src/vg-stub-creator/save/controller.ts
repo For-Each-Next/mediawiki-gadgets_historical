@@ -3,33 +3,10 @@
  */
 
 import {
-    createSaveProgress,
     readSaveProgress,
     storeSaveProgress,
     updateSaveProgress,
 } from "./progress.ts";
-
-
-/**
- * Starts and renders persistent save progress.
- *
- * @param title - Submitted article title.
- * @param pending - Pending follow-up actions.
- * @returns Started progress state.
- */
-export function startSaveProgress(title: string, pending: any): any {
-    const progress = createSaveProgress(
-        title,
-        pending.actions || [],
-        pending.move || {},
-        pending.registration || {},
-        pending.progressGroups || [],
-    );
-    const started = updateSaveProgress(progress, "save", "running");
-
-    storeSaveProgress(started);
-    return started;
-}
 
 
 /**

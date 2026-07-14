@@ -108,10 +108,7 @@ function checkTopLevelDocumentation(
     errors: string[],
 ): void {
     syntax.body.forEach(function checkStatement(statement) {
-        const declaration =
-            statement.type === "ExportNamedDeclaration"
-                ? statement.declaration
-                : statement;
+        const declaration = getStatementDeclaration(statement);
 
         if (
             declaration == null ||
@@ -120,23 +117,33 @@ function checkTopLevelDocumentation(
             return;
         }
 
-        const documentedTypes = new Set([
-            "ClassDeclaration",
-            "FunctionDeclaration",
-        ]);
-
-        if (!documentedTypes.has(declaration.type)) {
+        if (!isDocumentedDeclaration(declaration)) {
             return;
         }
 
         const prefix = source.slice(0, statement.range[0]);
 
         if (!/\/\*\*[\s\S]*?\*\/\s*$/u.test(prefix)) {
+            const location = `${path}:${statement.loc.start.line}`;
             errors.push(
-                `${path}:${statement.loc.start.line}: missing top-level JSDoc.`,
+                `${location}: missing top-level JSDoc.`,
             );
         }
     });
+}
+
+/** Gets the declaration represented by a top-level statement. */
+function getStatementDeclaration(statement: TSESTree.ProgramStatement) {
+    return statement.type === "ExportNamedDeclaration"
+        ? statement.declaration
+        : statement;
+}
+
+/** Checks whether a declaration requires top-level documentation. */
+function isDocumentedDeclaration(declaration: TSESTree.Node): boolean {
+    return ["ClassDeclaration", "FunctionDeclaration"].includes(
+        declaration.type,
+    );
 }
 
 /**
@@ -190,17 +197,7 @@ function checkFunctionLayout(
     parent: TSESTree.Node | null,
     errors: string[],
 ): void {
-    const objectMethod =
-        parent?.type === "Property" &&
-        (parent.method === true || parent.kind !== "init");
-    const classMethod = parent?.type === "MethodDefinition";
-
-    if (
-        node.type === "FunctionExpression" &&
-        node.id == null &&
-        !objectMethod &&
-        !classMethod
-    ) {
+    if (isUnnamedFunctionExpression(node, parent)) {
         errors.push(`${path}:${node.loc.start.line}: unnamed function.`);
         return;
     }
@@ -213,10 +210,28 @@ function checkFunctionLayout(
         node.body.type === "BlockStatement" ||
         node.loc.start.line !== node.loc.end.line
     ) {
+        const location = `${path}:${node.loc.start.line}`;
         errors.push(
-            `${path}:${node.loc.start.line}: arrow must be one-line expression.`,
+            `${location}: arrow must be one-line expression.`,
         );
     }
+}
+
+/** Checks for an unnamed function expression outside a method. */
+function isUnnamedFunctionExpression(
+    node: TSESTree.Node,
+    parent: TSESTree.Node | null,
+): boolean {
+    const objectMethod =
+        parent?.type === "Property" &&
+        (parent.method === true || parent.kind !== "init");
+
+    return (
+        node.type === "FunctionExpression" &&
+        node.id == null &&
+        !objectMethod &&
+        parent?.type !== "MethodDefinition"
+    );
 }
 
 /**

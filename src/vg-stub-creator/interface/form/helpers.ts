@@ -1117,71 +1117,92 @@ export function replaceFormValues(form: any, values: any): void {
 export function normalizeReceivedFormValues(values: any): any {
     const normalized = cloneValue(values);
 
-    if (!Object.hasOwn(normalized, "registerNewPage")) {
-        normalized.registerNewPage = true;
-    }
-
-    if (!Object.hasOwn(normalized, "navboxRows")) {
-        normalized.navboxRows = null;
-    } else if (Array.isArray(normalized.navboxRows)) {
-        normalized.navboxRows = normalized.navboxRows.map(createNavboxRow);
-    }
-
-    if (!Object.hasOwn(normalized, "redirectRows")) {
-        normalized.redirectRows = null;
-    } else if (Array.isArray(normalized.redirectRows)) {
-        normalized.redirectRows =
-            normalized.redirectRows.map(createRedirectRow);
-    }
-
-    if (!Array.isArray(normalized.categoryRows)) {
-        normalized.categoryRows = [];
-    }
-
-    if (!Object.hasOwn(normalized, "stubTagRows")) {
-        normalized.stubTagRows = null;
-    } else if (Array.isArray(normalized.stubTagRows)) {
-        normalized.stubTagRows = normalized.stubTagRows.map(createStubTagRow);
-    }
-
-    if (!Array.isArray(normalized.citationRows)) {
-        normalized.citationRows = [];
-    } else {
-        normalized.citationRows =
-            normalized.citationRows.map(createCitationRow);
-    }
-
-    if (!Object.hasOwn(normalized, "noteTaNamesRemoved")) {
-        normalized.noteTaNamesRemoved = false;
-    }
-
-    if (!Array.isArray(normalized.noteTaRows)) {
-        normalized.noteTaRows = [createNoteTaRow("G1", "Games")];
-    } else {
-        normalized.noteTaRows = normalized.noteTaRows.map(createNoteTaRow);
-    }
-
-    if (normalized.localizedNames == null) {
-        normalized.localizedNames = [
-            ...(normalized.officialNames || []).map(function callback(row) {
-                return {
-                    ...row,
-                    official: true,
-                };
-            }),
-            ...(normalized.commonNames || []).map(function callback(row) {
-                return {
-                    ...row,
-                    official: false,
-                };
-            }),
-        ];
-    }
+    normalizeReceivedReviewRows(normalized);
+    normalizeReceivedCitationRows(normalized);
+    normalizeReceivedNoteTaRows(normalized);
+    normalizeReceivedNameRows(normalized);
 
     delete normalized.officialNames;
     delete normalized.commonNames;
 
     return normalized;
+}
+
+/** Normalizes received article-review rows. */
+function normalizeReceivedReviewRows(form): void {
+    if (!Object.hasOwn(form, "registerNewPage")) {
+        form.registerNewPage = true;
+    }
+    form.navboxRows = normalizeOptionalRows(
+        form,
+        "navboxRows",
+        createNavboxRow,
+    );
+    form.redirectRows = normalizeOptionalRows(
+        form,
+        "redirectRows",
+        createRedirectRow,
+    );
+    form.stubTagRows = normalizeOptionalRows(
+        form,
+        "stubTagRows",
+        createStubTagRow,
+    );
+
+    if (!Array.isArray(form.categoryRows)) {
+        form.categoryRows = [];
+    }
+}
+
+/** Normalizes an optional review-row collection. */
+function normalizeOptionalRows(form, key, createRow): Array<any> | null {
+    if (!Object.hasOwn(form, key)) {
+        return null;
+    }
+
+    return Array.isArray(form[key]) ? form[key].map(createRow) : form[key];
+}
+
+/** Normalizes received managed citation rows. */
+function normalizeReceivedCitationRows(form): void {
+    if (Array.isArray(form.citationRows)) {
+        form.citationRows = form.citationRows.map(createCitationRow);
+        return;
+    }
+
+    form.citationRows = [];
+}
+
+/** Normalizes received NoteTA rows and removal state. */
+function normalizeReceivedNoteTaRows(form): void {
+    if (!Object.hasOwn(form, "noteTaNamesRemoved")) {
+        form.noteTaNamesRemoved = false;
+    }
+    if (Array.isArray(form.noteTaRows)) {
+        form.noteTaRows = form.noteTaRows.map(createNoteTaRow);
+        return;
+    }
+
+    form.noteTaRows = [createNoteTaRow("G1", "Games")];
+}
+
+/** Migrates legacy official/common names to localized-name rows. */
+function normalizeReceivedNameRows(form): void {
+    if (form.localizedNames != null) {
+        return;
+    }
+
+    const official = addOfficialNameState(form.officialNames || [], true);
+    const common = addOfficialNameState(form.commonNames || [], false);
+
+    form.localizedNames = [...official, ...common];
+}
+
+/** Adds an official-name flag to legacy name rows. */
+function addOfficialNameState(rows, official): Array<any> {
+    return rows.map(function callback(row) {
+        return { ...row, official };
+    });
 }
 
 
@@ -1388,10 +1409,7 @@ export function syncGeneratedNameNoteTaRow(form: any): void {
     const current = index === -1 ? null : rows[index];
 
     if (form.noteTaNamesRemoved) {
-        if (index !== -1) {
-            rows.splice(index, 1);
-        }
-
+        removeNoteTaRow(rows, index);
         return;
     }
 
@@ -1400,19 +1418,11 @@ export function syncGeneratedNameNoteTaRow(form: any): void {
     }
 
     if (generated == null) {
-        if (index !== -1) {
-            rows.splice(index, 1);
-        }
-
+        removeNoteTaRow(rows, index);
         return;
     }
 
-    const row = createNoteTaRow({
-        generatedValue: generated,
-        key: "1",
-        source: NOTE_TA_NAMES_SOURCE,
-        value: generated,
-    });
+    const row = createGeneratedNameNoteTaRow(generated);
 
     if (index === -1) {
         rows.splice(getGeneratedNameNoteTaInsertIndex(rows), 0, row);
@@ -1421,6 +1431,25 @@ export function syncGeneratedNameNoteTaRow(form: any): void {
 
     delete current.modified;
     Object.assign(current, row);
+}
+
+/** Creates the generated official-name NoteTA row. */
+function createGeneratedNameNoteTaRow(generated: string): any {
+    const row = createNoteTaRow({
+        generatedValue: generated,
+        key: "1",
+        source: NOTE_TA_NAMES_SOURCE,
+        value: generated,
+    });
+
+    return row;
+}
+
+/** Removes a generated NoteTA row when present. */
+function removeNoteTaRow(rows: Array<any>, index: number): void {
+    if (index !== -1) {
+        rows.splice(index, 1);
+    }
 }
 
 
@@ -1568,27 +1597,23 @@ export function createRedirectRow(
         value?.exists === true || /^Exists(?::|$)/u.test(value?.status);
     const fixedTitle = fixed ? title : trimFieldValue(value?.fixedTitle);
 
-    return {
-        fixed:
-            fixed &&
+    let pendingEdit = {};
+
+    if (value?.pendingEdit != null) {
+        pendingEdit = { pendingEdit: value.pendingEdit };
+    }
+    const row = {
+        fixed: fixed &&
             normalizeTitleKey(fixedTitle) === normalizeTitleKey(title),
         fixedTitle,
         enabled: value?.enabled ?? value?.selected ?? !exists,
         exists,
         status: value?.status || (exists ? "Exists" : "Missing"),
         title,
-        ...selectValue(
-            value?.pendingEdit == null,
-            function trueBranch() {
-                return {};
-            },
-            function falseBranch() {
-                return {
-                    pendingEdit: value.pendingEdit,
-                };
-            },
-        ),
+        ...pendingEdit,
     };
+
+    return row;
 }
 
 

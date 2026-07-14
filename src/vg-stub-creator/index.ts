@@ -11,7 +11,6 @@ import {
 } from "./handlers/categories.ts";
 import {
     buildStubFromForm as buildArticleStubFromForm,
-    buildStubText as buildArticleStubText,
     flushArticleData as createArticleData,
     getArticleFieldPlaceholder,
     getArticleFieldPreview,
@@ -25,7 +24,7 @@ import {
     saveCategoryPage,
     saveCompanyCategory,
 } from "./handlers/category-pages.ts";
-import { createDialogComponent } from "./interface/form/index.ts";
+import { createDialogComponent } from "./interface/form/component.ts";
 import { getBasePageTitle } from "./interface/form/helpers.ts";
 import { addDialogStyles } from "./interface/styles.ts";
 import { trimFieldValue } from "./shared/form-values.ts";
@@ -77,6 +76,7 @@ import {
     addMissingPageEditTrigger,
     addViewPageTrigger,
 } from "./interface/page-trigger.ts";
+import { serializeElementContent } from "../shared/codex-html-template.ts";
 import {
     failSaveProgress,
     reportSaveProgressError,
@@ -152,33 +152,6 @@ function isZhwiki(): boolean {
 
 
 /**
- * Builds the Chinese Wikipedia video game stub article text.
- *
- * @param params - Normalized article parameters.
- * @param params.aggScoresText - Aggregate review score
- * sentence.
- * @param params.additionalProseText - User-entered appended
- * prose.
- * @param params.companyMetadata - Company text and metadata.
- * @param params.defaultSortText - DEFAULTSORT wikitext.
- * @param params.infoboxText - Infobox wikitext.
- * @param params.leadNameText - Lead article name text.
- * @param params.noteTaText - NoteTA-lite wikitext.
- * @param params.platformSeriesMetadata - Platform and series
- * text and
- * metadata.
- * @param params.sourceReferences - Named source
- * references.
- * @param params.yearGenreMetadata - Year/genre text and
- * metadata.
- * @returns Generated Chinese wikitext.
- */
-export function buildStubText(params: any): string {
-    return buildArticleStubText(params);
-}
-
-
-/**
  * Creates the DOM host used by the Vue application.
  *
  * @returns Element appended to the document body.
@@ -186,7 +159,7 @@ export function buildStubText(params: any): string {
 function createHost(): HTMLElement {
     const host = document.createElement("div");
 
-    document.body.append(host);
+    document.getElementsByTagName("body")[0].append(host);
 
     return host;
 }
@@ -242,27 +215,6 @@ function getFieldPlaceholder(form: any, field: any): string | undefined {
  */
 function getFieldPreview(form: any, previewKey: string): string {
     return getArticleFieldPreview(form, previewKey, {
-        defaultName: getFormDefaultName(form),
-    });
-}
-
-
-/**
- * Builds reusable article parameters from raw form values.
- *
- * @param form - Dialog form values.
- * @param form.developers - Developer names.
- * @param form.genres - Game genre text.
- * @param form.name - Game title.
- * @param form.platforms - Platform names.
- * @param form.publishers - Publisher names.
- * @param form.series - Series name.
- * @param form.sourceReferences - Named source refs.
- * @param form.year - Release year.
- * @returns Normalized article parameters.
- */
-export function createArticleParams(form: any): any {
-    return createArticleData(form, {
         defaultName: getFormDefaultName(form),
     });
 }
@@ -451,7 +403,7 @@ function extractNativePreviewHtml(html: string): string {
         },
     );
 
-    return (parserOutput || preview).innerHTML;
+    return serializeElementContent(parserOutput || preview);
 }
 
 
@@ -515,132 +467,120 @@ async function fetchPageText(title: string): Promise<string> {
 /**
  * Generates wikitext and submits the MediaWiki edit form.
  *
- * @param form - Dialog form values.
- * @param sourceFetchState - Source fetch status state.
- * @param closeDialog - Dialog close callback.
- * @param preSave - Configured pre-save fixes.
- * @param citationStore - Citation fetch/cache store.
- * @param preview - User-reviewed preview text.
- * @param preview.summary - User-reviewed edit summary.
- * @param preview.text - User-reviewed wikitext.
+ * @param context - Submit dependencies and values.
+ * @param context.form - Dialog form values.
+ * @param context.sourceFetchState - Source fetch status state.
+ * @param context.closeDialog - Dialog close callback.
+ * @param context.preSave - Configured pre-save fixes.
+ * @param context.citationStore - Citation fetch/cache store.
+ * @param context.preview - User-reviewed preview text.
+ * @param context.preview.summary - User-reviewed edit summary.
+ * @param context.preview.text - User-reviewed wikitext.
  * @returns Resolves after save submission starts.
  */
-async function submitForm(
-    form: any,
-    sourceFetchState: any,
-    closeDialog: (...args: any[]) => any,
-    preSave: any,
-    citationStore: any,
-    preview: any,
-): Promise<void> {
+async function submitForm(context: any): Promise<void> {
+    const { sourceFetchState, preSave } = context;
     sourceFetchState.error = "";
     sourceFetchState.loading = true;
 
     try {
-        const moveTitle = trimFieldValue(preSave?.move?.to);
-        const shouldMove =
-            preSave?.move?.enabled === true &&
-            moveTitle !== "" &&
-            normalizePageTitle(moveTitle) !==
-                normalizePageTitle(getPageName());
-        const submittedForm = selectValue(
-            shouldMove,
-            function trueBranch() {
-                return {
-                    ...form,
-                    name: moveTitle,
-                };
-            },
-            function falseBranch() {
-                return form;
-            },
-        );
-        const previewText =
-            typeof preview?.text === "string" ? preview.text : undefined;
-        const preserveEditor = previewText == null && shouldPreserveEditor();
-        const stub = await selectValue(
-            previewText != null || preserveEditor,
-            async function trueBranch() {
-                return null;
-            },
-            async function falseBranch() {
-                return await buildStubFromForm(submittedForm, citationStore);
-            },
-        );
-        const editSummaryMetadata = selectValue(
-            stub == null,
-            function trueBranch() {
-                return null;
-            },
-            function falseBranch() {
-                return createEditSummaryMetadata(submittedForm, stub);
-            },
-        );
-        const generatedSummary = selectValue(
-            editSummaryMetadata == null,
-            function trueBranch() {
-                return readEditSummary();
-            },
-            function falseBranch() {
-                return buildEditSummary(editSummaryMetadata);
-            },
-        );
-        const summary = selectValue(
-            typeof preview?.summary === "string",
-            function trueBranch() {
-                return preview.summary;
-            },
-            function falseBranch() {
-                return generatedSummary;
-            },
-        );
-        const text = previewText ?? stub?.text ?? readEditText();
-        const pending = {
-            actions: preSave.actions,
-            move: selectValue(
-                shouldMove,
-                function trueBranch() {
-                    return {
-                        ...preSave.move,
-                        to: moveTitle,
-                    };
-                },
-                function falseBranch() {
-                    return {
-                        enabled: false,
-                    };
-                },
-            ),
-            progressGroups: preSave.progressGroups,
-            registration: preSave.registration,
-        };
+        const submission = await prepareFormSubmission(context);
         const api = new mw.Api();
 
-        preSave.progress?.start(getPageName(), pending);
-        await saveSubmittedArticle(api, getPageName(), text, summary);
-        preSave.progress?.set("save", "complete");
-
-        const result = await runSubmittedFollowUpActions(
+        preSave.progress?.start(getPageName(), submission.pending);
+        await saveSubmittedArticle(
             api,
-            pending,
             getPageName(),
-            preSave.progress,
+            submission.text,
+            submission.summary,
         );
-
-        if (result.failed.length > 0) {
-            preSave.progress?.report(
-                formatPendingActionFailures(result.failed),
-            );
-            return;
-        }
-
-        window.location.href = mw.util.getUrl(result.title);
+        preSave.progress?.set("save", "complete");
+        await completeSubmittedFollowUpActions(
+            api,
+            submission.pending,
+            preSave,
+        );
     } catch (error) {
         preSave.progress?.fail(error);
         sourceFetchState.error = error.message;
     } finally {
         sourceFetchState.loading = false;
     }
+}
+
+/** Prepares generated text, summary, and follow-up actions. */
+async function prepareFormSubmission(context: any): Promise<any> {
+    const { form, citationStore, preSave, preview } = context;
+    const moveTitle = trimFieldValue(preSave?.move?.to);
+    const shouldMove = shouldMoveSubmission(preSave, moveTitle);
+    const submittedForm = shouldMove ? { ...form, name: moveTitle } : form;
+    let previewText;
+
+    if (typeof preview?.text === "string") {
+        previewText = preview.text;
+    }
+    const preserveEditor = previewText == null && shouldPreserveEditor();
+    let stub = null;
+
+    if (previewText == null && !preserveEditor) {
+        stub = await buildStubFromForm(submittedForm, citationStore);
+    }
+    let summary = getGeneratedEditSummary(submittedForm, stub);
+
+    if (typeof preview?.summary === "string") {
+        summary = preview.summary;
+    }
+    const text = previewText ?? stub?.text ?? readEditText();
+    const pending = createPendingSubmission(preSave, shouldMove, moveTitle);
+
+    return { pending, summary, text };
+}
+
+/** Checks whether submission includes a page move. */
+function shouldMoveSubmission(preSave: any, moveTitle: string): boolean {
+    return preSave?.move?.enabled === true && moveTitle !== "" &&
+        normalizePageTitle(moveTitle) !== normalizePageTitle(getPageName());
+}
+
+/** Gets the generated or preserved edit summary. */
+function getGeneratedEditSummary(form: any, stub: any): string {
+    if (stub == null) {
+        return readEditSummary();
+    }
+
+    return buildEditSummary(createEditSummaryMetadata(form, stub));
+}
+
+/** Creates follow-up state for a submitted article. */
+function createPendingSubmission(preSave, shouldMove, moveTitle): any {
+    let move = { enabled: false };
+
+    if (shouldMove) {
+        move = { ...preSave.move, to: moveTitle };
+    }
+    return {
+        actions: preSave.actions,
+        move,
+        progressGroups: preSave.progressGroups,
+        registration: preSave.registration,
+    };
+}
+
+/** Runs follow-up actions and navigates after a successful save. */
+async function completeSubmittedFollowUpActions(api, pending, preSave) {
+    const result = await runSubmittedFollowUpActions(
+        api,
+        pending,
+        getPageName(),
+        preSave.progress,
+    );
+
+    if (result.failed.length > 0) {
+        preSave.progress?.report(formatPendingActionFailures(result.failed));
+        return;
+    }
+
+    window.location.href = mw.util.getUrl(result.title);
 }
 
 
@@ -683,60 +623,76 @@ async function runSubmittedFollowUpActions(
     title: string,
     progress: any,
 ): Promise<any> {
-    let currentTitle = title;
-    const actionOptions = {
+    const setProgress = (id, status) => progress?.set(id, status);
+    const actionOptions = createFollowUpActionOptions(
         api,
-        move: pending.move,
-        onActionComplete(action) {
-            progress?.set(action.id, "complete");
-        },
-        onActionFailed(action) {
-            progress?.set(action.id, "failed");
-        },
-        onActionRetry(action) {
-            progress?.set(action.id, "retrying");
-        },
-        onActionSkipped(action) {
-            progress?.set(action.id, "skipped");
-        },
-        onActionStart(action) {
-            progress?.set(action.id, "running");
-        },
-        onMoveComplete(movedTitle) {
-            currentTitle = movedTitle;
-            progress?.set("move", "complete");
-        },
-        onMoveStart() {
-            progress?.set("move", "running");
-        },
-        onBeforeWikidataActions: function callback(result) {
-            return registerPendingNewPage(
-                api,
-                pending,
-                result,
-                function callback(id, status) {
-                    progress?.set(id, status);
-                },
-            );
-        },
-        title: currentTitle,
-        wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
-        saveCategory: function callback(category, text) {
-            return saveCategoryPage(category, text, undefined, api);
-        },
-        saveCompanyCategory: function callback(category, text, englishName) {
-            return saveCompanyCategory(category, text, englishName, {
-                api,
-                wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
-            });
-        },
-    };
-    const result = await runSelectedActions(
-        pending.actions || [],
-        actionOptions,
+        pending,
+        title,
+        setProgress,
     );
+    const actions = pending.actions || [];
+    const result = await runSelectedActions(actions, actionOptions);
 
     return result;
+}
+
+/** Creates shared options for running post-save actions. */
+function createFollowUpActionOptions(api, pending, title, setProgress): any {
+    const wikidataApi = new mw.ForeignApi(WIKIDATA_API_URL);
+    return {
+        api,
+        move: pending.move,
+        onActionComplete: setActionProgress.bind(
+            null,
+            setProgress,
+            "complete",
+        ),
+        onActionFailed: setActionProgress.bind(null, setProgress, "failed"),
+        onActionRetry: setActionProgress.bind(null, setProgress, "retrying"),
+        onActionSkipped: setActionProgress.bind(null, setProgress, "skipped"),
+        onActionStart: setActionProgress.bind(null, setProgress, "running"),
+        onMoveComplete: setMoveProgress.bind(null, setProgress, "complete"),
+        onMoveStart: setMoveProgress.bind(null, setProgress, "running"),
+        onBeforeWikidataActions: registerBeforeWikidataActions.bind(
+            null,
+            api,
+            pending,
+            setProgress,
+        ),
+        title,
+        wikidataApi,
+        saveCategory: saveCategoryWithApi.bind(null, api),
+        saveCompanyCategory: saveCompanyCategoryWithApi.bind(null, api),
+    };
+}
+
+/** Updates one action progress status. */
+function setActionProgress(setProgress, status, action): void {
+    setProgress(action.id, status);
+}
+
+/** Updates move progress status. */
+function setMoveProgress(setProgress, status): void {
+    setProgress("move", status);
+}
+
+/** Registers pending pages before Wikidata actions run. */
+function registerBeforeWikidataActions(api, pending, setProgress, result) {
+    return registerPendingNewPage(api, pending, result, setProgress);
+}
+
+/** Saves a category with a bound API client. */
+function saveCategoryWithApi(api, category, text): Promise<void> {
+    return saveCategoryPage(category, text, undefined, api);
+}
+
+/** Saves a company category with bound API clients. */
+function saveCompanyCategoryWithApi(api, category, text, englishName) {
+    const wikidataApi = new mw.ForeignApi(WIKIDATA_API_URL);
+    return saveCompanyCategory(category, text, englishName, {
+        api,
+        wikidataApi,
+    });
 }
 
 
@@ -886,22 +842,35 @@ export function createSubmitHandler(
     citationStore: any,
     submit: (...args: any[]) => any = submitForm,
 ): (...args: any[]) => any {
-    return function callback(
+    const binding = { citationStore, submit };
+    return invokeSubmitHandler.bind(null, binding);
+}
+
+/** Invokes the internal or injected submit implementation. */
+function invokeSubmitHandler(binding, ...args): any {
+    const [form, sourceFetchState, closeDialog, preSave, preview] = args;
+    const context = {
+        citationStore: binding.citationStore,
+        closeDialog,
+        form,
+        preSave,
+        preview,
+        sourceFetchState,
+    };
+
+    if (binding.submit === submitForm) {
+        return binding.submit(context);
+    }
+
+    const result = binding.submit(
         form,
         sourceFetchState,
         closeDialog,
         preSave,
+        binding.citationStore,
         preview,
-    ) {
-        return submit(
-            form,
-            sourceFetchState,
-            closeDialog,
-            preSave,
-            citationStore,
-            preview,
-        );
-    };
+    );
+    return result;
 }
 
 
@@ -985,37 +954,48 @@ async function refreshFormCategoryRows(
             categoryStore.clear();
         }
 
-        const articleOptions = {
-            defaultName: getFormDefaultName(form),
-        };
-        const categoryOptions = {
-            bypassCache: options.bypassCache,
-            cache: categoryStore.cache,
-        };
-        const rows = await prepareCategoryRows(form, form.categoryRows, {
-            article: articleOptions,
-            categories: categoryOptions,
-        });
-        form.categoryRows.splice(
-            0,
-            form.categoryRows.length,
-            ...rows.map(function callback(row, index) {
-                const current = form.categoryRows[index];
-
-                if (current == null) {
-                    return row;
-                }
-
-                Object.assign(current, row);
-                return current;
-            }),
+        const rows = await buildRefreshedCategoryRows(
+            form,
+            categoryStore,
+            options,
         );
+        mergeRefreshedCategoryRows(form, rows);
         categoryStore.save();
     } catch (error) {
         categoryState.error = error.message;
     } finally {
         categoryState.loading = false;
     }
+}
+
+/** Builds category rows using current cache options. */
+async function buildRefreshedCategoryRows(
+    form,
+    store,
+    options,
+): Promise<any[]> {
+    return await prepareCategoryRows(form, form.categoryRows, {
+        article: { defaultName: getFormDefaultName(form) },
+        categories: {
+            bypassCache: options.bypassCache,
+            cache: store.cache,
+        },
+    });
+}
+
+/** Merges refreshed rows into the reactive category array. */
+function mergeRefreshedCategoryRows(form, rows): void {
+    const merged = rows.map(function callback(row, index) {
+        const current = form.categoryRows[index];
+
+        if (current == null) {
+            return row;
+        }
+
+        Object.assign(current, row);
+        return current;
+    });
+    form.categoryRows.splice(0, form.categoryRows.length, ...merged);
 }
 
 
@@ -1053,7 +1033,7 @@ function readFormHistoryEntries(): Array<any> {
  * @returns */
 function handleToolboxClick(event: any): void {
     event.preventDefault();
-    window.vgStubCreatorDialog.open();
+    (window as any).vgStubCreatorDialog.open();
 }
 
 
@@ -1102,57 +1082,69 @@ async function openTargetPage(
     sourceFetchState.loading = true;
 
     try {
-        const targetForm = {
-            ...form,
-            pageName: targetTitle,
-        };
-        const preserveEditor = shouldPreserveEditor();
-        const [currentStub, stub] = await selectValue(
-            preserveEditor,
-            async function trueBranch() {
-                return await Promise.all([
-                    buildStubFromForm(form, citationStore),
-                    buildStubFromForm(targetForm, citationStore),
-                ]);
-            },
-            async function falseBranch() {
-                return [
-                    null,
-                    await buildStubFromForm(targetForm, citationStore),
-                ];
-            },
+        const pending = await prepareMovedEdit(
+            form,
+            targetTitle,
+            citationStore,
+            options,
         );
-        const summaryMetadata = createEditSummaryMetadata(targetForm, stub);
-        const text = selectValue(
-            preserveEditor,
-            function trueBranch() {
-                return updateMovedTitleText(
-                    readEditText(),
-                    currentStub.articleData,
-                    stub.articleData,
-                );
-            },
-            function falseBranch() {
-                return stub.text;
-            },
-        );
-
-        storeMovedEdit({
-            form: targetForm,
-            preview: options.preview === true,
-            summary: preserveEditor ? readEditSummary() : undefined,
-            summaryMetadata,
-            text,
-            title: targetTitle,
-        });
-        window.location.href = mw.util.getUrl(targetTitle, {
-            action: "edit",
-            redlink: "1",
-        });
+        storeMovedEdit(pending);
+        navigateToTargetEditor(targetTitle);
     } catch (error) {
         sourceFetchState.error = error.message;
         sourceFetchState.loading = false;
     }
+}
+
+/** Prepares moved article text and metadata for a target editor. */
+async function prepareMovedEdit(form, title, citationStore, options) {
+    const targetForm = { ...form, pageName: title };
+    const preserveEditor = shouldPreserveEditor();
+    const stubs = await buildMovedEditStubs(
+        form,
+        targetForm,
+        citationStore,
+        preserveEditor,
+    );
+    let text = stubs.target.text;
+
+    if (preserveEditor) {
+        text = updateMovedTitleText(
+            readEditText(),
+            stubs.current.articleData,
+            stubs.target.articleData,
+        );
+    }
+    return {
+        form: targetForm,
+        preview: options.preview === true,
+        summary: preserveEditor ? readEditSummary() : undefined,
+        summaryMetadata: createEditSummaryMetadata(targetForm, stubs.target),
+        text,
+        title,
+    };
+}
+
+/** Builds target and optional current-title stubs for a move. */
+async function buildMovedEditStubs(form, targetForm, store, preserve) {
+    if (!preserve) {
+        const target = await buildStubFromForm(targetForm, store);
+        return { current: null, target };
+    }
+
+    const [current, target] = await Promise.all([
+        buildStubFromForm(form, store),
+        buildStubFromForm(targetForm, store),
+    ]);
+    return { current, target };
+}
+
+/** Navigates to the target page editor. */
+function navigateToTargetEditor(title: string): void {
+    window.location.href = mw.util.getUrl(title, {
+        action: "edit",
+        redlink: "1",
+    });
 }
 
 
@@ -1190,50 +1182,50 @@ function getPageName(): string {
 }
 
 
-/**
- * Adds the English Wikipedia launcher that starts zhwiki creation.
- *
- * @returns */
+/** Tracks whether an English Wikipedia launch is already resolving. */
+let enwikiLaunchPending = false;
+
+/** Adds the English Wikipedia launcher that starts zhwiki creation. */
 function initEnwikiLauncher(): void {
     const enwikiTitle = getPageName();
     const fallbackUrl = buildZhwikiCreationUrl(enwikiTitle);
-    let pending = false;
+    const callback = handleEnwikiLaunch.bind(null, enwikiTitle, fallbackUrl);
+    addEnwikiCreateTrigger(mw.util, callback, fallbackUrl);
+}
 
-    addEnwikiCreateTrigger(
-        mw.util,
-        async function callback(event) {
-            event.preventDefault();
+/** Resolves and opens the Chinese Wikipedia creation target. */
+async function handleEnwikiLaunch(enwikiTitle, fallbackUrl, event) {
+    event.preventDefault();
 
-            if (pending) {
-                return;
-            }
+    if (enwikiLaunchPending) {
+        return;
+    }
 
-            pending = true;
-            const tab = window.open(fallbackUrl, "_blank");
+    enwikiLaunchPending = true;
+    const tab = window.open(fallbackUrl, "_blank");
 
-            try {
-                const api = new mw.ForeignApi(ZHWIKI_API_URL);
-                const targetTitle = await resolveZhwikiCreationTitle(
-                    enwikiTitle,
-                    api,
-                );
-                const url = buildZhwikiCreationUrl(enwikiTitle, targetTitle);
+    try {
+        const api = new mw.ForeignApi(ZHWIKI_API_URL);
+        const target = await resolveZhwikiCreationTitle(enwikiTitle, api);
+        const url = buildZhwikiCreationUrl(enwikiTitle, target);
+        openResolvedZhwikiTarget(tab, url);
+    } catch (_error) {
+        if (tab == null) {
+            window.open(fallbackUrl, "_blank", "noopener");
+        }
+    } finally {
+        enwikiLaunchPending = false;
+    }
+}
 
-                if (tab != null) {
-                    tab.location.href = url;
-                } else {
-                    window.open(url, "_blank", "noopener");
-                }
-            } catch (_error) {
-                if (tab == null) {
-                    window.open(fallbackUrl, "_blank", "noopener");
-                }
-            } finally {
-                pending = false;
-            }
-        },
-        fallbackUrl,
-    );
+/** Updates a pre-opened tab or opens the resolved target. */
+function openResolvedZhwikiTarget(tab, url): void {
+    if (tab != null) {
+        tab.location.href = url;
+        return;
+    }
+
+    window.open(url, "_blank", "noopener");
 }
 
 
@@ -1243,158 +1235,234 @@ function initEnwikiLauncher(): void {
  * @param require - ResourceLoader module resolver.
  * @returns */
 function init(require: (...args: any[]) => any): void {
-    const Vue = require("vue");
-    const Codex = require("@wikimedia/codex");
-    const currentPageName = getPageName();
-    const categoryStore = createCategoryCacheStore(currentPageName);
-    const citationStore = createCitationStore();
-    const defaultName = getDefaultName();
-    const movedEdit = getMovedEdit(currentPageName);
-    const previewFormData = selectValue(
-        mw.config.get("wgAction") === "submit",
-        function trueBranch() {
-            return getPreviewFormData(currentPageName);
-        },
-        function falseBranch() {
-            return undefined;
-        },
-    );
-    const activationForm = readZhwikiActivationForm(window.location.search);
-    let saveInterceptorActive = false;
-
-    const activateTool = function callback() {
-        if (saveInterceptorActive) {
-            return;
-        }
-
-        interceptEditSave(() => window.vgStubCreatorDialog.submit());
-        saveInterceptorActive = true;
-    };
-
+    const context = createInitContext(require);
     addDialogStyles();
+    const dialogOptions = createDialogOptions(context);
+    const component = createDialogComponent(context.Vue, dialogOptions);
+    const app = context.Vue.createMwApp(component);
 
-    const dialogOptions = {
+    registerCodexComponents(app, context.Codex);
+    app.mount(createHost());
+    finishInitialization(context);
+}
+
+let saveInterceptorActive = false;
+
+/** Creates shared initialization dependencies and restored state. */
+function createInitContext(require): any {
+    const currentPageName = getPageName();
+    let previewFormData;
+
+    if (mw.config.get("wgAction") === "submit") {
+        previewFormData = getPreviewFormData(currentPageName);
+    }
+    saveInterceptorActive = false;
+    return {
+        Codex: require("@wikimedia/codex"),
+        Vue: require("vue"),
+        activationForm: readZhwikiActivationForm(window.location.search),
+        categoryStore: createCategoryCacheStore(currentPageName),
+        citationStore: createCitationStore(),
+        currentPageName,
+        defaultName: getDefaultName(),
+        movedEdit: getMovedEdit(currentPageName),
+        previewFormData,
+    };
+}
+
+/** Activates edit-save interception once. */
+function activateTool(): void {
+    if (saveInterceptorActive) {
+        return;
+    }
+
+    interceptEditSave(() => (window as any).vgStubCreatorDialog.submit());
+    saveInterceptorActive = true;
+}
+
+/** Creates the complete dialog option object. */
+function createDialogOptions(context): any {
+    return {
+        ...createBaseDialogOptions(context),
+        ...createCategoryDialogOptions(context),
+        ...createReviewDialogOptions(context),
+        ...createSourceDialogOptions(context),
+    };
+}
+
+/** Creates basic form and history dialog options. */
+function createBaseDialogOptions(context): any {
+    return {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
-        currentTitle: currentPageName,
-        defaultName,
+        currentTitle: context.currentPageName,
+        defaultName: context.defaultName,
         getPageUrl,
         getHistoryEntries: readFormHistoryEntries,
         getFieldPlaceholder,
         getFieldPreview,
         getProseSinographs: getFormProseSinographs,
         getProseWikitext: getFormProseWikitext,
-        initialForm:
-            activationForm ||
-            previewFormData?.form ||
-            movedEdit?.form ||
-            readFormDraftForPage(currentPageName),
-        initialOpen:
-            activationForm != null ||
-            previewFormData != null ||
-            (movedEdit != null && movedEdit.preview !== true),
-        initialEnwikiLookup: activationForm != null,
+        initialForm: getInitialDialogForm(context),
+        initialOpen: shouldInitiallyOpenDialog(context),
+        initialEnwikiLookup: context.activationForm != null,
         onActivate: activateTool,
-        onCategoryRowsRefresh: function callback(
-            form,
-            categoryState,
-            refreshOptions,
-        ) {
-            return refreshFormCategoryRows(
-                form,
-                categoryState,
-                categoryStore,
-                refreshOptions,
-            );
-        },
         onClearHistory: clearFormHistory,
         onCreateCategoryRow: createManualCategoryRow,
         onDeleteHistoryEntry: deleteFormHistoryEntry,
-        onEnwikiTitleChange: fetchEnwikiMetadata,
-        onParseArticlePreview: parseArticlePreviewText,
-        onParsePreview: parsePreviewText,
-        onPreview: function callback(form, sourceFetchState) {
-            return previewForm(form, sourceFetchState, citationStore);
-        },
-        onFormChange: (form) => saveFormDraft(form, currentPageName),
-        onFetchPageText: fetchPageText,
-        onMoveTarget: function callback(form, title, sourceFetchState) {
-            return openTargetPage(
-                form,
-                title,
-                sourceFetchState,
-                citationStore,
-            );
-        },
-        async onCheckPageTitle(title) {
-            const [match] = await fetchExistingPageTitles(new mw.Api(), [
-                title,
-            ]);
-
-            return {
-                exists: match?.exists === true,
-                title: match?.title || title,
-            };
-        },
-        onPrepareCompanyCategory: prepareCompanyCategoryText,
-        onPrepareCitations: function callback(form, options) {
-            return prepareManagedCitationRows(form, citationStore, options);
-        },
-        async onPrepareRedirectRows(form, title) {
-            const redirectTitles = buildRedirectTitles(form, title);
-            const existingRedirectTitles = await fetchExistingPageTitles(
-                new mw.Api(),
-                getRedirectTitleCheckTitles(redirectTitles),
-            );
-
-            return buildRedirectRows(form, title, existingRedirectTitles);
-        },
-        async onCheckRedirectRows(rows, title) {
-            const redirectTitles = rows.map((row) => row.title);
-            const existingRedirectTitles = await fetchExistingPageTitles(
-                new mw.Api(),
-                getRedirectTitleCheckTitles(redirectTitles),
-            );
-
-            return buildRedirectRowsFromTitles(
-                redirectTitles,
-                title,
-                existingRedirectTitles,
-            );
-        },
-        onPrepareReview: prepareNavboxRows,
-        async onPreSavePrepare(form, title) {
-            await refreshPreSaveCategoryWikidata(form);
-            const redirectTitles = selectValue(
-                Array.isArray(form.redirectRows),
-                function trueBranch() {
-                    return form.redirectRows.map((row) => row.title);
-                },
-                function falseBranch() {
-                    return buildRedirectTitles(form, title);
-                },
-            );
-            const existingRedirectTitles = await fetchExistingPageTitles(
-                new mw.Api(),
-                getRedirectTitleCheckTitles(redirectTitles),
-            );
-            const metadata = { finalTitle: title, form, title };
-            const actions = buildPreSaveActions(
-                metadata,
-                existingRedirectTitles,
-            );
-
-            return { actions, move: { enabled: false, to: title } };
-        },
-        onSourceUrlChange: (url) => citationStore.prefetch(url),
-        onSteamNamesFetch: function callback(url, options) {
-            return fetchSteamNameRows(url, citationStore, options);
-        },
-        onSubmit: createSubmitHandler(citationStore),
+        onFormChange: saveDraftForPage.bind(null, context.currentPageName),
         onSubmitHistory: saveCurrentFormHistory,
+    };
+}
+
+/** Creates category and page movement dialog options. */
+function createCategoryDialogOptions(context): any {
+    return {
+        onCategoryRowsRefresh: refreshCategoryRowsForDialog.bind(
+            null,
+            context.categoryStore,
+        ),
+        onMoveTarget: openTargetPageForDialog.bind(
+            null,
+            context.citationStore,
+        ),
+        onPrepareCompanyCategory: prepareCompanyCategoryText,
         onUpdateCategoryRowCategory: updateCategoryRowCategory,
     };
-    const app = Vue.createMwApp(createDialogComponent(Vue, dialogOptions));
+}
 
+/** Creates preview and review dialog options. */
+function createReviewDialogOptions(context): any {
+    return {
+        onCheckPageTitle: checkDialogPageTitle,
+        onCheckRedirectRows: checkDialogRedirectRows,
+        onFetchPageText: fetchPageText,
+        onParseArticlePreview: parseArticlePreviewText,
+        onParsePreview: parsePreviewText,
+        onPrepareRedirectRows: prepareDialogRedirectRows,
+        onPrepareReview: prepareNavboxRows,
+        onPreview: previewFormForDialog.bind(null, context.citationStore),
+    };
+}
+
+/** Creates citation, metadata, and submit dialog options. */
+function createSourceDialogOptions(context): any {
+    return {
+        onEnwikiTitleChange: fetchEnwikiMetadata,
+        onPrepareCitations: prepareDialogCitations.bind(
+            null,
+            context.citationStore,
+        ),
+        onPreSavePrepare: prepareDialogPreSave,
+        onSourceUrlChange: context.citationStore.prefetch.bind(
+            context.citationStore,
+        ),
+        onSteamNamesFetch: fetchDialogSteamNames.bind(
+            null,
+            context.citationStore,
+        ),
+        onSubmit: createSubmitHandler(context.citationStore),
+    };
+}
+
+/** Gets the highest-priority restored form. */
+function getInitialDialogForm(context): any {
+    return context.activationForm ||
+        context.previewFormData?.form ||
+        context.movedEdit?.form ||
+        readFormDraftForPage(context.currentPageName);
+}
+
+/** Checks whether restored state should open the dialog. */
+function shouldInitiallyOpenDialog(context): boolean {
+    const hasInitialForm = Boolean(context.activationForm);
+    const hasPreview = Boolean(context.previewFormData);
+    const hasMovedEdit = hasRestoredMovedEdit(context.movedEdit);
+    return hasInitialForm || hasPreview || hasMovedEdit;
+}
+
+/** Checks whether a moved edit should restore the dialog. */
+function hasRestoredMovedEdit(movedEdit): boolean {
+    return Boolean(movedEdit) && movedEdit.preview !== true;
+}
+
+/** Persists a form draft for one bound page. */
+function saveDraftForPage(page: string, form): void {
+    saveFormDraft(form, page);
+}
+
+/** Refreshes dialog category rows with the bound cache store. */
+function refreshCategoryRowsForDialog(store, form, state, refreshOptions) {
+    return refreshFormCategoryRows(form, state, store, refreshOptions);
+}
+
+/** Opens a dialog target page with the bound citation store. */
+function openTargetPageForDialog(store, form, title, state) {
+    return openTargetPage(form, title, state, store);
+}
+
+/** Checks one proposed page title for existence and conversion. */
+async function checkDialogPageTitle(title: string): Promise<any> {
+    const [match] = await fetchExistingPageTitles(new mw.Api(), [title]);
+    return {
+        exists: match?.exists === true,
+        title: match?.title || title,
+    };
+}
+
+/** Prepares generated redirect rows for the dialog. */
+async function prepareDialogRedirectRows(form, title): Promise<any[]> {
+    const redirectTitles = buildRedirectTitles(form, title);
+    const existing = await fetchExistingPageTitles(
+        new mw.Api(),
+        getRedirectTitleCheckTitles(redirectTitles),
+    );
+    return buildRedirectRows(form, title, existing);
+}
+
+/** Rechecks edited redirect rows for the dialog. */
+async function checkDialogRedirectRows(rows, title): Promise<any[]> {
+    const redirectTitles = rows.map((row) => row.title);
+    const existing = await fetchExistingPageTitles(
+        new mw.Api(),
+        getRedirectTitleCheckTitles(redirectTitles),
+    );
+    return buildRedirectRowsFromTitles(redirectTitles, title, existing);
+}
+
+/** Builds a dialog preview with the bound citation store. */
+function previewFormForDialog(store, form, state): Promise<any> {
+    return previewForm(form, state, store);
+}
+
+/** Prepares managed citations with the bound citation store. */
+function prepareDialogCitations(store, form, options): Promise<any[]> {
+    return prepareManagedCitationRows(form, store, options);
+}
+
+/** Prepares the final reviewed follow-up action list. */
+async function prepareDialogPreSave(form, title): Promise<any> {
+    await refreshPreSaveCategoryWikidata(form);
+    let redirectTitles = buildRedirectTitles(form, title);
+
+    if (Array.isArray(form.redirectRows)) {
+        redirectTitles = form.redirectRows.map((row) => row.title);
+    }
+    const existing = await fetchExistingPageTitles(
+        new mw.Api(),
+        getRedirectTitleCheckTitles(redirectTitles),
+    );
+    const metadata = { finalTitle: title, form, title };
+    const actions = buildPreSaveActions(metadata, existing);
+    return { actions, move: { enabled: false, to: title } };
+}
+
+/** Fetches Steam name rows with the bound citation store. */
+function fetchDialogSteamNames(store, url, options): Promise<any[]> {
+    return fetchSteamNameRows(url, store, options);
+}
+
+/** Registers Codex components used by the dialog template. */
+function registerCodexComponents(app, Codex): void {
     app.component("CdxDialog", Codex.CdxDialog);
     app.component("CdxButton", Codex.CdxButton);
     app.component("CdxButtonGroup", Codex.CdxButtonGroup);
@@ -1413,13 +1481,15 @@ function init(require: (...args: any[]) => any): void {
     app.component("CdxTable", Codex.CdxTable);
     app.component("CdxTextArea", Codex.CdxTextArea);
     app.component("CdxTextInput", Codex.CdxTextInput);
-    app.mount(createHost());
+}
 
-    if (previewFormData != null) {
+/** Clears restored state and registers page triggers. */
+function finishInitialization(context): void {
+    if (context.previewFormData != null) {
         clearPreviewFormData();
     }
 
-    if (movedEdit != null) {
+    if (context.movedEdit != null) {
         activateTool();
     }
 
@@ -1443,84 +1513,41 @@ async function runPendingSaveActions(): Promise<void> {
 
     try {
         const api = new mw.Api();
-        let currentTitle = pending.title;
-        const actionOptions = {
+        const options = createFollowUpActionOptions(
             api,
-            move: pending.move,
-            onActionComplete(action) {
-                setSaveProgressStep(action.id, "complete");
-            },
-            onActionFailed(action) {
-                setSaveProgressStep(action.id, "failed");
-            },
-            onActionRetry(action) {
-                setSaveProgressStep(action.id, "retrying");
-            },
-            onActionSkipped(action) {
-                setSaveProgressStep(action.id, "skipped");
-            },
-            onActionStart(action) {
-                setSaveProgressStep(action.id, "running");
-            },
-            onMoveComplete(title) {
-                currentTitle = title;
-                setSaveProgressStep("move", "complete");
-            },
-            onMoveStart() {
-                setSaveProgressStep("move", "running");
-            },
-            onBeforeWikidataActions: function callback(result) {
-                return registerPendingNewPage(
-                    api,
-                    pending,
-                    result,
-                    function callback(id, status) {
-                        setSaveProgressStep(id, status);
-                    },
-                );
-            },
-            title: currentTitle,
-            wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
-            saveCategory: function callback(category, text) {
-                return saveCategoryPage(category, text, undefined, api);
-            },
-            saveCompanyCategory: function callback(
-                category,
-                text,
-                englishName,
-            ) {
-                return saveCompanyCategory(category, text, englishName, {
-                    api,
-                    wikidataApi: new mw.ForeignApi(WIKIDATA_API_URL),
-                });
-            },
-        };
-        const result = await runSelectedActions(
-            pending.actions || [],
-            actionOptions,
+            pending,
+            pending.title,
+            setSaveProgressStep,
         );
+        const actions = pending.actions || [];
+        const result = await runSelectedActions(actions, options);
 
         clearPendingSaveData();
-
-        if (result.failed.length > 0) {
-            reportSaveProgressError(
-                formatPendingActionFailures(result.failed),
-            );
-        } else {
-            sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
-        }
-
-        if (
-            normalizePageTitle(result.title) !==
-            normalizePageTitle(getPageName())
-        ) {
-            window.location.href = mw.util.getUrl(result.title);
-        } else {
-            window.location.reload();
-        }
+        completePendingSaveProgress(result);
+        reloadAfterPendingSave(result.title);
     } catch (error) {
         failSaveProgress(error);
     }
+}
+
+/** Completes or reports restored follow-up action progress. */
+function completePendingSaveProgress(result): void {
+    if (result.failed.length > 0) {
+        reportSaveProgressError(formatPendingActionFailures(result.failed));
+        return;
+    }
+
+    sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
+}
+
+/** Reloads the completed page or navigates to its moved title. */
+function reloadAfterPendingSave(title: string): void {
+    if (normalizePageTitle(title) !== normalizePageTitle(getPageName())) {
+        window.location.href = mw.util.getUrl(title);
+        return;
+    }
+
+    window.location.reload();
 }
 
 

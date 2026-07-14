@@ -5,8 +5,11 @@
 import {
     createElement,
     createEscapedText,
+    replaceElementContent,
     renderTemplate,
-} from "../shared/template.ts";
+    type TemplateElement,
+    type TemplateNode,
+} from "../shared/codex-html-template.ts";
 import {
     CLASS_VALUES,
     IMPORTANCE_VALUES,
@@ -37,10 +40,9 @@ import projectConfig from "./data.ts";
 
 const PROJECT_CONFIG = projectConfig;
 const DIALOG_CSS = __ASSESS_VG_PAGE_DIALOG_CSS__;
-const SUMMARY_SOURCE_LINK = [
-    "[[:m:User:For Each ... Next/global",
-    ".js/vg page assessor.js|🍄]]",
-].join("");
+const SUMMARY_LINK = ":m:User:For Each ... Next/global.js/vg page assessor.js";
+const SUMMARY_TEXT = "🍄";
+const SUMMARY_SOURCE_LINK = `[[${SUMMARY_LINK}|${SUMMARY_TEXT}]]`;
 const DEFAULT_EDIT_SUMMARY = appendSummarySourceLink("Tag project banners");
 const MAINTENANCE_ITEMS = [
     { id: "reassess", label: "Reassess" },
@@ -90,6 +92,20 @@ function init(): void {
  */
 async function openDialog(): Promise<void> {
     logStep("openDialog start");
+    const state = await loadDialogState();
+    const dialog = buildDialog(state);
+
+    appendDialog(dialog);
+    loadNewPageListState(dialog, dialog.avgpState).catch(
+        function callback(error) {
+            logStep("loadNewPageListState failed", { error });
+            setStatus(dialog, error.message || String(error), true);
+        },
+    );
+}
+
+/** Loads the initial talk and subject-page dialog state. */
+async function loadDialogState(): Promise<any> {
     const api = new mw.Api();
     const currentTitle = mw.Title.newFromText(mw.config.get("wgPageName"));
     const talkTitle = getTalkPageTitle(currentTitle);
@@ -99,7 +115,6 @@ async function openDialog(): Promise<void> {
         subjectTitle,
         talkTitle,
     });
-    logStep("openDialog fetching initial page data");
     const [page, subjectInfo] = await Promise.all([
         fetchPageText(api, talkTitle),
         fetchSubjectPageInfo(api, subjectTitle),
@@ -112,26 +127,21 @@ async function openDialog(): Promise<void> {
         talkPageLength: page.text.length,
     });
 
-    const assessment = createDefaultAssessment(PROJECT_CONFIG);
-    logStep("openDialog building dialog");
-    const dialog = buildDialog({
+    return {
         api,
-        assessment,
+        assessment: createDefaultAssessment(PROJECT_CONFIG),
         pageText: page.text,
         subjectInfo,
         subjectTitle,
         talkTitle,
-    });
+    };
+}
 
-    document.body.append(dialog);
+/** Appends and opens the assessment dialog. */
+function appendDialog(dialog: HTMLDialogElement): void {
+    document.getElementsByTagName("body")[0].append(dialog);
     dialog.showModal();
     logStep("openDialog shown");
-    loadNewPageListState(dialog, dialog.avgpState).catch(
-        function callback(error) {
-            logStep("loadNewPageListState failed", { error });
-            setStatus(dialog, error.message || String(error), true);
-        },
-    );
 }
 
 
@@ -154,7 +164,7 @@ function buildDialog(state: any): HTMLDialogElement {
 
     dialog.className = "avgp-dialog";
     dialog.avgpState = state;
-    dialog.innerHTML = buildDialogHtml(state, registerDefault);
+    replaceElementContent(dialog, buildDialogHtml(state, registerDefault));
     bindDialogEvents(dialog, state);
     updateAssessmentPreview(dialog, state);
     updateTalkDiff(dialog, state);
@@ -178,138 +188,237 @@ function buildDialog(state: any): HTMLDialogElement {
  * @returns Dialog HTML.
  */
 function buildDialogHtml(state: any, registerDefault: boolean): string {
-    return [
-        '\n        <form method="dialog" ',
-        'class="avgp-shell cdx-docs">\n  ',
-        '          <header class="avgp-hea',
-        'der">\n                <h2 class=',
-        '"avgp-heading cdx-title">',
-        escapeHtml(state.subjectTitle),
-        "</h2>\n            </header>\n    ",
-        '        <fieldset class="avgp-fie',
-        'ldset">\n                <legend ',
-        'class="avgp-fieldset-title">Asse',
-        "ssment</legend>\n                <",
-        'div class="avgp-assessment-grid"',
-        ">\n                    <section cl",
-        'ass="avgp-controls" aria-label=',
-        '"Assessment controls">\n        ',
-        "                ",
+    const heading = buildTextElement(
+        "h2",
+        { class: "avgp-heading cdx-title" },
+        state.subjectTitle,
+    );
+    const header = createElement(
+        "header",
+        { class: "avgp-header" },
+        [heading],
+    );
+    const children = [
+        header,
+        buildAssessmentFieldset(state),
+        buildNewPageListFieldset(state, registerDefault),
+        buildDialogActions(),
+    ];
+    const form = createElement(
+        "form",
+        { class: "avgp-shell cdx-docs", method: "dialog" },
+        children,
+    );
+
+    return renderTemplate(form);
+}
+
+
+/** Builds the assessment controls and source preview. */
+function buildAssessmentFieldset(state: any): TemplateElement {
+    const controls = buildAssessmentControls();
+    const sources = buildAssessmentSources();
+    const grid = createElement("div", { class: "avgp-assessment-grid" }, [
+        controls,
+        sources,
+    ]);
+    const legend = buildTextElement(
+        "legend",
+        { class: "avgp-fieldset-title" },
+        "Assessment",
+    );
+    const summary = buildTextInputField({
+        className: "avgp-summary cdx-field",
+        id: "avgp-edit-summary",
+        label: "Edit summary",
+        name: "summary",
+        value: buildEditSummary(state.assessment),
+    });
+    const fieldset = createElement("fieldset", { class: "avgp-fieldset" }, [
+        legend,
+        grid,
+        summary,
+    ]);
+
+    return fieldset;
+}
+
+/** Builds assessment radio and checkbox controls. */
+function buildAssessmentControls(): TemplateElement {
+    const children = [
         buildRadioSection("Class", "className", CLASS_VALUES, "Unassessed"),
-        "\n                        ",
         buildRadioSection("Importance", "importance", IMPORTANCE_VALUES, ""),
-        "\n                        ",
         buildTaskForceSection(),
-        "\n                        ",
         buildMaintenanceSection(),
-        "\n                        ",
         buildOtherProjectSection(),
-        "\n                    </section>\n",
-        "                    <section class",
-        '="avgp-source" aria-label="Talk',
-        ' page lead-section preview">\n   ',
-        "                     ",
-        buildSourceField({
-            id: "avgp-preview-source",
-            label: "Ready-to-save lead-section source",
-            textareaAttributes: "data-avgp-preview",
-        }),
-        "\n                        ",
-        buildSourceField({
-            id: "avgp-current-source",
-            label: "Current lead-section source",
-            textareaAttributes: "data-avgp-current-source readonly",
-        }),
-        "\n                    </section>\n",
-        "                </div>\n          ",
-        '      <div class="avgp-summary cd',
-        'x-field">\n                    <d',
-        'iv class="cdx-label">',
-        buildInputLabel("Edit summary", "avgp-edit-summary"),
-        "</div>\n                    <div c",
-        'lass="cdx-field__control">\n    ',
-        '                    <div class="c',
-        'dx-text-input">\n                ',
-        '            <input class="cdx-tex',
-        't-input__input" id="avgp-edit-su',
-        'mmary" name="summary" type="te',
-        'xt" value="',
-        escapeHtml(buildEditSummary(state.assessment)),
-        '">\n                        </div',
-        ">\n                    </div>\n   ",
-        "             </div>\n            <",
-        "/fieldset>\n            <fieldset ",
-        'class="avgp-fieldset">\n        ',
-        '        <legend class="avgp-field',
-        'set-title">New-page list</legend>',
-        '\n                <div class="cdx',
-        '-field avgp-section">\n          ',
-        '          <div class="cdx-field__',
-        'control">\n                      ',
-        "  <div data-avgp-register-containe",
-        "r>\n                            ",
-        buildRegistrationCheckbox(state, registerDefault),
-        "\n                        </div>\n",
-        "                    </div>\n      ",
-        "          </div>\n                ",
-        '<div class="cdx-field avgp-sectio',
-        'n avgp-list-preview" data-avgp-li',
-        "st-preview hidden>\n              ",
-        '      <div class="cdx-field__cont',
-        'rol">\n                        <d',
-        'iv class="avgp-compare-grid">\n ',
-        "                           ",
-        buildComparisonField({
-            id: "avgp-list-before",
-            label: "Before",
-            textareaAttributes: "data-avgp-list-before readonly",
-            tone: "removed",
-        }),
-        "\n                            ",
-        buildComparisonField({
-            id: "avgp-list-after",
-            label: "After",
-            textareaAttributes: "data-avgp-list-after readonly",
-            tone: "added",
-        }),
-        "\n                        </div>\n",
-        "                    </div>\n      ",
-        "          </div>\n                ",
-        '<div class="avgp-list-summary cdx',
-        '-field">\n                    <di',
-        'v class="cdx-label">',
-        buildInputLabel("Edit summary", "avgp-list-summary"),
-        "</div>\n                    <div c",
-        'lass="cdx-field__control">\n    ',
-        '                    <div class="c',
-        'dx-text-input">\n                ',
-        '            <input class="cdx-tex',
-        't-input__input" id="avgp-list-su',
-        'mmary" name="listSummary" type=',
-        '"text" value="',
-        escapeHtml(
-            buildNewPageListSummary(
-                state.subjectInfo.listedTitle || state.subjectTitle,
-                state.subjectInfo.creationDate,
-            ),
+    ];
+    const controls = createElement("section", {
+        "aria-label": "Assessment controls",
+        class: "avgp-controls",
+    }, children);
+
+    return controls;
+}
+
+/** Builds current and proposed talk-source fields. */
+function buildAssessmentSources(): TemplateElement {
+    const preview = buildSourceField({
+        id: "avgp-preview-source",
+        label: "Ready-to-save lead-section source",
+        textareaAttributes: { "data-avgp-preview": "" },
+    });
+    const current = buildSourceField({
+        id: "avgp-current-source",
+        label: "Current lead-section source",
+        textareaAttributes: {
+            "data-avgp-current-source": "",
+            readonly: "",
+        },
+    });
+    const sources = createElement("section", {
+        "aria-label": "Talk page lead-section preview",
+        class: "avgp-source",
+    }, [preview, current]);
+    return sources;
+}
+
+
+/** Builds the new-page-list registration controls and preview. */
+function buildNewPageListFieldset(
+    state: any,
+    registerDefault: boolean,
+): TemplateElement {
+    const registration = buildRegistrationControl(state, registerDefault);
+    const comparison = buildRegistrationComparison();
+    const summary = buildRegistrationSummary(state);
+    const legend = buildTextElement(
+        "legend",
+        { class: "avgp-fieldset-title" },
+        "New-page list",
+    );
+    const fieldset = createElement("fieldset", { class: "avgp-fieldset" }, [
+        legend,
+        registration,
+        comparison,
+        summary,
+    ]);
+
+    return fieldset;
+}
+
+/** Builds the registration checkbox field. */
+function buildRegistrationControl(state, registerDefault): TemplateElement {
+    const checkbox = buildRegistrationCheckbox(state, registerDefault);
+    const container = createElement(
+        "div",
+        { "data-avgp-register-container": "" },
+        [checkbox],
+    );
+    const registrationControl = buildFieldControl([container]);
+    const registration = createElement("div", {
+        class: "cdx-field avgp-section",
+    }, [registrationControl]);
+    return registration;
+}
+
+/** Builds the before/after registration comparison field. */
+function buildRegistrationComparison(): TemplateElement {
+    const before = buildListComparisonField("before", "removed");
+    const after = buildListComparisonField("after", "added");
+    const compareGrid = createElement("div", { class: "avgp-compare-grid" }, [
+        before,
+        after,
+    ]);
+    const comparisonControl = buildFieldControl([compareGrid]);
+    const attributes = {
+        class: "cdx-field avgp-section avgp-list-preview",
+        "data-avgp-list-preview": "",
+        hidden: "",
+    };
+    const comparison = createElement("div", attributes, [comparisonControl]);
+    return comparison;
+}
+
+/** Builds one new-page-list comparison field. */
+function buildListComparisonField(position, tone): TemplateElement {
+    const capitalized = position[0].toUpperCase() + position.slice(1);
+    const field = buildComparisonField({
+        id: `avgp-list-${position}`,
+        label: capitalized,
+        textareaAttributes: {
+            [`data-avgp-list-${position}`]: "",
+            readonly: "",
+        },
+        tone,
+    });
+
+    return field;
+}
+
+/** Builds the new-page-list edit-summary field. */
+function buildRegistrationSummary(state): TemplateElement {
+    const summary = buildTextInputField({
+        className: "avgp-list-summary cdx-field",
+        id: "avgp-list-summary",
+        label: "Edit summary",
+        name: "listSummary",
+        value: buildNewPageListSummary(
+            state.subjectInfo.listedTitle || state.subjectTitle,
+            state.subjectInfo.creationDate,
         ),
-        '">\n                        </div',
-        ">\n                    </div>\n   ",
-        "             </div>\n            <",
-        "/fieldset>\n            <div class",
-        '="avgp-actions">\n              ',
-        '  <span class="avgp-status" data',
-        "-avgp-status></span>\n            ",
-        '    <button class="cdx-button" t',
-        'ype="button" data-avgp-cancel>Ca',
-        "ncel</button>\n                <bu",
-        'tton class="cdx-button cdx-button',
-        "--action-progressive cdx-button--w",
-        'eight-primary" type="button" da',
-        "ta-avgp-save>Save</button>\n      ",
-        "      </div>\n        </form>\n   ",
-        " ",
-    ].join("");
+    });
+
+    return summary;
+}
+
+
+/** Builds a Codex text input field. */
+function buildTextInputField(config: any): TemplateElement {
+    const inputLabel = buildInputLabel(config.label, config.id);
+    const label = buildLabelContainer(inputLabel);
+    const input = createElement("input", {
+        class: "cdx-text-input__input",
+        id: config.id,
+        name: config.name,
+        type: "text",
+        value: config.value,
+    });
+    const inputContainer = createElement("div", { class: "cdx-text-input" }, [
+        input,
+    ]);
+    const control = buildFieldControl([inputContainer]);
+
+    return createElement("div", { class: config.className }, [label, control]);
+}
+
+
+/** Builds the dialog status and action buttons. */
+function buildDialogActions(): TemplateElement {
+    const status = createElement("span", {
+        class: "avgp-status",
+        "data-avgp-status": "",
+    });
+    const cancel = buildButton("Cancel", {
+        class: "cdx-button",
+        "data-avgp-cancel": "",
+        type: "button",
+    });
+    const saveClass = [
+        "cdx-button",
+        "cdx-button--action-progressive",
+        "cdx-button--weight-primary",
+    ].join(" ");
+    const save = buildButton("Save", {
+        class: saveClass,
+        "data-avgp-save": "",
+        type: "button",
+    });
+
+    return createElement("div", { class: "avgp-actions" }, [
+        status,
+        cancel,
+        save,
+    ]);
 }
 
 
@@ -321,28 +430,31 @@ function buildDialogHtml(state: any, registerDefault: boolean): string {
  * @param config.label - Textarea label.
  * @param config.textareaAttributes - Extra textarea
  * attributes.
- * @returns Field HTML.
+ * @returns Field template.
  */
-function buildSourceField({ id, label, textareaAttributes }): string {
-    return [
-        '\n        <div class="cdx-field a',
-        'vgp-section avgp-source-field">\n',
-        '            <div class="cdx-label',
-        '">',
-        buildInputLabel(label, id),
-        '</div>\n            <div class="c',
-        'dx-field__control">\n            ',
-        '    <div class="cdx-text-area">',
-        "\n                    <textarea cl",
-        'ass="cdx-text-area__textarea avgp',
-        '-source-textarea" id="',
-        escapeHtml(id),
-        '" ',
-        textareaAttributes,
-        "></textarea>\n                </di",
-        "v>\n            </div>\n        </",
-        "div>\n    ",
-    ].join("");
+function buildSourceField({
+    id,
+    label,
+    textareaAttributes,
+}): TemplateElement {
+    const labelContainer = buildLabelContainer(buildInputLabel(label, id));
+    const textarea = createElement("textarea", {
+        class: "cdx-text-area__textarea avgp-source-textarea",
+        id,
+        ...textareaAttributes,
+    });
+    const textareaContainer = createElement(
+        "div",
+        { class: "cdx-text-area" },
+        [textarea],
+    );
+    const control = buildFieldControl([textareaContainer]);
+
+    return createElement(
+        "div",
+        { class: "cdx-field avgp-section avgp-source-field" },
+        [labelContainer, control],
+    );
 }
 
 
@@ -355,32 +467,31 @@ function buildSourceField({ id, label, textareaAttributes }): string {
  * @param config.textareaAttributes - Extra textarea
  * attributes.
  * @param config.tone - Visual tone.
- * @returns Field HTML.
+ * @returns Field template.
  */
 function buildComparisonField({
     id,
     label,
     textareaAttributes,
     tone,
-}): string {
-    return [
-        '\n        <div class="avgp-compar',
-        "e-field avgp-compare-field--",
-        escapeHtml(tone),
-        '">\n            <div class="cdx-',
-        'label">',
-        buildInputLabel(label, id),
-        '</div>\n            <div class="c',
-        'dx-text-area">\n                <',
-        'textarea class="cdx-text-area__te',
-        'xtarea avgp-compare-textarea" id=',
-        '"',
-        escapeHtml(id),
-        '" ',
-        textareaAttributes,
-        "></textarea>\n            </div>\n",
-        "        </div>\n    ",
-    ].join("");
+}): TemplateElement {
+    const labelContainer = buildLabelContainer(buildInputLabel(label, id));
+    const textarea = createElement("textarea", {
+        class: "cdx-text-area__textarea avgp-compare-textarea",
+        id,
+        ...textareaAttributes,
+    });
+    const textareaContainer = createElement(
+        "div",
+        { class: "cdx-text-area" },
+        [textarea],
+    );
+    const className = `avgp-compare-field avgp-compare-field--${tone}`;
+
+    return createElement("div", { class: className }, [
+        labelContainer,
+        textareaContainer,
+    ]);
 }
 
 
@@ -389,49 +500,106 @@ function buildComparisonField({
  *
  * @param state - Dialog state.
  * @param checked - Whether registration is checked.
- * @returns Checkbox HTML.
+ * @returns Checkbox template.
  */
-function buildRegistrationCheckbox(state: any, checked: boolean): string {
+function buildRegistrationCheckbox(
+    state: any,
+    checked: boolean,
+): TemplateElement {
     if (state.registrationLoading) {
-        return buildProgressIndicator(
+        const indicator = buildProgressIndicator(
             "Loading new-page-list registration state",
         );
+
+        return indicator;
     }
 
-    const disabled =
-        state.registrationLoading ||
-        !state.registration.eligible ||
-        state.registration.alreadyRegistered;
+    const disabled = isRegistrationDisabled(state);
+    const label = getRegistrationLabelForState(state);
+
+    const inputAttributes = buildRegistrationInputAttributes(
+        checked,
+        disabled,
+    );
+    const labelContainer = buildRegistrationLabel(label);
+    const input = createElement("input", inputAttributes);
+    const wrapper = buildCheckboxWrapper(input, labelContainer);
+    const checkbox = createElement(
+        "div",
+        { class: "cdx-checkbox" },
+        [wrapper],
+    );
+
+    return checkbox;
+}
+
+/** Builds a Codex checkbox input wrapper. */
+function buildCheckboxWrapper(input, label): TemplateElement {
+    const icon = createElement("span", { class: "cdx-checkbox__icon" });
+    const wrapper = createElement("div", { class: "cdx-checkbox__wrapper" }, [
+        input,
+        icon,
+        label,
+    ]);
+
+    return wrapper;
+}
+
+/** Gets the registration checkbox label for dialog state. */
+function getRegistrationLabelForState(state): string {
     const label = getRegistrationLabel(
         state.registration,
         state.subjectInfo.creationDate,
     );
 
-    return [
-        '\n        <div class="cdx-checkbo',
-        'x">\n            <div class="cdx',
-        '-checkbox__wrapper">\n           ',
-        '     <input id="avgp-register" c',
-        'lass="cdx-checkbox__input" type=',
-        '"checkbox" name="register" val',
-        'ue="register" ',
-        checked ? "checked" : "",
-        " ",
-        disabled ? "disabled" : "",
-        '>\n                <span class="c',
-        'dx-checkbox__icon"></span>\n     ',
-        '           <div class="cdx-checkb',
-        'ox__label cdx-label">\n          ',
-        '          <label class="cdx-label',
-        '__label" for="avgp-register">\n',
-        "                        <span clas",
-        's="cdx-label__label__text">',
-        escapeHtml(label),
-        "</span>\n                    </lab",
-        "el>\n                </div>\n     ",
-        "       </div>\n        </div>\n   ",
-        " ",
-    ].join("");
+    return label;
+}
+
+/** Checks whether registration cannot be selected. */
+function isRegistrationDisabled(state): boolean {
+    return state.registrationLoading ||
+        !state.registration.eligible ||
+        state.registration.alreadyRegistered;
+}
+
+/** Builds registration checkbox input attributes. */
+function buildRegistrationInputAttributes(checked, disabled): any {
+    const attributes: Record<string, any> = {
+        class: "cdx-checkbox__input",
+        id: "avgp-register",
+        name: "register",
+        type: "checkbox",
+        value: "register",
+    };
+
+    if (checked) {
+        attributes.checked = "";
+    }
+    if (disabled) {
+        attributes.disabled = "";
+    }
+
+    return attributes;
+}
+
+/** Builds the registration checkbox label container. */
+function buildRegistrationLabel(label: string): TemplateElement {
+    const labelText = buildTextElement(
+        "span",
+        { class: "cdx-label__label__text" },
+        label,
+    );
+    const inputLabel = createElement(
+        "label",
+        { class: "cdx-label__label", for: "avgp-register" },
+        [labelText],
+    );
+    const container = createElement(
+        "div",
+        { class: "cdx-checkbox__label cdx-label" },
+        [inputLabel],
+    );
+    return container;
 }
 
 
@@ -439,23 +607,25 @@ function buildRegistrationCheckbox(state: any, checked: boolean): string {
  * Builds a Codex-style progress indicator.
  *
  * @param label - Loading status label.
- * @returns Progress indicator HTML.
+ * @returns Progress indicator template.
  */
-function buildProgressIndicator(label: string): string {
-    return [
-        '\n        <div class="cdx-progres',
-        "s-indicator avgp-register-loading",
-        '" role="status" aria-live="pol',
-        'ite">\n            <progress clas',
-        's="cdx-progress-indicator__indica',
-        'tor" aria-label="',
-        escapeHtml(label),
-        '"></progress>\n            <span ',
-        'class="cdx-progress-indicator__la',
-        'bel">',
-        escapeHtml(label),
-        "</span>\n        </div>\n    ",
-    ].join("");
+function buildProgressIndicator(label: string): TemplateElement {
+    const progress = createElement("progress", {
+        "aria-label": label,
+        class: "cdx-progress-indicator__indicator",
+    });
+    const status = buildTextElement(
+        "span",
+        { class: "cdx-progress-indicator__label" },
+        label,
+    );
+    const attributes = {
+        "aria-live": "polite",
+        class: "cdx-progress-indicator avgp-register-loading",
+        role: "status",
+    };
+
+    return createElement("div", attributes, [progress, status]);
 }
 
 
@@ -516,14 +686,9 @@ async function loadNewPageListState(
     logStep("loadNewPageListState fetched list", {
         textLength: newPageList.text.length,
     });
-    const creationTimes = await fetchPageCreationTimes(state.api, [
-        ...getTitlesForDate(newPageList.text, state.subjectInfo.creationDate),
-        state.subjectInfo.listedTitle || state.subjectTitle,
-    ]);
-
-    creationTimes.set(
-        state.subjectInfo.listedTitle || state.subjectTitle,
-        state.subjectInfo.creationDate,
+    const creationTimes = await loadRegistrationCreationTimes(
+        state,
+        newPageList.text,
     );
     state.creationTimes = creationTimes;
     state.newPageList = newPageList;
@@ -532,14 +697,32 @@ async function loadNewPageListState(
     refreshRegistrationControls(dialog, state);
     setStatus(dialog, "", false);
     logStep("loadNewPageListState done", {
-        creationTimes: [...creationTimes.entries()].map(function callback([
-            title,
-            date,
-        ]) {
-            return [title, date.toISOString()];
-        }),
+        creationTimes: serializeCreationTimes(creationTimes),
         registration: summarizeRegistration(state.registration),
     });
+}
+
+/** Loads creation times used to order a registration. */
+async function loadRegistrationCreationTimes(state, listText) {
+    const listedTitle = state.subjectInfo.listedTitle || state.subjectTitle;
+    const titles = [
+        ...getTitlesForDate(listText, state.subjectInfo.creationDate),
+        listedTitle,
+    ];
+    const creationTimes = await fetchPageCreationTimes(state.api, titles);
+
+    creationTimes.set(listedTitle, state.subjectInfo.creationDate);
+
+    return creationTimes;
+}
+
+/** Serializes creation times for diagnostic logging. */
+function serializeCreationTimes(creationTimes): Array<any> {
+    const entries = [...creationTimes.entries()].map(function callback(entry) {
+        return [entry[0], entry[1].toISOString()];
+    });
+
+    return entries;
 }
 
 
@@ -559,7 +742,10 @@ function refreshRegistrationControls(root: HTMLElement, state: any): void {
         !state.registration.alreadyRegistered;
     const container = root.querySelector("[data-avgp-register-container]");
 
-    container.innerHTML = buildRegistrationCheckbox(state, registerDefault);
+    const markup = renderTemplate(
+        buildRegistrationCheckbox(state, registerDefault),
+    );
+    replaceElementContent(container, markup);
     updateRegistrationPreview(root, state);
 }
 
@@ -615,28 +801,17 @@ function prepareRegistration(state: any): void {
  * @param name - Input name.
  * @param values - Option values.
  * @param selected - Selected option.
- * @returns Section HTML.
+ * @returns Section template.
  */
 function buildRadioSection(
     label: string,
     name: string,
     values: Array<string>,
     selected: string,
-): string {
-    return [
-        '\n        <fieldset class="cdx-fi',
-        'eld avgp-section">\n            <',
-        'legend class="cdx-label">',
-        buildPlainLabel(label),
-        "</legend>\n            <div class=",
-        '"cdx-field__control">\n         ',
-        '       <div class="avgp-button-gr',
-        'oup">\n                    ',
-        values.map((value) => buildRadio(name, value, selected)).join(""),
-        "\n                </div>\n        ",
-        "    </div>\n        </fieldset>\n ",
-        "   ",
-    ].join("");
+): TemplateElement {
+    const radios = values.map((value) => buildRadio(name, value, selected));
+
+    return buildControlSection(label, "avgp-button-group", radios);
 }
 
 
@@ -646,44 +821,61 @@ function buildRadioSection(
  * @param name - Input name.
  * @param value - Option value.
  * @param selected - Selected value.
- * @returns Option HTML.
+ * @returns Option template.
  */
-function buildRadio(name: string, value: string, selected: string): string {
+function buildRadio(
+    name: string,
+    value: string,
+    selected: string,
+): TemplateElement {
     const label = value === "" ? "(Empty)" : value;
     const id = buildInputId(name, value || "empty");
+    const inputAttributes = buildRadioInputAttributes(
+        name,
+        value,
+        selected,
+        id,
+    );
 
-    return [
-        '\n        <div class="cdx-radio"',
-        '>\n            <div class="cdx-ra',
-        'dio__wrapper">\n                <',
-        'input id="',
+    const input = createElement("input", inputAttributes);
+    const icon = createElement("span", { class: "cdx-radio__icon" });
+    const inputLabel = buildTextElement(
+        "label",
+        { class: "cdx-radio__label", for: id },
+        label,
+    );
+    const wrapper = createElement("div", { class: "cdx-radio__wrapper" }, [
+        input,
+        icon,
+        inputLabel,
+    ]);
+
+    const radio = createElement("div", { class: "cdx-radio" }, [wrapper]);
+
+    return radio;
+}
+
+/** Builds radio input attributes. */
+function buildRadioInputAttributes(name, value, selected, id): any {
+    const checkedAttributes = value === selected ? { checked: "" } : {};
+
+    return {
+        class: "cdx-radio__input",
         id,
-        '" class="cdx-radio__input" type',
-        '="radio" name="',
-        escapeHtml(name),
-        '" value="',
-        escapeHtml(value),
-        '" ',
-        value === selected ? "checked" : "",
-        '>\n                <span class="c',
-        'dx-radio__icon"></span>\n        ',
-        '        <label class="cdx-radio__',
-        'label" for="',
-        id,
-        '">',
-        escapeHtml(label),
-        "</label>\n            </div>\n    ",
-        "    </div>\n    ",
-    ].join("");
+        name,
+        type: "radio",
+        value,
+        ...checkedAttributes,
+    };
 }
 
 
 /**
  * Builds task-force checkboxes.
  *
- * @returns Section HTML.
+ * @returns Section template.
  */
-function buildTaskForceSection(): string {
+function buildTaskForceSection(): TemplateElement {
     return buildCheckboxSection(
         "Task forces of WPVG",
         "taskForce",
@@ -697,7 +889,7 @@ function buildTaskForceSection(): string {
  *
  * @returns Section HTML.
  */
-function buildMaintenanceSection(): string {
+function buildMaintenanceSection(): TemplateElement {
     return buildCheckboxSection(
         "Maintenance",
         "maintenance",
@@ -711,7 +903,7 @@ function buildMaintenanceSection(): string {
  *
  * @returns Section HTML.
  */
-function buildOtherProjectSection(): string {
+function buildOtherProjectSection(): TemplateElement {
     return buildCheckboxSection(
         "Other WikiProjects",
         "otherProject",
@@ -732,21 +924,10 @@ function buildCheckboxSection(
     label: string,
     name: string,
     items: Array<any>,
-): string {
-    return [
-        '\n        <fieldset class="cdx-fi',
-        'eld avgp-section">\n            <',
-        'legend class="cdx-label">',
-        buildPlainLabel(label),
-        "</legend>\n            <div class=",
-        '"cdx-field__control">\n         ',
-        '       <div class="avgp-check-gri',
-        'd">\n                    ',
-        items.map((item) => buildCheckbox(name, item)).join(""),
-        "\n                </div>\n        ",
-        "    </div>\n        </fieldset>\n ",
-        "   ",
-    ].join("");
+): TemplateElement {
+    const checkboxes = items.map((item) => buildCheckbox(name, item));
+
+    return buildControlSection(label, "avgp-check-grid", checkboxes);
 }
 
 
@@ -757,44 +938,109 @@ function buildCheckboxSection(
  * @param item - Checkbox item.
  * @param checked - Whether the checkbox is initially
  * checked.
- * @returns Checkbox HTML.
+ * @returns Checkbox template.
  */
 function buildCheckbox(
     name: string,
     item: any,
     checked: boolean = false,
-): string {
+): TemplateElement {
     const id = buildInputId(name, item.id);
+    const checkedAttributes = checked ? { checked: "" } : {};
+    const inputAttributes: Record<string, any> = {
+        class: "cdx-checkbox__input",
+        id,
+        name,
+        type: "checkbox",
+        value: item.id,
+        ...checkedAttributes,
+    };
 
-    return [
-        '\n        <div class="cdx-checkbo',
-        'x cdx-checkbox--inline">\n       ',
-        '     <div class="cdx-checkbox__wr',
-        'apper">\n                <input i',
-        'd="',
-        id,
-        '" class="cdx-checkbox__input" t',
-        'ype="checkbox" name="',
-        escapeHtml(name),
-        '" value="',
-        escapeHtml(item.id),
-        '" ',
-        checked ? "checked" : "",
-        '>\n                <span class="c',
-        'dx-checkbox__icon"></span>\n     ',
-        '           <div class="cdx-checkb',
-        'ox__label cdx-label">\n          ',
-        '          <label class="cdx-label',
-        '__label" for="',
-        id,
-        '">\n                        <span',
-        ' class="cdx-label__label__text">',
-        escapeHtml(item.label),
-        "</span>\n                    </lab",
-        "el>\n                </div>\n     ",
-        "       </div>\n        </div>\n   ",
-        " ",
-    ].join("");
+    const input = createElement("input", inputAttributes);
+    const icon = createElement("span", { class: "cdx-checkbox__icon" });
+    const labelContainer = buildCheckboxLabel(id, item.label);
+    const wrapper = createElement("div", { class: "cdx-checkbox__wrapper" }, [
+        input,
+        icon,
+        labelContainer,
+    ]);
+    const checkbox = createElement(
+        "div",
+        { class: "cdx-checkbox cdx-checkbox--inline" },
+        [wrapper],
+    );
+
+    return checkbox;
+}
+
+/** Builds a Codex checkbox label container. */
+function buildCheckboxLabel(id: string, label: string): TemplateElement {
+    const labelText = buildTextElement(
+        "span",
+        { class: "cdx-label__label__text" },
+        label,
+    );
+    const inputLabel = createElement(
+        "label",
+        { class: "cdx-label__label", for: id },
+        [labelText],
+    );
+    const container = createElement(
+        "div",
+        { class: "cdx-checkbox__label cdx-label" },
+        [inputLabel],
+    );
+    return container;
+}
+
+
+/** Builds a fieldset containing one group of controls. */
+function buildControlSection(
+    label: string,
+    controlClass: string,
+    controls: Array<TemplateNode>,
+): TemplateElement {
+    const legend = createElement("legend", { class: "cdx-label" }, [
+        buildPlainLabel(label),
+    ]);
+    const group = createElement("div", { class: controlClass }, controls);
+    const fieldControl = buildFieldControl([group]);
+
+    return createElement("fieldset", { class: "cdx-field avgp-section" }, [
+        legend,
+        fieldControl,
+    ]);
+}
+
+
+/** Wraps nodes in a Codex field control. */
+function buildFieldControl(children: Array<TemplateNode>): TemplateElement {
+    return createElement("div", { class: "cdx-field__control" }, children);
+}
+
+
+/** Wraps a field label in its Codex container. */
+function buildLabelContainer(label: TemplateNode): TemplateElement {
+    return createElement("div", { class: "cdx-label" }, [label]);
+}
+
+
+/** Builds a button with escaped label text. */
+function buildButton(
+    label: string,
+    attributes: Record<string, any>,
+): TemplateElement {
+    return buildTextElement("button", attributes, label);
+}
+
+
+/** Builds an element containing one escaped text node. */
+function buildTextElement(
+    tagName: string,
+    attributes: Record<string, any>,
+    text: string,
+): TemplateElement {
+    return createElement(tagName, attributes, [createEscapedText(text)]);
 }
 
 
@@ -813,35 +1059,48 @@ function bindDialogEvents(dialog: HTMLDialogElement, state: any): void {
         updateAssessmentSummary(dialog, state);
         updateRegistrationPreview(dialog, state);
     });
-    dialog
-        .querySelector("[data-avgp-preview]")
-        .addEventListener("input", function callback() {
+    bindDialogEditEvents(dialog, state);
+    bindDialogActionEvents(dialog, state);
+}
+
+/** Binds source and summary edit tracking. */
+function bindDialogEditEvents(dialog, state): void {
+    dialog.querySelector("[data-avgp-preview]").addEventListener(
+        "input",
+        function callback() {
             logStep("lead source edited");
             state.previewDirty = true;
             updateTalkDiff(dialog, state);
-        });
-    dialog
-        .querySelector("[name='summary']")
-        .addEventListener("input", function callback() {
+        },
+    );
+    dialog.querySelector("[name='summary']").addEventListener(
+        "input",
+        function callback() {
             logStep("assessment summary edited");
             state.summaryDirty = true;
-        });
-    dialog
-        .querySelector("[data-avgp-cancel]")
-        .addEventListener("click", function callback() {
+        },
+    );
+}
+
+/** Binds dialog cancel and save actions. */
+function bindDialogActionEvents(dialog, state): void {
+    dialog.querySelector("[data-avgp-cancel]").addEventListener(
+        "click",
+        function callback() {
             logStep("dialog cancelled");
-            dialog.close();
-            dialog.remove();
-        });
-    dialog
-        .querySelector("[data-avgp-save]")
-        .addEventListener("click", function callback() {
+            closeDialog(dialog);
+        },
+    );
+    dialog.querySelector("[data-avgp-save]").addEventListener(
+        "click",
+        function callback() {
             logStep("save button clicked");
             saveDialog(dialog, state).catch(function callback(error) {
                 logStep("saveDialog failed", { error });
                 setStatus(dialog, error.message || String(error), true);
             });
-        });
+        },
+    );
 }
 
 
@@ -934,40 +1193,23 @@ function updateTalkDiff(root: HTMLElement, state: any): void {
  * @returns */
 function updateRegistrationPreview(root: HTMLElement, state: any): void {
     const checkbox = root.querySelector<HTMLInputElement>("[name='register']");
-    const shouldRegister = checkbox?.checked && !checkbox.disabled;
-    const canPreview =
-        !state.registrationLoading &&
-        state.registration?.eligible &&
-        !state.registration.alreadyRegistered;
+    const shouldRegister = isRegistrationCheckboxSelected(checkbox);
+    const canPreview = canShowRegistrationPreview(state);
     const previewRoot = root.querySelector<HTMLElement>(
         "[data-avgp-list-preview]",
     );
     const summaryRoot = root.querySelector<HTMLElement>(".avgp-list-summary");
 
-    previewRoot.hidden = !canPreview;
-    summaryRoot.hidden = !canPreview;
+    setRegistrationPreviewVisibility(previewRoot, summaryRoot, canPreview);
 
     if (!canPreview) {
-        updateComparisonTextarea(root, "[data-avgp-list-before]", "");
-        updateComparisonTextarea(root, "[data-avgp-list-after]", "");
-        logStep("updateRegistrationPreview hidden", {
-            registration: summarizeRegistration(state.registration),
-        });
+        clearRegistrationPreview(root, state);
         return;
     }
 
-    const comparison = selectValue(
-        shouldRegister && state.registration.changed,
-        function trueBranch() {
-            return buildLineComparison(
-                state.newPageList.text,
-                state.registration.proposedText,
-                1,
-            );
-        },
-        function falseBranch() {
-            return { after: "No changes.", before: "No changes." };
-        },
+    const comparison = buildRegistrationPreviewComparison(
+        state,
+        shouldRegister,
     );
     updateComparisonTextarea(
         root,
@@ -975,15 +1217,68 @@ function updateRegistrationPreview(root: HTMLElement, state: any): void {
         comparison.before,
     );
     updateComparisonTextarea(root, "[data-avgp-list-after]", comparison.after);
+    logRegistrationPreview(root, shouldRegister);
+}
+
+/** Checks whether the registration checkbox is active and selected. */
+function isRegistrationCheckboxSelected(checkbox: any): boolean {
+    return checkbox?.checked === true && checkbox.disabled === false;
+}
+
+/** Checks whether registration preview data is available. */
+function canShowRegistrationPreview(state: any): boolean {
+    return state.registrationLoading === false &&
+        state.registration?.eligible === true &&
+        state.registration.alreadyRegistered === false;
+}
+
+/** Logs the rendered registration comparison sizes. */
+function logRegistrationPreview(
+    root: HTMLElement,
+    shouldRegister,
+): void {
+    const after = root.querySelector<HTMLTextAreaElement>(
+        "[data-avgp-list-after]",
+    );
+    const before = root.querySelector<HTMLTextAreaElement>(
+        "[data-avgp-list-before]",
+    );
+
     logStep("updateRegistrationPreview done", {
-        afterLength: root.querySelector<HTMLTextAreaElement>(
-            "[data-avgp-list-after]",
-        ).value.length,
-        beforeLength: root.querySelector<HTMLTextAreaElement>(
-            "[data-avgp-list-before]",
-        ).value.length,
+        afterLength: after.value.length,
+        beforeLength: before.value.length,
         shouldRegister,
     });
+}
+
+/** Shows or hides registration preview elements. */
+function setRegistrationPreviewVisibility(preview, summary, visible): void {
+    preview.hidden = !visible;
+    summary.hidden = !visible;
+}
+
+/** Clears a hidden registration preview. */
+function clearRegistrationPreview(root, state): void {
+    updateComparisonTextarea(root, "[data-avgp-list-before]", "");
+    updateComparisonTextarea(root, "[data-avgp-list-after]", "");
+    logStep("updateRegistrationPreview hidden", {
+        registration: summarizeRegistration(state.registration),
+    });
+}
+
+/** Builds the current registration comparison. */
+function buildRegistrationPreviewComparison(state, shouldRegister): any {
+    if (!shouldRegister || !state.registration.changed) {
+        return { after: "No changes.", before: "No changes." };
+    }
+
+    const comparison = buildLineComparison(
+        state.newPageList.text,
+        state.registration.proposedText,
+        1,
+    );
+
+    return comparison;
 }
 
 
@@ -1113,74 +1408,112 @@ async function saveDialog(
     state: any,
 ): Promise<void> {
     logStep("saveDialog start");
-    const registerInput =
-        dialog.querySelector<HTMLInputElement>("[name='register']");
-    const shouldRegister = registerInput.checked && !registerInput.disabled;
-    const previewText = dialog.querySelector<HTMLTextAreaElement>(
-        "[data-avgp-preview]",
-    ).value;
-    const summary = dialog
-        .querySelector<HTMLInputElement>("[name='summary']")
-        .value.trim();
-    const listSummary = dialog
-        .querySelector<HTMLInputElement>("[name='listSummary']")
-        .value.trim();
+    const options = readDialogSaveOptions(dialog);
 
     readAssessment(dialog, state.assessment);
     logStep("saveDialog options", {
-        listSummary,
-        previewLength: previewText.length,
+        listSummary: options.listSummary,
+        previewLength: options.previewText.length,
         registration: summarizeRegistration(state.registration),
-        shouldRegister,
-        summary,
+        shouldRegister: options.shouldRegister,
+        summary: options.summary,
     });
+    await saveDialogRegistration(dialog, state, options);
 
-    if (shouldRegister && state.registration.changed) {
-        setStatus(dialog, "Updating new-page list...", false);
-        logStep("saveDialog saving new-page list");
-        await savePreparedNewPageList(
-            state.api,
-            state.newPageList,
-            state.registration.proposedText,
-            listSummary ||
-                buildNewPageListSummary(
-                    state.subjectInfo.listedTitle || state.subjectTitle,
-                    state.subjectInfo.creationDate,
-                ),
-        );
-    }
-
-    if (
-        isEmptyImportanceOnlyChange(
-            getTalkPageTopSection(state.pageText),
-            previewText,
-        )
-    ) {
-        logStep("saveDialog skipping talk save: empty importance only");
-        setStatus(dialog, "Skipped unchanged assessment.", false);
-        setTimeout(function callback() {
-            dialog.close();
-            dialog.remove();
-        }, 600);
+    if (skipUnchangedTalkSave(dialog, state, options.previewText)) {
         return;
     }
+
+    await saveDialogTalkPage(dialog, state, options);
+    scheduleDialogClose(dialog);
+}
+
+/** Reads save controls from the assessment dialog. */
+function readDialogSaveOptions(dialog: HTMLDialogElement): any {
+    const register = dialog.querySelector<HTMLInputElement>(
+        "[name='register']",
+    );
+    const preview = dialog.querySelector<HTMLTextAreaElement>(
+        "[data-avgp-preview]",
+    );
+    const summary = dialog.querySelector<HTMLInputElement>("[name='summary']");
+    const listSummary = dialog.querySelector<HTMLInputElement>(
+        "[name='listSummary']",
+    );
+
+    return {
+        listSummary: listSummary.value.trim(),
+        previewText: preview.value,
+        shouldRegister: register.checked && !register.disabled,
+        summary: summary.value.trim(),
+    };
+}
+
+/** Saves the selected new-page-list registration. */
+async function saveDialogRegistration(dialog, state, options): Promise<void> {
+    if (!options.shouldRegister || !state.registration.changed) {
+        return;
+    }
+
+    const defaultSummary = buildNewPageListSummary(
+        state.subjectInfo.listedTitle || state.subjectTitle,
+        state.subjectInfo.creationDate,
+    );
+
+    setStatus(dialog, "Updating new-page list...", false);
+    logStep("saveDialog saving new-page list");
+    await savePreparedNewPageList(
+        state.api,
+        state.newPageList,
+        state.registration.proposedText,
+        options.listSummary || defaultSummary,
+    );
+}
+
+/** Skips a talk save that only clears empty importance. */
+function skipUnchangedTalkSave(dialog, state, previewText): boolean {
+    const unchanged = isEmptyImportanceOnlyChange(
+        getTalkPageTopSection(state.pageText),
+        previewText,
+    );
+
+    if (unchanged) {
+        logStep("saveDialog skipping talk save: empty importance only");
+        setStatus(dialog, "Skipped unchanged assessment.", false);
+        scheduleDialogClose(dialog);
+    }
+
+    return unchanged;
+}
+
+/** Saves the edited talk-page top section. */
+async function saveDialogTalkPage(dialog, state, options): Promise<void> {
 
     setStatus(dialog, "Saving talk page...", false);
     logStep("saveDialog saving talk page");
     await saveTalkAssessment(
         state.api,
         state.talkTitle,
-        previewText,
+        options.previewText,
         PROJECT_CONFIG,
-        summary || DEFAULT_EDIT_SUMMARY,
+        options.summary || DEFAULT_EDIT_SUMMARY,
     );
 
     setStatus(dialog, "Saved.", false);
     logStep("saveDialog done");
+}
+
+/** Closes and removes a dialog after status text can be read. */
+function scheduleDialogClose(dialog): void {
     setTimeout(function callback() {
-        dialog.close();
-        dialog.remove();
+        closeDialog(dialog);
     }, 600);
+}
+
+/** Closes and removes a dialog. */
+function closeDialog(dialog): void {
+    dialog.close();
+    dialog.remove();
 }
 
 
@@ -1189,15 +1522,13 @@ async function saveDialog(
  *
  * @param label - Field label text.
  * @param id - Input ID.
- * @returns Field label HTML.
+ * @returns Field label template.
  */
-function buildInputLabel(label: string, id: string): string {
-    return renderTemplate(
-        createElement(
-            "label",
-            { class: "avgp-label-text", for: id },
-            [createEscapedText(label)],
-        ),
+function buildInputLabel(label: string, id: string): TemplateElement {
+    return buildTextElement(
+        "label",
+        { class: "avgp-label-text", for: id },
+        label,
     );
 }
 
@@ -1206,16 +1537,10 @@ function buildInputLabel(label: string, id: string): string {
  * Builds one field label without an associated form control.
  *
  * @param label - Label text.
- * @returns Label HTML.
+ * @returns Label template.
  */
-function buildPlainLabel(label: string): string {
-    return renderTemplate(
-        createElement(
-            "span",
-            { class: "avgp-label-text" },
-            [createEscapedText(label)],
-        ),
-    );
+function buildPlainLabel(label: string): TemplateElement {
+    return buildTextElement("span", { class: "avgp-label-text" }, label);
 }
 
 
@@ -1326,21 +1651,6 @@ function summarizeRegistration(registration: any): any {
         existing: registration?.existing,
         proposedLength: registration?.proposedText?.length,
     };
-}
-
-
-/**
- * Escapes user-visible HTML text.
- *
- * @param value - Raw value.
- * @returns Escaped text.
- */
-function escapeHtml(value: string): string {
-    const element = document.createElement("span");
-
-    element.textContent = String(value || "");
-
-    return element.innerHTML;
 }
 
 

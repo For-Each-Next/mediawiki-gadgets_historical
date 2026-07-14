@@ -78,29 +78,17 @@ export const companiesModule = defineArticleModule({
         const citations = context.getCitations({
             keys: ["developers", "publishers"],
         });
-        const developerValues = metadata.developers.items.map(
-            function callback(item) {
-                return {
-                    ...item,
-                    role: "developer",
-                };
-            },
-        );
-        const publisherValues = metadata.publishers.items.map(
-            function callback(item) {
-                return {
-                    ...item,
-                    role: "publisher",
-                };
-            },
-        );
+        const values = [
+            ...addCompanyRole(metadata.developers.items, "developer"),
+            ...addCompanyRole(metadata.publishers.items, "publisher"),
+        ];
         const output = {
             assumedCategories: metadata.categories,
             assumedStubTags: metadata.stubTags,
             categoryItems: metadata.categoryItems,
             citations,
             metadata,
-            values: [...developerValues, ...publisherValues],
+            values,
             wikitext: {
                 developers: metadata.developers.text,
                 publishers: metadata.publishers.text,
@@ -110,6 +98,15 @@ export const companiesModule = defineArticleModule({
         return output;
     },
 });
+
+/** Adds a company role to normalized company values. */
+function addCompanyRole(items: Array<any>, role: string): Array<any> {
+    const values = items.map(function callback(item) {
+        return { ...item, role };
+    });
+
+    return values;
+}
 
 
 /**

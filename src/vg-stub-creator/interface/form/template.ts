@@ -506,36 +506,44 @@ function createHistoryDialogTemplate(): any {
  * @returns History JSON dialog template node.
  */
 function createHistoryJsonDialogTemplate(): any {
-    return createElement(
+    const attributes = {
+        "v-model:open": "historyJsonOpen",
+        title: "History data",
+    };
+    const dialog = createElement(
         "cdx-dialog",
-        {
-            "v-model:open": "historyJsonOpen",
-            title: "History data",
-        },
-        [
-            createElement("p", {}, [
-                createText(
-                    [
-                        "Copy exported history data, or pas",
-                        "te history data to load this form.",
-                    ].join(""),
-                ),
-            ]),
-            createHistoryProgressBarTemplate(),
-            createElement("cdx-text-area", {
-                class: "vg-stub-creator-history-json-text",
-                "v-bind:readonly": "!historyJsonEditable",
-                "v-model": "historyJsonText",
-                rows: "12",
-                spellcheck: "false",
-            }),
-            createMessageTemplate(
-                "historyJsonError",
-                "{{ historyJsonError }}",
-            ),
-            createHistoryJsonDialogFooterTemplate(),
-        ],
+        attributes,
+        createHistoryJsonDialogChildren(),
     );
+
+    return dialog;
+}
+
+/** Creates the editable history JSON dialog children. */
+function createHistoryJsonDialogChildren(): Array<any> {
+    const description = [
+        "Copy exported history data, or pas",
+        "te history data to load this form.",
+    ].join("");
+    const textArea = createElement("cdx-text-area", {
+        class: "vg-stub-creator-history-json-text",
+        "v-bind:readonly": "!historyJsonEditable",
+        "v-model": "historyJsonText",
+        rows: "12",
+        spellcheck: "false",
+    });
+    const error = createMessageTemplate(
+        "historyJsonError",
+        "{{ historyJsonError }}",
+    );
+
+    return [
+        createElement("p", {}, [createText(description)]),
+        createHistoryProgressBarTemplate(),
+        textArea,
+        error,
+        createHistoryJsonDialogFooterTemplate(),
+    ];
 }
 
 
@@ -844,43 +852,48 @@ function createHistoryImportButtonTemplate(): any {
  * @returns Move dialog template node.
  */
 function createMoveDialogTemplate(): any {
-    return createElement(
+    const attributes = {
+        "v-model:open": "moveOpen",
+        title: "Move to page name",
+    };
+    const dialog = createElement(
         "cdx-dialog",
-        {
-            "v-model:open": "moveOpen",
-            title: "Move to page name",
-        },
-        [
-            createMessageTemplate(
-                "movePreviewConfirmation",
-                [
-                    "Page name differs from the current",
-                    " page. Move to that page name befo",
-                    "re previewing?",
-                ].join(""),
-                {
-                    type: "notice",
-                },
-            ),
-            createMessageTemplate(
-                "moveTargetState.exists",
-                [
-                    "Target page exists. Opening it may",
-                    " overwrite or conflict with existi",
-                    "ng content.",
-                ].join(""),
-                {
-                    type: "warning",
-                },
-            ),
-            createMoveTargetFieldTemplate(),
-            createMessageTemplate(
-                "sourceFetchState.error",
-                "{{ sourceFetchState.error }}",
-            ),
-            createMoveDialogFooterTemplate(),
-        ],
+        attributes,
+        createMoveDialogChildren(),
     );
+
+    return dialog;
+}
+
+/** Creates the move dialog message and control children. */
+function createMoveDialogChildren(): Array<any> {
+    const confirmation = [
+        "Page name differs from the current",
+        " page. Move to that page name before previewing?",
+    ].join("");
+    const warning = [
+        "Target page exists. Opening it may",
+        " overwrite or conflict with existing content.",
+    ].join("");
+
+    return [
+        createMessageTemplate(
+            "movePreviewConfirmation",
+            confirmation,
+            { type: "notice" },
+        ),
+        createMessageTemplate(
+            "moveTargetState.exists",
+            warning,
+            { type: "warning" },
+        ),
+        createMoveTargetFieldTemplate(),
+        createMessageTemplate(
+            "sourceFetchState.error",
+            "{{ sourceFetchState.error }}",
+        ),
+        createMoveDialogFooterTemplate(),
+    ];
 }
 
 

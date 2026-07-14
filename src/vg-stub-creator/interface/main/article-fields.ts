@@ -121,36 +121,35 @@ function createMetadataFieldTableTemplate(): any {
  * @returns Metadata table slot nodes.
  */
 function createMetadataFieldTableSlotsTemplate(): Array<any> {
-    return [
-        createElement(
-            "template",
-            {
-                "v-slot:item-label": "{ row }",
-            },
-            [createText("{{ getMetadataFieldLabel(row.field) }}")],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-value": "{ row }",
-            },
-            [createArticleFieldValueInputTemplate({ field: "row.field" })],
-        ),
-        createElement(
-            "template",
-            {
-                "v-slot:item-source": "{ row }",
-            },
-            [
-                createSourceUrlInputTemplate({
-                    placeholder: "Source URLs",
-                    model: "form[row.field.sourceField.sourceKey]",
-                    change: "trimSourceValue(row.field.sourceField)",
-                    update: "updateSourceValue(row.field.sourceField, $event)",
-                }),
-            ],
-        ),
-    ];
+    const labelSlot = createElement(
+        "template",
+        { "v-slot:item-label": "{ row }" },
+        [createText("{{ getMetadataFieldLabel(row.field) }}")],
+    );
+    const valueSlot = createElement(
+        "template",
+        { "v-slot:item-value": "{ row }" },
+        [createArticleFieldValueInputTemplate({ field: "row.field" })],
+    );
+
+    return [labelSlot, valueSlot, createMetadataSourceSlotTemplate()];
+}
+
+/** Creates the metadata field source-input slot. */
+function createMetadataSourceSlotTemplate(): any {
+    const input = createSourceUrlInputTemplate({
+        placeholder: "Source URLs",
+        model: "form[row.field.sourceField.sourceKey]",
+        change: "trimSourceValue(row.field.sourceField)",
+        update: "updateSourceValue(row.field.sourceField, $event)",
+    });
+    const slot = createElement(
+        "template",
+        { "v-slot:item-source": "{ row }" },
+        [input],
+    );
+
+    return slot;
 }
 
 

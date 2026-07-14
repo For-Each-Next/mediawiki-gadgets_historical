@@ -2,7 +2,7 @@
  * Collects source URLs and provides shared citation fetching.
  */
 
-import { getArticleSourceFields } from "../article/index.ts";
+import { getArticleSourceFields } from "../article/processor.ts";
 import {
     buildCiteTemplateFromParts,
     fetchCiteTemplate,
@@ -26,65 +26,63 @@ const NAME_GROUP_KEYS = ["localizedNames", "officialNames", "commonNames"];
 export function createCitationStore(): any {
     const cache = {};
     const pending = {};
+    const store: any = {
+        fetch: createCitationFetcher(cache, pending),
+        refetch: createCitationRefetcher(cache, pending),
+    };
 
-    return {
-        /**
-         * Fetches citation wikitext, reusing cached requests.
-         *
-         * @param url - Source URL.
-         * @returns Citation template wikitext.
-         */
-        fetch(url: string): Promise<string> {
-            const key = trimFieldValue(url);
+    store.prefetch = createCitationPrefetcher(store);
 
-            if (cache[key] != null) {
-                return Promise.resolve(cache[key]);
-            }
+    return store;
+}
 
-            if (pending[key] == null) {
-                pending[key] = fetchCiteTemplate(key, { cache }).finally(
-                    function callback() {
-                        delete pending[key];
-                    },
-                );
-            }
+/** Creates a cached citation fetch method. */
+function createCitationFetcher(cache, pending) {
+    return function fetchCitation(url: string): Promise<string> {
+        const key = trimFieldValue(url);
 
-            return pending[key];
-        },
+        if (cache[key] != null) {
+            return Promise.resolve(cache[key]);
+        }
 
-        /**
-         * Fetches fresh citation wikitext and updates the cache.
-         *
-         * @param url - Source URL.
-         * @returns Citation template wikitext.
-         */
-        refetch(url: string): Promise<string> {
-            const key = trimFieldValue(url);
-
-            delete cache[key];
-            delete pending[key];
-
+        if (pending[key] == null) {
             pending[key] = fetchCiteTemplate(key, { cache }).finally(
                 function callback() {
                     delete pending[key];
                 },
             );
+        }
 
-            return pending[key];
-        },
+        return pending[key];
+    };
+}
 
-        /**
-         * Starts a background citation fetch for a source URL.
-         *
-         * @param url - Source URL.
-         * @returns */
-        prefetch(url: string): void {
-            if (!isPrefetchableSourceUrl(url)) {
-                return;
-            }
+/** Creates a citation refetch method. */
+function createCitationRefetcher(cache, pending) {
+    return function refetchCitation(url: string): Promise<string> {
+        const key = trimFieldValue(url);
 
-            this.fetch(url).catch(function callback() {});
-        },
+        delete cache[key];
+        delete pending[key];
+
+        pending[key] = fetchCiteTemplate(key, { cache }).finally(
+            function callback() {
+                delete pending[key];
+            },
+        );
+
+        return pending[key];
+    };
+}
+
+/** Creates a background citation prefetch method. */
+function createCitationPrefetcher(store) {
+    return function prefetchCitation(url: string): void {
+        if (!isPrefetchableSourceUrl(url)) {
+            return;
+        }
+
+        store.fetch(url).catch(function callback() {});
     };
 }
 
@@ -135,64 +133,62 @@ export async function prepareManagedCitationRows(
     citationStore: any,
     options: any = {},
 ): Promise<Array<any>> {
-    const existingRows = selectValue(
-        Array.isArray(form.citationRows),
-        function trueBranch() {
-            return form.citationRows;
-        },
-        function falseBranch() {
-            return [];
-        },
-    );
+    const hasExistingRows = Array.isArray(form.citationRows);
+    const existingRows = hasExistingRows ? form.citationRows : [];
     const refetchSourceUrls = new Set(
         (options.refetchSourceUrls || []).map(trimFieldValue),
     );
 
-    return Promise.all(
+    const context = { citationStore, existingRows, refetchSourceUrls };
+    const rows = await Promise.all(
         getEnteredSourceUrls(form).map(
             async function callback(sourceUrl, index) {
-                const generatedCitation = await selectValue(
-                    refetchSourceUrls.has(sourceUrl),
-                    function trueBranch() {
-                        return citationStore.refetch(sourceUrl);
-                    },
-                    function falseBranch() {
-                        return citationStore.fetch(sourceUrl);
-                    },
-                );
-                const generated = parseCiteTemplate(generatedCitation);
-                const existing = existingRows.find(
-                    (row) => trimFieldValue(row.sourceUrl) === sourceUrl,
-                );
-                const generatedParams = sortCitationParams(generated.params);
-
-                return {
-                    generatedParams,
-                    index: index + 1,
-                    modified: existing?.modified === true,
-                    params: selectValue(
-                        existing?.modified === true,
-                        function trueBranch() {
-                            return sortCitationParams(existing.params || []);
-                        },
-                        function falseBranch() {
-                            return generatedParams;
-                        },
-                    ),
+                return await prepareManagedCitationRow(
                     sourceUrl,
-                    template: selectValue(
-                        trimFieldValue(existing?.template),
-                        function trueBranch() {
-                            return existing.template;
-                        },
-                        function falseBranch() {
-                            return generated.template;
-                        },
-                    ),
-                };
+                    index,
+                    context,
+                );
             },
         ),
     );
+
+    return rows;
+}
+
+/** Prepares one editable managed citation row. */
+async function prepareManagedCitationRow(sourceUrl, index, context) {
+    const shouldRefetch = context.refetchSourceUrls.has(sourceUrl);
+    let generatedCitation;
+
+    if (shouldRefetch) {
+        generatedCitation = await context.citationStore.refetch(sourceUrl);
+    } else {
+        generatedCitation = await context.citationStore.fetch(sourceUrl);
+    }
+    const generated = parseCiteTemplate(generatedCitation);
+    const existing = context.existingRows.find(
+        (row) => trimFieldValue(row.sourceUrl) === sourceUrl,
+    );
+    const generatedParams = sortCitationParams(generated.params);
+    let params = generatedParams;
+
+    if (existing?.modified === true) {
+        params = sortCitationParams(existing.params || []);
+    }
+    let template = generated.template;
+
+    if (trimFieldValue(existing?.template)) {
+        template = existing.template;
+    }
+
+    return {
+        generatedParams,
+        index: index + 1,
+        modified: existing?.modified === true,
+        params,
+        sourceUrl,
+        template,
+    };
 }
 
 
@@ -304,27 +300,4 @@ function isPrefetchableSourceUrl(url: string): boolean {
     } catch (_error) {
         return false;
     }
-}
-
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

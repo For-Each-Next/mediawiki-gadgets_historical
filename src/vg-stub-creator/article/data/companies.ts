@@ -42,23 +42,25 @@ export function buildCompanyData(companies: any): any {
         categories: uniqueValues(
             getReferenceValues(references.all, "categories"),
         ),
-        developers: {
-            items: developerItems,
-            text: joinCompanyTextList(
-                developerItems.map((item) => item.wikitext),
-            ),
-            values: splitFieldValues(companies.developers),
-        },
-        publishers: {
-            items: publisherItems,
-            text: joinCompanyTextList(
-                publisherItems.map((item) => item.wikitext),
-            ),
-            values: splitFieldValues(publisherValue),
-        },
+        developers: buildCompanyRoleData(
+            developerItems,
+            companies.developers,
+        ),
+        publishers: buildCompanyRoleData(publisherItems, publisherValue),
         references,
         sameCompanies: companies.publishers === "=",
         stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
+    };
+
+    return data;
+}
+
+/** Builds normalized data for one company role. */
+function buildCompanyRoleData(items, value): any {
+    const data = {
+        items,
+        text: joinCompanyTextList(items.map((item) => item.wikitext)),
+        values: splitFieldValues(value),
     };
 
     return data;
@@ -105,13 +107,7 @@ function buildCompanyItems(value: string, references: Array<any>): Array<any> {
  */
 function buildCompanyItem(references: Array<any>, value: string): any {
     if (isWikilinkValue(value)) {
-        const parts = getWikilinkParts(value);
-        const item: ArticleDataValue = {
-            displayText: parts.label || parts.target,
-            linkTarget: parts.target,
-            normalizedText: value,
-            wikitext: value,
-        };
+        const item = buildLinkedCompanyItem(value);
 
         return item;
     }
@@ -138,6 +134,19 @@ function buildCompanyItem(references: Array<any>, value: string): any {
     if (page != null) {
         item.linkTarget = page;
     }
+
+    return item;
+}
+
+/** Builds a company item from an explicit wikilink. */
+function buildLinkedCompanyItem(value: string): ArticleDataValue {
+    const parts = getWikilinkParts(value);
+    const item = {
+        displayText: parts.label || parts.target,
+        linkTarget: parts.target,
+        normalizedText: value,
+        wikitext: value,
+    };
 
     return item;
 }
@@ -238,6 +247,7 @@ function buildCompanyCategoryItemsForValue(
     options: any = {},
 ): Array<any> {
     const reference = getTerminology("company", company);
+    const companyTitle = getCompanyTitle(company, options.company);
 
     if (reference != null && (reference.categories || []).length > 0) {
         return reference.categories.map(function callback(category, index) {
@@ -245,11 +255,7 @@ function buildCompanyCategoryItemsForValue(
 
             return {
                 category,
-                company:
-                    getTerminology("company", company, "page") ||
-                    getTerminology("company", company, "name") ||
-                    options.company ||
-                    company,
+                company: companyTitle,
                 stubTag,
                 stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
             };
@@ -259,16 +265,22 @@ function buildCompanyCategoryItemsForValue(
     return [
         {
             candidates: buildCompanyCategoryCandidates(company),
-            company:
-                getTerminology("company", company, "page") ||
-                getTerminology("company", company, "name") ||
-                options.company ||
-                company,
+            company: companyTitle,
             fallback: formatText("patterns.titleGame", {
                 title: getDisambiguationBaseTitle(company),
             }),
         },
     ];
+}
+
+/** Gets the preferred article title for a company. */
+function getCompanyTitle(company: string, fallback: string): string {
+    const title = getTerminology("company", company, "page") ||
+        getTerminology("company", company, "name") ||
+        fallback ||
+        company;
+
+    return title;
 }
 
 

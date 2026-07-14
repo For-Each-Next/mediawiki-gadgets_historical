@@ -27,47 +27,84 @@ export function createPreSaveGroups(
     const byTitle = new Map();
     const actionRows = Array.isArray(actions) ? actions : [];
 
+    addPreSaveActionGroups(groups, byTitle, actionRows);
+    addArticleRegistrationGroup(groups, byTitle, actionRows, form);
+    addCompanyRegistrationGroups(groups, byTitle, actionRows, form);
+
+    return groups
+        .filter((group) => group.rows.length > 0)
+        .map(movePreSaveWikidataRowsLast);
+}
+
+/** Adds selected action and bundled-action rows to page groups. */
+function addPreSaveActionGroups(groups, byTitle, actionRows): void {
     for (const action of actionRows) {
         if (action?.selected === false) {
             continue;
         }
 
-        const title = getPreSaveActionPageTitle(action);
+        const group = findPreSaveGroup(groups, byTitle, action);
 
-        if (title === "") {
+        if (group == null) {
             continue;
         }
 
-        const group = getPreSaveGroup(title);
+        group.rows.push(createPreSaveActionRow(action));
+        group.rows.push(...createPreSaveNoteRows(action));
+    }
+}
 
-        group.rows.push({
+/** Finds or creates the page group for an action. */
+function findPreSaveGroup(groups, byTitle, action): any | undefined {
+    const title = getPreSaveActionPageTitle(action);
+
+    return title === "" ? undefined : getPreSaveGroup(groups, byTitle, title);
+}
+
+/** Creates the primary row for a pre-save action. */
+function createPreSaveActionRow(action): any {
+    return {
+        action,
+        key: action.id,
+        label: getPreSaveActionDisplayLabel(action),
+        type: "action",
+    };
+}
+
+/** Creates bundled-note rows for a pre-save action. */
+function createPreSaveNoteRows(action): Array<any> {
+    const rows = getPreSaveActionNotes(action).map(function callback(note) {
+        return {
             action,
-            key: action.id,
-            label: getPreSaveActionDisplayLabel(action),
-            type: "action",
-        });
+            key: `${action.id}:${note.key}`,
+            label: note.label,
+            type: "bundled-action",
+        };
+    });
 
-        for (const note of getPreSaveActionNotes(action)) {
-            group.rows.push({
-                action,
-                key: `${action.id}:${note.key}`,
-                label: note.label,
-                type: "bundled-action",
-            });
-        }
+    return rows;
+}
+
+/** Adds the submitted article's new-page-list registration row. */
+function addArticleRegistrationGroup(groups, byTitle, actions, form): void {
+    const title = getPreSaveRegistrationArticleTitle(actions);
+
+    if (title === "" || form?.registerNewPage === false) {
+        return;
     }
 
-    const articleTitle = getPreSaveRegistrationArticleTitle(actionRows);
+    getPreSaveGroup(groups, byTitle, title).rows.push({
+        key: "register-new-page",
+        label: "Register on WikiProject new-page list",
+        type: "registration",
+    });
+}
 
-    if (articleTitle !== "" && form?.registerNewPage !== false) {
-        getPreSaveGroup(articleTitle).rows.push({
-            key: "register-new-page",
-            label: "Register on WikiProject new-page list",
-            type: "registration",
-        });
-    }
+/** Adds new-page-list rows for selected company-category actions. */
+function addCompanyRegistrationGroups(groups, byTitle, actions, form): void {
+    const companyActions = actions.filter(isCompanyCategoryPreSaveAction);
 
-    for (const action of actionRows.filter(isCompanyCategoryPreSaveAction)) {
+    for (const action of companyActions) {
         if (action?.selected === false || form?.registerNewPage === false) {
             continue;
         }
@@ -78,33 +115,31 @@ export function createPreSaveGroups(
             continue;
         }
 
-        getPreSaveGroup(title).rows.push({
+        getPreSaveGroup(groups, byTitle, title).rows.push({
             key: `${action.id}:register-new-page`,
             label: "Register on WikiProject new-page list",
             type: "registration",
         });
     }
 
-    return groups
-        .filter((group) => group.rows.length > 0)
-        .map(movePreSaveWikidataRowsLast);
+}
 
-    function getPreSaveGroup(title) {
-        const normalizedTitle = trimFieldValue(title);
+/** Gets or creates a pre-save page group. */
+function getPreSaveGroup(groups, byTitle, title): any {
+    const normalizedTitle = trimFieldValue(title);
 
-        if (!byTitle.has(normalizedTitle)) {
-            const group = {
-                key: normalizedTitle,
-                title: normalizedTitle,
-                rows: [],
-            };
+    if (!byTitle.has(normalizedTitle)) {
+        const group = {
+            key: normalizedTitle,
+            title: normalizedTitle,
+            rows: [],
+        };
 
-            byTitle.set(normalizedTitle, group);
-            groups.push(group);
-        }
-
-        return byTitle.get(normalizedTitle);
+        byTitle.set(normalizedTitle, group);
+        groups.push(group);
     }
+
+    return byTitle.get(normalizedTitle);
 }
 
 
@@ -378,7 +413,18 @@ function createPreSaveGroupTemplate(): any {
  * @returns Pre-save row node.
  */
 function createPreSaveRowTemplate(): any {
-    return createElement(
+    const children = [
+        createPreSaveProgressRowTemplate(),
+        createPreSaveCheckboxTemplate("action", "row.action.selected"),
+        createPreSaveCheckboxTemplate("registration", "form.registerNewPage"),
+        createPreSaveCheckboxTemplate("bundled-action", "row.action.selected"),
+        createElement(
+            "span",
+            { class: "vg-stub-creator-pre-save-note", "v-else": "" },
+            [createText("{{ row.label }}")],
+        ),
+    ];
+    const row = createElement(
         "li",
         {
             class: "vg-stub-creator-pre-save-item",
@@ -386,27 +432,10 @@ function createPreSaveRowTemplate(): any {
             "v-bind:key": "row.key",
             "v-for": "row in group.rows",
         },
-        [
-            createPreSaveProgressRowTemplate(),
-            createPreSaveCheckboxTemplate("action", "row.action.selected"),
-            createPreSaveCheckboxTemplate(
-                "registration",
-                "form.registerNewPage",
-            ),
-            createPreSaveCheckboxTemplate(
-                "bundled-action",
-                "row.action.selected",
-            ),
-            createElement(
-                "span",
-                {
-                    class: "vg-stub-creator-pre-save-note",
-                    "v-else": "",
-                },
-                [createText("{{ row.label }}")],
-            ),
-        ],
+        children,
     );
+
+    return row;
 }
 
 

@@ -8,6 +8,23 @@ export interface TemplateElement {
 /** A serializable markup node. */
 export type TemplateNode = TemplateElement | string;
 
+const VOID_ELEMENTS = new Set([
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+]);
+
 
 /**
  * Creates a template element object with attributes and children.
@@ -72,6 +89,34 @@ export function renderTemplate(
 }
 
 
+/** Replaces element children from serialized HTML markup. */
+export function replaceElementContent(
+    element: Element,
+    markup: string,
+): void {
+    const parsed = new DOMParser().parseFromString(markup, "text/html");
+    const body = parsed.getElementsByTagName("body")[0];
+    const nodes = Array.from(body.childNodes).map(function callback(node) {
+        return document.importNode(node, true);
+    });
+
+    element.replaceChildren(...nodes);
+}
+
+
+/** Serializes all children of an HTML element. */
+export function serializeElementContent(element: Element): string {
+    const serializer = new XMLSerializer();
+    const markup = Array.from(element.childNodes)
+        .map(function callback(node) {
+            return serializer.serializeToString(node);
+        })
+        .join("");
+
+    return markup;
+}
+
+
 /**
  * Serializes a template child node to markup.
  *
@@ -97,7 +142,7 @@ function renderElement(element: TemplateElement): string {
     const attributes = renderAttributes(element.attributes);
     const children = element.children.map(renderNode).join("");
 
-    if (element.tagName === "hr") {
+    if (VOID_ELEMENTS.has(element.tagName)) {
         return `<${element.tagName}${attributes}>`;
     }
 
@@ -180,5 +225,9 @@ function toKebabCase(value: string): string {
  * @returns Escaped attribute value.
  */
 function escapeAttribute(value: string): string {
-    return value.replace(/&/gu, "&amp;").replace(/"/gu, "&quot;");
+    return value
+        .replace(/&/gu, "&amp;")
+        .replace(/"/gu, "&quot;")
+        .replace(/</gu, "&lt;")
+        .replace(/>/gu, "&gt;");
 }

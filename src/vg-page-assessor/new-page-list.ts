@@ -42,6 +42,18 @@ export async function fetchNewPageList(api: mw.Api): Promise<any> {
         rvslots: "main",
         titles: NEW_PAGE_LIST_TITLE,
     });
+    const result = parseNewPageListResponse(response);
+
+    logStep("fetchNewPageList done", {
+        textLength: result.text.length,
+        title: NEW_PAGE_LIST_TITLE,
+    });
+
+    return result;
+}
+
+/** Parses new-page-list text and edit timestamps. */
+function parseNewPageListResponse(response: any): any {
     const pages = response?.query?.pages || [];
     const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
     const revision = page?.revisions?.[0];
@@ -59,11 +71,6 @@ export async function fetchNewPageList(api: mw.Api): Promise<any> {
             revision["*"] ??
             "",
     };
-
-    logStep("fetchNewPageList done", {
-        textLength: result.text.length,
-        title: NEW_PAGE_LIST_TITLE,
-    });
 
     return result;
 }
@@ -95,66 +102,62 @@ export function prepareNewPageListRegistration({
         namespaceNumber,
         title,
     });
-    const source = String(text || "");
+    const context = createRegistrationContext({
+        creationDate,
+        creationTimes,
+        namespaceNumber,
+        text,
+        title,
+    });
+    const result = prepareRegistrationResult(context);
+
+    return result;
+}
+
+/** Parses source state needed to prepare a registration. */
+function createRegistrationContext(options): any {
+    const source = String(options.text || "");
     const years = parseYearSections(source);
     const earliestDate = findEarliestRetainedDate(years);
-    const existing = findRegisteredEntry(years, title);
+    const existing = findRegisteredEntry(years, options.title);
 
-    if (earliestDate != null && startOfUtcDay(creationDate) < earliestDate) {
-        const result = {
-            alreadyRegistered: existing != null,
-            eligible: false,
-            earliestDate,
-            existing,
-            proposedText: source,
-            changed: false,
-        };
+    return { ...options, earliestDate, existing, source };
+}
 
-        logStep("prepareNewPageListRegistration done: not eligible", {
-            earliestDate: earliestDate.toISOString(),
-            existing,
-            title,
-        });
+/** Selects the registration result for parsed list state. */
+function prepareRegistrationResult(context): any {
+    const { creationDate, earliestDate, existing } = context;
+
+    if (!isRegistrationDateEligible(creationDate, earliestDate)) {
+        const result = buildIneligibleRegistration(context);
 
         return result;
     }
 
     if (existing != null) {
-        const result = {
-            alreadyRegistered: true,
-            eligible: true,
-            earliestDate,
-            existing,
-            proposedText: source,
-            changed: false,
-        };
-
-        logStep(
-            [
-                "prepareNewPageListRegistration don",
-                "e: already registered",
-            ].join(""),
-            {
-                existing,
-                title,
-            },
-        );
+        const result = buildExistingRegistration(context);
 
         return result;
     }
 
-    const group = getNamespaceGroup(namespaceNumber);
-    const proposedText = addEntry(source, {
-        creationDate,
-        creationTimes,
-        group,
-        title,
-    });
+    const result = buildNewRegistration(context);
 
+    return result;
+}
+
+/** Builds registration state for a newly listed page. */
+function buildNewRegistration(options): any {
+    const group = getNamespaceGroup(options.namespaceNumber);
+    const proposedText = addEntry(options.source, {
+        creationDate: options.creationDate,
+        creationTimes: options.creationTimes,
+        group,
+        title: options.title,
+    });
     const result = {
         alreadyRegistered: false,
-        changed: proposedText !== source,
-        earliestDate,
+        changed: proposedText !== options.source,
+        earliestDate: options.earliestDate,
         eligible: true,
         existing: null,
         proposedText,
@@ -162,9 +165,57 @@ export function prepareNewPageListRegistration({
 
     logStep("prepareNewPageListRegistration done", {
         changed: result.changed,
-        earliestDate: earliestDate?.toISOString?.(),
+        earliestDate: options.earliestDate?.toISOString?.(),
         group,
-        title,
+        title: options.title,
+    });
+
+    return result;
+}
+
+/** Checks whether a creation date is retained by the list. */
+function isRegistrationDateEligible(creationDate, earliestDate): boolean {
+    return earliestDate == null || startOfUtcDay(creationDate) >= earliestDate;
+}
+
+/** Builds state for a page older than retained list dates. */
+function buildIneligibleRegistration(options) {
+    const result = {
+        alreadyRegistered: options.existing != null,
+        changed: false,
+        earliestDate: options.earliestDate,
+        eligible: false,
+        existing: options.existing,
+        proposedText: options.source,
+    };
+
+    logStep("prepareNewPageListRegistration done: not eligible", {
+        earliestDate: options.earliestDate.toISOString(),
+        existing: options.existing,
+        title: options.title,
+    });
+
+    return result;
+}
+
+/** Builds registration state for an already listed page. */
+function buildExistingRegistration(options) {
+    const result = {
+        alreadyRegistered: true,
+        changed: false,
+        earliestDate: options.earliestDate,
+        eligible: true,
+        existing: options.existing,
+        proposedText: options.source,
+    };
+    const message = [
+        "prepareNewPageListRegistration don",
+        "e: already registered",
+    ].join("");
+
+    logStep(message, {
+        existing: options.existing,
+        title: options.title,
     });
 
     return result;
@@ -339,38 +390,26 @@ function parseYearSections(text: string): Array<any> {
 function parseDateBlocks(section: string, year: number): Array<any> {
     const lines = section.split("\n");
     const blocks = [];
-    let current = null;
 
     lines.forEach(function callback(line) {
-        const dateMatch = line.match(DATE_LINE_PATTERN);
+        const dateBlock = parseDateBlockLine(line, year);
 
-        if (dateMatch != null) {
-            current = {
-                date: new Date(
-                    Date.UTC(
-                        year,
-                        Number(dateMatch[1]) - 1,
-                        Number(dateMatch[2]),
-                    ),
-                ),
-                entries: parseEntries(dateMatch[3]),
-                groups: {},
-                title: line,
-            };
-            blocks.push(current);
+        if (dateBlock != null) {
+            blocks.push(dateBlock);
             return;
         }
 
         const subgroupMatch = line.match(SUBGROUP_PATTERN);
+        const currentBlock = blocks.at(-1);
 
-        if (current == null || subgroupMatch == null) {
+        if (currentBlock == null || subgroupMatch == null) {
             return;
         }
 
         const group = normalizeGroupLabel(subgroupMatch[1]);
 
         if (group != null) {
-            current.groups[group] = {
+            currentBlock.groups[group] = {
                 entries: parseEntries(subgroupMatch[2]),
                 label: subgroupMatch[1].trim(),
             };
@@ -378,6 +417,24 @@ function parseDateBlocks(section: string, year: number): Array<any> {
     });
 
     return blocks;
+}
+
+/** Parses a date heading line into a mutable date block. */
+function parseDateBlockLine(line: string, year: number): any | null {
+    const match = line.match(DATE_LINE_PATTERN);
+
+    if (match == null) {
+        return null;
+    }
+
+    return {
+        date: new Date(
+            Date.UTC(year, Number(match[1]) - 1, Number(match[2])),
+        ),
+        entries: parseEntries(match[3]),
+        groups: {},
+        title: line,
+    };
 }
 
 
@@ -428,57 +485,56 @@ function addEntry(text: string, entry: any): string {
  */
 function updateYearSection(section: string, entry: any): string {
     const lines = section.split("\n");
-    const targetIndex = lines.findIndex(function callback(line) {
-        const match = line.match(DATE_LINE_PATTERN);
-
-        return (
-            match != null &&
-            Number(match[1]) === entry.month &&
-            Number(match[2]) === entry.day
-        );
-    });
+    const targetIndex = findMatchingDateLine(lines, entry);
 
     if (targetIndex !== -1) {
         updateExistingDateBlock(lines, targetIndex, entry);
         return lines.join("\n");
     }
 
-    const insertAt = lines.findIndex(function callback(line) {
-        const match = line.match(DATE_LINE_PATTERN);
-
-        return (
-            match != null &&
-            (Number(match[1]) < entry.month ||
-                (Number(match[1]) === entry.month &&
-                    Number(match[2]) < entry.day))
-        );
-    });
+    const insertAt = findDateBlockInsertIndex(lines, entry);
     const block = buildDateBlock(entry.month, entry.day, entry.group, [
         entry.rendered,
     ]).split("\n");
-    const trailingWhitespaceIndex = lines.findIndex(
-        function callback(line, index) {
-            return (
-                index > 0 &&
-                line.trim() === "" &&
-                lines
-                    .slice(index)
-                    .every((remaining) => remaining.trim() === "")
-            );
-        },
-    );
-    const fallbackIndex = selectValue(
-        trailingWhitespaceIndex === -1,
-        function trueBranch() {
-            return lines.length;
-        },
-        function falseBranch() {
-            return trailingWhitespaceIndex;
-        },
-    );
+    const fallbackIndex = findTrailingWhitespaceIndex(lines);
 
     lines.splice(insertAt === -1 ? fallbackIndex : insertAt, 0, ...block);
     return lines.join("\n");
+}
+
+/** Finds the existing date line for a new entry. */
+function findMatchingDateLine(lines: Array<string>, entry: any): number {
+    return lines.findIndex(function callback(line) {
+        const match = line.match(DATE_LINE_PATTERN);
+
+        return match != null &&
+            Number(match[1]) === entry.month &&
+            Number(match[2]) === entry.day;
+    });
+}
+
+/** Finds the descending-date insertion point for a new block. */
+function findDateBlockInsertIndex(lines: Array<string>, entry: any): number {
+    return lines.findIndex(function callback(line) {
+        const match = line.match(DATE_LINE_PATTERN);
+
+        return match != null && (Number(match[1]) < entry.month ||
+            (Number(match[1]) === entry.month &&
+                Number(match[2]) < entry.day));
+    });
+}
+
+/** Finds trailing blank lines, or the end of the section. */
+function findTrailingWhitespaceIndex(lines: Array<string>): number {
+    const index = lines.findIndex(function callback(line, lineIndex) {
+        const remainingBlank = lines
+            .slice(lineIndex)
+            .every((remaining) => remaining.trim() === "");
+
+        return lineIndex > 0 && line.trim() === "" && remainingBlank;
+    });
+
+    return index === -1 ? lines.length : index;
 }
 
 
@@ -944,27 +1000,4 @@ function sliceChangedLines(
     const end = Math.min(lines.length, changeEnd + contextLines);
 
     return lines.slice(start, end).join("\n");
-}
-
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

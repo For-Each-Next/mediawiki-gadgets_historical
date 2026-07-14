@@ -81,57 +81,36 @@ function updateInfoboxTitleLines(
     current: any,
     target: any,
 ): string {
-    const start = text.indexOf(INFOBOX_START);
+    const bounds = getInfoboxBounds(text);
 
-    if (start < 0) {
+    if (bounds == null) {
         return text;
     }
 
-    const end = text.indexOf(INFOBOX_END, start);
-
-    if (end < 0) {
-        return text;
-    }
-
-    const currentLines = parseTemplateParameterLines(current.infoboxText);
-    const targetLines = parseTemplateParameterLines(target.infoboxText);
-    const changedKeys = new Set([
-        ...currentLines.keys(),
-        ...targetLines.keys(),
-    ]);
+    const { start, end } = bounds;
+    const lines = getChangedInfoboxLines(current, target);
     const blockEnd = end + INFOBOX_END.length;
     let infobox = text.slice(start, blockEnd);
 
-    changedKeys.forEach(function callback(key) {
-        const currentLine = currentLines.get(key);
-        const targetLine = targetLines.get(key);
-
-        if (currentLine === targetLine) {
-            return;
-        }
-
-        if (currentLine != null && infobox.includes(currentLine)) {
-            infobox = selectValue(
-                targetLine == null,
-                function trueBranch() {
-                    return infobox.replace(`\n${currentLine}`, "");
-                },
-                function falseBranch() {
-                    return infobox.replace(currentLine, targetLine);
-                },
-            );
-            return;
-        }
-
-        if (currentLine == null && targetLine != null) {
-            infobox = infobox.replace(
-                INFOBOX_END,
-                `\n${targetLine}${INFOBOX_END}`,
-            );
-        }
+    lines.keys.forEach(function callback(key) {
+        infobox = updateInfoboxParameterLine(
+            infobox,
+            lines.current.get(key),
+            lines.target.get(key),
+        );
     });
 
-    return [
+    return replaceInfoboxBlock(text, start, blockEnd, infobox);
+}
+
+/** Replaces the located infobox block. */
+function replaceInfoboxBlock(
+    text: string,
+    start: number,
+    blockEnd: number,
+    infobox: string,
+): string {
+    const updated = [
         "",
         text.slice(0, start),
         "",
@@ -140,6 +119,51 @@ function updateInfoboxTitleLines(
         text.slice(blockEnd),
         "",
     ].join("");
+
+    return updated;
+}
+
+/** Gets the start and end positions of the generated infobox. */
+function getInfoboxBounds(text: string): any | null {
+    const start = text.indexOf(INFOBOX_START);
+    const end = start < 0 ? -1 : text.indexOf(INFOBOX_END, start);
+
+    return start < 0 || end < 0 ? null : { end, start };
+}
+
+/** Gets current, target, and changed infobox parameter lines. */
+function getChangedInfoboxLines(current, target): any {
+    const currentLines = parseTemplateParameterLines(current.infoboxText);
+    const targetLines = parseTemplateParameterLines(target.infoboxText);
+    const keys = new Set([...currentLines.keys(), ...targetLines.keys()]);
+
+    return { current: currentLines, keys, target: targetLines };
+}
+
+/** Updates one changed generated infobox parameter line. */
+function updateInfoboxParameterLine(infobox, currentLine, targetLine): string {
+    if (currentLine === targetLine) {
+        return infobox;
+    }
+    if (currentLine != null && infobox.includes(currentLine)) {
+        let updated = infobox.replace(currentLine, targetLine);
+
+        if (targetLine == null) {
+            updated = infobox.replace(`\n${currentLine}`, "");
+        }
+
+        return updated;
+    }
+    if (targetLine != null) {
+        const updated = infobox.replace(
+            INFOBOX_END,
+            `\n${targetLine}${INFOBOX_END}`,
+        );
+
+        return updated;
+    }
+
+    return infobox;
 }
 
 
@@ -200,27 +224,4 @@ function replaceOnce(text: string, current: string, target: string): string {
  */
 function escapeRegularExpression(value: string): string {
     return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

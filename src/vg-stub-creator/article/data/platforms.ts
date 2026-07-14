@@ -53,27 +53,17 @@ export function buildPlatformMetadata(value: any): any {
  */
 function buildPlatformItem(references: any[], value): ArticleDataValue {
     if (isWikilinkValue(value)) {
-        const parts = getWikilinkParts(value);
-        const item: ArticleDataValue = {
-            displayText: parts.label || parts.target,
-            linkTarget: parts.target,
-            normalizedText: value,
-            wikitext: value,
-        };
-
-        return item;
+        return buildLinkedPlatformItem(value);
     }
 
     const reference = references.find((item) => item.source === value);
 
     if (reference == null) {
-        const item: ArticleDataValue = {
+        return {
             displayText: value,
             normalizedText: value,
             wikitext: value,
         };
-
-        return item;
     }
 
     const item: ArticleDataValue = {
@@ -88,6 +78,18 @@ function buildPlatformItem(references: any[], value): ArticleDataValue {
     }
 
     return item;
+}
+
+/** Builds a platform item from an explicit wikilink. */
+function buildLinkedPlatformItem(value: string): ArticleDataValue {
+    const parts = getWikilinkParts(value);
+
+    return {
+        displayText: parts.label || parts.target,
+        linkTarget: parts.target,
+        normalizedText: value,
+        wikitext: value,
+    };
 }
 
 

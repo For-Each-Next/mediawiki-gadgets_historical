@@ -2,7 +2,7 @@
  * Defines vg-stub-creator dialog form metadata and reusable constants.
  */
 
-import { getArticleSourceFields } from "../../article/index.ts";
+import { getArticleSourceFields } from "../../article/processor.ts";
 
 
 /**

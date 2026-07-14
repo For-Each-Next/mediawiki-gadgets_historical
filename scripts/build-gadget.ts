@@ -227,8 +227,47 @@ async function formatUserscript(
     metadata: PackageMetadata,
     userscriptConfig: UserscriptConfig = {},
 ): Promise<string> {
-    const header = [
+    const header = buildUserscriptHeader(metadata, userscriptConfig);
+    const bootstrap = formatUserscriptBootstrap(source);
+    const userscript = await format(`${header}\n\n${bootstrap}`, {
+        parser: "babel",
+    });
+
+    return userscript;
+}
+
+/** Builds a userscript metadata header. */
+function buildUserscriptHeader(
+    metadata: PackageMetadata,
+    userscriptConfig: UserscriptConfig,
+): string {
+    const matches = buildUserscriptMetadataList(
+        "match",
+        userscriptConfig.match || [],
+    );
+    const grants = buildUserscriptMetadataList(
+        "grant",
+        userscriptConfig.grant || ["none"],
+    );
+
+    const core = buildCoreUserscriptMetadata(metadata, userscriptConfig);
+    const lines = [
         "// ==UserScript==",
+        ...core,
+        ...matches,
+        ...grants,
+        "// ==/UserScript==",
+    ];
+
+    return lines.join("\n");
+}
+
+/** Builds the single-value userscript metadata lines. */
+function buildCoreUserscriptMetadata(
+    metadata: PackageMetadata,
+    userscriptConfig: UserscriptConfig,
+): string[] {
+    const lines = [
         formatUserscriptMetadata(
             "name",
             userscriptConfig.name || metadata.name,
@@ -241,23 +280,22 @@ async function formatUserscript(
         formatUserscriptMetadata("version", metadata.version),
         formatUserscriptMetadata("description", metadata.description),
         formatUserscriptMetadata("author", metadata.author),
-        ...(userscriptConfig.match || []).map((value) =>
-            formatUserscriptMetadata("match", value),
-        ),
         formatUserscriptMetadata(
             "run-at",
             userscriptConfig.runAt || "document-idle",
         ),
         formatUserscriptMetadata("sandbox", userscriptConfig.sandbox || "raw"),
-        ...(userscriptConfig.grant || ["none"]).map((value) =>
-            formatUserscriptMetadata("grant", value),
-        ),
-        "// ==/UserScript==",
-    ].join("\n");
+    ];
 
-    return format(`${header}\n\n${formatUserscriptBootstrap(source)}`, {
-        parser: "babel",
-    });
+    return lines;
+}
+
+/** Builds repeated userscript metadata lines. */
+function buildUserscriptMetadataList(
+    key: string,
+    values: string[],
+): string[] {
+    return values.map((value) => formatUserscriptMetadata(key, value));
 }
 
 /**

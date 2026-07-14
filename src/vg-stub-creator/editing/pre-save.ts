@@ -51,12 +51,28 @@ export function buildPreSaveActions(
     const existingKeys = new Set(
         existingRows.filter((row) => row.exists).map((row) => row.key),
     );
-    const actions = [];
+    const actions = buildInitialPreSaveActions(form, title, finalTitle);
 
-    if (normalizeTitle(form.wikidataId) !== "") {
-        const wikidataId = normalizeTitle(form.wikidataId);
+    for (const row of getPreSaveRedirectRows(form, title)) {
+        actions.push(createRedirectAction(row, title, existingKeys));
+    }
 
-        actions.push({
+    for (const row of (form.categoryRows || []).filter(isPreSaveCategoryRow)) {
+        actions.push(createCategoryAction(row));
+    }
+
+    actions.push(...buildPageEditActions(form));
+
+    return actions;
+}
+
+/** Builds interwiki and talk-banner pre-save actions. */
+function buildInitialPreSaveActions(form, title, finalTitle): Array<any> {
+    const actions = [createTalkBannerAction(finalTitle)];
+    const wikidataId = normalizeTitle(form.wikidataId);
+
+    if (wikidataId !== "") {
+        actions.unshift({
             displayLabel: `Connect to [[d:${wikidataId}]]`,
             id: "interwiki",
             label: `Connect ${title} to ${wikidataId}`,
@@ -67,45 +83,40 @@ export function buildPreSaveActions(
         });
     }
 
-    for (const row of getPreSaveRedirectRows(form, title)) {
-        actions.push(createRedirectAction(row, title, existingKeys));
-    }
+    return actions;
+}
 
-    actions.push({
-        displayLabel: `Tag banner on [[Talk:${finalTitle}]]`,
+/** Creates the article talk-banner action. */
+function createTalkBannerAction(title): any {
+    const label = [
+        "Add WikiProject Video games banner",
+        " to Talk:",
+        title,
+        "",
+    ].join("");
+
+    return {
+        displayLabel: `Tag banner on [[Talk:${title}]]`,
         id: "talk-banner",
-        label: [
-            "Add WikiProject Video games banner",
-            " to Talk:",
-            finalTitle,
-            "",
-        ].join(""),
-        pageTitle: finalTitle,
+        label,
+        pageTitle: title,
         selected: true,
         type: "talk-banner",
-    });
+    };
+}
 
-    for (const row of (form.categoryRows || []).filter(isPreSaveCategoryRow)) {
-        actions.push(createCategoryAction(row));
-    }
+/** Builds staged page-edit actions from review-row collections. */
+function buildPageEditActions(form): Array<any> {
+    const collections = [
+        form.categoryRows,
+        form.redirectRows,
+        form.navboxRows,
+        form.stubTagRows,
+    ];
 
-    for (const row of (form.categoryRows || []).filter(isPreSavePageEditRow)) {
-        actions.push(createPageEditAction(row.pendingEdit));
-    }
-
-    for (const row of (form.redirectRows || []).filter(isPreSavePageEditRow)) {
-        actions.push(createPageEditAction(row.pendingEdit));
-    }
-
-    for (const row of (form.navboxRows || []).filter(isPreSavePageEditRow)) {
-        actions.push(createPageEditAction(row.pendingEdit));
-    }
-
-    for (const row of (form.stubTagRows || []).filter(isPreSavePageEditRow)) {
-        actions.push(createPageEditAction(row.pendingEdit));
-    }
-
-    return actions;
+    return collections.flatMap((rows) => rows || [])
+        .filter(isPreSavePageEditRow)
+        .map((row) => createPageEditAction(row.pendingEdit));
 }
 
 
@@ -131,12 +142,18 @@ function isPreSaveCategoryRow(row: any): boolean {
  * @returns Whether the row should become a page edit action.
  */
 function isPreSavePageEditRow(row: any): boolean {
-    return (
-        row.enabled !== false &&
-        row.pendingEdit != null &&
-        normalizeTitle(row.pendingEdit.title) !== "" &&
-        String(row.pendingEdit.text || "").trim() !== ""
-    );
+    return isPreSaveRowEnabled(row) && hasCompletePendingEdit(row.pendingEdit);
+}
+
+/** Checks whether a pre-save row is enabled. */
+function isPreSaveRowEnabled(row: any): boolean {
+    return row.enabled === undefined || row.enabled === true;
+}
+
+/** Checks whether a staged page edit has a title and text. */
+function hasCompletePendingEdit(edit: any): boolean {
+    return Boolean(edit) && normalizeTitle(edit.title).length > 0 &&
+        String(edit.text || "").trim().length > 0;
 }
 
 
@@ -204,25 +221,6 @@ function createPageEditAction(edit: any): any {
 
 
 /**
- * Builds the default title fix for an English-titled article.
- *
- * @param form - Submitted dialog form.
- * @param articleTitle - Current article title.
- * @returns Default page move settings.
- */
-export function buildTitleFix(form: any, articleTitle: string): any {
-    const title = normalizeTitle(articleTitle);
-    const chineseTitle = buildChineseRedirectTitles(form, title)[0] || "";
-    const enabled = isEnglishTitle(title) && chineseTitle !== "";
-
-    return {
-        enabled,
-        to: enabled ? chineseTitle : title,
-    };
-}
-
-
-/**
  * Builds generated redirect review rows.
  *
  * @param form - Submitted dialog form.
@@ -260,36 +258,38 @@ export function buildRedirectRowsFromTitles(
     const targetKey = normalizeTitleKey(articleTitle);
     const seen = new Set();
 
-    return titles.map(normalizeTitle).flatMap(normalizeRedirectReviewTitle);
+    const context = { existingRows, seen, targetKey };
+    const rows = titles.map(normalizeTitle).flatMap(function callback(title) {
+        return normalizeRedirectReviewTitle(title, context);
+    });
 
-    function normalizeRedirectReviewTitle(title) {
-        const normalizedTitle = normalizeMixedChineseVariantTitle(title);
-        const key = normalizeTitleKey(normalizedTitle);
+    return rows;
+}
 
-        if (key === "") {
-            return [];
-        }
+/** Normalizes one redirect candidate into a unique review row. */
+function normalizeRedirectReviewTitle(title, context): Array<any> {
+    const resolvedTitle = normalizeMixedChineseVariantTitle(title);
+    const resolvedKey = normalizeTitleKey(resolvedTitle);
 
-        const existing = findExistingTitleRow(normalizedTitle, existingRows);
-        const exists = existing?.exists === true;
-        const resolvedTitle = normalizedTitle;
-        const resolvedKey = normalizeTitleKey(resolvedTitle);
-
-        if (resolvedKey === targetKey || seen.has(resolvedKey)) {
-            return [];
-        }
-
-        seen.add(resolvedKey);
-
-        return [
-            {
-                enabled: !exists,
-                exists,
-                status: getExistenceStatus(exists),
-                title: resolvedTitle,
-            },
-        ];
+    if (resolvedKey === "" || resolvedKey === context.targetKey ||
+        context.seen.has(resolvedKey)) {
+        return [];
     }
+
+    const existing = findExistingTitleRow(
+        resolvedTitle,
+        context.existingRows,
+    );
+    const exists = existing?.exists === true;
+
+    context.seen.add(resolvedKey);
+
+    return [{
+        enabled: !exists,
+        exists,
+        status: getExistenceStatus(exists),
+        title: resolvedTitle,
+    }];
 }
 
 
@@ -326,35 +326,6 @@ export function buildRedirectTitles(
 
 
 /**
- * Gets unique Chinese aliases suitable for a page move.
- *
- * @param form - Submitted dialog form.
- * @param articleTitle - Saved article title.
- * @returns Chinese page titles.
- */
-function buildChineseRedirectTitles(
-    form: any,
-    articleTitle: string,
-): Array<string> {
-    const targetKey = normalizeTitleKey(articleTitle);
-    const seen = new Set();
-
-    return getChineseNames(form)
-        .map(normalizeTitle)
-        .filter(function callback(title) {
-            const key = normalizeTitleKey(title);
-
-            if (key === "" || key === targetKey || seen.has(key)) {
-                return false;
-            }
-
-            seen.add(key);
-            return true;
-        });
-}
-
-
-/**
  * Gets rows to convert into pre-save redirect actions.
  *
  * @param form - Submitted dialog form.
@@ -362,42 +333,39 @@ function buildChineseRedirectTitles(
  * @returns Redirect rows.
  */
 function getPreSaveRedirectRows(form: any, articleTitle: string): Array<any> {
-    const rows = selectValue(
-        Array.isArray(form.redirectRows),
-        function trueBranch() {
-            return form.redirectRows;
-        },
-        function falseBranch() {
-            return buildRedirectRows(form, articleTitle);
-        },
-    );
+    let rows = form.redirectRows;
+
+    if (!Array.isArray(rows)) {
+        rows = buildRedirectRows(form, articleTitle);
+    }
     const targetKey = normalizeTitleKey(articleTitle);
     const seen = new Set();
 
-    return rows.flatMap(normalizePreSaveRedirectRow);
+    const context = { seen, targetKey };
+    const normalized = rows.flatMap(function callback(row) {
+        return normalizePreSaveRedirectRow(row, context);
+    });
 
-    function normalizePreSaveRedirectRow(row) {
-        const title = normalizeTitle(row.title ?? row.redirectTitle);
-        const key = normalizeTitleKey(title);
+    return normalized;
+}
 
-        if (
-            row.pendingEdit != null ||
-            key === "" ||
-            key === targetKey ||
-            seen.has(key)
-        ) {
-            return [];
-        }
+/** Normalizes one row into a unique pre-save redirect row. */
+function normalizePreSaveRedirectRow(row, context): Array<any> {
+    const title = normalizeTitle(row.title ?? row.redirectTitle);
+    const key = normalizeTitleKey(title);
 
-        seen.add(key);
-        return [
-            {
-                enabled: row.enabled !== false && row.selected !== false,
-                exists: row.exists === true,
-                title,
-            },
-        ];
+    if (row.pendingEdit != null || key === "" ||
+        key === context.targetKey || context.seen.has(key)) {
+        return [];
     }
+
+    context.seen.add(key);
+
+    return [{
+        enabled: row.enabled !== false && row.selected !== false,
+        exists: row.exists === true,
+        title,
+    }];
 }
 
 
@@ -419,27 +387,19 @@ function createRedirectAction(
         row.exists === true ||
         existingKeys.has(normalizeTitleKey(redirectTitle));
 
+    let displayLabel = `Redirect to [[${title}]]`;
+    let label = `Redirect name: ${redirectTitle} to ${title}`;
+
+    if (exists) {
+        displayLabel = "Redirect page already exists";
+        label = `Redirect: ${redirectTitle} (page exists)`;
+    }
+
     return {
-        displayLabel: selectValue(
-            exists,
-            function trueBranch() {
-                return "Redirect page already exists";
-            },
-            function falseBranch() {
-                return `Redirect to [[${title}]]`;
-            },
-        ),
+        displayLabel,
         id: `redirect:${redirectTitle}`,
         exists,
-        label: selectValue(
-            exists,
-            function trueBranch() {
-                return `Redirect: ${redirectTitle} (page already exists)`;
-            },
-            function falseBranch() {
-                return `Redirect name: ${redirectTitle} to ${title}`;
-            },
-        ),
+        label,
         pageTitle: redirectTitle,
         redirectTitle,
         selected: row.enabled !== false && !exists,
@@ -711,41 +671,49 @@ export async function fetchExistingPageTitles(
         converttitles: "1",
         titles: titles.join("|"),
     });
+    const { conversionMap, existingKeys } = getExistingTitleContext(data);
+    const context = { conversionMap, existingKeys };
+    const normalizedTitles = titles.map(normalizeTitle);
+    const matches = normalizedTitles.flatMap(function callback(title) {
+        return createExistingPageTitleMatch(title, context);
+    });
+
+    return matches;
+}
+
+/** Extracts normalized title lookup collections. */
+function getExistingTitleContext(data): any {
+    const converted = data?.query?.converted || [];
     const conversionMap = new Map<string, string>(
-        (data?.query?.converted || []).map(function callback(item) {
-            return [normalizeTitleKey(item.from), normalizeTitle(item.to)] as [
-                string,
-                string,
-            ];
+        converted.map(function callback(item) {
+            const from = normalizeTitleKey(item.from);
+            const pair = [from, normalizeTitle(item.to)];
+            return pair as [string, string];
         }),
     );
+    const pages = Object.values(data?.query?.pages || {}) as any[];
     const existingKeys = new Set(
-        (Object.values(data?.query?.pages || {}) as any[])
+        pages
             .filter((page) => page.missing == null)
             .map((page) => normalizeTitleKey(page.title)),
     );
 
-    return titles.map(normalizeTitle).flatMap(createExistingPageTitleMatch);
+    return { conversionMap, existingKeys };
+}
 
-    function createExistingPageTitleMatch(title) {
-        const convertedTitle =
-            conversionMap.get(normalizeTitleKey(title)) || title;
-        const exists = existingKeys.has(normalizeTitleKey(convertedTitle));
-        const converted =
-            normalizeTitleKey(convertedTitle) !== normalizeTitleKey(title);
+/** Creates an existing or converted page-title match. */
+function createExistingPageTitleMatch(title, context): Array<any> {
+    const requestedKey = normalizeTitleKey(title);
+    const convertedTitle = context.conversionMap.get(requestedKey) || title;
+    const exists = context.existingKeys.has(normalizeTitleKey(convertedTitle));
+    const converted = normalizeTitleKey(convertedTitle) !==
+        normalizeTitleKey(title);
 
-        if (!exists && !converted) {
-            return [];
-        }
-
-        return [
-            {
-                exists,
-                requestedTitle: title,
-                title: convertedTitle,
-            },
-        ];
+    if (!exists && !converted) {
+        return [];
     }
+
+    return [{ exists, requestedTitle: title, title: convertedTitle }];
 }
 
 
@@ -795,56 +763,15 @@ export async function runSelectedActions(
         normalizeTitleKey(moveTitle) !== normalizeTitleKey(originalTitle);
     const finalTitle = shouldMove ? moveTitle : originalTitle;
 
-    if (shouldMove) {
-        options.onMoveStart?.(finalTitle);
-        await movePage(options.api, originalTitle, finalTitle, {
-            leaveRedirect: options.move.leaveRedirect,
-        });
-        options.onMoveComplete?.(finalTitle);
-    }
+    await runSelectedMove(originalTitle, finalTitle, shouldMove, options);
 
     for (const phase of getSelectedActionPhases(actions)) {
-        if (phase.type === "wikidata") {
-            await options.onBeforeWikidataActions?.({
-                completed,
-                failed,
-                title: finalTitle,
-            });
-        }
-
-        for (const action of phase.actions) {
-            let progressFailureHandled = false;
-
-            if (
-                action.type === "redirect" &&
-                normalizeTitleKey(action.redirectTitle) ===
-                    normalizeTitleKey(finalTitle)
-            ) {
-                action.selected = false;
-                options.onActionSkipped?.(action);
-                continue;
-            }
-
-            options.onActionStart?.(action);
-            try {
-                await runSelectedActionWithRetry(action, {
-                    ...options,
-                    onActionProgressFailed() {
-                        progressFailureHandled = true;
-                    },
-                    title: finalTitle,
-                });
-                action.selected = false;
-                completed.push(action);
-                options.onActionComplete?.(action);
-            } catch (error) {
-                action.selected = false;
-                failed.push(action);
-                if (!progressFailureHandled) {
-                    options.onActionFailed?.(action, error);
-                }
-            }
-        }
+        await runSelectedActionPhase(phase, {
+            completed,
+            failed,
+            finalTitle,
+            options,
+        });
     }
 
     return {
@@ -852,6 +779,82 @@ export async function runSelectedActions(
         failed,
         title: finalTitle,
     };
+}
+
+/** Runs the optional page move before follow-up actions. */
+async function runSelectedMove(from, to, enabled, options): Promise<void> {
+    if (!enabled) {
+        return;
+    }
+
+    options.onMoveStart?.(to);
+    await movePage(options.api, from, to, {
+        leaveRedirect: options.move.leaveRedirect,
+    });
+    options.onMoveComplete?.(to);
+}
+
+/** Runs one selected action phase. */
+async function runSelectedActionPhase(phase, context): Promise<void> {
+    if (phase.type === "wikidata") {
+        await context.options.onBeforeWikidataActions?.({
+            completed: context.completed,
+            failed: context.failed,
+            title: context.finalTitle,
+        });
+    }
+
+    for (const action of phase.actions) {
+        await runSelectedActionRow(action, context);
+    }
+}
+
+/** Runs one selected action row and records its result. */
+async function runSelectedActionRow(action, context): Promise<void> {
+    if (isRedirectToFinalTitle(action, context.finalTitle)) {
+        action.selected = false;
+        context.options.onActionSkipped?.(action);
+        return;
+    }
+
+    context.options.onActionStart?.(action);
+    const progress = { failureHandled: false };
+
+    try {
+        await runSelectedActionWithRetry(action, {
+            ...context.options,
+            onActionProgressFailed() {
+                progress.failureHandled = true;
+            },
+            title: context.finalTitle,
+        });
+        completeSelectedAction(action, context);
+    } catch (error) {
+        failSelectedAction(action, error, progress, context);
+    }
+}
+
+/** Checks whether a redirect points to its own final title. */
+function isRedirectToFinalTitle(action, finalTitle): boolean {
+    return action.type === "redirect" &&
+        normalizeTitleKey(action.redirectTitle) ===
+            normalizeTitleKey(finalTitle);
+}
+
+/** Records a completed selected action. */
+function completeSelectedAction(action, context): void {
+    action.selected = false;
+    context.completed.push(action);
+    context.options.onActionComplete?.(action);
+}
+
+/** Records a failed selected action. */
+function failSelectedAction(action, error, progress, context): void {
+    action.selected = false;
+    context.failed.push(action);
+    if (!progress.failureHandled) {
+        context.options.onActionFailed?.(action, error);
+    }
 }
 
 
@@ -945,50 +948,53 @@ async function runSelectedAction(action: any, options: any): Promise<void> {
     }
 
     if (action.type === "category") {
-        const save = selectValue(
-            normalizeTitle(action.company) === "",
-            function trueBranch() {
-                return options.saveCategory;
-            },
-            function falseBranch() {
-                return options.saveCompanyCategory;
-            },
-        );
-
-        if (save == null) {
-            throw new Error("Category save handler is unavailable.");
-        }
-
-        await save(action.category, action.text, action.englishName, {
-            onProgress(operation, status) {
-                const progressAction = {
-                    ...action,
-                    id: selectValue(
-                        operation === "create",
-                        function trueBranch() {
-                            return action.id;
-                        },
-                        function falseBranch() {
-                            return `${action.id}:${operation}`;
-                        },
-                    ),
-                };
-
-                if (status === "running") {
-                    options.onActionStart?.(progressAction);
-                } else if (status === "complete") {
-                    options.onActionComplete?.(progressAction);
-                } else if (status === "failed") {
-                    options.onActionProgressFailed?.();
-                    options.onActionFailed?.(progressAction);
-                }
-            },
-        });
+        await runCategoryAction(action, options);
         return;
     }
 
     if (action.type === "page-edit") {
         await savePageEdit(options.api, action);
+    }
+}
+
+/** Runs a generic or company category action. */
+async function runCategoryAction(action, options): Promise<void> {
+    let save = options.saveCompanyCategory;
+
+    if (normalizeTitle(action.company) === "") {
+        save = options.saveCategory;
+    }
+
+    if (save == null) {
+        throw new Error("Category save handler is unavailable.");
+    }
+
+    await save(action.category, action.text, action.englishName, {
+        onProgress(operation, status) {
+            reportCategoryActionProgress(action, operation, status, options);
+        },
+    });
+}
+
+/** Reports progress for work bundled into a category action. */
+function reportCategoryActionProgress(
+    action,
+    operation,
+    status,
+    options,
+): void {
+    const progressAction = {
+        ...action,
+        id: operation === "create" ? action.id : `${action.id}:${operation}`,
+    };
+
+    if (status === "running") {
+        options.onActionStart?.(progressAction);
+    } else if (status === "complete") {
+        options.onActionComplete?.(progressAction);
+    } else if (status === "failed") {
+        options.onActionProgressFailed?.();
+        options.onActionFailed?.(progressAction);
     }
 }
 
@@ -1124,18 +1130,7 @@ export async function addTalkPageBanner(
 ): Promise<void> {
     const title = getTalkPageTitle(articleTitle);
     const banner = getTalkPageBanner(articleTitle);
-    const data = await api.get({
-        action: "query",
-        prop: "revisions",
-        rvprop: "content",
-        rvslots: "main",
-        titles: title,
-    });
-    const page: any = Object.values(data?.query?.pages || {})[0];
-    const text =
-        page?.revisions?.[0]?.slots?.main?.content ||
-        page?.revisions?.[0]?.["*"] ||
-        "";
+    const text = await fetchTalkPageText(api, title);
 
     if (/WikiProject\s+Video games/iu.test(text)) {
         return;
@@ -1155,6 +1150,24 @@ export async function addTalkPageBanner(
     };
 
     await api.postWithToken("csrf", params);
+}
+
+/** Fetches the current talk-page wikitext. */
+async function fetchTalkPageText(api: any, title: string): Promise<string> {
+    const data = await api.get({
+        action: "query",
+        prop: "revisions",
+        rvprop: "content",
+        rvslots: "main",
+        titles: title,
+    });
+    const page: any = Object.values(data?.query?.pages || {})[0];
+    const text =
+        page?.revisions?.[0]?.slots?.main?.content ||
+        page?.revisions?.[0]?.["*"] ||
+        "";
+
+    return text;
 }
 
 
@@ -1241,17 +1254,6 @@ function isChineseNameRow(row: any): boolean {
     return (
         hasChineseMarket || /\p{Script=Han}/u.test(normalizeTitle(row.name))
     );
-}
-
-
-/**
- * Checks whether a title uses Latin text without Han characters.
- *
- * @param title - Article title.
- * @returns Whether the title appears to be English.
- */
-function isEnglishTitle(title: string): boolean {
-    return /\p{Script=Latin}/u.test(title) && !/\p{Script=Han}/u.test(title);
 }
 
 

@@ -32,29 +32,11 @@ export async function registerNewPage(
     date: Date = new Date(),
 ): Promise<void> {
     for (let attempt = 0; attempt < MAX_EDIT_ATTEMPTS; attempt += 1) {
-        const page = await fetchNewPageList(api);
-        const text = addNewPageListEntry(
-            page.text,
-            articleTitle,
-            companyCategories,
-            date,
-        );
-
-        if (text === page.text) {
-            return;
-        }
-
         try {
-            await api.postWithToken("csrf", {
-                action: "edit",
-                basetimestamp: page.basetimestamp,
-                nocreate: true,
-                starttimestamp: page.starttimestamp,
-                summary: addEditSummarySuffix(
-                    buildNewPageListSummary(articleTitle, companyCategories),
-                ),
-                text,
-                title: NEW_PAGE_LIST_TITLE,
+            await registerNewPageAttempt(api, {
+                articleTitle,
+                companyCategories,
+                date,
             });
             return;
         } catch (error) {
@@ -63,6 +45,36 @@ export async function registerNewPage(
             }
         }
     }
+}
+
+/** Runs one new-page-list registration attempt. */
+async function registerNewPageAttempt(api, entry): Promise<void> {
+    const page = await fetchNewPageList(api);
+    const text = addNewPageListEntry(
+        page.text,
+        entry.articleTitle,
+        entry.companyCategories,
+        entry.date,
+    );
+
+    if (text === page.text) {
+        return;
+    }
+
+    await api.postWithToken("csrf", {
+        action: "edit",
+        basetimestamp: page.basetimestamp,
+        nocreate: true,
+        starttimestamp: page.starttimestamp,
+        summary: addEditSummarySuffix(
+            buildNewPageListSummary(
+                entry.articleTitle,
+                entry.companyCategories,
+            ),
+        ),
+        text,
+        title: NEW_PAGE_LIST_TITLE,
+    });
 }
 
 
@@ -133,38 +145,58 @@ export function addNewPageListEntry(
     date: Date = new Date(),
 ): string {
     const source = String(text || "");
-    const year = date.getUTCFullYear();
-    const month = date.getUTCMonth() + 1;
-    const day = date.getUTCDate();
-    const article = buildVgcCall(articleTitle);
-    const categories = companyCategories
-        .map(normalizeCategoryTitle)
-        .filter(Boolean)
-        .map(buildVgcCall);
-    const yearRange = findYearSection(source, year);
+    const entry = buildNewPageListEntry(
+        articleTitle,
+        companyCategories,
+        date,
+    );
+    const yearRange = findYearSection(source, entry.year);
 
     if (yearRange == null) {
-        return insertYearSection(
-            source,
-            year,
-            buildDateBlock(month, day, article, categories),
-        );
+        const updated = insertNewPageListYear(source, entry);
+
+        return updated;
     }
 
     const section = source.slice(yearRange.contentStart, yearRange.end);
-    const updatedSection = updateYearSection(
-        section,
-        month,
-        day,
-        article,
-        categories,
-    );
+    const updatedSection = updateYearSection(section, entry);
 
-    return (
+    const updated = (
         source.slice(0, yearRange.contentStart) +
         updatedSection +
         source.slice(yearRange.end)
     );
+
+    return updated;
+}
+
+/** Inserts a new year section for a registration. */
+function insertNewPageListYear(source, entry): string {
+    const block = buildDateBlock(
+        entry.month,
+        entry.day,
+        entry.article,
+        entry.categories,
+    );
+    const updated = insertYearSection(source, entry.year, block);
+
+    return updated;
+}
+
+/** Builds normalized registration entry values. */
+function buildNewPageListEntry(articleTitle, companyCategories, date): any {
+    const entry = {
+        article: buildVgcCall(articleTitle),
+        categories: companyCategories
+            .map(normalizeCategoryTitle)
+            .filter(Boolean)
+            .map(buildVgcCall),
+        day: date.getUTCDate(),
+        month: date.getUTCMonth() + 1,
+        year: date.getUTCFullYear(),
+    };
+
+    return entry;
 }
 
 
@@ -208,70 +240,70 @@ async function fetchNewPageList(api: any): Promise<any> {
  * Updates or inserts one date block inside a year section.
  *
  * @param section - Year-section body.
- * @param month - UTC month.
- * @param day - UTC day.
- * @param article - Article template call.
- * @param categories - Category template calls.
+ * @param entry - Date block entry.
+ * @param entry.month - UTC month.
+ * @param entry.day - UTC day.
+ * @param entry.article - Article template call.
+ * @param entry.categories - Category template calls.
  * @returns Updated section body.
  */
 function updateYearSection(
     section: string,
-    month: number,
-    day: number,
-    article: string,
-    categories: Array<string>,
+    entry: any,
 ): string {
     const lines = section.split("\n");
     const datePattern = /^\* (\d{1,2})月(\d{1,2})日 - (.*)$/u;
-    const targetIndex = lines.findIndex(function callback(line) {
-        const match = line.match(datePattern);
-
-        return (
-            match != null &&
-            Number(match[1]) === month &&
-            Number(match[2]) === day
-        );
-    });
+    const targetIndex = findDateLine(lines, datePattern, entry);
 
     if (targetIndex !== -1) {
-        appendUnique(lines, targetIndex, article);
-        appendCategories(lines, targetIndex, categories);
+        appendUnique(lines, targetIndex, entry.article);
+        appendCategories(lines, targetIndex, entry.categories);
         return lines.join("\n");
     }
 
-    const insertAt = lines.findIndex(function callback(line) {
-        const match = line.match(datePattern);
-
-        return (
-            match != null &&
-            (Number(match[1]) < month ||
-                (Number(match[1]) === month && Number(match[2]) < day))
-        );
-    });
-    const block = buildDateBlock(month, day, article, categories).split("\n");
-    const trailingWhitespaceIndex = lines.findIndex(
-        function callback(line, index) {
-            return (
-                index > 0 &&
-                line.trim() === "" &&
-                lines
-                    .slice(index)
-                    .every((remaining) => remaining.trim() === "")
-            );
-        },
-    );
-    const fallbackIndex = selectValue(
-        trailingWhitespaceIndex === -1,
-        function trueBranch() {
-            return lines.length;
-        },
-        function falseBranch() {
-            return trailingWhitespaceIndex;
-        },
-    );
+    const insertAt = findDateInsertIndex(lines, datePattern, entry);
+    const block = buildDateBlock(
+        entry.month,
+        entry.day,
+        entry.article,
+        entry.categories,
+    ).split("\n");
+    const fallbackIndex = findTrailingBlankLines(lines);
 
     lines.splice(insertAt === -1 ? fallbackIndex : insertAt, 0, ...block);
     return lines.join("\n");
+}
+
+/** Finds a matching date line. */
+function findDateLine(lines, pattern, entry): number {
+    return lines.findIndex(function callback(line) {
+        const match = line.match(pattern);
+        return match != null &&
+            Number(match[1]) === entry.month &&
+            Number(match[2]) === entry.day;
+    });
+}
+
+/** Finds the descending-date insertion point. */
+function findDateInsertIndex(lines, pattern, entry): number {
+    return lines.findIndex(function callback(line) {
+        const match = line.match(pattern);
+        return match != null && (Number(match[1]) < entry.month ||
+            (Number(match[1]) === entry.month &&
+                Number(match[2]) < entry.day));
+    });
+}
+
+/** Finds the first trailing blank line. */
+function findTrailingBlankLines(lines): number {
+    const index = lines.findIndex(function callback(line, lineIndex) {
+        const blankTail = lines
+            .slice(lineIndex)
+            .every((remaining) => remaining.trim() === "");
+        return lineIndex > 0 && line.trim() === "" && blankTail;
+    });
+
+    return index === -1 ? lines.length : index;
 }
 
 

@@ -33,32 +33,33 @@ export async function fetchEnwikiMetadata(
             return metadata;
         }
 
-        try {
-            const wikidataResponse = await fetcher(
-                buildWikidataEntityUrl(metadata.wikidataId),
-                {
-                    headers: {
-                        accept: "application/json",
-                    },
-                },
-            );
-
-            if (!wikidataResponse.ok) {
-                return metadata;
-            }
-
-            return {
-                ...metadata,
-                ...parseWikidataIdentifiers(
-                    metadata.wikidataId,
-                    await wikidataResponse.json(),
-                ),
-            };
-        } catch (_error) {
-            return metadata;
-        }
+        return await addWikidataIdentifiers(metadata, fetcher);
     } catch (_error) {
         return createBlankEnwikiMetadata(title);
+    }
+}
+
+/** Adds Wikidata identifiers when their entity request succeeds. */
+async function addWikidataIdentifiers(metadata: any, fetcher: any) {
+    try {
+        const response = await fetcher(
+            buildWikidataEntityUrl(metadata.wikidataId),
+            { headers: { accept: "application/json" } },
+        );
+
+        if (!response.ok) {
+            return metadata;
+        }
+
+        return {
+            ...metadata,
+            ...parseWikidataIdentifiers(
+                metadata.wikidataId,
+                await response.json(),
+            ),
+        };
+    } catch (_error) {
+        return metadata;
     }
 }
 

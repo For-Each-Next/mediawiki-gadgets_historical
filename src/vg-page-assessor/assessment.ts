@@ -70,7 +70,6 @@ export function createDefaultAssessment(projectConfig: any): any {
  *
  * @param text - Existing talk-page wikitext.
  * @param assessment - Selected assessment values.
- * @param projectConfig - Assessment project configuration.
  * @returns Updated talk-page wikitext.
  */
 export function updateTalkPageAssessment(
@@ -97,7 +96,6 @@ export function updateTalkPageAssessment(
 export function updateTalkPageTopSection(
     text: string,
     topSection: string,
-    projectConfig: any,
 ): string {
     const source = String(text || "");
     const replacement = String(topSection || "").trim();
@@ -157,7 +155,7 @@ export function buildAssessmentBanners(
     projectConfig: any,
     text = "",
 ): string {
-    const existingBanners = extractExistingShellBanners(text, projectConfig);
+    const existingBanners = extractExistingShellBanners(text);
     const banners = [
         ...existingBanners.filter(function callback(banner) {
             return !isSelectedProjectBanner(banner, assessment, projectConfig);
@@ -404,12 +402,10 @@ function readLeadingTemplate(text: string, start: number): any | null {
  * Extracts existing WPBS nested banners for preservation.
  *
  * @param text - Existing talk-page source.
- * @param projectConfig - Assessment project configuration.
  * @returns Existing nested banner calls.
  */
 function extractExistingShellBanners(
     text: string,
-    projectConfig: any,
 ): Array<string> {
     const leading = readLeadingTemplate(String(text || ""), 0);
 

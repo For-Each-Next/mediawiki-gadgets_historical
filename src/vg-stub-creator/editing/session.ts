@@ -8,34 +8,6 @@ const PREVIEW_FORM_STORAGE_KEY = "vg-stub-creator-preview-form";
 
 
 /**
- * Stores selected follow-up tasks for a submitted article.
- *
- * @param form - Submitted dialog form.
- * @param title - Submitted article title.
- * @param preSave - Configured pre-save fixes.
- * @param storage - Session storage implementation.
- * @returns */
-export function storePendingSaveData(
-    form: any,
-    title: string,
-    preSave: any = {},
-    storage: Storage = sessionStorage,
-): void {
-    storage.setItem(
-        PENDING_SAVE_STORAGE_KEY,
-        JSON.stringify({
-            actions: preSave.actions,
-            form,
-            move: preSave.move,
-            progressGroups: preSave.progressGroups,
-            registration: preSave.registration,
-            title,
-        }),
-    );
-}
-
-
-/**
  * Reads pending follow-up tasks for the current article.
  *
  * @param page - Current page title.

@@ -33,8 +33,4 @@ interface ArticleDataRecord {
     wikitext: Record<string, any>;
 }
 
-interface Window {
-    vgStubCreatorDialog?: any;
-}
-
 declare const __VG_STUB_CREATOR_DIALOG_CSS__: string;

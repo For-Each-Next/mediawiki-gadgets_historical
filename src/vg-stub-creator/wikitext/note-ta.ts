@@ -22,27 +22,10 @@ const TAIWAN_MARKETS = ["hant", "tw"];
  */
 export function buildNoteTaText(params: any = {}): string {
     const manualEntries = normalizeNoteTaEntries(params.entries);
-    const entries = selectValue(
-        manualEntries.length > 0,
-        function trueBranch() {
-            return manualEntries;
-        },
-        function falseBranch() {
-            return [{ key: "G1", value: "Games" }];
-        },
-    );
-    const conversionText = selectValue(
-        hasEditableNameConversionEntry(entries) ||
-            params.namesRemoved === true,
-        function trueBranch() {
-            return undefined;
-        },
-        function falseBranch() {
-            return buildOfficialNameConversionText(params.officialNames);
-        },
-    );
+    const entries = getNoteTaEntries(manualEntries);
+    const conversionText = getNoteTaConversionText(entries, params);
 
-    return buildTemplateText(
+    const text = buildTemplateText(
         "NoteTA-lite",
         sortNoteTaEntries([
             ...entries,
@@ -53,6 +36,32 @@ export function buildNoteTaText(params: any = {}): string {
         ]).map(formatNoteTaTemplateParam),
         "block",
     );
+
+    return text;
+}
+
+/** Gets manual NoteTA rows or the default group row. */
+function getNoteTaEntries(manualEntries: Array<any>): Array<any> {
+    let entries = [{ key: "G1", value: "Games" }];
+
+    if (manualEntries.length > 0) {
+        entries = manualEntries;
+    }
+
+    return entries;
+}
+
+/** Gets generated official-name conversion text when needed. */
+function getNoteTaConversionText(entries, params): string | undefined {
+    const suppressed = hasEditableNameConversionEntry(entries) ||
+        params.namesRemoved === true;
+    let text;
+
+    if (!suppressed) {
+        text = buildOfficialNameConversionText(params.officialNames);
+    }
+
+    return text;
 }
 
 
@@ -175,37 +184,27 @@ function getNoteTaEntryRank(entry: any): any {
     const numberMatch = key.match(/^[1-9]\d*$/u);
 
     if (key === "T") {
-        return {
-            group: 0,
-            number: 0,
-        };
+        return createNoteTaRank(0, 0);
     }
 
     if (groupMatch != null) {
-        return {
-            group: 1,
-            number: Number(groupMatch[1]),
-        };
+        return createNoteTaRank(1, Number(groupMatch[1]));
     }
 
     if (numberMatch != null) {
-        return {
-            group: 2,
-            number: Number(key),
-        };
+        return createNoteTaRank(2, Number(key));
     }
 
     if (key === "") {
-        return {
-            group: 3,
-            number: entry.index,
-        };
+        return createNoteTaRank(3, entry.index);
     }
 
-    return {
-        group: 4,
-        number: entry.index,
-    };
+    return createNoteTaRank(4, entry.index);
+}
+
+/** Creates a sortable NoteTA row rank. */
+function createNoteTaRank(group: number, number: number): any {
+    return { group, number };
 }
 
 
@@ -310,27 +309,4 @@ function hasAnyMarket(row: any, markets: Array<string>): boolean {
     }
 
     return markets.some((market) => row[market] === true);
-}
-
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

@@ -298,36 +298,29 @@ function createSourceTextArea(options: any): any {
  * @returns English page field node.
  */
 function createEnglishPageField(): any {
-    return createFieldTemplate(
-        [
-            "{{ pageEditState.kind === 'navbox'",
-            " ? 'English Wikipedia template' : ",
-            "'English Wikipedia category' }}",
+    const label = [
+        "{{ pageEditState.kind === 'navbox'",
+        " ? 'English Wikipedia template' : ",
+        "'English Wikipedia category' }}",
+    ].join("");
+    const input = createElement("cdx-text-input", {
+        "v-bind:disabled": "pageEditState.loading",
+        "v-bind:placeholder": [
+            "pageEditState.kind === 'navbox' ? ",
+            "'e.g. Template:Final Fantasy series' : 'e.g. Action games'",
         ].join(""),
-        [
-            createElement("cdx-text-input", {
-                "v-bind:disabled": "pageEditState.loading",
-                "v-bind:placeholder": [
-                    "pageEditState.kind === 'navbox' ? ",
-                    "'e.g. Template:Final Fantasy serie",
-                    "s' : 'e.g. Action games'",
-                ].join(""),
-                "v-model": "pageEditState.englishName",
-            }),
-        ],
-        {
-            attributes: {
-                "v-if":
-                    "pageEditState.create && " +
-                    [
-                        "(pageEditState.kind === 'category'",
-                        " || pageEditState.kind === 'navbox",
-                        "')",
-                    ].join(""),
-            },
-            bindLabel: false,
-        },
-    );
+        "v-model": "pageEditState.englishName",
+    });
+    const condition = [
+        "pageEditState.create && (pageEditState.kind === 'category'",
+        " || pageEditState.kind === 'navbox')",
+    ].join("");
+    const field = createFieldTemplate(label, [input], {
+        attributes: { "v-if": condition },
+        bindLabel: false,
+    });
+
+    return field;
 }
 
 

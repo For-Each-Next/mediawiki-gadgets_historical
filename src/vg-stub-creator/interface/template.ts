@@ -1,10 +1,13 @@
-import { createElement, createText } from "../../shared/template.ts";
+import {
+    createElement,
+    createText,
+} from "../../shared/codex-html-template.ts";
 
 export {
     createElement,
     createText,
     renderTemplate,
-} from "../../shared/template.ts";
+} from "../../shared/codex-html-template.ts";
 
 
 /**
@@ -132,35 +135,6 @@ function createActionFooterGroupTemplate(actions: Array<any>): any {
 
 
 /**
- * Creates a link that performs an in-place table row action.
- *
- * @param label - Link label text or Vue expression.
- * @param click - Click handler expression.
- * @param attributes - Extra link attributes.
- * @param attributes.bindLabel - Whether label is a Vue
- * binding.
- * @returns Action link node.
- */
-export function createActionLinkTemplate(
-    label: string,
-    click: string,
-    attributes: any = {},
-): any {
-    const { bindLabel, ...linkAttributes } = attributes;
-
-    return createElement(
-        "a",
-        {
-            href: "#",
-            ...linkAttributes,
-            "v-on:click.prevent": click,
-        },
-        [createText(bindLabel ? `{{ ${label} }}` : label)],
-    );
-}
-
-
-/**
  * Creates an icon-only button that performs an in-place action.
  *
  * @param label - Accessible button label.
@@ -180,7 +154,34 @@ export function createIconActionButtonTemplate(
         class: className,
         ...extra
     } = attributes;
-    const buttonAttributes = {
+    const buttonAttributes = createIconButtonAttributes(
+        label,
+        click,
+        className,
+        extra,
+    );
+
+    if (ariaDisabled != null) {
+        buttonAttributes["v-bind:disabled"] = ariaDisabled;
+    }
+
+    const iconNode = createElement("cdx-icon", {
+        "v-bind:icon": icon,
+        size: "medium",
+    });
+    const button = createElement("cdx-button", buttonAttributes, [iconNode]);
+
+    return button;
+}
+
+/** Creates shared icon-action button attributes. */
+function createIconButtonAttributes(
+    label: string,
+    click: string,
+    className: string,
+    extra: any,
+): any {
+    return {
         "aria-label": label,
         class: ["vg-stub-creator-icon-button", className]
             .filter(Boolean)
@@ -196,16 +197,6 @@ export function createIconActionButtonTemplate(
         "v-on:mouseenter": "showTableActionTooltip($event)",
     };
 
-    if (ariaDisabled != null) {
-        buttonAttributes["v-bind:disabled"] = ariaDisabled;
-    }
-
-    return createElement("cdx-button", buttonAttributes, [
-        createElement("cdx-icon", {
-            "v-bind:icon": icon,
-            size: "medium",
-        }),
-    ]);
 }
 
 
@@ -427,32 +418,6 @@ export function createTableTemplate(
 
 
 /**
- * Creates the wikitext preview template node for one article field.
- *
- * @param fieldExpression - Vue expression resolving to a
- * field.
- * @returns Wikitext preview template node.
- */
-export function createFieldPreviewTemplate(
-    fieldExpression: string = "field",
-): any {
-    const previewExpression = `getFieldPreview(${fieldExpression})`;
-
-    return createElement(
-        "div",
-        {
-            class: [
-                "vg-stub-creator-wikitext-preview v",
-                "g-stub-creator-field-note",
-            ].join(""),
-            "v-if": `${fieldExpression}.previewKey && ${previewExpression}`,
-        },
-        [createText(`{{ ${previewExpression} }}`)],
-    );
-}
-
-
-/**
  * Creates a Codex card showing a wikitext preview fragment.
  *
  * @param title - Card title.
@@ -474,29 +439,26 @@ export function createPreviewCardTemplate(
         options.description,
     );
 
-    return createElement(
+    const titleSlot = createElement(
+        "template",
+        { "v-slot:title": "" },
+        [createText(title)],
+    );
+    const supportingSlot = createElement(
+        "template",
+        { "v-slot:supporting-text": "" },
+        supportingText,
+    );
+    const card = createElement(
         "cdx-card",
         {
             class: "vg-stub-creator-preview-card",
             "v-if": options.condition || expression,
         },
-        [
-            createElement(
-                "template",
-                {
-                    "v-slot:title": "",
-                },
-                [createText(title)],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-slot:supporting-text": "",
-                },
-                supportingText,
-            ),
-        ],
+        [titleSlot, supportingSlot],
     );
+
+    return card;
 }
 
 

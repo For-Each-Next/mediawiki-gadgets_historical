@@ -11,17 +11,6 @@ export const FIELD_REFERENCE_DATA = fieldData;
 
 
 /**
- * Builds a category link.
- *
- * @param category - Category title without namespace.
- * @returns Category wikitext.
- */
-export function buildCategoryLink(category: string): string {
-    return `[[Category:${category}]]`;
-}
-
-
-/**
  * Builds a template call.
  *
  * @param template - Template title without braces.
@@ -212,17 +201,6 @@ export function uniqueValues(values: Array<string>): Array<string> {
 
 
 /**
- * Joins one user-entered field for display in prose.
- *
- * @param value - User-entered field value.
- * @returns Joined display text.
- */
-export function joinFieldValues(value: string): string {
-    return splitFieldValues(value).join("、");
-}
-
-
-/**
  * Splits one user-entered field into reusable lookup values.
  *
  * @param value - User-entered field value.
@@ -325,16 +303,10 @@ function splitDelimitedFieldValue(value: string): Array<string> {
 
     for (let index = 0; index < text.length; index++) {
         const pair = text.slice(index, index + 2);
+        const transition = getWikilinkTransition(pair, inWikilink);
 
-        if (pair === "[[") {
-            inWikilink = true;
-            item += pair;
-            index++;
-            continue;
-        }
-
-        if (pair === "]]" && inWikilink) {
-            inWikilink = false;
+        if (transition != null) {
+            inWikilink = transition;
             item += pair;
             index++;
             continue;
@@ -355,6 +327,18 @@ function splitDelimitedFieldValue(value: string): Array<string> {
     items.push(item);
 
     return items;
+}
+
+/** Gets the wikilink state after consuming a delimiter pair. */
+function getWikilinkTransition(pair: string, inWikilink: boolean) {
+    if (pair === "[[") {
+        return true;
+    }
+    if (pair === "]]" && inWikilink) {
+        return false;
+    }
+
+    return null;
 }
 
 
@@ -480,32 +464,6 @@ export function getReferenceDefinition(
 
 
 /**
- * Gets one reference definition with its source value.
- *
- * @param definitions - Reference definitions for
- * a
- * lookup field.
- * @param value - User-entered field item.
- * @returns Matched reference definition.
- */
-export function getSourceReference(
-    definitions: any | Array<any>,
-    value: string,
-): any | undefined {
-    const reference = getReferenceDefinition(definitions, value);
-
-    if (reference == null) {
-        return undefined;
-    }
-
-    return {
-        ...reference,
-        source: value,
-    };
-}
-
-
-/**
  * Gets one reference entry by key or alias.
  *
  * @param definitions - Reference definitions for
@@ -581,27 +539,4 @@ function getReferenceKey(definition: any): string | undefined {
  */
 function normalizeAlias(alias: string): string {
     return alias.toLocaleLowerCase();
-}
-
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

@@ -46,27 +46,17 @@ export function buildGenreMetadata(value) {
  */
 function buildGenreItem(value): ArticleDataValue {
     if (isWikilinkValue(value)) {
-        const parts = getWikilinkParts(value);
-        const item: ArticleDataValue = {
-            displayText: parts.label || parts.target,
-            linkTarget: parts.target,
-            normalizedText: value,
-            wikitext: value,
-        };
-
-        return item;
+        return buildLinkedGenreItem(value);
     }
 
     const reference = getTerminology("genre", value);
 
     if (reference == null) {
-        const item: ArticleDataValue = {
+        return {
             displayText: value,
             normalizedText: value,
             wikitext: value,
         };
-
-        return item;
     }
 
     const item: ArticleDataValue = {
@@ -81,6 +71,18 @@ function buildGenreItem(value): ArticleDataValue {
     }
 
     return item;
+}
+
+/** Builds a genre item from an explicit wikilink. */
+function buildLinkedGenreItem(value: string): ArticleDataValue {
+    const parts = getWikilinkParts(value);
+
+    return {
+        displayText: parts.label || parts.target,
+        linkTarget: parts.target,
+        normalizedText: value,
+        wikitext: value,
+    };
 }
 
 

@@ -92,20 +92,7 @@ export const scoresModule = defineArticleModule({
                 recommend: form.openCriticRecommend,
             },
         };
-        const values = [
-            {
-                key: "metacritic",
-                metadata: metadata.metacritic,
-                normalizedText: [form.metacriticPlatform, form.metacriticScore]
-                    .filter(Boolean)
-                    .join(":"),
-            },
-            {
-                key: "openCritic",
-                metadata: metadata.openCritic,
-                normalizedText: form.openCriticRecommend,
-            },
-        ].filter((value) => value.normalizedText !== "");
+        const values = buildScoreValues(form, metadata);
         const output = {
             citations,
             metadata,
@@ -119,6 +106,27 @@ export const scoresModule = defineArticleModule({
         return output;
     },
 });
+
+/** Builds normalized aggregate-score values. */
+function buildScoreValues(form, metadata): Array<any> {
+    const metacriticText = [form.metacriticPlatform, form.metacriticScore]
+        .filter(Boolean)
+        .join(":");
+    const values = [
+        {
+            key: "metacritic",
+            metadata: metadata.metacritic,
+            normalizedText: metacriticText,
+        },
+        {
+            key: "openCritic",
+            metadata: metadata.openCritic,
+            normalizedText: form.openCriticRecommend,
+        },
+    ].filter((value) => value.normalizedText !== "");
+
+    return values;
+}
 
 
 /**

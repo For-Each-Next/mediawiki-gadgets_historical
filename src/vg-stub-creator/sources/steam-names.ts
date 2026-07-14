@@ -21,6 +21,18 @@ export async function fetchSteamNameRows(
     options: any = {},
 ): Promise<Array<any>> {
     getSteamAppId(sourceUrl);
+    const languages = buildSteamLanguages(options.includeJapanese === true);
+    const rows = await Promise.all(
+        languages.map(function callback(item) {
+            return fetchSteamNameRow(sourceUrl, item, citationStore);
+        }),
+    );
+
+    return rows.filter(Boolean);
+}
+
+/** Builds the Steam language requests for a lookup. */
+function buildSteamLanguages(includeJapanese: boolean): Record<string, any>[] {
     const languages: Record<string, any>[] = [
         {
             label: "Simplified",
@@ -34,7 +46,7 @@ export async function fetchSteamNameRows(
         },
     ];
 
-    if (options.includeJapanese === true) {
+    if (includeJapanese) {
         languages.push({
             label: "Japanese",
             language: "japanese",
@@ -43,13 +55,7 @@ export async function fetchSteamNameRows(
         });
     }
 
-    const rows = await Promise.all(
-        languages.map(function callback(item) {
-            return fetchSteamNameRow(sourceUrl, item, citationStore);
-        }),
-    );
-
-    return rows.filter(Boolean);
+    return languages;
 }
 
 

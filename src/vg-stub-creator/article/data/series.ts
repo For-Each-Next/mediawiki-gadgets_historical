@@ -78,6 +78,11 @@ function buildSeriesTitleItem(series): ArticleDataValue {
         return item;
     }
 
+    return buildLinkedSeriesTitleItem(series);
+}
+
+/** Builds a series-title item from an explicit wikilink. */
+function buildLinkedSeriesTitleItem(series: string): ArticleDataValue {
     const parts = getWikilinkParts(series);
     const label = parts.label || parts.target;
     const linkTarget = selectValue(
@@ -92,14 +97,13 @@ function buildSeriesTitleItem(series): ArticleDataValue {
     const displayText = formatText("patterns.seriesDisplayTitle", {
         title: label,
     });
-    const item = {
+    return {
         displayText,
         linkTarget,
         normalizedText: series,
         wikitext: buildLinkText(linkTarget, displayText),
     };
 
-    return item;
 }
 
 

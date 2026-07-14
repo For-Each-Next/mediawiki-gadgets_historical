@@ -17,14 +17,38 @@ import { formatText, getTextTemplate } from "../shared/text-templates.ts";
  * @returns Composed article prose fragments.
  */
 export function buildArticleProse(records: any, sourceTags: any): any {
-    const names = records.names.metadata;
-    const leadValues = {
-        englishName: names.englishName,
-        name: names.name,
-        originalLanguage: names.original.language,
-        originalName: names.original.name,
+    const sentence1 = buildOpeningProse(records, sourceTags);
+    const sentence2 = buildPlatformsAndSeriesProse(
+        records.platform,
+        records.series,
         sourceTags,
+    );
+    const sentence3 = buildScoresProse(records.scores, sourceTags);
+    const sentence4 = buildAppendProse(
+        records.additionalProse,
+        sourceTags.additionalProse,
+    );
+    const fragments = { sentence1, sentence2, sentence3, sentence4 };
+    const proseValues = {
+        sentence1: sentence1.text,
+        sentence2,
+        sentence3,
+        sentence4,
     };
+    const countedText = buildCountedProseText(sentence1, proseValues);
+    const prose = {
+        fragments,
+        sinographs: countProseSinographs(countedText),
+        text: formatText("prose.text", proseValues),
+    };
+
+    return prose;
+}
+
+/** Builds the opening title, year, genre, and company sentence. */
+function buildOpeningProse(records, sourceTags): any {
+    const names = records.names.metadata;
+    const leadValues = buildLeadValues(names, sourceTags);
     const titles = buildLeadNameText(leadValues);
     const yearGenre = buildYearGenreProse(
         records.year,
@@ -43,49 +67,41 @@ export function buildArticleProse(records: any, sourceTags: any): any {
         titles,
         yearGenre,
     };
-    const sentence1 = {
+    const sentence = {
         s1a: sentence1a,
         s1b: sentence1b,
         text: buildSentence1Text(sentence1a.text, sentence1b),
     };
-    const sentence2 = buildPlatformsAndSeriesProse(
-        records.platform,
-        records.series,
+
+    return sentence;
+}
+
+/** Builds lead-name input values from normalized name metadata. */
+function buildLeadValues(names, sourceTags): any {
+    return {
+        englishName: names.englishName,
+        name: names.name,
+        originalLanguage: names.original.language,
+        originalName: names.original.name,
         sourceTags,
-    );
-    const sentence3 = buildScoresProse(records.scores, sourceTags);
-    const sentence4 = buildAppendProse(
-        records.additionalProse,
-        sourceTags.additionalProse,
-    );
-    const fragments = {
-        sentence1,
-        sentence2,
-        sentence3,
-        sentence4,
     };
-    const proseValues = {
-        sentence1: sentence1.text,
-        sentence2,
-        sentence3,
-        sentence4,
-    };
+}
+
+/** Builds prose text with titles excluded from the length count. */
+function buildCountedProseText(sentence1, proseValues): string {
     const countedSentence1a = formatText("prose.countedSentence1a", {
-        yearGenre,
+        yearGenre: sentence1.s1a.yearGenre,
     });
-    const countedSentence1 = buildSentence1Text(countedSentence1a, sentence1b);
+    const countedSentence1 = buildSentence1Text(
+        countedSentence1a,
+        sentence1.s1b,
+    );
     const countedText = formatText("prose.text", {
         ...proseValues,
         sentence1: countedSentence1,
     });
-    const text = formatText("prose.text", proseValues);
-    const prose = {
-        fragments,
-        sinographs: countProseSinographs(countedText),
-        text,
-    };
 
-    return prose;
+    return countedText;
 }
 
 
@@ -188,18 +204,7 @@ export function buildPlatformsAndSeriesProse(
         return prose;
     }
 
-    const seriesClause = selectValue(
-        seriesText === "",
-        function trueBranch() {
-            return "";
-        },
-        function falseBranch() {
-            return formatText("prose.seriesClause", {
-                seriesSourceTag: sourceTags.series || "",
-                seriesText,
-            });
-        },
-    );
+    const seriesClause = buildSeriesClause(seriesText, sourceTags);
     const values = {
         platformSourceTag: sourceTags.platforms || "",
         platformText,
@@ -208,6 +213,20 @@ export function buildPlatformsAndSeriesProse(
     const prose = formatText("prose.sentence2", values);
 
     return prose;
+}
+
+/** Builds the optional series clause following platform prose. */
+function buildSeriesClause(seriesText: string, sourceTags: any): string {
+    if (seriesText === "") {
+        return "";
+    }
+
+    const clause = formatText("prose.seriesClause", {
+        seriesSourceTag: sourceTags.series || "",
+        seriesText,
+    });
+
+    return clause;
 }
 
 

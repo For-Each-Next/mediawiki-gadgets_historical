@@ -25,24 +25,10 @@ export function createSaveProgress(
     registration: any = {},
     progressGroups: Array<any> = [],
 ): any {
-    const steps = [
-        {
-            id: "save",
-            label: `Save page: ${title}`,
-            parts: [{ text: "Save page: " }, { code: title }],
-            status: "pending",
-            targetPage: title,
-        },
-    ];
+    const steps = [buildSaveProgressStep(title)];
 
     if (move.enabled === true) {
-        steps.push({
-            id: "move",
-            label: `Move page to ${move.to}`,
-            parts: [{ text: "Move page to " }, { code: move.to }],
-            status: "pending",
-            targetPage: title,
-        });
+        steps.push(buildMoveProgressStep(title, move));
     }
 
     const checklistSteps = buildChecklistProgressSteps(progressGroups);
@@ -50,28 +36,8 @@ export function createSaveProgress(
     if (checklistSteps.length > 0) {
         steps.push(...checklistSteps);
     } else {
-        actions
-            .filter((action) => action.selected)
-            .forEach(function callback(action) {
-                steps.push({
-                    id: action.id,
-                    label: action.label,
-                    parts: buildActionProgressParts(action, title),
-                    status: "pending",
-                    targetPage: getActionTargetPage(action, title),
-                });
-                steps.push(...buildBundledActionProgressSteps(action));
-            });
-
-        if (registration.enabled === true) {
-            steps.push({
-                id: "new-page-list",
-                label: "Register on WikiProject new-page list",
-                parts: [{ text: "Register on WikiProject new-page list" }],
-                status: "pending",
-                targetPage: NEW_PAGE_LIST_TITLE,
-            });
-        }
+        steps.push(...buildSelectedActionProgressSteps(actions, title));
+        steps.push(...buildRegistrationProgressSteps(registration));
     }
 
     return {
@@ -80,6 +46,60 @@ export function createSaveProgress(
         steps,
         title,
     };
+}
+
+/** Builds the primary article-save progress step. */
+function buildSaveProgressStep(title: string): any {
+    return {
+        id: "save",
+        label: `Save page: ${title}`,
+        parts: [{ text: "Save page: " }, { code: title }],
+        status: "pending",
+        targetPage: title,
+    };
+}
+
+/** Builds an optional article-move progress step. */
+function buildMoveProgressStep(title: string, move: any): any {
+    return {
+        id: "move",
+        label: `Move page to ${move.to}`,
+        parts: [{ text: "Move page to " }, { code: move.to }],
+        status: "pending",
+        targetPage: title,
+    };
+}
+
+/** Builds progress steps for selected follow-up actions. */
+function buildSelectedActionProgressSteps(actions, title): Array<any> {
+    return actions.filter((action) => action.selected).flatMap(
+        function callback(action) {
+            const step = {
+                id: action.id,
+                label: action.label,
+                parts: buildActionProgressParts(action, title),
+                status: "pending",
+                targetPage: getActionTargetPage(action, title),
+            };
+
+            return [step, ...buildBundledActionProgressSteps(action)];
+        },
+    );
+}
+
+/** Builds the optional new-page-list registration progress step. */
+function buildRegistrationProgressSteps(registration): Array<any> {
+    if (registration.enabled !== true) {
+        return [];
+    }
+
+    return [{
+        id: "new-page-list",
+        label: "Register on WikiProject new-page list",
+        parts: [{ text: "Register on WikiProject new-page list" }],
+        status: "pending",
+        targetPage: NEW_PAGE_LIST_TITLE,
+    }];
 }
 
 
@@ -159,45 +179,70 @@ function buildActionProgressParts(
     title: string,
 ): Array<any> | undefined {
     if (action.type === "interwiki") {
-        return [
-            { text: "Connect " },
-            { code: title },
-            { text: " to " },
-            { code: action.wikidataId },
-        ];
+        return buildConnectionProgressParts(title, action.wikidataId);
     }
 
     if (action.type === "redirect") {
-        return [
-            { text: "Redirect name: " },
-            { code: action.redirectTitle },
-            { text: " to " },
-            { code: title },
-        ];
+        return buildRedirectProgressParts(action, title);
     }
 
     if (action.type === "talk-banner") {
-        return [
-            { text: "Add WikiProject Video games banner to " },
-            { code: `Talk:${title}` },
-        ];
+        return buildTalkBannerProgressParts(title);
     }
 
     if (action.type === "category") {
-        return [
-            { text: "Create category: " },
-            { code: `Category:${action.category}` },
-        ];
+        return buildCategoryProgressParts(action);
     }
 
     if (action.type === "page-edit") {
-        return [
-            { text: `${action.create ? "Create" : "Edit"} page: ` },
-            { code: action.title },
-        ];
+        return buildPageEditProgressParts(action);
     }
 
     return undefined;
+}
+
+/** Builds connection progress fragments. */
+function buildConnectionProgressParts(title, wikidataId): Array<any> {
+    return [
+        { text: "Connect " },
+        { code: title },
+        { text: " to " },
+        { code: wikidataId },
+    ];
+}
+
+/** Builds redirect progress fragments. */
+function buildRedirectProgressParts(action, title): Array<any> {
+    return [
+        { text: "Redirect name: " },
+        { code: action.redirectTitle },
+        { text: " to " },
+        { code: title },
+    ];
+}
+
+/** Builds talk-banner progress fragments. */
+function buildTalkBannerProgressParts(title): Array<any> {
+    return [
+        { text: "Add WikiProject Video games banner to " },
+        { code: `Talk:${title}` },
+    ];
+}
+
+/** Builds category progress fragments. */
+function buildCategoryProgressParts(action): Array<any> {
+    return [
+        { text: "Create category: " },
+        { code: `Category:${action.category}` },
+    ];
+}
+
+/** Builds page-edit progress fragments. */
+function buildPageEditProgressParts(action): Array<any> {
+    return [
+        { text: `${action.create ? "Create" : "Edit"} page: ` },
+        { code: action.title },
+    ];
 }
 
 
@@ -345,11 +390,23 @@ function buildBundledActionProgressSteps(action: any): Array<any> {
 
     const categoryTitle =
         action.pageTitle || `Category:${normalizeActionText(action.category)}`;
-    const steps = [];
+    const steps = [buildBundledTalkProgressStep(action, categoryTitle)];
     const wikidataId = normalizeActionText(action.wikidataId);
     const englishName = normalizeActionText(action.englishName);
 
-    steps.push({
+    steps.push(...buildBundledWikidataProgressSteps({
+        action,
+        categoryTitle,
+        englishName,
+        wikidataId,
+    }));
+
+    return steps;
+}
+
+/** Builds a bundled category talk-banner progress step. */
+function buildBundledTalkProgressStep(action, categoryTitle): any {
+    return {
         id: `${action.id}:talk-banner`,
         label: [
             "Add WikiProject Video games banner",
@@ -363,32 +420,36 @@ function buildBundledActionProgressSteps(action: any): Array<any> {
         ],
         status: "pending",
         targetPage: categoryTitle,
-    });
+    };
+}
 
-    if (wikidataId !== "") {
-        steps.push({
-            id: `${action.id}:wikidata`,
-            label: `Connect ${categoryTitle} to ${wikidataId}`,
+/** Builds bundled category Wikidata progress steps. */
+function buildBundledWikidataProgressSteps(options): Array<any> {
+    if (options.wikidataId !== "") {
+        return [{
+            id: `${options.action.id}:wikidata`,
+            label: `Connect ${options.categoryTitle} to ${options.wikidataId}`,
             parts: [
                 { text: "Connect " },
-                { code: categoryTitle },
+                { code: options.categoryTitle },
                 { text: " to " },
-                { code: wikidataId },
+                { code: options.wikidataId },
             ],
             status: "pending",
-            targetPage: categoryTitle,
-        });
-    } else if (englishName !== "") {
-        steps.push({
-            id: `${action.id}:wikidata`,
+            targetPage: options.categoryTitle,
+        }];
+    }
+    if (options.englishName !== "") {
+        return [{
+            id: `${options.action.id}:wikidata`,
             label: "Connect matching Wikidata category item",
             parts: [{ text: "Connect matching Wikidata category item" }],
             status: "pending",
-            targetPage: categoryTitle,
-        });
+            targetPage: options.categoryTitle,
+        }];
     }
 
-    return steps;
+    return [];
 }
 
 

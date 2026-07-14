@@ -131,7 +131,7 @@ export const namesModule = defineArticleModule({
  * Defines the module-level build name values.
  */
 function buildNameValues(form) {
-    const values = [
+    const primaryValues = [
         {
             key: "name",
             normalizedText: form.name,
@@ -150,17 +150,22 @@ function buildNameValues(form) {
             normalizedText: form.englishName,
             wikitext: form.englishName,
         },
-        ...form.localizedNames.map(function callback(row) {
-            return {
-                key: "localizedName",
-                metadata: row,
-                normalizedText: row.name,
-                wikitext: row.name,
-            };
-        }),
-    ].filter((value) => value.normalizedText !== "");
+    ];
+    const localizedValues = form.localizedNames.map(buildLocalizedNameValue);
+    const values = [...primaryValues, ...localizedValues]
+        .filter((value) => value.normalizedText !== "");
 
     return values;
+}
+
+/** Builds a normalized localized-name value. */
+function buildLocalizedNameValue(row): any {
+    return {
+        key: "localizedName",
+        metadata: row,
+        normalizedText: row.name,
+        wikitext: row.name,
+    };
 }
 
 
@@ -172,37 +177,42 @@ function buildNameValues(form) {
  */
 function getLocalizedNameRows(form: any): Array<any> {
     if (Array.isArray(form.localizedNames)) {
-        return form.localizedNames.map(function callback(row, index) {
-            return {
-                ...row,
-                name: trimFieldValue(row.name),
-                sourceKey: buildNameSourceReferenceKey(
-                    "localizedNames",
-                    index,
-                ),
-                sourceUrl: trimFieldValue(row.sourceUrl),
-            };
-        });
+        const rows = normalizeLocalizedNameRows(
+            form.localizedNames,
+            "localizedNames",
+        );
+
+        return rows;
     }
 
-    return [
-        ...(form.officialNames || []).map(function callback(row, index) {
-            return {
-                ...row,
-                name: trimFieldValue(row.name),
-                official: true,
-                sourceKey: buildNameSourceReferenceKey("officialNames", index),
-                sourceUrl: trimFieldValue(row.sourceUrl),
-            };
-        }),
-        ...(form.commonNames || []).map(function callback(row, index) {
-            return {
-                ...row,
-                name: trimFieldValue(row.name),
-                official: false,
-                sourceKey: buildNameSourceReferenceKey("commonNames", index),
-                sourceUrl: trimFieldValue(row.sourceUrl),
-            };
-        }),
-    ];
+    const official = normalizeLocalizedNameRows(
+        form.officialNames || [],
+        "officialNames",
+        true,
+    );
+    const common = normalizeLocalizedNameRows(
+        form.commonNames || [],
+        "commonNames",
+        false,
+    );
+
+    return [...official, ...common];
+}
+
+/** Normalizes localized-name rows with stable source keys. */
+function normalizeLocalizedNameRows(rows, key, official?): Array<any> {
+    return rows.map(function callback(row, index) {
+        const normalized = {
+            ...row,
+            name: trimFieldValue(row.name),
+            sourceKey: buildNameSourceReferenceKey(key, index),
+            sourceUrl: trimFieldValue(row.sourceUrl),
+        };
+
+        if (official != null) {
+            normalized.official = official;
+        }
+
+        return normalized;
+    });
 }

@@ -26,7 +26,25 @@ export function createDataRecord(
     key: string,
     data: any = {},
 ): ArticleDataRecord {
-    const record: ArticleDataRecord = {
+    const record = createBlankDataRecord(key, data);
+
+    delete record.categories;
+    delete record.stubTags;
+    cloneRecordArrays(record);
+    record.values = record.values.map(createDataValue);
+
+    if (record.sourceUrls.length === 0) {
+        record.sourceUrls = record.citations
+            .map((citation) => citation.sourceUrl)
+            .filter(Boolean);
+    }
+
+    return record;
+}
+
+/** Creates a data record with blank shared collections. */
+function createBlankDataRecord(key: string, data: any): ArticleDataRecord {
+    return {
         assumedCategories: data.categories || [],
         assumedStubTags: data.stubTags || [],
         categoryItems: [],
@@ -44,21 +62,13 @@ export function createDataRecord(
         ...data,
     };
 
-    delete record.categories;
-    delete record.stubTags;
+}
 
+/** Clones mutable array values owned by a data record. */
+function cloneRecordArrays(record: ArticleDataRecord): void {
     ARRAY_KEYS.forEach(function callback(arrayKey) {
         record[arrayKey] = [...(record[arrayKey] || [])];
     });
-    record.values = record.values.map(createDataValue);
-
-    if (record.sourceUrls.length === 0) {
-        record.sourceUrls = record.citations
-            .map((citation) => citation.sourceUrl)
-            .filter(Boolean);
-    }
-
-    return record;
 }
 
 

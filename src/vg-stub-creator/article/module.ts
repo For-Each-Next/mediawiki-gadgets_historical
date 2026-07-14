@@ -33,71 +33,48 @@ export function defineArticleModule(definition: any): any {
     const listFields = Object.freeze([...(definition.listFields || [])]);
     const sourceFields = Object.freeze([...(definition.sourceFields || [])]);
 
-    return Object.freeze({
+    const module = {
         fields,
+        flush: flushModule.bind(null, definition, fields),
+        formatField: formatModuleField.bind(null, definition),
         key: definition.key,
         listFields,
+        normalize: normalizeModule.bind(null, definition),
         sourceFields,
+    };
 
-        /**
-         * Builds a normalized record for this module.
-         *
-         * @param form - Fully normalized article form.
-         * @param context - Shared module context.
-         * @returns Uniform article data record.
-         */
-        flush(form: any, context: any): any {
-            const data = selectValue(
-                definition.flush == null,
-                function trueBranch() {
-                    return {};
-                },
-                function falseBranch() {
-                    return definition.flush(form, context);
-                },
-            );
-            const normalizedText = pickFields(form, fields);
-            const inputText = pickFields(context.rawForm, fields);
-            const payloadData = {
-                inputText,
-                normalizedText,
-                ...data,
-            };
+    return Object.freeze(module);
+}
 
-            return createDataRecord(definition.key, payloadData);
-        },
+/** Builds one module data record. */
+function flushModule(definition, fields, form, context): any {
+    let data = {};
 
-        /**
-         * Formats a live form field owned by this part.
-         *
-         * @param key - Form field key.
-         * @param value - Raw form field value.
-         * @param form - Current form values.
-         * @returns Formatted field value.
-         */
-        formatField(key: string, value: any, form: any): any {
-            if (definition.formatField == null) {
-                return value;
-            }
+    if (definition.flush != null) {
+        data = definition.flush(form, context);
+    }
+    const normalizedText = pickFields(form, fields);
+    const inputText = pickFields(context.rawForm, fields);
+    const payloadData = { inputText, normalizedText, ...data };
+    return createDataRecord(definition.key, payloadData);
+}
 
-            return definition.formatField(key, value, form);
-        },
+/** Formats a live module field. */
+function formatModuleField(definition, key, value, form): any {
+    if (definition.formatField == null) {
+        return value;
+    }
 
-        /**
-         * Normalizes all form values owned by this part.
-         *
-         * @param form - Current normalized form values.
-         * @param context - Shared module context.
-         * @returns Normalized form patch.
-         */
-        normalize(form: any, context: any): any {
-            if (definition.normalize == null) {
-                return {};
-            }
+    return definition.formatField(key, value, form);
+}
 
-            return definition.normalize(form, context);
-        },
-    });
+/** Normalizes one module's form values. */
+function normalizeModule(definition, form, context): any {
+    if (definition.normalize == null) {
+        return {};
+    }
+
+    return definition.normalize(form, context);
 }
 
 
@@ -125,27 +102,4 @@ function pickFields(form: any, fields: ReadonlyArray<string>): any {
  */
 function trimKey(key: any): string {
     return key == null ? "" : String(key).trim();
-}
-
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

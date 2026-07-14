@@ -54,11 +54,24 @@ export async function fetchPageText(api: any, title: string): Promise<any> {
         rvslots: "main",
         titles: title,
     });
+    const result = parseFetchedPageText(response);
+
+    logStep("fetchPageText done", {
+        exists: result.exists,
+        textLength: result.text.length,
+        title,
+    });
+
+    return result;
+}
+
+/** Parses page text and edit timestamps from a query response. */
+function parseFetchedPageText(response: any): any {
     const pages = response?.query?.pages || [];
     const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
     const revision = page?.revisions?.[0];
 
-    const result = {
+    return {
         basetimestamp: revision?.timestamp,
         exists: page?.missing == null,
         starttimestamp: response.curtimestamp,
@@ -68,14 +81,6 @@ export async function fetchPageText(api: any, title: string): Promise<any> {
             revision?.["*"] ??
             "",
     };
-
-    logStep("fetchPageText done", {
-        exists: result.exists,
-        textLength: result.text.length,
-        title,
-    });
-
-    return result;
 }
 
 
@@ -168,35 +173,15 @@ export async function fetchPageCreationTimes(
         return creationTimes;
     }
 
-    const resolvedTitles = new Map();
+    const resolvedTitles = await resolveRedirectTitles(api, uniqueTitles);
+    const targets = [...new Set(resolvedTitles.values())];
+    const targetCreationTimes = await fetchRevisionCreationTimes(api, targets);
 
-    await Promise.all(
-        uniqueTitles.map(async function callback(title) {
-            const text = await fetchCurrentPageText(api, title);
-            const target = parseRedirectTarget(text) || title;
-
-            resolvedTitles.set(title, target);
-            logStep("fetchPageCreationTimes resolved title", {
-                target,
-                title,
-            });
-        }),
+    mergeResolvedCreationTimes(
+        creationTimes,
+        resolvedTitles,
+        targetCreationTimes,
     );
-
-    const targetCreationTimes = await fetchRevisionCreationTimes(api, [
-        ...new Set(resolvedTitles.values()),
-    ]);
-
-    resolvedTitles.forEach(function callback(target, title) {
-        const date = targetCreationTimes.get(target);
-
-        if (date == null) {
-            return;
-        }
-
-        creationTimes.set(title, date);
-        creationTimes.set(target, date);
-    });
 
     logStep("fetchPageCreationTimes done", {
         entries: [...creationTimes.entries()].map(function callback([
@@ -208,6 +193,39 @@ export async function fetchPageCreationTimes(
     });
 
     return creationTimes;
+}
+
+/** Resolves redirect targets for requested page titles. */
+async function resolveRedirectTitles(api: any, titles: Array<string>) {
+    const resolvedTitles = new Map();
+
+    await Promise.all(titles.map(async function callback(title) {
+        const text = await fetchCurrentPageText(api, title);
+        const target = parseRedirectTarget(text) || title;
+
+        resolvedTitles.set(title, target);
+        logStep("fetchPageCreationTimes resolved title", { target, title });
+    }));
+
+    return resolvedTitles;
+}
+
+/** Maps target creation times back to requested redirect titles. */
+function mergeResolvedCreationTimes(
+    output,
+    resolvedTitles,
+    targetTimes,
+): void {
+    resolvedTitles.forEach(function callback(target, title) {
+        const date = targetTimes.get(target);
+
+        if (date == null) {
+            return;
+        }
+
+        output.set(title, date);
+        output.set(target, date);
+    });
 }
 
 
@@ -287,54 +305,18 @@ async function fetchRevisionCreationTimes(
     const creationTimes = new Map();
     const uniqueTitles = [...new Set(titles.filter(Boolean))];
     const cache = readCreationDateCache();
-    const uncachedTitles = [];
+    const uncachedTitles = readCachedCreationTimes(
+        uniqueTitles,
+        cache,
+        creationTimes,
+    );
 
-    uniqueTitles.forEach(function callback(title) {
-        const cached = cache[normalizeCacheTitle(title)];
-
-        if (cached != null) {
-            creationTimes.set(title, new Date(cached));
-            logStep("fetchRevisionCreationTimes cache hit", {
-                timestamp: cached,
-                title,
-            });
-            return;
-        }
-
-        uncachedTitles.push(title);
-    });
-
-    for (const namespaceTitles of groupTitlesByNamespace(
+    await fetchUncachedCreationTimes(
+        api,
         uncachedTitles,
-    ).values()) {
-        for (
-            let index = 0;
-            index < namespaceTitles.length;
-            index += MAX_TITLES_PER_QUERY
-        ) {
-            const batchTitles = namespaceTitles.slice(
-                index,
-                index + MAX_TITLES_PER_QUERY,
-            );
-            const batchTimes = await fetchRevisionCreationTimeBatch(
-                api,
-                batchTitles,
-            );
-
-            batchTimes.forEach(function callback(date, title) {
-                creationTimes.set(title, date);
-                cache[normalizeCacheTitle(title)] = date.toISOString();
-            });
-            batchTitles.forEach(function callback(title) {
-                const date = getCreationTimeForTitle(batchTimes, title);
-
-                if (date != null) {
-                    creationTimes.set(title, date);
-                    cache[normalizeCacheTitle(title)] = date.toISOString();
-                }
-            });
-        }
-    }
+        cache,
+        creationTimes,
+    );
 
     writeCreationDateCache(cache);
     logStep("fetchRevisionCreationTimes done", {
@@ -347,6 +329,57 @@ async function fetchRevisionCreationTimes(
     });
 
     return creationTimes;
+}
+
+/** Returns titles without cached creation times. */
+function readCachedCreationTimes(titles, cache, creationTimes): Array<string> {
+    return titles.filter(function callback(title) {
+        const cached = cache[normalizeCacheTitle(title)];
+
+        if (cached == null) {
+            return true;
+        }
+
+        creationTimes.set(title, new Date(cached));
+        logStep("fetchRevisionCreationTimes cache hit", {
+            timestamp: cached,
+            title,
+        });
+
+        return false;
+    });
+}
+
+/** Fetches uncached creation times in namespace-homogeneous batches. */
+async function fetchUncachedCreationTimes(api, titles, cache, output) {
+    for (const group of groupTitlesByNamespace(titles).values()) {
+        for (
+            let index = 0;
+            index < group.length;
+            index += MAX_TITLES_PER_QUERY
+        ) {
+            const batch = group.slice(index, index + MAX_TITLES_PER_QUERY);
+            const times = await fetchRevisionCreationTimeBatch(api, batch);
+
+            mergeCreationTimeBatch(output, cache, batch, times);
+        }
+    }
+}
+
+/** Merges one API batch into creation-time output and cache maps. */
+function mergeCreationTimeBatch(output, cache, titles, times): void {
+    times.forEach(function callback(date, title) {
+        output.set(title, date);
+        cache[normalizeCacheTitle(title)] = date.toISOString();
+    });
+    titles.forEach(function callback(title) {
+        const date = getCreationTimeForTitle(times, title);
+
+        if (date != null) {
+            output.set(title, date);
+            cache[normalizeCacheTitle(title)] = date.toISOString();
+        }
+    });
 }
 
 
@@ -372,31 +405,31 @@ async function fetchRevisionCreationTimeBatch(
             throw error;
         }
 
-        logStep(
-            [
-                "fetchRevisionCreationTimeBatch fal",
-                "lback to single-title requests",
-            ].join(""),
-            {
-                error,
-                titles,
-            },
+        return await fetchIndividualCreationTimes(api, titles, error);
+    }
+}
+
+/** Retries a failed creation-time batch one title at a time. */
+async function fetchIndividualCreationTimes(api, titles, error) {
+    const message = [
+        "fetchRevisionCreationTimeBatch fal",
+        "lback to single-title requests",
+    ].join("");
+    const creationTimes = new Map();
+
+    logStep(message, { error, titles });
+    for (const title of titles) {
+        const single = await fetchRevisionCreationTimeBatchUnsafe(
+            api,
+            [title],
         );
 
-        const creationTimes = new Map();
-
-        for (const title of titles) {
-            const single = await fetchRevisionCreationTimeBatchUnsafe(api, [
-                title,
-            ]);
-
-            single.forEach(function callback(date, singleTitle) {
-                creationTimes.set(singleTitle, date);
-            });
-        }
-
-        return creationTimes;
+        single.forEach(function callback(date, singleTitle) {
+            creationTimes.set(singleTitle, date);
+        });
     }
+
+    return creationTimes;
 }
 
 
@@ -424,18 +457,7 @@ async function fetchRevisionCreationTimeBatchUnsafe(
         rvprop: "timestamp",
         titles: titles.join("|"),
     });
-    const pages = response?.query?.pages || [];
-    const creationTimes = new Map();
-
-    (Array.isArray(pages) ? pages : Object.values(pages)).forEach(
-        function callback(page) {
-            const timestamp = page?.revisions?.[0]?.timestamp;
-
-            if (timestamp != null && page?.title != null) {
-                creationTimes.set(page.title, new Date(timestamp));
-            }
-        },
-    );
+    const creationTimes = parseRevisionCreationTimes(response);
 
     logStep("fetchRevisionCreationTimeBatch done", {
         entries: [...creationTimes.entries()].map(function callback([
@@ -445,6 +467,23 @@ async function fetchRevisionCreationTimeBatchUnsafe(
             return [title, date.toISOString()];
         }),
         titles,
+    });
+
+    return creationTimes;
+}
+
+/** Parses first-revision timestamps from a query response. */
+function parseRevisionCreationTimes(response: any): Map<string, Date> {
+    const pages = response?.query?.pages || [];
+    const creationTimes = new Map();
+    const pageList = Array.isArray(pages) ? pages : Object.values(pages);
+
+    pageList.forEach(function callback(page) {
+        const timestamp = page?.revisions?.[0]?.timestamp;
+
+        if (timestamp != null && page?.title != null) {
+            creationTimes.set(page.title, new Date(timestamp));
+        }
     });
 
     return creationTimes;
@@ -601,84 +640,15 @@ export async function saveTalkAssessment(
     summary: string = "add or update WikiProject assessment banner",
 ): Promise<string> {
     for (let attempt = 0; attempt < MAX_EDIT_ATTEMPTS; attempt += 1) {
-        logStep("saveTalkAssessment attempt start", {
-            attempt: attempt + 1,
-            title,
-        });
-        const page = await fetchPageText(api, title);
-        const text = selectValue(
-            typeof assessmentText === "string",
-            function trueBranch() {
-                return updateTalkPageTopSection(
-                    page.text,
-                    assessmentText,
-                    projectConfig,
-                );
-            },
-            function falseBranch() {
-                return updateTalkPageAssessment(
-                    page.text,
-                    assessmentText,
-                    projectConfig,
-                );
-            },
-        );
-
-        const oldTopSection = getTalkPageTopSection(page.text);
-        const newTopSection = selectValue(
-            typeof assessmentText === "string",
-            function trueBranch() {
-                return assessmentText.trimEnd();
-            },
-            function falseBranch() {
-                return previewTalkPageTopSection(
-                    page.text,
-                    assessmentText,
-                    projectConfig,
-                );
-            },
-        );
-
-        if (
-            page.exists &&
-            (text === page.text ||
-                isEmptyImportanceOnlyChange(oldTopSection, newTopSection))
-        ) {
-            logStep("saveTalkAssessment skipped: no effective change", {
-                textChanged: text !== page.text,
-                title,
-            });
-            return text;
-        }
-
         try {
-            const params: Record<string, any> = {
-                action: "edit",
-                starttimestamp: page.starttimestamp,
-                summary,
-                text,
-                title,
-            };
-
-            if (page.basetimestamp != null) {
-                params.basetimestamp = page.basetimestamp;
-            }
-
-            if (!page.exists) {
-                params.createonly = true;
-            }
-
-            await loggedPostWithToken(
+            return await saveTalkAssessmentAttempt({
                 api,
-                "saveTalkAssessment",
-                "csrf",
-                params,
-            );
-            logStep("saveTalkAssessment saved", {
-                attempt: attempt + 1,
+                assessmentText,
+                attempt,
+                projectConfig,
+                summary,
                 title,
             });
-            return text;
         } catch (error) {
             logStep("saveTalkAssessment caught error", {
                 attempt: attempt + 1,
@@ -692,6 +662,116 @@ export async function saveTalkAssessment(
     }
 
     return "";
+}
+
+/** Runs one talk-page assessment save attempt. */
+async function saveTalkAssessmentAttempt(options: any): Promise<string> {
+    logStep("saveTalkAssessment attempt start", {
+        attempt: options.attempt + 1,
+        title: options.title,
+    });
+    const page = await fetchPageText(options.api, options.title);
+    const update = buildTalkAssessmentUpdate(page, options);
+
+    if (shouldSkipTalkAssessmentSave(page, update, options.title)) {
+        return update.text;
+    }
+
+    const params = buildTalkAssessmentEditParams(page, update.text, options);
+
+    await loggedPostWithToken(
+        options.api,
+        "saveTalkAssessment",
+        "csrf",
+        params,
+    );
+    logStep("saveTalkAssessment saved", {
+        attempt: options.attempt + 1,
+        title: options.title,
+    });
+
+    return update.text;
+}
+
+/** Builds updated talk text and its replacement top section. */
+function buildTalkAssessmentUpdate(page: any, options: any): any {
+    const isText = typeof options.assessmentText === "string";
+    const text = selectValue(
+        isText,
+        function trueBranch() {
+            return updateTalkPageTopSection(
+                page.text,
+                options.assessmentText,
+            );
+        },
+        function falseBranch() {
+            return updateTalkPageAssessment(
+                page.text,
+                options.assessmentText,
+                options.projectConfig,
+            );
+        },
+    );
+    const newTopSection = buildNewTalkTopSection(page, options, isText);
+
+    return { newTopSection, text };
+}
+
+/** Builds the new top section used for no-op detection. */
+function buildNewTalkTopSection(page, options, isText): string {
+    return selectValue(
+        isText,
+        function trueBranch() {
+            return options.assessmentText.trimEnd();
+        },
+        function falseBranch() {
+            return previewTalkPageTopSection(
+                page.text,
+                options.assessmentText,
+                options.projectConfig,
+            );
+        },
+    );
+}
+
+/** Checks whether an assessment save has no effective change. */
+function shouldSkipTalkAssessmentSave(page, update, title): boolean {
+    const oldTopSection = getTalkPageTopSection(page.text);
+    const emptyChange = isEmptyImportanceOnlyChange(
+        oldTopSection,
+        update.newTopSection,
+    );
+    const skip = page.exists && (update.text === page.text || emptyChange);
+
+    if (skip) {
+        logStep("saveTalkAssessment skipped: no effective change", {
+            textChanged: update.text !== page.text,
+            title,
+        });
+    }
+
+    return skip;
+}
+
+/** Builds MediaWiki edit parameters for an assessment save. */
+function buildTalkAssessmentEditParams(page, text, options): any {
+    const params: Record<string, any> = {
+        action: "edit",
+        starttimestamp: page.starttimestamp,
+        summary: options.summary,
+        text,
+        title: options.title,
+    };
+
+    if (page.basetimestamp != null) {
+        params.basetimestamp = page.basetimestamp;
+    }
+
+    if (!page.exists) {
+        params.createonly = true;
+    }
+
+    return params;
 }
 
 

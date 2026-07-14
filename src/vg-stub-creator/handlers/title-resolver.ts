@@ -37,43 +37,64 @@ export async function resolvePageTitles(
     options: any = {},
 ): Promise<any> {
     const cache = options.cache || {};
-    const uniqueTitles = uniqueValues(
-        titles
-            .map((title) => stripNamespace(title, config.namespace))
-            .filter(Boolean),
-    );
-    const missing = uniqueTitles.filter(function callback(title) {
-        const key = normalizeTitleKey(title, config.namespace);
-
-        return cache[key] == null;
-    });
+    const uniqueTitles = normalizeRequestedTitles(titles, config.namespace);
+    const missing = getUncachedTitles(uniqueTitles, config.namespace, cache);
     const titlesToFetch = options.bypassCache ? uniqueTitles : missing;
     const batchSize = config.batchSize || DEFAULT_BATCH_SIZE;
 
-    for (const batch of chunkValues(titlesToFetch, batchSize)) {
+    await fetchResolutionBatches(
+        titlesToFetch,
+        batchSize,
+        config,
+        options,
+        cache,
+    );
+    const resolutions = buildCachedResolutions(uniqueTitles, config, cache);
+
+    return resolutions;
+}
+
+/** Normalizes and deduplicates requested titles. */
+function normalizeRequestedTitles(titles: Array<string>, namespace) {
+    const normalized: Array<string> = titles
+        .map((title) => stripNamespace(title, namespace))
+        .filter(Boolean);
+
+    return uniqueValues(normalized);
+}
+
+/** Gets requested titles absent from the resolution cache. */
+function getUncachedTitles(titles, namespace, cache): Array<string> {
+    return titles.filter(function callback(title) {
+        const key = normalizeTitleKey(title, namespace);
+        return cache[key] == null;
+    });
+}
+
+/** Fetches and caches title-resolution batches. */
+async function fetchResolutionBatches(titles, size, config, options, cache) {
+    for (const batch of chunkValues(titles, size)) {
         const resolutions = await fetchTitleResolutions(
             batch,
             config,
             options,
         );
-
         Object.assign(cache, resolutions);
     }
+}
 
-    const resolutions = Object.fromEntries(
-        uniqueTitles.map(function callback(title) {
-            const key = normalizeTitleKey(title, config.namespace);
-            const resolution = normalizeCachedResolution(
-                cache[key],
-                title,
-                config,
-            );
+/** Builds normalized results from cached resolutions. */
+function buildCachedResolutions(titles, config, cache): any {
+    return Object.fromEntries(titles.map(function callback(title) {
+        const key = normalizeTitleKey(title, config.namespace);
+        const resolution = normalizeCachedResolution(
+            cache[key],
+            title,
+            config,
+        );
 
-            return [key, resolution];
-        }),
-    );
-
-    return resolutions;
+        return [key, resolution];
+    }));
 }
 
 
@@ -213,45 +234,59 @@ async function fetchVariantFallbackTitleResolutions(titles, config, options) {
                 ?.exists;
         });
 
-        if (missingTitles.length > 0) {
-            const variantResolutionSets = await Promise.all(
-                ["zh-hans", "zh-hant"].map(async function callback(variant) {
-                    return createResolutions(
-                        missingTitles,
-                        await fetchTitleQuery(
-                            missingTitles,
-                            config,
-                            {
-                                ...options,
-                                variant,
-                            },
-                            {
-                                convertTitles: true,
-                            },
-                        ),
-                        config,
-                    );
-                }),
-            );
-
-            missingTitles.forEach(function callback(title) {
-                const key = normalizeTitleKey(title, config.namespace);
-
-                resolutions[key] = chooseVariantResolution(
-                    title,
-                    config.namespace,
-                    [
-                        resolutions[key],
-                        ...variantResolutionSets.map((set) => set[key]),
-                    ],
-                );
-            });
-        }
+        await addVariantFallbackResolutions(
+            missingTitles,
+            resolutions,
+            config,
+            options,
+        );
 
         return finalizeTitleResolutions(resolutions, config, options);
     } catch (_error) {
         return createMissingResolutions(titles, config);
     }
+}
+
+/** Adds Hans/Hant resolutions for titles missed by the direct query. */
+async function addVariantFallbackResolutions(
+    titles,
+    resolutions,
+    config,
+    options,
+): Promise<void> {
+    if (titles.length === 0) {
+        return;
+    }
+    const sets = await Promise.all(
+        ["zh-hans", "zh-hant"].map(async function callback(variant) {
+            const data = await fetchTitleQuery(
+                titles,
+                config,
+                { ...options, variant },
+                { convertTitles: true },
+            );
+            return createResolutions(titles, data, config);
+        }),
+    );
+
+    mergeVariantResolutions(titles, resolutions, sets, config.namespace);
+}
+
+/** Chooses the best direct or variant resolution for each title. */
+function mergeVariantResolutions(titles, resolutions, sets, namespace): void {
+    titles.forEach(function callback(title) {
+        const key = normalizeTitleKey(title, namespace);
+        const candidates = [
+            resolutions[key],
+            ...sets.map((set) => set[key]),
+        ];
+
+        resolutions[key] = chooseVariantResolution(
+            title,
+            namespace,
+            candidates,
+        );
+    });
 }
 
 
@@ -417,21 +452,7 @@ function buildTitleApiUrl(titles, config, options, queryOptions) {
             .join("|"),
     };
 
-    if (queryOptions.convertTitles !== false) {
-        values.converttitles = "1";
-    }
-
-    if (config.prop) {
-        values.prop = config.prop;
-    }
-
-    if (config.pageProps) {
-        values.ppprop = config.pageProps;
-    }
-
-    if (options.variant) {
-        values.variant = options.variant;
-    }
+    addOptionalTitleQueryValues(values, config, options, queryOptions);
 
     const params = new URLSearchParams(values);
     const url = [
@@ -443,6 +464,22 @@ function buildTitleApiUrl(titles, config, options, queryOptions) {
     ].join("");
 
     return url;
+}
+
+/** Adds optional title-query parameters. */
+function addOptionalTitleQueryValues(values, config, options, queryOptions) {
+    if (queryOptions.convertTitles !== false) {
+        values.converttitles = "1";
+    }
+    if (config.prop) {
+        values.prop = config.prop;
+    }
+    if (config.pageProps) {
+        values.ppprop = config.pageProps;
+    }
+    if (options.variant) {
+        values.variant = options.variant;
+    }
 }
 
 

@@ -98,42 +98,48 @@ function createCitationTableTemplate(): any {
  * @returns Citation parameter row template node.
  */
 function createCitationParamSlotsTemplate(): any {
+    const header = createTableHeaderTemplate(
+        "getCitationTabLabel(citation)",
+        createCitationHeaderActions(),
+        { bindTitle: true },
+    );
+
     return [
-        createTableHeaderTemplate(
-            "getCitationTabLabel(citation)",
-            [
-                createIconActionLinkTemplate(
-                    "Re-fetch",
-                    "tableActionIcons.regenerate",
-                    "refetchCitation(citationIndex)",
-                    {
-                        class: "vg-stub-creator-destructive-action",
-                        title: [
-                            "Re-fetch citation template data an",
-                            "d overwrite edited parameters",
-                        ].join(""),
-                    },
-                ),
-                createIconActionLinkTemplate(
-                    "Remove empty rows",
-                    "tableActionIcons.clean",
-                    "cleanCitationParams(citationIndex)",
-                ),
-                createIconActionLinkTemplate(
-                    "Add parameter",
-                    "tableActionIcons.cdxIconArticleAdd",
-                    "addCitationParam(citationIndex)",
-                ),
-            ],
-            {
-                bindTitle: true,
-            },
-        ),
+        header,
         createCitationNameSlotTemplate(),
         createCitationValueSlotTemplate(),
         createCitationActionSlotTemplate(),
         createCitationFooterTemplate(),
     ];
+}
+
+/** Creates citation-table header actions. */
+function createCitationHeaderActions(): Array<any> {
+    const refetchTitle = [
+        "Re-fetch citation template data an",
+        "d overwrite edited parameters",
+    ].join("");
+    const refetch = createIconActionLinkTemplate(
+        "Re-fetch",
+        "tableActionIcons.regenerate",
+        "refetchCitation(citationIndex)",
+        {
+            class: "vg-stub-creator-destructive-action",
+            title: refetchTitle,
+        },
+    );
+    const clean = createIconActionLinkTemplate(
+        "Remove empty rows",
+        "tableActionIcons.clean",
+        "cleanCitationParams(citationIndex)",
+    );
+    const add = createIconActionLinkTemplate(
+        "Add parameter",
+        "tableActionIcons.cdxIconArticleAdd",
+        "addCitationParam(citationIndex)",
+    );
+
+    return [refetch, clean, add];
 }
 
 

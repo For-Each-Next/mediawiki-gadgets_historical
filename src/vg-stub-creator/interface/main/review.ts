@@ -129,26 +129,7 @@ function createStubTagReviewTemplate(): any {
  */
 function createCategorySlotsTemplate(): Array<any> {
     return [
-        createTableHeaderTemplate("Categories", [
-            createIconActionLinkTemplate(
-                "Reset",
-                "tableActionIcons.regenerate",
-                "rebuildCategoryRows",
-                {
-                    "aria-disabled": "categoryState.loading",
-                },
-            ),
-            createIconActionLinkTemplate(
-                "Remove empty rows",
-                "tableActionIcons.clean",
-                "cleanCategoryRows",
-            ),
-            createIconActionLinkTemplate(
-                "Add",
-                "tableActionIcons.cdxIconArticleAdd",
-                "addCategoryRow",
-            ),
-        ]),
+        createTableHeaderTemplate("Categories", createCategoryHeaderActions()),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
@@ -166,6 +147,28 @@ function createCategorySlotsTemplate(): Array<any> {
         ),
         createCategoryActionSlotTemplate(),
     ];
+}
+
+/** Creates category-table header actions. */
+function createCategoryHeaderActions(): Array<any> {
+    const reset = createIconActionLinkTemplate(
+        "Reset",
+        "tableActionIcons.regenerate",
+        "rebuildCategoryRows",
+        { "aria-disabled": "categoryState.loading" },
+    );
+    const clean = createIconActionLinkTemplate(
+        "Remove empty rows",
+        "tableActionIcons.clean",
+        "cleanCategoryRows",
+    );
+    const add = createIconActionLinkTemplate(
+        "Add",
+        "tableActionIcons.cdxIconArticleAdd",
+        "addCategoryRow",
+    );
+
+    return [reset, clean, add];
 }
 
 
@@ -237,36 +240,7 @@ function createCategoryActionSlotTemplate(): any {
  */
 function createRedirectSlotsTemplate(): Array<any> {
     return [
-        createTableHeaderTemplate("Redirects", [
-            createIconActionLinkTemplate(
-                "Reset",
-                "tableActionIcons.regenerate",
-                "rebuildRedirectRows",
-                {
-                    "aria-disabled": "reviewState.loading",
-                    title: "Reset generated redirects",
-                },
-            ),
-            createIconActionLinkTemplate(
-                "Remove empty rows",
-                "tableActionIcons.clean",
-                "cleanRedirectRows",
-            ),
-            createIconActionLinkTemplate(
-                "Add",
-                "tableActionIcons.cdxIconArticleAdd",
-                "addRedirectRow",
-            ),
-            createIconActionLinkTemplate(
-                "Refresh",
-                "tableActionIcons.reload",
-                "checkRedirectRows",
-                {
-                    "aria-disabled": "reviewState.loading",
-                    title: "Refresh existence status for all redirect rows",
-                },
-            ),
-        ]),
+        createTableHeaderTemplate("Redirects", createRedirectHeaderActions()),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
@@ -289,6 +263,48 @@ function createRedirectSlotsTemplate(): Array<any> {
         ),
         createRedirectActionSlotTemplate(),
     ];
+}
+
+/** Creates redirect-table header actions. */
+function createRedirectHeaderActions(): Array<any> {
+    const reset = createIconActionLinkTemplate(
+        "Reset",
+        "tableActionIcons.regenerate",
+        "rebuildRedirectRows",
+        {
+            "aria-disabled": "reviewState.loading",
+            title: "Reset generated redirects",
+        },
+    );
+    const clean = createIconActionLinkTemplate(
+        "Remove empty rows",
+        "tableActionIcons.clean",
+        "cleanRedirectRows",
+    );
+    const add = createIconActionLinkTemplate(
+        "Add",
+        "tableActionIcons.cdxIconArticleAdd",
+        "addRedirectRow",
+    );
+    const refresh = createRedirectRefreshAction();
+
+    return [reset, clean, add, refresh];
+}
+
+/** Creates the redirect-table refresh action. */
+function createRedirectRefreshAction(): any {
+    const attributes = {
+        "aria-disabled": "reviewState.loading",
+        title: "Refresh existence status for all redirect rows",
+    };
+    const action = createIconActionLinkTemplate(
+        "Refresh",
+        "tableActionIcons.reload",
+        "checkRedirectRows",
+        attributes,
+    );
+
+    return action;
 }
 
 
@@ -349,26 +365,7 @@ function createRedirectActionSlotTemplate(): any {
  */
 function createNavboxSlotsTemplate(): Array<any> {
     return [
-        createTableHeaderTemplate("Navboxes", [
-            createIconActionLinkTemplate(
-                "Reset",
-                "tableActionIcons.regenerate",
-                "rebuildNavboxRows",
-                {
-                    "aria-disabled": "reviewState.loading",
-                },
-            ),
-            createIconActionLinkTemplate(
-                "Remove empty rows",
-                "tableActionIcons.clean",
-                "cleanNavboxRows",
-            ),
-            createIconActionLinkTemplate(
-                "Add",
-                "tableActionIcons.cdxIconArticleAdd",
-                "addNavboxRow",
-            ),
-        ]),
+        createTableHeaderTemplate("Navboxes", createNavboxHeaderActions()),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
@@ -391,6 +388,28 @@ function createNavboxSlotsTemplate(): Array<any> {
         ),
         createNavboxActionSlotTemplate(),
     ];
+}
+
+/** Creates navbox-table header actions. */
+function createNavboxHeaderActions(): Array<any> {
+    const reset = createIconActionLinkTemplate(
+        "Reset",
+        "tableActionIcons.regenerate",
+        "rebuildNavboxRows",
+        { "aria-disabled": "reviewState.loading" },
+    );
+    const clean = createIconActionLinkTemplate(
+        "Remove empty rows",
+        "tableActionIcons.clean",
+        "cleanNavboxRows",
+    );
+    const add = createIconActionLinkTemplate(
+        "Add",
+        "tableActionIcons.cdxIconArticleAdd",
+        "addNavboxRow",
+    );
+
+    return [reset, clean, add];
 }
 
 
@@ -447,23 +466,7 @@ function createNavboxActionSlotTemplate(): any {
  */
 function createStubTagSlotsTemplate(): Array<any> {
     return [
-        createTableHeaderTemplate("Stub tags", [
-            createIconActionLinkTemplate(
-                "Reset",
-                "tableActionIcons.regenerate",
-                "resetStubTagRows",
-            ),
-            createIconActionLinkTemplate(
-                "Remove empty rows",
-                "tableActionIcons.clean",
-                "cleanStubTagRows",
-            ),
-            createIconActionLinkTemplate(
-                "Add",
-                "tableActionIcons.cdxIconArticleAdd",
-                "addStubTagRow",
-            ),
-        ]),
+        createTableHeaderTemplate("Stub tags", createStubTagHeaderActions()),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
@@ -485,6 +488,27 @@ function createStubTagSlotsTemplate(): Array<any> {
             ),
         ]),
     ];
+}
+
+/** Creates stub-tag-table header actions. */
+function createStubTagHeaderActions(): Array<any> {
+    const reset = createIconActionLinkTemplate(
+        "Reset",
+        "tableActionIcons.regenerate",
+        "resetStubTagRows",
+    );
+    const clean = createIconActionLinkTemplate(
+        "Remove empty rows",
+        "tableActionIcons.clean",
+        "cleanStubTagRows",
+    );
+    const add = createIconActionLinkTemplate(
+        "Add",
+        "tableActionIcons.cdxIconArticleAdd",
+        "addStubTagRow",
+    );
+
+    return [reset, clean, add];
 }
 
 
@@ -599,13 +623,12 @@ function createToggleSlotTemplate(
     markerCondition: string = "",
     markerClass: string = "",
 ): any {
-    const children = [
-        createElement("cdx-checkbox", {
-            "aria-label": label,
-            title: label,
-            "v-model": model,
-        }),
-    ];
+    const checkbox = createElement("cdx-checkbox", {
+        "aria-label": label,
+        title: label,
+        "v-model": model,
+    });
+    const children = [checkbox];
 
     if (markerCondition !== "") {
         children.push(

@@ -26,15 +26,11 @@ export function buildCompanyCategoryText(
     company: string,
     parentCategoryExists: boolean,
 ): string {
-    const parentCategories = selectValue(
-        parentCategoryExists,
-        function trueBranch() {
-            return [`[[Category:${company}]]`];
-        },
-        function falseBranch() {
-            return [];
-        },
-    );
+    const parentCategories = [];
+
+    if (parentCategoryExists) {
+        parentCategories.push(`[[Category:${company}]]`);
+    }
     const defaultSort = buildDefaultSortText({
         title: company,
     });
@@ -100,60 +96,99 @@ export async function saveCompanyCategory(
 ): Promise<void> {
     const api = options.api || new mw.Api();
     const englishTitle = normalizeEnglishCategoryTitle(englishCategory);
-    const metadata = await selectValue(
-        englishTitle === "",
-        async function trueBranch() {
-            return null;
-        },
-        async function falseBranch() {
-            return await (options.fetchMetadata || fetchEnwikiMetadata)(
-                englishTitle,
-            );
-        },
-    );
+    const metadata = await fetchCompanyCategoryMetadata(englishTitle, options);
 
-    try {
-        await saveCategoryPage(
-            category,
-            text,
-            buildCompanyCategorySummary(category, englishTitle, metadata),
-            api,
-        );
-        options.onProgress?.("create", "complete");
-    } catch (error) {
-        options.onProgress?.("create", "failed");
-        throw error;
-    }
-
+    await saveCompanyCategoryPage({
+        api,
+        category,
+        englishTitle,
+        metadata,
+        options,
+        text,
+    });
     const categoryTitle = `${CATEGORY_NAMESPACE}${category}`;
 
-    if (metadata != null && metadata.pageExists !== false) {
-        const wikidataApi =
-            options.wikidataApi ||
-            new mw.ForeignApi("https://www.wikidata.org/w/api.php");
+    await connectCompanyCategory(
+        categoryTitle,
+        englishTitle,
+        metadata,
+        options,
+    );
+    await addCompanyCategoryTalkBanner(categoryTitle, api, options);
+}
 
-        try {
-            options.onProgress?.("wikidata", "running");
-            if (String(metadata.wikidataId || "").trim() === "") {
-                await createWikidataCategoryItem(
-                    wikidataApi,
-                    englishTitle,
-                    categoryTitle,
-                );
-            } else {
-                await connectWikidataSitelink(
-                    wikidataApi,
-                    metadata.wikidataId,
-                    categoryTitle,
-                );
-            }
-            options.onProgress?.("wikidata", "complete");
-        } catch (error) {
-            options.onProgress?.("wikidata", "failed");
-            throw error;
-        }
+/** Fetches optional English-category metadata. */
+async function fetchCompanyCategoryMetadata(englishTitle, options) {
+    if (englishTitle === "") {
+        return null;
     }
 
+    const fetchMetadata = options.fetchMetadata || fetchEnwikiMetadata;
+    const metadata = await fetchMetadata(englishTitle);
+
+    return metadata;
+}
+
+/** Saves the primary company-category page. */
+async function saveCompanyCategoryPage(context): Promise<void> {
+    try {
+        await saveCategoryPage(
+            context.category,
+            context.text,
+            buildCompanyCategorySummary(
+                context.category,
+                context.englishTitle,
+                context.metadata,
+            ),
+            context.api,
+        );
+        context.options.onProgress?.("create", "complete");
+    } catch (error) {
+        context.options.onProgress?.("create", "failed");
+        throw error;
+    }
+}
+
+/** Connects a category to Wikidata when English metadata exists. */
+async function connectCompanyCategory(
+    categoryTitle,
+    englishTitle,
+    metadata,
+    options,
+): Promise<void> {
+    if (metadata == null || metadata.pageExists === false) {
+        return;
+    }
+    const wikidataApi = options.wikidataApi ||
+        new mw.ForeignApi("https://www.wikidata.org/w/api.php");
+
+    try {
+        options.onProgress?.("wikidata", "running");
+        await saveCompanyCategorySitelink(
+            wikidataApi,
+            englishTitle,
+            categoryTitle,
+            metadata.wikidataId,
+        );
+        options.onProgress?.("wikidata", "complete");
+    } catch (error) {
+        options.onProgress?.("wikidata", "failed");
+        throw error;
+    }
+}
+
+/** Creates or updates the category's Wikidata sitelink. */
+async function saveCompanyCategorySitelink(api, english, category, id) {
+    if (String(id || "").trim() === "") {
+        await createWikidataCategoryItem(api, english, category);
+        return;
+    }
+
+    await connectWikidataSitelink(api, id, category);
+}
+
+/** Adds the WikiProject banner to the category talk page. */
+async function addCompanyCategoryTalkBanner(categoryTitle, api, options) {
     try {
         options.onProgress?.("talk-banner", "running");
         await addTalkPageBanner(api, categoryTitle);
@@ -323,27 +358,4 @@ function normalizeEnglishCategoryTitle(title: string): string {
     }
 
     return /^Category:/iu.test(value) ? value : `Category:${value}`;
-}
-
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

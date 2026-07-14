@@ -108,25 +108,202 @@ import { createDialogTemplate } from "./template.ts";
  * update handler.
  * @returns Vue component options.
  */
-export function createDialogComponent(Vue: any, options: any): any {
-    const currentTitle =
-        trimFieldValue(options.currentTitle) || options.defaultName;
-    const activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
-    const form = Vue.reactive(createFormValues());
-    const categoryState = Vue.reactive({
-        error: "",
-        loading: false,
-    });
-    const citationState = Vue.reactive({
-        error: "",
-        loading: false,
-    });
-    const reviewState = Vue.reactive({
-        error: "",
-        loading: false,
-    });
-    const companyCategoryOpen = Vue.ref(false);
-    const companyCategoryState = Vue.reactive({
+let Vue: any;
+let options: any;
+let currentTitle: string;
+let activeTab: any;
+let form: any;
+let categoryState: any;
+let citationState: any;
+let reviewState: any;
+let companyCategoryOpen: any;
+let companyCategoryState: any;
+let companyCategoryLookupLoading: any;
+let companyCategoryLookupSerial: any;
+let pageEditOpen: any;
+let pageEditState: any;
+let categoryViewOpen: any;
+let categoryViewState: any;
+let historyEntries: any;
+let historyJsonError: any;
+let historyJsonEditable: any;
+let historyJsonOpen: any;
+let historyJsonText: any;
+let historyLoading: any;
+let historyOpen: any;
+let mainActionMenuSelection: any;
+let moveTarget: any;
+let moveTargetState: any;
+let moveOpen: any;
+let movePreviewConfirmation: any;
+let previewWithoutMoveTitle: any;
+let activeCitationTab: any;
+let preSaveMoveEnabled: any;
+let preSaveMoveTitle: any;
+let preSaveOpen: any;
+let preSaveActions: any;
+let preSaveGroups: any;
+let preSaveProgress: any;
+let preSaveProgressGroups: any;
+let stubTagRows: any;
+let previewOpen: any;
+let previewTextArea: any;
+let previewText: any;
+let previewSummary: any;
+let previewHtml: any;
+let previewLoading: any;
+let previewLoadingMessage: any;
+let previewSubmitted: any;
+let pageEditTextArea: any;
+let enwikiLookupLoading: any;
+let enwikiLookupSerial: any;
+let enwikiMetadata: any;
+let fetchedSteamNameRows: any;
+let steamUrl: any;
+let sourceFetchState: any;
+let tableActionTooltip: any;
+let tableActionTooltipRef: any;
+let open: any;
+let sourceEditors: Map<any, any>;
+let sourceEditorLoads: Set<any>;
+let openedReviewLinkUrls: Set<any>;
+let componentMounted: boolean;
+let navboxRowsPrepared: boolean;
+let queueCitationPrefetch: (...args: any[]) => any;
+const pageEditTextBinding = {
+    get value() {
+        return pageEditState.text;
+    },
+    set value(text) {
+        pageEditState.text = text;
+    },
+};
+
+/** Creates the Vue component definition for the dialog. */
+export function createDialogComponent(
+    VueModule: any,
+    dialogOptions: any,
+): any {
+    Vue = VueModule;
+    options = dialogOptions;
+    initializeDialogState();
+    initializeDialogBehavior();
+
+    return createComponentDefinition();
+}
+
+/** Initializes primary form and review state. */
+function initializePrimaryState(): void {
+    currentTitle = trimFieldValue(options.currentTitle) || options.defaultName;
+    activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
+    form = Vue.reactive(createFormValues());
+    categoryState = Vue.reactive(createLoadingState());
+    citationState = Vue.reactive(createLoadingState());
+    reviewState = Vue.reactive(createLoadingState());
+    companyCategoryOpen = Vue.ref(false);
+    companyCategoryState = Vue.reactive(createCompanyCategoryState());
+    companyCategoryLookupLoading = Vue.ref(false);
+    companyCategoryLookupSerial = Vue.ref(0);
+    pageEditOpen = Vue.ref(false);
+    pageEditState = Vue.reactive(createPageEditState());
+    categoryViewOpen = Vue.ref(false);
+    categoryViewState = Vue.reactive({ title: "", url: "" });
+}
+
+/** Initializes history, move, and pre-save state. */
+function initializeActionState(): void {
+    historyEntries = Vue.ref(options.getHistoryEntries());
+    historyJsonError = Vue.ref("");
+    historyJsonEditable = Vue.ref(false);
+    historyJsonOpen = Vue.ref(false);
+    historyJsonText = Vue.ref("");
+    historyLoading = Vue.ref(false);
+    historyOpen = Vue.ref(false);
+    mainActionMenuSelection = Vue.ref(null);
+    moveTarget = Vue.ref(currentTitle);
+    moveTargetState = Vue.reactive(createMoveTargetState());
+    moveOpen = Vue.ref(false);
+    movePreviewConfirmation = Vue.ref(false);
+    previewWithoutMoveTitle = Vue.ref("");
+    activeCitationTab = Vue.ref("");
+    preSaveMoveEnabled = Vue.ref(false);
+    preSaveMoveTitle = Vue.ref(currentTitle);
+    preSaveOpen = Vue.ref(false);
+    preSaveActions = Vue.reactive([]);
+    preSaveGroups = Vue.computed(getCurrentPreSaveGroups);
+    preSaveProgress = Vue.ref(null);
+    preSaveProgressGroups = Vue.computed(getCurrentProgressGroups);
+}
+
+/** Initializes preview, source, and metadata state. */
+function initializePreviewState(): void {
+    stubTagRows = Vue.computed(() => form.stubTagRows || []);
+    previewOpen = Vue.ref(false);
+    previewTextArea = Vue.ref(null);
+    previewText = Vue.ref("");
+    previewSummary = Vue.ref("");
+    previewHtml = Vue.ref("");
+    previewLoading = Vue.ref(false);
+    previewLoadingMessage = Vue.ref("Preparing preview");
+    previewSubmitted = Vue.ref(false);
+    pageEditTextArea = Vue.ref(null);
+    enwikiLookupLoading = Vue.ref(false);
+    enwikiLookupSerial = Vue.ref(0);
+    enwikiMetadata = Vue.reactive(createBlankEnwikiMetadata());
+    fetchedSteamNameRows = Vue.ref([]);
+    steamUrl = Vue.ref("");
+    sourceFetchState = Vue.reactive(createLoadingState());
+    tableActionTooltip = Vue.reactive(createTableActionTooltip());
+    tableActionTooltipRef = Vue.ref(null);
+    open = Vue.ref(options.initialOpen === true);
+}
+
+/** Initializes all mutable dialog state. */
+function initializeDialogState(): void {
+    initializePrimaryState();
+    initializeActionState();
+    initializePreviewState();
+    sourceEditors = new Map();
+    sourceEditorLoads = new Set();
+    openedReviewLinkUrls = new Set();
+    componentMounted = true;
+    queueCitationPrefetch = createCitationPrefetchQueue(options);
+
+    if (options.initialForm != null) {
+        replaceFormValues(form, options.initialForm);
+    }
+
+    navboxRowsPrepared = hasPreparedNavboxRows(form);
+    syncPageNameFields();
+    syncGeneratedNameNoteTaRow(form);
+}
+
+/** Registers dialog watchers and external controls. */
+function initializeDialogBehavior(): void {
+    watchFormChanges();
+    watchActiveTab();
+    watchPreviewEditor();
+    watchPageEditEditor();
+    registerUnmountHandler();
+    registerDialogGlobal();
+
+    if (options.initialOpen === true) {
+        options.onActivate();
+    }
+
+    if (shouldLoadInitialEnwikiMetadata()) {
+        refreshEnwikiMetadata();
+    }
+}
+
+/** Creates a standard loading state object. */
+function createLoadingState(): any {
+    return { error: "", loading: false };
+}
+
+/** Creates company-category dialog state. */
+function createCompanyCategoryState(): any {
+    return {
         category: "",
         company: "",
         englishName: "",
@@ -135,11 +312,12 @@ export function createDialogComponent(Vue: any, options: any): any {
         pending: false,
         text: "",
         wikidataId: "",
-    });
-    const companyCategoryLookupLoading = Vue.ref(false);
-    const companyCategoryLookupSerial = Vue.ref(0);
-    const pageEditOpen = Vue.ref(false);
-    const pageEditState = Vue.reactive({
+    };
+}
+
+/** Creates page-edit dialog state. */
+function createPageEditState(): any {
+    return {
         create: false,
         company: "",
         englishName: "",
@@ -152,89 +330,35 @@ export function createDialogComponent(Vue: any, options: any): any {
         row: null,
         text: "",
         title: "",
-    });
-    const categoryViewOpen = Vue.ref(false);
-    const categoryViewState = Vue.reactive({
-        title: "",
-        url: "",
-    });
-    const historyEntries = Vue.ref(options.getHistoryEntries());
-    const historyJsonError = Vue.ref("");
-    const historyJsonEditable = Vue.ref(false);
-    const historyJsonOpen = Vue.ref(false);
-    const historyJsonText = Vue.ref("");
-    const historyLoading = Vue.ref(false);
-    const historyOpen = Vue.ref(false);
-    const mainActionMenuSelection = Vue.ref(null);
-    const moveTarget = Vue.ref(currentTitle);
-    const moveTargetState = Vue.reactive({
-        checkedTitle: "",
-        exists: false,
-        loading: false,
-    });
-    const moveOpen = Vue.ref(false);
-    const movePreviewConfirmation = Vue.ref(false);
-    const previewWithoutMoveTitle = Vue.ref("");
-    const activeCitationTab = Vue.ref("");
-    const preSaveMoveEnabled = Vue.ref(false);
-    const preSaveMoveTitle = Vue.ref(currentTitle);
-    const preSaveOpen = Vue.ref(false);
-    const preSaveActions = Vue.reactive([]);
-    const preSaveGroups = Vue.computed(function callback() {
-        return createPreSaveGroups(preSaveActions, form);
-    });
-    const preSaveProgress = Vue.ref(null);
-    const preSaveProgressGroups = Vue.computed(function callback() {
-        return getSaveProgressGroups(preSaveProgress.value);
-    });
-    const stubTagRows = Vue.computed(() => form.stubTagRows || []);
-    const previewOpen = Vue.ref(false);
-    const previewTextArea = Vue.ref(null);
-    const previewText = Vue.ref("");
-    const previewSummary = Vue.ref("");
-    const previewHtml = Vue.ref("");
-    const previewLoading = Vue.ref(false);
-    const previewLoadingMessage = Vue.ref("Preparing preview");
-    const previewSubmitted = Vue.ref(false);
-    const pageEditTextArea = Vue.ref(null);
-    const enwikiLookupLoading = Vue.ref(false);
-    const enwikiLookupSerial = Vue.ref(0);
-    const enwikiMetadata = Vue.reactive(createBlankEnwikiMetadata());
-    const fetchedSteamNameRows = Vue.ref([]);
-    const steamUrl = Vue.ref("");
-    const sourceFetchState = Vue.reactive({
-        error: "",
-        loading: false,
-    });
-    const tableActionTooltip = Vue.reactive({
+    };
+}
+
+/** Creates move-target lookup state. */
+function createMoveTargetState(): any {
+    return { checkedTitle: "", exists: false, loading: false };
+}
+
+/** Creates table-action tooltip state. */
+function createTableActionTooltip(): any {
+    return {
         label: "",
-        style: {
-            left: "0",
-            top: "0",
-        },
+        style: { left: "0", top: "0" },
         visible: false,
-    });
-    const tableActionTooltipRef = Vue.ref(null);
-    const open = Vue.ref(options.initialOpen === true);
-    const initialForm = options.initialForm;
-    const sourceEditors = new Map();
-    const sourceEditorLoads = new Set();
-    const openedReviewLinkUrls = new Set();
-    let componentMounted = true;
+    };
+}
 
-    if (initialForm != null) {
-        replaceFormValues(form, initialForm);
-    }
-    syncPageNameFields();
-    syncGeneratedNameNoteTaRow(form);
+/** Gets current grouped pre-save actions. */
+function getCurrentPreSaveGroups(): any {
+    return createPreSaveGroups(preSaveActions, form);
+}
 
-    if (options.initialOpen === true) {
-        options.onActivate();
-    }
+/** Gets current save progress groups. */
+function getCurrentProgressGroups(): any {
+    return getSaveProgressGroups(preSaveProgress.value);
+}
 
-    let navboxRowsPrepared = hasPreparedNavboxRows(form);
-    const queueCitationPrefetch = createCitationPrefetchQueue(options);
-
+/** Watches form mutations and queues dependent work. */
+function watchFormChanges(): void {
     Vue.watch(
         form,
         function callback(currentForm) {
@@ -242,11 +366,13 @@ export function createDialogComponent(Vue: any, options: any): any {
             options.onFormChange(currentForm);
             queueCitationPrefetch(currentForm);
         },
-        {
-            deep: true,
-        },
+        { deep: true },
     );
     queueCitationPrefetch(form);
+}
+
+/** Watches tab changes that require refreshed data. */
+function watchActiveTab(): void {
     Vue.watch(activeTab, function callback(tab) {
         if (tab === "review") {
             refreshReview();
@@ -256,38 +382,74 @@ export function createDialogComponent(Vue: any, options: any): any {
             refreshCitationRows();
         }
     });
+}
+
+/** Watches the article preview editor dialog. */
+function watchPreviewEditor(): void {
     Vue.watch(previewOpen, function callback(isOpen) {
         if (isOpen) {
             queueSourceEditor("preview", previewTextArea, previewText);
-        } else {
-            destroySourceEditor("preview");
+            return;
         }
+
+        destroySourceEditor("preview");
     });
+}
+
+/** Watches the follow-up page editor dialog. */
+function watchPageEditEditor(): void {
     Vue.watch(pageEditOpen, function callback(isOpen) {
-        if (isOpen) {
-            queueSourceEditor("pageEdit", pageEditTextArea, {
-                get value() {
-                    return pageEditState.text;
-                },
-                set value(text) {
-                    pageEditState.text = text;
-                },
-            });
-        } else {
+        if (!isOpen) {
             destroySourceEditor("pageEdit");
+            return;
         }
+
+        queueSourceEditor("pageEdit", pageEditTextArea, pageEditTextBinding);
     });
+}
 
-    if (typeof Vue.onBeforeUnmount === "function") {
-        Vue.onBeforeUnmount(function callback() {
-            componentMounted = false;
-
-            for (const key of [...sourceEditors.keys()]) {
-                destroySourceEditor(key);
-            }
-        });
+/** Registers source editor cleanup for component unmount. */
+function registerUnmountHandler(): void {
+    if (typeof Vue.onBeforeUnmount !== "function") {
+        return;
     }
 
+    Vue.onBeforeUnmount(function callback() {
+        componentMounted = false;
+
+        for (const key of [...sourceEditors.keys()]) {
+            destroySourceEditor(key);
+        }
+    });
+}
+
+/** Registers the external singleton dialog controller. */
+function registerDialogGlobal(): void {
+    (window as any).vgStubCreatorDialog = {
+        open: openExternalDialog,
+        submit: submitExternalDialog,
+    };
+}
+
+/** Opens the dialog through its global controller. */
+function openExternalDialog(): void {
+    options.onActivate();
+    openDialog(open);
+}
+
+/** Opens pre-save review through the global controller. */
+async function submitExternalDialog(): Promise<void> {
+    open.value = true;
+    await openPreSave();
+}
+
+/** Checks whether initial English Wikipedia metadata is required. */
+function shouldLoadInitialEnwikiMetadata(): boolean {
+    return options.initialEnwikiLookup === true &&
+        trimFieldValue(form.enwikiTitle) !== "";
+}
+
+    /** Opens pre-save review state for the current form. */
     async function openPreSave() {
         await refreshReview({
             recheck: true,
@@ -319,17 +481,6 @@ export function createDialogComponent(Vue: any, options: any): any {
         }
     }
 
-    window.vgStubCreatorDialog = {
-        open() {
-            options.onActivate();
-            openDialog(open);
-        },
-        async submit() {
-            open.value = true;
-            await openPreSave();
-        },
-    };
-
     /**
      * Creates the running save-progress state for a submit attempt.
      *
@@ -355,45 +506,46 @@ export function createDialogComponent(Vue: any, options: any): any {
      * @returns Progress reporter callbacks.
      */
     function createPreSaveProgressReporter(): any {
-        return {
-            fail(error) {
-                if (preSaveProgress.value == null) {
-                    return;
-                }
-
-                const running = preSaveProgress.value.steps.find(
-                    (step) => step.status === "running",
-                );
-
-                preSaveProgress.value = {
-                    ...preSaveProgress.value,
-                    error: error.message || String(error),
-                };
-
-                if (running != null) {
-                    setPreSaveProgressStep(running.id, "failed");
-                }
-            },
-            report(error) {
-                if (preSaveProgress.value == null) {
-                    return;
-                }
-
-                preSaveProgress.value = {
-                    ...preSaveProgress.value,
-                    error: error.message || String(error),
-                };
-            },
-            set(id, status) {
-                setPreSaveProgressStep(id, status);
-            },
-            start(title, pending) {
-                preSaveProgress.value = createRunningSaveProgress(
-                    title,
-                    pending,
-                );
-            },
+        const reporter = {
+            fail: failPreSaveProgress,
+            report: reportPreSaveProgress,
+            set: setPreSaveProgressStep,
+            start: startPreSaveProgress,
         };
+        return reporter;
+    }
+
+    /** Marks the active pre-save step as failed. */
+    function failPreSaveProgress(error): void {
+        if (preSaveProgress.value == null) {
+            return;
+        }
+
+        const running = preSaveProgress.value.steps.find(
+            (step) => step.status === "running",
+        );
+        reportPreSaveProgress(error);
+
+        if (running != null) {
+            setPreSaveProgressStep(running.id, "failed");
+        }
+    }
+
+    /** Records a pre-save error without changing step state. */
+    function reportPreSaveProgress(error): void {
+        if (preSaveProgress.value == null) {
+            return;
+        }
+
+        preSaveProgress.value = {
+            ...preSaveProgress.value,
+            error: error.message || String(error),
+        };
+    }
+
+    /** Starts save progress for the current submit attempt. */
+    function startPreSaveProgress(title, pending): void {
+        preSaveProgress.value = createRunningSaveProgress(title, pending);
     }
 
     /**
@@ -412,13 +564,6 @@ export function createDialogComponent(Vue: any, options: any): any {
             id,
             status,
         );
-    }
-
-    if (
-        options.initialEnwikiLookup === true &&
-        trimFieldValue(form.enwikiTitle) !== ""
-    ) {
-        refreshEnwikiMetadata();
     }
 
     /**
@@ -668,39 +813,17 @@ export function createDialogComponent(Vue: any, options: any): any {
 
             const moveTitle = trimFieldValue(preSaveMoveTitle.value);
 
-            if (
-                preSaveMoveEnabled.value &&
-                moveTitle !== "" &&
-                moveTitle !== getCurrentTitle()
-            ) {
-                await options.onMoveTarget(form, moveTitle, sourceFetchState);
-
-                if (sourceFetchState.error === "") {
-                    preSaveOpen.value = false;
-                }
-
+            if (shouldMoveBeforeSubmit(moveTitle)) {
+                await submitMoveTarget(moveTitle);
                 return;
             }
-
-            const reviewedPreview = selectValue(
-                previewSubmitted.value,
-                function trueBranch() {
-                    return {
-                        summary: previewSummary.value,
-                        text: previewText.value,
-                    };
-                },
-                function falseBranch() {
-                    return undefined;
-                },
-            );
 
             await options.onSubmit(
                 form,
                 sourceFetchState,
                 this.closeDialog,
                 createReviewedSubmitPending(),
-                reviewedPreview,
+                getReviewedPreview(),
             );
 
             if (sourceFetchState.error === "") {
@@ -1285,42 +1408,8 @@ export function createDialogComponent(Vue: any, options: any): any {
                 return;
             }
 
-            const completedValue = completeWikiLinkBrackets(
-                field.key,
-                value,
-                form[field.key],
-            );
-            const normalizedValue = selectValue(
-                field.key === "enwikiTitle",
-                function trueBranch() {
-                    return normalizeEnwikiTitleValue(completedValue);
-                },
-                function falseBranch() {
-                    return completedValue;
-                },
-            );
-
-            form[field.key] = formatArticleFormField(
-                form,
-                field.key,
-                normalizedValue,
-            );
-
-            if (
-                field.key === "pageName" &&
-                trimFieldValue(form.pageName) !== previewWithoutMoveTitle.value
-            ) {
-                previewWithoutMoveTitle.value = "";
-            }
-
-            if (field.key === "enwikiTitle") {
-                refreshEnwikiMetadata();
-            }
-
-            if (field.key === "series") {
-                navboxRowsPrepared = false;
-            }
-
+            form[field.key] = getFormattedFieldValue(field, value);
+            updateFieldDependencies(field.key);
             markCategoryRowsUnfixed(form.categoryRows);
         },
 
@@ -1501,21 +1590,10 @@ export function createDialogComponent(Vue: any, options: any): any {
                 const rows = await options.onPrepareCitations(form, {
                     refetchSourceUrls: [citation.sourceUrl],
                 });
-                const refreshed = rows
-                    .map(createCitationRow)
-                    .find(function callback(row) {
-                        return (
-                            trimFieldValue(row.sourceUrl) ===
-                            trimFieldValue(citation.sourceUrl)
-                        );
-                    });
+                const refreshed = findRefetchedCitation(rows, citation);
 
                 if (refreshed != null) {
-                    form.citationRows.splice(citationIndex, 1, {
-                        ...refreshed,
-                        modified: false,
-                        params: cloneValue(refreshed.generatedParams || []),
-                    });
+                    replaceRefetchedCitation(citationIndex, refreshed);
                     syncActiveCitationTab();
                 }
             } catch (error) {
@@ -2774,6 +2852,83 @@ export function createDialogComponent(Vue: any, options: any): any {
         },
     };
 
+/** Checks whether submit must first move to another title. */
+function shouldMoveBeforeSubmit(moveTitle: string): boolean {
+    return preSaveMoveEnabled.value && moveTitle !== "" &&
+        moveTitle !== getCurrentTitle();
+}
+
+/** Moves the pending article target before submission. */
+async function submitMoveTarget(moveTitle: string): Promise<void> {
+    await options.onMoveTarget(form, moveTitle, sourceFetchState);
+
+    if (sourceFetchState.error === "") {
+        preSaveOpen.value = false;
+    }
+}
+
+/** Gets the edited preview payload when one was submitted. */
+function getReviewedPreview(): any | undefined {
+    if (!previewSubmitted.value) {
+        return undefined;
+    }
+
+    return { summary: previewSummary.value, text: previewText.value };
+}
+
+/** Formats one live field input value. */
+function getFormattedFieldValue(field: any, value: string): string {
+    const completed = completeWikiLinkBrackets(
+        field.key,
+        value,
+        form[field.key],
+    );
+    let normalized = completed;
+
+    if (field.key === "enwikiTitle") {
+        normalized = normalizeEnwikiTitleValue(completed);
+    }
+
+    return formatArticleFormField(form, field.key, normalized);
+}
+
+/** Refreshes state derived from an updated field. */
+function updateFieldDependencies(key: string): void {
+    if (
+        key === "pageName" &&
+        trimFieldValue(form.pageName) !== previewWithoutMoveTitle.value
+    ) {
+        previewWithoutMoveTitle.value = "";
+    }
+
+    if (key === "enwikiTitle") {
+        refreshEnwikiMetadata();
+    }
+
+    if (key === "series") {
+        navboxRowsPrepared = false;
+    }
+}
+
+/** Finds a refreshed citation matching the requested source. */
+function findRefetchedCitation(rows: Array<any>, citation: any): any {
+    const sourceUrl = trimFieldValue(citation.sourceUrl);
+    return rows.map(createCitationRow).find(function callback(row) {
+        return trimFieldValue(row.sourceUrl) === sourceUrl;
+    });
+}
+
+/** Replaces one citation with refreshed generated parameters. */
+function replaceRefetchedCitation(index: number, refreshed: any): void {
+    form.citationRows.splice(index, 1, {
+        ...refreshed,
+        modified: false,
+        params: cloneValue(refreshed.generatedParams || []),
+    });
+}
+
+/** Creates Vue component options from initialized dialog state. */
+function createComponentDefinition(): any {
     return {
         methods,
         /**
@@ -2782,90 +2937,121 @@ export function createDialogComponent(Vue: any, options: any): any {
          * @returns Component state consumed by the template.
          */
         setup(): any {
-            return {
-                activeCitationTab,
-                activeTab,
-                categoryState,
-                categoryViewOpen,
-                categoryViewState,
-                pageEditOpen,
-                pageEditState,
-                pageEditTextArea,
-                categoryTableColumns: CATEGORY_TABLE_COLUMNS,
-                citationTableColumns: CITATION_TABLE_COLUMNS,
-                citationState,
-                companyCategoryOpen,
-                companyCategoryLookupLoading,
-                companyCategoryState,
-                groups: ARTICLE_PARAMETER_GROUPS,
-                form,
-                fetchedSteamNameRows,
-                getSteamNameSuggestions,
-                getCitationParamRows,
-                getCitationParamTableRows,
-                getCitationTabLabel,
-                getCitationTabName,
-                getCitationTabsKey,
-                getMetadataFieldLabel: methods.getMetadataFieldLabel,
-                getMetadataFieldTableRows,
-                getArticleField,
-                getArticlePreviewTitle,
-                getFieldPlaceholder: options.getFieldPlaceholder.bind(
-                    null,
-                    form,
-                ),
-                getFieldPreview,
-                getGroupPreview,
-                getNameSearchRows,
-                getEnwikiTipLinks,
-                getWikidataText,
-                historyEntries,
-                historyJsonEditable,
-                historyJsonError,
-                historyJsonOpen,
-                historyJsonText,
-                historyLoading,
-                historyOpen,
-                mainActionMenuItems: MAIN_ACTION_MENU_ITEMS,
-                mainActionMenuSelection,
-                moveOpen,
-                movePreviewConfirmation,
-                moveTarget,
-                moveTargetState,
-                metadataTableColumns: METADATA_TABLE_COLUMNS,
-                nameMarkets: NAME_MARKETS,
-                navboxTableColumns: NAVBOX_TABLE_COLUMNS,
-                notetaTableColumns: NOTETA_TABLE_COLUMNS,
-                open,
-                reviewState,
-                redirectTableColumns: REDIRECT_TABLE_COLUMNS,
-                preSaveMoveEnabled,
-                preSaveMoveTitle,
-                preSaveOpen,
-                preSaveActions,
-                preSaveGroups,
-                preSaveProgress,
-                preSaveProgressGroups,
-                previewOpen,
-                previewText,
-                previewSummary,
-                previewHtml,
-                previewLoading,
-                previewLoadingMessage,
-                previewSubmitted,
-                previewTextArea,
-                sourceFetchState,
-                steamNameButtons: STEAM_NAME_BUTTONS,
-                steamUrl,
-                tableActionTooltip,
-                tableActionTooltipRef,
-                tableActionIcons: TABLE_ACTION_ICONS,
-                stubTagTableColumns: STUB_TAG_TABLE_COLUMNS,
-                stubTagRows,
+            const state = {
+                ...getCoreSetupState(),
+                ...getFieldSetupState(),
+                ...getHistorySetupState(),
+                ...getPreviewSetupState(),
             };
+            return state;
         },
         template: createDialogTemplate(),
     };
+}
+
+/** Gets core dialog setup bindings. */
+function getCoreSetupState(): any {
+    const state = {
+        activeCitationTab,
+        activeTab,
+        categoryState,
+        categoryViewOpen,
+        categoryViewState,
+        pageEditOpen,
+        pageEditState,
+        pageEditTextArea,
+        categoryTableColumns: CATEGORY_TABLE_COLUMNS,
+        citationTableColumns: CITATION_TABLE_COLUMNS,
+        citationState,
+        companyCategoryOpen,
+        companyCategoryLookupLoading,
+        companyCategoryState,
+        groups: ARTICLE_PARAMETER_GROUPS,
+        form,
+        fetchedSteamNameRows,
+    };
+    return state;
+}
+
+/** Gets form field helper setup bindings. */
+function getFieldSetupState(): any {
+    const state = {
+        getSteamNameSuggestions,
+        getCitationParamRows,
+        getCitationParamTableRows,
+        getCitationTabLabel,
+        getCitationTabName,
+        getCitationTabsKey,
+        getMetadataFieldLabel: methods.getMetadataFieldLabel,
+        getMetadataFieldTableRows,
+        getArticleField,
+        getArticlePreviewTitle,
+        getFieldPlaceholder: options.getFieldPlaceholder.bind(null, form),
+        getFieldPreview,
+        getGroupPreview,
+        getNameSearchRows,
+        getEnwikiTipLinks,
+        getWikidataText,
+    };
+    return state;
+}
+
+/** Gets history and navigation setup bindings. */
+function getHistorySetupState(): any {
+    const state = {
+        historyEntries,
+        historyJsonEditable,
+        historyJsonError,
+        historyJsonOpen,
+        historyJsonText,
+        historyLoading,
+        historyOpen,
+        mainActionMenuItems: MAIN_ACTION_MENU_ITEMS,
+        mainActionMenuSelection,
+        moveOpen,
+        movePreviewConfirmation,
+        moveTarget,
+        moveTargetState,
+        metadataTableColumns: METADATA_TABLE_COLUMNS,
+        nameMarkets: NAME_MARKETS,
+        navboxTableColumns: NAVBOX_TABLE_COLUMNS,
+        notetaTableColumns: NOTETA_TABLE_COLUMNS,
+        open,
+        reviewState,
+        redirectTableColumns: REDIRECT_TABLE_COLUMNS,
+    };
+    return state;
+}
+
+/** Gets save and preview setup bindings. */
+function getPreviewSetupState(): any {
+    const state = {
+        preSaveMoveEnabled,
+        preSaveMoveTitle,
+        preSaveOpen,
+        preSaveActions,
+        preSaveGroups,
+        preSaveProgress,
+        preSaveProgressGroups,
+        previewOpen,
+        previewText,
+        previewSummary,
+        previewHtml,
+        previewLoading,
+        previewLoadingMessage,
+        previewSubmitted,
+        previewTextArea,
+        sourceFetchState,
+        steamNameButtons: STEAM_NAME_BUTTONS,
+        steamUrl,
+        tableActionTooltip,
+        tableActionTooltipRef,
+        tableActionIcons: TABLE_ACTION_ICONS,
+        stubTagTableColumns: STUB_TAG_TABLE_COLUMNS,
+        stubTagRows,
+    };
+    return state;
+}
 
     /**
      * Positions the shared table-action tooltip inside the viewport.
@@ -2950,11 +3136,7 @@ export function createDialogComponent(Vue: any, options: any): any {
     ): Promise<void> {
         const textarea = findTextareaElement(textareaRef.value);
 
-        if (
-            textarea == null ||
-            sourceEditors.has(key) ||
-            sourceEditorLoads.has(key)
-        ) {
+        if (!canInitializeSourceEditor(key, textarea)) {
             return;
         }
 
@@ -2969,39 +3151,54 @@ export function createDialogComponent(Vue: any, options: any): any {
             }
 
             const require = await loader.using(CODEMIRROR_MODULES);
-            const currentTextarea = findTextareaElement(textareaRef.value);
-
-            if (
-                !isSourceEditorOpen(key) ||
-                currentTextarea == null ||
-                currentTextarea !== textarea
-            ) {
-                return;
-            }
-
-            const CodeMirror = require("ext.CodeMirror");
-            const mediawiki = require("ext.CodeMirror.mode.mediawiki");
-            const editor = new CodeMirror(textarea, mediawiki());
-
-            if (!isSourceEditorOpen(key)) {
-                destroyLoadedSourceEditor(editor);
-                return;
-            }
-
-            if (typeof editor.initialize === "function") {
-                editor.initialize();
-            }
-
-            sourceEditors.set(key, {
-                editor,
-                textRef,
+            attachLoadedSourceEditor(
+                key,
                 textarea,
-            });
+                textareaRef,
+                textRef,
+                require,
+            );
         } catch (_error) {
             sourceEditors.delete(key);
         } finally {
             sourceEditorLoads.delete(key);
         }
+    }
+
+    /** Checks whether a source editor can start loading. */
+    function canInitializeSourceEditor(key: string, textarea: any): boolean {
+        return textarea != null && !sourceEditors.has(key) &&
+            !sourceEditorLoads.has(key);
+    }
+
+    /** Attaches a loaded CodeMirror editor to the current textarea. */
+    function attachLoadedSourceEditor(
+        key,
+        textarea,
+        textareaRef,
+        textRef,
+        require,
+    ): void {
+        const current = findTextareaElement(textareaRef.value);
+
+        if (!isSourceEditorOpen(key) || current !== textarea) {
+            return;
+        }
+
+        const CodeMirror = require("ext.CodeMirror");
+        const mediawiki = require("ext.CodeMirror.mode.mediawiki");
+        const editor = new CodeMirror(textarea, mediawiki());
+
+        if (!isSourceEditorOpen(key)) {
+            destroyLoadedSourceEditor(editor);
+            return;
+        }
+
+        if (typeof editor.initialize === "function") {
+            editor.initialize();
+        }
+
+        sourceEditors.set(key, { editor, textRef, textarea });
     }
 
     /**
@@ -3290,42 +3487,48 @@ export function createDialogComponent(Vue: any, options: any): any {
             return;
         }
 
-        if (
-            force &&
-            !rebuild &&
-            shouldSkipFixedRows(
-                refreshOptions,
-                (form.navboxRows || []).filter(
-                    (row) => !isBlankNavboxRow(row),
-                ),
-                isNavboxRowFixed,
-            )
-        ) {
+        if (shouldSkipNavboxRefresh(force, rebuild, refreshOptions)) {
             navboxRowsPrepared = true;
             return;
         }
 
-        const rows = applyNavboxPatches(
-            (await options.onPrepareReview(form, rebuild)).map(
-                function callback(row) {
-                    return createNavboxRow(row, true);
-                },
-            ),
-            form.historyPatches?.navboxes,
-        );
+        const rows = await getPreparedNavboxRows(rebuild);
 
         if (!rebuild && Array.isArray(form.navboxRows)) {
-            form.navboxRows.splice(
-                0,
-                form.navboxRows.length,
-                ...rows.map(updatePreparedNavboxRow),
-            );
-            ensureTrailingNavboxRow(form);
-            navboxRowsPrepared = true;
+            mergePreparedNavboxRows(rows);
             return;
         }
 
         form.navboxRows = rows;
+        ensureTrailingNavboxRow(form);
+        navboxRowsPrepared = true;
+    }
+
+    /** Checks whether fixed navbox rows should be preserved. */
+    function shouldSkipNavboxRefresh(force, rebuild, refreshOptions): boolean {
+        const rows = (form.navboxRows || []).filter(
+            (row) => !isBlankNavboxRow(row),
+        );
+        return force && !rebuild && shouldSkipFixedRows(
+            refreshOptions,
+            rows,
+            isNavboxRowFixed,
+        );
+    }
+
+    /** Builds patched generated navbox rows. */
+    async function getPreparedNavboxRows(rebuild: boolean): Promise<any[]> {
+        const prepared = await options.onPrepareReview(form, rebuild);
+        const rows = prepared.map(function callback(row) {
+            return createNavboxRow(row, true);
+        });
+        return applyNavboxPatches(rows, form.historyPatches?.navboxes);
+    }
+
+    /** Merges generated navboxes into the current reactive rows. */
+    function mergePreparedNavboxRows(rows: Array<any>): void {
+        const merged = rows.map(updatePreparedNavboxRow);
+        form.navboxRows.splice(0, form.navboxRows.length, ...merged);
         ensureTrailingNavboxRow(form);
         navboxRowsPrepared = true;
     }
@@ -3346,34 +3549,11 @@ export function createDialogComponent(Vue: any, options: any): any {
             return;
         }
 
-        const currentRows = selectValue(
-            Array.isArray(form.redirectRows),
-            function trueBranch() {
-                return form.redirectRows;
-            },
-            function falseBranch() {
-                return [];
-            },
-        );
         const rows = (
             await options.onPrepareRedirectRows(form, getCurrentTitle())
         ).map((row) => createRedirectRow(row, true));
 
-        form.redirectRows = rows.map(function callback(row) {
-            const current = currentRows.find(function callback(item) {
-                return (
-                    normalizeTitleKey(item.title) ===
-                    normalizeTitleKey(row.title)
-                );
-            });
-
-            if (current == null) {
-                return row;
-            }
-
-            row.enabled = !row.exists;
-            return row;
-        });
+        form.redirectRows = rows;
         ensureTrailingRedirectRow(form);
     }
 
@@ -3387,15 +3567,11 @@ export function createDialogComponent(Vue: any, options: any): any {
             return;
         }
 
-        const currentRows = selectValue(
-            Array.isArray(form.redirectRows),
-            function trueBranch() {
-                return form.redirectRows;
-            },
-            function falseBranch() {
-                return [];
-            },
-        );
+        let currentRows = [];
+
+        if (Array.isArray(form.redirectRows)) {
+            currentRows = form.redirectRows;
+        }
         const rowsToCheck = currentRows.filter(
             (row) => !isBlankRedirectRow(row),
         );
@@ -3414,17 +3590,20 @@ export function createDialogComponent(Vue: any, options: any): any {
             await options.onCheckRedirectRows(rowsToCheck, getCurrentTitle())
         ).map((row) => createRedirectRow(row, true));
 
-        form.redirectRows = rows.map(function callback(row, index) {
-            const current = currentRows[index];
-
-            if (current == null) {
-                return row;
-            }
-
-            row.enabled = !row.exists;
-            return row;
-        });
+        form.redirectRows = rows.map(mergeCheckedRedirectRow);
         ensureTrailingRedirectRow(form);
+    }
+
+    /** Preserves editable state for a checked redirect row. */
+    function mergeCheckedRedirectRow(row: any, index: number): any {
+        const current = form.redirectRows[index];
+
+        if (current == null) {
+            return row;
+        }
+
+        row.enabled = !row.exists;
+        return row;
     }
 
     /**
@@ -3438,64 +3617,64 @@ export function createDialogComponent(Vue: any, options: any): any {
      * @returns Resolves after the editor is populated.
      */
     async function openPageEdit(params: any): Promise<void> {
-        Object.assign(pageEditState, {
-            create: params.create,
-            company: selectValue(
-                params.kind === "category",
-                function trueBranch() {
-                    return trimFieldValue(params.row.company);
-                },
-                function falseBranch() {
-                    return "";
-                },
-            ),
-            englishName: trimFieldValue(
-                params.row.pendingEdit?.englishName ||
-                    params.row.pendingCreation?.englishName,
-            ),
-            error: "",
-            html: "",
-            kind: params.kind,
-            loading: true,
-            pending: params.row.pendingEdit != null,
-            previousStatus:
-                params.row.pendingEdit?.previousStatus || params.row.status,
-            row: params.row,
-            text: "",
-            title: params.title,
-        });
+        Object.assign(pageEditState, createOpenPageEditState(params));
         pageEditOpen.value = true;
-        queueSourceEditor("pageEdit", pageEditTextArea, {
-            get value() {
-                return pageEditState.text;
-            },
-            set value(text) {
-                pageEditState.text = text;
-            },
-        });
+        queueSourceEditor("pageEdit", pageEditTextArea, pageEditTextBinding);
 
         try {
-            pageEditState.text =
-                getStagedPageText(params.row, params.kind) ??
-                (await selectValue(
-                    params.create,
-                    async function trueBranch() {
-                        return await getNewPageEditText(params);
-                    },
-                    async function falseBranch() {
-                        return await options.onFetchPageText(params.title);
-                    },
-                ));
-            setSourceEditorText("pageEdit", pageEditState.text);
-            pageEditState.html = await options.onParsePreview(
-                pageEditState.text,
-                params.title,
-            );
+            await loadPageEditText(params);
         } catch (error) {
             pageEditState.error = error.message || String(error);
         } finally {
             pageEditState.loading = false;
         }
+    }
+
+    /** Creates initial state for an opened page editor. */
+    function createOpenPageEditState(params: any): any {
+        const row = params.row;
+        let company = "";
+
+        if (params.kind === "category") {
+            company = trimFieldValue(row.company);
+        }
+        return {
+            create: params.create,
+            company,
+            englishName: trimFieldValue(
+                row.pendingEdit?.englishName ||
+                    row.pendingCreation?.englishName,
+            ),
+            error: "",
+            html: "",
+            kind: params.kind,
+            loading: true,
+            pending: row.pendingEdit != null,
+            previousStatus: row.pendingEdit?.previousStatus || row.status,
+            row,
+            text: "",
+            title: params.title,
+        };
+    }
+
+    /** Loads and parses the source used by a page editor. */
+    async function loadPageEditText(params: any): Promise<void> {
+        const staged = getStagedPageText(params.row, params.kind);
+        pageEditState.text = staged ?? await getPageEditFallbackText(params);
+        setSourceEditorText("pageEdit", pageEditState.text);
+        pageEditState.html = await options.onParsePreview(
+            pageEditState.text,
+            params.title,
+        );
+    }
+
+    /** Gets source text when no staged page edit exists. */
+    async function getPageEditFallbackText(params: any): Promise<string> {
+        if (params.create) {
+            return await getNewPageEditText(params);
+        }
+
+        return await options.onFetchPageText(params.title);
     }
 
     /**
@@ -3576,50 +3755,49 @@ export function createDialogComponent(Vue: any, options: any): any {
         }
 
         if (pageEditState.kind === "category" && pageEditState.create) {
-            row.pendingCreation = {
-                englishName: trimFieldValue(pageEditState.englishName),
-                previousStatus:
-                    row.pendingCreation?.previousStatus || row.status,
-                text: pageEditState.text,
-            };
-            row.enabled = true;
-            row.status = "Pending creation";
-            destroySourceEditor("pageEdit");
-            pageEditOpen.value = false;
-            clearPageEditState();
+            stageCategoryCreation(row);
             return;
         }
 
-        row.pendingEdit = {
+        row.pendingEdit = createPendingPageEdit(row);
+        row.enabled = true;
+        row.status = "Pending edit";
+
+        if (pageEditState.create) {
+            row.status = "Pending creation";
+        }
+        closePageEditor();
+    }
+
+    /** Stages a new company category page. */
+    function stageCategoryCreation(row: any): void {
+        row.pendingCreation = {
+            englishName: trimFieldValue(pageEditState.englishName),
+            previousStatus: row.pendingCreation?.previousStatus || row.status,
+            text: pageEditState.text,
+        };
+        row.enabled = true;
+        row.status = "Pending creation";
+        closePageEditor();
+    }
+
+    /** Creates a staged generic page edit payload. */
+    function createPendingPageEdit(row: any): any {
+        const englishName = trimFieldValue(pageEditState.englishName);
+        const pending = {
             create: pageEditState.create,
-            ...selectValue(
-                trimFieldValue(pageEditState.englishName) === "",
-                function trueBranch() {
-                    return {};
-                },
-                function falseBranch() {
-                    return {
-                        englishName: trimFieldValue(pageEditState.englishName),
-                    };
-                },
-            ),
-            previousStatus:
-                row.pendingEdit?.previousStatus ||
+            ...(englishName === "" ? {} : { englishName }),
+            previousStatus: row.pendingEdit?.previousStatus ||
                 pageEditState.previousStatus,
             summary: buildPageEditSummary(pageEditState),
             text: pageEditState.text,
             title: pageEditState.title,
         };
-        row.enabled = true;
-        row.status = selectValue(
-            pageEditState.create,
-            function trueBranch() {
-                return "Pending creation";
-            },
-            function falseBranch() {
-                return "Pending edit";
-            },
-        );
+        return pending;
+    }
+
+    /** Closes and clears the page source editor. */
+    function closePageEditor(): void {
         destroySourceEditor("pageEdit");
         pageEditOpen.value = false;
         clearPageEditState();
@@ -3782,155 +3960,85 @@ export function createDialogComponent(Vue: any, options: any): any {
         }
 
         const title = getBasePageTitle(form.enwikiTitle);
-
-        return [
-            {
-                label: "Wikidata",
-                value: selectValue(
-                    form.wikidataId,
-                    function trueBranch() {
-                        return form.wikidataId;
-                    },
-                    function falseBranch() {
-                        return getWikidataLookupStatus(
-                            enwikiMetadata.pageExists,
-                        );
-                    },
-                ),
-                url: selectValue(
-                    form.wikidataId,
-                    function trueBranch() {
-                        return [
-                            "https://www.wikidata.org/wiki/",
-                            encodeURIComponent(form.wikidataId),
-                            "",
-                        ].join("");
-                    },
-                    function falseBranch() {
-                        return selectValue(
-                            title,
-                            function trueBranch() {
-                                return buildWikidataSearchUrl(title);
-                            },
-                            function falseBranch() {
-                                return "";
-                            },
-                        );
-                    },
-                ),
-            },
-            {
-                label: "Metacritic",
-                value: selectValue(
-                    enwikiMetadata.metacriticId,
-                    function trueBranch() {
-                        return enwikiMetadata.metacriticId;
-                    },
-                    function falseBranch() {
-                        return selectValue(
-                            title,
-                            function trueBranch() {
-                                return "search";
-                            },
-                            function falseBranch() {
-                                return "not found";
-                            },
-                        );
-                    },
-                ),
-                url: selectValue(
-                    enwikiMetadata.metacriticId,
-                    function trueBranch() {
-                        return buildMetacriticUrl(enwikiMetadata.metacriticId);
-                    },
-                    function falseBranch() {
-                        return selectValue(
-                            title,
-                            function trueBranch() {
-                                return buildMetacriticSearchUrl(title);
-                            },
-                            function falseBranch() {
-                                return "";
-                            },
-                        );
-                    },
-                ),
-            },
-            {
-                label: "OpenCritic",
-                value: selectValue(
-                    enwikiMetadata.openCriticId,
-                    function trueBranch() {
-                        return enwikiMetadata.openCriticId;
-                    },
-                    function falseBranch() {
-                        return selectValue(
-                            title,
-                            function trueBranch() {
-                                return "search";
-                            },
-                            function falseBranch() {
-                                return "not found";
-                            },
-                        );
-                    },
-                ),
-                url: selectValue(
-                    enwikiMetadata.openCriticId,
-                    function trueBranch() {
-                        return buildOpenCriticUrl(enwikiMetadata.openCriticId);
-                    },
-                    function falseBranch() {
-                        return selectValue(
-                            title,
-                            function trueBranch() {
-                                return buildOpenCriticSearchUrl(title);
-                            },
-                            function falseBranch() {
-                                return "";
-                            },
-                        );
-                    },
-                ),
-            },
-            {
-                label: "Steam",
-                value: selectValue(
-                    enwikiMetadata.steamId,
-                    function trueBranch() {
-                        return enwikiMetadata.steamId;
-                    },
-                    function falseBranch() {
-                        return selectValue(
-                            title,
-                            function trueBranch() {
-                                return "search";
-                            },
-                            function falseBranch() {
-                                return "not found";
-                            },
-                        );
-                    },
-                ),
-                url: selectValue(
-                    enwikiMetadata.steamId,
-                    function trueBranch() {
-                        return buildSteamUrl(enwikiMetadata.steamId);
-                    },
-                    function falseBranch() {
-                        return selectValue(
-                            title,
-                            function trueBranch() {
-                                return buildSteamSearchUrl(title);
-                            },
-                            function falseBranch() {
-                                return "";
-                            },
-                        );
-                    },
-                ),
-            },
+        const links = [
+            createWikidataTipLink(title),
+            createServiceTipLink(
+                "Metacritic",
+                enwikiMetadata.metacriticId,
+                title,
+            ),
+            createServiceTipLink(
+                "OpenCritic",
+                enwikiMetadata.openCriticId,
+                title,
+            ),
+            createServiceTipLink("Steam", enwikiMetadata.steamId, title),
         ];
+        return links;
+    }
+
+    /** Creates the Wikidata lookup tip link. */
+    function createWikidataTipLink(title: string): any {
+        const id = form.wikidataId;
+        let url = getOptionalSearchUrl(title, buildWikidataSearchUrl);
+
+        if (id) {
+            url = `https://www.wikidata.org/wiki/${encodeURIComponent(id)}`;
+        }
+        return {
+            label: "Wikidata",
+            value: id || getWikidataLookupStatus(enwikiMetadata.pageExists),
+            url,
+        };
+    }
+
+    /** Creates one external review service tip link. */
+    function createServiceTipLink(label, id, title): any {
+        let url = getServiceSearchUrl(label, title);
+
+        if (id) {
+            url = buildServiceUrl(label, id);
+        }
+        return {
+            label,
+            value: id || (title ? "search" : "not found"),
+            url,
+        };
+    }
+
+    /** Builds a direct external review service URL. */
+    function buildServiceUrl(label: string, id: string): string {
+        if (label === "Metacritic") {
+            return buildMetacriticUrl(id);
+        }
+
+        if (label === "OpenCritic") {
+            return buildOpenCriticUrl(id);
+        }
+
+        return buildSteamUrl(id);
+    }
+
+    /** Builds an external review service search URL. */
+    function getServiceSearchUrl(label: string, title: string): string {
+        if (title === "") {
+            return "";
+        }
+
+        if (label === "Metacritic") {
+            return buildMetacriticSearchUrl(title);
+        }
+
+        if (label === "OpenCritic") {
+            return buildOpenCriticSearchUrl(title);
+        }
+
+        return buildSteamSearchUrl(title);
+    }
+
+    /** Calls a search URL builder only for a nonblank title. */
+    function getOptionalSearchUrl(title, buildUrl): string {
+        return title === "" ? "" : buildUrl(title);
     }
 
     /**
@@ -4085,40 +4193,55 @@ export function createDialogComponent(Vue: any, options: any): any {
         const title = trimFieldValue(form.enwikiTitle);
         const serial = enwikiLookupSerial.value + 1;
 
-        enwikiLookupSerial.value = serial;
-        enwikiLookupLoading.value =
-            title !== "" && options.onEnwikiTitleChange != null;
-        form.wikidataId = "";
-        Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
+        resetEnwikiMetadataLookup(title, serial);
 
         if (title === "" || options.onEnwikiTitleChange == null) {
             return;
         }
 
-        let metadata;
-
-        try {
-            metadata = await options.onEnwikiTitleChange(title);
-        } catch (_error) {
-            metadata = {};
-        }
+        const metadata = await fetchEnwikiMetadata(title);
 
         if (serial !== enwikiLookupSerial.value) {
             return;
         }
 
+        applyEnwikiMetadata(metadata);
+        applyEnwikiSourceUrls();
+        const fetchSteam = prepareEnwikiSteamNames();
+        enwikiLookupLoading.value = false;
+        openEnwikiReviewLinks();
+
+        if (fetchSteam) {
+            await fetchSteamNames();
+        }
+    }
+
+    /** Clears metadata before starting an English Wikipedia lookup. */
+    function resetEnwikiMetadataLookup(title: string, serial: number): void {
+        enwikiLookupSerial.value = serial;
+        enwikiLookupLoading.value =
+            title !== "" && options.onEnwikiTitleChange != null;
+        form.wikidataId = "";
+        Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
+    }
+
+    /** Fetches English Wikipedia metadata with an empty fallback. */
+    async function fetchEnwikiMetadata(title: string): Promise<any> {
+        try {
+            return await options.onEnwikiTitleChange(title);
+        } catch (_error) {
+            return {};
+        }
+    }
+
+    /** Applies fetched English Wikipedia metadata to form state. */
+    function applyEnwikiMetadata(metadata: any): void {
+        const hasPageState = metadata.pageExists === true ||
+            metadata.pageExists === false;
         Object.assign(enwikiMetadata, {
             metacriticId: trimFieldValue(metadata.metacriticId),
             openCriticId: trimFieldValue(metadata.openCriticId),
-            pageExists: selectValue(
-                metadata.pageExists === true || metadata.pageExists === false,
-                function trueBranch() {
-                    return metadata.pageExists;
-                },
-                function falseBranch() {
-                    return null;
-                },
-            ),
+            pageExists: hasPageState ? metadata.pageExists : null,
             steamId: trimFieldValue(metadata.steamId),
         });
         form.wikidataId = trimFieldValue(metadata.wikidataId);
@@ -4126,7 +4249,10 @@ export function createDialogComponent(Vue: any, options: any): any {
         if (trimFieldValue(form.englishName) === "") {
             form.englishName = getBasePageTitle(metadata.title);
         }
+    }
 
+    /** Fills blank review source URLs from fetched service IDs. */
+    function applyEnwikiSourceUrls(): void {
         if (
             trimFieldValue(form.metacriticScoreSourceUrl) === "" &&
             enwikiMetadata.metacriticId
@@ -4144,21 +4270,19 @@ export function createDialogComponent(Vue: any, options: any): any {
                 enwikiMetadata.openCriticId,
             );
         }
+    }
 
-        const shouldFetchSteamNames =
-            trimFieldValue(steamUrl.value) === "" && enwikiMetadata.steamId;
+    /** Prepares a Steam name lookup when a new app ID is available. */
+    function prepareEnwikiSteamNames(): boolean {
+        const shouldFetch = trimFieldValue(steamUrl.value) === "" &&
+            enwikiMetadata.steamId;
 
-        if (shouldFetchSteamNames) {
+        if (shouldFetch) {
             steamUrl.value = buildSteamUrl(enwikiMetadata.steamId);
             fetchedSteamNameRows.value = [];
         }
 
-        enwikiLookupLoading.value = false;
-        openEnwikiReviewLinks();
-
-        if (shouldFetchSteamNames) {
-            await fetchSteamNames();
-        }
+        return Boolean(shouldFetch);
     }
 
     /**
@@ -4256,7 +4380,6 @@ export function createDialogComponent(Vue: any, options: any): any {
             },
         );
     }
-}
 
 
 /**
@@ -4570,27 +4693,21 @@ function findListSegmentEnd(text: string, index: number): number {
 }
 
 
-import * as formHelpers from "./helpers.ts";
-
-const {
+import {
     markSteamNameHelperRow,
     formatCategorySourceLabel,
     formatCategorySourceTitle,
-    getCategorySourceDisplay,
     normalizeEnglishCategoryTitle,
     syncStubTagRowsFromCategories,
     buildStubTagRowsFromCategories,
     ensureStubTagRows,
     cleanEditableRows,
-    ensureTrailingEditableRow,
     ensureTrailingCategoryRow,
     ensureTrailingRedirectRow,
     ensureTrailingNavboxRow,
     ensureTrailingStubTagRow,
     isBlankCategoryRow,
-    createBlankCategoryRow,
     isBlankStubTagRow,
-    isManualStubTagRow,
     createStubTagRow,
     trimStubTagValue,
     createCitationPrefetchQueue,
@@ -4599,23 +4716,12 @@ const {
     createNoteTaRow,
     createNameRowFromValues,
     getSteamNameSuggestions,
-    formatSteamNameMarkets,
-    formatSteamNameMarket,
     getOriginalNameLanguage,
     buildSteamNameChoiceRows,
-    findSteamNameRow,
-    mergeSteamNameRows,
-    getNameRowSelectedMarkets,
     ensureTrailingNameRow,
     hasAnyNameRowValue,
-    hasEnteredNameRowValue,
-    getArticleFields,
     getArticleField,
     getReviewStatusChipStatus,
-    getSourceReferenceField,
-    getGroupFields,
-    getEmptyFieldValue,
-    getFieldValueKey,
     getBasePageTitle,
     createBlankEnwikiMetadata,
     getWikidataLookupStatus,
@@ -4631,19 +4737,12 @@ const {
     buildSteamSearchUrl,
     buildGoogleSiteSearchUrl,
     replaceFormValues,
-    normalizeReceivedFormValues,
     getHistoryEntryForm,
     applyCitationPatches,
-    applyCitationParamPatches,
     applyCategoryPatches,
     applyNavboxPatches,
-    isCategoryPatchTarget,
-    createCategoryPatchRow,
     syncGeneratedNameNoteTaRow,
     regenerateNoteTaRows,
-    isManualNoteTaRow,
-    getOfficialNameNoteTaRows,
-    getGeneratedNameNoteTaInsertIndex,
     ensureNoteTaRows,
     isBlankNoteTaRow,
     ensureNavboxRows,
@@ -4657,7 +4756,6 @@ const {
     isRedirectRowFixed,
     ensureRedirectRows,
     hasPreparedNavboxRows,
-    normalizeTitleKey,
     createNavboxRow,
     isBlankNavboxRow,
     setNavboxRowText,
@@ -4673,14 +4771,13 @@ const {
     getMetadataFieldTableRows,
     getCitationTabName,
     getCitationTabLabel,
-    getCitationSourceDomain,
     getCodeMirrorLoader,
     findTextareaElement,
     getCodeMirrorText,
     setCodeMirrorText,
     cloneValue,
     openDialog,
-} = formHelpers;
+} from "./helpers.ts";
 
 
 /**

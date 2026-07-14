@@ -62,27 +62,6 @@ export function resetCategoryRow(row: any): any {
 
 
 /**
- * Resets edited generated category rows, preserving manual rows.
- *
- * @param rows - Category review rows.
- * @returns Reset category review rows.
- */
-export function resetGeneratedCategoryRows(rows: Array<any>): Array<any> {
-    return rows.map(function callback(row) {
-        return selectValue(
-            isManualCategoryRow(row),
-            function trueBranch() {
-                return normalizeCategoryRow(row);
-            },
-            function falseBranch() {
-                return resetCategoryRow(row);
-            },
-        );
-    });
-}
-
-
-/**
  * Updates an editable category title and refreshes its source marker.
  *
  * @param row - Category review row.
@@ -100,7 +79,6 @@ export function updateCategoryRowCategory(row: any, category: string): any {
 /**
  * Builds category review rows from form values and article metadata.
  *
- * @param form - Dialog form values.
  * @param params - Normalized article parameters.
  * @param previousRows - Existing category rows.
  * @param options - API options.
@@ -110,7 +88,6 @@ export function updateCategoryRowCategory(row: any, category: string): any {
  * @returns Category review rows.
  */
 export async function buildCategoryRows(
-    form: any,
     params: any,
     previousRows: Array<any> = [],
     options: any = {},
@@ -150,43 +127,32 @@ export async function buildCategoryRows(
  */
 export function buildFallbackCategoryRows(params: any): Array<any> {
     const metadata = getArticleCategoryMetadata(params);
-
-    return sortRowsByArticleProse(
-        uniqueCategoryRows(
-            [
-                ...buildSourceCategoryRows(
-                    SOURCE_DATA,
-                    metadata.companies.assumedCategories ||
-                        metadata.companies.categories,
-                    {
-                        stubTagEnabled: true,
-                        stubTags:
-                            metadata.companies.assumedStubTags ||
-                            metadata.companies.stubTags,
-                    },
-                ),
-                ...buildSourceCategoryRows(
-                    SOURCE_DATA,
-                    metadata.platform.assumedCategories ||
-                        metadata.platform.categories,
-                    {
-                        stubTagEnabled: true,
-                        stubTags:
-                            metadata.platform.assumedStubTags ||
-                            metadata.platform.stubTags,
-                    },
-                ),
-                ...buildSourceCategoryRows(
-                    SOURCE_DATA,
-                    metadata.release.categories,
-                    {
-                        stubTagEnabled: true,
-                        stubTags: metadata.release.stubTags,
-                    },
-                ),
-            ].map(normalizeCategoryRow),
+    const rows = [
+        ...buildFallbackRoleRows(metadata.companies),
+        ...buildFallbackRoleRows(metadata.platform),
+        ...buildSourceCategoryRows(
+            SOURCE_DATA,
+            metadata.release.categories,
+            {
+                stubTagEnabled: true,
+                stubTags: metadata.release.stubTags,
+            },
         ),
-        params,
+    ];
+    const normalized = uniqueCategoryRows(rows.map(normalizeCategoryRow));
+
+    return sortRowsByArticleProse(normalized, params);
+}
+
+/** Builds fallback rows for one article metadata role. */
+function buildFallbackRoleRows(metadata): Array<any> {
+    return buildSourceCategoryRows(
+        SOURCE_DATA,
+        metadata.assumedCategories || metadata.categories,
+        {
+            stubTagEnabled: true,
+            stubTags: metadata.assumedStubTags || metadata.stubTags,
+        },
     );
 }
 
@@ -248,32 +214,14 @@ async function buildGeneratedCategoryRows(
     const seriesRows = (metadata.series.categoryPlans || []).map(
         createCategoryPlan,
     );
-    const platformStubTagEnabled = metadata.platform.count === 1;
-    const metadataRows = [
-        ...buildSourceCategoryRows(
-            SOURCE_DATA,
-            metadata.platform.assumedCategories ||
-                metadata.platform.categories,
-            {
-                stubTagEnabled: platformStubTagEnabled,
-                stubTags:
-                    metadata.platform.assumedStubTags ||
-                    metadata.platform.stubTags,
-            },
-        ),
-        ...buildSourceCategoryRows(SOURCE_DATA, metadata.release.categories, {
-            stubTagEnabled: true,
-            stubTags: metadata.release.stubTags,
-        }),
-    ];
+    const metadataRows = buildGeneratedMetadataRows(metadata);
+    const candidates = getGeneratedCategoryCandidates(
+        companyRows,
+        seriesRows,
+        metadataRows,
+    );
     const resolutions = await resolveCategories(
-        uniqueValues(
-            [
-                ...companyRows.flatMap(getCategoryPlanCandidates),
-                ...seriesRows.flatMap(getCategoryPlanCandidates),
-                ...metadataRows.map((row) => row.category),
-            ].filter(Boolean),
-        ),
+        candidates,
         options,
     );
 
@@ -282,6 +230,37 @@ async function buildGeneratedCategoryRows(
         ...resolveCategoryPlans(seriesRows, resolutions),
         ...applyCategoryResolutions(metadataRows, resolutions),
     ];
+}
+
+/** Builds generated platform and release category rows. */
+function buildGeneratedMetadataRows(metadata): Array<any> {
+    const platformRows = buildSourceCategoryRows(
+        SOURCE_DATA,
+        metadata.platform.assumedCategories || metadata.platform.categories,
+        {
+            stubTagEnabled: metadata.platform.count === 1,
+            stubTags: metadata.platform.assumedStubTags ||
+                metadata.platform.stubTags,
+        },
+    );
+    const releaseRows = buildSourceCategoryRows(
+        SOURCE_DATA,
+        metadata.release.categories,
+        { stubTagEnabled: true, stubTags: metadata.release.stubTags },
+    );
+
+    return [...platformRows, ...releaseRows];
+}
+
+/** Gets unique category candidates needed by generated rows. */
+function getGeneratedCategoryCandidates(companies, series, metadata) {
+    const candidates = [
+        ...companies.flatMap(getCategoryPlanCandidates),
+        ...series.flatMap(getCategoryPlanCandidates),
+        ...metadata.map((row) => row.category),
+    ].filter(Boolean);
+
+    return uniqueValues(candidates);
 }
 
 
@@ -293,34 +272,44 @@ async function buildGeneratedCategoryRows(
  */
 function getArticleCategoryMetadata(params: any): any {
     if (params.records == null) {
-        return {
-            companies: params.companyMetadata,
-            platform: {
-                ...params.platformSeriesMetadata,
-                count: params.platformSeriesMetadata.platformCount,
-            },
-            release: params.yearGenreMetadata,
-            series: params.platformSeriesMetadata,
-        };
+        return getLegacyArticleCategoryMetadata(params);
     }
 
+    return getRecordArticleCategoryMetadata(params.records);
+}
+
+/** Gets category metadata from legacy processed parameters. */
+function getLegacyArticleCategoryMetadata(params): any {
     return {
-        companies: params.records.companies,
+        companies: params.companyMetadata,
         platform: {
-            ...params.records.platform,
-            count: params.records.platform.metadata.count,
+            ...params.platformSeriesMetadata,
+            count: params.platformSeriesMetadata.platformCount,
+        },
+        release: params.yearGenreMetadata,
+        series: params.platformSeriesMetadata,
+    };
+}
+
+/** Gets category metadata from article data records. */
+function getRecordArticleCategoryMetadata(records): any {
+    return {
+        companies: records.companies,
+        platform: {
+            ...records.platform,
+            count: records.platform.metadata.count,
         },
         release: {
             categories: uniqueValues([
-                ...params.records.genre.assumedCategories,
-                ...params.records.year.assumedCategories,
+                ...records.genre.assumedCategories,
+                ...records.year.assumedCategories,
             ]),
             stubTags: uniqueValues([
-                ...params.records.genre.assumedStubTags,
-                ...params.records.year.assumedStubTags,
+                ...records.genre.assumedStubTags,
+                ...records.year.assumedStubTags,
             ]),
         },
-        series: params.records.series,
+        series: records.series,
     };
 }
 
@@ -899,27 +888,26 @@ async function resolveCategories(
     const resolutions = Object.fromEntries(
         (Object.entries(values) as Array<[string, any]>).map(
             function callback([key, resolution]) {
-                return [
-                    key,
-                    {
-                        ...resolution,
-                        category: resolution.title,
-                        status: selectValue(
-                            resolution.exists,
-                            function trueBranch() {
-                                return CATEGORY_STATUS.exists;
-                            },
-                            function falseBranch() {
-                                return CATEGORY_STATUS.missing;
-                            },
-                        ),
-                    },
-                ];
+                return [key, buildCategoryResolution(resolution)];
             },
         ),
     );
 
     return resolutions;
+}
+
+/** Adds category-specific fields to a title resolution. */
+function buildCategoryResolution(resolution): any {
+    let status = CATEGORY_STATUS.missing;
+
+    if (resolution.exists) {
+        status = CATEGORY_STATUS.exists;
+    }
+    return {
+        ...resolution,
+        category: resolution.title,
+        status,
+    };
 }
 
 

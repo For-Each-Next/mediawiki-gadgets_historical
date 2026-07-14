@@ -34,17 +34,6 @@ export function get(type: string, value: string, projection?: string): any {
 
 
 /**
- * Creates a terminology getter backed by the provided definitions.
- *
- * @param definitions - Terminology definitions by type.
- * @returns Terminology getter.
- */
-export function createGetter(definitions: any): (...args: any[]) => any {
-    return getFrom.bind(null, definitions);
-}
-
-
-/**
  * Gets terminology data from an explicit definition collection.
  *
  * @param definitions - Terminology definitions by type.

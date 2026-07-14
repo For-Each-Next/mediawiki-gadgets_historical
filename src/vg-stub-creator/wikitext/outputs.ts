@@ -29,13 +29,39 @@ export function buildArticleRenderers(records: any, sourceTags: any): any {
         sourceTags,
         "officialNames",
     );
-    const defaultSort = buildDefaultSortText({
+    const defaultSort = buildNameDefaultSort(names);
+    const infobox = buildNameInfobox(names, commonNames, officialNames);
+    const noteTa = buildNoteTaText({
+        entries: records.noteTa.metadata.rows,
+        namesRemoved: records.noteTa.metadata.namesRemoved,
+        officialNames: names.officialNames,
+    });
+
+    return {
+        defaultSort,
+        infobox,
+        navboxes: records.review.wikitext.navbox,
+        noteTa,
+    };
+}
+
+/** Builds default-sort text from normalized names. */
+function buildNameDefaultSort(names: any): string {
+    return buildDefaultSortText({
         english: names.englishName,
         original: names.original.name,
         sortKey: names.sortKey,
         title: names.name,
     });
-    const infobox = buildInfoboxText({
+}
+
+/** Builds infobox text from normalized names. */
+function buildNameInfobox(
+    names: any,
+    commonNames: any,
+    officialNames: any,
+): string {
+    return buildInfoboxText({
         commonNames,
         englishName: names.englishName,
         name: names.name,
@@ -43,19 +69,6 @@ export function buildArticleRenderers(records: any, sourceTags: any): any {
         originalLanguage: names.original.language,
         originalName: names.original.name,
     });
-    const noteTa = buildNoteTaText({
-        entries: records.noteTa.metadata.rows,
-        namesRemoved: records.noteTa.metadata.namesRemoved,
-        officialNames: names.officialNames,
-    });
-    const outputs = {
-        defaultSort,
-        infobox,
-        navboxes: records.review.wikitext.navbox,
-        noteTa,
-    };
-
-    return outputs;
 }
 
 

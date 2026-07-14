@@ -274,26 +274,3 @@ function normalizeTemplateTitle(template: string): string {
 function normalizeTemplateKey(template: string): string {
     return normalizeTitleKey(template, TEMPLATE_NAMESPACE);
 }
-
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}

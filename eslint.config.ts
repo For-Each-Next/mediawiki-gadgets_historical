@@ -9,6 +9,8 @@ const browserGlobals = {
     Blob: "readonly",
     CustomEvent: "readonly",
     DocumentFragment: "readonly",
+    DOMParser: "readonly",
+    Element: "readonly",
     Event: "readonly",
     FormData: "readonly",
     Headers: "readonly",
@@ -22,6 +24,7 @@ const browserGlobals = {
     Response: "readonly",
     URL: "readonly",
     URLSearchParams: "readonly",
+    XMLSerializer: "readonly",
     clearInterval: "readonly",
     clearTimeout: "readonly",
     console: "readonly",
@@ -66,6 +69,7 @@ export default [
             "no-constant-condition": "error",
             "no-duplicate-imports": "error",
             "no-eval": "error",
+            "no-inner-declarations": "error",
             "no-new-func": "error",
             "no-unreachable": "error",
             "no-var": "error",
@@ -79,7 +83,7 @@ export default [
         },
     },
     {
-        files: ["src/**/*.ts"],
+        files: ["src/**/*.ts", "scripts/**/*.ts"],
         rules: {
             "max-depth": ["error", 4],
             "max-len": [
@@ -94,6 +98,16 @@ export default [
                     tabWidth: 4,
                 },
             ],
+            "max-lines-per-function": [
+                "error",
+                {
+                    IIFEs: true,
+                    max: 30,
+                    skipBlankLines: true,
+                    skipComments: true,
+                },
+            ],
+            "max-params": ["error", 5],
         },
     },
 ];

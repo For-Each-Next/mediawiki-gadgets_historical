@@ -128,18 +128,54 @@ function buildArticleData(input: any): any {
     const { form, records, sourceReferences, sourceTags } = input;
     const prose = buildArticleProse(records, sourceTags);
     const renderers = buildArticleRenderers(records, sourceTags);
-    const companyMetadata = {
+    const companyMetadata = buildCompanyOutputMetadata(records, prose);
+    const platformSeriesMetadata = buildPlatformSeriesMetadata(records, prose);
+    const yearGenreMetadata = buildYearGenreMetadata(records, prose);
+    const data = {
+        ...buildArticleFormOutput(form),
+        additionalProseText: prose.fragments.sentence4,
+        aggScoresText: prose.fragments.sentence3,
+        companyMetadata,
+        defaultSortText: renderers.defaultSort,
+        form,
+        infoboxText: renderers.infobox,
+        leadNameText: prose.fragments.sentence1.s1a.titles,
+        navboxText: renderers.navboxes,
+        noteTaText: renderers.noteTa,
+        platformSeriesMetadata,
+        prose,
+        records,
+        renderers,
+        sourceReferences,
+        sourceTags,
+        yearGenreMetadata,
+    };
+
+    return data;
+}
+
+/** Builds company metadata with rendered prose. */
+function buildCompanyOutputMetadata(records, prose): any {
+    return {
         ...records.companies.metadata,
         text: prose.fragments.sentence1.s1b,
     };
-    const platformSeriesMetadata = {
+}
+
+/** Builds platform and series output metadata. */
+function buildPlatformSeriesMetadata(records, prose): any {
+    return {
         categories: records.platform.assumedCategories,
         categoryPlans: records.series.categoryPlans,
         platformCount: records.platform.metadata.count,
         stubTags: records.platform.assumedStubTags,
         text: prose.fragments.sentence2,
     };
-    const yearGenreMetadata = {
+}
+
+/** Builds year and genre output metadata. */
+function buildYearGenreMetadata(records, prose): any {
+    return {
         categories: [
             ...records.genre.assumedCategories,
             ...records.year.assumedCategories,
@@ -147,38 +183,24 @@ function buildArticleData(input: any): any {
         stubTags: records.genre.assumedStubTags,
         text: prose.fragments.sentence1.s1a.yearGenre,
     };
-    const data = {
-        additionalProseText: prose.fragments.sentence4,
-        aggScoresText: prose.fragments.sentence3,
+}
+
+/** Selects normalized form values exposed in article output. */
+function buildArticleFormOutput(form): any {
+    return {
         categoryRows: form.categoryRows,
         companies: {
             developers: form.developers,
             publishers: form.publishers,
         },
-        companyMetadata,
-        defaultSortText: renderers.defaultSort,
         englishName: form.englishName,
-        form,
         genres: form.genres,
-        infoboxText: renderers.infobox,
-        leadNameText: prose.fragments.sentence1.s1a.titles,
         name: form.name,
-        navboxText: renderers.navboxes,
-        noteTaText: renderers.noteTa,
         originalLanguage: form.originalLanguage,
         originalName: form.originalName,
-        records,
         platforms: form.platforms,
-        platformSeriesMetadata,
-        prose,
-        renderers,
-        sourceReferences,
-        sourceTags,
         year: form.year,
-        yearGenreMetadata,
     };
-
-    return data;
 }
 
 
@@ -197,45 +219,45 @@ function createModuleContext(
 ): any {
     const context = {
         defaultName: trimFieldValue(options.defaultName),
+        getCitations: getModuleCitations.bind(null, sourceReferences),
+        joinSourceTags: joinModuleSourceTags.bind(null, sourceTags),
         rawForm: options.rawForm || {},
         sourceReferences,
         sourceTags,
-
-        /**
-         * Gets citations matching exact keys or key prefixes.
-         *
-         * @param filters - Citation key filters.
-         * @param filters.keys - Exact source keys.
-         * @param filters.prefixes - Source key
-         * prefixes.
-         * @returns Matching named citations.
-         */
-        getCitations(filters: any = {}): Array<any> {
-            const keys = filters.keys || [];
-            const prefixes = filters.prefixes || [];
-
-            return sourceReferences.filter(function callback(reference) {
-                return (
-                    keys.includes(reference.key) ||
-                    prefixes.some(function callback(prefix) {
-                        return reference.key.startsWith(prefix);
-                    })
-                );
-            });
-        },
-
-        /**
-         * Joins generated source tags for selected form fields.
-         *
-         * @param keys - Source reference keys.
-         * @returns Joined source tags.
-         */
-        joinSourceTags(keys: Array<string>): string {
-            return keys.map((key) => sourceTags[key] || "").join("");
-        },
     };
 
     return context;
+}
+
+/** Gets citations matching exact keys or key prefixes. */
+function getModuleCitations(references, filters: any = {}): Array<any> {
+    const keys = filters.keys || [];
+    const prefixes = filters.prefixes || [];
+    return references.filter(
+        matchesModuleCitation.bind(null, keys, prefixes),
+    );
+}
+
+/** Checks whether one citation matches configured filters. */
+function matchesModuleCitation(keys, prefixes, reference): boolean {
+    return keys.includes(reference.key) || prefixes.some(
+        hasCitationPrefix.bind(null, reference.key),
+    );
+}
+
+/** Checks whether a citation key starts with one prefix. */
+function hasCitationPrefix(key: string, prefix: string): boolean {
+    return key.startsWith(prefix);
+}
+
+/** Joins generated source tags for selected form fields. */
+function joinModuleSourceTags(sourceTags, keys: Array<string>): string {
+    return keys.map(getModuleSourceTag.bind(null, sourceTags)).join("");
+}
+
+/** Gets one generated source tag by field key. */
+function getModuleSourceTag(sourceTags, key: string): string {
+    return sourceTags[key] || "";
 }
 
 

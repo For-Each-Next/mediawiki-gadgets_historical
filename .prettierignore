@@ -1,3 +1,0 @@
-# Two blank lines around file-level declarations conflict with Prettier.
-/build.config.ts
-/src/**/*.ts

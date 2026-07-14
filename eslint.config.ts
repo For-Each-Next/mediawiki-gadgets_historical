@@ -44,13 +44,7 @@ const mediaWikiGlobals = {
 
 export default [
     {
-        ignores: [
-            "**/node_modules/**",
-            "**/dist/**",
-            "**/.cache/**",
-            "tests/**",
-            "*.config.ts",
-        ],
+        ignores: ["**/node_modules/**", "**/dist/**", "**/.cache/**"],
     },
     {
         files: ["src/**/*.ts", "scripts/**/*.ts"],

@@ -55,6 +55,10 @@
             "#stub/wiki": ["./src/vg-stub-creator/domain/wiki.ts"]
         }
     },
-    "include": ["*.config.ts", "scripts/**/*.ts", "src/**/*.ts"],
-    "exclude": ["tests"]
+    "include": [
+        "*.config.ts",
+        "scripts/**/*.ts",
+        "src/**/*.ts",
+        "tests/**/*.ts"
+    ]
 }

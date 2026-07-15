@@ -115,14 +115,21 @@ export async function prepareNavboxRows(
     form: any,
     rebuild: boolean,
 ): Promise<Array<any>> {
+    const configuredTitles = getConfiguredNavboxTitles(form);
     const shouldGenerate =
         rebuild ||
         !Array.isArray(form.navboxRows) ||
-        (form.navboxRows.length === 0 && trimFieldValue(form.series) !== "");
+        (form.navboxRows.length === 0 &&
+            (trimFieldValue(form.series) !== "" ||
+                configuredTitles.length > 0));
     const titles = await selectValue(
         shouldGenerate,
         async function trueBranch() {
-            return await resolveNavboxTitles(form.series);
+            const result = await resolveGeneratedNavboxTitles(
+                form.series,
+                configuredTitles,
+            );
+            return result;
         },
         async function falseBranch() {
             return [];
@@ -273,13 +280,67 @@ export function getFormProseSinographs(form: any, options: any = {}): number {
  */
 async function getFormNavboxText(form: any): Promise<string> {
     if (!Array.isArray(form.navboxRows)) {
-        const titles = await resolveNavboxTitles(form.series);
+        const titles = await resolveGeneratedNavboxTitles(
+            form.series,
+            getConfiguredNavboxTitles(form),
+        );
         const text = buildNavboxText(titles);
 
         return text;
     }
 
     return buildReviewedNavboxText(form.navboxRows);
+}
+
+/**
+ * Gets navboxes declared by terminology-backed article parts.
+ *
+ * @param form - Raw dialog form values.
+ * @returns Unique configured template titles.
+ */
+export function getConfiguredNavboxTitles(form: any): Array<string> {
+    const records: Array<any> = Object.values(flushArticleData(form).records);
+    const titles = records
+        .filter(isTerminologyNavboxRecord)
+        .flatMap(getRecordNavboxes);
+
+    return [...new Set(titles)];
+}
+
+/**
+ * Checks whether a part can contribute configured navboxes.
+ *
+ * @param record - Universal article part.
+ * @returns Whether this is a non-review part.
+ */
+function isTerminologyNavboxRecord(record: any): boolean {
+    return record.key !== "review";
+}
+
+/**
+ * Gets configured navboxes from one universal article part.
+ *
+ * @param record - Universal article part.
+ * @returns Configured template titles.
+ */
+function getRecordNavboxes(record: any): Array<string> {
+    return record.navboxes || [];
+}
+
+/**
+ * Combines configured navboxes with resolved series templates.
+ *
+ * @param series - Raw series field value.
+ * @param configuredTitles - Titles supplied by article parts.
+ * @returns Unique generated template titles.
+ */
+async function resolveGeneratedNavboxTitles(
+    series: string,
+    configuredTitles: Array<string>,
+): Promise<Array<string>> {
+    const seriesTitles = await resolveNavboxTitles(series);
+
+    return [...new Set([...configuredTitles, ...seriesTitles])];
 }
 
 /**

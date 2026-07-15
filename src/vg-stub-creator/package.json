@@ -1,6 +1,6 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.4.25",
+    "version": "0.4.26",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -74,7 +74,7 @@
         "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
-        "test": "node --import ../../tests/vg-stub-creator/setup.ts --test ../../tests/vg-stub-creator/*.test.ts",
+        "test": "node --test ../../tests/vg-stub-creator/*.test.ts",
         "prepublishOnly": "npm run check"
     },
     "engines": {

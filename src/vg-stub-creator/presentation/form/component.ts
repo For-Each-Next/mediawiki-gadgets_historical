@@ -3263,7 +3263,7 @@ function updateFieldDependencies(key: string): void {
         refreshEnwikiMetadata();
     }
 
-    if (key === "series") {
+    if (WIKI_LINK_COMPLETION_FIELDS.has(key)) {
         navboxRowsPrepared = false;
     }
 }

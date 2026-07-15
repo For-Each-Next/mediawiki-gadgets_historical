@@ -13,13 +13,14 @@
     "scripts": {
         "build": "npm run build --workspaces --if-present",
         "architecture:check": "node scripts/check-architecture.ts",
-        "check": "npm run architecture:check && npm run i18n:check && npm run typecheck && npm run lint && npm run source:check && npm run format:check",
-        "format": "prettier --write src scripts",
-        "format:check": "prettier --check src scripts",
+        "check": "npm run architecture:check && npm run i18n:check && npm run typecheck && npm run lint && npm test && npm run source:check && npm run format:check",
+        "format": "prettier --write src scripts tests",
+        "format:check": "prettier --check src scripts tests",
         "i18n:check": "node scripts/check-i18n.ts",
-        "lint": "eslint src scripts",
-        "lint:fix": "eslint src scripts --fix",
+        "lint": "eslint src scripts tests",
+        "lint:fix": "eslint src scripts tests --fix",
         "source:check": "node scripts/check-source-style.ts",
+        "test": "npm run test --workspaces --if-present",
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {

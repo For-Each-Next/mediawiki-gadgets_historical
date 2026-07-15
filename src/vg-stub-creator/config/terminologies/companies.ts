@@ -530,6 +530,7 @@ export default [
         ],
         label: "安纳布尔纳互动",
         page: "安纳布尔纳互动",
+        navboxes: ["安納布爾納互動"],
         categories: ["安納布爾納互動遊戲"],
     },
     {

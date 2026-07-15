@@ -174,6 +174,7 @@ export function buildYearMetadata(value: string | null) {
     const reference = getYearReference(normalized);
     const metadata = {
         categories: reference.categories,
+        navboxes: reference.navboxes,
         phrase: reference.phrase,
         value: normalized,
     };
@@ -231,6 +232,7 @@ function getYearReference(value: string) {
     if (year === "") {
         const result = {
             categories: [],
+            navboxes: [],
             phrase: "",
         };
         return result;
@@ -239,6 +241,7 @@ function getYearReference(value: string) {
     if (year === "~") {
         const result = {
             categories: [getTextTemplate("patterns.yearFuture")],
+            navboxes: [],
             phrase: getTextTemplate("patterns.yearUnreleased"),
         };
         return result;
@@ -250,6 +253,7 @@ function getYearReference(value: string) {
 
     const reference = {
         categories: definition?.categories || [],
+        navboxes: definition?.navboxes || [],
         phrase: formatText("patterns.yearReleased", {
             year: definition?.label || year,
         }),
@@ -274,6 +278,7 @@ function getPlannedYearReference(value: string) {
             getTextTemplate("patterns.yearFuture"),
             ...(definition?.categories || []),
         ]),
+        navboxes: definition?.navboxes || [],
         phrase: formatText("patterns.yearPlanned", {
             year: definition?.label || year,
         }),
@@ -307,6 +312,7 @@ export function buildGenreMetadata(value: string) {
         categories: uniqueValues(getReferenceValues(references, "categories")),
         items,
         links,
+        navboxes: uniqueValues(getReferenceValues(references, "navboxes")),
         stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
         text: items.map((item) => item.wikitext).join("、"),
         values: genres,
@@ -416,6 +422,7 @@ export function buildCompanyData(companies: any): any {
         publishers: buildCompanyRoleData(publisherItems, publisherValue),
         references,
         sameCompanies: companies.publishers === "=",
+        navboxes: uniqueValues(getReferenceValues(references.all, "navboxes")),
         stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
     };
 
@@ -809,6 +816,7 @@ export function buildPlatformMetadata(value: any): any {
         count: splitLookupFieldValues(value || "").length,
         items,
         links,
+        navboxes: uniqueValues(getReferenceValues(references, "navboxes")),
         stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
         text: items.map((item) => item.wikitext).join("、"),
         values: platformValues,

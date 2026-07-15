@@ -343,6 +343,7 @@ export const yearModule = defineArticleModule({
             assumedCategories: metadata.categories,
             citations,
             metadata,
+            navboxes: metadata.navboxes,
             values,
             wikitext: {
                 phrase: metadata.phrase,
@@ -432,6 +433,7 @@ export const genreModule = defineArticleModule({
             assumedStubTags: metadata.stubTags,
             citations,
             metadata,
+            navboxes: metadata.navboxes,
             values: metadata.items,
             wikitext: {
                 list: metadata.text,
@@ -526,6 +528,7 @@ export const companiesModule = defineArticleModule({
             categoryItems: metadata.categoryItems,
             citations,
             metadata,
+            navboxes: metadata.navboxes,
             values,
             wikitext: {
                 developers: metadata.developers.text,
@@ -632,6 +635,7 @@ export const platformModule = defineArticleModule({
             assumedStubTags: metadata.stubTags,
             citations,
             metadata,
+            navboxes: metadata.navboxes,
             values: metadata.items,
             wikitext: {
                 list: metadata.text,

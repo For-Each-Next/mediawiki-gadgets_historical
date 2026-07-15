@@ -7,6 +7,7 @@ export interface TerminologyDefinition {
     aliases: [TerminologyAlias, ...Array<TerminologyAlias>];
     label: string;
     page?: string;
+    navboxes?: Array<string>;
     categories?: Array<string>;
     stubTags?: Array<string>;
 }

@@ -17,8 +17,8 @@ Each package follows the same dependency direction:
 4. `ui/` owns UI rendering, interaction, and browser mounting.
 5. `index.ts` is the package composition entry used by the bundler.
 
-Every package registers `"#me/*": "./*"` in its `package.json`. Use `#me`
-for package-local imports, such as `#me/domain/formatter.ts` or
+Every package maps `#me` to its explicit `./index.ts` entry and `#me/*` to
+package-relative modules. Use imports such as `#me/domain/formatter.ts` or
 `#me/ui/editor.ts`. Use `#shared` only for the workspace-wide shared package.
 
 Package-local `shared/` code is foundational and cannot import higher layers.

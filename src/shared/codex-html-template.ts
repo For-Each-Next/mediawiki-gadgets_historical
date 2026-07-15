@@ -25,7 +25,6 @@ const VOID_ELEMENTS = new Set([
     "wbr",
 ]);
 
-
 /**
  * Creates a template element object with attributes and children.
  *
@@ -46,7 +45,6 @@ export function createElement(
     };
 }
 
-
 /**
  * Creates a trusted template text node.
  *
@@ -56,7 +54,6 @@ export function createElement(
 export function createText(value: string): string {
     return value;
 }
-
 
 /**
  * Creates an escaped template text node.
@@ -70,7 +67,6 @@ export function createEscapedText(value: string): string {
         .replace(/</gu, "&lt;")
         .replace(/>/gu, "&gt;");
 }
-
 
 /**
  * Serializes a template node to markup.
@@ -88,12 +84,8 @@ export function renderTemplate(
     return renderNode(node);
 }
 
-
 /** Replaces element children from serialized HTML markup. */
-export function replaceElementContent(
-    element: Element,
-    markup: string,
-): void {
+export function replaceElementContent(element: Element, markup: string): void {
     const parsed = new DOMParser().parseFromString(markup, "text/html");
     const body = parsed.getElementsByTagName("body")[0];
     const nodes = Array.from(body.childNodes).map(function callback(node) {
@@ -102,7 +94,6 @@ export function replaceElementContent(
 
     element.replaceChildren(...nodes);
 }
-
 
 /** Serializes all children of an HTML element. */
 export function serializeElementContent(element: Element): string {
@@ -115,7 +106,6 @@ export function serializeElementContent(element: Element): string {
 
     return markup;
 }
-
 
 /**
  * Serializes a template child node to markup.
@@ -130,7 +120,6 @@ function renderNode(node: TemplateNode): string {
 
     return renderElement(node);
 }
-
 
 /**
  * Serializes a template element object to markup.
@@ -149,7 +138,6 @@ function renderElement(element: TemplateElement): string {
     return `<${element.tagName}${attributes}>${children}</${element.tagName}>`;
 }
 
-
 /**
  * Serializes element attributes to markup.
  *
@@ -159,7 +147,6 @@ function renderElement(element: TemplateElement): string {
 function renderAttributes(attributes: Record<string, any>): string {
     return Object.entries(attributes).map(renderAttribute).join("");
 }
-
 
 /**
  * Serializes one element attribute to markup.
@@ -178,7 +165,6 @@ function renderAttribute(entry: [string, any]): string {
     return ` ${name}="${escapeAttribute(String(renderedValue))}"`;
 }
 
-
 /**
  * Serializes a style declaration object.
  *
@@ -193,7 +179,6 @@ function renderStyle(style: Record<string, any>): string {
     return `${declarations};`;
 }
 
-
 /**
  * Serializes one style declaration.
  *
@@ -206,7 +191,6 @@ function renderStyleDeclaration(entry: [string, any]): string {
     return `${toKebabCase(name)}: ${value}`;
 }
 
-
 /**
  * Converts a camelCase JavaScript name to a kebab-case CSS name.
  *
@@ -216,7 +200,6 @@ function renderStyleDeclaration(entry: [string, any]): string {
 function toKebabCase(value: string): string {
     return value.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
 }
-
 
 /**
  * Escapes an attribute value for template markup.

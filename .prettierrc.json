@@ -4,7 +4,7 @@
     "useTabs": false,
     "semi": true,
     "singleQuote": false,
-    "quoteProps": "as-needed",
+    "quoteProps": "preserve",
     "trailingComma": "all",
     "bracketSpacing": true,
     "arrowParens": "always",

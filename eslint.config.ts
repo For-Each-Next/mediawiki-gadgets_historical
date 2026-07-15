@@ -83,6 +83,12 @@ export default [
         },
     },
     {
+        files: ["src/**/config/locales/*.ts"],
+        rules: {
+            "quote-props": ["error", "always"],
+        },
+    },
+    {
         files: ["src/**/*.ts", "scripts/**/*.ts"],
         rules: {
             "max-depth": ["error", 4],

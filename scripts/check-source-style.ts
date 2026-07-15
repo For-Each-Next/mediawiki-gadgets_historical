@@ -125,9 +125,7 @@ function checkTopLevelDocumentation(
 
         if (!/\/\*\*[\s\S]*?\*\/\s*$/u.test(prefix)) {
             const location = `${path}:${statement.loc.start.line}`;
-            errors.push(
-                `${location}: missing top-level JSDoc.`,
-            );
+            errors.push(`${location}: missing top-level JSDoc.`);
         }
     });
 }
@@ -211,9 +209,7 @@ function checkFunctionLayout(
         node.loc.start.line !== node.loc.end.line
     ) {
         const location = `${path}:${node.loc.start.line}`;
-        errors.push(
-            `${location}: arrow must be one-line expression.`,
-        );
+        errors.push(`${location}: arrow must be one-line expression.`);
     }
 }
 

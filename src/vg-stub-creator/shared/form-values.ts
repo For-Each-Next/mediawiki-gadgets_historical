@@ -16,7 +16,6 @@ export function trimFieldValue(value: any): string {
     return String(value).trim();
 }
 
-
 /**
  * Splits a source URL field into one URL per nonblank line.
  *
@@ -29,7 +28,6 @@ export function splitSourceUrls(value: any): Array<string> {
         .map(trimFieldValue)
         .filter(Boolean);
 }
-
 
 /**
  * Builds a source reference key for one localized name row.
@@ -44,7 +42,6 @@ export function buildNameSourceReferenceKey(
 ): string {
     return `${key}.${index}`;
 }
-
 
 /**
  * Normalizes pasted list values while preserving ordinary commas.
@@ -66,7 +63,6 @@ export function normalizeListFieldValue(value: any): string {
         .join("; ");
 }
 
-
 /**
  * Checks whether a value contains a first-level list separator.
  *
@@ -76,7 +72,6 @@ export function normalizeListFieldValue(value: any): string {
 export function hasFirstLevelFieldSeparator(value: any): boolean {
     return /[;；\r\n]/u.test(String(value || ""));
 }
-
 
 /**
  * Parses a compact prefixed value such as "ja:タイトル".
@@ -101,7 +96,6 @@ export function parsePrefixedValue(value: any, defaultPrefix: string): any {
         value: trimFieldValue(match[2]),
     };
 }
-
 
 /**
  * Formats a compact prefixed value without separator whitespace.

@@ -1,9 +1,3 @@
-/** A value accepted by a MediaWiki template parameter. */
-type TemplateParamValue = string | number | boolean | null | undefined;
-
-/** A MediaWiki template parameter key and value. */
-type TemplateParam = [string | number | null, TemplateParamValue];
-
 /** One normalized value carried by an article data record. */
 interface ArticleDataValue {
     [key: string]: any;

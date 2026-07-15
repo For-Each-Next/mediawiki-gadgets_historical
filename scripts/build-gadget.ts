@@ -291,10 +291,7 @@ function buildCoreUserscriptMetadata(
 }
 
 /** Builds repeated userscript metadata lines. */
-function buildUserscriptMetadataList(
-    key: string,
-    values: string[],
-): string[] {
+function buildUserscriptMetadataList(key: string, values: string[]): string[] {
     return values.map((value) => formatUserscriptMetadata(key, value));
 }
 

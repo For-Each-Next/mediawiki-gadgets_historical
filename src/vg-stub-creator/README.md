@@ -19,14 +19,13 @@ You can get compressed code from <https://meta.wikimedia.org/wiki/User:For_Each_
 
 ## Source
 
-- `index.ts`: gadget entry point and site activation.
-- `workflow.ts`: article creation workflow.
-- `article/`: form data and article metadata pipeline.
-- `wikitext/`: generated article wikitext.
-- `interface/`: Codex dialog UI, preview, review, and history views.
-- `editing/`: editor integration, edit summaries, and save sessions.
-- `handlers/`: category, navbox, title, and new-page-list API helpers.
-- `save/`: pre-save action execution and progress state.
-- `sources/`: external-source lookup, citations, crosswiki metadata, and Steam names.
-- `terminologies/`: configured video-game terminology data.
+- `index.ts`: minimal browser bundle entry point.
+- `domain/article/`: normalized article records and field modules.
+- `domain/wikitext/`: pure wikitext rendering and language templates.
+- `domain/terminologies/`: configured video-game terminology data.
+- `application/workflow.ts`: article creation use cases.
+- `infrastructure/`: MediaWiki, source, editing, and persistence adapters.
+- `presentation/`: Codex UI, previews, review state, and browser activation.
+- `shared/`: package-local form primitives; generic helpers live in
+  `../shared/`.
 - `DEVELOPMENT.md`: source architecture and editing guidance.

@@ -6,13 +6,30 @@ Only gadget modules reachable from each package's `index.ts` entry point
 are bundled. The `dist/` directory contains browser JavaScript, never
 TypeScript source, tests, scripts, declarations, or configuration files.
 
-Gadget packages live in `src/<gadget-name>`, with matching test suites in
-`tests/<gadget-name>` and generated output in `dist/<gadget-name>`.
+Gadget packages live in `src/<gadget-name>` and generated output lives in
+`dist/<gadget-name>`.
 
-These gadgets mainly support workflows on the Chinese Wikipedia. Their
-interfaces are available only in English because I use English as my global
-interface language. As these tools are for personal use, there are no plans
-for translation.
+Each package follows the same dependency direction:
+
+1. `domain/` contains pure rules, normalized records, and text generation.
+2. `infrastructure/` adapts MediaWiki, remote sources, and browser storage.
+3. `application/` coordinates domain behavior and infrastructure adapters.
+4. `presentation/` owns UI rendering, interaction, and browser mounting.
+5. `index.ts` is the package composition entry used by the bundler.
+
+Package-local `shared/` code is foundational and cannot import higher layers.
+The root `src/shared/` directory contains helpers shared by multiple gadgets.
+`shared/index.ts` manages the public Codex HTML, MediaWiki wikitext, and i18n
+APIs while their implementations remain in focused modules. Citation fetching,
+template formatting, and reference wikitext live in the `shared/cite/`
+subpackage.
+`npm run architecture:check` enforces these dependency boundaries.
+
+Each gadget owns its messages in `config/locales/`. `en.ts` is the source
+catalog, `zh-Hans.ts` and `zh-Hant.ts` provide Chinese translations, and
+`index.ts` is the locale registry imported by application code. Use semantic
+message IDs and named placeholders for complete sentences. `npm run i18n:check`
+verifies catalog keys and placeholders.
 
 ## Building
 
@@ -32,7 +49,7 @@ The shared builder transpiles and bundles the package's `index.ts` entry graph,
 then writes a minified MediaWiki `.js` file and an installable Tampermonkey
 `.user.js` file to the gadget's directory under the root `dist` directory.
 
-TypeScript performs type checking in `noEmit` mode. Its `ES2025` target and
+TypeScript performs type checking in `noEmit` mode. Its `ES2024` target and
 library describe the authored code environment, while the esbuild `es2025`
 target independently controls the JavaScript syntax written to `dist/`.
 

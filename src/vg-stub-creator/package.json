@@ -1,6 +1,6 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.4.20",
+    "version": "0.4.21",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -12,10 +12,10 @@
         "globalName": "vgStubCreator",
         "outputDirectory": "../../dist/vg-stub-creator",
         "outputName": "vg_stub_creator",
-        "styleEntryPoint": "interface/styles.css",
+        "styleEntryPoint": "presentation/styles.css",
         "defines": {
             "__VG_STUB_CREATOR_DIALOG_CSS__": {
-                "textFile": "interface/styles.css"
+                "textFile": "presentation/styles.css"
             }
         },
         "userscript": {
@@ -30,15 +30,12 @@
         "README.md",
         "DEVELOPMENT.md",
         "*.ts",
-        "article",
-        "editing",
-        "handlers",
-        "interface",
-        "save",
+        "application",
+        "domain",
+        "infrastructure",
+        "presentation",
         "shared",
-        "sources",
-        "terminologies",
-        "wikitext"
+        "config"
     ],
     "keywords": [
         "mediawiki",

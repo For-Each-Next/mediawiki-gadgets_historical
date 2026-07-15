@@ -5,14 +5,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { fetchExistingPageTitles } from "#stub/editing/pre-save.ts";
+import {
+    fetchExistingPageTitles,
+    type PageLookupApi,
+} from "#stub/editing/pre-save.ts";
 import {
     buildWhatLinksHerePageTitle,
     selectArticleSubmissionTitle,
 } from "#stub/ui/navigation.ts";
 
 test("title lookup detects an occupied converted variant", async () => {
-    const api = {
+    const api: PageLookupApi = {
         async get(params: any) {
             assert.equal(params.converttitles, "1");
             assert.equal(params.titles, "遊戲名稱|Unused title");

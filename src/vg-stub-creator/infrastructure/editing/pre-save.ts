@@ -5,6 +5,10 @@ const { buildTemplateCall, buildTemplateText } = wikitext;
 
 type DynamicRecord = Record<string, any>;
 
+export interface PageLookupApi {
+    get(params: Record<string, string>): PromiseLike<any>;
+}
+
 const MAX_ACTION_ATTEMPTS = 3;
 
 export const TALK_PAGE_BANNER = buildTemplateText(
@@ -634,7 +638,7 @@ function getOriginalName(value: any): string {
  * @returns Page title matches.
  */
 export async function fetchExistingPageTitles(
-    api: any,
+    api: PageLookupApi,
     titles: Array<string>,
 ): Promise<Array<any>> {
     if (titles.length === 0) {

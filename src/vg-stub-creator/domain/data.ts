@@ -56,13 +56,18 @@ export function completeMetadataFieldValue(
     }
 
     const type = COMPLETABLE_METADATA_FIELDS[key];
-    const parts = text.split(/([;；]|\r\n|[\r\n])/u);
+    const parts = splitMetadataFieldValue(text);
     const output = [];
 
     for (let index = 0; index < parts.length; index += 2) {
         const item = parts[index];
         const completed = completeLast || index + 1 < parts.length;
-        output.push(completed ? resolveMetadataItem(type, item) : item);
+        let normalizedItem = normalizeIncompleteMetadataItem(item, index);
+
+        if (completed) {
+            normalizedItem = resolveMetadataItem(type, item);
+        }
+        output.push(normalizedItem);
 
         if (index + 1 < parts.length) {
             output.push("; ");
@@ -70,6 +75,62 @@ export function completeMetadataFieldValue(
     }
 
     return output.join("");
+}
+
+/**
+ * Splits top-level metadata items while preserving wikilink content.
+ *
+ * @param value - Metadata field value.
+ * @returns Alternating metadata items and separators.
+ */
+function splitMetadataFieldValue(value: string): string[] {
+    const parts = [];
+    let item = "";
+    let inWikilink = false;
+
+    for (let index = 0; index < value.length; index++) {
+        const pair = value.slice(index, index + 2);
+
+        if (pair === "[[") {
+            inWikilink = true;
+            item += pair;
+            index++;
+            continue;
+        }
+
+        if (pair === "]]" && inWikilink) {
+            inWikilink = false;
+            item += pair;
+            index++;
+            continue;
+        }
+
+        if (!inWikilink && /[,，;；\r\n]/u.test(value[index])) {
+            parts.push(item, value[index]);
+            item = "";
+
+            if (pair === "\r\n") {
+                index++;
+            }
+            continue;
+        }
+
+        item += value[index];
+    }
+
+    parts.push(item);
+    return parts;
+}
+
+/**
+ * Removes separator whitespace from an unfinished metadata item.
+ *
+ * @param item - Unfinished metadata item.
+ * @param index - Item position in the alternating parts array.
+ * @returns Metadata item with stable leading whitespace.
+ */
+function normalizeIncompleteMetadataItem(item: string, index: number): string {
+    return index === 0 ? item : item.trimStart();
 }
 
 /**

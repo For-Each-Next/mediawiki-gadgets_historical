@@ -171,6 +171,10 @@ export async function resolveCategoryRows(
             category:
                 resolutions[normalizeCategoryKey(row.category)]?.category ||
                 row.category,
+            enabled: getResolvedCategoryEnabled(
+                row,
+                resolutions[normalizeCategoryKey(row.category)],
+            ),
             status:
                 resolutions[normalizeCategoryKey(row.category)]?.status ||
                 CATEGORY_STATUS.unchecked,
@@ -521,6 +525,7 @@ function applyCategoryResolution(row: any, resolutions: any): any {
     const result = normalizeCategoryRow({
         ...row,
         category: resolution?.category || row.category,
+        enabled: getResolvedCategoryEnabled(row, resolution),
         originalCategory: selectValue(
             !isEdited && resolution?.category != null,
             function trueBranch() {
@@ -533,6 +538,21 @@ function applyCategoryResolution(row: any, resolutions: any): any {
         status: resolution?.status || CATEGORY_STATUS.unchecked,
     });
     return result;
+}
+
+/**
+ * Disables category rows whose resolved page does not exist.
+ *
+ * @param row - Category row before resolution.
+ * @param resolution - Resolved category metadata.
+ * @returns Whether the resolved category row is enabled.
+ */
+function getResolvedCategoryEnabled(row: any, resolution: any): boolean {
+    if (resolution?.exists === false) {
+        return false;
+    }
+
+    return row.enabled !== false;
 }
 
 /**

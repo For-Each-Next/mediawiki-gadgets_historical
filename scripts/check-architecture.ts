@@ -38,7 +38,6 @@ const ALIAS_LAYERS = new Map([
     ["#stub/form", "presentation"],
     ["#stub/handlers", "infrastructure"],
     ["#stub/i18n", "config"],
-    ["#stub/local", "shared"],
     ["#stub/main", "presentation"],
     ["#stub/modules", "domain"],
     ["#stub/save", "infrastructure"],

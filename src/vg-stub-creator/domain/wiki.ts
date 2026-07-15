@@ -3,13 +3,26 @@
  */
 
 import type { AggregateScoreRecord, SourceTags } from "#stub/article";
-import { buildNameSourceReferenceKey } from "#stub/local/form-values.ts";
 import { get as getTerminology } from "#stub/terms";
 import { cite, wikitext } from "#shared";
 
 const { buildTemplateCall, buildTemplateText, trimValue, uniqueValues } =
     wikitext;
 const { buildReferencesSection } = cite;
+
+/**
+ * Builds a source reference key for one localized name row.
+ *
+ * @param key - Localized name group key.
+ * @param index - Row index.
+ * @returns Source reference key.
+ */
+export function buildNameSourceReferenceKey(
+    key: string,
+    index: number,
+): string {
+    return `${key}.${index}`;
+}
 
 const textTemplates = {
     // Punctuation shared by prose and normalized field display.

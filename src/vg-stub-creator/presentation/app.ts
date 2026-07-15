@@ -31,7 +31,6 @@ import {
     buildWhatLinksHerePageTitle,
     selectArticleSubmissionTitle,
 } from "#stub/ui/navigation.ts";
-import { trimFieldValue } from "#stub/local/form-values.ts";
 import {
     clearFormHistory,
     deleteFormHistoryEntry,
@@ -99,8 +98,9 @@ import {
     resolveZhwikiCreationTitle,
 } from "#stub/sources/zhwiki-activation.ts";
 import { msg } from "#stub/i18n";
-import { html } from "#shared";
+import { html, wikitext } from "#shared";
 const { serializeElementContent } = html;
+const { trimValue } = wikitext;
 
 const CITATION_PREFETCH_DELAY = 800;
 const WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php";
@@ -317,7 +317,7 @@ async function parseArticlePreviewText(
  * renderer.
  */
 function buildNativePreviewText(text: string, form: any): string {
-    const title = trimFieldValue(form?.pageName) || getPageName();
+    const title = trimValue(form?.pageName) || getPageName();
 
     return `= ${title} =\n${text}`;
 }
@@ -519,7 +519,7 @@ async function submitForm(context: any): Promise<void> {
  */
 async function prepareFormSubmission(context: any): Promise<any> {
     const { form, citationStore, preSave, preview } = context;
-    const moveTitle = trimFieldValue(preSave?.move?.to);
+    const moveTitle = trimValue(preSave?.move?.to);
     const shouldMove = shouldMoveSubmission(preSave, moveTitle);
     const submittedForm = shouldMove ? { ...form, name: moveTitle } : form;
     let previewText: string | null = null;
@@ -560,7 +560,7 @@ function getSubmissionTitle(context: any, shouldMove: boolean): string {
     const result = selectArticleSubmissionTitle({
         currentPageExists: context.currentPageExists === true,
         currentTitle: getPageName(),
-        enteredTitle: trimFieldValue(context.form?.pageName),
+        enteredTitle: trimValue(context.form?.pageName),
         shouldMove,
     });
     return result;
@@ -930,8 +930,8 @@ function shouldRefreshCategoryWikidata(row: any): boolean {
     const result =
         row?.enabled !== false &&
         row?.pendingCreation != null &&
-        trimFieldValue(row.pendingCreation.englishName) !== "" &&
-        trimFieldValue(row.pendingCreation.wikidataId) === "";
+        trimValue(row.pendingCreation.englishName) !== "" &&
+        trimValue(row.pendingCreation.wikidataId) === "";
     return result;
 }
 
@@ -948,7 +948,7 @@ async function refreshCategoryWikidata(row: any): Promise<void> {
         );
         const metadata = await fetchEnwikiMetadata(title);
 
-        row.pendingCreation.wikidataId = trimFieldValue(metadata.wikidataId);
+        row.pendingCreation.wikidataId = trimValue(metadata.wikidataId);
     } catch (_error) {
         row.pendingCreation.wikidataId = "";
     }
@@ -979,7 +979,7 @@ function getCompanyCategoryActions(actions: Array<any>): Array<string> {
  * @returns Whether the action should register a new page.
  */
 function isCompanyCategoryAction(action: any): boolean {
-    return action.type === "category" && trimFieldValue(action.company) !== "";
+    return action.type === "category" && trimValue(action.company) !== "";
 }
 
 /**
@@ -989,7 +989,7 @@ function isCompanyCategoryAction(action: any): boolean {
  * @returns Category title with namespace.
  */
 function normalizeEnglishCategoryTitle(title: string): string {
-    const value = trimFieldValue(title);
+    const value = trimValue(title);
 
     const result = selectValue(
         value === "" || /^Category:/iu.test(value),
@@ -1095,10 +1095,10 @@ async function buildStubFromForm(form: any, citationStore: any): Promise<any> {
 function createEditSummaryMetadata(form: any, stub: any): any {
     const result = {
         displayName: getEditSummaryDisplayName(form),
-        enwikiTitle: trimFieldValue(form.enwikiTitle),
+        enwikiTitle: trimValue(form.enwikiTitle),
         proseSinographs: stub.articleData.prose.sinographs,
-        wikidataId: trimFieldValue(form.wikidataId),
-        year: trimFieldValue(form.year),
+        wikidataId: trimValue(form.wikidataId),
+        year: trimValue(form.year),
     };
     return result;
 }
@@ -1113,9 +1113,9 @@ function createEditSummaryMetadata(form: any, stub: any): any {
  */
 function getEditSummaryDisplayName(form: any): string {
     const result =
-        trimFieldValue(form.originalName) ||
-        trimFieldValue(form.englishName) ||
-        trimFieldValue(form.name);
+        trimValue(form.originalName) ||
+        trimValue(form.englishName) ||
+        trimValue(form.name);
     return result;
 }
 
@@ -1279,7 +1279,7 @@ async function openTargetPage(
     options: any = {},
 ): Promise<void> {
     sourceFetchState.error = "";
-    const targetTitle = trimFieldValue(title);
+    const targetTitle = trimValue(title);
 
     if (targetTitle === "") {
         return;
@@ -2081,7 +2081,7 @@ function navigateToWhatLinksHere(title: string): void {
 function formatPendingActionFailures(actions: Array<any>): string {
     const labels = actions
         .map((action) => action.label || action.id)
-        .filter((label) => trimFieldValue(label) !== "");
+        .filter((label) => trimValue(label) !== "");
 
     if (labels.length === 0) {
         return msg("errors.followUpFailed");

@@ -1,6 +1,6 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.4.30",
+    "version": "0.4.31",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -9,7 +9,7 @@
     "imports": {
         "#shared": "@mediawiki-gadgets/shared",
         "#stub/app/*": "./application/*",
-        "#stub/article": "./domain/article/processor.ts",
+        "#stub/article": "./domain/processor.ts",
         "#stub/config/*": "./config/*",
         "#stub/data": "./domain/data.ts",
         "#stub/editing/*": "./infrastructure/editing/*",
@@ -18,7 +18,6 @@
         "#stub/handlers/*": "./infrastructure/handlers/*",
         "#stub/i18n": "./i18n/index.ts",
         "#stub/i18n/*": "./i18n/*",
-        "#stub/local/*": "./shared/*",
         "#stub/main": "./presentation/main/index.ts",
         "#stub/main/*": "./presentation/main/*",
         "#stub/modules": "./domain/modules.ts",

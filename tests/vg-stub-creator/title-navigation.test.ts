@@ -11,7 +11,7 @@ import {
     selectArticleSubmissionTitle,
 } from "#stub/ui/navigation.ts";
 
-test("title lookup detects an occupied Simplified/Traditional variant", async () => {
+test("title lookup detects an occupied converted variant", async () => {
     const api = {
         async get(params: any) {
             assert.equal(params.converttitles, "1");

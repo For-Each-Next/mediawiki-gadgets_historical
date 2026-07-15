@@ -9,18 +9,53 @@ import {
     SOURCE_REFERENCE_FIELDS,
     STEAM_NAME_HELPER_ROW,
 } from "#stub/form/constants.ts";
-import {
-    parsePrefixedValue,
-    trimFieldValue,
-} from "#stub/local/form-values.ts";
 import { getEnteredSourceUrls } from "#stub/sources";
 import {
     buildOfficialNameConversionText,
     sortNoteTaEntries,
 } from "#stub/wiki";
 import { msg } from "#stub/i18n";
-import { cite } from "#shared";
+import { cite, wikitext } from "#shared";
 const { sortCitationParams } = cite;
+const {
+    hasFirstLevelFieldSeparator,
+    parsePrefixedValue,
+    splitFieldValues,
+    trimValue,
+} = wikitext;
+
+const REVIEW_LINKS_OPENED_STORAGE_KEY = "vg-stub-creator-review-links-opened";
+
+/**
+ * Claims the one-time review-link opening for the current tab.
+ *
+ * @param storage - Tab-scoped storage implementation.
+ * @returns Whether the caller claimed the opening.
+ */
+export function claimReviewLinksOpening(storage: Storage): boolean {
+    if (storage.getItem(REVIEW_LINKS_OPENED_STORAGE_KEY) !== null) {
+        return false;
+    }
+
+    storage.setItem(REVIEW_LINKS_OPENED_STORAGE_KEY, "1");
+    return true;
+}
+
+/**
+ * Normalizes a list value entered through an article field.
+ *
+ * @param value - Raw textbox value.
+ * @returns Semicolon-delimited list value.
+ */
+export function normalizeListFieldValue(value: any): string {
+    const text = trimValue(value);
+
+    if (!hasFirstLevelFieldSeparator(text)) {
+        return text;
+    }
+
+    return splitFieldValues(text).join("; ");
+}
 
 /**
  * Marks a localized-name row as inserted by the Steam helper.
@@ -94,7 +129,7 @@ export function getCategorySourceDisplay(source: string): any {
  * string.
  */
 export function normalizeEnglishCategoryTitle(title: string): string {
-    const value = trimFieldValue(title);
+    const value = trimValue(title);
 
     if (value === "") {
         return "";
@@ -333,7 +368,7 @@ export function ensureTrailingStubTagRow(form: any): void {
  * @returns Whether the row is blank.
  */
 export function isBlankCategoryRow(row: any): boolean {
-    return trimFieldValue(row?.category) === "";
+    return trimValue(row?.category) === "";
 }
 
 /**
@@ -386,7 +421,7 @@ export function createStubTagRow(value: any = ""): any {
         enabled: value?.enabled !== false,
         originalEnabled: value?.originalEnabled === true,
         originalStubTag: trimStubTagValue(value?.originalStubTag || stubTag),
-        status: trimFieldValue(value?.status),
+        status: trimValue(value?.status),
         stubTag,
         ...selectValue(
             value?.pendingEdit == null,
@@ -411,7 +446,7 @@ export function createStubTagRow(value: any = ""): any {
  * @returns Template name without braces.
  */
 export function trimStubTagValue(value: any): string {
-    const result = trimFieldValue(value)
+    const result = trimValue(value)
         .replace(/^\{\{/u, "")
         .replace(/\}\}$/u, "")
         .trim();
@@ -537,16 +572,16 @@ export function createNoteTaRow(key: any = "", value: string = ""): any {
     );
 
     const created: Record<string, any> = {
-        key: trimFieldValue(row.key),
-        value: trimFieldValue(row.value),
+        key: trimValue(row.key),
+        value: trimValue(row.value),
     };
 
-    if (trimFieldValue(row.source) !== "") {
-        created.source = trimFieldValue(row.source);
+    if (trimValue(row.source) !== "") {
+        created.source = trimValue(row.source);
     }
 
-    if (trimFieldValue(row.generatedValue) !== "") {
-        created.generatedValue = trimFieldValue(row.generatedValue);
+    if (trimValue(row.generatedValue) !== "") {
+        created.generatedValue = trimValue(row.generatedValue);
     }
 
     if (row.modified === true) {
@@ -617,7 +652,7 @@ export function formatSteamNameMarket(market: string): string {
  * @returns Original-title language code.
  */
 export function getOriginalNameLanguage(form: any): string {
-    if (trimFieldValue(form.originalName) === "") {
+    if (trimValue(form.originalName) === "") {
         return "";
     }
 
@@ -699,7 +734,7 @@ export function mergeSteamNameRows(
     }
 
     const row: Record<string, any> = {
-        name: blankName ? "" : trimFieldValue(hans?.name || hant?.name),
+        name: blankName ? "" : trimValue(hans?.name || hant?.name),
         official: true,
         sourceUrl: rows
             .map((row) => row.sourceUrl)
@@ -771,8 +806,7 @@ export function hasAnyNameRowValue(row: any): boolean {
  */
 export function hasEnteredNameRowValue(row: any): boolean {
     const result =
-        Boolean(trimFieldValue(row.name)) ||
-        Boolean(trimFieldValue(row.sourceUrl));
+        Boolean(trimValue(row.name)) || Boolean(trimValue(row.sourceUrl));
     return result;
 }
 
@@ -869,7 +903,7 @@ export function getFieldValueKey(field: any): string {
  * @returns Base page title.
  */
 export function getBasePageTitle(title: string): string {
-    return trimFieldValue(title).replace(/ \(.+?\)$/u, "");
+    return trimValue(title).replace(/ \(.+?\)$/u, "");
 }
 
 /**
@@ -933,7 +967,7 @@ export function createEnwikiTipPlaceholders(value: string): Array<any> {
  * @returns Normalized title or trimmed value.
  */
 export function normalizeEnwikiTitleValue(value: any): string {
-    return extractEnwikiTitleFromUrl(value) || trimFieldValue(value);
+    return extractEnwikiTitleFromUrl(value) || trimValue(value);
 }
 
 /**
@@ -943,7 +977,7 @@ export function normalizeEnwikiTitleValue(value: any): string {
  * @returns English Wikipedia page title, or an empty string.
  */
 export function extractEnwikiTitleFromUrl(value: any): string {
-    const text = trimFieldValue(value);
+    const text = trimValue(value);
 
     if (text === "") {
         return "";
@@ -1243,7 +1277,7 @@ export function applyLocalizedNameAsPageTitle(
     key: string,
     index: number,
 ): boolean {
-    const title = trimFieldValue(form[key]?.[index]?.name);
+    const title = trimValue(form[key]?.[index]?.name);
 
     if (title === "") {
         return false;
@@ -1306,7 +1340,7 @@ export function applyCitationPatches(
 ): Array<any> {
     const result = rows.map(function callback(row) {
         const patch = patches.find(
-            (item) => trimFieldValue(item.sourceUrl) === row.sourceUrl,
+            (item) => trimValue(item.sourceUrl) === row.sourceUrl,
         );
 
         if (patch == null) {
@@ -1344,11 +1378,11 @@ export function applyCitationParamPatches(
     const params = new Map(clonedParams.map((param) => [param.name, param]));
 
     patches.forEach(function callback(patch) {
-        if (trimFieldValue(patch?.name) === "") {
+        if (trimValue(patch?.name) === "") {
             return;
         }
 
-        if (patch.value == null || trimFieldValue(patch.value) === "") {
+        if (patch.value == null || trimValue(patch.value) === "") {
             params.delete(patch.name);
             return;
         }
@@ -1402,7 +1436,7 @@ export function applyNavboxPatches(
 ): Array<any> {
     const result = rows.map(function callback(row) {
         const patch = patches.find(
-            (item) => trimFieldValue(item.source?.title) === row.title,
+            (item) => trimValue(item.source?.title) === row.title,
         );
 
         if (patch == null) {
@@ -1427,16 +1461,15 @@ export function applyNavboxPatches(
  * @returns Whether the patch targets the row.
  */
 export function isCategoryPatchTarget(row: any, patch: any): boolean {
-    if (trimFieldValue(patch.source?.company) !== "") {
+    if (trimValue(patch.source?.company) !== "") {
         const result =
-            trimFieldValue(row.company) ===
-            trimFieldValue(patch.source.company);
+            trimValue(row.company) === trimValue(patch.source.company);
         return result;
     }
 
     const result =
-        trimFieldValue(row.originalCategory || row.category) ===
-        trimFieldValue(patch.source?.category);
+        trimValue(row.originalCategory || row.category) ===
+        trimValue(patch.source?.category);
     return result;
 }
 
@@ -1448,14 +1481,14 @@ export function isCategoryPatchTarget(row: any, patch: any): boolean {
  */
 export function createCategoryPatchRow(patch: any): any {
     const result = {
-        category: trimFieldValue(patch.category),
-        company: trimFieldValue(patch.company),
+        category: trimValue(patch.category),
+        company: trimValue(patch.company),
         enabled: patch.enabled !== false,
-        originalCategory: trimFieldValue(patch.category),
+        originalCategory: trimValue(patch.category),
         originalStubTagEnabled: patch.stubTagEnabled === true,
         source: "manual",
-        status: trimFieldValue(patch.status),
-        stubTag: trimFieldValue(patch.stubTag),
+        status: trimValue(patch.status),
+        stubTag: trimValue(patch.stubTag),
         stubTagEnabled: patch.stubTagEnabled === true,
     };
     return result;
@@ -1573,7 +1606,7 @@ export function regenerateNoteTaRows(form: any): void {
  * @returns Whether the row should survive regeneration.
  */
 export function isManualNoteTaRow(row: any): boolean {
-    const key = trimFieldValue(row.key);
+    const key = trimValue(row.key);
 
     return row.source !== NOTE_TA_NAMES_SOURCE && !/^G[1-9]\d*$/u.test(key);
 }
@@ -1608,7 +1641,7 @@ export function getOfficialNameNoteTaRows(form: any): Array<any> {
  */
 export function getGeneratedNameNoteTaInsertIndex(rows: Array<any>): number {
     const index = rows.findIndex(function callback(row) {
-        const key = trimFieldValue(row.key);
+        const key = trimValue(row.key);
 
         return key !== "T" && !/^G[1-9]\d*$/u.test(key);
     });
@@ -1637,9 +1670,7 @@ export function ensureNoteTaRows(form: any): Array<any> {
  * @returns Whether the row is blank.
  */
 export function isBlankNoteTaRow(row: any): boolean {
-    return (
-        trimFieldValue(row?.key) === "" && trimFieldValue(row?.value) === ""
-    );
+    return trimValue(row?.key) === "" && trimValue(row?.value) === "";
 }
 
 /**
@@ -1667,12 +1698,10 @@ export function createRedirectRow(
     value: any = "",
     fixed: boolean = value?.fixed === true,
 ): any {
-    const title = trimFieldValue(
-        value?.title ?? value?.redirectTitle ?? value,
-    );
+    const title = trimValue(value?.title ?? value?.redirectTitle ?? value);
     const exists =
         value?.exists === true || /^Exists(?::|$)/u.test(value?.status);
-    const fixedTitle = fixed ? title : trimFieldValue(value?.fixedTitle);
+    const fixedTitle = fixed ? title : trimValue(value?.fixedTitle);
 
     let pendingEdit = {};
 
@@ -1701,7 +1730,7 @@ export function createRedirectRow(
  * @returns Whether the row is blank.
  */
 export function isBlankRedirectRow(row: any): boolean {
-    return trimFieldValue(row?.title) === "";
+    return trimValue(row?.title) === "";
 }
 
 /**
@@ -1715,7 +1744,7 @@ export function isBlankRedirectRow(row: any): boolean {
 export function markCategoryRowsFixed(rows: Array<any>): void {
     rows.forEach(function callback(row) {
         row.fixed = true;
-        row.fixedCategory = trimFieldValue(row.category);
+        row.fixedCategory = trimValue(row.category);
     });
 }
 
@@ -1744,7 +1773,7 @@ export function markCategoryRowsUnfixed(rows: Array<any>): void {
  * @returns *
  */
 export function syncCategoryRowFixedState(row: any, current: any): void {
-    row.fixedCategory = trimFieldValue(current?.fixedCategory);
+    row.fixedCategory = trimValue(current?.fixedCategory);
     row.fixed =
         current?.fixed === true &&
         normalizeTitleKey(row.fixedCategory) ===
@@ -1775,7 +1804,7 @@ export function isCategoryRowFixed(row: any): boolean {
  *   checks as unfixed.
  */
 export function setRedirectRowTitle(row: any, value: string): void {
-    const title = trimFieldValue(value);
+    const title = trimValue(value);
 
     row.title = title;
 
@@ -1825,7 +1854,7 @@ export function hasPreparedNavboxRows(form: {
     const result =
         Array.isArray(form.navboxRows) &&
         (form.navboxRows.some((row) => !isBlankNavboxRow(row)) ||
-            trimFieldValue(form.series) === "");
+            trimValue(form.series) === "");
     return result;
 }
 
@@ -1836,7 +1865,7 @@ export function hasPreparedNavboxRows(form: {
  * @returns Title comparison key.
  */
 export function normalizeTitleKey(value: any): string {
-    return trimFieldValue(value).toLocaleLowerCase();
+    return trimValue(value).toLocaleLowerCase();
 }
 
 /**
@@ -1850,8 +1879,8 @@ export function createNavboxRow(
     value: any = "",
     fixed: boolean = value?.fixed === true,
 ): any {
-    const text = trimFieldValue(value?.text ?? value);
-    const fixedText = fixed ? text : trimFieldValue(value?.fixedText);
+    const text = trimValue(value?.text ?? value);
+    const fixedText = fixed ? text : trimValue(value?.fixedText);
 
     const result = {
         fixed: fixed && fixedText === text,
@@ -1883,7 +1912,7 @@ export function createNavboxRow(
  * @returns Whether the row is blank.
  */
 export function isBlankNavboxRow(row: any): boolean {
-    return trimFieldValue(row?.text) === "";
+    return trimValue(row?.text) === "";
 }
 
 /**
@@ -1896,7 +1925,7 @@ export function isBlankNavboxRow(row: any): boolean {
  *   as unfixed.
  */
 export function setNavboxRowText(row: any, value: string): void {
-    const text = trimFieldValue(value);
+    const text = trimValue(value);
 
     row.text = text;
 
@@ -1943,10 +1972,10 @@ export function shouldSkipFixedRows(
  * @returns Template title without namespace.
  */
 export function getNavboxTitle(value: any): string {
-    const text = trimFieldValue(value);
+    const text = trimValue(value);
     const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
 
-    return trimFieldValue(match?.[1] || text).replace(/^Template:/iu, "");
+    return trimValue(match?.[1] || text).replace(/^Template:/iu, "");
 }
 
 /**
@@ -1956,7 +1985,7 @@ export function getNavboxTitle(value: any): string {
  * @returns Managed citation row.
  */
 export function createCitationRow(value: any = {}): any {
-    const template = trimFieldValue(value.template) || "cite web";
+    const template = trimValue(value.template) || "cite web";
     const generatedParams = sortManagedCitationParams(
         value.generatedParams,
         template,
@@ -1970,7 +1999,7 @@ export function createCitationRow(value: any = {}): any {
             value.params || generatedParams,
             template,
         ),
-        sourceUrl: trimFieldValue(value.sourceUrl),
+        sourceUrl: trimValue(value.sourceUrl),
         template,
     };
     return result;
@@ -1984,8 +2013,8 @@ export function createCitationRow(value: any = {}): any {
  */
 export function createCitationParamRow(value: any = {}): any {
     const result = {
-        name: trimFieldValue(value.name),
-        value: trimFieldValue(value.value),
+        name: trimValue(value.name),
+        value: trimValue(value.value),
     };
     return result;
 }
@@ -2048,7 +2077,7 @@ export function getCitationParamTableRows(citation: any): Array<any> {
  */
 export function getCitationTabsKey(rows: Array<any>): string {
     const result = rows
-        .map((citation) => trimFieldValue(citation.sourceUrl))
+        .map((citation) => trimValue(citation.sourceUrl))
         .join("\n");
     return result;
 }
@@ -2109,7 +2138,7 @@ export function getCitationSourceDomain(sourceUrl: string): string {
     try {
         return new URL(sourceUrl).hostname.replace(/^www\./u, "");
     } catch (_error) {
-        return trimFieldValue(sourceUrl) || "source";
+        return trimValue(sourceUrl) || "source";
     }
 }
 
@@ -2232,9 +2261,7 @@ export function setCodeMirrorText(
  * @returns Whether the row should be kept.
  */
 export function hasCitationParamValue(param: any): boolean {
-    return (
-        trimFieldValue(param.name) !== "" || trimFieldValue(param.value) !== ""
-    );
+    return trimValue(param.name) !== "" || trimValue(param.value) !== "";
 }
 
 /**

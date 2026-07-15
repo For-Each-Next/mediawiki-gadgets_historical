@@ -4,14 +4,11 @@
 
 import { getArticleSourceFields } from "#stub/article";
 import type { CitationStore } from "#stub/sources/citation-store.ts";
-import {
-    buildNameSourceReferenceKey,
-    splitSourceUrls,
-    trimFieldValue,
-} from "#stub/local/form-values.ts";
-import { cite } from "#shared";
+import { buildNameSourceReferenceKey } from "#stub/wiki";
+import { cite, wikitext } from "#shared";
 const { buildCiteTemplateFromParts, parseCiteTemplate, sortCitationParams } =
     cite;
+const { splitSourceUrls, trimValue } = wikitext;
 
 const NAME_GROUP_KEYS = ["localizedNames", "officialNames", "commonNames"];
 
@@ -81,7 +78,7 @@ export async function prepareManagedCitationRows(
         existingRows = form.citationRows;
     }
     const refetchSourceUrls = new Set<string>(
-        (options.refetchSourceUrls || []).map(trimFieldValue),
+        (options.refetchSourceUrls || []).map(trimValue),
     );
 
     const context = { citationStore, existingRows, refetchSourceUrls };
@@ -125,13 +122,13 @@ async function prepareManagedCitationRow(
     }
     const generated = parseCiteTemplate(generatedCitation);
     const existing = context.existingRows.find(function findExisting(row) {
-        return trimFieldValue(row.sourceUrl) === sourceUrl;
+        return trimValue(row.sourceUrl) === sourceUrl;
     });
     const generatedParams = generated.params;
     const params = selectManagedCitationParams(existing, generated);
     let template = generated.template;
 
-    if (trimFieldValue(existing?.template)) {
+    if (trimValue(existing?.template)) {
         template = existing.template;
     }
 
@@ -199,7 +196,7 @@ export function getEnteredSourceUrls(form: any): Array<string> {
     const result = [
         ...new Set(
             getEnteredSourceReferenceFields(form)
-                .map((field) => trimFieldValue(field.sourceUrl))
+                .map((field) => trimValue(field.sourceUrl))
                 .filter(Boolean),
         ),
     ];
@@ -221,7 +218,7 @@ function getManagedCitation(form: any, sourceUrl: string): string {
     const row = form.citationRows.find(function findCitation(item: {
         sourceUrl: string;
     }) {
-        return trimFieldValue(item.sourceUrl) === trimFieldValue(sourceUrl);
+        return trimValue(item.sourceUrl) === trimValue(sourceUrl);
     });
 
     if (row == null) {
@@ -261,8 +258,8 @@ export function getEnteredNameSourceReferenceFields(form: any): Array<any> {
                 sourceUrl: unknown;
             }) {
                 const result =
-                    Boolean(trimFieldValue(field.name)) &&
-                    Boolean(trimFieldValue(field.sourceUrl));
+                    Boolean(trimValue(field.name)) &&
+                    Boolean(trimValue(field.sourceUrl));
                 return result;
             });
         return result;

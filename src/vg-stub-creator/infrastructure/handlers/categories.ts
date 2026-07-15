@@ -6,7 +6,7 @@ import {
 } from "#stub/handlers/title-resolver.ts";
 import { sortCategoryRowsByProse } from "#stub/wiki";
 import { wikitext } from "#shared";
-const { uniqueValues } = wikitext;
+const { trimValue, uniqueValues } = wikitext;
 
 const CATEGORY_NAMESPACE = "Category";
 const CATEGORY_REDIRECT_PROPS = [
@@ -1032,16 +1032,6 @@ function uniqueCategoryRows(rows: Array<any>): Array<any> {
  */
 function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-/**
- * Trims a value.
- *
- * @param value - Raw value.
- * @returns Trimmed string.
- */
-function trimValue(value: any): string {
-    return value == null ? "" : String(value).trim();
 }
 
 /**

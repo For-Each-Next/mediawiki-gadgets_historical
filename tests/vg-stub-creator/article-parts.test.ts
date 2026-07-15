@@ -71,6 +71,25 @@ test("empty year and genre use the fallback video-game phrase", () => {
     assert.equal(data.prose.text, "《'''Example'''》是一款[[电子游戏]]。");
 });
 
+test("article processing preserves entered list text", () => {
+    const data = createArticleData({
+        categoryRows: [],
+        genres: "Action\nAdventure",
+        localizedNames: [],
+        name: "Example",
+        navboxText: "",
+        platforms: "",
+        sourceReferences: [],
+        year: "",
+    });
+
+    assert.equal(
+        data.records.genre.normalizedText.genres,
+        "Action\nAdventure",
+    );
+    assert.equal(data.records.genre.values.length, 2);
+});
+
 /**
  * Creates article data from the saved Wheel World input.
  *

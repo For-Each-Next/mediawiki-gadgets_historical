@@ -7,7 +7,7 @@
     "imports": {
         "#shared": "./src/shared/index.ts",
         "#stub/app/*": "./src/vg-stub-creator/application/*",
-        "#stub/article": "./src/vg-stub-creator/domain/article/processor.ts",
+        "#stub/article": "./src/vg-stub-creator/domain/processor.ts",
         "#stub/editing/*": "./src/vg-stub-creator/infrastructure/editing/*",
         "#stub/form/*": "./src/vg-stub-creator/presentation/form/*",
         "#stub/handlers/*": "./src/vg-stub-creator/infrastructure/handlers/*",

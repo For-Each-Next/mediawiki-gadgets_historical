@@ -22,8 +22,9 @@ import {
     formatText,
     sortCategoryRowsByProse,
 } from "#stub/wiki";
-import { trimFieldValue } from "#stub/local/form-values.ts";
 import { msg } from "#stub/i18n";
+import { wikitext } from "#shared";
+const { trimValue } = wikitext;
 
 /**
  * Builds normalized article data from raw form values.
@@ -120,8 +121,7 @@ export async function prepareNavboxRows(
         rebuild ||
         !Array.isArray(form.navboxRows) ||
         (form.navboxRows.length === 0 &&
-            (trimFieldValue(form.series) !== "" ||
-                configuredTitles.length > 0));
+            (trimValue(form.series) !== "" || configuredTitles.length > 0));
     const titles = await selectValue(
         shouldGenerate,
         async function trueBranch() {
@@ -236,7 +236,7 @@ export function getArticleFieldPlaceholder(
 
     if (field.key === "wikidataId") {
         const result = selectValue(
-            trimFieldValue(form.enwikiTitle) === "",
+            trimValue(form.enwikiTitle) === "",
             function trueBranch() {
                 return msg("metadata.enterEnwikiTitle");
             },

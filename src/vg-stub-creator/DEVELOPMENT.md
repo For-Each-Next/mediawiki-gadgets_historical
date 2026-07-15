@@ -2,12 +2,12 @@
 
 The gadget passes named data records through the article workflow. Every
 raw article module emits the `ArticleDataRecord` shape from
-`domain/article/processor.ts`. The record includes normalized input, values,
+`domain/processor.ts`. The record includes normalized input, values,
 citations, metadata, assumed categories, navboxes, and module-specific wikitext.
 
 - `domain/data.ts`: pure field parsing and metadata extraction.
 - `domain/modules.ts`: field ownership and normalized record adapters.
-- `domain/article/processor.ts`: flushes registered modules into article data.
+- `domain/processor.ts`: flushes registered modules into article data.
 - `config/terminologies/`: canonical aliases, labels, pages, and metadata.
 - `domain/wiki.ts`: pure builders and generated-language templates.
 - `application/workflow.ts`: coordinates records, adapters, and final text.

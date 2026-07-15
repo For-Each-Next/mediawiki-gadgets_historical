@@ -5,7 +5,8 @@
  * URLs.
  */
 
-import { trimFieldValue } from "#stub/local/form-values.ts";
+import { wikitext } from "#shared";
+const { trimValue } = wikitext;
 
 export const ZHWIKI_API_URL = "https://zh.wikipedia.org/w/api.php";
 export const ZHWIKI_ORIGIN = "https://zh.wikipedia.org";
@@ -19,7 +20,7 @@ export const ZHWIKI_ENWIKI_TITLE_PARAM = "vg-stub-creator-enwiki-title";
  * @returns Base title for the zhwiki creation page.
  */
 export function removeEnwikiVideoGameSuffix(title: string): string {
-    return trimFieldValue(title).replace(/\s+\(video game\)$/iu, "");
+    return trimValue(title).replace(/\s+\(video game\)$/iu, "");
 }
 
 /**
@@ -96,7 +97,7 @@ export function buildZhwikiCreationUrl(
     targetTitle?: string,
 ): string {
     const title =
-        trimFieldValue(targetTitle) || buildZhwikiCreationTitle(enwikiTitle);
+        trimValue(targetTitle) || buildZhwikiCreationTitle(enwikiTitle);
     const url = new URL(
         ["/wiki/", encodeURIComponent(title.replace(/ /gu, "_")), ""].join(""),
         ZHWIKI_ORIGIN,
@@ -105,10 +106,7 @@ export function buildZhwikiCreationUrl(
     url.searchParams.set("action", "edit");
     url.searchParams.set("redlink", "1");
     url.searchParams.set(ZHWIKI_ACTIVATION_PARAM, "1");
-    url.searchParams.set(
-        ZHWIKI_ENWIKI_TITLE_PARAM,
-        trimFieldValue(enwikiTitle),
-    );
+    url.searchParams.set(ZHWIKI_ENWIKI_TITLE_PARAM, trimValue(enwikiTitle));
 
     return url.toString();
 }
@@ -137,9 +135,7 @@ export function readZhwikiActivationForm(
         return null;
     }
 
-    const enwikiTitle = trimFieldValue(
-        params.get(ZHWIKI_ENWIKI_TITLE_PARAM) || "",
-    );
+    const enwikiTitle = trimValue(params.get(ZHWIKI_ENWIKI_TITLE_PARAM) || "");
 
     if (enwikiTitle === "") {
         return null;

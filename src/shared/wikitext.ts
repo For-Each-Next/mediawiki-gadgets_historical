@@ -13,6 +13,79 @@ export type TemplateParamValue = string | number | boolean | null | undefined;
 export type TemplateParam = [string | number | null, TemplateParamValue];
 
 /**
+ * A compact value with an optional prefix before a colon.
+ */
+export interface PrefixedValue {
+    prefix: string;
+    value: string;
+}
+
+interface FormatPrefixedValueOptions {
+    normalizePrefix?: (prefix: string) => string;
+}
+
+/**
+ * Parses a compact prefixed value such as "ja:タイトル".
+ *
+ * @param value - Raw prefixed value.
+ * @param defaultPrefix - Prefix used when none is entered.
+ * @returns Parsed prefix and value.
+ */
+export function parsePrefixedValue(
+    value: unknown,
+    defaultPrefix: string,
+): PrefixedValue {
+    const text = trimValue(value);
+    const match = text.match(/^([^:\s][^:]*):(.*)$/u);
+
+    if (match == null) {
+        const result = {
+            prefix: trimValue(defaultPrefix),
+            value: text,
+        };
+        return result;
+    }
+
+    const result = {
+        prefix: trimValue(match[1]),
+        value: trimValue(match[2]),
+    };
+    return result;
+}
+
+/**
+ * Formats a compact prefixed value without separator whitespace.
+ *
+ * @param value - Raw prefixed value.
+ * @param options - Prefix formatting options.
+ * @param options.normalizePrefix - Prefix normalizer.
+ * @returns Compact prefixed value.
+ */
+export function formatPrefixedValue(
+    value: unknown,
+    options: FormatPrefixedValueOptions = {},
+): string {
+    const parsed = parsePrefixedValue(value, "");
+
+    if (parsed.prefix === "") {
+        return parsed.value;
+    }
+
+    const normalizePrefix = options.normalizePrefix ?? preservePrefix;
+    return `${normalizePrefix(parsed.prefix)}:${parsed.value}`;
+}
+
+/**
+ * Returns a prefix without modification.
+ *
+ * @param prefix - Entered prefix.
+ * @returns Unchanged prefix.
+ */
+function preservePrefix(prefix: string): string {
+    return prefix;
+}
+
+/**
  * Builds a template call.
  *
  * @param template - Template title without braces.
@@ -203,6 +276,20 @@ export function splitFieldValues(value: string): Array<string> {
 }
 
 /**
+ * Splits a multiline source field into trimmed nonblank URLs.
+ *
+ * @param value - Raw source field value.
+ * @returns Source URLs.
+ */
+export function splitSourceUrls(value: unknown): Array<string> {
+    const result = trimValue(value)
+        .split(/[\r\n]+/u)
+        .map(trimValue)
+        .filter(Boolean);
+    return result;
+}
+
+/**
  * Splits one user-entered field into category/lookup values.
  *
  * @param value - User-entered field value.
@@ -342,7 +429,7 @@ function getWikilinkTransition(pair: string, inWikilink: boolean) {
  * @returns Whether the field uses first-level item
  * separators.
  */
-function hasFirstLevelFieldSeparator(text: string): boolean {
+export function hasFirstLevelFieldSeparator(text: string): boolean {
     let inWikilink = false;
 
     for (let index = 0; index < text.length; index++) {
@@ -430,8 +517,8 @@ function isSpacedSlash(text: string, index: number): boolean {
  * @param value - Raw lookup value.
  * @returns Trimmed lookup value.
  */
-export function trimValue(value: string): string {
-    return value.trim();
+export function trimValue(value: unknown): string {
+    return value == null ? "" : String(value).trim();
 }
 
 /**

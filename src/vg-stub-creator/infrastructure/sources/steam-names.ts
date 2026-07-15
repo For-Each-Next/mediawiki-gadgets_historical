@@ -2,8 +2,9 @@
  * Fetches localized official game names from Steam citations.
  */
 
-import { trimFieldValue } from "#stub/local/form-values.ts";
 import { msg } from "#stub/i18n";
+import { wikitext } from "#shared";
+const { trimValue } = wikitext;
 
 /**
  * Fetches localized Steam names.
@@ -105,7 +106,7 @@ async function fetchSteamNameRow(
  * @returns Steam app ID.
  */
 function getSteamAppId(sourceUrl: string): string {
-    const match = trimFieldValue(sourceUrl).match(/\/app\/(\d+)(?:[/?#]|$)/u);
+    const match = trimValue(sourceUrl).match(/\/app\/(\d+)(?:[/?#]|$)/u);
 
     if (match == null) {
         throw new Error(msg("errors.steamUrl"));
@@ -125,7 +126,7 @@ function buildSteamLocalizedSourceUrl(
     sourceUrl: string,
     language: string,
 ): string {
-    const url = new URL(trimFieldValue(sourceUrl));
+    const url = new URL(trimValue(sourceUrl));
 
     url.searchParams.set("l", language);
 
@@ -146,7 +147,7 @@ function getTemplateParam(template: string, key: string): string {
     );
     const match = String(template).match(pattern);
 
-    return trimFieldValue(match?.[1] || "");
+    return trimValue(match?.[1] || "");
 }
 
 /**
@@ -166,7 +167,7 @@ function escapeRegExp(text: string): string {
  * @returns Game name.
  */
 function cleanSteamNameTitle(title: string): string {
-    const result = trimFieldValue(title)
+    const result = trimValue(title)
         .replace(/^Steam - /u, "")
         .replace(/^Steam 上的 /u, "")
         .replace(/ on Steam$/u, "");

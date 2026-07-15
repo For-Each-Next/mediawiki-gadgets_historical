@@ -22,7 +22,7 @@
             "#shared": ["./src/shared/index.ts"],
             "#stub/app/*": ["./src/vg-stub-creator/application/*"],
             "#stub/article": [
-                "./src/vg-stub-creator/domain/article/processor.ts"
+                "./src/vg-stub-creator/domain/processor.ts"
             ],
             "#stub/config/*": ["./src/vg-stub-creator/config/*"],
             "#stub/data": ["./src/vg-stub-creator/domain/data.ts"],
@@ -36,7 +36,6 @@
             ],
             "#stub/i18n": ["./src/vg-stub-creator/i18n/index.ts"],
             "#stub/i18n/*": ["./src/vg-stub-creator/i18n/*"],
-            "#stub/local/*": ["./src/vg-stub-creator/shared/*"],
             "#stub/main": ["./src/vg-stub-creator/presentation/main/index.ts"],
             "#stub/main/*": ["./src/vg-stub-creator/presentation/main/*"],
             "#stub/modules": ["./src/vg-stub-creator/domain/modules.ts"],

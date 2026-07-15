@@ -9,11 +9,6 @@ import {
     isCompletableMetadataField,
 } from "#stub/article";
 import {
-    hasFirstLevelFieldSeparator,
-    parsePrefixedValue,
-    trimFieldValue,
-} from "#stub/local/form-values.ts";
-import {
     createSaveProgress,
     getSaveProgressGroups,
     isSaveProgressComplete,
@@ -169,7 +164,7 @@ let tableActionTooltipRef: any;
 let open: any;
 let sourceEditors: Map<any, any>;
 let sourceEditorLoads: Set<any>;
-let openedReviewLinkUrls: Set<any>;
+let reviewLinksOpened: boolean;
 let componentMounted: boolean;
 let navboxRowsPrepared: boolean;
 let queueCitationPrefetch: (...args: any[]) => any;
@@ -211,7 +206,7 @@ export function createDialogComponent(
  * Initializes primary form and review state.
  */
 function initializePrimaryState(): void {
-    currentTitle = trimFieldValue(options.currentTitle) || options.defaultName;
+    currentTitle = trimValue(options.currentTitle) || options.defaultName;
     activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
     form = Vue.reactive(createFormValues());
     categoryState = Vue.reactive(createLoadingState());
@@ -288,7 +283,7 @@ function initializeDialogState(): void {
     initializePreviewState();
     sourceEditors = new Map();
     sourceEditorLoads = new Set();
-    openedReviewLinkUrls = new Set();
+    reviewLinksOpened = false;
     componentMounted = true;
     queueCitationPrefetch = createCitationPrefetchQueue(options);
 
@@ -523,7 +518,7 @@ async function submitExternalDialog(): Promise<void> {
 function shouldLoadInitialEnwikiMetadata(): boolean {
     const result =
         options.initialEnwikiLookup === true &&
-        trimFieldValue(form.enwikiTitle) !== "";
+        trimValue(form.enwikiTitle) !== "";
     return result;
 }
 
@@ -553,7 +548,7 @@ async function openPreSave() {
         );
         preSaveMoveEnabled.value = false;
         preSaveMoveTitle.value =
-            trimFieldValue(prepared.move?.to) || getCurrentTitle();
+            trimValue(prepared.move?.to) || getCurrentTitle();
     } catch (error) {
         sourceFetchState.error = error.message || String(error);
     } finally {
@@ -707,7 +702,7 @@ function findCompanyCategoryRow(): any | undefined {
  * @returns Whether the row matches.
  */
 function isCurrentCompanyCategoryRow(row: any): boolean {
-    return trimFieldValue(row.category) === companyCategoryState.category;
+    return trimValue(row.category) === companyCategoryState.category;
 }
 
 /**
@@ -718,10 +713,10 @@ function isCurrentCompanyCategoryRow(row: any): boolean {
  */
 function createPendingCompanyCategory(row: any): any {
     const result = {
-        englishName: trimFieldValue(companyCategoryState.englishName),
+        englishName: trimValue(companyCategoryState.englishName),
         previousStatus: row.pendingCreation?.previousStatus || row.status,
         text: companyCategoryState.text,
-        wikidataId: trimFieldValue(companyCategoryState.wikidataId),
+        wikidataId: trimValue(companyCategoryState.wikidataId),
     };
     return result;
 }
@@ -1009,7 +1004,7 @@ const methods = {
         options.onSubmitHistory(form, getCurrentTitle());
         historyEntries.value = options.getHistoryEntries();
 
-        const moveTitle = trimFieldValue(preSaveMoveTitle.value);
+        const moveTitle = trimValue(preSaveMoveTitle.value);
 
         if (shouldMoveBeforeSubmit(moveTitle)) {
             await submitMoveTarget(moveTitle);
@@ -1103,7 +1098,7 @@ const methods = {
             return "";
         }
 
-        const status = trimFieldValue(step?.status);
+        const status = trimValue(step?.status);
         const active = ["failed", "retrying", "running"].includes(status);
 
         let result = "vg-stub-creator-pre-save-progress-row";
@@ -1159,7 +1154,7 @@ const methods = {
     isCategoryAddReviewRow(row: any): boolean {
         const result =
             row?.enabled !== false &&
-            trimFieldValue(row?.category) !== "" &&
+            trimValue(row?.category) !== "" &&
             (row?.pendingCreation != null ||
                 row?.status === "Not exists" ||
                 row?.status === "Pending creation");
@@ -1175,7 +1170,7 @@ const methods = {
     isNavboxAddReviewRow(row: any): boolean {
         const result =
             row?.enabled !== false &&
-            trimFieldValue(row?.text) !== "" &&
+            trimValue(row?.text) !== "" &&
             (row?.pendingCreation != null ||
                 row?.status === "Not exists" ||
                 row?.status === "Missing" ||
@@ -1215,7 +1210,7 @@ const methods = {
     isRedirectConflictReviewRow(row: any): boolean {
         const result =
             row?.enabled !== false &&
-            trimFieldValue(row?.title) !== "" &&
+            trimValue(row?.title) !== "" &&
             row?.exists === true;
         return result;
     },
@@ -1237,7 +1232,7 @@ const methods = {
      * @returns Display page label.
      */
     formatHistoryEntryPage(entry: any): string {
-        const page = trimFieldValue(entry.metadata?.page);
+        const page = trimValue(entry.metadata?.page);
 
         if (entry.metadata?.temporary === true) {
             const result = msg("history.temporaryPage", {
@@ -1473,7 +1468,7 @@ const methods = {
      *   updates the move target title from live input.
      */
     updateMoveTarget(value: string): void {
-        moveTarget.value = trimFieldValue(value);
+        moveTarget.value = trimValue(value);
         moveTargetState.checkedTitle = "";
         moveTargetState.exists = false;
     },
@@ -1488,7 +1483,7 @@ const methods = {
             return;
         }
 
-        const title = trimFieldValue(moveTarget.value);
+        const title = trimValue(moveTarget.value);
 
         moveTargetState.checkedTitle = "";
         moveTargetState.exists = false;
@@ -1502,7 +1497,7 @@ const methods = {
         try {
             const result = await options.onCheckPageTitle(title);
 
-            if (trimFieldValue(moveTarget.value) !== title) {
+            if (trimValue(moveTarget.value) !== title) {
                 return;
             }
 
@@ -1524,7 +1519,7 @@ const methods = {
      * @returns Whether the move action should be shown.
      */
     canMovePageName(): boolean {
-        const title = trimFieldValue(form.pageName);
+        const title = trimValue(form.pageName);
 
         if (title === "" || title === currentTitle) {
             return false;
@@ -1546,7 +1541,7 @@ const methods = {
      * @returns Resolves to whether preview needs confirmation.
      */
     async shouldConfirmPageNameMove(): Promise<boolean> {
-        const title = trimFieldValue(form.pageName);
+        const title = trimValue(form.pageName);
 
         if (
             title === "" ||
@@ -1573,7 +1568,7 @@ const methods = {
      * ready.
      */
     async previewWithoutMoving(): Promise<void> {
-        previewWithoutMoveTitle.value = trimFieldValue(form.pageName);
+        previewWithoutMoveTitle.value = trimValue(form.pageName);
         moveOpen.value = false;
         movePreviewConfirmation.value = false;
         await this.previewForm();
@@ -1590,7 +1585,7 @@ const methods = {
     async submitMoveTarget(): Promise<void> {
         await this.checkMoveTarget();
         await refreshCategoryRows();
-        form.pageName = trimFieldValue(moveTarget.value);
+        form.pageName = trimValue(moveTarget.value);
         movePreviewConfirmation.value = false;
         options.onSubmitHistory(form, getCurrentTitle());
         historyEntries.value = options.getHistoryEntries();
@@ -1616,7 +1611,12 @@ const methods = {
         );
 
         const completed = completeMetadataFieldValue(field.key, value, true);
-        form[field.key] = formatArticleFormField(form, field.key, completed);
+        let formatted = formatArticleFormField(form, field.key, completed);
+
+        if (isArticleListField(field.key)) {
+            formatted = normalizeListFieldValue(formatted);
+        }
+        form[field.key] = formatted;
     },
 
     /**
@@ -1629,7 +1629,7 @@ const methods = {
      *   trims pasted source url field values.
      */
     trimSourceValue(field: any): void {
-        form[field.sourceKey] = trimFieldValue(form[field.sourceKey]);
+        form[field.sourceKey] = trimValue(form[field.sourceKey]);
     },
 
     /**
@@ -1660,7 +1660,7 @@ const methods = {
      *   updates one source url field from live input.
      */
     updateSourceValue(field: any, value: string): void {
-        form[field.sourceKey] = trimFieldValue(value);
+        form[field.sourceKey] = trimValue(value);
     },
 
     /**
@@ -1689,7 +1689,7 @@ const methods = {
             citation.params.push(createCitationParamRow());
         }
 
-        citation.params[paramIndex][field] = trimFieldValue(value);
+        citation.params[paramIndex][field] = trimValue(value);
         citation.modified = true;
     },
 
@@ -1749,7 +1749,7 @@ const methods = {
 
         const params: Array<{ value?: unknown }> = citation.params || [];
         citation.params = params.filter(
-            (param) => trimFieldValue(param?.value) !== "",
+            (param) => trimValue(param?.value) !== "",
         );
         citation.modified = true;
     },
@@ -1872,7 +1872,7 @@ const methods = {
      *   trims one form value by key.
      */
     trimFormValue(key: string): void {
-        form[key] = trimFieldValue(form[key]);
+        form[key] = trimValue(form[key]);
     },
 
     /**
@@ -1884,7 +1884,7 @@ const methods = {
      *   updates one form value by key from live input.
      */
     updateFormValue(key: string, value: string): void {
-        form[key] = trimFieldValue(value);
+        form[key] = trimValue(value);
         markCategoryRowsUnfixed(form.categoryRows);
     },
 
@@ -1938,7 +1938,9 @@ const methods = {
 
         event.preventDefault();
         const completed = completeMetadataFieldValue(field.key, text, true);
-        form[field.key] = formatArticleFormField(form, field.key, completed);
+        form[field.key] = normalizeListFieldValue(
+            formatArticleFormField(form, field.key, completed),
+        );
         markCategoryRowsUnfixed(form.categoryRows);
     },
 
@@ -1952,7 +1954,7 @@ const methods = {
      *   trims a localized name row value.
      */
     updateNameRow(key: string, index: number, field: string): void {
-        form[key][index][field] = trimFieldValue(form[key][index][field]);
+        form[key][index][field] = trimValue(form[key][index][field]);
         ensureTrailingNameRow(form[key]);
         syncGeneratedNameNoteTaRow(form);
     },
@@ -1974,7 +1976,7 @@ const methods = {
         field: string,
         value: string,
     ): void {
-        form[key][index][field] = trimFieldValue(value);
+        form[key][index][field] = trimValue(value);
         ensureTrailingNameRow(form[key]);
         syncGeneratedNameNoteTaRow(form);
     },
@@ -2071,7 +2073,7 @@ const methods = {
      *   updates the steam helper url.
      */
     updateSteamUrl(value: string): void {
-        steamUrl.value = trimFieldValue(value);
+        steamUrl.value = trimValue(value);
         fetchedSteamNameRows.value = [];
     },
 
@@ -2401,7 +2403,7 @@ const methods = {
     updateNoteTaRow(index: number, field: string, value: string): void {
         const row = ensureNoteTaRows(form)[index];
 
-        row[field] = trimFieldValue(value);
+        row[field] = trimValue(value);
 
         if (row.source === NOTE_TA_NAMES_SOURCE) {
             row.modified = true;
@@ -2562,7 +2564,7 @@ const methods = {
             create: getPageEditCreateState(row, row.exists !== true),
             kind: "redirect",
             row,
-            title: trimFieldValue(row.title),
+            title: trimValue(row.title),
         });
     },
 
@@ -2595,7 +2597,7 @@ const methods = {
 
         form.categoryRows[index] = options.onUpdateCategoryRowCategory(
             form.categoryRows[index],
-            trimFieldValue(category),
+            trimValue(category),
         );
         syncCategoryRowFixedState(form.categoryRows[index], current);
         ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
@@ -2621,7 +2623,7 @@ const methods = {
         });
 
         if (value != null && form.categoryRows[index] != null) {
-            form.categoryRows[index].category = trimFieldValue(value);
+            form.categoryRows[index].category = trimValue(value);
             ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
         }
     },
@@ -2637,14 +2639,14 @@ const methods = {
         const pendingCreation = row.pendingCreation;
 
         Object.assign(companyCategoryState, {
-            category: trimFieldValue(row.category),
-            company: trimFieldValue(row.company),
-            englishName: trimFieldValue(pendingCreation?.englishName),
+            category: trimValue(row.category),
+            company: trimValue(row.company),
+            englishName: trimValue(pendingCreation?.englishName),
             error: "",
             loading: false,
             pending: pendingCreation != null,
             text: String(pendingCreation?.text || ""),
-            wikidataId: trimFieldValue(pendingCreation?.wikidataId),
+            wikidataId: trimValue(pendingCreation?.wikidataId),
         });
         companyCategoryLookupLoading.value = false;
         companyCategoryOpen.value = true;
@@ -2689,9 +2691,7 @@ const methods = {
         const row = form.categoryRows.find(function callback(item: {
             category: unknown;
         }) {
-            return (
-                trimFieldValue(item.category) === companyCategoryState.category
-            );
+            return trimValue(item.category) === companyCategoryState.category;
         });
 
         if (row == null || row.pendingCreation == null) {
@@ -2738,7 +2738,7 @@ const methods = {
      * @returns Whether the helper should be shown.
      */
     canCreateCompanyCategory(row: any): boolean {
-        return trimFieldValue(row.company) !== "" && row.status !== "OK";
+        return trimValue(row.company) !== "" && row.status !== "OK";
     },
 
     /**
@@ -2757,7 +2757,7 @@ const methods = {
      * @returns Wikidata entity URL.
      */
     getCompanyCategoryWikidataUrl(): string {
-        const id = trimFieldValue(companyCategoryState.wikidataId);
+        const id = trimValue(companyCategoryState.wikidataId);
         let result = "";
 
         if (id !== "") {
@@ -2775,7 +2775,7 @@ const methods = {
      */
     canCreateCategory(row: any): boolean {
         const result =
-            trimFieldValue(row.category) !== "" &&
+            trimValue(row.category) !== "" &&
             row.status !== "OK" &&
             row.pendingCreation == null;
         return result;
@@ -2788,7 +2788,7 @@ const methods = {
      * @returns Resolves after the editor is ready.
      */
     async openCategoryEdit(row: any): Promise<void> {
-        const category = trimFieldValue(row.category);
+        const category = trimValue(row.category);
 
         await openPageEdit({
             create: getPageEditCreateState(row, row.status !== "OK"),
@@ -2980,7 +2980,7 @@ const methods = {
      * @returns Category page URL.
      */
     getCategoryPageUrl(row: any): string {
-        const category = trimFieldValue(row?.category);
+        const category = trimValue(row?.category);
 
         const result = selectValue(
             category === "",
@@ -3001,7 +3001,7 @@ const methods = {
      * @returns Redirect page URL.
      */
     getRedirectPageUrl(row: any): string {
-        const title = trimFieldValue(row?.title);
+        const title = trimValue(row?.title);
 
         return title === "" ? "" : options.getPageUrl(title);
     },
@@ -3013,7 +3013,7 @@ const methods = {
      * @returns Navbox template page URL.
      */
     getNavboxPageUrl(row: any): string {
-        const title = trimFieldValue(row?.title);
+        const title = trimValue(row?.title);
 
         return title === "" ? "" : options.getPageUrl(`Template:${title}`);
     },
@@ -3296,7 +3296,7 @@ function getFormattedFieldValue(field: any, value: string): string {
 function updateFieldDependencies(key: string): void {
     if (
         key === "pageName" &&
-        trimFieldValue(form.pageName) !== previewWithoutMoveTitle.value
+        trimValue(form.pageName) !== previewWithoutMoveTitle.value
     ) {
         previewWithoutMoveTitle.value = "";
         moveTargetState.checkedTitle = "";
@@ -3320,9 +3320,9 @@ function updateFieldDependencies(key: string): void {
  * @returns A refreshed citation matching the requested source.
  */
 function findRefetchedCitation(rows: Array<any>, citation: any): any {
-    const sourceUrl = trimFieldValue(citation.sourceUrl);
+    const sourceUrl = trimValue(citation.sourceUrl);
     const result = rows.map(createCitationRow).find(function callback(row) {
-        return trimFieldValue(row.sourceUrl) === sourceUrl;
+        return trimValue(row.sourceUrl) === sourceUrl;
     });
     return result;
 }
@@ -4134,12 +4134,12 @@ function createOpenPageEditState(params: any): any {
     let company = "";
 
     if (params.kind === "category") {
-        company = trimFieldValue(row.company);
+        company = trimValue(row.company);
     }
     const result = {
         create: params.create,
         company,
-        englishName: trimFieldValue(
+        englishName: trimValue(
             row.pendingEdit?.englishName || row.pendingCreation?.englishName,
         ),
         error: "",
@@ -4232,10 +4232,7 @@ function getPageEditCreateState(row: any, fallbackCreate: boolean): boolean {
  * @returns Initial source text.
  */
 async function getNewPageEditText(params: any): Promise<string> {
-    if (
-        params.kind === "category" &&
-        trimFieldValue(params.row.company) !== ""
-    ) {
+    if (params.kind === "category" && trimValue(params.row.company) !== "") {
         return options.onPrepareCompanyCategory(params.row);
     }
 
@@ -4281,7 +4278,7 @@ function stagePageEdit(): void {
  */
 function stageCategoryCreation(row: any): void {
     row.pendingCreation = {
-        englishName: trimFieldValue(pageEditState.englishName),
+        englishName: trimValue(pageEditState.englishName),
         previousStatus: row.pendingCreation?.previousStatus || row.status,
         text: pageEditState.text,
     };
@@ -4297,7 +4294,7 @@ function stageCategoryCreation(row: any): void {
  * @returns A staged generic page edit payload.
  */
 function createPendingPageEdit(row: any): any {
-    const englishName = trimFieldValue(pageEditState.englishName);
+    const englishName = trimValue(pageEditState.englishName);
     const pending = {
         create: pageEditState.create,
         ...(englishName === "" ? {} : { englishName }),
@@ -4372,7 +4369,7 @@ function buildPageEditSummary(state: any): string {
  * @returns Current page title.
  */
 function getCurrentTitle(): string {
-    return trimFieldValue(form.pageName) || currentTitle;
+    return trimValue(form.pageName) || currentTitle;
 }
 
 /**
@@ -4392,13 +4389,13 @@ function getCurrentTitle(): string {
  */
 function moveFieldUrlToSource(field: any, value: string): boolean {
     const sourceKey = field.sourceField?.sourceKey;
-    const sourceUrl = trimFieldValue(value);
+    const sourceUrl = trimValue(value);
 
     if (sourceKey == null || !/^https?:\/\/\S+$/iu.test(sourceUrl)) {
         return false;
     }
 
-    const existingValue = trimFieldValue(form[sourceKey]);
+    const existingValue = trimValue(form[sourceKey]);
     form[sourceKey] = selectValue(
         existingValue === "",
         function trueBranch() {
@@ -4623,25 +4620,45 @@ function openEnwikiReviewLinks(): void {
         return;
     }
 
-    const openedTabs = getEnwikiTipLinks()
+    const reviewLinks = getEnwikiTipLinks()
         .filter(function callback(link) {
-            return ["Metacritic", "OpenCritic"].includes(link.label);
+            return (
+                ["Metacritic", "OpenCritic"].includes(link.label) && link.url
+            );
         })
-        .map(function callback(link) {
-            if (!link.url || openedReviewLinkUrls.has(link.url)) {
-                return null;
-            }
+        .map((link) => link.url);
 
-            openedReviewLinkUrls.add(link.url);
+    if (reviewLinks.length !== 2 || !claimReviewLinksOpeningForTab()) {
+        return;
+    }
 
-            return window.open(link.url, "_blank");
-        })
+    const openedTabs = reviewLinks
+        .map((url) => window.open(url, "_blank"))
         .filter((tab) => tab != null);
 
     const firstTab = openedTabs[0];
 
     if (typeof firstTab?.focus === "function") {
         firstTab.focus();
+    }
+}
+
+/**
+ * Claims the one-time review-link opening for this browser tab.
+ *
+ * @returns Whether this component may open the links.
+ */
+function claimReviewLinksOpeningForTab(): boolean {
+    if (reviewLinksOpened) {
+        return false;
+    }
+
+    reviewLinksOpened = true;
+
+    try {
+        return claimReviewLinksOpening(sessionStorage);
+    } catch {
+        return true;
     }
 }
 
@@ -4725,7 +4742,7 @@ function getEnglishNameSearchQuery(): string {
  * @returns *
  */
 function syncPageNameFields(): void {
-    if (trimFieldValue(form.pageName) === "") {
+    if (trimValue(form.pageName) === "") {
         form.pageName = currentTitle;
     }
 }
@@ -4762,7 +4779,7 @@ async function fetchSteamNames(): Promise<void> {
  * @returns Resolves after the lookup is handled.
  */
 async function refreshEnwikiMetadata(): Promise<void> {
-    const title = trimFieldValue(form.enwikiTitle);
+    const title = trimValue(form.enwikiTitle);
     const serial = enwikiLookupSerial.value + 1;
 
     resetEnwikiMetadataLookup(title, serial);
@@ -4825,14 +4842,14 @@ function applyEnwikiMetadata(metadata: any): void {
     const hasPageState =
         metadata.pageExists === true || metadata.pageExists === false;
     Object.assign(enwikiMetadata, {
-        metacriticId: trimFieldValue(metadata.metacriticId),
-        openCriticId: trimFieldValue(metadata.openCriticId),
+        metacriticId: trimValue(metadata.metacriticId),
+        openCriticId: trimValue(metadata.openCriticId),
         pageExists: hasPageState ? metadata.pageExists : null,
-        steamId: trimFieldValue(metadata.steamId),
+        steamId: trimValue(metadata.steamId),
     });
-    form.wikidataId = trimFieldValue(metadata.wikidataId);
+    form.wikidataId = trimValue(metadata.wikidataId);
 
-    if (trimFieldValue(form.englishName) === "") {
+    if (trimValue(form.englishName) === "") {
         form.englishName = getBasePageTitle(metadata.title);
     }
 }
@@ -4842,7 +4859,7 @@ function applyEnwikiMetadata(metadata: any): void {
  */
 function applyEnwikiSourceUrls(): void {
     if (
-        trimFieldValue(form.metacriticScoreSourceUrl) === "" &&
+        trimValue(form.metacriticScoreSourceUrl) === "" &&
         enwikiMetadata.metacriticId
     ) {
         form.metacriticScoreSourceUrl = buildMetacriticUrl(
@@ -4851,7 +4868,7 @@ function applyEnwikiSourceUrls(): void {
     }
 
     if (
-        trimFieldValue(form.openCriticRecommendSourceUrl) === "" &&
+        trimValue(form.openCriticRecommendSourceUrl) === "" &&
         enwikiMetadata.openCriticId
     ) {
         form.openCriticRecommendSourceUrl = buildOpenCriticUrl(
@@ -4869,7 +4886,7 @@ function applyEnwikiSourceUrls(): void {
  */
 function prepareEnwikiSteamNames(): boolean {
     const shouldFetch =
-        trimFieldValue(steamUrl.value) === "" && enwikiMetadata.steamId;
+        trimValue(steamUrl.value) === "" && enwikiMetadata.steamId;
 
     if (shouldFetch) {
         steamUrl.value = buildSteamUrl(enwikiMetadata.steamId);
@@ -4914,7 +4931,7 @@ async function refreshCompanyCategoryMetadata(): Promise<void> {
         return;
     }
 
-    companyCategoryState.wikidataId = trimFieldValue(metadata.wikidataId);
+    companyCategoryState.wikidataId = trimValue(metadata.wikidataId);
     companyCategoryLookupLoading.value = false;
 }
 
@@ -5037,7 +5054,7 @@ function findGeneratedCitationParam(
     paramIndex: number,
 ): any | undefined {
     const param = citation.params[paramIndex];
-    const name = trimFieldValue(param?.name);
+    const name = trimValue(param?.name);
     const generatedParams: Array<{ name: string }> =
         citation.generatedParams || [];
 
@@ -5226,7 +5243,7 @@ function completeClosingWikiLink(text: string, markerIndex: number): string {
         return text;
     }
 
-    if (trimFieldValue(segmentBeforeMarker) === "") {
+    if (trimValue(segmentBeforeMarker) === "") {
         return text;
     }
 
@@ -5279,6 +5296,8 @@ function findListSegmentEnd(text: string, index: number): number {
 }
 
 import {
+    claimReviewLinksOpening,
+    normalizeListFieldValue,
     markSteamNameHelperRow,
     formatCategorySourceLabel,
     formatCategorySourceTitle,
@@ -5365,7 +5384,12 @@ import {
     openDialog,
 } from "#stub/form/helpers.ts";
 import { wikitext } from "#shared";
-const { splitFieldValues } = wikitext;
+const {
+    hasFirstLevelFieldSeparator,
+    parsePrefixedValue,
+    splitFieldValues,
+    trimValue,
+} = wikitext;
 
 /**
  * Selects a lazily evaluated value for a condition.

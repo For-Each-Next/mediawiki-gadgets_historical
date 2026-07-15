@@ -11,13 +11,9 @@ import {
     normalizeYearFieldValue,
 } from "#stub/data";
 import { defineArticleModule } from "#stub/article";
-import {
-    buildNameSourceReferenceKey,
-    formatPrefixedValue,
-    normalizeListFieldValue,
-    parsePrefixedValue,
-    trimFieldValue,
-} from "#stub/local/form-values.ts";
+import { buildNameSourceReferenceKey } from "#stub/wiki";
+import { wikitext } from "#shared";
+const { formatPrefixedValue, parsePrefixedValue, trimValue } = wikitext;
 
 /**
  * Flushes article titles and localized names into shared metadata.
@@ -69,7 +65,7 @@ export const namesModule = defineArticleModule({
             return result;
         }
 
-        return trimFieldValue(value);
+        return trimValue(value);
     },
 
     /**
@@ -88,15 +84,13 @@ export const namesModule = defineArticleModule({
 
         const result = {
             commonNames: localizedNames.filter((row) => !row.official),
-            englishName: trimFieldValue(form.englishName),
+            englishName: trimValue(form.englishName),
             localizedNames,
-            name:
-                trimFieldValue(form.name) ||
-                trimFieldValue(context.defaultName),
+            name: trimValue(form.name) || trimValue(context.defaultName),
             officialNames: localizedNames.filter((row) => row.official),
             originalLanguage: original.prefix.toLocaleLowerCase() || "ja",
             originalName: original.value,
-            sortKey: trimFieldValue(form.sortKey),
+            sortKey: trimValue(form.sortKey),
         };
         return result;
     },
@@ -259,9 +253,9 @@ function normalizeLocalizedNameRows(
     const result = rows.map(function callback(row, index: number) {
         const normalized: Record<string, unknown> = {
             ...row,
-            name: trimFieldValue(row.name),
+            name: trimValue(row.name),
             sourceKey: buildNameSourceReferenceKey(key, index),
-            sourceUrl: trimFieldValue(row.sourceUrl),
+            sourceUrl: trimValue(row.sourceUrl),
         };
 
         if (official != null) {
@@ -393,30 +387,6 @@ export const genreModule = defineArticleModule({
     ],
 
     /**
-     * Formats the live genre field.
-     *
-     * @param _key - Form field key.
-     * @param value - Raw genre value.
-     * @returns Canonical genre text.
-     */
-    formatField(_key: string, value: any): string {
-        return normalizeListFieldValue(value);
-    },
-
-    /**
-     * Normalizes genre form data.
-     *
-     * @param form - Current article form.
-     * @returns Normalized genre patch.
-     */
-    normalize(form: any): any {
-        const result = {
-            genres: normalizeListFieldValue(form.genres),
-        };
-        return result;
-    },
-
-    /**
      * Builds genre metadata.
      *
      * @param form - Fully normalized article form.
@@ -464,43 +434,6 @@ export const companiesModule = defineArticleModule({
             sourceKey: "publishersSourceUrl",
         },
     ],
-
-    /**
-     * Formats live company field values.
-     *
-     * @param key - Form field key.
-     * @param value - Raw company value.
-     * @returns Canonical company text.
-     */
-    formatField(key: string, value: any): string {
-        if (key === "publishers" && trimFieldValue(value) === "=") {
-            return "=";
-        }
-
-        return normalizeListFieldValue(value);
-    },
-
-    /**
-     * Normalizes company form data.
-     *
-     * @param form - Current article form.
-     * @returns Normalized company patch.
-     */
-    normalize(form: any): any {
-        const result = {
-            developers: normalizeListFieldValue(form.developers),
-            publishers: selectCompanyValue(
-                trimFieldValue(form.publishers) === "=",
-                function trueBranch() {
-                    return "=";
-                },
-                function falseBranch() {
-                    return normalizeListFieldValue(form.publishers);
-                },
-            ),
-        };
-        return result;
-    },
 
     /**
      * Builds company attribution and category metadata.
@@ -557,28 +490,6 @@ function addCompanyRole(items: Array<any>, role: string): Array<any> {
 }
 
 /**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectCompanyValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}
-
-/**
  * Flushes platform values into shared article metadata.
  */
 
@@ -593,30 +504,6 @@ export const platformModule = defineArticleModule({
             sourceKey: "platformsSourceUrl",
         },
     ],
-
-    /**
-     * Formats the live platform field.
-     *
-     * @param _key - Form field key.
-     * @param value - Raw platform value.
-     * @returns Canonical platform text.
-     */
-    formatField(_key: string, value: any): string {
-        return normalizeListFieldValue(value);
-    },
-
-    /**
-     * Normalizes platform form data.
-     *
-     * @param form - Current article form.
-     * @returns Normalized platform patch.
-     */
-    normalize(form: any): any {
-        const result = {
-            platforms: normalizeListFieldValue(form.platforms),
-        };
-        return result;
-    },
 
     /**
      * Builds platform link and category metadata.
@@ -661,30 +548,6 @@ export const seriesModule = defineArticleModule({
             sourceKey: "seriesSourceUrl",
         },
     ],
-
-    /**
-     * Formats the live series field.
-     *
-     * @param _key - Form field key.
-     * @param value - Raw series value.
-     * @returns Canonical series text.
-     */
-    formatField(_key: string, value: any): string {
-        return normalizeListFieldValue(value);
-    },
-
-    /**
-     * Normalizes series form data.
-     *
-     * @param form - Current article form.
-     * @returns Normalized series patch.
-     */
-    normalize(form: any): any {
-        const result = {
-            series: normalizeListFieldValue(form.series),
-        };
-        return result;
-    },
 
     /**
      * Builds series link and category-plan metadata.
@@ -741,10 +604,10 @@ export const scoresModule = defineArticleModule({
      */
     formatField(key: string, value: any): string {
         if (key !== "metacriticScore") {
-            return trimFieldValue(value);
+            return trimValue(value);
         }
 
-        const enteredScore = trimFieldValue(value);
+        const enteredScore = trimValue(value);
         const score = selectScoreValue(
             enteredScore.includes(":"),
             function trueBranch() {
@@ -776,7 +639,7 @@ export const scoresModule = defineArticleModule({
         const result = {
             metacriticPlatform: normalizeScorePlatform(metacritic.prefix),
             metacriticScore: metacritic.value,
-            openCriticRecommend: trimFieldValue(form.openCriticRecommend),
+            openCriticRecommend: trimValue(form.openCriticRecommend),
         };
         return result;
     },
@@ -857,7 +720,7 @@ function buildScoreValues(
  * @returns Canonical score platform.
  */
 function normalizeScorePlatform(value: any): string {
-    const platform = trimFieldValue(value);
+    const platform = trimValue(value);
 
     if (/^[a-z0-9_-]{1,8}$/iu.test(platform)) {
         return platform.toLocaleUpperCase();
@@ -953,10 +816,10 @@ function normalizeNoteTaRows(rows: NoteTaRow[]): NoteTaRow[] {
 
     const result = rows.map(function callback(row) {
         const result = {
-            key: trimFieldValue(row?.key),
+            key: trimValue(row?.key),
             modified: row?.modified === true,
-            source: trimFieldValue(row?.source),
-            value: trimFieldValue(row?.value),
+            source: trimValue(row?.source),
+            value: trimValue(row?.value),
         };
         return result;
     });
@@ -982,12 +845,12 @@ export const additionalProseModule = defineArticleModule({
     ],
 
     formatField(_key: unknown, value: unknown) {
-        return trimFieldValue(value);
+        return trimValue(value);
     },
 
     normalize(form: { additionalProse: unknown }) {
         const normalized = {
-            additionalProse: trimFieldValue(form.additionalProse),
+            additionalProse: trimValue(form.additionalProse),
         };
 
         return normalized;
@@ -1084,7 +947,7 @@ export const reviewModule = defineArticleModule({
                 },
             ),
             navboxRows: Array.isArray(form.navboxRows) ? form.navboxRows : [],
-            navboxText: trimFieldValue(form.navboxText),
+            navboxText: trimValue(form.navboxText),
         };
         return result;
     },
@@ -1130,8 +993,8 @@ function normalizeNavbox(row: {
     const navbox = {
         enabled: row.enabled !== false,
         status: row.status || "",
-        text: trimFieldValue(row.text),
-        title: trimFieldValue(row.title),
+        text: trimValue(row.text),
+        title: trimValue(row.title),
     };
 
     return navbox;

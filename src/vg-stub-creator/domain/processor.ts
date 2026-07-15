@@ -2,11 +2,11 @@
  * Normalizes form data and flushes registered article modules.
  */
 
-import { trimFieldValue } from "#stub/local/form-values.ts";
 import { buildArticleProse, buildArticleRenderers } from "#stub/wiki";
 import { ARTICLE_MODULES } from "#stub/modules";
-import { cite } from "#shared";
+import { cite, wikitext } from "#shared";
 const { buildReferenceReuseTag, nameCitationReferences } = cite;
+const { trimValue } = wikitext;
 
 export {
     completeMetadataFieldValue,
@@ -349,7 +349,7 @@ export function formatArticleFormField(
     const module = ARTICLE_MODULES.find((item) => item.fields.includes(key));
 
     if (module == null) {
-        return trimFieldValue(value);
+        return trimValue(value);
     }
 
     return module.formatField(key, value, form);
@@ -556,7 +556,7 @@ function createModuleContext(
     options: any,
 ): any {
     const context = {
-        defaultName: trimFieldValue(options.defaultName),
+        defaultName: trimValue(options.defaultName),
         getCitations: getModuleCitations.bind(null, sourceReferences),
         joinSourceTags: joinModuleSourceTags.bind(null, sourceTags),
         rawForm: options.rawForm || {},

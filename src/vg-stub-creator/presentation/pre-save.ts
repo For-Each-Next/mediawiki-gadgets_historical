@@ -2,7 +2,6 @@
  * Builds the pre-save review dialog UI.
  */
 
-import { trimFieldValue } from "#stub/local/form-values.ts";
 import {
     createActionFooterTemplate,
     createButtonTemplate,
@@ -12,6 +11,8 @@ import {
     toVueString,
 } from "#stub/ui/template.ts";
 import { msg } from "#stub/i18n";
+import { wikitext } from "#shared";
+const { trimValue } = wikitext;
 
 interface PreSaveAction {
     category?: string;
@@ -222,7 +223,7 @@ function getPreSaveGroup(
     byTitle: Map<string, PreSaveGroup>,
     title: string,
 ): PreSaveGroup {
-    const normalizedTitle = trimFieldValue(title);
+    const normalizedTitle = trimValue(title);
 
     if (!byTitle.has(normalizedTitle)) {
         const group = {
@@ -245,7 +246,7 @@ function getPreSaveGroup(
  * @returns Page title.
  */
 function getPreSaveActionPageTitle(action: any): string {
-    const result = trimFieldValue(
+    const result = trimValue(
         action?.pageTitle ||
             action?.redirectTitle ||
             (action?.type === "category" ? `Category:${action.category}` : ""),
@@ -260,9 +261,7 @@ function getPreSaveActionPageTitle(action: any): string {
  * @returns Display label.
  */
 function getPreSaveActionDisplayLabel(action: any): string {
-    return (
-        trimFieldValue(action?.displayLabel) || trimFieldValue(action?.label)
-    );
+    return trimValue(action?.displayLabel) || trimValue(action?.label);
 }
 
 /**
@@ -272,11 +271,11 @@ function getPreSaveActionDisplayLabel(action: any): string {
  * @returns Display notes.
  */
 function getPreSaveActionNotes(action: any): Array<any> {
-    if (action?.type !== "category" || trimFieldValue(action.company) === "") {
+    if (action?.type !== "category" || trimValue(action.company) === "") {
         return [];
     }
 
-    const category = trimFieldValue(action.category);
+    const category = trimValue(action.category);
     const notes = [
         {
             key: "talk-banner",
@@ -286,14 +285,14 @@ function getPreSaveActionNotes(action: any): Array<any> {
         },
     ];
 
-    const wikidataId = trimFieldValue(action.wikidataId);
+    const wikidataId = trimValue(action.wikidataId);
 
     if (wikidataId !== "") {
         notes.push({
             key: "wikidata",
             label: msg("presave.connectTo", { target: `d:${wikidataId}` }),
         });
-    } else if (trimFieldValue(action.englishName) !== "") {
+    } else if (trimValue(action.englishName) !== "") {
         notes.push({
             key: "wikidata",
             label: msg("progress.connectCategory"),
@@ -332,7 +331,7 @@ function movePreSaveWikidataRowsLast(group: any): any {
  * @returns Whether the row is a Wikidata row.
  */
 function isPreSaveWikidataRow(row: any): boolean {
-    const key = trimFieldValue(row?.key);
+    const key = trimValue(row?.key);
 
     return key === "interwiki" || key.endsWith(":wikidata");
 }
@@ -349,7 +348,7 @@ export function serializePreSaveProgressGroups(
     const result = (Array.isArray(groups) ? groups : []).map(
         function callback(group) {
             const result = {
-                key: trimFieldValue(group?.key),
+                key: trimValue(group?.key),
                 rows: (Array.isArray(group?.rows) ? group.rows : []).map(
                     function callback(row: {
                         key: unknown;
@@ -357,14 +356,14 @@ export function serializePreSaveProgressGroups(
                         type: unknown;
                     }) {
                         const result = {
-                            key: trimFieldValue(row?.key),
-                            label: trimFieldValue(row?.label),
-                            type: trimFieldValue(row?.type),
+                            key: trimValue(row?.key),
+                            label: trimValue(row?.label),
+                            type: trimValue(row?.type),
                         };
                         return result;
                     },
                 ),
-                title: trimFieldValue(group?.title),
+                title: trimValue(group?.title),
             };
             return result;
         },
@@ -397,9 +396,7 @@ function getPreSaveRegistrationArticleTitle(actions: Array<any>): string {
  * @returns Whether the action creates a company category.
  */
 function isCompanyCategoryPreSaveAction(action: any): boolean {
-    return (
-        action?.type === "category" && trimFieldValue(action.company) !== ""
-    );
+    return action?.type === "category" && trimValue(action.company) !== "";
 }
 
 /**

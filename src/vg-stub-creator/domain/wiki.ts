@@ -27,8 +27,8 @@ const textTemplates = {
 
         // Release-year phrases and category.
         yearFuture: "未来电子游戏",
-        yearPlanned: "预定于{year}年推出的",
-        yearReleased: "{year}年",
+        yearPlanned: "预定于{year}推出的",
+        yearReleased: "{year}",
         yearUnreleased: "尚未推出的",
 
         // Series display text used in prose.
@@ -330,7 +330,7 @@ function getPlatformLabel(platform: string): string {
         return "";
     }
 
-    return getTerminology("platform", value, "name") || value;
+    return getTerminology("platform", value, "label") || value;
 }
 
 /**

@@ -455,9 +455,9 @@ export function getReferenceEntry(
     const entry = entries.find(function callback([key, definition]) {
         return (
             normalizeAlias(key) === normalizedValue ||
-            (definition.aliases || [])
-                .map(normalizeAlias)
-                .includes(normalizedValue)
+            normalizeAlias(definition.page || "") === normalizedValue ||
+            normalizeAlias(definition.label || "") === normalizedValue ||
+            hasMatchingReferenceAlias(definition.aliases, value)
         );
     });
 
@@ -496,10 +496,46 @@ function getReferenceEntries(
  *
  * @param definition - Reference definition.
  * @param definition.aliases - Reference aliases.
- * @returns Reference key.
+ * @param definition.label - Canonical display label.
+ * @param definition.page - Canonical page title.
+ * @returns Canonical alias key.
  */
 function getReferenceKey(definition: any): string | undefined {
-    return definition.aliases?.[0];
+    return (
+        definition.page ||
+        definition.label ||
+        definition.aliases?.find((alias) => typeof alias === "string")
+    );
+}
+
+/** Checks whether any definition alias matches a whole value. */
+function hasMatchingReferenceAlias(
+    aliases: Array<any>,
+    value: string,
+): boolean {
+    for (const alias of aliases || []) {
+        if (matchesReferenceAlias(alias, value)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/** Matches a string or regex alias against a whole value. */
+function matchesReferenceAlias(
+    alias: string | RegExp,
+    value: string,
+): boolean {
+    const unwrappedValue = getWikilinkValue(value);
+
+    if (typeof alias === "string") {
+        return normalizeAlias(alias) === normalizeAlias(unwrappedValue);
+    }
+
+    alias.lastIndex = 0;
+    const match = alias.exec(unwrappedValue);
+    return match?.[0] === unwrappedValue;
 }
 
 /**

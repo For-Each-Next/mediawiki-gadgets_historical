@@ -2,7 +2,12 @@
  * Builds the vg-stub-creator dialog form component.
  */
 
-import { formatArticleFormField, isArticleListField } from "#stub/article";
+import {
+    completeMetadataFieldValue,
+    formatArticleFormField,
+    isArticleListField,
+    isCompletableMetadataField,
+} from "#stub/article";
 import {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,
@@ -1409,7 +1414,8 @@ const methods = {
             },
         );
 
-        form[field.key] = formatArticleFormField(form, field.key, value);
+        const completed = completeMetadataFieldValue(field.key, value, true);
+        form[field.key] = formatArticleFormField(form, field.key, completed);
     },
 
     /**
@@ -1705,7 +1711,8 @@ const methods = {
         }
 
         event.preventDefault();
-        form[field.key] = formatArticleFormField(form, field.key, text);
+        const completed = completeMetadataFieldValue(field.key, text, true);
+        form[field.key] = formatArticleFormField(form, field.key, completed);
         markCategoryRowsUnfixed(form.categoryRows);
     },
 
@@ -2923,6 +2930,10 @@ function getFormattedFieldValue(field: any, value: string): string {
 
     if (field.key === "enwikiTitle") {
         normalized = normalizeEnwikiTitleValue(completed);
+    }
+
+    if (isCompletableMetadataField(field.key)) {
+        return completeMetadataFieldValue(field.key, normalized);
     }
 
     return formatArticleFormField(form, field.key, normalized);

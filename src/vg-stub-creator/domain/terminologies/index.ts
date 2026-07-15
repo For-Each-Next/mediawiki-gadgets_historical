@@ -3,9 +3,18 @@ import genres from "#stub/terms/genres.ts";
 import platforms from "#stub/terms/platforms.ts";
 import years from "#stub/terms/years.ts";
 import { wikitext } from "#shared";
-const { buildLinkText, getReferenceDefinition } = wikitext;
+const { buildLinkText, getReferenceDefinition, getWikilinkValue } = wikitext;
 
 const TERMINOLOGY_DEFINITIONS = { companies, genres, platforms, years };
+
+const GENRE_TYPE_SUFFIXES = [
+    /[類类][電电]子[遊游][戲戏]$/iu,
+    /[電电]子[遊游][戲戏]$/iu,
+    /[類类][遊游][戲戏]$/iu,
+    /[遊游][戲戏]$/iu,
+    /\s+video game$/iu,
+    /\s+game$/iu,
+];
 
 const TYPE_KEYS = {
     companies: "companies",
@@ -56,7 +65,7 @@ function getFrom(
         return undefined;
     }
 
-    const metadata = getReferenceDefinition(definitions[key], value);
+    const metadata = getTerminologyDefinition(definitions[key], key, value);
 
     if (metadata == null || projection == null || projection === "") {
         return metadata;
@@ -71,10 +80,42 @@ function getFrom(
     }
 
     if (normalizedProjection === "shortname") {
-        return getShortName(metadata.name);
+        return getShortLabel(metadata.label);
+    }
+
+    if (normalizedProjection === "name") {
+        return metadata.label;
     }
 
     return metadata[projection] ?? metadata[normalizedProjection];
+}
+
+/** Resolves exact terms before normalizing genre type words. */
+function getTerminologyDefinition(
+    definitions: Array<any>,
+    type: string,
+    value: string,
+): any | undefined {
+    const exact = getReferenceDefinition(definitions, value);
+
+    if (exact != null || type !== "genres") {
+        return exact;
+    }
+
+    return getReferenceDefinition(definitions, stripGenreTypeSuffix(value));
+}
+
+/** Removes terminal words already implied by a genre field. */
+function stripGenreTypeSuffix(value: string): string {
+    const unwrappedValue = getWikilinkValue(value);
+
+    for (const suffix of GENRE_TYPE_SUFFIXES) {
+        if (suffix.test(unwrappedValue)) {
+            return unwrappedValue.replace(suffix, "").trim();
+        }
+    }
+
+    return unwrappedValue;
 }
 
 /**
@@ -84,23 +125,23 @@ function getFrom(
  * @returns Canonical display text.
  */
 function getLink(metadata: any): string | undefined {
-    if (metadata.name == null) {
+    if (metadata.label == null) {
         return undefined;
     }
 
     if (metadata.page == null) {
-        return metadata.name;
+        return metadata.label;
     }
 
-    return buildLinkText(metadata.page, metadata.name);
+    return buildLinkText(metadata.page, metadata.label);
 }
 
 /**
- * Removes a trailing game suffix from a canonical name.
+ * Removes a trailing game suffix from a canonical label.
  *
- * @param name - Canonical name.
- * @returns Short canonical name.
+ * @param label - Canonical label.
+ * @returns Short canonical label.
  */
-function getShortName(name: string): string | undefined {
-    return name?.replace(/(?:[电電]子)?[游遊][戏戲]$/u, "");
+function getShortLabel(label: string): string | undefined {
+    return label?.replace(/(?:[电電]子)?[游遊][戏戲]$/u, "");
 }

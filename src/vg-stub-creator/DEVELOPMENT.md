@@ -9,7 +9,7 @@ wikitext.
 - `domain/data.ts`: pure field parsing and metadata extraction.
 - `domain/modules.ts`: field ownership and normalized record adapters.
 - `domain/article/processor.ts`: flushes registered modules into article data.
-- `domain/terminologies/`: canonical names, aliases, pages, and metadata.
+- `domain/terminologies/`: canonical aliases, labels, pages, and metadata.
 - `domain/wiki.ts`: pure builders and generated-language templates.
 - `application/workflow.ts`: coordinates records, adapters, and final text.
 - `infrastructure/handlers/`: title, category, and navbox resolution.
@@ -34,18 +34,19 @@ import presentation code. Run `npm run architecture:check` to verify this.
 
 Edit terminology definitions in `domain/terminologies/`:
 
-- `companies.ts`: company names, aliases, pages, categories, and stub tags.
-- `genres.ts`: genre names, aliases, pages, categories, and stub tags.
-- `platforms.ts`: platform names, aliases, optional pages, categories, and
+- `companies.ts`: company aliases, labels, pages, categories, and stub tags.
+- `genres.ts`: genre aliases, labels, pages, categories, and stub tags.
+- `platforms.ts`: platform aliases, labels, optional pages, categories, and
   stub tags.
-- `years.ts`: release-year names, aliases, and categories. Years normally
+- `years.ts`: release-year aliases, labels, and categories. Years normally
   have no related page.
 
 Use `domain/terminologies/index.ts` to read these definitions. Call
-`get(type, value)` for complete metadata, or pass `name`, `page`, `link`,
+`get(type, value)` for complete metadata, or pass `label`, `page`, `link`,
 `short name`, `categories`, or another metadata key as the third argument.
-The `link` projection returns `[[page|name]]` when a page exists and plain
-`name` when it does not.
+The `link` projection returns `[[page|label]]` when a page exists and plain
+`label` when it does not. Keep the canonical identity first in `aliases`;
+omit `page` when the term should not generate a wikilink.
 
 ### Citation rules
 

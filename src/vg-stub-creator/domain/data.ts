@@ -16,6 +16,73 @@ const {
     uniqueValues,
 } = wikitext;
 
+const COMPLETABLE_METADATA_FIELDS = {
+    developers: "company",
+    genres: "genre",
+    platforms: "platform",
+    publishers: "company",
+    series: null,
+};
+
+/**
+ * Checks whether a metadata field supports item completion.
+ */
+export function isCompletableMetadataField(key: string): boolean {
+    return Object.hasOwn(COMPLETABLE_METADATA_FIELDS, key);
+}
+
+/**
+ * Resolves completed metadata items to canonical terminology wikilinks.
+ *
+ * @param key - Metadata form key.
+ * @param value - Current field value.
+ * @param completeLast - Whether to resolve the unfinished final item.
+ * @returns Field text with completed items normalized.
+ */
+export function completeMetadataFieldValue(
+    key: string,
+    value: any,
+    completeLast: boolean = false,
+): string {
+    const text = normalizeExplicitWikilinkSeparators(String(value ?? ""));
+
+    if (!isCompletableMetadataField(key)) {
+        return text;
+    }
+
+    const type = COMPLETABLE_METADATA_FIELDS[key];
+    const parts = text.split(/([;；]|\r\n|[\r\n])/u);
+    const output = [];
+
+    for (let index = 0; index < parts.length; index += 2) {
+        const item = parts[index];
+        const completed = completeLast || index + 1 < parts.length;
+        output.push(completed ? resolveMetadataItem(type, item) : item);
+
+        if (index + 1 < parts.length) {
+            output.push("; ");
+        }
+    }
+
+    return output.join("");
+}
+
+/** Treats commas between explicit wikilinks as item separators. */
+function normalizeExplicitWikilinkSeparators(value: string): string {
+    return value.replace(/(\]\])\s*[,，、]\s*(?=\[\[)/gu, "$1; ");
+}
+
+/** Resolves one completed metadata item. */
+function resolveMetadataItem(type: string | null, value: string): string {
+    const item = trimValue(value);
+
+    if (item === "" || type == null) {
+        return item;
+    }
+
+    return getTerminology(type, getWikilinkValue(item), "link") || item;
+}
+
 /**
  * Defines the module-level build year metadata.
  */
@@ -40,13 +107,21 @@ export function normalizeYearFieldValue(value) {
     const rawYear = planned ? entered.slice(1).trim() : entered;
     const yearMatch = rawYear.match(/\b\d{4}\b/u);
     const candidate = yearMatch?.[0] || rawYear;
-    const normalized = getTerminology("year", candidate, "name") || candidate;
+    const normalized =
+        getTerminology("year", candidate, "label") || addYearSuffix(candidate);
 
     if (planned) {
         return normalized === "" ? "~" : `~${normalized}`;
     }
 
     return normalized;
+}
+
+/**
+ * Adds the canonical suffix to an otherwise unknown four-digit year.
+ */
+function addYearSuffix(value: string): string {
+    return /^\d{4}$/u.test(value) ? `${value}年` : value;
 }
 
 /**
@@ -77,7 +152,7 @@ function getYearReference(value) {
     const reference = {
         categories: definition?.categories || [],
         phrase: formatText("patterns.yearReleased", {
-            year: definition?.name || year,
+            year: definition?.label || year,
         }),
     };
 
@@ -96,7 +171,7 @@ function getPlannedYearReference(value) {
             ...(definition?.categories || []),
         ]),
         phrase: formatText("patterns.yearPlanned", {
-            year: definition?.name || year,
+            year: definition?.label || year,
         }),
     };
 
@@ -291,7 +366,7 @@ function buildCompanyItem(references: Array<any>, value: string): any {
     }
 
     const item: ArticleDataValue = {
-        displayText: getTerminology("company", value, "name"),
+        displayText: getTerminology("company", value, "label"),
         normalizedText: value,
         wikitext: getTerminology("company", value, "link"),
     };
@@ -438,7 +513,7 @@ function buildCompanyCategoryItemsForValue(
 function getCompanyTitle(company: string, fallback: string): string {
     const title =
         getTerminology("company", company, "page") ||
-        getTerminology("company", company, "name") ||
+        getTerminology("company", company, "label") ||
         fallback ||
         company;
 
@@ -601,7 +676,7 @@ function buildPlatformItem(references: any[], value): ArticleDataValue {
     }
 
     const item: ArticleDataValue = {
-        displayText: getTerminology("platform", value, "name"),
+        displayText: getTerminology("platform", value, "label"),
         normalizedText: value,
         wikitext: getTerminology("platform", value, "link"),
     };

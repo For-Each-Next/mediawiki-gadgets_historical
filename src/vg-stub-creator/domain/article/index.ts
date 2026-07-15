@@ -10,6 +10,10 @@ export {
 } from "./processor.ts";
 export { createDataRecord, createDataValue } from "./data-record.ts";
 export { defineArticleModule } from "./module.ts";
+export {
+    completeMetadataFieldValue,
+    isCompletableMetadataField,
+} from "#stub/data";
 export { ARTICLE_MODULES } from "#stub/modules";
 export { buildArticleProse } from "#stub/wiki";
 export type {

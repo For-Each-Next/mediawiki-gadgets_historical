@@ -270,7 +270,7 @@ export function buildRedirectRowsFromTitles(
 
 /** Normalizes one redirect candidate into a unique review row. */
 function normalizeRedirectReviewTitle(title, context): Array<any> {
-    const resolvedTitle = normalizeMixedChineseVariantTitle(title);
+    const resolvedTitle = normalizeTitle(title);
     const resolvedKey = normalizeTitleKey(resolvedTitle);
 
     if (
@@ -468,41 +468,8 @@ function findExistingTitleRow(
     return rows.find((item) => item.key === normalizeTitleKey(title));
 }
 
-const CHINESE_VARIANT_PAIRS: [string, string][] = [
-    ["萨", "薩"],
-    ["游", "遊"],
-    ["戏", "戲"],
-    ["发", "發"],
-    ["开", "開"],
-    ["电", "電"],
-    ["软", "軟"],
-    ["体", "體"],
-    ["国", "國"],
-    ["产", "產"],
-    ["华", "華"],
-    ["门", "門"],
-    ["风", "風"],
-    ["龙", "龍"],
-    ["马", "馬"],
-    ["鸟", "鳥"],
-    ["鱼", "魚"],
-    ["台", "臺"],
-    ["众", "眾"],
-    ["网", "網"],
-    ["与", "與"],
-    ["云", "雲"],
-    ["专", "專"],
-    ["业", "業"],
-];
-const SIMPLIFIED_TO_TRADITIONAL = new Map(CHINESE_VARIANT_PAIRS);
-const TRADITIONAL_TO_SIMPLIFIED = new Map(
-    CHINESE_VARIANT_PAIRS.map(function callback([simplified, traditional]) {
-        return [traditional, simplified];
-    }),
-);
-
 /**
- * Builds unique titles to check, including both pure Chinese variants.
+ * Builds unique normalized titles for MediaWiki conversion and lookup.
  *
  * @param titles - Requested titles.
  * @returns Titles to query.
@@ -513,93 +480,18 @@ export function getRedirectTitleCheckTitles(
     const seen = new Set();
     const values = [];
 
-    for (const title of titles.map(normalizeTitle)) {
-        for (const value of getRedirectTitleCheckVariants(title)) {
-            const key = normalizeTitleKey(value);
+    for (const value of titles.map(normalizeTitle)) {
+        const key = normalizeTitleKey(value);
 
-            if (key === "" || seen.has(key)) {
-                continue;
-            }
-
-            seen.add(key);
-            values.push(value);
+        if (key === "" || seen.has(key)) {
+            continue;
         }
+
+        seen.add(key);
+        values.push(value);
     }
 
     return values;
-}
-
-/**
- * Gets the requested title plus pure simplified and traditional forms.
- *
- * @param title - Requested title.
- * @returns Candidate titles.
- */
-function getRedirectTitleCheckVariants(title: string): Array<string> {
-    return [
-        title,
-        convertChineseVariantTitle(title, "simplified"),
-        convertChineseVariantTitle(title, "traditional"),
-    ];
-}
-
-/**
- * Handles normalize mixed chinese variant title.
- *
- * Normalizes mixed Chinese variant title text to the first detected
- * style.
- *
- * @param title - Requested title.
- * @returns Normalized title.
- *
- */
-function normalizeMixedChineseVariantTitle(title: string): string {
-    const style = getFirstChineseVariantStyle(title);
-
-    return style == null ? title : convertChineseVariantTitle(title, style);
-}
-
-/**
- * Gets the first variant-specific style used in a title.
- *
- * @param title - Requested title.
- * @returns Variant style.
- */
-function getFirstChineseVariantStyle(title: string): string | undefined {
-    for (const char of Array.from(title)) {
-        if (SIMPLIFIED_TO_TRADITIONAL.has(char)) {
-            return "simplified";
-        }
-
-        if (TRADITIONAL_TO_SIMPLIFIED.has(char)) {
-            return "traditional";
-        }
-    }
-
-    return undefined;
-}
-
-/**
- * Converts known Chinese variant pairs in a title.
- *
- * @param title - Requested title.
- * @param style - Target variant style.
- * @returns Converted title.
- */
-function convertChineseVariantTitle(title: string, style: string): string {
-    const table = selectValue(
-        style === "simplified",
-        function trueBranch() {
-            return TRADITIONAL_TO_SIMPLIFIED;
-        },
-        function falseBranch() {
-            return SIMPLIFIED_TO_TRADITIONAL;
-        },
-    );
-
-    return Array.from(title)
-        .map((char) => table.get(char) || char)
-        .join("");
 }
 
 /**

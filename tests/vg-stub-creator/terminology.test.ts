@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { get } from "../../src/vg-stub-creator/config/terminologies/index.ts";
+import { get } from "#stub/terms";
 
 test("company terms expose navbox projections", () => {
     const company = get("company", "Annapurna Interactive");
@@ -22,4 +22,9 @@ test("terms without navboxes retain the same optional interface", () => {
     assert.equal(get("platform", "PS5", "navboxes"), undefined);
     assert.equal(get("unknown", "PS5"), undefined);
     assert.equal(get("company", "Unknown studio"), undefined);
+});
+
+test("empty values do not match terms with an optional page", () => {
+    assert.equal(get("year", ""), undefined);
+    assert.equal(get("platform", ""), undefined);
 });

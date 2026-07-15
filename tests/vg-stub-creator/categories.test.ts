@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveCategoryRows } from "../../src/vg-stub-creator/infrastructure/handlers/categories.ts"; // eslint-disable-line max-len
+import { resolveCategoryRows } from "#stub/handlers/categories.ts";
 
 test("missing categories are unchecked after resolution", async () => {
     const rows = await resolveCategoryRows(
@@ -41,13 +41,6 @@ function createCategoryFetcher(): typeof fetch {
 
             return { title };
         });
-        const response = {
-            ok: true,
-            async json() {
-                return { query: { pages } };
-            },
-        };
-
-        return response as Response;
+        return Response.json({ query: { pages } });
     };
 }

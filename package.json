@@ -5,7 +5,12 @@
     "description": "TypeScript development workspace for MediaWiki gadgets.",
     "type": "module",
     "imports": {
-        "#shared": "./src/shared/index.ts"
+        "#shared": "./src/shared/index.ts",
+        "#stub/app/*": "./src/vg-stub-creator/application/*",
+        "#stub/article": "./src/vg-stub-creator/domain/article/processor.ts",
+        "#stub/handlers/*": "./src/vg-stub-creator/infrastructure/handlers/*",
+        "#stub/terms": "./src/vg-stub-creator/config/terminologies/index.ts",
+        "#stub/ui/*": "./src/vg-stub-creator/presentation/*"
     },
     "workspaces": [
         "src/*"

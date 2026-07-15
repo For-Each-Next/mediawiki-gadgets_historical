@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createArticleData } from "../../src/vg-stub-creator/domain/article/processor.ts"; // eslint-disable-line max-len
+import { createArticleData } from "#stub/article";
 import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
 const PART_KEYS = [
@@ -52,6 +52,23 @@ test("linked real-world fields preserve their entered wikitext", () => {
     assert.equal(data.records.genre.values.length, 2);
     assert.equal(data.records.scores.metadata.metacritic.score, "71");
     assert.equal(data.records.scores.metadata.openCritic.recommend, "65");
+});
+
+test("empty year and genre use the fallback video-game phrase", () => {
+    const data = createArticleData({
+        categoryRows: [],
+        genres: "",
+        localizedNames: [],
+        name: "Example",
+        navboxText: "",
+        platforms: "",
+        sourceReferences: [],
+        year: "",
+    });
+
+    assert.equal(data.records.year.metadata.value, "");
+    assert.equal(data.records.platform.values.length, 0);
+    assert.equal(data.prose.text, "《'''Example'''》是一款[[电子游戏]]。");
 });
 
 /**

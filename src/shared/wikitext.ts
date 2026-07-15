@@ -465,22 +465,44 @@ export function getReferenceEntry(
 ): any {
     const entries = getReferenceEntries(definitions);
     const normalizedValue = normalizeAlias(getWikilinkValue(value));
-    const entry = entries.find(function callback([key, definition]) {
-        const result =
-            normalizeAlias(key) === normalizedValue ||
-            normalizeAlias(definition.page || "") === normalizedValue ||
-            normalizeAlias(definition.label || "") === normalizedValue ||
-            hasMatchingReferenceAlias(definition.aliases, value);
-        return result;
-    });
 
-    if (entry == null) {
+    if (normalizedValue === "") {
         return {};
     }
 
-    const [key, reference] = entry;
+    for (const [key, reference] of entries) {
+        if (matchesReferenceEntry(key, reference, value, normalizedValue)) {
+            return { key, reference };
+        }
+    }
 
-    return { key, reference };
+    return {};
+}
+
+/**
+ * Checks whether a reference entry matches a lookup value.
+ *
+ * @param key - Canonical reference key.
+ * @param definition - Reference definition.
+ * @param value - Original lookup value.
+ * @param normalizedValue - Normalized lookup value.
+ * @returns Whether the entry matches.
+ */
+function matchesReferenceEntry(
+    key: string,
+    definition: any,
+    value: string,
+    normalizedValue: string,
+): boolean {
+    const names = [key, definition.page, definition.label];
+
+    for (const name of names) {
+        if (name != null && normalizeAlias(name) === normalizedValue) {
+            return true;
+        }
+    }
+
+    return hasMatchingReferenceAlias(definition.aliases, value);
 }
 
 /**

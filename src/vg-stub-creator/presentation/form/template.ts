@@ -144,7 +144,6 @@ function createCompanyCategoryEnglishFieldTemplate(): any {
         [
             createElement("cdx-text-input", {
                 placeholder: msg("review.companyCategoryEnglishPlaceholder"),
-                "v-bind:disabled": "companyCategoryState.loading",
                 "v-model": "companyCategoryState.englishName",
                 "v-on:blur": "refreshCompanyCategoryMetadata",
             }),

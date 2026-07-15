@@ -458,6 +458,7 @@ export const ARTICLE_PARAMETER_GROUPS = [
         ],
         null,
         {
+            description: msg("metadata.description"),
             previewKey: "attribution",
         },
     ),
@@ -471,7 +472,7 @@ export const ARTICLE_PARAMETER_GROUPS = [
                 "originalName",
                 getSourceReferenceField("originalName"),
                 {
-                    placeholder: "ja:タイトル or en:Title",
+                    placeholder: msg("titles.originalTitlePlaceholder"),
                 },
             ),
             new ArticleParameterField(

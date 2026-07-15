@@ -36,6 +36,9 @@ export default i18n.defineMessages({
     },
     "metadata": {
         "tab": "Metadata",
+        "description":
+            "Enter article metadata and check field values against " +
+            "English Wikipedia and Wikidata.",
         "enwikiPage": "English Wikipedia page",
         "enwikiPagePlaceholder": "Page title in English Wikipedia",
         "developers": "Developers",
@@ -66,10 +69,11 @@ export default i18n.defineMessages({
             "Review foreign titles, fetch Steam names, " +
             "add Chinese name parts, and maintain the NoteTA table.",
         "foreignTitles": "Foreign titles",
-        "originalTitle": "Original-language title",
-        "englishTitle": "English-language title",
-        "localizedTitlePlaceholder": "Localized title",
-        "defaultSortKey": "Default sort key",
+        "originalTitle": "Original",
+        "originalTitlePlaceholder": "ja:Title (Japanese may omit ja:)",
+        "englishTitle": "English name",
+        "localizedTitlePlaceholder": "English version title",
+        "defaultSortKey": "Sortkey",
         "defaultSortPlaceholder": "Leave blank to use the generated value",
     },
     "names": {
@@ -93,6 +97,7 @@ export default i18n.defineMessages({
         "traditionalFull": "Traditional",
         "japanese": "Japanese",
         "cnDomain": "CN domain",
+        "bahamut": "Bahamut",
     },
     "noteta": {
         "items": "NoteTA items",

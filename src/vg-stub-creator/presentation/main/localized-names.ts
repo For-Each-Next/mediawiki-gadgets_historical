@@ -39,9 +39,15 @@ export function createNameGroupTemplate(): any {
  * @returns Original-name lookup template node.
  */
 function createOriginalNameSearchTemplate(): any {
-    const result = createFieldTemplate(msg("names.originalTitleLookup"), [
-        createNameSearchListTemplate(),
-    ]);
+    const result = createFieldTemplate(
+        msg("names.originalTitleLookup"),
+        [createNameSearchListTemplate()],
+        {
+            attributes: {
+                "v-if": "getNameSearchRows().length > 0",
+            },
+        },
+    );
     return result;
 }
 

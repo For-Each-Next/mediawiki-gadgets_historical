@@ -4662,9 +4662,7 @@ function getNameSearchRows(): Array<any> {
         },
     ].filter((row) => row.query !== "");
 
-    const result = (
-        rows.length === 0 ? [{ key: "blank", query: "" }] : rows
-    ).map(function callback(row) {
+    const result = rows.map(function callback(row) {
         const result = {
             ...row,
             links: buildNameSearchLinks(row.query),
@@ -4687,7 +4685,7 @@ function buildNameSearchLinks(query: string): Array<any> {
             url: buildGoogleSiteSearchUrl(query, "*.cn"),
         },
         {
-            label: "Bahamut",
+            label: msg("names.bahamut"),
             url: buildGoogleSiteSearchUrl(query, "gnn.gamer.com.tw"),
         },
         {

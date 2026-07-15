@@ -31,6 +31,8 @@ export default i18n.defineMessages({
     },
     "metadata": {
         "tab": "元数据",
+        "description":
+            "填写条目元数据，并通过英文维基百科和维基数据核对字段值。",
         "enwikiPage": "英文维基百科页面",
         "enwikiPagePlaceholder": "英文维基百科页面标题",
         "developers": "开发商",
@@ -61,10 +63,11 @@ export default i18n.defineMessages({
             "检查外文标题、获取 Steam 名称、" +
             "添加中文名称部分并维护 NoteTA 表格。",
         "foreignTitles": "外文标题",
-        "originalTitle": "原文标题",
-        "englishTitle": "英文标题",
-        "localizedTitlePlaceholder": "本地化标题",
-        "defaultSortKey": "默认排序键",
+        "originalTitle": "原名",
+        "originalTitlePlaceholder": "ja:标题（日文可省略 ja:）",
+        "englishTitle": "英文名",
+        "localizedTitlePlaceholder": "英文版标题",
+        "defaultSortKey": "排序键",
         "defaultSortPlaceholder": "留空以使用生成值",
     },
     "names": {
@@ -88,6 +91,7 @@ export default i18n.defineMessages({
         "traditionalFull": "繁体",
         "japanese": "日文",
         "cnDomain": "中国大陆域名",
+        "bahamut": "巴哈姆特",
     },
     "noteta": {
         "items": "NoteTA 项目",

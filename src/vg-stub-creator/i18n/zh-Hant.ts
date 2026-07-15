@@ -31,6 +31,8 @@ export default i18n.defineMessages({
     },
     "metadata": {
         "tab": "中繼資料",
+        "description":
+            "填寫條目中繼資料，並透過英文維基百科和維基資料核對欄位值。",
         "enwikiPage": "英文維基百科頁面",
         "enwikiPagePlaceholder": "英文維基百科頁面標題",
         "developers": "開發商",
@@ -61,10 +63,11 @@ export default i18n.defineMessages({
             "檢查外文標題、取得 Steam 名稱、" +
             "新增中文名稱部分並維護 NoteTA 表格。",
         "foreignTitles": "外文標題",
-        "originalTitle": "原文標題",
-        "englishTitle": "英文標題",
-        "localizedTitlePlaceholder": "本地化標題",
-        "defaultSortKey": "預設排序鍵",
+        "originalTitle": "原名",
+        "originalTitlePlaceholder": "ja:標題（日文可省略 ja:）",
+        "englishTitle": "英文名",
+        "localizedTitlePlaceholder": "英文版標題",
+        "defaultSortKey": "排序鍵",
         "defaultSortPlaceholder": "留空以使用產生值",
     },
     "names": {
@@ -88,6 +91,7 @@ export default i18n.defineMessages({
         "traditionalFull": "繁體",
         "japanese": "日文",
         "cnDomain": "中國大陸網域",
+        "bahamut": "巴哈姆特",
     },
     "noteta": {
         "items": "NoteTA 項目",

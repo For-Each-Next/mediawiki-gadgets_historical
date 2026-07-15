@@ -3,7 +3,7 @@
  */
 
 import { i18n } from "#shared";
-import type english from "#assessor/i18n/en.ts";
+import type english from "#me/i18n/en.ts";
 
 export default i18n.defineMessages({
     "tool": {

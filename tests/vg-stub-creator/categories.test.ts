@@ -5,10 +5,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveCategoryRows } from "#stub/handlers/categories.ts";
+import * as categories from "vg-stub-creator/infra/handlers/categories.ts";
 
 test("missing categories are unchecked after resolution", async () => {
-    const rows = await resolveCategoryRows(
+    const rows = await categories.resolveCategoryRows(
         [
             { category: "Existing games", enabled: true },
             { category: "Missing games", enabled: true },

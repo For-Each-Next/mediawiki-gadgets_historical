@@ -1,7 +1,7 @@
-import companies from "#stub/terms/companies.ts";
-import genres from "#stub/terms/genres.ts";
-import platforms from "#stub/terms/platforms.ts";
-import years from "#stub/terms/years.ts";
+import companies from "#me/config/terminologies/companies.ts";
+import genres from "#me/config/terminologies/genres.ts";
+import platforms from "#me/config/terminologies/platforms.ts";
+import years from "#me/config/terminologies/years.ts";
 import { wikitext } from "#shared";
 const { buildLinkText, getReferenceDefinition, getWikilinkValue } = wikitext;
 

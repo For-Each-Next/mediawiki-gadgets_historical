@@ -1,19 +1,13 @@
 {
     "name": "vg-page-assessor",
-    "version": "1.0.0-rc.8",
+    "version": "1.0.0-rc.9",
     "description": "Assess Chinese Wikipedia video game talk pages and register pages on the WikiProject new-page list.",
     "private": true,
     "license": "CC BY-SA 4.0",
     "author": "For Each ... Next",
     "type": "module",
     "imports": {
-        "#assessor/app/*": "./application/*",
-        "#assessor/config/*": "./config/*",
-        "#assessor/domain/*": "./domain/*",
-        "#assessor/i18n": "./i18n/index.ts",
-        "#assessor/i18n/*": "./i18n/*",
-        "#assessor/infra/*": "./infrastructure/*",
-        "#assessor/ui/*": "./presentation/*",
+        "#me/*": "./*",
         "#shared": "@mediawiki-gadgets/shared"
     },
     "main": "./index.ts",
@@ -22,10 +16,10 @@
         "globalName": "vgPageAssessor",
         "outputDirectory": "../../dist/vg-page-assessor",
         "outputName": "vg_page_assessor",
-        "styleEntryPoint": "presentation/styles.css",
+        "styleEntryPoint": "ui/styles.css",
         "defines": {
             "__ASSESS_VG_PAGE_DIALOG_CSS__": {
-                "textFile": "presentation/styles.css"
+                "textFile": "ui/styles.css"
             }
         },
         "userscript": {
@@ -37,12 +31,12 @@
     "files": [
         "README.md",
         "*.ts",
-        "application",
+        "app",
         "config",
         "domain",
-        "infrastructure",
+        "infra",
         "i18n",
-        "presentation"
+        "ui"
     ],
     "keywords": [
         "mediawiki",

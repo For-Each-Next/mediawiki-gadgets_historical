@@ -2,8 +2,8 @@
  * Normalizes form data and flushes registered article modules.
  */
 
-import { buildArticleProse, buildArticleRenderers } from "#stub/wiki";
-import { ARTICLE_MODULES } from "#stub/modules";
+import { buildArticleProse, buildArticleRenderers } from "#me/domain/wiki.ts";
+import { ARTICLE_MODULES } from "#me/domain/modules.ts";
 import { cite, wikitext } from "#shared";
 const { buildReferenceReuseTag, nameCitationReferences } = cite;
 const { trimValue } = wikitext;
@@ -11,7 +11,7 @@ const { trimValue } = wikitext;
 export {
     completeMetadataFieldValue,
     isCompletableMetadataField,
-} from "#stub/data";
+} from "#me/domain/data.ts";
 export { ARTICLE_MODULES };
 export { buildArticleProse };
 

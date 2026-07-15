@@ -20,7 +20,7 @@ You can get compressed code from <https://meta.wikimedia.org/wiki/User:For_Each_
 
 - `index.ts`: minimal browser bundle entry point.
 - `domain/assessment.ts`: talk-page assessment rules and wikitext.
-- `application/new-page-list.ts`: new-page-list registration use cases.
-- `infrastructure/`: MediaWiki API and logging adapters.
+- `app/new-page-list.ts`: new-page-list registration use cases.
+- `infra/`: MediaWiki API and logging adapters.
 - `config/project-config.ts`: WikiProject configuration.
-- `presentation/`: dialog UI, styles, save flow, and browser activation.
+- `ui/`: dialog UI, styles, save flow, and browser activation.

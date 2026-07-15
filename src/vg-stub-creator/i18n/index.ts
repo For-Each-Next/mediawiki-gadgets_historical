@@ -3,9 +3,9 @@
  */
 
 import { i18n } from "#shared";
-import english from "#stub/i18n/en.ts";
-import simplifiedChinese from "#stub/i18n/zh-Hans.ts";
-import traditionalChinese from "#stub/i18n/zh-Hant.ts";
+import english from "#me/i18n/en.ts";
+import simplifiedChinese from "#me/i18n/zh-Hans.ts";
+import traditionalChinese from "#me/i18n/zh-Hant.ts";
 
 const messages = i18n.createI18n(english, {
     "zh-Hans": simplifiedChinese,

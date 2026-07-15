@@ -12,46 +12,7 @@
         "target": "ES2024",
         "types": ["node", "types-mediawiki"],
         "paths": {
-            "#assessor/app/*": ["./src/vg-page-assessor/application/*"],
-            "#assessor/config/*": ["./src/vg-page-assessor/config/*"],
-            "#assessor/domain/*": ["./src/vg-page-assessor/domain/*"],
-            "#assessor/i18n": ["./src/vg-page-assessor/i18n/index.ts"],
-            "#assessor/i18n/*": ["./src/vg-page-assessor/i18n/*"],
-            "#assessor/infra/*": ["./src/vg-page-assessor/infrastructure/*"],
-            "#assessor/ui/*": ["./src/vg-page-assessor/presentation/*"],
-            "#shared": ["./src/shared/index.ts"],
-            "#stub/app/*": ["./src/vg-stub-creator/application/*"],
-            "#stub/article": [
-                "./src/vg-stub-creator/domain/processor.ts"
-            ],
-            "#stub/config/*": ["./src/vg-stub-creator/config/*"],
-            "#stub/data": ["./src/vg-stub-creator/domain/data.ts"],
-            "#stub/editing/*": [
-                "./src/vg-stub-creator/infrastructure/editing/*"
-            ],
-            "#stub/form": ["./src/vg-stub-creator/presentation/form/index.ts"],
-            "#stub/form/*": ["./src/vg-stub-creator/presentation/form/*"],
-            "#stub/handlers/*": [
-                "./src/vg-stub-creator/infrastructure/handlers/*"
-            ],
-            "#stub/i18n": ["./src/vg-stub-creator/i18n/index.ts"],
-            "#stub/i18n/*": ["./src/vg-stub-creator/i18n/*"],
-            "#stub/main": ["./src/vg-stub-creator/presentation/main/index.ts"],
-            "#stub/main/*": ["./src/vg-stub-creator/presentation/main/*"],
-            "#stub/modules": ["./src/vg-stub-creator/domain/modules.ts"],
-            "#stub/save/*": ["./src/vg-stub-creator/infrastructure/save/*"],
-            "#stub/sources": [
-                "./src/vg-stub-creator/infrastructure/sources/index.ts"
-            ],
-            "#stub/sources/*": [
-                "./src/vg-stub-creator/infrastructure/sources/*"
-            ],
-            "#stub/terms": [
-                "./src/vg-stub-creator/config/terminologies/index.ts"
-            ],
-            "#stub/terms/*": ["./src/vg-stub-creator/config/terminologies/*"],
-            "#stub/ui/*": ["./src/vg-stub-creator/presentation/*"],
-            "#stub/wiki": ["./src/vg-stub-creator/domain/wiki.ts"]
+            "#shared": ["./src/shared/index.ts"]
         }
     },
     "include": [

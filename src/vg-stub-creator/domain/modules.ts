@@ -9,9 +9,9 @@ import {
     buildSeriesMetadata,
     buildYearMetadata,
     normalizeYearFieldValue,
-} from "#stub/data";
-import { defineArticleModule } from "#stub/article";
-import { buildNameSourceReferenceKey } from "#stub/wiki";
+} from "#me/domain/data.ts";
+import { defineArticleModule } from "#me/domain/processor.ts";
+import { buildNameSourceReferenceKey } from "#me/domain/wiki.ts";
 import { wikitext } from "#shared";
 const { formatPrefixedValue, parsePrefixedValue, trimValue } = wikitext;
 

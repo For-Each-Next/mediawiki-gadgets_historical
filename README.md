@@ -12,10 +12,14 @@ Gadget packages live in `src/<gadget-name>` and generated output lives in
 Each package follows the same dependency direction:
 
 1. `domain/` contains pure rules, normalized records, and text generation.
-2. `infrastructure/` adapts MediaWiki, remote sources, and browser storage.
-3. `application/` coordinates domain behavior and infrastructure adapters.
-4. `presentation/` owns UI rendering, interaction, and browser mounting.
+2. `infra/` adapts MediaWiki, remote sources, and browser storage.
+3. `app/` coordinates domain behavior and infrastructure adapters.
+4. `ui/` owns UI rendering, interaction, and browser mounting.
 5. `index.ts` is the package composition entry used by the bundler.
+
+Every package registers `"#me/*": "./*"` in its `package.json`. Use `#me`
+for package-local imports, such as `#me/domain/formatter.ts` or
+`#me/ui/editor.ts`. Use `#shared` only for the workspace-wide shared package.
 
 Package-local `shared/` code is foundational and cannot import higher layers.
 The root `src/shared/` directory contains helpers shared by multiple gadgets.

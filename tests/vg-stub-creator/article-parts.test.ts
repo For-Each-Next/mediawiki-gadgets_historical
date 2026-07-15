@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createArticleData } from "#stub/article";
+import { createArticleData } from "vg-stub-creator/domain/processor.ts";
 import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
 const PART_KEYS = [

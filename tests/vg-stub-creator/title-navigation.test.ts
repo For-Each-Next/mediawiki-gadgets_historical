@@ -8,11 +8,11 @@ import test from "node:test";
 import {
     fetchExistingPageTitles,
     type PageLookupApi,
-} from "#stub/editing/pre-save.ts";
+} from "vg-stub-creator/infra/editing/pre-save.ts";
 import {
     buildWhatLinksHerePageTitle,
     selectArticleSubmissionTitle,
-} from "#stub/ui/navigation.ts";
+} from "vg-stub-creator/ui/navigation.ts";
 
 test("title lookup detects an occupied converted variant", async () => {
     const api: PageLookupApi = {

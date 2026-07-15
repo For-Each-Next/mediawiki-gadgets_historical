@@ -1,33 +1,14 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.4.31",
+    "version": "0.4.32",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
     "license": "CC BY-SA 4.0",
     "author": "For Each ... Next",
     "type": "module",
     "imports": {
-        "#shared": "@mediawiki-gadgets/shared",
-        "#stub/app/*": "./application/*",
-        "#stub/article": "./domain/processor.ts",
-        "#stub/config/*": "./config/*",
-        "#stub/data": "./domain/data.ts",
-        "#stub/editing/*": "./infrastructure/editing/*",
-        "#stub/form": "./presentation/form/index.ts",
-        "#stub/form/*": "./presentation/form/*",
-        "#stub/handlers/*": "./infrastructure/handlers/*",
-        "#stub/i18n": "./i18n/index.ts",
-        "#stub/i18n/*": "./i18n/*",
-        "#stub/main": "./presentation/main/index.ts",
-        "#stub/main/*": "./presentation/main/*",
-        "#stub/modules": "./domain/modules.ts",
-        "#stub/save/*": "./infrastructure/save/*",
-        "#stub/sources": "./infrastructure/sources/index.ts",
-        "#stub/sources/*": "./infrastructure/sources/*",
-        "#stub/terms": "./config/terminologies/index.ts",
-        "#stub/terms/*": "./config/terminologies/*",
-        "#stub/ui/*": "./presentation/*",
-        "#stub/wiki": "./domain/wiki.ts"
+        "#me/*": "./*",
+        "#shared": "@mediawiki-gadgets/shared"
     },
     "main": "./index.ts",
     "browser": "./index.ts",
@@ -35,10 +16,10 @@
         "globalName": "vgStubCreator",
         "outputDirectory": "../../dist/vg-stub-creator",
         "outputName": "vg_stub_creator",
-        "styleEntryPoint": "presentation/styles.css",
+        "styleEntryPoint": "ui/styles.css",
         "defines": {
             "__VG_STUB_CREATOR_DIALOG_CSS__": {
-                "textFile": "presentation/styles.css"
+                "textFile": "ui/styles.css"
             }
         },
         "userscript": {
@@ -53,11 +34,11 @@
         "README.md",
         "DEVELOPMENT.md",
         "*.ts",
-        "application",
+        "app",
         "domain",
-        "infrastructure",
+        "infra",
         "i18n",
-        "presentation",
+        "ui",
         "shared",
         "config"
     ],

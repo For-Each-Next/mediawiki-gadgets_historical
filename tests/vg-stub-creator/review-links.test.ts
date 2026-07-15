@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     claimReviewLinksOpening,
     normalizeListFieldValue,
-} from "#stub/form/helpers.ts";
+} from "vg-stub-creator/ui/form/helpers.ts";
 
 test("review links can only be claimed once in one browser tab", () => {
     const storage = createStorage();

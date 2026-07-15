@@ -2,8 +2,11 @@
  * Wikitext and generated prose builders.
  */
 
-import type { AggregateScoreRecord, SourceTags } from "#stub/article";
-import { get as getTerminology } from "#stub/terms";
+import type {
+    AggregateScoreRecord,
+    SourceTags,
+} from "#me/domain/processor.ts";
+import { get as getTerminology } from "#me/config/terminologies/index.ts";
 import { cite, wikitext } from "#shared";
 
 const { buildTemplateCall, buildTemplateText, trimValue, uniqueValues } =

@@ -25,9 +25,9 @@ You can get compressed code from <https://meta.wikimedia.org/wiki/User:For_Each_
 - `domain/modules.ts`: field ownership and normalized record adapters.
 - `domain/wiki.ts`: pure wikitext rendering and language templates.
 - `config/terminologies/`: configured video-game terminology data.
-- `application/workflow.ts`: article creation use cases.
-- `infrastructure/`: MediaWiki, source, editing, and persistence adapters.
-- `presentation/`: Codex UI, previews, review state, and browser activation.
+- `app/workflow.ts`: article creation use cases.
+- `infra/`: MediaWiki, source, editing, and persistence adapters.
+- `ui/`: Codex UI, previews, review state, and browser activation.
 - `shared/`: package-local form primitives; generic helpers live in
   `../shared/`.
 - `DEVELOPMENT.md`: source architecture and editing guidance.

@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     getConfiguredNavboxTitles,
     prepareNavboxRows,
-} from "#stub/app/workflow.ts";
+} from "vg-stub-creator/app/workflow.ts";
 import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
 test("configured navboxes are collected from terminology-backed parts", () => {

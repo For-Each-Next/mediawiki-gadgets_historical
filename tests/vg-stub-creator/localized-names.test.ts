@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     applyLocalizedNameAsPageTitle,
     normalizeReceivedFormValues,
-} from "#stub/form/helpers.ts";
+} from "vg-stub-creator/ui/form/helpers.ts";
 
 test("restored forms always show a blank Chinese-name row", () => {
     const form = normalizeReceivedFormValues({ localizedNames: [] });

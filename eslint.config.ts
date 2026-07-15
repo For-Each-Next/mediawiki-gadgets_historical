@@ -80,6 +80,7 @@ export default [
     },
     {
         files: ["src/**/*.ts", "scripts/**/*.ts"],
+        ignores: ["src/**/tests/**/*.ts"],
         plugins: {
             jsdoc,
             local: localPlugin,

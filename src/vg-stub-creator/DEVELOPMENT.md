@@ -10,12 +10,12 @@ citations, metadata, assumed categories, navboxes, and module-specific wikitext.
 - `domain/processor.ts`: flushes registered modules into article data.
 - `config/terminologies/`: canonical aliases, labels, pages, and metadata.
 - `domain/wiki.ts`: pure builders and generated-language templates.
-- `application/workflow.ts`: coordinates records, adapters, and final text.
-- `infrastructure/handlers/`: title, category, and navbox resolution.
-- `infrastructure/sources/`: citations and external metadata acquisition.
-- `infrastructure/editing/`: edit-session, summary, and pre-save behavior.
-- `infrastructure/save/`: persistent save-progress state and rendering.
-- `presentation/`: form UI, previews, review state, and browser activation.
+- `app/workflow.ts`: coordinates records, adapters, and final text.
+- `infra/handlers/`: title, category, and navbox resolution.
+- `infra/sources/`: citations and external metadata acquisition.
+- `infra/editing/`: edit-session, summary, and pre-save behavior.
+- `infra/save/`: persistent save-progress state and rendering.
+- `ui/`: form UI, previews, review state, and browser activation.
 - `shared/`: package-local form primitives.
 
 Workspace-wide MediaWiki template, link, and reference helpers live in
@@ -24,8 +24,9 @@ and reference rendering live in `src/shared/cite/`; the gadget retains only
 its source adapters and citation cache.
 
 Dependencies point toward `domain/` and `shared/`. Domain code never imports
-application, infrastructure, or presentation code. Infrastructure does not
-import presentation code. Run `npm run architecture:check` to verify this.
+app, infra, or UI code. Infra does not import UI code. Use `#me/*` for
+package-local imports and `#shared` for the workspace-wide shared package.
+Run `npm run architecture:check` to verify these boundaries.
 
 ## Data definitions
 

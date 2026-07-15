@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { readFormHistory } from "#stub/ui/history.ts";
+import { readFormHistory } from "vg-stub-creator/ui/history.ts";
 import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
 const HISTORY_STORAGE_KEY = "vg-stub-creator-form-history";

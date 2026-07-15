@@ -6,52 +6,16 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, normalize, relative, resolve } from "node:path";
 
 const SOURCE_ROOT = resolve("src");
-const LAYERS = new Set([
-    "application",
-    "config",
-    "domain",
-    "infrastructure",
-    "presentation",
-    "shared",
-]);
+const LAYERS = new Set(["app", "config", "domain", "infra", "shared", "ui"]);
 const ALLOWED_DEPENDENCIES = {
-    application: new Set([
-        "application",
-        "config",
-        "domain",
-        "infrastructure",
-        "shared",
-    ]),
+    app: new Set(["app", "config", "domain", "infra", "shared"]),
     config: new Set(["config", "shared"]),
     domain: new Set(["config", "domain", "shared"]),
-    infrastructure: new Set(["config", "domain", "infrastructure", "shared"]),
-    presentation: LAYERS,
+    infra: new Set(["config", "domain", "infra", "shared"]),
     shared: new Set(["shared"]),
+    ui: LAYERS,
 };
-const ALIAS_LAYERS = new Map([
-    ["#shared", "shared"],
-    ["#stub/app", "application"],
-    ["#stub/article", "domain"],
-    ["#stub/config", "config"],
-    ["#stub/data", "domain"],
-    ["#stub/editing", "infrastructure"],
-    ["#stub/form", "presentation"],
-    ["#stub/handlers", "infrastructure"],
-    ["#stub/i18n", "config"],
-    ["#stub/main", "presentation"],
-    ["#stub/modules", "domain"],
-    ["#stub/save", "infrastructure"],
-    ["#stub/sources", "infrastructure"],
-    ["#stub/terms", "config"],
-    ["#stub/ui", "presentation"],
-    ["#stub/wiki", "domain"],
-    ["#assessor/app", "application"],
-    ["#assessor/config", "config"],
-    ["#assessor/domain", "domain"],
-    ["#assessor/i18n", "config"],
-    ["#assessor/infra", "infrastructure"],
-    ["#assessor/ui", "presentation"],
-]);
+const ALIAS_LAYERS = new Map([["#shared", "shared"]]);
 
 const files = await listTypeScriptFiles(SOURCE_ROOT);
 const errors = (await Promise.all(files.map(checkFile))).flat();
@@ -125,6 +89,11 @@ function readLocalImports(source: string): string[] {
 function getImportLayer(file: string, specifier: string): string | null {
     if (specifier.startsWith(".")) {
         return getLayer(normalize(resolve(dirname(file), specifier)));
+    }
+    if (specifier.startsWith("#me/")) {
+        const [packageName] = relative(SOURCE_ROOT, file).split(/[\\/]/u);
+        const packagePath = specifier.slice("#me/".length);
+        return getLayer(resolve(SOURCE_ROOT, packageName, packagePath));
     }
 
     const alias = Array.from(ALIAS_LAYERS.keys())

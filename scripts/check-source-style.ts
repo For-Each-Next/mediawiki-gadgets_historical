@@ -8,9 +8,7 @@ import { parse } from "@typescript-eslint/parser";
 import type { TSESTree } from "@typescript-eslint/types";
 
 const SOURCE_ROOT = resolve("src");
-const COMPONENT_PATH = resolve(
-    "src/vg-stub-creator/presentation/form/component.ts",
-);
+const COMPONENT_PATH = resolve("src/vg-stub-creator/ui/form/component.ts");
 const MAX_LINE_LENGTH = 79;
 const MAX_COMPONENT_INDENT = 16;
 

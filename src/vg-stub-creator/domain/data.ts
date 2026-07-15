@@ -2,8 +2,8 @@
  * Article metadata builders.
  */
 
-import { get as getTerminology } from "#stub/terms";
-import { formatText, getTextTemplate } from "#stub/wiki";
+import { get as getTerminology } from "#me/config/terminologies/index.ts";
+import { formatText, getTextTemplate } from "#me/domain/wiki.ts";
 import { wikitext } from "#shared";
 
 const {

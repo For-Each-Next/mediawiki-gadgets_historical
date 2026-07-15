@@ -1,4 +1,6 @@
-/** Public API for citation acquisition and reference wikitext. */
+/**
+ * Public API for citation acquisition and reference wikitext.
+ */
 
 export {
     buildCiteTemplate,

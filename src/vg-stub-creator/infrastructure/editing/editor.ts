@@ -8,7 +8,10 @@ import { msg } from "#stub/i18n";
  * Replaces the MediaWiki edit textarea with generated wikitext.
  *
  * @param text - Generated article wikitext.
- * @returns */
+ * @returns Result when the function
+ *   replaces the mediawiki edit textarea with
+ *   generated wikitext.
+ */
 export function writeEditText(text: string): void {
     const textbox = document.getElementById(
         "wpTextbox1",
@@ -58,7 +61,9 @@ export function shouldPreserveEditor(): boolean {
  * Replaces the MediaWiki edit summary.
  *
  * @param summary - Generated edit summary.
- * @returns */
+ * @returns Result when the function
+ *   replaces the mediawiki edit summary.
+ */
 export function writeEditSummary(summary: string): void {
     const summaryInput = document.getElementById(
         "wpSummary",
@@ -76,7 +81,10 @@ export function writeEditSummary(summary: string): void {
  * Dispatches native events after a form value changes.
  *
  * @param element - Updated form control.
- * @returns */
+ * @returns Result when the function
+ *   dispatches native events after a form value
+ *   changes.
+ */
 function dispatchValueEvents(element: HTMLElement): void {
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
@@ -98,7 +106,10 @@ export function readEditSummary(): string {
 /**
  * Submits the MediaWiki edit form through its save button.
  *
- * @returns */
+ * @returns Result when the function
+ *   submits the mediawiki edit form through its save
+ *   button.
+ */
 export function submitEditForm(): void {
     const editForm = document.getElementById(
         "editform",
@@ -116,7 +127,10 @@ export function submitEditForm(): void {
 /**
  * Submits the MediaWiki edit form through its preview button.
  *
- * @returns */
+ * @returns Result when the function
+ *   submits the mediawiki edit form through its
+ *   preview button.
+ */
 export function submitPreviewForm(): void {
     const editForm = document.getElementById(
         "editform",
@@ -147,7 +161,11 @@ export function interceptEditSave(
         return function callback() {};
     }
 
-    const handleSubmit = function callback(event) {
+    const handleSubmit = function callback(event: {
+        submitter: { id: unknown };
+        preventDefault: () => void;
+        stopImmediatePropagation: () => void;
+    }) {
         const submitterId = event.submitter?.id;
         if (submitterId != null && submitterId !== "wpSave") {
             return;
@@ -165,7 +183,8 @@ export function interceptEditSave(
 
     editForm.addEventListener("submit", handleSubmit, true);
 
-    return function callback() {
+    const result = function callback() {
         editForm.removeEventListener("submit", handleSubmit, true);
     };
+    return result;
 }

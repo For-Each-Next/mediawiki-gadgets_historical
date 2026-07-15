@@ -13,6 +13,33 @@ import {
 } from "#stub/ui/template.ts";
 import { msg } from "#stub/i18n";
 
+interface PreSaveAction {
+    category?: string;
+    company?: string;
+    displayLabel?: string;
+    englishName?: string;
+    id: string;
+    label?: string;
+    pageTitle?: string;
+    redirectTitle?: string;
+    selected?: boolean;
+    type?: string;
+    wikidataId?: string;
+}
+
+interface PreSaveRow {
+    action?: PreSaveAction;
+    key: string;
+    label: string;
+    type: string;
+}
+
+interface PreSaveGroup {
+    key: string;
+    rows: PreSaveRow[];
+    title: string;
+}
+
 /**
  * Groups pre-save fixes by the page they will edit.
  *
@@ -32,13 +59,24 @@ export function createPreSaveGroups(
     addArticleRegistrationGroup(groups, byTitle, actionRows, form);
     addCompanyRegistrationGroups(groups, byTitle, actionRows, form);
 
-    return groups
+    const result = groups
         .filter((group) => group.rows.length > 0)
         .map(movePreSaveWikidataRowsLast);
+    return result;
 }
 
-/** Adds selected action and bundled-action rows to page groups. */
-function addPreSaveActionGroups(groups, byTitle, actionRows): void {
+/**
+ * Adds selected action and bundled-action rows to page groups.
+ *
+ * @param groups - Groups value.
+ * @param byTitle - By title value.
+ * @param actionRows - Action rows value.
+ */
+function addPreSaveActionGroups(
+    groups: PreSaveGroup[],
+    byTitle: Map<string, PreSaveGroup>,
+    actionRows: PreSaveAction[],
+): void {
     for (const action of actionRows) {
         if (action?.selected === false) {
             continue;
@@ -55,39 +93,74 @@ function addPreSaveActionGroups(groups, byTitle, actionRows): void {
     }
 }
 
-/** Finds or creates the page group for an action. */
-function findPreSaveGroup(groups, byTitle, action): any | undefined {
+/**
+ * Finds or creates the page group for an action.
+ *
+ * @param groups - Groups value.
+ * @param byTitle - By title value.
+ * @param action - Action value.
+ * @returns Or creates the page group for an action.
+ */
+function findPreSaveGroup(
+    groups: PreSaveGroup[],
+    byTitle: Map<string, PreSaveGroup>,
+    action: PreSaveAction,
+): PreSaveGroup | undefined {
     const title = getPreSaveActionPageTitle(action);
 
     return title === "" ? undefined : getPreSaveGroup(groups, byTitle, title);
 }
 
-/** Creates the primary row for a pre-save action. */
-function createPreSaveActionRow(action): any {
-    return {
+/**
+ * Creates the primary row for a pre-save action.
+ *
+ * @param action - Action value.
+ * @returns The primary row for a pre-save action.
+ */
+function createPreSaveActionRow(action: PreSaveAction): PreSaveRow {
+    const result = {
         action,
         key: action.id,
         label: getPreSaveActionDisplayLabel(action),
         type: "action",
     };
+    return result;
 }
 
-/** Creates bundled-note rows for a pre-save action. */
-function createPreSaveNoteRows(action): Array<any> {
+/**
+ * Creates bundled-note rows for a pre-save action.
+ *
+ * @param action - Action value.
+ * @returns Bundled-note rows for a pre-save action.
+ */
+function createPreSaveNoteRows(action: PreSaveAction): PreSaveRow[] {
     const rows = getPreSaveActionNotes(action).map(function callback(note) {
-        return {
+        const result = {
             action,
             key: `${action.id}:${note.key}`,
             label: note.label,
             type: "bundled-action",
         };
+        return result;
     });
 
     return rows;
 }
 
-/** Adds the submitted article's new-page-list registration row. */
-function addArticleRegistrationGroup(groups, byTitle, actions, form): void {
+/**
+ * Adds the submitted article's new-page-list registration row.
+ *
+ * @param groups - Groups value.
+ * @param byTitle - By title value.
+ * @param actions - Actions value.
+ * @param form - Form values.
+ */
+function addArticleRegistrationGroup(
+    groups: PreSaveGroup[],
+    byTitle: Map<string, PreSaveGroup>,
+    actions: PreSaveAction[],
+    form: { registerNewPage: boolean },
+): void {
     const title = getPreSaveRegistrationArticleTitle(actions);
 
     if (title === "" || form?.registerNewPage === false) {
@@ -101,8 +174,20 @@ function addArticleRegistrationGroup(groups, byTitle, actions, form): void {
     });
 }
 
-/** Adds new-page-list rows for selected company-category actions. */
-function addCompanyRegistrationGroups(groups, byTitle, actions, form): void {
+/**
+ * Adds new-page-list rows for selected company-category actions.
+ *
+ * @param groups - Groups value.
+ * @param byTitle - By title value.
+ * @param actions - Actions value.
+ * @param form - Form values.
+ */
+function addCompanyRegistrationGroups(
+    groups: PreSaveGroup[],
+    byTitle: Map<string, PreSaveGroup>,
+    actions: PreSaveAction[],
+    form: { registerNewPage: boolean },
+): void {
     const companyActions = actions.filter(isCompanyCategoryPreSaveAction);
 
     for (const action of companyActions) {
@@ -124,8 +209,19 @@ function addCompanyRegistrationGroups(groups, byTitle, actions, form): void {
     }
 }
 
-/** Gets or creates a pre-save page group. */
-function getPreSaveGroup(groups, byTitle, title): any {
+/**
+ * Gets or creates a pre-save page group.
+ *
+ * @param groups - Groups value.
+ * @param byTitle - By title value.
+ * @param title - Page title.
+ * @returns Or creates a pre-save page group.
+ */
+function getPreSaveGroup(
+    groups: PreSaveGroup[],
+    byTitle: Map<string, PreSaveGroup>,
+    title: string,
+): PreSaveGroup {
     const normalizedTitle = trimFieldValue(title);
 
     if (!byTitle.has(normalizedTitle)) {
@@ -139,7 +235,7 @@ function getPreSaveGroup(groups, byTitle, title): any {
         groups.push(group);
     }
 
-    return byTitle.get(normalizedTitle);
+    return byTitle.get(normalizedTitle)!;
 }
 
 /**
@@ -149,11 +245,12 @@ function getPreSaveGroup(groups, byTitle, title): any {
  * @returns Page title.
  */
 function getPreSaveActionPageTitle(action: any): string {
-    return trimFieldValue(
+    const result = trimFieldValue(
         action?.pageTitle ||
             action?.redirectTitle ||
             (action?.type === "category" ? `Category:${action.category}` : ""),
     );
+    return result;
 }
 
 /**
@@ -213,14 +310,19 @@ function getPreSaveActionNotes(action: any): Array<any> {
  * @returns Group with reordered rows.
  */
 function movePreSaveWikidataRowsLast(group: any): any {
-    const rows = Array.isArray(group?.rows) ? group.rows : [];
+    let rows: Array<Record<string, unknown>> = [];
+
+    if (Array.isArray(group?.rows)) {
+        rows = group.rows;
+    }
     const wikidataRows = rows.filter(isPreSaveWikidataRow);
     const otherRows = rows.filter((row) => !isPreSaveWikidataRow(row));
 
-    return {
+    const result = {
         ...group,
         rows: [...otherRows, ...wikidataRows],
     };
+    return result;
 }
 
 /**
@@ -244,21 +346,30 @@ function isPreSaveWikidataRow(row: any): boolean {
 export function serializePreSaveProgressGroups(
     groups: Array<any>,
 ): Array<any> {
-    return (Array.isArray(groups) ? groups : []).map(function callback(group) {
-        return {
-            key: trimFieldValue(group?.key),
-            rows: (Array.isArray(group?.rows) ? group.rows : []).map(
-                function callback(row) {
-                    return {
-                        key: trimFieldValue(row?.key),
-                        label: trimFieldValue(row?.label),
-                        type: trimFieldValue(row?.type),
-                    };
-                },
-            ),
-            title: trimFieldValue(group?.title),
-        };
-    });
+    const result = (Array.isArray(groups) ? groups : []).map(
+        function callback(group) {
+            const result = {
+                key: trimFieldValue(group?.key),
+                rows: (Array.isArray(group?.rows) ? group.rows : []).map(
+                    function callback(row: {
+                        key: unknown;
+                        label: unknown;
+                        type: unknown;
+                    }) {
+                        const result = {
+                            key: trimFieldValue(row?.key),
+                            label: trimFieldValue(row?.label),
+                            type: trimFieldValue(row?.type),
+                        };
+                        return result;
+                    },
+                ),
+                title: trimFieldValue(group?.title),
+            };
+            return result;
+        },
+    );
+    return result;
 }
 
 /**
@@ -297,7 +408,7 @@ function isCompanyCategoryPreSaveAction(action: any): boolean {
  * @returns Pre-save fixes dialog template node.
  */
 export function createPreSaveDialogTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-dialog",
         {
             "v-model:open": "preSaveOpen",
@@ -311,6 +422,7 @@ export function createPreSaveDialogTemplate(): any {
             createPreSaveFooterTemplate(),
         ],
     );
+    return result;
 }
 
 /**
@@ -319,13 +431,14 @@ export function createPreSaveDialogTemplate(): any {
  * @returns Intro text node.
  */
 function createPreSaveIntroTemplate(): any {
-    return createElement("p", {}, [
+    const result = createElement("p", {}, [
         createText(
             `{{ preSaveProgress == null ? ${toVueString(
                 msg("presave.description"),
             )} : ${toVueString(msg("presave.running"))} }}`,
         ),
     ]);
+    return result;
 }
 
 /**
@@ -334,7 +447,7 @@ function createPreSaveIntroTemplate(): any {
  * @returns Progress indicator node.
  */
 function createPreSaveProgressIndicatorTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-progress-indicator",
         {
             "show-label": "",
@@ -342,6 +455,7 @@ function createPreSaveProgressIndicatorTemplate(): any {
         },
         [createText("{{ getPreSaveCurrentStepLabel() }}")],
     );
+    return result;
 }
 
 /**
@@ -350,13 +464,14 @@ function createPreSaveProgressIndicatorTemplate(): any {
  * @returns Pre-save group list node.
  */
 function createPreSaveGroupsTemplate(): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             class: "vg-stub-creator-pre-save-groups",
         },
         [createPreSaveGroupTemplate()],
     );
+    return result;
 }
 
 /**
@@ -365,7 +480,7 @@ function createPreSaveGroupsTemplate(): any {
  * @returns Pre-save page group node.
  */
 function createPreSaveGroupTemplate(): any {
-    return createElement(
+    const result = createElement(
         "section",
         {
             class: "vg-stub-creator-pre-save-page",
@@ -389,6 +504,7 @@ function createPreSaveGroupTemplate(): any {
             ),
         ],
     );
+    return result;
 }
 
 /**
@@ -428,7 +544,7 @@ function createPreSaveRowTemplate(): any {
  * @returns Progress row branch node.
  */
 function createPreSaveProgressRowTemplate(): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-if": "row.type === 'progress'",
@@ -441,6 +557,7 @@ function createPreSaveProgressRowTemplate(): any {
             createElement("span", {}, [createText("{{ row.label }}")]),
         ],
     );
+    return result;
 }
 
 /**
@@ -451,7 +568,7 @@ function createPreSaveProgressRowTemplate(): any {
  * @returns Checkbox branch node.
  */
 function createPreSaveCheckboxTemplate(rowType: string, model: string): any {
-    return createElement(
+    const result = createElement(
         "cdx-checkbox",
         {
             "v-else-if": `row.type === '${rowType}'`,
@@ -459,6 +576,7 @@ function createPreSaveCheckboxTemplate(rowType: string, model: string): any {
         },
         [createText("{{ row.label }}")],
     );
+    return result;
 }
 
 /**
@@ -467,7 +585,7 @@ function createPreSaveCheckboxTemplate(rowType: string, model: string): any {
  * @returns Error message nodes.
  */
 function createPreSaveErrorTemplates(): Array<any> {
-    return [
+    const result = [
         createMessageTemplate(
             "sourceFetchState.error",
             "{{ sourceFetchState.error }}",
@@ -477,6 +595,7 @@ function createPreSaveErrorTemplates(): Array<any> {
             "{{ preSaveProgress.error }}",
         ),
     ];
+    return result;
 }
 
 /**
@@ -485,13 +604,14 @@ function createPreSaveErrorTemplates(): Array<any> {
  * @returns Dialog footer node.
  */
 function createPreSaveFooterTemplate(): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
         [createActionFooterTemplate(createPreSaveFooterActions())],
     );
+    return result;
 }
 
 /**
@@ -500,10 +620,11 @@ function createPreSaveFooterTemplate(): any {
  * @returns Footer action groups.
  */
 function createPreSaveFooterActions(): any {
-    return {
+    const result = {
         left: [createPreSaveCloseButtonTemplate()],
         right: [createPreSaveSubmitButtonTemplate()],
     };
+    return result;
 }
 
 /**
@@ -512,12 +633,13 @@ function createPreSaveFooterActions(): any {
  * @returns Close button node.
  */
 function createPreSaveCloseButtonTemplate(): any {
-    return createButtonTemplate({
+    const result = createButtonTemplate({
         click: "preSaveOpen = false",
         disabled: "sourceFetchState.loading",
         label: msg("common.close"),
         weight: "quiet",
     });
+    return result;
 }
 
 /**
@@ -526,7 +648,7 @@ function createPreSaveCloseButtonTemplate(): any {
  * @returns Submit button node.
  */
 function createPreSaveSubmitButtonTemplate(): any {
-    return createButtonTemplate({
+    const result = createButtonTemplate({
         action: "progressive",
         click: "confirmSubmit",
         disabled: "sourceFetchState.loading || preSaveProgress != null",
@@ -535,4 +657,5 @@ function createPreSaveSubmitButtonTemplate(): any {
         )} : ${toVueString(msg("common.save"))} }}`,
         weight: "primary",
     });
+    return result;
 }

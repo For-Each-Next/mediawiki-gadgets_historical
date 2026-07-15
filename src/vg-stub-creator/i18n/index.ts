@@ -1,4 +1,6 @@
-/** VG Stub Creator locale registry. */
+/**
+ * VG Stub Creator locale registry.
+ */
 
 import { i18n } from "#shared";
 import english from "#stub/i18n/en.ts";

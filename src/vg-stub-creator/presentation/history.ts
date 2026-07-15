@@ -93,7 +93,7 @@ export function readFormDraftEntry(): any | undefined {
         return undefined;
     }
 
-    return {
+    const result = {
         data: createHistoryData(form),
         id: 0,
         metadata: {
@@ -102,6 +102,7 @@ export function readFormDraftEntry(): any | undefined {
             temporary: true,
         },
     };
+    return result;
 }
 
 /**
@@ -109,7 +110,9 @@ export function readFormDraftEntry(): any | undefined {
  *
  * @param form - Dialog form values.
  * @param page - Page title associated with the draft.
- * @returns */
+ * @returns Result when the function
+ *   saves the current form draft.
+ */
 export function saveFormDraft(form: any, page: string = ""): void {
     writeStorageItem(DRAFT_STORAGE_KEY, cloneValue(form));
     writeStorageItem(DRAFT_PAGE_STORAGE_KEY, normalizePage(page));
@@ -129,7 +132,7 @@ export function readFormHistory(): Array<any> {
 
         const entries = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY));
 
-        return selectValue(
+        const result = selectValue(
             Array.isArray(entries),
             function trueBranch() {
                 return entries.filter(isFormHistoryEntry);
@@ -138,6 +141,7 @@ export function readFormHistory(): Array<any> {
                 return [];
             },
         );
+        return result;
     } catch (_error) {
         return [];
     }
@@ -149,7 +153,9 @@ export function readFormHistory(): Array<any> {
  * @param form - Dialog form values.
  * @param page - Page title associated with the snapshot.
  * @param citations - Citation cache keyed by source URL.
- * @returns */
+ * @returns Result when the function
+ *   saves one form snapshot to history.
+ */
 export function saveFormHistory(
     form: any,
     page: string,
@@ -168,7 +174,9 @@ export function saveFormHistory(
  * Deletes one form history entry.
  *
  * @param id - History entry ID.
- * @returns */
+ * @returns Result when the function
+ *   deletes one form history entry.
+ */
 export function deleteFormHistoryEntry(id: string): void {
     writeFormHistory(readFormHistory().filter((entry) => entry.id !== id));
 }
@@ -176,7 +184,9 @@ export function deleteFormHistoryEntry(id: string): void {
 /**
  * Clears all form history entries.
  *
- * @returns */
+ * @returns Result when the function
+ *   clears all form history entries.
+ */
 export function clearFormHistory(): void {
     removeStorageItem(HISTORY_STORAGE_KEY);
 }
@@ -192,7 +202,7 @@ export function clearFormHistory(): void {
 function createFormHistoryEntry(form: any, page: string, citations: any): any {
     const snapshot = cloneValue(form);
 
-    return {
+    const result = {
         data: createHistoryData(snapshot, citations),
         id: createHistoryEntryId(snapshot, page),
         metadata: {
@@ -204,6 +214,7 @@ function createFormHistoryEntry(form: any, page: string, citations: any): any {
             savedAt: new Date().toLocaleString(),
         },
     };
+    return result;
 }
 
 /**
@@ -214,18 +225,17 @@ function createFormHistoryEntry(form: any, page: string, citations: any): any {
  *
  * @param entry - Stored history value.
  * @returns Whether the entry can be used as form history.
- *
  */
 function isFormHistoryEntry(entry: any): boolean {
-    return (
+    const result =
         entry != null &&
         typeof entry === "object" &&
         Number.isInteger(entry.id) &&
         entry.data != null &&
         typeof entry.data === "object" &&
         entry.metadata != null &&
-        typeof entry.metadata === "object"
-    );
+        typeof entry.metadata === "object";
+    return result;
 }
 
 /**
@@ -254,11 +264,12 @@ function createHistoryEntryId(form: any, page: string): number {
  * @returns Provenance-aware history data.
  */
 function createHistoryData(form: any, _citations = {}): any {
-    return {
+    const result = {
         input: createInputData(form),
         patches: createPatchData(form),
         version: HISTORY_DATA_VERSION,
     };
+    return result;
 }
 
 /**
@@ -268,11 +279,12 @@ function createHistoryData(form: any, _citations = {}): any {
  * @returns User-entered input data.
  */
 function createInputData(form: any): any {
-    return Object.fromEntries(
+    const result = Object.fromEntries(
         Object.entries(cloneValue(form)).filter(function callback([key]) {
             return INPUT_FORM_KEYS.has(key);
         }),
     );
+    return result;
 }
 
 /**
@@ -282,12 +294,13 @@ function createInputData(form: any): any {
  * @returns Patch data.
  */
 function createPatchData(form: any): any {
-    return {
+    const result = {
         categories: getCategoryPatches(form),
         citations: getCitationPatches(form),
         navboxes: getNavboxPatches(form),
         noteTa: getPatchedNoteTaRows(form),
     };
+    return result;
 }
 
 /**
@@ -297,10 +310,18 @@ function createPatchData(form: any): any {
  * @returns Citation patches.
  */
 function getCitationPatches(form: any): Array<any> {
-    return (form.citationRows || [])
+    const citationRows: Array<{
+        modified: boolean;
+        sourceUrl: string;
+        template: string;
+    }> = form.citationRows || [];
+    const result = citationRows
         .filter((row) => row.modified === true)
-        .map(function callback(row) {
-            return {
+        .map(function callback(row: {
+            sourceUrl: unknown;
+            template: unknown;
+        }) {
+            const result = {
                 sourceUrl: row.sourceUrl,
                 params: getCitationParamPatches(row),
                 ...createChangedValuePatch(
@@ -312,7 +333,9 @@ function getCitationPatches(form: any): Array<any> {
                     },
                 ),
             };
+            return result;
         });
+    return result;
 }
 
 /**
@@ -322,27 +345,34 @@ function getCitationPatches(form: any): Array<any> {
  * @returns Citation parameter patches.
  */
 function getCitationParamPatches(row: any): Array<any> {
+    const currentParams: Array<{ name: string; value: string }> =
+        row.params || [];
+    const originalParams: Array<{ name: string; value: string }> =
+        row.generatedParams || [];
     const params = new Map(
-        (row.params || []).map((param) => [param.name, param.value]),
+        currentParams.map((param) => [param.name, param.value]),
     );
     const generatedParams = new Map(
-        (row.generatedParams || []).map((param) => [param.name, param.value]),
+        originalParams.map((param) => [param.name, param.value]),
     );
     const names = new Set([...params.keys(), ...generatedParams.keys()]);
 
-    return Array.from(names)
+    const result = Array.from(names)
         .filter(function callback(name) {
-            return !isSameJsonValue(
+            const result = !isSameJsonValue(
                 params.get(name),
                 generatedParams.get(name),
             );
+            return result;
         })
         .map(function callback(name) {
-            return {
+            const result = {
                 name,
                 value: params.has(name) ? params.get(name) : null,
             };
+            return result;
         });
+    return result;
 }
 
 /**
@@ -352,22 +382,27 @@ function getCitationParamPatches(row: any): Array<any> {
  * @returns Category patches.
  */
 function getCategoryPatches(form: any): Array<any> {
-    return (form.categoryRows || [])
-        .filter(function callback(row) {
-            return (
+    const result = (form.categoryRows || [])
+        .filter(function callback(row: {
+            enabled: boolean;
+            stubTagEnabled: unknown;
+            originalStubTagEnabled: unknown;
+        }) {
+            const result =
                 isManualCategoryRow(row) ||
                 isModifiedCategoryRow(row) ||
                 row.enabled === false ||
-                row.stubTagEnabled !== row.originalStubTagEnabled
-            );
+                row.stubTagEnabled !== row.originalStubTagEnabled;
+            return result;
         })
-        .map(function callback(row) {
+        .map(function callback(row: unknown) {
             if (isManualCategoryRow(row)) {
                 return createManualCategoryPatch(row);
             }
 
             return createCategoryPatch(row);
         });
+    return result;
 }
 
 /**
@@ -377,7 +412,7 @@ function getCategoryPatches(form: any): Array<any> {
  * @returns Minimal category patch.
  */
 function createCategoryPatch(row: any): any {
-    return {
+    const result = {
         source: createCategoryPatchSource(row),
         ...createChangedValuePatch(
             {
@@ -398,6 +433,7 @@ function createCategoryPatch(row: any): any {
             },
         ),
     };
+    return result;
 }
 
 /**
@@ -407,7 +443,7 @@ function createCategoryPatch(row: any): any {
  * @returns Manual category patch.
  */
 function createManualCategoryPatch(row: any): any {
-    return {
+    const result = {
         source: {
             manual: true,
         },
@@ -420,6 +456,7 @@ function createManualCategoryPatch(row: any): any {
             stubTagEnabled: row.stubTagEnabled === true,
         }),
     };
+    return result;
 }
 
 /**
@@ -430,14 +467,16 @@ function createManualCategoryPatch(row: any): any {
  */
 function createCategoryPatchSource(row: any): any {
     if (row.company) {
-        return {
+        const result = {
             company: row.company,
         };
+        return result;
     }
 
-    return {
+    const result = {
         category: row.originalCategory || row.category,
     };
+    return result;
 }
 
 /**
@@ -447,10 +486,20 @@ function createCategoryPatchSource(row: any): any {
  * @returns Navbox patches.
  */
 function getNavboxPatches(form: any): Array<any> {
-    return (form.navboxRows || [])
-        .filter((row) => row.enabled === false || row.text !== row.title)
-        .map(function callback(row) {
-            return {
+    const result = (form.navboxRows || [])
+        .filter(function isChanged(row: {
+            enabled: boolean;
+            text: string;
+            title: string;
+        }) {
+            return row.enabled === false || row.text !== row.title;
+        })
+        .map(function callback(row: {
+            title: unknown;
+            text: unknown;
+            enabled: boolean;
+        }) {
+            const result = {
                 source: {
                     title: row.title || row.text,
                 },
@@ -465,7 +514,9 @@ function getNavboxPatches(form: any): Array<any> {
                     },
                 ),
             };
+            return result;
         });
+    return result;
 }
 
 /**
@@ -476,11 +527,12 @@ function getNavboxPatches(form: any): Array<any> {
  * @returns Changed values.
  */
 function createChangedValuePatch(values: any, baseValues: any): any {
-    return Object.fromEntries(
+    const result = Object.fromEntries(
         Object.entries(values).filter(
             ([key, value]) => !isSameJsonValue(value, baseValues[key]),
         ),
     );
+    return result;
 }
 
 /**
@@ -490,7 +542,7 @@ function createChangedValuePatch(values: any, baseValues: any): any {
  * @returns Present values.
  */
 function createPresentValuePatch(values: any): any {
-    return Object.fromEntries(
+    const result = Object.fromEntries(
         Object.entries(values).filter(function callback([_key, value]) {
             if (value === "" || value === false) {
                 return false;
@@ -499,6 +551,7 @@ function createPresentValuePatch(values: any): any {
             return value != null;
         }),
     );
+    return result;
 }
 
 /**
@@ -519,7 +572,9 @@ function isSameJsonValue(left: any, right: any): boolean {
  * @returns Patched NoteTA rows.
  */
 function getPatchedNoteTaRows(form: any): Array<any> {
-    return (form.noteTaRows || []).filter((row) => row.modified === true);
+    const noteTaRows: Array<{ modified: boolean }> = form.noteTaRows || [];
+    const result = noteTaRows.filter((row) => row.modified === true);
+    return result;
 }
 
 /**
@@ -546,7 +601,9 @@ function isModifiedCategoryRow(row: any): boolean {
  * Writes form history entries to storage.
  *
  * @param entries - History entries.
- * @returns */
+ * @returns Result when the function
+ *   writes form history entries to storage.
+ */
 function writeFormHistory(entries: Array<any>): void {
     writeStorageItem(HISTORY_STORAGE_KEY, entries);
 }
@@ -556,7 +613,9 @@ function writeFormHistory(entries: Array<any>): void {
  *
  * @param key - Storage key.
  * @param value - Stored value.
- * @returns */
+ * @returns Result when the function
+ *   writes a value to local storage.
+ */
 function writeStorageItem(key: string, value: any): void {
     try {
         localStorage.setItem(key, JSON.stringify(value));
@@ -595,7 +654,9 @@ function readFormDraftPage(): string {
  * Removes a value from local storage.
  *
  * @param key - Storage key.
- * @returns */
+ * @returns Result when the function
+ *   removes a value from local storage.
+ */
 function removeStorageItem(key: string): void {
     try {
         localStorage.removeItem(key);

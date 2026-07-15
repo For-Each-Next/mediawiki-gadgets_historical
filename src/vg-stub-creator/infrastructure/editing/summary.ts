@@ -34,9 +34,10 @@ export function buildEditSummary(metadata: any): string {
             return "";
         },
         function falseBranch() {
-            return buildProseDetailText(
+            const result = buildProseDetailText(
                 buildProseCountText(metadata.proseSinographs),
             );
+            return result;
         },
     );
     const sourceText = nameText === "" ? "" : buildSourceDetailText(metadata);
@@ -52,7 +53,7 @@ export function buildEditSummary(metadata: any): string {
 export function addEditSummarySuffix(summary: string): string {
     const text = String(summary || "").trim();
 
-    return selectValue(
+    const result = selectValue(
         text === "",
         function trueBranch() {
             return EDIT_SUMMARY_SUFFIX;
@@ -61,6 +62,7 @@ export function addEditSummarySuffix(summary: string): string {
             return `${text} ${EDIT_SUMMARY_SUFFIX}`;
         },
     );
+    return result;
 }
 
 /**
@@ -120,19 +122,21 @@ function buildSourceDetailText(metadata: any): string {
         buildWikidataSummaryLink(metadata.wikidataId),
     ].filter(Boolean);
 
-    return selectValue(
+    const result = selectValue(
         links.length === 0,
         function trueBranch() {
             return "";
         },
         function falseBranch() {
-            return [
+            const result = [
                 "; also see ",
                 links.map((link) => `"${link}"`).join(" and "),
                 "",
             ].join("");
+            return result;
         },
     );
+    return result;
 }
 
 /**
@@ -153,13 +157,14 @@ function buildArticleCreationSummaryText(
         return "";
     }
 
-    return [
+    const result = [
         "create ",
         yearText === "" ? "" : `${yearText} `,
         "video game «",
         label,
         "»",
     ].join("");
+    return result;
 }
 
 /**

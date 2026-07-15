@@ -40,7 +40,6 @@ export function addMissingPageEditTrigger(
  * @param mediaWikiUtil - MediaWiki utility functions.
  * @param handler - Gadget open handler.
  * @returns Whether a trigger was added.
- *
  */
 export function addViewPageTrigger(
     mediaWikiUtil: any,
@@ -81,7 +80,6 @@ export function addViewPageTrigger(
  * @param handler - Gadget launch handler.
  * @param href - Fallback zhwiki creation URL.
  * @returns Whether a trigger was added.
- *
  */
 export function addEnwikiCreateTrigger(
     mediaWikiUtil: any,

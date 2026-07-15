@@ -24,7 +24,9 @@ export function getPendingSaveData(
  * Clears pending follow-up tasks.
  *
  * @param storage - Session storage implementation.
- * @returns */
+ * @returns Result when the function
+ *   clears pending follow-up tasks.
+ */
 export function clearPendingSaveData(storage: Storage = sessionStorage): void {
     storage.removeItem(PENDING_SAVE_STORAGE_KEY);
 }
@@ -34,7 +36,10 @@ export function clearPendingSaveData(storage: Storage = sessionStorage): void {
  *
  * @param pending - Moved editing data.
  * @param storage - Session storage implementation.
- * @returns */
+ * @returns Result when the function
+ *   stores generated text for a target-page editing
+ *   session.
+ */
 export function storeMovedEdit(
     pending: any,
     storage: Storage = sessionStorage,
@@ -60,7 +65,9 @@ export function getMovedEdit(
  * Clears moved editing data.
  *
  * @param storage - Session storage implementation.
- * @returns */
+ * @returns Result when the function
+ *   clears moved editing data.
+ */
 export function clearMovedEdit(storage: Storage = sessionStorage): void {
     storage.removeItem(MOVE_TEXT_STORAGE_KEY);
 }
@@ -71,7 +78,10 @@ export function clearMovedEdit(storage: Storage = sessionStorage): void {
  * @param form - Previewed dialog form.
  * @param title - Previewed page title.
  * @param storage - Session storage implementation.
- * @returns */
+ * @returns Result when the function
+ *   stores the form values used for a mediawiki
+ *   preview.
+ */
 export function storePreviewFormData(
     form: any,
     title: string,
@@ -104,7 +114,9 @@ export function getPreviewFormData(
  * Clears stored preview form data.
  *
  * @param storage - Session storage implementation.
- * @returns */
+ * @returns Result when the function
+ *   clears stored preview form data.
+ */
 export function clearPreviewFormData(storage: Storage = sessionStorage): void {
     storage.removeItem(PREVIEW_FORM_STORAGE_KEY);
 }
@@ -116,9 +128,10 @@ export function clearPreviewFormData(storage: Storage = sessionStorage): void {
  * @returns Normalized page title.
  */
 export function normalizePageTitle(title: any): string {
-    return String(title || "")
+    const result = String(title || "")
         .trim()
         .replace(/_/gu, " ");
+    return result;
 }
 
 /**

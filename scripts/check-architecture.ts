@@ -1,4 +1,6 @@
-/** Enforces dependency direction between gadget architecture layers. */
+/**
+ * Enforces dependency direction between gadget architecture layers.
+ */
 
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, normalize, relative, resolve } from "node:path";
@@ -21,7 +23,7 @@ const ALLOWED_DEPENDENCIES = {
         "shared",
     ]),
     config: new Set(["config", "shared"]),
-    domain: new Set(["domain", "shared"]),
+    domain: new Set(["config", "domain", "shared"]),
     infrastructure: new Set(["config", "domain", "infrastructure", "shared"]),
     presentation: LAYERS,
     shared: new Set(["shared"]),
@@ -41,7 +43,7 @@ const ALIAS_LAYERS = new Map([
     ["#stub/modules", "domain"],
     ["#stub/save", "infrastructure"],
     ["#stub/sources", "infrastructure"],
-    ["#stub/terms", "domain"],
+    ["#stub/terms", "config"],
     ["#stub/ui", "presentation"],
     ["#stub/wiki", "domain"],
     ["#assessor/app", "application"],
@@ -59,7 +61,12 @@ if (errors.length > 0) {
     throw new Error(`Architecture violations:\n${errors.join("\n")}`);
 }
 
-/** Lists authored TypeScript files below one directory. */
+/**
+ * Lists authored TypeScript files below one directory.
+ *
+ * @param directory - Directory to inspect.
+ * @returns Authored TypeScript files below one directory.
+ */
 async function listTypeScriptFiles(directory: string): Promise<string[]> {
     const entries = await readdir(directory, { withFileTypes: true });
     const groups = await Promise.all(
@@ -71,7 +78,13 @@ async function listTypeScriptFiles(directory: string): Promise<string[]> {
     return groups.flat().filter((path) => path.endsWith(".ts"));
 }
 
-/** Checks all local imports in one source file. */
+/**
+ * Checks all local imports in one source file.
+ *
+ * @param file - Source file.
+ * @returns Result when the function
+ *   checks all local imports in one source file.
+ */
 async function checkFile(file: string): Promise<string[]> {
     const source = await readFile(file, "utf8");
     const sourceLayer = getLayer(file);
@@ -81,7 +94,7 @@ async function checkFile(file: string): Promise<string[]> {
         return [];
     }
 
-    return imports.flatMap((specifier) => {
+    const result = imports.flatMap((specifier) => {
         const targetLayer = getImportLayer(file, specifier);
         const allowed = ALLOWED_DEPENDENCIES[sourceLayer];
         if (targetLayer == null || allowed.has(targetLayer)) {
@@ -89,15 +102,27 @@ async function checkFile(file: string): Promise<string[]> {
         }
         return [`${relative(SOURCE_ROOT, file)} -> ${specifier}`];
     });
+    return result;
 }
 
-/** Reads static relative and package-import specifiers. */
+/**
+ * Reads static relative and package-import specifiers.
+ *
+ * @param source - Source text.
+ * @returns Static relative and package-import specifiers.
+ */
 function readLocalImports(source: string): string[] {
     const pattern = /\b(?:from\s+|import\s+)["']((?:\.|#)[^"']+)["']/gu;
     return Array.from(source.matchAll(pattern), (match) => match[1]);
 }
 
-/** Gets the target architecture layer for one local import. */
+/**
+ * Gets the target architecture layer for one local import.
+ *
+ * @param file - Source file.
+ * @param specifier - Specifier value.
+ * @returns The target architecture layer for one local import.
+ */
 function getImportLayer(file: string, specifier: string): string | null {
     if (specifier.startsWith(".")) {
         return getLayer(normalize(resolve(dirname(file), specifier)));
@@ -112,7 +137,12 @@ function getImportLayer(file: string, specifier: string): string | null {
     return alias == null ? null : ALIAS_LAYERS.get(alias) || null;
 }
 
-/** Gets the architecture layer represented by a source path. */
+/**
+ * Gets the architecture layer represented by a source path.
+ *
+ * @param path - File path.
+ * @returns The architecture layer represented by a source path.
+ */
 function getLayer(path: string): string | null {
     const parts = relative(SOURCE_ROOT, path).split(/[\\/]/u);
     if (parts.includes("i18n")) {

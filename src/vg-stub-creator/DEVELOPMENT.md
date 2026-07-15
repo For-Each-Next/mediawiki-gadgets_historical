@@ -2,14 +2,13 @@
 
 The gadget passes named data records through the article workflow. Every
 raw article module emits the `ArticleDataRecord` shape from
-`domain/article/data-record.ts`. The record includes normalized input, values,
-citations, metadata, assumed categories, navboxes, and module-specific
-wikitext.
+`domain/article/processor.ts`. The record includes normalized input, values,
+citations, metadata, assumed categories, navboxes, and module-specific wikitext.
 
 - `domain/data.ts`: pure field parsing and metadata extraction.
 - `domain/modules.ts`: field ownership and normalized record adapters.
 - `domain/article/processor.ts`: flushes registered modules into article data.
-- `domain/terminologies/`: canonical aliases, labels, pages, and metadata.
+- `config/terminologies/`: canonical aliases, labels, pages, and metadata.
 - `domain/wiki.ts`: pure builders and generated-language templates.
 - `application/workflow.ts`: coordinates records, adapters, and final text.
 - `infrastructure/handlers/`: title, category, and navbox resolution.
@@ -32,7 +31,7 @@ import presentation code. Run `npm run architecture:check` to verify this.
 
 ### Terminologies
 
-Edit terminology definitions in `domain/terminologies/`:
+Edit terminology definitions in `config/terminologies/`:
 
 - `companies.ts`: company aliases, labels, pages, categories, and stub tags.
 - `genres.ts`: genre aliases, labels, pages, categories, and stub tags.
@@ -41,7 +40,7 @@ Edit terminology definitions in `domain/terminologies/`:
 - `years.ts`: release-year aliases, labels, and categories. Years normally
   have no related page.
 
-Use `domain/terminologies/index.ts` to read these definitions. Call
+Use `config/terminologies/index.ts` to read these definitions. Call
 `get(type, value)` for complete metadata, or pass `label`, `page`, `link`,
 `short name`, `categories`, or another metadata key as the third argument.
 The `link` projection returns `[[page|label]]` when a page exists and plain

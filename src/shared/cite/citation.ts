@@ -58,8 +58,18 @@ export async function fetchCiteTemplate(
     return citeTemplate;
 }
 
-/** Requests citation metadata from Citoid. */
-async function fetchCitoidResponse(url, fetcher) {
+/**
+ * Requests citation metadata from Citoid.
+ *
+ * @param url - Request URL.
+ * @param fetcher - Fetch implementation.
+ * @returns Result when the function
+ *   requests citation metadata from citoid.
+ */
+async function fetchCitoidResponse(
+    url: string,
+    fetcher: typeof fetch,
+): Promise<Response> {
     const response = await fetcher(buildCitoidUrl(url), {
         headers: { accept: "application/json" },
     });
@@ -67,8 +77,19 @@ async function fetchCitoidResponse(url, fetcher) {
     return response;
 }
 
-/** Builds citation wikitext from a successful Citoid response. */
-async function buildCitoidResponseTemplate(url, response, options) {
+/**
+ * Builds citation wikitext from a successful Citoid response.
+ *
+ * @param url - Request URL.
+ * @param response - Fetch response.
+ * @param options - Operation options.
+ * @returns Citation wikitext from a successful Citoid response.
+ */
+async function buildCitoidResponseTemplate(
+    url: string,
+    response: Response,
+    options: { now: unknown; rules: unknown },
+) {
     const citation = getFirstCitation(await response.json());
     const template = buildCiteTemplate(citation, {
         now: options.now,
@@ -79,8 +100,23 @@ async function buildCitoidResponseTemplate(url, response, options) {
     return template;
 }
 
-/** Handles a failed Citoid response or builds its web fallback. */
-async function handleFailedCitoidResponse(url, response, fetcher, options) {
+/**
+ * Handles a failed Citoid response or builds its web fallback.
+ *
+ * @param url - Request URL.
+ * @param response - Fetch response.
+ * @param fetcher - Fetch implementation.
+ * @param options - Operation options.
+ * @returns Result when the function
+ *   handles a failed citoid response or builds its web
+ *   fallback.
+ */
+async function handleFailedCitoidResponse(
+    url: string,
+    response: Response,
+    fetcher: typeof fetch,
+    options: { now: unknown; rules: unknown },
+) {
     if (response.status !== 404) {
         throw new Error(`Citoid request failed: HTTP ${response.status}`);
     }
@@ -135,7 +171,9 @@ function getCachedCiteTemplate(url: string, options: any): string | undefined {
  * @param citeTemplate - Generated cite template.
  * @param options - Fetch and formatting options.
  * @param options.cache - Citation cache keyed by source URL.
- * @returns */
+ * @returns Result when the function
+ *   stores a generated cite template for a url.
+ */
 function setCachedCiteTemplate(
     url: string,
     citeTemplate: string,
@@ -169,7 +207,6 @@ function normalizeCitationCacheKey(url: string): string {
  * @param options.now - Date used for access-date.
  * @param options.url - Fallback source URL.
  * @returns Citation template wikitext.
- *
  */
 export function buildCiteTemplate(citation: any, options: any = {}): string {
     const template = getTemplateName(citation.itemType);
@@ -196,10 +233,11 @@ export function parseCiteTemplate(text: string): any {
     const [enteredTemplate, ...params] = parts;
     const template = trimFieldText(enteredTemplate) || "cite web";
 
-    return {
+    const result = {
         params: sortCitationParams(params.map(parseTemplateParam), template),
         template,
     };
+    return result;
 }
 
 /**
@@ -218,10 +256,11 @@ export function buildCiteTemplateFromParts(parts: any): string {
         },
     );
 
-    return formatTemplateCall(
+    const result = formatTemplateCall(
         template,
         params.map((param) => [param.name, param.value]),
     );
+    return result;
 }
 
 /**
@@ -239,10 +278,11 @@ export function sortCitationParams(
     if (templateData == null) {
         return params.map((param) => ({ ...param }));
     }
-    return params
+    const result = params
         .map((param, index) => ({ ...param, _index: index }))
         .sort(compareCitationParams.bind(null, templateData))
         .map(({ _index, ...param }) => param);
+    return result;
 }
 
 /**
@@ -260,7 +300,7 @@ async function buildFallbackCiteWebTemplate(
 ): Promise<string> {
     const trimmedUrl = normalizeCitationCacheKey(url);
 
-    return buildCiteTemplate(
+    const result = buildCiteTemplate(
         {
             itemType: "webpage",
             title: await selectValue(
@@ -281,6 +321,7 @@ async function buildFallbackCiteWebTemplate(
             url,
         },
     );
+    return result;
 }
 
 /**
@@ -347,7 +388,7 @@ function extractHtmlTitle(html: string): string {
  * @returns Decoded title text.
  */
 function decodeHtmlEntities(text: string): string {
-    return text
+    const result = text
         .replace(/&#(\d+);/gu, function callback(_match, code) {
             return String.fromCodePoint(Number(code));
         })
@@ -359,6 +400,7 @@ function decodeHtmlEntities(text: string): string {
         .replace(/&amp;/gu, "&")
         .replace(/&lt;/gu, "<")
         .replace(/&gt;/gu, ">");
+    return result;
 }
 
 /**
@@ -369,7 +411,6 @@ function decodeHtmlEntities(text: string): string {
  *
  * @param url - Source URL.
  * @returns Source URL hostname, or an empty string.
- *
  */
 function getFallbackWebsiteTitle(url: string): string {
     const parsedUrl = parseUrl(normalizeCitationCacheKey(url));
@@ -410,7 +451,7 @@ function getFirstCitation(citations: Array<any>): any {
  * @returns Template parameter values.
  */
 function buildCitationValues(citation: any, options: any): any {
-    return {
+    const result = {
         accessDate: formatAccessDate(options.now),
         author: formatCreators(citation.creators, "author"),
         date: citation.date,
@@ -421,6 +462,7 @@ function buildCitationValues(citation: any, options: any): any {
         via: citation.via,
         website: citation.websiteTitle || citation.publicationTitle,
     };
+    return result;
 }
 
 /**
@@ -457,17 +499,19 @@ function applyCitationRules(values: any, options: any): any {
             return values;
         },
         function falseBranch() {
-            return {
+            const result = {
                 ...values,
                 url: normalizeCitationCacheKey(options.sourceUrl),
             };
+            return result;
         },
     );
 
-    return rules.reduce(
+    const result = rules.reduce(
         applyCitationRule.bind(null, options.sourceUrl),
         initialValues,
     );
+    return result;
 }
 
 /**
@@ -479,10 +523,11 @@ function applyCitationRules(values: any, options: any): any {
  * @returns Cleaned citation template values.
  */
 function applyCitationRule(sourceUrl: string, values: any, rule: any): any {
-    return (rule.fixes || []).reduce(
+    const result = (rule.fixes || []).reduce(
         applyFieldFix.bind(null, sourceUrl),
         values,
     );
+    return result;
 }
 
 /**
@@ -535,10 +580,11 @@ function applyOmitFix(values: any, fix: any): any {
         return values;
     }
 
-    return {
+    const result = {
         ...values,
         [fix.field]: "",
     };
+    return result;
 }
 
 /**
@@ -554,10 +600,11 @@ function applyOmitFix(values: any, fix: any): any {
  * @returns Citation template values.
  */
 function applyReplaceFix(values: any, fix: any): any {
-    return {
+    const result = {
         ...values,
         [fix.field]: replacePattern(values[fix.field], fix),
     };
+    return result;
 }
 
 /**
@@ -570,10 +617,11 @@ function applyReplaceFix(values: any, fix: any): any {
  * @returns Citation template values.
  */
 function applySetFix(values: any, fix: any): any {
-    return {
+    const result = {
         ...values,
         [fix.field]: fix.operand,
     };
+    return result;
 }
 
 /**
@@ -608,10 +656,11 @@ function applySetFromSourceQueryFix(
         return values;
     }
 
-    return {
+    const result = {
         ...values,
         [fix.field]: fieldValue,
     };
+    return result;
 }
 
 /**
@@ -628,7 +677,7 @@ function applyPreserveSourceQueryFix(
     values: any,
     fix: any,
 ): any {
-    return {
+    const result = {
         ...values,
         [fix.field]: preserveSourceQuery(
             values[fix.field],
@@ -636,6 +685,7 @@ function applyPreserveSourceQueryFix(
             fix.operand,
         ),
     };
+    return result;
 }
 
 /**
@@ -656,10 +706,11 @@ function replacePattern(value: string, fix: any): string {
         return value;
     }
 
-    return value.replace(
+    const result = value.replace(
         new RegExp(operand.pattern, "u"),
         operand.replacement || "",
     );
+    return result;
 }
 
 /**
@@ -715,7 +766,9 @@ function getSourceQueryKeys(source: URL, keys: Array<string>): Array<string> {
  * @param citation - Citation URL returned by Citoid.
  * @param source - Original source URL.
  * @param key - Query key to preserve.
- * @returns */
+ * @returns Result when the function
+ *   preserves one query value from the source url.
+ */
 function preserveSourceQueryKey(
     citation: URL,
     source: URL,
@@ -804,15 +857,17 @@ function sortCitationParamEntries(
     entries: Array<[string, any]>,
     template: string,
 ): Array<Array<string>> {
-    return sortCitationParams(
+    const result = sortCitationParams(
         entries.map(function callback([name, value]) {
-            return {
+            const result = {
                 name: formatTemplateKey(name),
                 value,
             };
+            return result;
         }),
         template,
     ).map((param) => [param.name, param.value]);
+    return result;
 }
 
 /**
@@ -845,12 +900,13 @@ function formatTemplateCall(
     const name = trimFieldText(template) || "cite web";
 
     if (name.toLocaleLowerCase() === "cite web") {
-        return `{{${name}\n${params
+        const result = `{{${name}\n${params
             .map(formatIndentedTemplateParam)
             .join("\n")}\n}}`;
+        return result;
     }
 
-    return [
+    const result = [
         "{{",
         name,
         "",
@@ -859,6 +915,7 @@ function formatTemplateCall(
             .join(""),
         "}}",
     ].join("");
+    return result;
 }
 
 /**
@@ -943,16 +1000,18 @@ function parseTemplateParam(text: string): any {
     const separator = text.indexOf("=");
 
     if (separator === -1) {
-        return {
+        const result = {
             name: trimFieldText(text),
             value: "",
         };
+        return result;
     }
 
-    return {
+    const result = {
         name: trimFieldText(text.slice(0, separator)),
         value: trimFieldText(text.slice(separator + 1)),
     };
+    return result;
 }
 
 /**
@@ -968,11 +1027,11 @@ function compareCitationParams(
     left: any,
     right: any,
 ): number {
-    return (
+    const result =
         getParamOrderIndex(templateData, left.name) -
             getParamOrderIndex(templateData, right.name) ||
-        left._index - right._index
-    );
+        left._index - right._index;
+    return result;
 }
 
 /**
@@ -1015,11 +1074,11 @@ function getCanonicalParamName(
         return value;
     }
 
-    return (
+    const result =
         Object.entries(aliases).find(function callback(entry) {
             return (entry[1] as string[]).includes(value);
-        })?.[0] || value
-    );
+        })?.[0] || value;
+    return result;
 }
 
 /**
@@ -1066,10 +1125,11 @@ function formatCreators(creators: Array<any>, type: string): string {
         return "";
     }
 
-    return creators
+    const result = creators
         .filter(isCreatorType.bind(null, type))
         .map(formatCreator)
         .join("; ");
+    return result;
 }
 
 /**

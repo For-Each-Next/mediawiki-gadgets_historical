@@ -154,7 +154,6 @@ export async function prepareNavboxRows(
  * @param options.article - Raw article-data options.
  * @param options.categories - Category resolver options.
  * @returns Reviewed category rows.
- *
  */
 export async function prepareCategoryRows(
     form: any,
@@ -229,7 +228,7 @@ export function getArticleFieldPlaceholder(
     }
 
     if (field.key === "wikidataId") {
-        return selectValue(
+        const result = selectValue(
             trimFieldValue(form.enwikiTitle) === "",
             function trueBranch() {
                 return msg("metadata.enterEnwikiTitle");
@@ -238,6 +237,7 @@ export function getArticleFieldPlaceholder(
                 return msg("metadata.noWikidataItem");
             },
         );
+        return result;
     }
 
     if (field.key !== "sortKey") {
@@ -246,11 +246,12 @@ export function getArticleFieldPlaceholder(
 
     const normalized = flushArticleData(form, options).form;
 
-    return buildDefaultSortKey({
+    const result = buildDefaultSortKey({
         english: normalized.englishName,
         original: normalized.originalName,
         title: normalized.name,
     });
+    return result;
 }
 
 /**

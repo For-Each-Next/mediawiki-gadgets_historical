@@ -1,11 +1,15 @@
-/** A serializable markup element. */
+/**
+ * A serializable markup element.
+ */
 export interface TemplateElement {
     attributes: Record<string, any>;
     children: Array<TemplateNode>;
     tagName: string;
 }
 
-/** A serializable markup node. */
+/**
+ * A serializable markup node.
+ */
 export type TemplateNode = TemplateElement | string;
 
 const VOID_ELEMENTS = new Set([
@@ -38,11 +42,12 @@ export function createElement(
     attributes: Record<string, any> = {},
     children: Array<TemplateNode> = [],
 ): TemplateElement {
-    return {
+    const result = {
         attributes,
         children,
         tagName,
     };
+    return result;
 }
 
 /**
@@ -62,10 +67,11 @@ export function createText(value: string): string {
  * @returns Escaped text node.
  */
 export function createEscapedText(value: string): string {
-    return String(value || "")
+    const result = String(value || "")
         .replace(/&/gu, "&amp;")
         .replace(/</gu, "&lt;")
         .replace(/>/gu, "&gt;");
+    return result;
 }
 
 /**
@@ -84,7 +90,12 @@ export function renderTemplate(
     return renderNode(node);
 }
 
-/** Replaces element children from serialized HTML markup. */
+/**
+ * Replaces element children from serialized HTML markup.
+ *
+ * @param element - Element value.
+ * @param markup - Markup value.
+ */
 export function replaceElementContent(element: Element, markup: string): void {
     const parsed = new DOMParser().parseFromString(markup, "text/html");
     const body = parsed.getElementsByTagName("body")[0];
@@ -95,7 +106,12 @@ export function replaceElementContent(element: Element, markup: string): void {
     element.replaceChildren(...nodes);
 }
 
-/** Serializes all children of an HTML element. */
+/**
+ * Serializes all children of an HTML element.
+ *
+ * @param element - Element value.
+ * @returns All children of an HTML element.
+ */
 export function serializeElementContent(element: Element): string {
     const serializer = new XMLSerializer();
     const markup = Array.from(element.childNodes)
@@ -208,9 +224,10 @@ function toKebabCase(value: string): string {
  * @returns Escaped attribute value.
  */
 function escapeAttribute(value: string): string {
-    return value
+    const result = value
         .replace(/&/gu, "&amp;")
         .replace(/"/gu, "&quot;")
         .replace(/</gu, "&lt;")
         .replace(/>/gu, "&gt;");
+    return result;
 }

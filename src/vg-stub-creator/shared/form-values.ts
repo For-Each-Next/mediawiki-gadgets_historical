@@ -23,10 +23,11 @@ export function trimFieldValue(value: any): string {
  * @returns Trimmed source URLs.
  */
 export function splitSourceUrls(value: any): Array<string> {
-    return trimFieldValue(value)
+    const result = trimFieldValue(value)
         .split(/[\r\n]+/u)
         .map(trimFieldValue)
         .filter(Boolean);
+    return result;
 }
 
 /**
@@ -56,11 +57,12 @@ export function normalizeListFieldValue(value: any): string {
         return text;
     }
 
-    return text
+    const result = text
         .split(/\s*[;；]\s*|[\r\n]+/u)
         .map(trimFieldValue)
         .filter(Boolean)
         .join("; ");
+    return result;
 }
 
 /**
@@ -85,16 +87,18 @@ export function parsePrefixedValue(value: any, defaultPrefix: string): any {
     const match = text.match(/^([^:\s][^:]*):(.*)$/u);
 
     if (match == null) {
-        return {
+        const result = {
             prefix: trimFieldValue(defaultPrefix),
             value: text,
         };
+        return result;
     }
 
-    return {
+    const result = {
         prefix: trimFieldValue(match[1]),
         value: trimFieldValue(match[2]),
     };
+    return result;
 }
 
 /**
@@ -112,15 +116,18 @@ export function formatPrefixedValue(value: any, options: any = {}): string {
         return parsed.value;
     }
 
-    const normalizePrefix =
-        options.normalizePrefix ||
-        /**
-         * Returns an unchanged prefix.
-         *
-         * @param prefix - Entered prefix.
-         * @returns Unchanged prefix.
-         */
-        ((prefix) => prefix);
+    const normalizePrefix: (prefix: string) => string =
+        options.normalizePrefix || preservePrefix;
 
     return `${normalizePrefix(parsed.prefix)}:${parsed.value}`;
+}
+
+/**
+ * Returns a prefix without modification.
+ *
+ * @param prefix - Entered prefix.
+ * @returns Unchanged prefix.
+ */
+function preservePrefix(prefix: string): string {
+    return prefix;
 }

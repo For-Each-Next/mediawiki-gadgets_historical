@@ -65,17 +65,19 @@ export async function resolveReviewedNavboxRows(
 
     const resolutions = await resolveTemplates(titles, options);
 
-    return rows.map(function callback(row) {
+    const result = rows.map(function callback(row) {
         const resolution = resolutions[normalizeTemplateKey(row.title)];
         const title = resolution?.template || row.title;
 
-        return {
+        const result = {
             ...row,
             status: resolution?.exists ? "OK" : "Not exists",
             text: replaceTemplateTitle(row.text, title),
             title,
         };
+        return result;
     });
+    return result;
 }
 
 /**
@@ -88,12 +90,13 @@ function createReviewedNavboxRow(value: any | string): any {
     const text = trimValue(value?.text ?? value);
     const title = getTemplateCallTitle(text);
 
-    return {
+    const result = {
         enabled: value?.enabled !== false,
         status: "",
         text,
         title,
     };
+    return result;
 }
 
 /**
@@ -131,11 +134,13 @@ function replaceTemplateTitle(text: string, title: string): string {
  * @returns Navbox lookup plans.
  */
 function buildNavboxPlans(seriesNames: string | Array<string>): Array<any> {
-    return getSeriesValues(seriesNames).map(function callback(series) {
-        return {
+    const result = getSeriesValues(seriesNames).map(function callback(series) {
+        const result = {
             candidates: buildNavboxCandidates(series),
         };
+        return result;
     });
+    return result;
 }
 
 /**
@@ -174,12 +179,13 @@ function trimSeriesSuffix(value: string): string {
  * @returns Candidate template titles without namespace.
  */
 function buildNavboxCandidates(series: string): Array<string> {
-    return [
+    const result = [
         formatText("patterns.titleSeriesVideoGames", { title: series }),
         formatText("patterns.titleVideoGames", { title: series }),
         formatText("patterns.titleSeries", { title: series }),
         series,
     ];
+    return result;
 }
 
 /**
@@ -193,9 +199,10 @@ function getFirstExistingTemplate(
     candidates: Array<string>,
     resolutions: any,
 ): string | undefined {
-    return candidates
+    const result = candidates
         .map((candidate) => resolutions[normalizeTemplateKey(candidate)])
         .find((resolution) => resolution?.exists)?.template;
+    return result;
 }
 
 /**
@@ -221,13 +228,14 @@ async function resolveTemplates(
     const resolutions = Object.fromEntries(
         (Object.entries(values) as Array<[string, any]>).map(
             function callback([key, resolution]) {
-                return [
+                const result = [
                     key,
                     {
                         ...resolution,
                         template: resolution.title,
                     },
                 ];
+                return result;
             },
         ),
     );

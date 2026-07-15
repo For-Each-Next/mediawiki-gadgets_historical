@@ -1,4 +1,6 @@
-/** VG Page Assessor locale registry. */
+/**
+ * VG Page Assessor locale registry.
+ */
 
 import { i18n } from "#shared";
 import english from "#assessor/i18n/en.ts";

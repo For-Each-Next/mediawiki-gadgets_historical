@@ -1,4 +1,6 @@
-/** One normalized value carried by an article data record. */
+/**
+ * One normalized value carried by an article data record.
+ */
 interface ArticleDataValue {
     [key: string]: any;
     displayText: string;
@@ -8,7 +10,9 @@ interface ArticleDataValue {
     wikitext: string;
 }
 
-/** A normalized record passed through article processing. */
+/**
+ * A normalized record passed through article processing.
+ */
 interface ArticleDataRecord {
     [key: string]: any;
     assumedCategories: string[];

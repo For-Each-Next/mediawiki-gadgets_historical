@@ -11,7 +11,7 @@ import { createCategoryGroupTemplate } from "#stub/main/review.ts";
  * @returns Tab container template node.
  */
 export function createTabsTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-tabs",
         {
             "v-model:active": "activeTab",
@@ -36,6 +36,7 @@ export function createTabsTemplate(): any {
             ),
         ],
     );
+    return result;
 }
 
 /**
@@ -44,7 +45,7 @@ export function createTabsTemplate(): any {
  * @returns Tab description node.
  */
 function createTabDescriptionTemplate(): any {
-    return createElement(
+    const result = createElement(
         "p",
         {
             class: "vg-stub-creator-tab-description",
@@ -52,4 +53,5 @@ function createTabDescriptionTemplate(): any {
         },
         [createText("{{ group.description }}")],
     );
+    return result;
 }

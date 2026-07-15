@@ -31,7 +31,12 @@ export async function fetchSteamNameRows(
     return rows.filter(Boolean);
 }
 
-/** Builds the Steam language requests for a lookup. */
+/**
+ * Builds the Steam language requests for a lookup.
+ *
+ * @param includeJapanese - Include japanese value.
+ * @returns The Steam language requests for a lookup.
+ */
 function buildSteamLanguages(includeJapanese: boolean): Record<string, any>[] {
     const languages: Record<string, any>[] = [
         {
@@ -82,7 +87,7 @@ async function fetchSteamNameRow(
         return undefined;
     }
 
-    return {
+    const result = {
         label: item.label,
         markets: item.markets,
         name,
@@ -90,6 +95,7 @@ async function fetchSteamNameRow(
         previewOnly: Boolean(item.previewOnly),
         sourceUrl: localizedUrl,
     };
+    return result;
 }
 
 /**
@@ -160,8 +166,9 @@ function escapeRegExp(text: string): string {
  * @returns Game name.
  */
 function cleanSteamNameTitle(title: string): string {
-    return trimFieldValue(title)
+    const result = trimFieldValue(title)
         .replace(/^Steam - /u, "")
         .replace(/^Steam 上的 /u, "")
         .replace(/ on Steam$/u, "");
+    return result;
 }

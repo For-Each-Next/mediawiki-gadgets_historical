@@ -52,7 +52,9 @@ const MAINTENANCE_ITEMS = [
 /**
  * Adds the toolbox trigger after MediaWiki is ready.
  *
- * @returns */
+ * @returns Result when the function
+ *   adds the toolbox trigger after mediawiki is ready.
+ */
 function init(): void {
     logStep("init start", {
         dbName: mw.config.get("wgDBname"),
@@ -72,7 +74,9 @@ function init(): void {
     addToolboxLink();
 }
 
-/** Adds the localized toolbox link and click handler. */
+/**
+ * Adds the localized toolbox link and click handler.
+ */
 function addToolboxLink(): void {
     const link = mw.util.addPortletLink(
         "p-tb",
@@ -109,7 +113,11 @@ async function openDialog(): Promise<void> {
     );
 }
 
-/** Loads the initial talk and subject-page dialog state. */
+/**
+ * Loads the initial talk and subject-page dialog state.
+ *
+ * @returns The initial talk and subject-page dialog state.
+ */
 async function loadDialogState(): Promise<any> {
     const api = new mw.Api();
     const currentTitle = mw.Title.newFromText(mw.config.get("wgPageName"));
@@ -132,7 +140,7 @@ async function loadDialogState(): Promise<any> {
         talkPageLength: page.text.length,
     });
 
-    return {
+    const result = {
         api,
         assessment: createDefaultAssessment(PROJECT_CONFIG),
         pageText: page.text,
@@ -140,9 +148,14 @@ async function loadDialogState(): Promise<any> {
         subjectTitle,
         talkTitle,
     };
+    return result;
 }
 
-/** Appends and opens the assessment dialog. */
+/**
+ * Appends and opens the assessment dialog.
+ *
+ * @param dialog - Dialog value.
+ */
 function appendDialog(dialog: HTMLDialogElement): void {
     document.getElementsByTagName("body")[0].append(dialog);
     dialog.showModal();
@@ -214,7 +227,12 @@ function buildDialogHtml(state: any, registerDefault: boolean): string {
     return renderTemplate(form);
 }
 
-/** Builds the assessment controls and source preview. */
+/**
+ * Builds the assessment controls and source preview.
+ *
+ * @param state - Mutable operation state.
+ * @returns The assessment controls and source preview.
+ */
 function buildAssessmentFieldset(state: any): TemplateElement {
     const controls = buildAssessmentControls();
     const sources = buildAssessmentSources();
@@ -243,7 +261,11 @@ function buildAssessmentFieldset(state: any): TemplateElement {
     return fieldset;
 }
 
-/** Builds assessment radio and checkbox controls. */
+/**
+ * Builds assessment radio and checkbox controls.
+ *
+ * @returns Assessment radio and checkbox controls.
+ */
 function buildAssessmentControls(): TemplateElement {
     const children = [
         buildRadioSection(
@@ -274,7 +296,11 @@ function buildAssessmentControls(): TemplateElement {
     return controls;
 }
 
-/** Builds current and proposed talk-source fields. */
+/**
+ * Builds current and proposed talk-source fields.
+ *
+ * @returns Current and proposed talk-source fields.
+ */
 function buildAssessmentSources(): TemplateElement {
     const preview = buildSourceField({
         id: "avgp-preview-source",
@@ -300,7 +326,13 @@ function buildAssessmentSources(): TemplateElement {
     return sources;
 }
 
-/** Builds the new-page-list registration controls and preview. */
+/**
+ * Builds the new-page-list registration controls and preview.
+ *
+ * @param state - Mutable operation state.
+ * @param registerDefault - Register default value.
+ * @returns The new-page-list registration controls and preview.
+ */
 function buildNewPageListFieldset(
     state: any,
     registerDefault: boolean,
@@ -323,8 +355,17 @@ function buildNewPageListFieldset(
     return fieldset;
 }
 
-/** Builds the registration checkbox field. */
-function buildRegistrationControl(state, registerDefault): TemplateElement {
+/**
+ * Builds the registration checkbox field.
+ *
+ * @param state - Mutable operation state.
+ * @param registerDefault - Register default value.
+ * @returns The registration checkbox field.
+ */
+function buildRegistrationControl(
+    state: unknown,
+    registerDefault: boolean,
+): TemplateElement {
     const checkbox = buildRegistrationCheckbox(state, registerDefault);
     const container = createElement(
         "div",
@@ -342,7 +383,11 @@ function buildRegistrationControl(state, registerDefault): TemplateElement {
     return registration;
 }
 
-/** Builds the before/after registration comparison field. */
+/**
+ * Builds the before/after registration comparison field.
+ *
+ * @returns The before/after registration comparison field.
+ */
 function buildRegistrationComparison(): TemplateElement {
     const before = buildListComparisonField("before", "removed");
     const after = buildListComparisonField("after", "added");
@@ -360,8 +405,17 @@ function buildRegistrationComparison(): TemplateElement {
     return comparison;
 }
 
-/** Builds one new-page-list comparison field. */
-function buildListComparisonField(position, tone): TemplateElement {
+/**
+ * Builds one new-page-list comparison field.
+ *
+ * @param position - Position value.
+ * @param tone - Tone value.
+ * @returns One new-page-list comparison field.
+ */
+function buildListComparisonField(
+    position: string,
+    tone: string,
+): TemplateElement {
     const label = msg(
         position === "before" ? "dialog.before" : "dialog.after",
     );
@@ -378,8 +432,16 @@ function buildListComparisonField(position, tone): TemplateElement {
     return field;
 }
 
-/** Builds the new-page-list edit-summary field. */
-function buildRegistrationSummary(state): TemplateElement {
+/**
+ * Builds the new-page-list edit-summary field.
+ *
+ * @param state - Mutable operation state.
+ * @returns The new-page-list edit-summary field.
+ */
+function buildRegistrationSummary(state: {
+    subjectInfo: { listedTitle: string; creationDate: Date };
+    subjectTitle: string;
+}): TemplateElement {
     const summary = buildTextInputField({
         className: "avgp-list-summary cdx-field",
         id: "avgp-list-summary",
@@ -394,7 +456,12 @@ function buildRegistrationSummary(state): TemplateElement {
     return summary;
 }
 
-/** Builds a Codex text input field. */
+/**
+ * Builds a Codex text input field.
+ *
+ * @param config - Operation configuration.
+ * @returns A Codex text input field.
+ */
 function buildTextInputField(config: any): TemplateElement {
     const inputLabel = buildInputLabel(config.label, config.id);
     const label = buildLabelContainer(inputLabel);
@@ -413,7 +480,11 @@ function buildTextInputField(config: any): TemplateElement {
     return createElement("div", { class: config.className }, [label, control]);
 }
 
-/** Builds the dialog status and action buttons. */
+/**
+ * Builds the dialog status and action buttons.
+ *
+ * @returns The dialog status and action buttons.
+ */
 function buildDialogActions(): TemplateElement {
     const status = createElement("span", {
         class: "avgp-status",
@@ -435,11 +506,12 @@ function buildDialogActions(): TemplateElement {
         type: "button",
     });
 
-    return createElement("div", { class: "avgp-actions" }, [
+    const result = createElement("div", { class: "avgp-actions" }, [
         status,
         cancel,
         save,
     ]);
+    return result;
 }
 
 /**
@@ -466,11 +538,12 @@ function buildSourceField({ id, label, textareaAttributes }): TemplateElement {
     );
     const control = buildFieldControl([textareaContainer]);
 
-    return createElement(
+    const result = createElement(
         "div",
         { class: "cdx-field avgp-section avgp-source-field" },
         [labelContainer, control],
     );
+    return result;
 }
 
 /**
@@ -503,10 +576,11 @@ function buildComparisonField({
     );
     const className = `avgp-compare-field avgp-compare-field--${tone}`;
 
-    return createElement("div", { class: className }, [
+    const result = createElement("div", { class: className }, [
         labelContainer,
         textareaContainer,
     ]);
+    return result;
 }
 
 /**
@@ -543,8 +617,17 @@ function buildRegistrationCheckbox(
     return checkbox;
 }
 
-/** Builds a Codex checkbox input wrapper. */
-function buildCheckboxWrapper(input, label): TemplateElement {
+/**
+ * Builds a Codex checkbox input wrapper.
+ *
+ * @param input - Input value.
+ * @param label - Label value.
+ * @returns A Codex checkbox input wrapper.
+ */
+function buildCheckboxWrapper(
+    input: html.TemplateNode,
+    label: html.TemplateNode,
+): TemplateElement {
     const icon = createElement("span", { class: "cdx-checkbox__icon" });
     const wrapper = createElement("div", { class: "cdx-checkbox__wrapper" }, [
         input,
@@ -555,8 +638,16 @@ function buildCheckboxWrapper(input, label): TemplateElement {
     return wrapper;
 }
 
-/** Gets the registration checkbox label for dialog state. */
-function getRegistrationLabelForState(state): string {
+/**
+ * Gets the registration checkbox label for dialog state.
+ *
+ * @param state - Mutable operation state.
+ * @returns The registration checkbox label for dialog state.
+ */
+function getRegistrationLabelForState(state: {
+    registration: unknown;
+    subjectInfo: { creationDate: Date };
+}): string {
     const label = getRegistrationLabel(
         state.registration,
         state.subjectInfo.creationDate,
@@ -565,17 +656,34 @@ function getRegistrationLabelForState(state): string {
     return label;
 }
 
-/** Checks whether registration cannot be selected. */
-function isRegistrationDisabled(state): boolean {
-    return (
+/**
+ * Checks whether registration cannot be selected.
+ *
+ * @param state - Mutable operation state.
+ * @returns Whether registration cannot be selected.
+ */
+function isRegistrationDisabled(state: {
+    registrationLoading: boolean;
+    registration: { eligible: boolean; alreadyRegistered: boolean };
+}): boolean {
+    const result =
         state.registrationLoading ||
         !state.registration.eligible ||
-        state.registration.alreadyRegistered
-    );
+        state.registration.alreadyRegistered;
+    return result;
 }
 
-/** Builds registration checkbox input attributes. */
-function buildRegistrationInputAttributes(checked, disabled): any {
+/**
+ * Builds registration checkbox input attributes.
+ *
+ * @param checked - Checked value.
+ * @param disabled - Disabled value.
+ * @returns Registration checkbox input attributes.
+ */
+function buildRegistrationInputAttributes(
+    checked: boolean,
+    disabled: boolean,
+): unknown {
     const attributes: Record<string, any> = {
         class: "cdx-checkbox__input",
         id: "avgp-register",
@@ -594,7 +702,12 @@ function buildRegistrationInputAttributes(checked, disabled): any {
     return attributes;
 }
 
-/** Builds the registration checkbox label container. */
+/**
+ * Builds the registration checkbox label container.
+ *
+ * @param label - Label value.
+ * @returns The registration checkbox label container.
+ */
 function buildRegistrationLabel(label: string): TemplateElement {
     const labelText = buildTextElement(
         "span",
@@ -663,10 +776,11 @@ function getRegistrationLabel(registration: any, creationDate: Date): string {
         registration.existing?.date != null &&
         registration.existing.listedTitle
     ) {
-        return msg("registration.existing", {
+        const result = msg("registration.existing", {
             date: formatInterfaceDate(registration.existing.date),
             title: registration.existing.listedTitle,
         });
+        return result;
     }
 
     if (registration.alreadyRegistered) {
@@ -710,8 +824,21 @@ async function loadNewPageListState(
     });
 }
 
-/** Loads creation times used to order a registration. */
-async function loadRegistrationCreationTimes(state, listText) {
+/**
+ * Loads creation times used to order a registration.
+ *
+ * @param state - Mutable operation state.
+ * @param listText - List text value.
+ * @returns Creation times used to order a registration.
+ */
+async function loadRegistrationCreationTimes(
+    state: {
+        subjectInfo: { listedTitle: string; creationDate: Date };
+        subjectTitle: string;
+        api: mw.Api;
+    },
+    listText: string,
+) {
     const listedTitle = state.subjectInfo.listedTitle || state.subjectTitle;
     const titles = [
         ...getTitlesForDate(listText, state.subjectInfo.creationDate),
@@ -724,11 +851,20 @@ async function loadRegistrationCreationTimes(state, listText) {
     return creationTimes;
 }
 
-/** Serializes creation times for diagnostic logging. */
-function serializeCreationTimes(creationTimes): Array<any> {
-    const entries = [...creationTimes.entries()].map(function callback(entry) {
-        return [entry[0], entry[1].toISOString()];
-    });
+/**
+ * Serializes creation times for diagnostic logging.
+ *
+ * @param creationTimes - Creation times value.
+ * @returns Creation times for diagnostic logging.
+ */
+function serializeCreationTimes(
+    creationTimes: Map<string, Date>,
+): Array<[string, string]> {
+    const entries = [...creationTimes.entries()].map(
+        function callback(entry): [string, string] {
+            return [entry[0], entry[1].toISOString()];
+        },
+    );
 
     return entries;
 }
@@ -738,7 +874,10 @@ function serializeCreationTimes(creationTimes): Array<any> {
  *
  * @param root - Dialog root.
  * @param state - Dialog state.
- * @returns */
+ * @returns Result when the function
+ *   refreshes registration checkbox and diff after
+ *   background loading.
+ */
 function refreshRegistrationControls(root: HTMLElement, state: any): void {
     const registerDefault =
         shouldRegisterByDefault(
@@ -763,18 +902,21 @@ function refreshRegistrationControls(root: HTMLElement, state: any): void {
  * @returns Month/day text.
  */
 function formatInterfaceDate(date: Date): string {
-    return new Intl.DateTimeFormat(interfaceLocale, {
+    const result = new Intl.DateTimeFormat(interfaceLocale, {
         day: "numeric",
         month: "long",
         timeZone: "UTC",
     }).format(date);
+    return result;
 }
 
 /**
  * Prepares registration state.
  *
  * @param state - Dialog state.
- * @returns */
+ * @returns Result when the function
+ *   prepares registration state.
+ */
 function prepareRegistration(state: any): void {
     logStep("prepareRegistration start");
     state.registration = prepareNewPageListRegistration({
@@ -858,11 +1000,24 @@ function buildRadio(
     return radio;
 }
 
-/** Builds radio input attributes. */
-function buildRadioInputAttributes(name, value, selected, id): any {
+/**
+ * Builds radio input attributes.
+ *
+ * @param name - Display name.
+ * @param value - Input value.
+ * @param selected - Selected value.
+ * @param id - Id value.
+ * @returns Radio input attributes.
+ */
+function buildRadioInputAttributes(
+    name: string,
+    value: string,
+    selected: string,
+    id: string,
+): unknown {
     const checkedAttributes = value === selected ? { checked: "" } : {};
 
-    return {
+    const result = {
         class: "cdx-radio__input",
         id,
         name,
@@ -870,6 +1025,7 @@ function buildRadioInputAttributes(name, value, selected, id): any {
         value,
         ...checkedAttributes,
     };
+    return result;
 }
 
 /**
@@ -878,11 +1034,12 @@ function buildRadioInputAttributes(name, value, selected, id): any {
  * @returns Section template.
  */
 function buildTaskForceSection(): TemplateElement {
-    return buildCheckboxSection(
+    const result = buildCheckboxSection(
         msg("dialog.taskForces"),
         "taskForce",
         PROJECT_CONFIG.videoGames.taskForces,
     );
+    return result;
 }
 
 /**
@@ -891,11 +1048,12 @@ function buildTaskForceSection(): TemplateElement {
  * @returns Section HTML.
  */
 function buildMaintenanceSection(): TemplateElement {
-    return buildCheckboxSection(
+    const result = buildCheckboxSection(
         msg("dialog.maintenance"),
         "maintenance",
         MAINTENANCE_ITEMS,
     );
+    return result;
 }
 
 /**
@@ -904,11 +1062,12 @@ function buildMaintenanceSection(): TemplateElement {
  * @returns Section HTML.
  */
 function buildOtherProjectSection(): TemplateElement {
-    return buildCheckboxSection(
+    const result = buildCheckboxSection(
         msg("dialog.otherProjects"),
         "otherProject",
         PROJECT_CONFIG.otherProjects,
     );
+    return result;
 }
 
 /**
@@ -971,7 +1130,13 @@ function buildCheckbox(
     return checkbox;
 }
 
-/** Builds a Codex checkbox label container. */
+/**
+ * Builds a Codex checkbox label container.
+ *
+ * @param id - Id value.
+ * @param label - Label value.
+ * @returns A Codex checkbox label container.
+ */
 function buildCheckboxLabel(id: string, label: string): TemplateElement {
     const labelText = buildTextElement(
         "span",
@@ -991,7 +1156,14 @@ function buildCheckboxLabel(id: string, label: string): TemplateElement {
     return container;
 }
 
-/** Builds a fieldset containing one group of controls. */
+/**
+ * Builds a fieldset containing one group of controls.
+ *
+ * @param label - Label value.
+ * @param controlClass - Control class value.
+ * @param controls - Controls value.
+ * @returns A fieldset containing one group of controls.
+ */
 function buildControlSection(
     label: string,
     controlClass: string,
@@ -1003,23 +1175,43 @@ function buildControlSection(
     const group = createElement("div", { class: controlClass }, controls);
     const fieldControl = buildFieldControl([group]);
 
-    return createElement("fieldset", { class: "cdx-field avgp-section" }, [
-        legend,
-        fieldControl,
-    ]);
+    const result = createElement(
+        "fieldset",
+        { class: "cdx-field avgp-section" },
+        [legend, fieldControl],
+    );
+    return result;
 }
 
-/** Wraps nodes in a Codex field control. */
+/**
+ * Wraps nodes in a Codex field control.
+ *
+ * @param children - Children value.
+ * @returns Result when the function
+ *   wraps nodes in a codex field control.
+ */
 function buildFieldControl(children: Array<TemplateNode>): TemplateElement {
     return createElement("div", { class: "cdx-field__control" }, children);
 }
 
-/** Wraps a field label in its Codex container. */
+/**
+ * Wraps a field label in its Codex container.
+ *
+ * @param label - Label value.
+ * @returns Result when the function
+ *   wraps a field label in its codex container.
+ */
 function buildLabelContainer(label: TemplateNode): TemplateElement {
     return createElement("div", { class: "cdx-label" }, [label]);
 }
 
-/** Builds a button with escaped label text. */
+/**
+ * Builds a button with escaped label text.
+ *
+ * @param label - Label value.
+ * @param attributes - Attributes value.
+ * @returns A button with escaped label text.
+ */
 function buildButton(
     label: string,
     attributes: Record<string, any>,
@@ -1027,7 +1219,14 @@ function buildButton(
     return buildTextElement("button", attributes, label);
 }
 
-/** Builds an element containing one escaped text node. */
+/**
+ * Builds an element containing one escaped text node.
+ *
+ * @param tagName - Tag name value.
+ * @param attributes - Attributes value.
+ * @param text - Source text.
+ * @returns An element containing one escaped text node.
+ */
 function buildTextElement(
     tagName: string,
     attributes: Record<string, any>,
@@ -1041,7 +1240,9 @@ function buildTextElement(
  *
  * @param dialog - Dialog element.
  * @param state - Dialog state.
- * @returns */
+ * @returns Result when the function
+ *   binds dialog input and action events.
+ */
 function bindDialogEvents(dialog: HTMLDialogElement, state: any): void {
     dialog.addEventListener("change", function callback() {
         logStep("dialog change");
@@ -1055,8 +1256,16 @@ function bindDialogEvents(dialog: HTMLDialogElement, state: any): void {
     bindDialogActionEvents(dialog, state);
 }
 
-/** Binds source and summary edit tracking. */
-function bindDialogEditEvents(dialog, state): void {
+/**
+ * Binds source and summary edit tracking.
+ *
+ * @param dialog - Dialog value.
+ * @param state - Mutable operation state.
+ */
+function bindDialogEditEvents(
+    dialog: HTMLElement,
+    state: { previewDirty: boolean; summaryDirty: boolean },
+): void {
     dialog
         .querySelector("[data-avgp-preview]")
         .addEventListener("input", function callback() {
@@ -1072,8 +1281,16 @@ function bindDialogEditEvents(dialog, state): void {
         });
 }
 
-/** Binds dialog cancel and save actions. */
-function bindDialogActionEvents(dialog, state): void {
+/**
+ * Binds dialog cancel and save actions.
+ *
+ * @param dialog - Dialog value.
+ * @param state - Mutable operation state.
+ */
+function bindDialogActionEvents(
+    dialog: HTMLDialogElement,
+    state: unknown,
+): void {
     dialog
         .querySelector("[data-avgp-cancel]")
         .addEventListener("click", function callback() {
@@ -1096,7 +1313,8 @@ function bindDialogActionEvents(dialog, state): void {
  *
  * @param root - Dialog root.
  * @param assessment - Mutable assessment data.
- * @returns */
+ * @returns Form values into assessment state.
+ */
 function readAssessment(root: HTMLElement, assessment: any): void {
     assessment.className = root.querySelector<HTMLInputElement>(
         "[name='className']:checked",
@@ -1118,13 +1336,14 @@ function readAssessment(root: HTMLElement, assessment: any): void {
  * @returns Checked ID map.
  */
 function readCheckedMap(root: HTMLElement, name: string): any {
-    return Object.fromEntries(
+    const result = Object.fromEntries(
         [...root.querySelectorAll<HTMLInputElement>(`[name='${name}']`)].map(
             function callback(input) {
                 return [input.value, input.checked];
             },
         ),
     );
+    return result;
 }
 
 /**
@@ -1132,7 +1351,9 @@ function readCheckedMap(root: HTMLElement, name: string): any {
  *
  * @param root - Dialog root.
  * @param state - Dialog state.
- * @returns */
+ * @returns Result when the function
+ *   updates the preview pane.
+ */
 function updateAssessmentPreview(root: HTMLElement, state: any): void {
     if (state.previewDirty) {
         logStep("updateAssessmentPreview skipped: dirty");
@@ -1156,7 +1377,9 @@ function updateAssessmentPreview(root: HTMLElement, state: any): void {
  *
  * @param root - Dialog root.
  * @param state - Dialog state.
- * @returns */
+ * @returns Result when the function
+ *   updates the current talk-page lead-section pane.
+ */
 function updateTalkDiff(root: HTMLElement, state: any): void {
     root.querySelector<HTMLTextAreaElement>(
         "[data-avgp-current-source]",
@@ -1173,7 +1396,9 @@ function updateTalkDiff(root: HTMLElement, state: any): void {
  *
  * @param root - Dialog root.
  * @param state - Dialog state.
- * @returns */
+ * @returns Result when the function
+ *   updates the new-page-list preview.
+ */
 function updateRegistrationPreview(root: HTMLElement, state: any): void {
     const checkbox = root.querySelector<HTMLInputElement>("[name='register']");
     const shouldRegister = isRegistrationCheckboxSelected(checkbox);
@@ -1203,22 +1428,40 @@ function updateRegistrationPreview(root: HTMLElement, state: any): void {
     logRegistrationPreview(root, shouldRegister);
 }
 
-/** Checks whether the registration checkbox is active and selected. */
+/**
+ * Checks whether the registration checkbox is active and selected.
+ *
+ * @param checkbox - Checkbox value.
+ * @returns Whether the registration checkbox is active and selected.
+ */
 function isRegistrationCheckboxSelected(checkbox: any): boolean {
     return checkbox?.checked === true && checkbox.disabled === false;
 }
 
-/** Checks whether registration preview data is available. */
+/**
+ * Checks whether registration preview data is available.
+ *
+ * @param state - Mutable operation state.
+ * @returns Whether registration preview data is available.
+ */
 function canShowRegistrationPreview(state: any): boolean {
-    return (
+    const result =
         state.registrationLoading === false &&
         state.registration?.eligible === true &&
-        state.registration.alreadyRegistered === false
-    );
+        state.registration.alreadyRegistered === false;
+    return result;
 }
 
-/** Logs the rendered registration comparison sizes. */
-function logRegistrationPreview(root: HTMLElement, shouldRegister): void {
+/**
+ * Logs the rendered registration comparison sizes.
+ *
+ * @param root - Root value.
+ * @param shouldRegister - Whether should register.
+ */
+function logRegistrationPreview(
+    root: HTMLElement,
+    shouldRegister: boolean,
+): void {
     const after = root.querySelector<HTMLTextAreaElement>(
         "[data-avgp-list-after]",
     );
@@ -1233,14 +1476,32 @@ function logRegistrationPreview(root: HTMLElement, shouldRegister): void {
     });
 }
 
-/** Shows or hides registration preview elements. */
-function setRegistrationPreviewVisibility(preview, summary, visible): void {
+/**
+ * Shows or hides registration preview elements.
+ *
+ * @param preview - Preview value.
+ * @param summary - Summary value.
+ * @param visible - Visible value.
+ */
+function setRegistrationPreviewVisibility(
+    preview: HTMLElement,
+    summary: HTMLElement,
+    visible: boolean,
+): void {
     preview.hidden = !visible;
     summary.hidden = !visible;
 }
 
-/** Clears a hidden registration preview. */
-function clearRegistrationPreview(root, state): void {
+/**
+ * Clears a hidden registration preview.
+ *
+ * @param root - Root value.
+ * @param state - Mutable operation state.
+ */
+function clearRegistrationPreview(
+    root: HTMLElement,
+    state: { registration: unknown },
+): void {
     updateComparisonTextarea(root, "[data-avgp-list-before]", "");
     updateComparisonTextarea(root, "[data-avgp-list-after]", "");
     logStep("updateRegistrationPreview hidden", {
@@ -1248,8 +1509,20 @@ function clearRegistrationPreview(root, state): void {
     });
 }
 
-/** Builds the current registration comparison. */
-function buildRegistrationPreviewComparison(state, shouldRegister): any {
+/**
+ * Builds the current registration comparison.
+ *
+ * @param state - Mutable operation state.
+ * @param shouldRegister - Whether should register.
+ * @returns The current registration comparison.
+ */
+function buildRegistrationPreviewComparison(
+    state: {
+        registration: { changed: unknown; proposedText: string };
+        newPageList: { text: string };
+    },
+    shouldRegister: boolean,
+): { after: string; before: string } {
     if (!shouldRegister || !state.registration.changed) {
         return { after: "No changes.", before: "No changes." };
     }
@@ -1268,7 +1541,10 @@ function buildRegistrationPreviewComparison(state, shouldRegister): any {
  *
  * @param root - Dialog root.
  * @param state - Dialog state.
- * @returns */
+ * @returns Result when the function
+ *   updates the edit summary while it has not been
+ *   manually edited.
+ */
 function updateAssessmentSummary(root: HTMLElement, state: any): void {
     if (state.summaryDirty) {
         logStep("updateAssessmentSummary skipped: dirty");
@@ -1304,10 +1580,11 @@ function buildEditSummary(assessment: any): string {
             return msg("summary.tagProjects");
         },
         function falseBranch() {
-            return msg("summary.tagProjectsWithClass", {
+            const result = msg("summary.tagProjectsWithClass", {
                 className,
                 projects: banners.join(", "),
             });
+            return result;
         },
     );
 
@@ -1323,20 +1600,27 @@ function buildEditSummary(assessment: any): string {
 function buildVideoGamesSummary(assessment: any): string {
     const details = buildVideoGamesSummaryDetails(assessment);
 
-    return selectValue(
+    const result = selectValue(
         details.length === 0,
         function trueBranch() {
             return msg("summary.videoGames");
         },
         function falseBranch() {
-            return msg("summary.videoGamesWithDetails", {
+            const result = msg("summary.videoGamesWithDetails", {
                 details: details.join("; "),
             });
+            return result;
         },
     );
+    return result;
 }
 
-/** Builds the selected Video games summary details. */
+/**
+ * Builds the selected Video games summary details.
+ *
+ * @param assessment - Assessment value.
+ * @returns The selected Video games summary details.
+ */
 function buildVideoGamesSummaryDetails(assessment: any): Array<string> {
     const details: Array<string> = [];
     const taskForces = getSelectedLabels(
@@ -1378,9 +1662,10 @@ function getSelectedLabels(
     items: Array<any>,
     selectedMap: any,
 ): Array<string> {
-    return items
+    const result = items
         .filter((item) => selectedMap?.[item.id])
         .map((item) => item.label);
+    return result;
 }
 
 /**
@@ -1415,7 +1700,12 @@ async function saveDialog(
     scheduleDialogClose(dialog);
 }
 
-/** Reads save controls from the assessment dialog. */
+/**
+ * Reads save controls from the assessment dialog.
+ *
+ * @param dialog - Dialog value.
+ * @returns Save controls from the assessment dialog.
+ */
 function readDialogSaveOptions(dialog: HTMLDialogElement): any {
     const register =
         dialog.querySelector<HTMLInputElement>("[name='register']");
@@ -1427,16 +1717,36 @@ function readDialogSaveOptions(dialog: HTMLDialogElement): any {
         "[name='listSummary']",
     );
 
-    return {
+    const result = {
         listSummary: listSummary.value.trim(),
         previewText: preview.value,
         shouldRegister: register.checked && !register.disabled,
         summary: summary.value.trim(),
     };
+    return result;
 }
 
-/** Saves the selected new-page-list registration. */
-async function saveDialogRegistration(dialog, state, options): Promise<void> {
+/**
+ * Saves the selected new-page-list registration.
+ *
+ * @param dialog - Dialog value.
+ * @param state - Mutable operation state.
+ * @param options - Operation options.
+ */
+async function saveDialogRegistration(
+    dialog: HTMLDialogElement,
+    state: {
+        registration: { changed: boolean; proposedText: string };
+        subjectInfo: { listedTitle: string; creationDate: Date };
+        subjectTitle: string;
+        api: mw.Api;
+        newPageList: {
+            basetimestamp: string;
+            starttimestamp: string;
+        };
+    },
+    options: { shouldRegister: boolean; listSummary: string },
+): Promise<void> {
     if (!options.shouldRegister || !state.registration.changed) {
         return;
     }
@@ -1456,8 +1766,21 @@ async function saveDialogRegistration(dialog, state, options): Promise<void> {
     );
 }
 
-/** Skips a talk save that only clears empty importance. */
-function skipUnchangedTalkSave(dialog, state, previewText): boolean {
+/**
+ * Skips a talk save that only clears empty importance.
+ *
+ * @param dialog - Dialog value.
+ * @param state - Mutable operation state.
+ * @param previewText - Preview text value.
+ * @returns Result when the function
+ *   skips a talk save that only clears empty
+ *   importance.
+ */
+function skipUnchangedTalkSave(
+    dialog: HTMLDialogElement,
+    state: { pageText: string },
+    previewText: string,
+): boolean {
     const unchanged = isEmptyImportanceOnlyChange(
         getTalkPageTopSection(state.pageText),
         previewText,
@@ -1472,8 +1795,18 @@ function skipUnchangedTalkSave(dialog, state, previewText): boolean {
     return unchanged;
 }
 
-/** Saves the edited talk-page top section. */
-async function saveDialogTalkPage(dialog, state, options): Promise<void> {
+/**
+ * Saves the edited talk-page top section.
+ *
+ * @param dialog - Dialog value.
+ * @param state - Mutable operation state.
+ * @param options - Operation options.
+ */
+async function saveDialogTalkPage(
+    dialog: HTMLDialogElement,
+    state: { api: mw.Api; talkTitle: string },
+    options: { previewText: string; summary: string },
+): Promise<void> {
     setStatus(dialog, "Saving talk page...", false);
     logStep("saveDialog saving talk page");
     await saveTalkAssessment(
@@ -1488,15 +1821,23 @@ async function saveDialogTalkPage(dialog, state, options): Promise<void> {
     logStep("saveDialog done");
 }
 
-/** Closes and removes a dialog after status text can be read. */
-function scheduleDialogClose(dialog): void {
+/**
+ * Closes and removes a dialog after status text can be read.
+ *
+ * @param dialog - Dialog value.
+ */
+function scheduleDialogClose(dialog: HTMLDialogElement): void {
     setTimeout(function callback() {
         closeDialog(dialog);
     }, 600);
 }
 
-/** Closes and removes a dialog. */
-function closeDialog(dialog): void {
+/**
+ * Closes and removes a dialog.
+ *
+ * @param dialog - Dialog value.
+ */
+function closeDialog(dialog: { close: () => void; remove: () => void }): void {
     dialog.close();
     dialog.remove();
 }
@@ -1509,11 +1850,12 @@ function closeDialog(dialog): void {
  * @returns Field label template.
  */
 function buildInputLabel(label: string, id: string): TemplateElement {
-    return buildTextElement(
+    const result = buildTextElement(
         "label",
         { class: "avgp-label-text", for: id },
         label,
     );
+    return result;
 }
 
 /**
@@ -1534,10 +1876,11 @@ function buildPlainLabel(label: string): TemplateElement {
  * @returns Input ID.
  */
 function buildInputId(name: string, value: string): string {
-    return `avgp-${name}-${String(value || "")
+    const result = `avgp-${name}-${String(value || "")
         .replace(/[^a-z0-9]+/giu, "-")
         .replace(/^-|-$/gu, "")
         .toLowerCase()}`;
+    return result;
 }
 
 /**
@@ -1549,7 +1892,7 @@ function buildInputId(name: string, value: string): string {
 function appendSummarySourceLink(summary: string): string {
     const value = String(summary || "").trim();
 
-    return selectValue(
+    const result = selectValue(
         value.includes(SUMMARY_SOURCE_LINK),
         function trueBranch() {
             return value;
@@ -1558,6 +1901,7 @@ function appendSummarySourceLink(summary: string): string {
             return `${value} ${SUMMARY_SOURCE_LINK}`.trim();
         },
     );
+    return result;
 }
 
 /**
@@ -1566,7 +1910,9 @@ function appendSummarySourceLink(summary: string): string {
  * @param root - Dialog root.
  * @param selector - Textarea selector.
  * @param value - Textarea value.
- * @returns */
+ * @returns Result when the function
+ *   updates a comparison textarea value.
+ */
 function updateComparisonTextarea(
     root: HTMLElement,
     selector: string,
@@ -1585,7 +1931,9 @@ function updateComparisonTextarea(
  * @param root - Dialog root.
  * @param text - Status text.
  * @param isError - Whether the status is an error.
- * @returns */
+ * @returns Result when the function
+ *   shows dialog status text.
+ */
 function setStatus(root: HTMLElement, text: string, isError: boolean): void {
     const status = root.querySelector<HTMLElement>("[data-avgp-status]");
 
@@ -1598,7 +1946,9 @@ function setStatus(root: HTMLElement, text: string, isError: boolean): void {
 /**
  * Adds dialog styles to the page once.
  *
- * @returns */
+ * @returns Result when the function
+ *   adds dialog styles to the page once.
+ */
 function addStyles(): void {
     if (document.getElementById("avgp-styles") != null) {
         logStep("addStyles skipped: already present");
@@ -1620,7 +1970,7 @@ function addStyles(): void {
  * @returns Log-safe summary.
  */
 function summarizeRegistration(registration: any): any {
-    return {
+    const result = {
         alreadyRegistered: registration?.alreadyRegistered,
         changed: registration?.changed,
         earliestDate: registration?.earliestDate?.toISOString?.(),
@@ -1628,6 +1978,7 @@ function summarizeRegistration(registration: any): any {
         existing: registration?.existing,
         proposedLength: registration?.proposedText?.length,
     };
+    return result;
 }
 
 mw.loader.using(

@@ -8,7 +8,11 @@ import { parse } from "@typescript-eslint/parser";
 import type { TSESTree } from "@typescript-eslint/types";
 
 const SOURCE_ROOT = resolve("src");
+const COMPONENT_PATH = resolve(
+    "src/vg-stub-creator/presentation/form/component.ts",
+);
 const MAX_LINE_LENGTH = 79;
+const MAX_COMPONENT_INDENT = 16;
 
 const paths = await listFiles(SOURCE_ROOT);
 const errors: string[] = [];
@@ -76,6 +80,15 @@ function checkTypeScriptFile(
         if (line.length > MAX_LINE_LENGTH) {
             errors.push(`${path}:${index + 1}: line exceeds 79 characters.`);
         }
+
+        if (
+            path === COMPONENT_PATH &&
+            line.trim() !== "" &&
+            getIndentWidth(line) > MAX_COMPONENT_INDENT
+        ) {
+            const location = `${path}:${index + 1}`;
+            errors.push(`${location}: indentation exceeds four levels.`);
+        }
     });
 
     const syntax = parse(source, {
@@ -91,6 +104,17 @@ function checkTypeScriptFile(
         checkFunctionLayout(path, node, parent, errors);
         checkConditionalLayout(path, node, errors);
     });
+}
+
+/**
+ * Gets the number of leading spaces on a source line.
+ *
+ * @param line - Source line.
+ * @returns Leading indentation width.
+ */
+function getIndentWidth(line: string): number {
+    const indentation = line.match(/^ */u)?.[0] || "";
+    return indentation.length;
 }
 
 /**
@@ -130,18 +154,31 @@ function checkTopLevelDocumentation(
     });
 }
 
-/** Gets the declaration represented by a top-level statement. */
+/**
+ * Gets the declaration represented by a top-level statement.
+ *
+ * @param statement - Statement value.
+ * @returns The declaration represented by a top-level statement.
+ */
 function getStatementDeclaration(statement: TSESTree.ProgramStatement) {
-    return statement.type === "ExportNamedDeclaration"
-        ? statement.declaration
-        : statement;
+    const result =
+        statement.type === "ExportNamedDeclaration"
+            ? statement.declaration
+            : statement;
+    return result;
 }
 
-/** Checks whether a declaration requires top-level documentation. */
+/**
+ * Checks whether a declaration requires top-level documentation.
+ *
+ * @param declaration - Declaration value.
+ * @returns Whether a declaration requires top-level documentation.
+ */
 function isDocumentedDeclaration(declaration: TSESTree.Node): boolean {
-    return ["ClassDeclaration", "FunctionDeclaration"].includes(
+    const result = ["ClassDeclaration", "FunctionDeclaration"].includes(
         declaration.type,
     );
+    return result;
 }
 
 /**
@@ -213,7 +250,15 @@ function checkFunctionLayout(
     }
 }
 
-/** Checks for an unnamed function expression outside a method. */
+/**
+ * Checks for an unnamed function expression outside a method.
+ *
+ * @param node - Node value.
+ * @param parent - Parent value.
+ * @returns Result when the function
+ *   checks for an unnamed function expression outside
+ *   a method.
+ */
 function isUnnamedFunctionExpression(
     node: TSESTree.Node,
     parent: TSESTree.Node | null,
@@ -222,12 +267,12 @@ function isUnnamedFunctionExpression(
         parent?.type === "Property" &&
         (parent.method === true || parent.kind !== "init");
 
-    return (
+    const result =
         node.type === "FunctionExpression" &&
         node.id == null &&
         !objectMethod &&
-        parent?.type !== "MethodDefinition"
-    );
+        parent?.type !== "MethodDefinition";
+    return result;
 }
 
 /**
@@ -295,8 +340,8 @@ function isSyntaxNode(value: unknown): value is TSESTree.Node {
         return false;
     }
 
-    return (
+    const result =
         "type" in value &&
-        typeof (value as { type?: unknown }).type === "string"
-    );
+        typeof (value as { type?: unknown }).type === "string";
+    return result;
 }

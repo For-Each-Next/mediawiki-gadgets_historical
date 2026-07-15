@@ -12,7 +12,7 @@ import { msg } from "#stub/i18n";
  * @returns NoteTA row template node.
  */
 export function createNoteTaGroupTemplate(): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-if": "group.noteTaReview",
@@ -28,6 +28,7 @@ export function createNoteTaGroupTemplate(): any {
             ),
         ],
     );
+    return result;
 }
 
 /**
@@ -36,7 +37,7 @@ export function createNoteTaGroupTemplate(): any {
  * @returns NoteTA row template node.
  */
 function createNoteTaSlotsTemplate(): any {
-    return [
+    const result = [
         createTableHeaderTemplate(msg("noteta.items"), [
             createIconActionLinkTemplate(
                 msg("noteta.sort"),
@@ -63,6 +64,7 @@ function createNoteTaSlotsTemplate(): any {
         createNoteTaValueSlotTemplate(),
         createNoteTaActionSlotTemplate(),
     ];
+    return result;
 }
 
 /**
@@ -71,7 +73,7 @@ function createNoteTaSlotsTemplate(): any {
  * @returns Rule-key slot node.
  */
 function createNoteTaKeySlotTemplate(): any {
-    return createInputSlotTemplate("key", {
+    const result = createInputSlotTemplate("key", {
         placeholder: msg("noteta.keyPlaceholder"),
         "v-bind:model-value": "row.key",
         "v-on:update:model-value": [
@@ -79,6 +81,7 @@ function createNoteTaKeySlotTemplate(): any {
             "dexOf(row), 'key', $event)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -87,7 +90,7 @@ function createNoteTaKeySlotTemplate(): any {
  * @returns Conversion slot node.
  */
 function createNoteTaValueSlotTemplate(): any {
-    return createInputSlotTemplate("value", {
+    const result = createInputSlotTemplate("value", {
         placeholder: msg("noteta.valuePlaceholder"),
         "v-bind:model-value": "row.value",
         "v-on:update:model-value": [
@@ -95,6 +98,7 @@ function createNoteTaValueSlotTemplate(): any {
             "dexOf(row), 'value', $event)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -103,7 +107,7 @@ function createNoteTaValueSlotTemplate(): any {
  * @returns Action slot node.
  */
 function createNoteTaActionSlotTemplate(): any {
-    return createSlotTemplate("actions", [
+    const result = createSlotTemplate("actions", [
         createIconActionLinkTemplate(
             msg("common.remove"),
             "tableActionIcons.remove",
@@ -113,6 +117,7 @@ function createNoteTaActionSlotTemplate(): any {
             },
         ),
     ]);
+    return result;
 }
 
 /**
@@ -123,9 +128,10 @@ function createNoteTaActionSlotTemplate(): any {
  * @returns Text input slot node.
  */
 function createInputSlotTemplate(column: string, attributes: any): any {
-    return createSlotTemplate(column, [
+    const result = createSlotTemplate(column, [
         createElement("cdx-text-input", attributes),
     ]);
+    return result;
 }
 
 /**
@@ -139,11 +145,12 @@ function createSlotTemplate(
     column: string,
     children: Array<any | string>,
 ): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             [`v-slot:item-${column}`]: "{ row }",
         },
         children,
     );
+    return result;
 }

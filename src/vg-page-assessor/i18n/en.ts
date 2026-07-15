@@ -1,4 +1,6 @@
-/** English source catalog for VG Page Assessor. */
+/**
+ * English source catalog for VG Page Assessor.
+ */
 
 import { i18n } from "#shared";
 

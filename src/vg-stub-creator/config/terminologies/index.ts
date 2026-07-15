@@ -39,7 +39,11 @@ export function get(type: string, value: string, projection?: string): any {
     return getFrom(TERMINOLOGY_DEFINITIONS, type, value, projection);
 }
 
-/** Gets every bundled terminology definition collection. */
+/**
+ * Gets every bundled terminology definition collection.
+ *
+ * @returns Every bundled terminology definition collection.
+ */
 export function getDefinitionCollections(): Array<Array<any>> {
     return Object.values(TERMINOLOGY_DEFINITIONS);
 }
@@ -90,7 +94,14 @@ function getFrom(
     return metadata[projection] ?? metadata[normalizedProjection];
 }
 
-/** Resolves exact terms before normalizing genre type words. */
+/**
+ * Resolves exact terms before normalizing genre type words.
+ *
+ * @param definitions - Definitions value.
+ * @param type - Type value.
+ * @param value - Input value.
+ * @returns Exact terms before normalizing genre type words.
+ */
 function getTerminologyDefinition(
     definitions: Array<any>,
     type: string,
@@ -105,7 +116,14 @@ function getTerminologyDefinition(
     return getReferenceDefinition(definitions, stripGenreTypeSuffix(value));
 }
 
-/** Removes terminal words already implied by a genre field. */
+/**
+ * Removes terminal words already implied by a genre field.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   removes terminal words already implied by a genre
+ *   field.
+ */
 function stripGenreTypeSuffix(value: string): string {
     const unwrappedValue = getWikilinkValue(value);
 

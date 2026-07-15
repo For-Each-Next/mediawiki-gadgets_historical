@@ -5,6 +5,26 @@
 import { getArticleSourceFields } from "#stub/article";
 import { msg } from "#stub/i18n";
 
+interface ArticleParameterFieldOptions {
+    breakBefore?: boolean;
+    compact?: boolean;
+    heading?: string;
+    multiline?: boolean;
+    placeholder?: string;
+    previewKey?: string;
+    readonly?: boolean;
+}
+
+interface ArticleParameterGroupOptions {
+    categoryReview?: boolean;
+    citationReview?: boolean;
+    description?: string;
+    fieldsetLabel?: string;
+    fullTextReview?: boolean;
+    noteTaReview?: boolean;
+    previewKey?: string;
+}
+
 /**
  * Describes a reusable article parameter input.
  */
@@ -23,7 +43,13 @@ class ArticleParameterField {
      * @param options.multiline - Whether to use a textarea.
      * @param options.previewKey - Shared preview group key.
      */
-    constructor(key, label, path, sourceField, options: any = {}) {
+    constructor(
+        key: string,
+        label: string,
+        path: string,
+        sourceField: null,
+        options: ArticleParameterFieldOptions = {},
+    ) {
         this.breakBefore = Boolean(options.breakBefore);
         this.compact = Boolean(options.compact);
         this.heading = options.heading;
@@ -54,7 +80,13 @@ class ArticleParameterGroup {
      * @param nameGroupKey - Localized name row form key.
      * @param options - Group display options.
      */
-    constructor(key, label, fields, nameGroupKey, options: any = {}) {
+    constructor(
+        key: string,
+        label: string,
+        fields: ArticleParameterField[],
+        nameGroupKey: string,
+        options: ArticleParameterGroupOptions = {},
+    ) {
         this.categoryReview = Boolean(options.categoryReview);
         this.citationReview = Boolean(options.citationReview);
         this.description = options.description || "";
@@ -131,10 +163,11 @@ const STEAM_NAME_CHOICES = [
 ];
 export const STEAM_NAME_BUTTONS = STEAM_NAME_CHOICES.map(
     function callback(choice) {
-        return {
+        const result = {
             label: choice.label,
             value: choice.key,
         };
+        return result;
     },
 );
 export const STEAM_NAME_HELPER_ROW = Symbol(

@@ -12,7 +12,9 @@ const PREFIX = "[vg page assessor]";
  *
  * @param step - Step name.
  * @param details - Optional details.
- * @returns */
+ * @returns Result when the function
+ *   logs one workflow step.
+ */
 export function logStep(step: string, details?: any): void {
     if (details === undefined) {
         console.log(PREFIX, step);
@@ -110,18 +112,20 @@ function summarizeResponse(response: any): any {
     const pages = response?.query?.pages || [];
     const pageList = Array.isArray(pages) ? pages : Object.values(pages);
 
-    return {
+    const result = {
         curtimestamp: response?.curtimestamp,
         pageCount: pageList.length,
         pages: pageList.map(function callback(page) {
-            return {
+            const result = {
                 missing: page?.missing != null,
                 ns: page?.ns,
                 revisionCount: page?.revisions?.length || 0,
                 title: page?.title,
             };
+            return result;
         }),
     };
+    return result;
 }
 
 /**
@@ -131,21 +135,23 @@ function summarizeResponse(response: any): any {
  * @returns Summarized params.
  */
 function summarizeEditParams(params: any): any {
-    return {
+    const result = {
         ...cloneForLog(params),
         text: selectValue(
             typeof params?.text === "string",
             function trueBranch() {
-                return {
+                const result = {
                     length: params.text.length,
                     preview: params.text.slice(0, 500),
                 };
+                return result;
             },
             function falseBranch() {
                 return params?.text;
             },
         ),
     };
+    return result;
 }
 
 /**

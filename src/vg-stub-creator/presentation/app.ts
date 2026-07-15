@@ -18,7 +18,7 @@ import {
     prepareCategoryRows,
     prepareNavboxRows,
 } from "#stub/app/workflow.ts";
-import { createCategoryCacheStore } from "#stub/handlers";
+import { createCategoryCacheStore } from "#stub/handlers/category-cache.ts";
 import {
     prepareCompanyCategoryText,
     saveCategoryPage,
@@ -83,6 +83,7 @@ import {
 } from "#stub/save/controller.ts";
 import { SAVE_PROGRESS_STORAGE_KEY } from "#stub/save/progress.ts";
 import {
+    CitationStore,
     createCitationStore,
     prepareManagedCitationRows,
 } from "#stub/sources";
@@ -109,10 +110,10 @@ export { submitEditForm };
  * page.
  */
 function isMissingPageView(): boolean {
-    return (
+    const result =
         mw.config.get("wgAction") === "view" &&
-        mw.config.get("wgArticleId") === 0
-    );
+        mw.config.get("wgArticleId") === 0;
+    return result;
 }
 
 /**
@@ -131,12 +132,12 @@ function isEditAction(action: string): boolean {
  * @returns Whether the enwiki launcher should be shown.
  */
 function isEnwikiArticleView(): boolean {
-    return (
+    const result =
         mw.config.get("wgDBname") === "enwiki" &&
         mw.config.get("wgAction") === "view" &&
         mw.config.get("wgNamespaceNumber") === 0 &&
-        mw.config.get("wgArticleId") !== 0
-    );
+        mw.config.get("wgArticleId") !== 0;
+    return result;
 }
 
 /**
@@ -171,18 +172,28 @@ function getDefaultName(): string {
     return String(mw.config.get("wgTitle") || "").replace(/ \(.+?\)$/u, "");
 }
 
-const getPageUrl = (title) => mw.util.getUrl(title);
+/**
+ * Builds the local wiki URL for a page title.
+ *
+ * @param title - Page title.
+ * @returns Local wiki page URL.
+ */
+function getPageUrl(title: string): string {
+    return mw.util.getUrl(title);
+}
 
-const getFormProseSinographs = function callback(form) {
-    return countFormProseSinographs(form, {
+const getFormProseSinographs = function callback(form: unknown) {
+    const result = countFormProseSinographs(form, {
         defaultName: getFormDefaultName(form),
     });
+    return result;
 };
 
-const getFormProseWikitext = function callback(form) {
-    return createArticleData(form, {
+const getFormProseWikitext = function callback(form: unknown) {
+    const result = createArticleData(form, {
         defaultName: getFormDefaultName(form),
     }).prose.text;
+    return result;
 };
 
 /**
@@ -194,9 +205,10 @@ const getFormProseWikitext = function callback(form) {
  * @returns Placeholder text.
  */
 function getFieldPlaceholder(form: any, field: any): string | undefined {
-    return getArticleFieldPlaceholder(form, field, {
+    const result = getArticleFieldPlaceholder(form, field, {
         defaultName: getFormDefaultName(form),
     });
+    return result;
 }
 
 /**
@@ -207,9 +219,10 @@ function getFieldPlaceholder(form: any, field: any): string | undefined {
  * @returns Preview wikitext, or an empty string.
  */
 function getFieldPreview(form: any, previewKey: string): string {
-    return getArticleFieldPreview(form, previewKey, {
+    const result = getArticleFieldPreview(form, previewKey, {
         defaultName: getFormDefaultName(form),
     });
+    return result;
 }
 
 /**
@@ -260,11 +273,12 @@ async function previewForm(
             createEditSummaryMetadata(form, stub),
         );
 
-        return {
+        const result = {
             html: await parseArticlePreviewText(text, form),
             summary,
             text,
         };
+        return result;
     } catch (error) {
         sourceFetchState.error = error.message;
         return undefined;
@@ -297,7 +311,6 @@ async function parseArticlePreviewText(
  * @param form - Dialog form values.
  * @returns Wikitext submitted only to the native preview
  * renderer.
- *
  */
 function buildNativePreviewText(text: string, form: any): string {
     const title = trimFieldValue(form?.pageName) || getPageName();
@@ -370,7 +383,6 @@ function buildNativePreviewFormData(text: string): FormData {
  *
  * @param html - Native preview response document.
  * @returns Rendered preview HTML.
- *
  */
 function extractNativePreviewHtml(html: string): string {
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -440,12 +452,12 @@ async function fetchPageText(title: string): Promise<string> {
         throw new Error(msg("errors.unableRead", { title }));
     }
 
-    return (
+    const result =
         revision.slots?.main?.content ??
         revision.slots?.main?.["*"] ??
         revision["*"] ??
-        ""
-    );
+        "";
+    return result;
 }
 
 /**
@@ -492,13 +504,20 @@ async function submitForm(context: any): Promise<void> {
     }
 }
 
-/** Prepares generated text, summary, and follow-up actions. */
+/**
+ * Prepares generated text, summary, and follow-up actions.
+ *
+ * @param context - Operation context.
+ * @returns Result when the function
+ *   prepares generated text, summary, and follow-up
+ *   actions.
+ */
 async function prepareFormSubmission(context: any): Promise<any> {
     const { form, citationStore, preSave, preview } = context;
     const moveTitle = trimFieldValue(preSave?.move?.to);
     const shouldMove = shouldMoveSubmission(preSave, moveTitle);
     const submittedForm = shouldMove ? { ...form, name: moveTitle } : form;
-    let previewText;
+    let previewText: string | null = null;
 
     if (typeof preview?.text === "string") {
         previewText = preview.text;
@@ -520,16 +539,28 @@ async function prepareFormSubmission(context: any): Promise<any> {
     return { pending, summary, text };
 }
 
-/** Checks whether submission includes a page move. */
+/**
+ * Checks whether submission includes a page move.
+ *
+ * @param preSave - Pre save value.
+ * @param moveTitle - Move title value.
+ * @returns Whether submission includes a page move.
+ */
 function shouldMoveSubmission(preSave: any, moveTitle: string): boolean {
-    return (
+    const result =
         preSave?.move?.enabled === true &&
         moveTitle !== "" &&
-        normalizePageTitle(moveTitle) !== normalizePageTitle(getPageName())
-    );
+        normalizePageTitle(moveTitle) !== normalizePageTitle(getPageName());
+    return result;
 }
 
-/** Gets the generated or preserved edit summary. */
+/**
+ * Gets the generated or preserved edit summary.
+ *
+ * @param form - Form values.
+ * @param stub - Stub value.
+ * @returns The generated or preserved edit summary.
+ */
 function getGeneratedEditSummary(form: any, stub: any): string {
     if (stub == null) {
         return readEditSummary();
@@ -538,23 +569,52 @@ function getGeneratedEditSummary(form: any, stub: any): string {
     return buildEditSummary(createEditSummaryMetadata(form, stub));
 }
 
-/** Creates follow-up state for a submitted article. */
-function createPendingSubmission(preSave, shouldMove, moveTitle): any {
-    let move = { enabled: false };
+/**
+ * Creates follow-up state for a submitted article.
+ *
+ * @param preSave - Pre save value.
+ * @param shouldMove - Whether should move.
+ * @param moveTitle - Move title value.
+ * @returns Follow-up state for a submitted article.
+ */
+function createPendingSubmission(
+    preSave: {
+        move: { enabled: boolean; leaveRedirect?: boolean };
+        actions: unknown;
+        progressGroups: unknown;
+        registration: unknown;
+    },
+    shouldMove: boolean,
+    moveTitle: string,
+): unknown {
+    let move: { enabled: boolean; leaveRedirect?: boolean; to?: string } = {
+        enabled: false,
+    };
 
     if (shouldMove) {
         move = { ...preSave.move, to: moveTitle };
     }
-    return {
+    const result = {
         actions: preSave.actions,
         move,
         progressGroups: preSave.progressGroups,
         registration: preSave.registration,
     };
+    return result;
 }
 
-/** Runs follow-up actions and navigates after a successful save. */
-async function completeSubmittedFollowUpActions(api, pending, preSave) {
+/**
+ * Runs follow-up actions and navigates after a successful save.
+ *
+ * @param api - MediaWiki API client.
+ * @param pending - Pending value.
+ * @param preSave - Pre save value.
+ */
+async function completeSubmittedFollowUpActions(
+    api: mw.Api,
+    pending: unknown,
+    preSave: { progress: { report: (arg0: string) => void } },
+) {
     const result = await runSubmittedFollowUpActions(
         api,
         pending,
@@ -608,7 +668,7 @@ async function runSubmittedFollowUpActions(
     title: string,
     progress: any,
 ): Promise<any> {
-    const setProgress = (id, status) => progress?.set(id, status);
+    const setProgress = progress?.set.bind(progress);
     const actionOptions = createFollowUpActionOptions(
         api,
         pending,
@@ -621,10 +681,26 @@ async function runSubmittedFollowUpActions(
     return result;
 }
 
-/** Creates shared options for running post-save actions. */
-function createFollowUpActionOptions(api, pending, title, setProgress): any {
+/**
+ * Creates shared options for running post-save actions.
+ *
+ * @param api - MediaWiki API client.
+ * @param pending - Pending value.
+ * @param title - Page title.
+ * @param setProgress - Progress update callback.
+ * @returns Shared options for running post-save actions.
+ */
+function createFollowUpActionOptions(
+    api: mw.Api,
+    pending: { move: unknown },
+    title: string,
+    setProgress: {
+        (id: unknown, status: unknown): unknown;
+        (id: string, status: string): unknown | undefined;
+    },
+): unknown {
     const wikidataApi = new mw.ForeignApi(WIKIDATA_API_URL);
-    return {
+    const result = {
         api,
         move: pending.move,
         onActionComplete: setActionProgress.bind(
@@ -649,35 +725,125 @@ function createFollowUpActionOptions(api, pending, title, setProgress): any {
         saveCategory: saveCategoryWithApi.bind(null, api),
         saveCompanyCategory: saveCompanyCategoryWithApi.bind(null, api),
     };
+    return result;
 }
 
-/** Updates one action progress status. */
-function setActionProgress(setProgress, status, action): void {
+/**
+ * Reports a follow-up action's progress state.
+ */
+type ProgressCallback = (id: string, status: string) => unknown;
+
+/**
+ * Describes pending post-save work.
+ */
+interface PendingFollowUpActions {
+    move: unknown;
+    registration?: { enabled?: boolean };
+}
+
+/**
+ * Describes a completed post-save action.
+ */
+interface CompletedFollowUpAction {
+    category?: string;
+    company?: string;
+    id: string;
+    type: string;
+}
+
+/**
+ * Describes the result of running post-save actions.
+ */
+interface FollowUpActionResult {
+    completed: CompletedFollowUpAction[];
+    title: string;
+}
+
+/**
+ * Updates one action progress status.
+ *
+ * @param setProgress - Set progress value.
+ * @param status - Status value.
+ * @param action - Action value.
+ */
+function setActionProgress(
+    setProgress: (arg0: unknown, arg1: unknown) => void,
+    status: unknown,
+    action: { id: unknown },
+): void {
     setProgress(action.id, status);
 }
 
-/** Updates move progress status. */
-function setMoveProgress(setProgress, status): void {
+/**
+ * Updates move progress status.
+ *
+ * @param setProgress - Set progress value.
+ * @param status - Status value.
+ */
+function setMoveProgress(
+    setProgress: (arg0: string, arg1: unknown) => void,
+    status: unknown,
+): void {
     setProgress("move", status);
 }
 
-/** Registers pending pages before Wikidata actions run. */
-function registerBeforeWikidataActions(api, pending, setProgress, result) {
+/**
+ * Registers pending pages before Wikidata actions run.
+ *
+ * @param api - MediaWiki API client.
+ * @param pending - Pending value.
+ * @param setProgress - Set progress value.
+ * @param result - Operation result.
+ * @returns Result when the function
+ *   registers pending pages before wikidata actions
+ *   run.
+ */
+function registerBeforeWikidataActions(
+    api: mw.Api,
+    pending: PendingFollowUpActions,
+    setProgress: ProgressCallback,
+    result: FollowUpActionResult,
+): Promise<void> {
     return registerPendingNewPage(api, pending, result, setProgress);
 }
 
-/** Saves a category with a bound API client. */
-function saveCategoryWithApi(api, category, text): Promise<void> {
+/**
+ * Saves a category with a bound API client.
+ *
+ * @param api - MediaWiki API client.
+ * @param category - Category page title.
+ * @param text - Category wikitext.
+ * @returns Resolves after the category is saved.
+ */
+function saveCategoryWithApi(
+    api: mw.Api,
+    category: string,
+    text: string,
+): Promise<void> {
     return saveCategoryPage(category, text, undefined, api);
 }
 
-/** Saves a company category with bound API clients. */
-function saveCompanyCategoryWithApi(api, category, text, englishName) {
+/**
+ * Saves a company category with bound API clients.
+ *
+ * @param api - MediaWiki API client.
+ * @param category - Company category page title.
+ * @param text - Company category wikitext.
+ * @param englishName - English company name.
+ * @returns Resolves after the company category is saved.
+ */
+function saveCompanyCategoryWithApi(
+    api: mw.Api,
+    category: string,
+    text: string,
+    englishName: string,
+) {
     const wikidataApi = new mw.ForeignApi(WIKIDATA_API_URL);
-    return saveCompanyCategory(category, text, englishName, {
+    const result = saveCompanyCategory(category, text, englishName, {
         api,
         wikidataApi,
     });
+    return result;
 }
 
 /**
@@ -690,10 +856,10 @@ function saveCompanyCategoryWithApi(api, category, text, englishName) {
  * @returns Resolves after registration finishes.
  */
 async function registerPendingNewPage(
-    api: any,
-    pending: any,
-    result: any,
-    setProgress: (...args: any[]) => any,
+    api: mw.Api,
+    pending: PendingFollowUpActions,
+    result: FollowUpActionResult,
+    setProgress: ProgressCallback,
 ): Promise<void> {
     if (pending.registration?.enabled !== true) {
         return;
@@ -717,7 +883,6 @@ async function registerPendingNewPage(
  * @param form - Dialog form values.
  * @returns Resolves after category metadata is
  * refreshed.
- *
  */
 async function refreshPreSaveCategoryWikidata(form: any): Promise<void> {
     const rows = Array.isArray(form.categoryRows) ? form.categoryRows : [];
@@ -733,12 +898,12 @@ async function refreshPreSaveCategoryWikidata(form: any): Promise<void> {
  * @returns Whether Wikidata should be refreshed.
  */
 function shouldRefreshCategoryWikidata(row: any): boolean {
-    return (
+    const result =
         row?.enabled !== false &&
         row?.pendingCreation != null &&
         trimFieldValue(row.pendingCreation.englishName) !== "" &&
-        trimFieldValue(row.pendingCreation.wikidataId) === ""
-    );
+        trimFieldValue(row.pendingCreation.wikidataId) === "";
+    return result;
 }
 
 /**
@@ -768,14 +933,14 @@ async function refreshCategoryWikidata(row: any): Promise<void> {
  *
  * @param actions - Completed follow-up actions.
  * @returns Category titles.
- *
  */
 function getCompanyCategoryActions(actions: Array<any>): Array<string> {
-    return actions
+    const result = actions
         .filter(isCompanyCategoryAction)
         .map(function callback(action) {
             return action.category;
         });
+    return result;
 }
 
 /**
@@ -797,7 +962,7 @@ function isCompanyCategoryAction(action: any): boolean {
 function normalizeEnglishCategoryTitle(title: string): string {
     const value = trimFieldValue(title);
 
-    return selectValue(
+    const result = selectValue(
         value === "" || /^Category:/iu.test(value),
         function trueBranch() {
             return value;
@@ -806,6 +971,7 @@ function normalizeEnglishCategoryTitle(title: string): string {
             return `Category:${value}`;
         },
     );
+    return result;
 }
 
 /**
@@ -823,8 +989,22 @@ export function createSubmitHandler(
     return invokeSubmitHandler.bind(null, binding);
 }
 
-/** Invokes the internal or injected submit implementation. */
-function invokeSubmitHandler(binding, ...args): any {
+/**
+ * Invokes the internal or injected submit implementation.
+ *
+ * @param binding - Binding value.
+ * @param {...unknown} args - Args value.
+ * @returns Result when the function
+ *   invokes the internal or injected submit
+ *   implementation.
+ */
+function invokeSubmitHandler(
+    binding: {
+        citationStore: unknown;
+        submit: (...args: unknown[]) => unknown;
+    },
+    ...args: unknown[]
+): unknown {
     const [form, sourceFetchState, closeDialog, preSave, preview] = args;
     const context = {
         citationStore: binding.citationStore,
@@ -859,9 +1039,10 @@ function invokeSubmitHandler(binding, ...args): any {
  * parameters.
  */
 async function buildStubFromForm(form: any, citationStore: any): Promise<any> {
-    return buildArticleStubFromForm(form, citationStore, {
+    const result = buildArticleStubFromForm(form, citationStore, {
         defaultName: getFormDefaultName(form),
     });
+    return result;
 }
 
 /**
@@ -879,13 +1060,14 @@ async function buildStubFromForm(form: any, citationStore: any): Promise<any> {
  * @returns Edit summary metadata.
  */
 function createEditSummaryMetadata(form: any, stub: any): any {
-    return {
+    const result = {
         displayName: getEditSummaryDisplayName(form),
         enwikiTitle: trimFieldValue(form.enwikiTitle),
         proseSinographs: stub.articleData.prose.sinographs,
         wikidataId: trimFieldValue(form.wikidataId),
         year: trimFieldValue(form.year),
     };
+    return result;
 }
 
 /**
@@ -897,11 +1079,11 @@ function createEditSummaryMetadata(form: any, stub: any): any {
  * @returns Summary display title.
  */
 function getEditSummaryDisplayName(form: any): string {
-    return (
+    const result =
         trimFieldValue(form.originalName) ||
         trimFieldValue(form.englishName) ||
-        trimFieldValue(form.name)
-    );
+        trimFieldValue(form.name);
+    return result;
 }
 
 /**
@@ -916,7 +1098,7 @@ function getEditSummaryDisplayName(form: any): string {
 async function refreshFormCategoryRows(
     form: any,
     categoryState: any,
-    categoryStore,
+    categoryStore: { cache: unknown; clear: () => void; save: () => void },
     options: any = {},
 ): Promise<void> {
     categoryState.error = "";
@@ -941,24 +1123,43 @@ async function refreshFormCategoryRows(
     }
 }
 
-/** Builds category rows using current cache options. */
+/**
+ * Builds category rows using current cache options.
+ *
+ * @param form - Form values.
+ * @param store - Store value.
+ * @param options - Operation options.
+ * @returns Category rows using current cache options.
+ */
 async function buildRefreshedCategoryRows(
-    form,
-    store,
-    options,
+    form: { categoryRows: unknown[] },
+    store: { cache: unknown },
+    options: { bypassCache: unknown },
 ): Promise<any[]> {
-    return await prepareCategoryRows(form, form.categoryRows, {
+    const result = await prepareCategoryRows(form, form.categoryRows, {
         article: { defaultName: getFormDefaultName(form) },
         categories: {
             bypassCache: options.bypassCache,
             cache: store.cache,
         },
     });
+    return result;
 }
 
-/** Merges refreshed rows into the reactive category array. */
-function mergeRefreshedCategoryRows(form, rows): void {
-    const merged = rows.map(function callback(row, index) {
+/**
+ * Merges refreshed rows into the reactive category array.
+ *
+ * @param form - Form values.
+ * @param rows - Row values.
+ */
+function mergeRefreshedCategoryRows(
+    form: { categoryRows: unknown[] },
+    rows: unknown[],
+): void {
+    const merged = rows.map(function callback(
+        row: unknown,
+        index: string | number,
+    ) {
         const current = form.categoryRows[index];
 
         if (current == null) {
@@ -976,7 +1177,7 @@ function mergeRefreshedCategoryRows(form, rows): void {
  *
  * @param form - Dialog form values.
  * @param page - Target page title.
- * @returns */
+ */
 function saveCurrentFormHistory(form: any, page: string): void {
     saveFormHistory(
         {
@@ -1000,7 +1201,9 @@ function readFormHistoryEntries(): Array<any> {
  * Opens the dialog from the toolbox link click.
  *
  * @param event - Browser event from the toolbox link.
- * @returns */
+ * @returns Result when the function
+ *   opens the dialog from the toolbox link click.
+ */
 function handleToolboxClick(event: any): void {
     event.preventDefault();
     (window as any).vgStubCreatorDialog.open();
@@ -1009,7 +1212,10 @@ function handleToolboxClick(event: any): void {
 /**
  * Adds the dialog trigger link to the MediaWiki toolbox.
  *
- * @returns */
+ * @returns Result when the function
+ *   adds the dialog trigger link to the mediawiki
+ *   toolbox.
+ */
 function addToolboxLink(): void {
     if (isMissingPageView()) {
         addMissingPageEditTrigger(mw.util, handleToolboxClick);
@@ -1031,7 +1237,6 @@ function addToolboxLink(): void {
  * @param citationStore - Citation fetch/cache store.
  * @param options - Target-page opening options.
  * @returns Resolves after generated text is stored.
- *
  */
 async function openTargetPage(
     form: any,
@@ -1064,8 +1269,23 @@ async function openTargetPage(
     }
 }
 
-/** Prepares moved article text and metadata for a target editor. */
-async function prepareMovedEdit(form, title, citationStore, options) {
+/**
+ * Prepares moved article text and metadata for a target editor.
+ *
+ * @param form - Form values.
+ * @param title - Page title.
+ * @param citationStore - Citation store value.
+ * @param options - Operation options.
+ * @returns Result when the function
+ *   prepares moved article text and metadata for a
+ *   target editor.
+ */
+async function prepareMovedEdit(
+    form: Record<string, unknown>,
+    title: string,
+    citationStore: CitationStore,
+    options: { preview: boolean },
+) {
     const targetForm = { ...form, pageName: title };
     const preserveEditor = shouldPreserveEditor();
     const stubs = await buildMovedEditStubs(
@@ -1083,7 +1303,7 @@ async function prepareMovedEdit(form, title, citationStore, options) {
             stubs.target.articleData,
         );
     }
-    return {
+    const result = {
         form: targetForm,
         preview: options.preview === true,
         summary: preserveEditor ? readEditSummary() : undefined,
@@ -1091,10 +1311,24 @@ async function prepareMovedEdit(form, title, citationStore, options) {
         text,
         title,
     };
+    return result;
 }
 
-/** Builds target and optional current-title stubs for a move. */
-async function buildMovedEditStubs(form, targetForm, store, preserve) {
+/**
+ * Builds target and optional current-title stubs for a move.
+ *
+ * @param form - Form values.
+ * @param targetForm - Target form value.
+ * @param store - Store value.
+ * @param preserve - Preserve value.
+ * @returns Target and optional current-title stubs for a move.
+ */
+async function buildMovedEditStubs(
+    form: unknown,
+    targetForm: unknown,
+    store: unknown,
+    preserve: boolean,
+) {
     if (!preserve) {
         const target = await buildStubFromForm(targetForm, store);
         return { current: null, target };
@@ -1107,7 +1341,11 @@ async function buildMovedEditStubs(form, targetForm, store, preserve) {
     return { current, target };
 }
 
-/** Navigates to the target page editor. */
+/**
+ * Navigates to the target page editor.
+ *
+ * @param title - Page title.
+ */
 function navigateToTargetEditor(title: string): void {
     window.location.href = mw.util.getUrl(title, {
         action: "edit",
@@ -1118,7 +1356,10 @@ function navigateToTargetEditor(title: string): void {
 /**
  * Restores moved stub text into the target new-page editor.
  *
- * @returns */
+ * @returns Result when the function
+ *   restores moved stub text into the target new-page
+ *   editor.
+ */
 function restoreMovedEditText(): void {
     const pending = getMovedEdit(getPageName());
 
@@ -1147,10 +1388,14 @@ function getPageName(): string {
     return mw.config.get("wgPageName").replace(/_/gu, " ");
 }
 
-/** Tracks whether an English Wikipedia launch is already resolving. */
+/**
+ * Tracks whether an English Wikipedia launch is already resolving.
+ */
 let enwikiLaunchPending = false;
 
-/** Adds the English Wikipedia launcher that starts zhwiki creation. */
+/**
+ * Adds the English Wikipedia launcher that starts zhwiki creation.
+ */
 function initEnwikiLauncher(): void {
     const enwikiTitle = getPageName();
     const fallbackUrl = buildZhwikiCreationUrl(enwikiTitle);
@@ -1158,8 +1403,18 @@ function initEnwikiLauncher(): void {
     addEnwikiCreateTrigger(mw.util, callback, fallbackUrl);
 }
 
-/** Resolves and opens the Chinese Wikipedia creation target. */
-async function handleEnwikiLaunch(enwikiTitle, fallbackUrl, event) {
+/**
+ * Resolves and opens the Chinese Wikipedia creation target.
+ *
+ * @param enwikiTitle - Enwiki title value.
+ * @param fallbackUrl - Fallback url value.
+ * @param event - DOM event.
+ */
+async function handleEnwikiLaunch(
+    enwikiTitle: string,
+    fallbackUrl: string | URL,
+    event: { preventDefault: () => void },
+) {
     event.preventDefault();
 
     if (enwikiLaunchPending) {
@@ -1183,8 +1438,13 @@ async function handleEnwikiLaunch(enwikiTitle, fallbackUrl, event) {
     }
 }
 
-/** Updates a pre-opened tab or opens the resolved target. */
-function openResolvedZhwikiTarget(tab, url): void {
+/**
+ * Updates a pre-opened tab or opens the resolved target.
+ *
+ * @param tab - Tab value.
+ * @param url - Request URL.
+ */
+function openResolvedZhwikiTarget(tab: Window, url: string): void {
     if (tab != null) {
         tab.location.href = url;
         return;
@@ -1197,7 +1457,10 @@ function openResolvedZhwikiTarget(tab, url): void {
  * Mounts the Codex dialog and registers the toolbox trigger.
  *
  * @param require - ResourceLoader module resolver.
- * @returns */
+ * @returns Result when the function
+ *   mounts the codex dialog and registers the toolbox
+ *   trigger.
+ */
 function init(require: (...args: any[]) => any): void {
     const context = createInitContext(require);
     addDialogStyles();
@@ -1212,16 +1475,44 @@ function init(require: (...args: any[]) => any): void {
 
 let saveInterceptorActive = false;
 
-/** Creates shared initialization dependencies and restored state. */
-function createInitContext(require): any {
+/**
+ * Describes dialog initialization dependencies and restored state.
+ */
+interface InitContext {
+    Codex: CodexComponents;
+    Vue: {
+        createMwApp: (component: unknown) => {
+            component: (name: string, component: unknown) => void;
+            mount: (host: HTMLElement) => void;
+        };
+    };
+    activationForm?: unknown;
+    categoryStore: ReturnType<typeof createCategoryCacheStore>;
+    citationStore: CitationStore;
+    currentPageName: string;
+    defaultName: string;
+    movedEdit?: { form: unknown; preview?: boolean };
+    previewFormData?: { form: unknown };
+}
+
+/**
+ * Creates shared initialization dependencies and restored state.
+ *
+ * @param require - ResourceLoader module resolver.
+ * @returns Shared initialization dependencies and restored state.
+ */
+function createInitContext(require: {
+    (module: "@wikimedia/codex"): CodexComponents;
+    (module: "vue"): InitContext["Vue"];
+}): InitContext {
     const currentPageName = getPageName();
-    let previewFormData;
+    let previewFormData: { form: unknown } | undefined;
 
     if (mw.config.get("wgAction") === "submit") {
         previewFormData = getPreviewFormData(currentPageName);
     }
     saveInterceptorActive = false;
-    return {
+    const result = {
         Codex: require("@wikimedia/codex"),
         Vue: require("vue"),
         activationForm: readZhwikiActivationForm(window.location.search),
@@ -1232,9 +1523,12 @@ function createInitContext(require): any {
         movedEdit: getMovedEdit(currentPageName),
         previewFormData,
     };
+    return result;
 }
 
-/** Activates edit-save interception once. */
+/**
+ * Activates edit-save interception once.
+ */
 function activateTool(): void {
     if (saveInterceptorActive) {
         return;
@@ -1244,19 +1538,36 @@ function activateTool(): void {
     saveInterceptorActive = true;
 }
 
-/** Creates the complete dialog option object. */
-function createDialogOptions(context): any {
-    return {
+/**
+ * Creates the complete dialog option object.
+ *
+ * @param context - Operation context.
+ * @returns The complete dialog option object.
+ */
+function createDialogOptions(context: InitContext): Record<string, unknown> {
+    const result = {
         ...createBaseDialogOptions(context),
         ...createCategoryDialogOptions(context),
         ...createReviewDialogOptions(context),
         ...createSourceDialogOptions(context),
     };
+    return result;
 }
 
-/** Creates basic form and history dialog options. */
-function createBaseDialogOptions(context): any {
-    return {
+/**
+ * Creates basic form and history dialog options.
+ *
+ * @param context - Operation context.
+ * @returns Basic form and history dialog options.
+ */
+function createBaseDialogOptions(context: {
+    currentPageName: string;
+    defaultName: string;
+    activationForm?: unknown;
+    previewFormData?: { form: unknown };
+    movedEdit?: { form: unknown; preview?: boolean };
+}): Record<string, unknown> {
+    const result = {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
         currentTitle: context.currentPageName,
         defaultName: context.defaultName,
@@ -1276,11 +1587,20 @@ function createBaseDialogOptions(context): any {
         onFormChange: saveDraftForPage.bind(null, context.currentPageName),
         onSubmitHistory: saveCurrentFormHistory,
     };
+    return result;
 }
 
-/** Creates category and page movement dialog options. */
-function createCategoryDialogOptions(context): any {
-    return {
+/**
+ * Creates category and page movement dialog options.
+ *
+ * @param context - Operation context.
+ * @returns Category and page movement dialog options.
+ */
+function createCategoryDialogOptions(context: {
+    categoryStore: ReturnType<typeof createCategoryCacheStore>;
+    citationStore: CitationStore;
+}): Record<string, unknown> {
+    const result = {
         onCategoryRowsRefresh: refreshCategoryRowsForDialog.bind(
             null,
             context.categoryStore,
@@ -1292,11 +1612,19 @@ function createCategoryDialogOptions(context): any {
         onPrepareCompanyCategory: prepareCompanyCategoryText,
         onUpdateCategoryRowCategory: updateCategoryRowCategory,
     };
+    return result;
 }
 
-/** Creates preview and review dialog options. */
-function createReviewDialogOptions(context): any {
-    return {
+/**
+ * Creates preview and review dialog options.
+ *
+ * @param context - Operation context.
+ * @returns Preview and review dialog options.
+ */
+function createReviewDialogOptions(context: {
+    citationStore: CitationStore;
+}): Record<string, unknown> {
+    const result = {
         onCheckPageTitle: checkDialogPageTitle,
         onCheckRedirectRows: checkDialogRedirectRows,
         onFetchPageText: fetchPageText,
@@ -1306,11 +1634,19 @@ function createReviewDialogOptions(context): any {
         onPrepareReview: prepareNavboxRows,
         onPreview: previewFormForDialog.bind(null, context.citationStore),
     };
+    return result;
 }
 
-/** Creates citation, metadata, and submit dialog options. */
-function createSourceDialogOptions(context): any {
-    return {
+/**
+ * Creates citation, metadata, and submit dialog options.
+ *
+ * @param context - Operation context.
+ * @returns Citation, metadata, and submit dialog options.
+ */
+function createSourceDialogOptions(context: {
+    citationStore: CitationStore;
+}): Record<string, unknown> {
+    const result = {
         onEnwikiTitleChange: fetchEnwikiMetadata,
         onPrepareCitations: prepareDialogCitations.bind(
             null,
@@ -1326,57 +1662,135 @@ function createSourceDialogOptions(context): any {
         ),
         onSubmit: createSubmitHandler(context.citationStore),
     };
+    return result;
 }
 
-/** Gets the highest-priority restored form. */
-function getInitialDialogForm(context): any {
-    return (
+/**
+ * Gets the highest-priority restored form.
+ *
+ * @param context - Operation context.
+ * @returns The highest-priority restored form.
+ */
+function getInitialDialogForm(context: {
+    activationForm?: unknown;
+    previewFormData?: { form: unknown };
+    movedEdit?: { form: unknown };
+    currentPageName: string;
+}): unknown {
+    const result =
         context.activationForm ||
         context.previewFormData?.form ||
         context.movedEdit?.form ||
-        readFormDraftForPage(context.currentPageName)
-    );
+        readFormDraftForPage(context.currentPageName);
+    return result;
 }
 
-/** Checks whether restored state should open the dialog. */
-function shouldInitiallyOpenDialog(context): boolean {
+/**
+ * Checks whether restored state should open the dialog.
+ *
+ * @param context - Operation context.
+ * @returns Whether restored state should open the dialog.
+ */
+function shouldInitiallyOpenDialog(context: {
+    activationForm?: unknown;
+    previewFormData?: unknown;
+    movedEdit?: { preview?: boolean };
+}): boolean {
     const hasInitialForm = Boolean(context.activationForm);
     const hasPreview = Boolean(context.previewFormData);
     const hasMovedEdit = hasRestoredMovedEdit(context.movedEdit);
     return hasInitialForm || hasPreview || hasMovedEdit;
 }
 
-/** Checks whether a moved edit should restore the dialog. */
-function hasRestoredMovedEdit(movedEdit): boolean {
+/**
+ * Checks whether a moved edit should restore the dialog.
+ *
+ * @param movedEdit - Moved edit value.
+ * @returns Whether a moved edit should restore the dialog.
+ */
+function hasRestoredMovedEdit(movedEdit?: { preview?: boolean }): boolean {
     return Boolean(movedEdit) && movedEdit.preview !== true;
 }
 
-/** Persists a form draft for one bound page. */
-function saveDraftForPage(page: string, form): void {
+/**
+ * Persists a form draft for one bound page.
+ *
+ * @param page - Page value.
+ * @param form - Form values.
+ */
+function saveDraftForPage(page: string, form: unknown): void {
     saveFormDraft(form, page);
 }
 
-/** Refreshes dialog category rows with the bound cache store. */
-function refreshCategoryRowsForDialog(store, form, state, refreshOptions) {
+/**
+ * Refreshes dialog category rows with the bound cache store.
+ *
+ * @param store - Store value.
+ * @param form - Form values.
+ * @param state - Mutable operation state.
+ * @param refreshOptions - Refresh options value.
+ * @returns Result when the function
+ *   refreshes dialog category rows with the bound
+ *   cache store.
+ */
+function refreshCategoryRowsForDialog(
+    store: ReturnType<typeof createCategoryCacheStore>,
+    form: Record<string, unknown>,
+    state: { error: string; loading: boolean },
+    refreshOptions: { bypassCache?: boolean },
+) {
     return refreshFormCategoryRows(form, state, store, refreshOptions);
 }
 
-/** Opens a dialog target page with the bound citation store. */
-function openTargetPageForDialog(store, form, title, state) {
+/**
+ * Opens a dialog target page with the bound citation store.
+ *
+ * @param store - Store value.
+ * @param form - Form values.
+ * @param title - Page title.
+ * @param state - Mutable operation state.
+ * @returns Result when the function
+ *   opens a dialog target page with the bound citation
+ *   store.
+ */
+function openTargetPageForDialog(
+    store: unknown,
+    form: unknown,
+    title: string,
+    state: unknown,
+) {
     return openTargetPage(form, title, state, store);
 }
 
-/** Checks one proposed page title for existence and conversion. */
+/**
+ * Checks one proposed page title for existence and conversion.
+ *
+ * @param title - Page title.
+ * @returns Result when the function
+ *   checks one proposed page title for existence and
+ *   conversion.
+ */
 async function checkDialogPageTitle(title: string): Promise<any> {
     const [match] = await fetchExistingPageTitles(new mw.Api(), [title]);
-    return {
+    const result = {
         exists: match?.exists === true,
         title: match?.title || title,
     };
+    return result;
 }
 
-/** Prepares generated redirect rows for the dialog. */
-async function prepareDialogRedirectRows(form, title): Promise<any[]> {
+/**
+ * Prepares generated redirect rows for the dialog.
+ *
+ * @param form - Form values.
+ * @param title - Page title.
+ * @returns Result when the function
+ *   prepares generated redirect rows for the dialog.
+ */
+async function prepareDialogRedirectRows(
+    form: unknown,
+    title: string,
+): Promise<unknown[]> {
     const redirectTitles = buildRedirectTitles(form, title);
     const existing = await fetchExistingPageTitles(
         new mw.Api(),
@@ -1385,8 +1799,18 @@ async function prepareDialogRedirectRows(form, title): Promise<any[]> {
     return buildRedirectRows(form, title, existing);
 }
 
-/** Rechecks edited redirect rows for the dialog. */
-async function checkDialogRedirectRows(rows, title): Promise<any[]> {
+/**
+ * Rechecks edited redirect rows for the dialog.
+ *
+ * @param rows - Row values.
+ * @param title - Page title.
+ * @returns Result when the function
+ *   rechecks edited redirect rows for the dialog.
+ */
+async function checkDialogRedirectRows(
+    rows: Array<{ title: string }>,
+    title: string,
+): Promise<unknown[]> {
     const redirectTitles = rows.map((row) => row.title);
     const existing = await fetchExistingPageTitles(
         new mw.Api(),
@@ -1395,18 +1819,52 @@ async function checkDialogRedirectRows(rows, title): Promise<any[]> {
     return buildRedirectRowsFromTitles(redirectTitles, title, existing);
 }
 
-/** Builds a dialog preview with the bound citation store. */
-function previewFormForDialog(store, form, state): Promise<any> {
+/**
+ * Builds a dialog preview with the bound citation store.
+ *
+ * @param store - Store value.
+ * @param form - Form values.
+ * @param state - Mutable operation state.
+ * @returns A dialog preview with the bound citation store.
+ */
+function previewFormForDialog(
+    store: unknown,
+    form: unknown,
+    state: unknown,
+): Promise<unknown> {
     return previewForm(form, state, store);
 }
 
-/** Prepares managed citations with the bound citation store. */
-function prepareDialogCitations(store, form, options): Promise<any[]> {
+/**
+ * Prepares managed citations with the bound citation store.
+ *
+ * @param store - Store value.
+ * @param form - Form values.
+ * @param options - Operation options.
+ * @returns Result when the function
+ *   prepares managed citations with the bound citation
+ *   store.
+ */
+function prepareDialogCitations(
+    store: CitationStore,
+    form: unknown,
+    options: unknown,
+): Promise<unknown[]> {
     return prepareManagedCitationRows(form, store, options);
 }
 
-/** Prepares the final reviewed follow-up action list. */
-async function prepareDialogPreSave(form, title): Promise<any> {
+/**
+ * Prepares the final reviewed follow-up action list.
+ *
+ * @param form - Form values.
+ * @param title - Page title.
+ * @returns Result when the function
+ *   prepares the final reviewed follow-up action list.
+ */
+async function prepareDialogPreSave(
+    form: { redirectRows: Array<{ title: string }> },
+    title: string,
+): Promise<unknown> {
     await refreshPreSaveCategoryWikidata(form);
     let redirectTitles = buildRedirectTitles(form, title);
 
@@ -1422,13 +1880,32 @@ async function prepareDialogPreSave(form, title): Promise<any> {
     return { actions, move: { enabled: false, to: title } };
 }
 
-/** Fetches Steam name rows with the bound citation store. */
-function fetchDialogSteamNames(store, url, options): Promise<any[]> {
+/**
+ * Fetches Steam name rows with the bound citation store.
+ *
+ * @param store - Store value.
+ * @param url - Request URL.
+ * @param options - Operation options.
+ * @returns Steam name rows with the bound citation store.
+ */
+function fetchDialogSteamNames(
+    store: unknown,
+    url: string,
+    options: unknown,
+): Promise<unknown[]> {
     return fetchSteamNameRows(url, store, options);
 }
 
-/** Registers Codex components used by the dialog template. */
-function registerCodexComponents(app, Codex): void {
+/**
+ * Registers Codex components used by the dialog template.
+ *
+ * @param app - App value.
+ * @param Codex - Codex value.
+ */
+function registerCodexComponents(
+    app: { component: (name: string, component: unknown) => void },
+    Codex: CodexComponents,
+): void {
     app.component("CdxDialog", Codex.CdxDialog);
     app.component("CdxButton", Codex.CdxButton);
     app.component("CdxButtonGroup", Codex.CdxButtonGroup);
@@ -1449,8 +1926,39 @@ function registerCodexComponents(app, Codex): void {
     app.component("CdxTextInput", Codex.CdxTextInput);
 }
 
-/** Clears restored state and registers page triggers. */
-function finishInitialization(context): void {
+/**
+ * Lists the Codex components registered by the dialog.
+ */
+interface CodexComponents {
+    CdxButton: unknown;
+    CdxButtonGroup: unknown;
+    CdxCard: unknown;
+    CdxCheckbox: unknown;
+    CdxDialog: unknown;
+    CdxField: unknown;
+    CdxIcon: unknown;
+    CdxInfoChip: unknown;
+    CdxMenuButton: unknown;
+    CdxMessage: unknown;
+    CdxProgressBar: unknown;
+    CdxProgressIndicator: unknown;
+    CdxSelect: unknown;
+    CdxTab: unknown;
+    CdxTable: unknown;
+    CdxTabs: unknown;
+    CdxTextArea: unknown;
+    CdxTextInput: unknown;
+}
+
+/**
+ * Clears restored state and registers page triggers.
+ *
+ * @param context - Operation context.
+ */
+function finishInitialization(context: {
+    previewFormData?: { form: unknown };
+    movedEdit?: { form: unknown; preview?: boolean };
+}): void {
     if (context.previewFormData != null) {
         clearPreviewFormData();
     }
@@ -1466,7 +1974,10 @@ function finishInitialization(context): void {
 /**
  * Runs the preselected follow-up actions on the newly created article.
  *
- * @returns */
+ * @returns Result when the function
+ *   runs the preselected follow-up actions on the
+ *   newly created article.
+ */
 async function runPendingSaveActions(): Promise<void> {
     const pending = getPendingSaveData(getPageName());
 
@@ -1495,8 +2006,12 @@ async function runPendingSaveActions(): Promise<void> {
     }
 }
 
-/** Completes or reports restored follow-up action progress. */
-function completePendingSaveProgress(result): void {
+/**
+ * Completes or reports restored follow-up action progress.
+ *
+ * @param result - Operation result.
+ */
+function completePendingSaveProgress(result: { failed: unknown[] }): void {
     if (result.failed.length > 0) {
         reportSaveProgressError(formatPendingActionFailures(result.failed));
         return;
@@ -1505,7 +2020,11 @@ function completePendingSaveProgress(result): void {
     sessionStorage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
 }
 
-/** Reloads the completed page or navigates to its moved title. */
+/**
+ * Reloads the completed page or navigates to its moved title.
+ *
+ * @param title - Page title.
+ */
 function reloadAfterPendingSave(title: string): void {
     if (normalizePageTitle(title) !== normalizePageTitle(getPageName())) {
         window.location.href = mw.util.getUrl(title);
@@ -1530,9 +2049,10 @@ function formatPendingActionFailures(actions: Array<any>): string {
         return msg("errors.followUpFailed");
     }
 
-    return msg("errors.followUpFailedDetails", {
+    const result = msg("errors.followUpFailedDetails", {
         actions: labels.join("; "),
     });
+    return result;
 }
 
 const currentAction = mw.config.get("wgAction");

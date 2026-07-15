@@ -1,4 +1,6 @@
-/** Catalog translation with MediaWiki locale detection. */
+/**
+ * Catalog translation with MediaWiki locale detection.
+ */
 
 export type MessageCatalog = Record<string, string>;
 export type MessageCatalogs = Record<string, MessageCatalog>;
@@ -31,6 +33,11 @@ export interface TypedI18n<Id extends string> {
 
 /**
  * Defines grouped source messages and flattens them for runtime lookup.
+ *
+ * @param groups - Groups value.
+ * @returns Result when the function
+ *   defines grouped source messages and flattens them
+ *   for runtime lookup.
  */
 export function defineMessages<const Groups extends MessageGroups>(
     groups: Groups,
@@ -44,13 +51,19 @@ export function defineMessages<const Groups extends MessageGroups>(
     return messages as FlattenMessageGroups<Groups>;
 }
 
-/** Creates a typed translator from its English source catalog. */
+/**
+ * Creates a typed translator from its English source catalog.
+ *
+ * @param english - English value.
+ * @param translations - Translations value.
+ * @returns A typed translator from its English source catalog.
+ */
 export function createI18n<Source extends MessageCatalog>(
     english: Source,
     translations: Record<string, LocaleCatalog<Source>>,
 ): TypedI18n<Extract<keyof Source, string>> {
     const translator = createTranslator({ "en": english, ...translations });
-    return {
+    const result: TypedI18n<Extract<keyof Source, string>> = {
         interfaceLocale: translator.locale,
         msg(id, values) {
             return translator.text(id, values);
@@ -59,21 +72,29 @@ export function createI18n<Source extends MessageCatalog>(
             return translator.parts(id, values);
         },
     };
+    return result;
 }
 
-/** Creates a translator for a set of locale catalogs. */
+/**
+ * Creates a translator for a set of locale catalogs.
+ *
+ * @param catalogs - Catalogs value.
+ * @param locale - Locale value.
+ * @returns A translator for a set of locale catalogs.
+ */
 export function createTranslator(
     catalogs: MessageCatalogs,
     locale: string = getMediaWikiInterfaceLanguage(),
 ): Translator {
     const resolvedLocale = resolveLocale(locale, Object.keys(catalogs));
-    return {
+    const result: Translator = {
         locale: resolvedLocale,
         parts(message, values) {
-            return interpolateMessageParts(
+            const result = interpolateMessageParts(
                 getTranslatedMessage(catalogs, resolvedLocale, message),
                 values,
             );
+            return result;
         },
         text(message, values = {}) {
             const translated = getTranslatedMessage(
@@ -84,9 +105,17 @@ export function createTranslator(
             return interpolateMessage(translated, values);
         },
     };
+    return result;
 }
 
-/** Gets a translated message with English and source-key fallback. */
+/**
+ * Gets a translated message with English and source-key fallback.
+ *
+ * @param catalogs - Catalogs value.
+ * @param locale - Locale value.
+ * @param message - Message value.
+ * @returns A translated message with English and source-key fallback.
+ */
 function getTranslatedMessage(
     catalogs: MessageCatalogs,
     locale: string,
@@ -95,7 +124,11 @@ function getTranslatedMessage(
     return catalogs[locale]?.[message] || catalogs.en?.[message] || message;
 }
 
-/** Gets the current MediaWiki interface language. */
+/**
+ * Gets the current MediaWiki interface language.
+ *
+ * @returns The current MediaWiki interface language.
+ */
 export function getMediaWikiInterfaceLanguage(): string {
     if (typeof mw === "undefined") {
         return "en";
@@ -103,7 +136,13 @@ export function getMediaWikiInterfaceLanguage(): string {
     return String(mw.config.get("wgUserLanguage") || "en");
 }
 
-/** Resolves a requested locale against available catalogs. */
+/**
+ * Resolves a requested locale against available catalogs.
+ *
+ * @param locale - Locale value.
+ * @param availableLocales - Available locales value.
+ * @returns A requested locale against available catalogs.
+ */
 export function resolveLocale(
     locale: string,
     availableLocales: string[],
@@ -120,7 +159,12 @@ export function resolveLocale(
     return base || available.get("en") || availableLocales[0] || "en";
 }
 
-/** Normalizes common MediaWiki Chinese language variants. */
+/**
+ * Normalizes common MediaWiki Chinese language variants.
+ *
+ * @param locale - Locale value.
+ * @returns Common MediaWiki Chinese language variants.
+ */
 function normalizeLocale(locale: string): string {
     const value = String(locale || "en").replace(/_/gu, "-");
     if (/^zh(?:-(?:cn|hans|my|sg))?$/iu.test(value)) {
@@ -132,17 +176,33 @@ function normalizeLocale(locale: string): string {
     return value;
 }
 
-/** Substitutes named values in a translated message. */
+/**
+ * Substitutes named values in a translated message.
+ *
+ * @param message - Message value.
+ * @param values - Input values.
+ * @returns Result when the function
+ *   substitutes named values in a translated message.
+ */
 function interpolateMessage(message: string, values: MessageValues): string {
-    return message.replace(
+    const result = message.replace(
         /\{([A-Za-z][A-Za-z0-9]*)\}/gu,
         function replace(text, key) {
             return Object.hasOwn(values, key) ? String(values[key]) : text;
         },
     );
+    return result;
 }
 
-/** Substitutes non-text values into named message placeholders. */
+/**
+ * Substitutes non-text values into named message placeholders.
+ *
+ * @param message - Message value.
+ * @param values - Input values.
+ * @returns Result when the function
+ *   substitutes non-text values into named message
+ *   placeholders.
+ */
 function interpolateMessageParts<T>(
     message: string,
     values: MessagePartValues<T>,
@@ -159,7 +219,13 @@ function interpolateMessageParts<T>(
     return parts.filter((part) => part !== "");
 }
 
-/** Appends a scalar, list, or unresolved placeholder. */
+/**
+ * Appends a scalar, list, or unresolved placeholder.
+ *
+ * @param parts - Parts value.
+ * @param value - Input value.
+ * @param placeholder - Placeholder value.
+ */
 function appendMessagePart<T>(
     parts: Array<string | T>,
     value: T | T[] | undefined,

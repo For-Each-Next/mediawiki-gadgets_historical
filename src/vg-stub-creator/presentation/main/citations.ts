@@ -14,7 +14,7 @@ import { msg } from "#stub/i18n";
  * @returns Citation management template node.
  */
 export function createCitationGroupTemplate(): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-if": "group.citationReview",
@@ -34,6 +34,7 @@ export function createCitationGroupTemplate(): any {
             ),
         ],
     );
+    return result;
 }
 
 /**
@@ -42,7 +43,7 @@ export function createCitationGroupTemplate(): any {
  * @returns Citation tabs node.
  */
 function createCitationTabsTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-tabs",
         {
             "v-if": "form.citationRows.length",
@@ -51,6 +52,7 @@ function createCitationTabsTemplate(): any {
         },
         [createCitationTabTemplate()],
     );
+    return result;
 }
 
 /**
@@ -59,7 +61,7 @@ function createCitationTabsTemplate(): any {
  * @returns Citation tab node.
  */
 function createCitationTabTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-tab",
         {
             class: "vg-stub-creator-citation",
@@ -70,6 +72,7 @@ function createCitationTabTemplate(): any {
         },
         [createCitationTableTemplate()],
     );
+    return result;
 }
 
 /**
@@ -78,7 +81,7 @@ function createCitationTabTemplate(): any {
  * @returns Citation table node.
  */
 function createCitationTableTemplate(): any {
-    return createTableTemplate(
+    const result = createTableTemplate(
         "citationTableColumns",
         "getCitationParamTableRows(citation)",
         createCitationParamSlotsTemplate(),
@@ -86,6 +89,7 @@ function createCitationTableTemplate(): any {
             "v-bind:caption": "getCitationTabLabel(citation)",
         },
     );
+    return result;
 }
 
 /**
@@ -100,16 +104,21 @@ function createCitationParamSlotsTemplate(): any {
         { bindTitle: true },
     );
 
-    return [
+    const result = [
         header,
         createCitationNameSlotTemplate(),
         createCitationValueSlotTemplate(),
         createCitationActionSlotTemplate(),
         createCitationFooterTemplate(),
     ];
+    return result;
 }
 
-/** Creates citation-table header actions. */
+/**
+ * Creates citation-table header actions.
+ *
+ * @returns Citation-table header actions.
+ */
 function createCitationHeaderActions(): Array<any> {
     const refetchTitle = [msg("references.refetch")].join("");
     const refetch = createIconActionLinkTemplate(
@@ -141,7 +150,7 @@ function createCitationHeaderActions(): Array<any> {
  * @returns Parameter-name slot node.
  */
 function createCitationNameSlotTemplate(): any {
-    return createInputSlotTemplate("name", {
+    const result = createInputSlotTemplate("name", {
         placeholder: msg("references.parameterName"),
         "v-bind:model-value": "row.param.name",
         "v-on:change": "sortCitation(citationIndex)",
@@ -150,6 +159,7 @@ function createCitationNameSlotTemplate(): any {
             " row.index, 'name', $event)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -158,7 +168,7 @@ function createCitationNameSlotTemplate(): any {
  * @returns Parameter-value slot node.
  */
 function createCitationValueSlotTemplate(): any {
-    return createInputSlotTemplate("value", {
+    const result = createInputSlotTemplate("value", {
         placeholder: msg("common.value"),
         "v-bind:model-value": "row.param.value",
         "v-on:change": "sortCitation(citationIndex)",
@@ -167,6 +177,7 @@ function createCitationValueSlotTemplate(): any {
             " row.index, 'value', $event)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -175,7 +186,7 @@ function createCitationValueSlotTemplate(): any {
  * @returns Citation action slot node.
  */
 function createCitationActionSlotTemplate(): any {
-    return createSlotTemplate("actions", [
+    const result = createSlotTemplate("actions", [
         createIconActionLinkTemplate(
             msg("common.reset"),
             "tableActionIcons.regenerate",
@@ -194,6 +205,7 @@ function createCitationActionSlotTemplate(): any {
             },
         ),
     ]);
+    return result;
 }
 
 /**
@@ -202,13 +214,14 @@ function createCitationActionSlotTemplate(): any {
  * @returns Citation footer slot node.
  */
 function createCitationFooterTemplate(): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
         [createCitationSourceLinkTemplate()],
     );
+    return result;
 }
 
 /**
@@ -217,7 +230,7 @@ function createCitationFooterTemplate(): any {
  * @returns Citation source link node.
  */
 function createCitationSourceLinkTemplate(): any {
-    return createElement(
+    const result = createElement(
         "a",
         {
             "v-bind:href": "citation.sourceUrl",
@@ -226,6 +239,7 @@ function createCitationSourceLinkTemplate(): any {
         },
         [createText("{{ citation.sourceUrl }}")],
     );
+    return result;
 }
 
 /**
@@ -236,9 +250,10 @@ function createCitationSourceLinkTemplate(): any {
  * @returns Text input slot node.
  */
 function createInputSlotTemplate(column: string, attributes: any): any {
-    return createSlotTemplate(column, [
+    const result = createSlotTemplate(column, [
         createElement("cdx-text-input", attributes),
     ]);
+    return result;
 }
 
 /**
@@ -252,11 +267,12 @@ function createSlotTemplate(
     column: string,
     children: Array<any | string>,
 ): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             [`v-slot:item-${column}`]: "{ row }",
         },
         children,
     );
+    return result;
 }

@@ -5,6 +5,15 @@
 const CATEGORY_CACHE_STORAGE_PREFIX = "vg-stub-creator-category-cache:";
 
 /**
+ * Browser-backed category resolution cache.
+ */
+interface CategoryCacheStore {
+    cache: Record<string, any>;
+    clear: () => void;
+    save: () => void;
+}
+
+/**
  * Creates a category cache backed by browser storage.
  *
  * @param page - Current page title.
@@ -14,17 +23,19 @@ const CATEGORY_CACHE_STORAGE_PREFIX = "vg-stub-creator-category-cache:";
 export function createCategoryCacheStore(
     page: string,
     storage: Storage = localStorage,
-): any {
+): CategoryCacheStore {
     const storageKey = `${CATEGORY_CACHE_STORAGE_PREFIX}${page}`;
     const cache = readJsonStorage(storage, storageKey) || {};
 
-    return {
+    const result: CategoryCacheStore = {
         cache,
 
         /**
          * Clears cached category resolutions.
          *
-         * @returns */
+         * @returns Result when the function
+         *   clears cached category resolutions.
+         */
         clear(): void {
             Object.keys(cache).forEach(function callback(key) {
                 delete cache[key];
@@ -35,11 +46,14 @@ export function createCategoryCacheStore(
         /**
          * Saves current category resolutions.
          *
-         * @returns */
+         * @returns Result when the function
+         *   saves current category resolutions.
+         */
         save(): void {
             writeJsonStorage(storage, storageKey, cache);
         },
     };
+    return result;
 }
 
 /**
@@ -65,7 +79,9 @@ function readJsonStorage(storage: Storage, key: string): any | undefined {
  * @param storage - Browser storage implementation.
  * @param key - Storage key.
  * @param value - Value to store.
- * @returns */
+ * @returns Result when the function
+ *   writes a json value to browser storage.
+ */
 function writeJsonStorage(storage: Storage, key: string, value: any): void {
     try {
         storage.setItem(key, JSON.stringify(value));
@@ -77,7 +93,9 @@ function writeJsonStorage(storage: Storage, key: string, value: any): void {
  *
  * @param storage - Browser storage implementation.
  * @param key - Storage key.
- * @returns */
+ * @returns Result when the function
+ *   removes one browser storage value.
+ */
 function removeStorageItem(storage: Storage, key: string): void {
     try {
         storage.removeItem(key);

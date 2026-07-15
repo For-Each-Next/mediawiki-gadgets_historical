@@ -79,10 +79,11 @@ export function getCategorySourceDisplay(source: string): any {
     };
     const label = labels[base] || base;
 
-    return {
+    const result = {
         label,
         modified,
     };
+    return result;
 }
 
 /**
@@ -106,7 +107,10 @@ export function normalizeEnglishCategoryTitle(title: string): string {
  * Initializes editable stub-tag rows from generated category metadata.
  *
  * @param form - Dialog form values.
- * @returns */
+ * @returns Result when the function
+ *   initializes editable stub-tag rows from generated
+ *   category metadata.
+ */
 export function initializeStubTagRows(form: any): void {
     if (form.stubTagRows != null) {
         return;
@@ -120,7 +124,10 @@ export function initializeStubTagRows(form: any): void {
  * Adds newly generated stub-tag rows while preserving editable rows.
  *
  * @param form - Dialog form values.
- * @returns */
+ * @returns Result when the function
+ *   adds newly generated stub-tag rows while
+ *   preserving editable rows.
+ */
 export function syncStubTagRowsFromCategories(form: any): void {
     if (form.stubTagRows == null) {
         initializeStubTagRows(form);
@@ -166,24 +173,26 @@ export function buildStubTagRowsFromCategories(rows: Array<any>): Array<any> {
         }
     });
 
-    return tags.map(function callback(stubTag) {
-        return createStubTagRow({
+    const result = tags.map(function callback(stubTag) {
+        const result = createStubTagRow({
             enabled: safeRows.some(function callback(row) {
-                return (
+                const result =
                     trimStubTagValue(row.stubTag) === stubTag &&
-                    row.stubTagEnabled === true
-                );
+                    row.stubTagEnabled === true;
+                return result;
             }),
             originalEnabled: safeRows.some(function callback(row) {
-                return (
+                const result =
                     trimStubTagValue(row.stubTag) === stubTag &&
-                    row.originalStubTagEnabled === true
-                );
+                    row.originalStubTagEnabled === true;
+                return result;
             }),
             originalStubTag: stubTag,
             stubTag,
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -210,7 +219,6 @@ export function ensureStubTagRows(form: any): Array<any> {
  * @param isBlank - Blank row predicate.
  * @param createBlank - Blank row factory.
  * @returns Cleaned editable rows.
- *
  */
 export function cleanEditableRows(
     rows: Array<any>,
@@ -233,7 +241,10 @@ export function cleanEditableRows(
  * @param rows - Editable rows.
  * @param isBlank - Blank row predicate.
  * @param createBlank - Blank row factory.
- * @returns */
+ * @returns Result when the function
+ *   ensures an editable row list has exactly one blank
+ *   row at the bottom.
+ */
 export function ensureTrailingEditableRow(
     rows: Array<any>,
     isBlank: (...args: any[]) => any,
@@ -249,7 +260,10 @@ export function ensureTrailingEditableRow(
  *
  * @param form - Dialog form values.
  * @param _createBlank - Unused legacy category row factory.
- * @returns */
+ * @returns Result when the function
+ *   ensures category review rows end with one blank
+ *   row.
+ */
 export function ensureTrailingCategoryRow(
     form: any,
     _createBlank: (...args: any[]) => any,
@@ -269,7 +283,10 @@ export function ensureTrailingCategoryRow(
  * Ensures redirect review rows end with one blank row.
  *
  * @param form - Dialog form values.
- * @returns */
+ * @returns Result when the function
+ *   ensures redirect review rows end with one blank
+ *   row.
+ */
 export function ensureTrailingRedirectRow(form: any): void {
     ensureTrailingEditableRow(
         ensureRedirectRows(form),
@@ -282,7 +299,9 @@ export function ensureTrailingRedirectRow(form: any): void {
  * Ensures navbox review rows end with one blank row.
  *
  * @param form - Dialog form values.
- * @returns */
+ * @returns Result when the function
+ *   ensures navbox review rows end with one blank row.
+ */
 export function ensureTrailingNavboxRow(form: any): void {
     ensureTrailingEditableRow(
         ensureNavboxRows(form),
@@ -295,7 +314,10 @@ export function ensureTrailingNavboxRow(form: any): void {
  * Ensures stub-tag review rows end with one blank row.
  *
  * @param form - Dialog form values.
- * @returns */
+ * @returns Result when the function
+ *   ensures stub-tag review rows end with one blank
+ *   row.
+ */
 export function ensureTrailingStubTagRow(form: any): void {
     ensureTrailingEditableRow(
         ensureStubTagRows(form),
@@ -320,11 +342,12 @@ export function isBlankCategoryRow(row: any): boolean {
  * @returns Blank category row.
  */
 export function createBlankCategoryRow(): any {
-    return {
+    const result = {
         category: "",
         enabled: true,
         source: "manual",
     };
+    return result;
 }
 
 /**
@@ -344,10 +367,10 @@ export function isBlankStubTagRow(row: any): boolean {
  * @returns Whether the row was manually entered.
  */
 export function isManualStubTagRow(row: any): boolean {
-    return (
+    const result =
         trimStubTagValue(row?.stubTag) !== "" &&
-        trimStubTagValue(row?.originalStubTag) === ""
-    );
+        trimStubTagValue(row?.originalStubTag) === "";
+    return result;
 }
 
 /**
@@ -359,7 +382,7 @@ export function isManualStubTagRow(row: any): boolean {
 export function createStubTagRow(value: any = ""): any {
     const stubTag = trimStubTagValue(value?.stubTag ?? value);
 
-    return {
+    const result = {
         enabled: value?.enabled !== false,
         originalEnabled: value?.originalEnabled === true,
         originalStubTag: trimStubTagValue(value?.originalStubTag || stubTag),
@@ -371,12 +394,14 @@ export function createStubTagRow(value: any = ""): any {
                 return {};
             },
             function falseBranch() {
-                return {
+                const result = {
                     pendingEdit: value.pendingEdit,
                 };
+                return result;
             },
         ),
     };
+    return result;
 }
 
 /**
@@ -386,10 +411,11 @@ export function createStubTagRow(value: any = ""): any {
  * @returns Template name without braces.
  */
 export function trimStubTagValue(value: any): string {
-    return trimFieldValue(value)
+    const result = trimFieldValue(value)
         .replace(/^\{\{/u, "")
         .replace(/\}\}$/u, "")
         .trim();
+    return result;
 }
 
 /**
@@ -409,7 +435,7 @@ export function createCitationPrefetchQueue(
     let lastUrlsKey = null;
     let timer = null;
 
-    return function callback(form) {
+    const result = function callback(form: Record<string, unknown>) {
         if (options.onSourceUrlChange == null) {
             return;
         }
@@ -431,6 +457,7 @@ export function createCitationPrefetchQueue(
             urls.forEach(options.onSourceUrlChange);
         }, options.citationPrefetchDelay || 0);
     };
+    return result;
 }
 
 /**
@@ -439,7 +466,7 @@ export function createCitationPrefetchQueue(
  * @returns Initial dialog form values.
  */
 export function createFormValues(): any {
-    return {
+    const result = {
         ...Object.fromEntries(
             [...getArticleFields(), ...SOURCE_REFERENCE_FIELDS].map(
                 getEmptyFieldValue,
@@ -458,6 +485,7 @@ export function createFormValues(): any {
         sortKey: "",
         stubTagRows: null,
     };
+    return result;
 }
 
 /**
@@ -473,7 +501,7 @@ export function createNameRow(
     selectedMarkets: Array<string> = [],
     options: any = {},
 ): any {
-    return {
+    const result = {
         ...Object.fromEntries(
             NAME_MARKETS.map(function callback(market) {
                 return [market.key, selectedMarkets.includes(market.key)];
@@ -483,6 +511,7 @@ export function createNameRow(
         official: Boolean(options.official),
         sourceUrl: "",
     };
+    return result;
 }
 
 /**
@@ -499,10 +528,11 @@ export function createNoteTaRow(key: any = "", value: string = ""): any {
             return key;
         },
         function falseBranch() {
-            return {
+            const result = {
                 key,
                 value,
             };
+            return result;
         },
     );
 
@@ -533,10 +563,11 @@ export function createNoteTaRow(key: any = "", value: string = ""): any {
  * @returns Localized name row.
  */
 export function createNameRowFromValues(values: any): any {
-    return {
+    const result = {
         ...createNameRow(getNameRowSelectedMarkets(values)),
         ...values,
     };
+    return result;
 }
 
 /**
@@ -546,13 +577,15 @@ export function createNameRowFromValues(values: any): any {
  * @returns Labeled Steam name suggestions.
  */
 export function getSteamNameSuggestions(rows: Array<any>): Array<any> {
-    return rows.map(function callback(row) {
-        return {
+    const result = rows.map(function callback(row) {
+        const result = {
             label: row.label || formatSteamNameMarkets(row),
             url: row.sourceUrl,
             value: row.name,
         };
+        return result;
     });
+    return result;
 }
 
 /**
@@ -588,10 +621,11 @@ export function getOriginalNameLanguage(form: any): string {
         return "";
     }
 
-    return parsePrefixedValue(
+    const result = parsePrefixedValue(
         form.originalName,
         form.originalLanguage || "ja",
     ).prefix.toLocaleLowerCase();
+    return result;
 }
 
 /**
@@ -649,6 +683,7 @@ export function findSteamNameRow(
  * @param blankName - Whether to leave the name blank for
  * manual
  * entry.
+ * @param worldwide - Worldwide value.
  * @returns Merged localized name row.
  */
 export function mergeSteamNameRows(
@@ -686,19 +721,21 @@ export function mergeSteamNameRows(
  * @returns Selected market keys.
  */
 export function getNameRowSelectedMarkets(values: any): Array<string> {
-    return (
+    const result =
         values.markets ||
         NAME_MARKETS.filter((market) => values[market.key]).map(
             (market) => market.key,
-        )
-    );
+        );
+    return result;
 }
 
 /**
  * Ensures localized name rows end with a blank row.
  *
  * @param rows - Localized name rows.
- * @returns */
+ * @returns Result when the function
+ *   ensures localized name rows end with a blank row.
+ */
 export function ensureTrailingNameRow(rows: Array<any>): void {
     if (!Array.isArray(rows) || rows.length === 0) {
         rows.push(createNameRow());
@@ -717,11 +754,11 @@ export function ensureTrailingNameRow(rows: Array<any>): void {
  * @returns Whether the row has any user-facing value.
  */
 export function hasAnyNameRowValue(row: any): boolean {
-    return (
+    const result =
         hasEnteredNameRowValue(row) ||
         Boolean(row.official) ||
-        getNameRowSelectedMarkets(row).length > 0
-    );
+        getNameRowSelectedMarkets(row).length > 0;
+    return result;
 }
 
 /**
@@ -733,10 +770,10 @@ export function hasAnyNameRowValue(row: any): boolean {
  * @returns Whether the row should be kept.
  */
 export function hasEnteredNameRowValue(row: any): boolean {
-    return (
+    const result =
         Boolean(trimFieldValue(row.name)) ||
-        Boolean(trimFieldValue(row.sourceUrl))
-    );
+        Boolean(trimFieldValue(row.sourceUrl));
+    return result;
 }
 
 /**
@@ -841,12 +878,13 @@ export function getBasePageTitle(title: string): string {
  * @returns Blank identifier values.
  */
 export function createBlankEnwikiMetadata(): any {
-    return {
+    const result = {
         metacriticId: "",
         openCriticId: "",
         pageExists: null,
         steamId: "",
     };
+    return result;
 }
 
 /**
@@ -875,15 +913,17 @@ export function getWikidataLookupStatus(pageExists: boolean | null): string {
  * @returns Tip slot definitions.
  */
 export function createEnwikiTipPlaceholders(value: string): Array<any> {
-    return ["Wikidata", "Metacritic", "OpenCritic", "Steam"].map(
+    const result = ["Wikidata", "Metacritic", "OpenCritic", "Steam"].map(
         function callback(label) {
-            return {
+            const result = {
                 label,
                 value,
                 url: "",
             };
+            return result;
         },
     );
+    return result;
 }
 
 /**
@@ -950,11 +990,12 @@ export function buildWikidataSearchUrl(title: string): string {
  * @returns Game URL.
  */
 export function buildMetacriticUrl(id: string): string {
-    return [
+    const result = [
         "https://www.metacritic.com/game/",
         encodeURIComponent(id),
         "/",
     ].join("");
+    return result;
 }
 
 /**
@@ -966,11 +1007,12 @@ export function buildMetacriticUrl(id: string): string {
 export function buildMetacriticSearchUrl(title: string): string {
     const query = `"${getBasePageTitle(title)}" site:metacritic.com`;
 
-    return [
+    const result = [
         "https://www.google.com/search?q=",
         encodeURIComponent(query),
         "",
     ].join("");
+    return result;
 }
 
 /**
@@ -980,9 +1022,12 @@ export function buildMetacriticSearchUrl(title: string): string {
  * @returns Game URL.
  */
 export function buildOpenCriticUrl(id: string): string {
-    return ["https://opencritic.com/game/", encodeURIComponent(id), "/-"].join(
-        "",
-    );
+    const result = [
+        "https://opencritic.com/game/",
+        encodeURIComponent(id),
+        "/-",
+    ].join("");
+    return result;
 }
 
 /**
@@ -1002,12 +1047,13 @@ export function buildOpenCriticSearchUrl(title: string): string {
  * @returns Store URL.
  */
 export function buildSteamUrl(id: string): string {
-    return [
+    const result = [
         "https://store.steampowered.com/app",
         "/",
         encodeURIComponent(id),
         "/",
     ].join("");
+    return result;
 }
 
 /**
@@ -1030,11 +1076,12 @@ export function buildSteamSearchUrl(title: string): string {
 export function buildGoogleSiteSearchUrl(title: string, site: string): string {
     const query = `"${getBasePageTitle(title)}" site:${site}`;
 
-    return [
+    const result = [
         "https://www.google.com/search?q=",
         encodeURIComponent(query),
         "",
     ].join("");
+    return result;
 }
 
 /**
@@ -1042,7 +1089,10 @@ export function buildGoogleSiteSearchUrl(title: string, site: string): string {
  *
  * @param form - Reactive form object.
  * @param values - Received form values.
- * @returns */
+ * @returns Result when the function
+ *   replaces a reactive form object with received form
+ *   values.
+ */
 export function replaceFormValues(form: any, values: any): void {
     Object.keys(form).forEach(function callback(key) {
         delete form[key];
@@ -1070,8 +1120,12 @@ export function normalizeReceivedFormValues(values: any): any {
     return normalized;
 }
 
-/** Normalizes received article-review rows. */
-function normalizeReceivedReviewRows(form): void {
+/**
+ * Normalizes received article-review rows.
+ *
+ * @param form - Form values.
+ */
+function normalizeReceivedReviewRows(form: Record<string, unknown>): void {
     if (!Object.hasOwn(form, "registerNewPage")) {
         form.registerNewPage = true;
     }
@@ -1096,17 +1150,36 @@ function normalizeReceivedReviewRows(form): void {
     }
 }
 
-/** Normalizes an optional review-row collection. */
-function normalizeOptionalRows(form, key, createRow): Array<any> | null {
+/**
+ * Normalizes an optional review-row collection.
+ *
+ * @param form - Form values.
+ * @param key - Lookup key.
+ * @param createRow - Create row value.
+ * @returns An optional review-row collection.
+ */
+function normalizeOptionalRows(
+    form: Record<PropertyKey, unknown>,
+    key: PropertyKey,
+    createRow: (value: unknown) => unknown,
+): unknown[] | null {
     if (!Object.hasOwn(form, key)) {
         return null;
     }
 
-    return Array.isArray(form[key]) ? form[key].map(createRow) : form[key];
+    const rows = form[key];
+
+    return Array.isArray(rows) ? rows.map(createRow) : null;
 }
 
-/** Normalizes received managed citation rows. */
-function normalizeReceivedCitationRows(form): void {
+/**
+ * Normalizes received managed citation rows.
+ *
+ * @param form - Form values.
+ */
+function normalizeReceivedCitationRows(form: {
+    citationRows: unknown[];
+}): void {
     if (Array.isArray(form.citationRows)) {
         form.citationRows = form.citationRows.map(createCitationRow);
         return;
@@ -1115,21 +1188,33 @@ function normalizeReceivedCitationRows(form): void {
     form.citationRows = [];
 }
 
-/** Normalizes received NoteTA rows and removal state. */
-function normalizeReceivedNoteTaRows(form): void {
+/**
+ * Normalizes received NoteTA rows and removal state.
+ *
+ * @param form - Form values.
+ */
+function normalizeReceivedNoteTaRows(form: Record<string, unknown>): void {
     if (!Object.hasOwn(form, "noteTaNamesRemoved")) {
         form.noteTaNamesRemoved = false;
     }
     if (Array.isArray(form.noteTaRows)) {
-        form.noteTaRows = form.noteTaRows.map(createNoteTaRow);
+        form.noteTaRows = form.noteTaRows.map((row) => createNoteTaRow(row));
         return;
     }
 
     form.noteTaRows = [createNoteTaRow("G1", "Games")];
 }
 
-/** Migrates legacy official/common names to localized-name rows. */
-function normalizeReceivedNameRows(form): void {
+/**
+ * Migrates legacy official/common names to localized-name rows.
+ *
+ * @param form - Form values.
+ */
+function normalizeReceivedNameRows(form: {
+    localizedNames: Array<Record<string, unknown>>;
+    officialNames: Array<Record<string, unknown>>;
+    commonNames: Array<Record<string, unknown>>;
+}): void {
     if (form.localizedNames != null) {
         return;
     }
@@ -1140,11 +1225,22 @@ function normalizeReceivedNameRows(form): void {
     form.localizedNames = [...official, ...common];
 }
 
-/** Adds an official-name flag to legacy name rows. */
-function addOfficialNameState(rows, official): Array<any> {
-    return rows.map(function callback(row) {
+/**
+ * Adds an official-name flag to legacy name rows.
+ *
+ * @param rows - Row values.
+ * @param official - Official value.
+ * @returns Result when the function
+ *   adds an official-name flag to legacy name rows.
+ */
+function addOfficialNameState(
+    rows: Array<Record<string, unknown>>,
+    official: boolean,
+): Array<Record<string, unknown>> {
+    const result = rows.map(function callback(row) {
         return { ...row, official };
     });
+    return result;
 }
 
 /**
@@ -1159,10 +1255,11 @@ export function getHistoryEntryForm(entry: any): any {
         entry?.data?.input != null &&
         entry?.metadata != null
     ) {
-        return {
+        const result = {
             ...cloneValue(entry.data.input),
             historyPatches: cloneValue(entry.data.patches || {}),
         };
+        return result;
     }
 
     return undefined;
@@ -1179,7 +1276,7 @@ export function applyCitationPatches(
     rows: Array<any>,
     patches: Array<any> = [],
 ): Array<any> {
-    return rows.map(function callback(row) {
+    const result = rows.map(function callback(row) {
         const patch = patches.find(
             (item) => trimFieldValue(item.sourceUrl) === row.sourceUrl,
         );
@@ -1188,7 +1285,7 @@ export function applyCitationPatches(
             return row;
         }
 
-        return createCitationRow({
+        const result = createCitationRow({
             ...row,
             ...cloneValue(patch),
             params: applyCitationParamPatches(
@@ -1198,7 +1295,9 @@ export function applyCitationPatches(
             modified: true,
             sourceUrl: row.sourceUrl,
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -1213,9 +1312,8 @@ export function applyCitationParamPatches(
     generatedParams: Array<any> = [],
     patches: Array<any> = [],
 ): Array<any> {
-    const params = new Map(
-        cloneValue(generatedParams).map((param) => [param.name, param]),
-    );
+    const clonedParams: Array<{ name: string }> = cloneValue(generatedParams);
+    const params = new Map(clonedParams.map((param) => [param.name, param]));
 
     patches.forEach(function callback(patch) {
         if (trimFieldValue(patch?.name) === "") {
@@ -1238,7 +1336,10 @@ export function applyCitationParamPatches(
  *
  * @param rows - Generated category rows.
  * @param patches - Category patches.
- * @returns */
+ * @returns Result when the function
+ *   applies category patches to generated category
+ *   rows.
+ */
 export function applyCategoryPatches(
     rows: Array<any>,
     patches: Array<any> = [],
@@ -1271,7 +1372,7 @@ export function applyNavboxPatches(
     rows: Array<any>,
     patches: Array<any> = [],
 ): Array<any> {
-    return rows.map(function callback(row) {
+    const result = rows.map(function callback(row) {
         const patch = patches.find(
             (item) => trimFieldValue(item.source?.title) === row.title,
         );
@@ -1280,12 +1381,14 @@ export function applyNavboxPatches(
             return row;
         }
 
-        return createNavboxRow({
+        const result = createNavboxRow({
             ...row,
             ...cloneValue(patch),
             title: row.title,
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -1297,16 +1400,16 @@ export function applyNavboxPatches(
  */
 export function isCategoryPatchTarget(row: any, patch: any): boolean {
     if (trimFieldValue(patch.source?.company) !== "") {
-        return (
+        const result =
             trimFieldValue(row.company) ===
-            trimFieldValue(patch.source.company)
-        );
+            trimFieldValue(patch.source.company);
+        return result;
     }
 
-    return (
+    const result =
         trimFieldValue(row.originalCategory || row.category) ===
-        trimFieldValue(patch.source?.category)
-    );
+        trimFieldValue(patch.source?.category);
+    return result;
 }
 
 /**
@@ -1316,7 +1419,7 @@ export function isCategoryPatchTarget(row: any, patch: any): boolean {
  * @returns Category row.
  */
 export function createCategoryPatchRow(patch: any): any {
-    return {
+    const result = {
         category: trimFieldValue(patch.category),
         company: trimFieldValue(patch.company),
         enabled: patch.enabled !== false,
@@ -1327,13 +1430,16 @@ export function createCategoryPatchRow(patch: any): any {
         stubTag: trimFieldValue(patch.stubTag),
         stubTagEnabled: patch.stubTagEnabled === true,
     };
+    return result;
 }
 
 /**
  * Lists the generated name conversion rule as an editable NoteTA row.
  *
  * @param form - Dialog form values.
- * @returns */
+ * @returns The generated name conversion rule as an editable NoteTA
+ *   row.
+ */
 export function syncGeneratedNameNoteTaRow(form: any): void {
     const generated = buildOfficialNameConversionText(
         getOfficialNameNoteTaRows(form),
@@ -1367,7 +1473,12 @@ export function syncGeneratedNameNoteTaRow(form: any): void {
     Object.assign(current, row);
 }
 
-/** Creates the generated official-name NoteTA row. */
+/**
+ * Creates the generated official-name NoteTA row.
+ *
+ * @param generated - Generated value.
+ * @returns The generated official-name NoteTA row.
+ */
 function createGeneratedNameNoteTaRow(generated: string): any {
     const row = createNoteTaRow({
         generatedValue: generated,
@@ -1379,7 +1490,12 @@ function createGeneratedNameNoteTaRow(generated: string): any {
     return row;
 }
 
-/** Removes a generated NoteTA row when present. */
+/**
+ * Removes a generated NoteTA row when present.
+ *
+ * @param rows - Row values.
+ * @param index - Zero-based item index.
+ */
 function removeNoteTaRow(rows: Array<any>, index: number): void {
     if (index !== -1) {
         rows.splice(index, 1);
@@ -1390,7 +1506,10 @@ function removeNoteTaRow(rows: Array<any>, index: number): void {
  * Rebuilds generated NoteTA rows while preserving manual rows.
  *
  * @param form - Dialog form values.
- * @returns */
+ * @returns Result when the function
+ *   rebuilds generated noteta rows while preserving
+ *   manual rows.
+ */
 export function regenerateNoteTaRows(form: any): void {
     const rows = ensureNoteTaRows(form);
     const manualRows = rows.filter(isManualNoteTaRow);
@@ -1438,15 +1557,19 @@ export function isManualNoteTaRow(row: any): boolean {
  * @returns Official name rows.
  */
 export function getOfficialNameNoteTaRows(form: any): Array<any> {
-    return selectValue(
+    const localizedNames: Array<{ official: boolean }> =
+        form.localizedNames || [];
+    const result = selectValue(
         Array.isArray(form.localizedNames),
         function trueBranch() {
-            return form.localizedNames.filter((row) => row.official);
+            const result = localizedNames.filter((row) => row.official);
+            return result;
         },
         function falseBranch() {
             return [];
         },
     );
+    return result;
 }
 
 /**
@@ -1557,7 +1680,10 @@ export function isBlankRedirectRow(row: any): boolean {
  * Marks category rows as fixed for their current category titles.
  *
  * @param rows - Category rows.
- * @returns */
+ * @returns Result when the function
+ *   marks category rows as fixed for their current
+ *   category titles.
+ */
 export function markCategoryRowsFixed(rows: Array<any>): void {
     rows.forEach(function callback(row) {
         row.fixed = true;
@@ -1569,7 +1695,10 @@ export function markCategoryRowsFixed(rows: Array<any>): void {
  * Marks category rows as needing a fresh review refresh.
  *
  * @param rows - Category rows.
- * @returns */
+ * @returns Result when the function
+ *   marks category rows as needing a fresh review
+ *   refresh.
+ */
 export function markCategoryRowsUnfixed(rows: Array<any>): void {
     rows.forEach(function callback(row) {
         row.fixed = false;
@@ -1601,11 +1730,11 @@ export function syncCategoryRowFixedState(row: any, current: any): void {
  * @returns Whether the row is current.
  */
 export function isCategoryRowFixed(row: any): boolean {
-    return (
+    const result =
         row.fixed === true &&
         normalizeTitleKey(row.fixedCategory) ===
-            normalizeTitleKey(row.category)
-    );
+            normalizeTitleKey(row.category);
+    return result;
 }
 
 /**
@@ -1613,7 +1742,10 @@ export function isCategoryRowFixed(row: any): boolean {
  *
  * @param row - Redirect review row.
  * @param value - Raw title value.
- * @returns */
+ * @returns Result when the function
+ *   updates a redirect row title and marks stale
+ *   checks as unfixed.
+ */
 export function setRedirectRowTitle(row: any, value: string): void {
     const title = trimFieldValue(value);
 
@@ -1631,10 +1763,10 @@ export function setRedirectRowTitle(row: any, value: string): void {
  * @returns Whether the row is current.
  */
 export function isRedirectRowFixed(row: any): boolean {
-    return (
+    const result =
         row.fixed === true &&
-        normalizeTitleKey(row.fixedTitle) === normalizeTitleKey(row.title)
-    );
+        normalizeTitleKey(row.fixedTitle) === normalizeTitleKey(row.title);
+    return result;
 }
 
 /**
@@ -1653,13 +1785,20 @@ export function ensureRedirectRows(form: any): Array<any> {
 
 /**
  * Defines the module-level has prepared navbox rows.
+ *
+ * @param form - Form values.
+ * @returns Result when the function
+ *   defines the module-level has prepared navbox rows.
  */
-export function hasPreparedNavboxRows(form) {
-    return (
+export function hasPreparedNavboxRows(form: {
+    navboxRows: unknown[];
+    series: unknown;
+}) {
+    const result =
         Array.isArray(form.navboxRows) &&
         (form.navboxRows.some((row) => !isBlankNavboxRow(row)) ||
-            trimFieldValue(form.series) === "")
-    );
+            trimFieldValue(form.series) === "");
+    return result;
 }
 
 /**
@@ -1686,7 +1825,7 @@ export function createNavboxRow(
     const text = trimFieldValue(value?.text ?? value);
     const fixedText = fixed ? text : trimFieldValue(value?.fixedText);
 
-    return {
+    const result = {
         fixed: fixed && fixedText === text,
         fixedText,
         enabled: value?.enabled !== false,
@@ -1699,12 +1838,14 @@ export function createNavboxRow(
                 return {};
             },
             function falseBranch() {
-                return {
+                const result = {
                     pendingEdit: value.pendingEdit,
                 };
+                return result;
             },
         ),
     };
+    return result;
 }
 
 /**
@@ -1722,7 +1863,10 @@ export function isBlankNavboxRow(row: any): boolean {
  *
  * @param row - Navbox review row.
  * @param value - Raw navbox text.
- * @returns */
+ * @returns Result when the function
+ *   updates a navbox row text and marks stale checks
+ *   as unfixed.
+ */
 export function setNavboxRowText(row: any, value: string): void {
     const text = trimFieldValue(value);
 
@@ -1756,12 +1900,12 @@ export function shouldSkipFixedRows(
     rows: Array<any>,
     isFixed: (...args: any[]) => any,
 ): boolean {
-    return (
+    const result =
         refreshOptions.recheck !== true &&
         Array.isArray(rows) &&
         rows.length > 0 &&
-        rows.every(isFixed)
-    );
+        rows.every(isFixed);
+    return result;
 }
 
 /**
@@ -1790,7 +1934,7 @@ export function createCitationRow(value: any = {}): any {
         template,
     );
 
-    return {
+    const result = {
         generatedParams,
         index: Number(value.index) || 1,
         modified: value.modified === true,
@@ -1801,6 +1945,7 @@ export function createCitationRow(value: any = {}): any {
         sourceUrl: trimFieldValue(value.sourceUrl),
         template,
     };
+    return result;
 }
 
 /**
@@ -1810,10 +1955,11 @@ export function createCitationRow(value: any = {}): any {
  * @returns Managed citation parameter row.
  */
 export function createCitationParamRow(value: any = {}): any {
-    return {
+    const result = {
         name: trimFieldValue(value.name),
         value: trimFieldValue(value.value),
     };
+    return result;
 }
 
 /**
@@ -1823,17 +1969,18 @@ export function createCitationParamRow(value: any = {}): any {
  * rows.
  *
  * @param params - Citation parameter rows.
+ * @param template - Template value.
  * @returns Sorted parameter rows.
- *
  */
 export function sortManagedCitationParams(
     params: Array<any> = [],
     template: string = "cite web",
 ): Array<any> {
-    return sortCitationParams(
+    const result = sortCitationParams(
         params.map(createCitationParamRow).filter(hasCitationParamValue),
         template,
     );
+    return result;
 }
 
 /**
@@ -1853,12 +2000,16 @@ export function getCitationParamRows(citation: any): Array<any> {
  * @returns Visible parameter table rows.
  */
 export function getCitationParamTableRows(citation: any): Array<any> {
-    return getCitationParamRows(citation).map(function callback(param, index) {
-        return {
-            index,
-            param,
-        };
-    });
+    const result = getCitationParamRows(citation).map(
+        function callback(param, index) {
+            const result = {
+                index,
+                param,
+            };
+            return result;
+        },
+    );
+    return result;
 }
 
 /**
@@ -1868,9 +2019,10 @@ export function getCitationParamTableRows(citation: any): Array<any> {
  * @returns Citation tabs key.
  */
 export function getCitationTabsKey(rows: Array<any>): string {
-    return rows
+    const result = rows
         .map((citation) => trimFieldValue(citation.sourceUrl))
         .join("\n");
+    return result;
 }
 
 /**
@@ -1880,11 +2032,15 @@ export function getCitationTabsKey(rows: Array<any>): string {
  * @returns Metadata table rows.
  */
 export function getMetadataFieldTableRows(group: any): Array<any> {
-    return group.fields.slice(1).map(function callback(field) {
-        return {
+    const result = group.fields.slice(1).map(function callback(
+        field: unknown,
+    ) {
+        const result = {
             field,
         };
+        return result;
     });
+    return result;
 }
 
 /**
@@ -1905,13 +2061,14 @@ export function getCitationTabName(citation: any, index: number): string {
  * @returns Citation tab label.
  */
 export function getCitationTabLabel(citation: any): string {
-    return [
+    const result = [
         "",
         citation.index,
         ": ",
         getCitationSourceDomain(citation.sourceUrl),
         "",
     ].join("");
+    return result;
 }
 
 /**
@@ -1978,7 +2135,6 @@ export function findTextareaElement(
  * @param editor - CodeMirror editor instance.
  * @param textarea - Backing textarea.
  * @returns Current source text.
- *
  */
 export function getCodeMirrorText(
     editor: any,
@@ -2005,7 +2161,10 @@ export function getCodeMirrorText(
  * @param editor - CodeMirror editor instance.
  * @param textarea - Backing textarea.
  * @param text - Source text.
- * @returns */
+ * @returns Result when the function
+ *   writes text to either mediawiki's codemirror
+ *   wrapper or the textarea.
+ */
 export function setCodeMirrorText(
     editor: any,
     textarea: HTMLTextAreaElement,
@@ -2065,7 +2224,9 @@ export function cloneValue(value: any): any {
  *
  * @param open - Vue reference controlling dialog visibility.
  * @param open.value - Current dialog visibility state.
- * @returns */
+ * @returns Result when the function
+ *   opens the mounted codex dialog.
+ */
 export function openDialog(open: any): void {
     open.value = true;
 }

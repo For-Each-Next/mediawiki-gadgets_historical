@@ -68,13 +68,18 @@ export async function fetchPageText(api: any, title: string): Promise<any> {
     return result;
 }
 
-/** Parses page text and edit timestamps from a query response. */
+/**
+ * Parses page text and edit timestamps from a query response.
+ *
+ * @param response - Fetch response.
+ * @returns Page text and edit timestamps from a query response.
+ */
 function parseFetchedPageText(response: any): any {
     const pages = response?.query?.pages || [];
     const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
     const revision = page?.revisions?.[0];
 
-    return {
+    const result = {
         basetimestamp: revision?.timestamp,
         exists: page?.missing == null,
         starttimestamp: response.curtimestamp,
@@ -84,6 +89,7 @@ function parseFetchedPageText(response: any): any {
             revision?.["*"] ??
             "",
     };
+    return result;
 }
 
 /**
@@ -195,7 +201,13 @@ export async function fetchPageCreationTimes(
     return creationTimes;
 }
 
-/** Resolves redirect targets for requested page titles. */
+/**
+ * Resolves redirect targets for requested page titles.
+ *
+ * @param api - MediaWiki API client.
+ * @param titles - Page titles.
+ * @returns Redirect targets for requested page titles.
+ */
 async function resolveRedirectTitles(api: any, titles: Array<string>) {
     const resolvedTitles = new Map();
 
@@ -215,11 +227,17 @@ async function resolveRedirectTitles(api: any, titles: Array<string>) {
     return resolvedTitles;
 }
 
-/** Maps target creation times back to requested redirect titles. */
+/**
+ * Maps target creation times back to requested redirect titles.
+ *
+ * @param output - Output value.
+ * @param resolvedTitles - Resolved titles value.
+ * @param targetTimes - Target times value.
+ */
 function mergeResolvedCreationTimes(
-    output,
-    resolvedTitles,
-    targetTimes,
+    output: Map<string, Date>,
+    resolvedTitles: Map<string, string>,
+    targetTimes: Map<string, Date>,
 ): void {
     resolvedTitles.forEach(function callback(target, title) {
         const date = targetTimes.get(target);
@@ -333,9 +351,21 @@ async function fetchRevisionCreationTimes(
     return creationTimes;
 }
 
-/** Returns titles without cached creation times. */
-function readCachedCreationTimes(titles, cache, creationTimes): Array<string> {
-    return titles.filter(function callback(title) {
+/**
+ * Returns titles without cached creation times.
+ *
+ * @param titles - Page titles.
+ * @param cache - Cached values.
+ * @param creationTimes - Creation times value.
+ * @returns Result when the function
+ *   returns titles without cached creation times.
+ */
+function readCachedCreationTimes(
+    titles: string[],
+    cache: Record<string, string>,
+    creationTimes: Map<string, Date>,
+): Array<string> {
+    const result = titles.filter(function callback(title: string) {
         const cached = cache[normalizeCacheTitle(title)];
 
         if (cached == null) {
@@ -350,10 +380,23 @@ function readCachedCreationTimes(titles, cache, creationTimes): Array<string> {
 
         return false;
     });
+    return result;
 }
 
-/** Fetches uncached creation times in namespace-homogeneous batches. */
-async function fetchUncachedCreationTimes(api, titles, cache, output) {
+/**
+ * Fetches uncached creation times in namespace-homogeneous batches.
+ *
+ * @param api - MediaWiki API client.
+ * @param titles - Page titles.
+ * @param cache - Cached values.
+ * @param output - Output value.
+ */
+async function fetchUncachedCreationTimes(
+    api: unknown,
+    titles: string[],
+    cache: Record<string, string>,
+    output: Map<string, Date>,
+) {
     for (const group of groupTitlesByNamespace(titles).values()) {
         for (
             let index = 0;
@@ -368,13 +411,25 @@ async function fetchUncachedCreationTimes(api, titles, cache, output) {
     }
 }
 
-/** Merges one API batch into creation-time output and cache maps. */
-function mergeCreationTimeBatch(output, cache, titles, times): void {
-    times.forEach(function callback(date, title) {
+/**
+ * Merges one API batch into creation-time output and cache maps.
+ *
+ * @param output - Output value.
+ * @param cache - Cached values.
+ * @param titles - Page titles.
+ * @param times - Times value.
+ */
+function mergeCreationTimeBatch(
+    output: Map<string, Date>,
+    cache: Record<string, string>,
+    titles: string[],
+    times: Map<string, Date>,
+): void {
+    times.forEach(function callback(date: Date, title: string) {
         output.set(title, date);
         cache[normalizeCacheTitle(title)] = date.toISOString();
     });
-    titles.forEach(function callback(title) {
+    titles.forEach(function callback(title: string) {
         const date = getCreationTimeForTitle(times, title);
 
         if (date != null) {
@@ -393,7 +448,6 @@ function mergeCreationTimeBatch(output, cache, titles, times): void {
  * @param api - MediaWiki API client.
  * @param titles - Page titles.
  * @returns Creation timestamps.
- *
  */
 async function fetchRevisionCreationTimeBatch(
     api: any,
@@ -410,13 +464,26 @@ async function fetchRevisionCreationTimeBatch(
     }
 }
 
-/** Retries a failed creation-time batch one title at a time. */
-async function fetchIndividualCreationTimes(api, titles, error) {
+/**
+ * Retries a failed creation-time batch one title at a time.
+ *
+ * @param api - MediaWiki API client.
+ * @param titles - Page titles.
+ * @param error - Caught error.
+ * @returns Result when the function
+ *   retries a failed creation-time batch one title at
+ *   a time.
+ */
+async function fetchIndividualCreationTimes(
+    api: unknown,
+    titles: string[],
+    error: unknown,
+): Promise<Map<string, Date>> {
     const message = [
         "fetchRevisionCreationTimeBatch fal",
         "lback to single-title requests",
     ].join("");
-    const creationTimes = new Map();
+    const creationTimes = new Map<string, Date>();
 
     logStep(message, { error, titles });
     for (const title of titles) {
@@ -471,7 +538,12 @@ async function fetchRevisionCreationTimeBatchUnsafe(
     return creationTimes;
 }
 
-/** Parses first-revision timestamps from a query response. */
+/**
+ * Parses first-revision timestamps from a query response.
+ *
+ * @param response - Fetch response.
+ * @returns First-revision timestamps from a query response.
+ */
 function parseRevisionCreationTimes(response: any): Map<string, Date> {
     const pages = response?.query?.pages || [];
     const creationTimes = new Map();
@@ -496,7 +568,6 @@ function parseRevisionCreationTimes(response: any): Map<string, Date> {
  *
  * @param titles - Page titles.
  * @returns Titles by namespace group.
- *
  */
 function groupTitlesByNamespace(
     titles: Array<string>,
@@ -562,7 +633,9 @@ function readCreationDateCache(): any {
  * Writes cached creation datetimes to localStorage.
  *
  * @param cache - Cache object.
- * @returns */
+ * @returns Result when the function
+ *   writes cached creation datetimes to localstorage.
+ */
 function writeCreationDateCache(cache: any): void {
     try {
         globalThis.localStorage?.setItem(
@@ -584,9 +657,10 @@ function writeCreationDateCache(cache: any): void {
  * @returns Cache key.
  */
 function normalizeCacheTitle(title: string): string {
-    return String(title || "")
+    const result = String(title || "")
         .replace(/_/gu, " ")
         .trim();
+    return result;
 }
 
 /**
@@ -633,7 +707,7 @@ export async function saveTalkAssessment(
 ): Promise<string> {
     for (let attempt = 0; attempt < MAX_EDIT_ATTEMPTS; attempt += 1) {
         try {
-            return await saveTalkAssessmentAttempt({
+            const result = await saveTalkAssessmentAttempt({
                 api,
                 assessmentText,
                 attempt,
@@ -641,6 +715,7 @@ export async function saveTalkAssessment(
                 summary,
                 title,
             });
+            return result;
         } catch (error) {
             logStep("saveTalkAssessment caught error", {
                 attempt: attempt + 1,
@@ -656,7 +731,13 @@ export async function saveTalkAssessment(
     return "";
 }
 
-/** Runs one talk-page assessment save attempt. */
+/**
+ * Runs one talk-page assessment save attempt.
+ *
+ * @param options - Operation options.
+ * @returns Result when the function
+ *   runs one talk-page assessment save attempt.
+ */
 async function saveTalkAssessmentAttempt(options: any): Promise<string> {
     logStep("saveTalkAssessment attempt start", {
         attempt: options.attempt + 1,
@@ -685,7 +766,13 @@ async function saveTalkAssessmentAttempt(options: any): Promise<string> {
     return update.text;
 }
 
-/** Builds updated talk text and its replacement top section. */
+/**
+ * Builds updated talk text and its replacement top section.
+ *
+ * @param page - Page value.
+ * @param options - Operation options.
+ * @returns Updated talk text and its replacement top section.
+ */
 function buildTalkAssessmentUpdate(page: any, options: any): any {
     const isText = typeof options.assessmentText === "string";
     const text = selectValue(
@@ -694,11 +781,12 @@ function buildTalkAssessmentUpdate(page: any, options: any): any {
             return updateTalkPageTopSection(page.text, options.assessmentText);
         },
         function falseBranch() {
-            return updateTalkPageAssessment(
+            const result = updateTalkPageAssessment(
                 page.text,
                 options.assessmentText,
                 options.projectConfig,
             );
+            return result;
         },
     );
     const newTopSection = buildNewTalkTopSection(page, options, isText);
@@ -706,25 +794,49 @@ function buildTalkAssessmentUpdate(page: any, options: any): any {
     return { newTopSection, text };
 }
 
-/** Builds the new top section used for no-op detection. */
-function buildNewTalkTopSection(page, options, isText): string {
-    return selectValue(
+/**
+ * Builds the new top section used for no-op detection.
+ *
+ * @param page - Page value.
+ * @param options - Operation options.
+ * @param isText - Whether is text.
+ * @returns The new top section used for no-op detection.
+ */
+function buildNewTalkTopSection(
+    page: { text: string },
+    options: { assessmentText: string; projectConfig: unknown },
+    isText: unknown,
+): string {
+    const result = selectValue(
         isText,
         function trueBranch() {
             return options.assessmentText.trimEnd();
         },
         function falseBranch() {
-            return previewTalkPageTopSection(
+            const result = previewTalkPageTopSection(
                 page.text,
                 options.assessmentText,
                 options.projectConfig,
             );
+            return result;
         },
     );
+    return result;
 }
 
-/** Checks whether an assessment save has no effective change. */
-function shouldSkipTalkAssessmentSave(page, update, title): boolean {
+/**
+ * Checks whether an assessment save has no effective change.
+ *
+ * @param page - Page value.
+ * @param update - Update value.
+ * @param title - Page title.
+ * @returns Whether an assessment save has no effective change.
+ */
+function shouldSkipTalkAssessmentSave(
+    page: { text: string; exists: unknown },
+    update: { newTopSection: string; text: unknown },
+    title: unknown,
+): boolean {
     const oldTopSection = getTalkPageTopSection(page.text);
     const emptyChange = isEmptyImportanceOnlyChange(
         oldTopSection,
@@ -742,8 +854,19 @@ function shouldSkipTalkAssessmentSave(page, update, title): boolean {
     return skip;
 }
 
-/** Builds MediaWiki edit parameters for an assessment save. */
-function buildTalkAssessmentEditParams(page, text, options): any {
+/**
+ * Builds MediaWiki edit parameters for an assessment save.
+ *
+ * @param page - Page value.
+ * @param text - Source text.
+ * @param options - Operation options.
+ * @returns MediaWiki edit parameters for an assessment save.
+ */
+function buildTalkAssessmentEditParams(
+    page: { starttimestamp: unknown; basetimestamp: null; exists: unknown },
+    text: unknown,
+    options: { summary: unknown; title: unknown },
+): unknown {
     const params: Record<string, any> = {
         action: "edit",
         starttimestamp: page.starttimestamp,
@@ -770,11 +893,11 @@ function buildTalkAssessmentEditParams(page, text, options): any {
  * @returns Whether the error is an edit conflict.
  */
 function isEditConflict(error: any): boolean {
-    return (
+    const result =
         error === "editconflict" ||
         error?.code === "editconflict" ||
-        error?.error?.code === "editconflict"
-    );
+        error?.error?.code === "editconflict";
+    return result;
 }
 
 /**

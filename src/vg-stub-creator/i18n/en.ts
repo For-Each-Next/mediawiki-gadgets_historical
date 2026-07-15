@@ -1,4 +1,6 @@
-/** English source catalog for VG Stub Creator. */
+/**
+ * English source catalog for VG Stub Creator.
+ */
 
 import { i18n } from "#shared";
 

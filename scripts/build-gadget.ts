@@ -236,7 +236,13 @@ async function formatUserscript(
     return userscript;
 }
 
-/** Builds a userscript metadata header. */
+/**
+ * Builds a userscript metadata header.
+ *
+ * @param metadata - Article metadata.
+ * @param userscriptConfig - Userscript config value.
+ * @returns A userscript metadata header.
+ */
 function buildUserscriptHeader(
     metadata: PackageMetadata,
     userscriptConfig: UserscriptConfig,
@@ -262,7 +268,13 @@ function buildUserscriptHeader(
     return lines.join("\n");
 }
 
-/** Builds the single-value userscript metadata lines. */
+/**
+ * Builds the single-value userscript metadata lines.
+ *
+ * @param metadata - Article metadata.
+ * @param userscriptConfig - Userscript config value.
+ * @returns The single-value userscript metadata lines.
+ */
 function buildCoreUserscriptMetadata(
     metadata: PackageMetadata,
     userscriptConfig: UserscriptConfig,
@@ -290,7 +302,13 @@ function buildCoreUserscriptMetadata(
     return lines;
 }
 
-/** Builds repeated userscript metadata lines. */
+/**
+ * Builds repeated userscript metadata lines.
+ *
+ * @param key - Lookup key.
+ * @param values - Input values.
+ * @returns Repeated userscript metadata lines.
+ */
 function buildUserscriptMetadataList(key: string, values: string[]): string[] {
     return values.map((value) => formatUserscriptMetadata(key, value));
 }
@@ -313,7 +331,7 @@ function formatUserscriptMetadata(key: string, value: string): string {
  * @returns Userscript bootstrap source.
  */
 function formatUserscriptBootstrap(source: string): string {
-    return `(() => {
+    const result = `(() => {
   function start() {
     if (
       window.mw?.config == null ||
@@ -331,4 +349,5 @@ ${source.trimEnd()}
   start();
 })();
 `;
+    return result;
 }

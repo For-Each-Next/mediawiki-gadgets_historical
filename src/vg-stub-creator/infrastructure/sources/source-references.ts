@@ -15,6 +15,19 @@ const { buildCiteTemplateFromParts, parseCiteTemplate, sortCitationParams } =
 
 const NAME_GROUP_KEYS = ["localizedNames", "officialNames", "commonNames"];
 
+interface ManagedCitationRow {
+    modified: boolean;
+    params: unknown[];
+    sourceUrl: string;
+    template: string;
+}
+
+interface ManagedCitationContext {
+    citationStore: CitationStore;
+    existingRows: ManagedCitationRow[];
+    refetchSourceUrls: Set<string>;
+}
+
 /**
  * Fetches named citation data for all entered source URLs.
  *
@@ -26,19 +39,21 @@ export async function fetchSourceReferences(
     form: any,
     citationStore: CitationStore,
 ): Promise<Array<any>> {
-    return Promise.all(
+    const result = Promise.all(
         getEnteredSourceReferenceFields(form).map(
             async function callback(field) {
-                return {
+                const result = {
                     citation:
                         getManagedCitation(form, field.sourceUrl) ||
                         (await citationStore.fetch(field.sourceUrl)),
                     key: field.key,
                     sourceUrl: field.sourceUrl,
                 };
+                return result;
             },
         ),
     );
+    return result;
 }
 
 /**
@@ -53,7 +68,6 @@ export async function fetchSourceReferences(
  * @param options.refetchSourceUrls - Source URLs to
  * re-fetch.
  * @returns Managed citation rows.
- *
  */
 export async function prepareManagedCitationRows(
     form: any,
@@ -61,8 +75,12 @@ export async function prepareManagedCitationRows(
     options: any = {},
 ): Promise<Array<any>> {
     const hasExistingRows = Array.isArray(form.citationRows);
-    const existingRows = hasExistingRows ? form.citationRows : [];
-    const refetchSourceUrls = new Set(
+    let existingRows: ManagedCitationRow[] = [];
+
+    if (hasExistingRows) {
+        existingRows = form.citationRows;
+    }
+    const refetchSourceUrls = new Set<string>(
         (options.refetchSourceUrls || []).map(trimFieldValue),
     );
 
@@ -70,11 +88,12 @@ export async function prepareManagedCitationRows(
     const rows = await Promise.all(
         getEnteredSourceUrls(form).map(
             async function callback(sourceUrl, index) {
-                return await prepareManagedCitationRow(
+                const result = await prepareManagedCitationRow(
                     sourceUrl,
                     index,
                     context,
                 );
+                return result;
             },
         ),
     );
@@ -82,10 +101,22 @@ export async function prepareManagedCitationRows(
     return rows;
 }
 
-/** Prepares one editable managed citation row. */
-async function prepareManagedCitationRow(sourceUrl, index, context) {
+/**
+ * Prepares one editable managed citation row.
+ *
+ * @param sourceUrl - Source URL.
+ * @param index - Zero-based item index.
+ * @param context - Operation context.
+ * @returns Result when the function
+ *   prepares one editable managed citation row.
+ */
+async function prepareManagedCitationRow(
+    sourceUrl: string,
+    index: number,
+    context: ManagedCitationContext,
+) {
     const shouldRefetch = context.refetchSourceUrls.has(sourceUrl);
-    let generatedCitation;
+    let generatedCitation: string;
 
     if (shouldRefetch) {
         generatedCitation = await context.citationStore.refetch(sourceUrl);
@@ -93,9 +124,9 @@ async function prepareManagedCitationRow(sourceUrl, index, context) {
         generatedCitation = await context.citationStore.fetch(sourceUrl);
     }
     const generated = parseCiteTemplate(generatedCitation);
-    const existing = context.existingRows.find(
-        (row) => trimFieldValue(row.sourceUrl) === sourceUrl,
-    );
+    const existing = context.existingRows.find(function findExisting(row) {
+        return trimFieldValue(row.sourceUrl) === sourceUrl;
+    });
     const generatedParams = generated.params;
     const params = selectManagedCitationParams(existing, generated);
     let template = generated.template;
@@ -104,7 +135,7 @@ async function prepareManagedCitationRow(sourceUrl, index, context) {
         template = existing.template;
     }
 
-    return {
+    const result = {
         generatedParams,
         index: index + 1,
         modified: existing?.modified === true,
@@ -112,10 +143,20 @@ async function prepareManagedCitationRow(sourceUrl, index, context) {
         sourceUrl,
         template,
     };
+    return result;
 }
 
-/** Selects generated or user-modified citation parameters. */
-function selectManagedCitationParams(existing, generated): Array<any> {
+/**
+ * Selects generated or user-modified citation parameters.
+ *
+ * @param existing - Existing value.
+ * @param generated - Generated value.
+ * @returns Generated or user-modified citation parameters.
+ */
+function selectManagedCitationParams(
+    existing: { modified: boolean; template: string; params: unknown[] },
+    generated: { params: unknown[]; template: string },
+): Array<unknown> {
     if (existing?.modified !== true) {
         return generated.params;
     }
@@ -130,19 +171,22 @@ function selectManagedCitationParams(existing, generated): Array<any> {
  * @returns Entered source fields.
  */
 export function getEnteredSourceReferenceFields(form: any): Array<any> {
-    return [
+    const result = [
         ...getArticleSourceFields().flatMap(function callback(field) {
-            return splitSourceUrls(form[field.sourceKey]).map(
+            const result = splitSourceUrls(form[field.sourceKey]).map(
                 function callback(sourceUrl) {
-                    return {
+                    const result = {
                         ...field,
                         sourceUrl,
                     };
+                    return result;
                 },
             );
+            return result;
         }),
         ...getEnteredNameSourceReferenceFields(form),
     ];
+    return result;
 }
 
 /**
@@ -152,13 +196,14 @@ export function getEnteredSourceReferenceFields(form: any): Array<any> {
  * @returns Unique source URLs.
  */
 export function getEnteredSourceUrls(form: any): Array<string> {
-    return [
+    const result = [
         ...new Set(
             getEnteredSourceReferenceFields(form)
                 .map((field) => trimFieldValue(field.sourceUrl))
                 .filter(Boolean),
         ),
     ];
+    return result;
 }
 
 /**
@@ -173,9 +218,11 @@ function getManagedCitation(form: any, sourceUrl: string): string {
         return "";
     }
 
-    const row = form.citationRows.find(
-        (item) => trimFieldValue(item.sourceUrl) === trimFieldValue(sourceUrl),
-    );
+    const row = form.citationRows.find(function findCitation(item: {
+        sourceUrl: string;
+    }) {
+        return trimFieldValue(item.sourceUrl) === trimFieldValue(sourceUrl);
+    });
 
     if (row == null) {
         return "";
@@ -191,24 +238,34 @@ function getManagedCitation(form: any, sourceUrl: string): string {
  * @returns Entered localized-name source fields.
  */
 export function getEnteredNameSourceReferenceFields(form: any): Array<any> {
-    return NAME_GROUP_KEYS.flatMap(function callback(key) {
-        return (form[key] || [])
-            .flatMap(function callback(row, index) {
-                return splitSourceUrls(row.sourceUrl).map(
+    const result = NAME_GROUP_KEYS.flatMap(function callback(key) {
+        const result = (form[key] || [])
+            .flatMap(function callback(
+                row: { sourceUrl: unknown; name: unknown },
+                index: number,
+            ) {
+                const result = splitSourceUrls(row.sourceUrl).map(
                     function callback(sourceUrl) {
-                        return {
+                        const result = {
                             key: buildNameSourceReferenceKey(key, index),
                             name: row.name,
                             sourceUrl,
                         };
+                        return result;
                     },
                 );
+                return result;
             })
-            .filter(function callback(field) {
-                return (
+            .filter(function callback(field: {
+                name: unknown;
+                sourceUrl: unknown;
+            }) {
+                const result =
                     Boolean(trimFieldValue(field.name)) &&
-                    Boolean(trimFieldValue(field.sourceUrl))
-                );
+                    Boolean(trimFieldValue(field.sourceUrl));
+                return result;
             });
+        return result;
     });
+    return result;
 }

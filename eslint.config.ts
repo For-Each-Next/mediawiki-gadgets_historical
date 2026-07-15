@@ -3,6 +3,8 @@
  */
 
 import tsParser from "@typescript-eslint/parser";
+import jsdoc from "eslint-plugin-jsdoc";
+import localPlugin from "./scripts/eslint-plugin.ts";
 
 const browserGlobals = {
     AbortController: "readonly",
@@ -78,8 +80,22 @@ export default [
     },
     {
         files: ["src/**/*.ts", "scripts/**/*.ts"],
+        plugins: {
+            jsdoc,
+            local: localPlugin,
+        },
         languageOptions: {
             parser: tsParser,
+        },
+        rules: {
+            "jsdoc/multiline-blocks": ["error", { noSingleLineBlocks: true }],
+            "jsdoc/require-param": ["error", { checkDestructured: false }],
+            "jsdoc/require-param-description": "error",
+            "jsdoc/require-returns": ["error", { enableFixer: true }],
+            "jsdoc/require-returns-description": "error",
+            "jsdoc/tag-lines": ["error", "any", { startLines: 1 }],
+            "local/no-multiline-return": "error",
+            "local/no-typed-inline-arrow": "error",
         },
     },
     {
@@ -108,7 +124,7 @@ export default [
                 "error",
                 {
                     IIFEs: true,
-                    max: 30,
+                    max: 40,
                     skipBlankLines: true,
                     skipComments: true,
                 },

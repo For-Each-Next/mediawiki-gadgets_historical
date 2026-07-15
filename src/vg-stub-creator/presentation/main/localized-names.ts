@@ -19,7 +19,7 @@ const STEAM_NAME_SUGGESTION_SOURCE = [
  * @returns Localized name group template node.
  */
 export function createNameGroupTemplate(): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-if": "group.nameGroupKey",
@@ -30,6 +30,7 @@ export function createNameGroupTemplate(): any {
             createNameFieldsTemplate(),
         ],
     );
+    return result;
 }
 
 /**
@@ -38,9 +39,10 @@ export function createNameGroupTemplate(): any {
  * @returns Original-name lookup template node.
  */
 function createOriginalNameSearchTemplate(): any {
-    return createFieldTemplate(msg("names.originalTitleLookup"), [
+    const result = createFieldTemplate(msg("names.originalTitleLookup"), [
         createNameSearchListTemplate(),
     ]);
+    return result;
 }
 
 /**
@@ -49,13 +51,14 @@ function createOriginalNameSearchTemplate(): any {
  * @returns Search row list template node.
  */
 function createNameSearchListTemplate(): any {
-    return createElement(
+    const result = createElement(
         "ul",
         {
             class: "vg-stub-creator-name-search",
         },
         [createNameSearchRowTemplate()],
     );
+    return result;
 }
 
 /**
@@ -64,7 +67,7 @@ function createNameSearchListTemplate(): any {
  * @returns Search row template node.
  */
 function createNameSearchRowTemplate(): any {
-    return createElement(
+    const result = createElement(
         "li",
         {
             "v-bind:key": "row.key",
@@ -72,9 +75,14 @@ function createNameSearchRowTemplate(): any {
         },
         localizeNameSearchSentence(),
     );
+    return result;
 }
 
-/** Creates the translated lookup sentence with rich placeholders. */
+/**
+ * Creates the translated lookup sentence with rich placeholders.
+ *
+ * @returns The translated lookup sentence with rich placeholders.
+ */
 function localizeNameSearchSentence(): Array<any | string> {
     const parts = msgParts("names.searchSentence", {
         links: createNameSearchLinkListTemplate(),
@@ -83,7 +91,12 @@ function localizeNameSearchSentence(): Array<any | string> {
     return parts.map(createLocalizedMessagePart);
 }
 
-/** Converts a translated string part to a template text node. */
+/**
+ * Converts a translated string part to a template text node.
+ *
+ * @param part - Part value.
+ * @returns A translated string part to a template text node.
+ */
 function createLocalizedMessagePart(part: any): any {
     return typeof part === "string" ? createText(part) : part;
 }
@@ -94,13 +107,14 @@ function createLocalizedMessagePart(part: any): any {
  * @returns Search link list template node.
  */
 function createNameSearchLinkListTemplate(): any {
-    return createElement(
+    const result = createElement(
         "span",
         {
             class: "vg-stub-creator-horizontal-list",
         },
         [createNameSearchLinkTemplate()],
     );
+    return result;
 }
 
 /**
@@ -109,7 +123,7 @@ function createNameSearchLinkListTemplate(): any {
  * @returns Search link template node.
  */
 function createNameSearchLinkTemplate(): any {
-    return createElement(
+    const result = createElement(
         "span",
         {
             class: "vg-stub-creator-horizontal-list-item",
@@ -128,6 +142,7 @@ function createNameSearchLinkTemplate(): any {
             ),
         ],
     );
+    return result;
 }
 
 /**
@@ -136,7 +151,7 @@ function createNameSearchLinkTemplate(): any {
  * @returns Steam helper template node.
  */
 function createSteamNameHelperTemplate(): any {
-    return createFieldTemplate(msg("names.steamHelper"), [
+    const result = createFieldTemplate(msg("names.steamHelper"), [
         createElement(
             "div",
             {
@@ -148,6 +163,7 @@ function createSteamNameHelperTemplate(): any {
             ],
         ),
     ]);
+    return result;
 }
 
 /**
@@ -156,13 +172,14 @@ function createSteamNameHelperTemplate(): any {
  * @returns Steam URL input row node.
  */
 function createSteamNameInputRowTemplate(): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             class: "vg-stub-creator-steam-row",
         },
         [createSteamUrlInputTemplate(), createSteamNameCheckButtonTemplate()],
     );
+    return result;
 }
 
 /**
@@ -171,11 +188,12 @@ function createSteamNameInputRowTemplate(): any {
  * @returns Steam URL input node.
  */
 function createSteamUrlInputTemplate(): any {
-    return createElement("cdx-text-input", {
+    const result = createElement("cdx-text-input", {
         placeholder: "https://store.steampowered.com/app/...",
         "v-bind:model-value": "steamUrl",
         "v-on:update:model-value": "updateSteamUrl($event)",
     });
+    return result;
 }
 
 /**
@@ -184,11 +202,12 @@ function createSteamUrlInputTemplate(): any {
  * @returns Check button node.
  */
 function createSteamNameCheckButtonTemplate(): any {
-    return createButtonTemplate({
+    const result = createButtonTemplate({
         click: "addSteamNames",
         disabled: "sourceFetchState.loading",
         label: msg("names.check"),
     });
+    return result;
 }
 
 /**
@@ -197,7 +216,7 @@ function createSteamNameCheckButtonTemplate(): any {
  * @returns Steam suggestion row node.
  */
 function createSteamNameSuggestionRowTemplate(): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             class:
@@ -210,6 +229,7 @@ function createSteamNameSuggestionRowTemplate(): any {
             createSteamNameButtonGroupTemplate(),
         ],
     );
+    return result;
 }
 
 /**
@@ -218,11 +238,12 @@ function createSteamNameSuggestionRowTemplate(): any {
  * @returns Steam-name button group node.
  */
 function createSteamNameButtonGroupTemplate(): any {
-    return createElement("cdx-button-group", {
+    const result = createElement("cdx-button-group", {
         class: "vg-stub-creator-steam-actions",
         "v-bind:buttons": "steamNameButtons",
         "v-on:click": "applySteamNameChoice",
     });
+    return result;
 }
 
 /**
@@ -231,7 +252,7 @@ function createSteamNameButtonGroupTemplate(): any {
  * @returns Steam suggestion help-text node.
  */
 function createSteamNameSuggestionsTemplate(): any {
-    return createElement(
+    const result = createElement(
         "ul",
         {
             class:
@@ -249,6 +270,7 @@ function createSteamNameSuggestionsTemplate(): any {
             ),
         ],
     );
+    return result;
 }
 
 /**
@@ -257,11 +279,12 @@ function createSteamNameSuggestionsTemplate(): any {
  * @returns Steam suggestion item content nodes.
  */
 function createSteamNameSuggestionContentTemplate(): Array<any | string> {
-    return [
+    const result = [
         createElement("strong", {}, [createText("{{ suggestion.label }}")]),
         createText(" "),
         createSteamNameSuggestionLinkTemplate(),
     ];
+    return result;
 }
 
 /**
@@ -270,7 +293,7 @@ function createSteamNameSuggestionContentTemplate(): Array<any | string> {
  * @returns Steam suggestion link node.
  */
 function createSteamNameSuggestionLinkTemplate(): any {
-    return createElement(
+    const result = createElement(
         "a",
         {
             "v-bind:href": "suggestion.url",
@@ -279,6 +302,7 @@ function createSteamNameSuggestionLinkTemplate(): any {
         },
         [createText("{{ suggestion.value }}")],
     );
+    return result;
 }
 
 /**
@@ -287,7 +311,7 @@ function createSteamNameSuggestionLinkTemplate(): any {
  * @returns Localized name field list template node.
  */
 function createNameFieldsTemplate(): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             class: "vg-stub-creator-name-fields",
@@ -303,6 +327,7 @@ function createNameFieldsTemplate(): any {
             ),
         ],
     );
+    return result;
 }
 
 /**
@@ -311,7 +336,7 @@ function createNameFieldsTemplate(): any {
  * @returns Localized name fieldset node.
  */
 function createNameFieldTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-field",
         {
             "is-fieldset": "",
@@ -332,9 +357,14 @@ function createNameFieldTemplate(): any {
             ),
         ],
     );
+    return result;
 }
 
-/** Creates the numbered localized-name field label. */
+/**
+ * Creates the numbered localized-name field label.
+ *
+ * @returns The numbered localized-name field label.
+ */
 function createLocalizedNameLabelTemplate(): string {
     const label = msg("names.localizedName");
     return createText(`{{ '${label} ' + (index + 1) }} `);
@@ -346,7 +376,7 @@ function createLocalizedNameLabelTemplate(): string {
  * @returns Localized name value/source row node.
  */
 function createNameValueSourceTemplate(): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             class:
@@ -355,6 +385,7 @@ function createNameValueSourceTemplate(): any {
         },
         [createNameTitleTemplate(), createNameSourceTemplate()],
     );
+    return result;
 }
 
 /**
@@ -363,7 +394,7 @@ function createNameValueSourceTemplate(): any {
  * @returns Localized name official/regions row node.
  */
 function createNameSettingsRowTemplate(): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             class: "vg-stub-creator-name-settings-row",
@@ -377,6 +408,7 @@ function createNameSettingsRowTemplate(): any {
             createNameMarketCheckboxTemplate(),
         ],
     );
+    return result;
 }
 
 /**
@@ -385,13 +417,14 @@ function createNameSettingsRowTemplate(): any {
  * @returns Steam helper label node.
  */
 function createSteamNameHelperLabelTemplate(): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-if": "isSteamNameHelperRow(row)",
         },
         [createText(`(${msg("names.bySteamHelper")}) `)],
     );
+    return result;
 }
 
 /**
@@ -400,7 +433,7 @@ function createSteamNameHelperLabelTemplate(): any {
  * @returns Official-name checkbox node.
  */
 function createOfficialNameCheckboxTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-checkbox",
         {
             class: "vg-stub-creator-name-official-checkbox",
@@ -410,6 +443,7 @@ function createOfficialNameCheckboxTemplate(): any {
         },
         [createText(msg("names.official"))],
     );
+    return result;
 }
 
 /**
@@ -418,7 +452,7 @@ function createOfficialNameCheckboxTemplate(): any {
  * @returns Market checkbox node.
  */
 function createNameMarketCheckboxTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-checkbox",
         {
             "v-bind:key": "market.key",
@@ -431,6 +465,7 @@ function createNameMarketCheckboxTemplate(): any {
         },
         [createText("{{ market.label }}")],
     );
+    return result;
 }
 
 /**
@@ -439,7 +474,7 @@ function createNameMarketCheckboxTemplate(): any {
  * @returns Localized name title input node.
  */
 function createNameTitleTemplate(): any {
-    return createElement("cdx-text-input", {
+    const result = createElement("cdx-text-input", {
         placeholder: msg("names.title"),
         "v-bind:model-value": "row.name",
         "v-on:change": "updateNameRow(group.nameGroupKey, index, 'name')",
@@ -448,6 +483,7 @@ function createNameTitleTemplate(): any {
             "Key, index, 'name', $event)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -456,7 +492,7 @@ function createNameTitleTemplate(): any {
  * @returns Localized name source input node.
  */
 function createNameSourceTemplate(): any {
-    return createSourceUrlInputTemplate({
+    const result = createSourceUrlInputTemplate({
         placeholder: msg("names.sourceUrls"),
         model: "row.sourceUrl",
         change: "updateNameRow(group.nameGroupKey, index, 'sourceUrl')",
@@ -465,6 +501,7 @@ function createNameSourceTemplate(): any {
             "Key, index, 'sourceUrl', $event)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -473,7 +510,7 @@ function createNameSourceTemplate(): any {
  * @returns Localized name remove row action.
  */
 function createNameRemoveTemplate(): any {
-    return createIconActionLinkTemplate(
+    const result = createIconActionLinkTemplate(
         msg("names.remove"),
         "tableActionIcons.remove",
         "removeNameRow(group.nameGroupKey, index)",
@@ -481,4 +518,5 @@ function createNameRemoveTemplate(): any {
             class: "vg-stub-creator-destructive-action",
         },
     );
+    return result;
 }

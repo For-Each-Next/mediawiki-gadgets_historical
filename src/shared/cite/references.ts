@@ -1,4 +1,6 @@
-/** Builds named MediaWiki reference wikitext. */
+/**
+ * Builds named MediaWiki reference wikitext.
+ */
 
 export interface CitationReference {
     citation: string;
@@ -11,42 +13,73 @@ interface ReferencesSectionOptions {
     responsive?: boolean;
 }
 
-/** Assigns deterministic names to citation references. */
+/**
+ * Assigns deterministic names to citation references.
+ *
+ * @param references - References value.
+ * @returns Result when the function
+ *   assigns deterministic names to citation
+ *   references.
+ */
 export function nameCitationReferences(
     references: Array<Partial<CitationReference>>,
 ): CitationReference[] {
     return references.map(createNamedCitationReference);
 }
 
-/** Creates one named citation reference. */
+/**
+ * Creates one named citation reference.
+ *
+ * @param reference - Reference value.
+ * @param index - Zero-based item index.
+ * @returns One named citation reference.
+ */
 function createNamedCitationReference(
     reference: Partial<CitationReference>,
     index: number,
 ): CitationReference {
-    return {
+    const result = {
         ...reference,
         citation: reference.citation || "",
         name: reference.name || `:${index + 1}`,
     };
+    return result;
 }
 
-/** Builds a full named `<ref>...</ref>` tag. */
+/**
+ * Builds a full named `<ref>...</ref>` tag.
+ *
+ * @param reference - Reference value.
+ * @returns A full named `<ref>...</ref>` tag.
+ */
 export function buildNamedReferenceTag(reference: CitationReference): string {
-    return [
+    const result = [
         '<ref name="',
         escapeReferenceName(reference.name),
         '">',
         reference.citation,
         "</ref>",
     ].join("");
+    return result;
 }
 
-/** Builds a self-closing tag that reuses a named reference. */
+/**
+ * Builds a self-closing tag that reuses a named reference.
+ *
+ * @param name - Display name.
+ * @returns A self-closing tag that reuses a named reference.
+ */
 export function buildReferenceReuseTag(name: string): string {
     return `<ref name="${escapeReferenceName(name)}" />`;
 }
 
-/** Builds a references section containing full named references. */
+/**
+ * Builds a references section containing full named references.
+ *
+ * @param references - References value.
+ * @param options - Operation options.
+ * @returns A references section containing full named references.
+ */
 export function buildReferencesSection(
     references: CitationReference[],
     options: ReferencesSectionOptions,
@@ -55,16 +88,22 @@ export function buildReferencesSection(
         return "";
     }
     const responsive = options.responsive === false ? "" : " responsive";
-    return [
+    const result = [
         `== ${options.heading} ==`,
         "",
         `<references${responsive}>`,
         references.map(buildNamedReferenceTag).join("\n"),
         "</references>",
     ].join("\n");
+    return result;
 }
 
-/** Escapes a reference name for a wikitext tag attribute. */
+/**
+ * Escapes a reference name for a wikitext tag attribute.
+ *
+ * @param name - Display name.
+ * @returns A reference name for a wikitext tag attribute.
+ */
 function escapeReferenceName(name: string): string {
     return String(name).replace(/&/gu, "&amp;").replace(/"/gu, "&quot;");
 }

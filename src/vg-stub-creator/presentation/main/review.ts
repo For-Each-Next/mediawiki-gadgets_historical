@@ -14,7 +14,7 @@ import { msg } from "#stub/i18n";
  * @returns Category review grid node.
  */
 export function createCategoryGroupTemplate(): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-if": "group.categoryReview",
@@ -26,6 +26,7 @@ export function createCategoryGroupTemplate(): any {
             createNavboxReviewTemplate(),
         ],
     );
+    return result;
 }
 
 /**
@@ -34,7 +35,7 @@ export function createCategoryGroupTemplate(): any {
  * @returns Category review template node.
  */
 function createCategoryReviewTemplate(): any {
-    return createElement("section", {}, [
+    const result = createElement("section", {}, [
         createTableTemplate(
             "categoryTableColumns",
             "form.categoryRows",
@@ -51,6 +52,7 @@ function createCategoryReviewTemplate(): any {
             "{{ categoryState.error }}",
         ),
     ]);
+    return result;
 }
 
 /**
@@ -59,7 +61,7 @@ function createCategoryReviewTemplate(): any {
  * @returns Redirect review template node.
  */
 function createRedirectReviewTemplate(): any {
-    return createElement("section", {}, [
+    const result = createElement("section", {}, [
         createTableTemplate(
             "redirectTableColumns",
             "form.redirectRows || []",
@@ -72,6 +74,7 @@ function createRedirectReviewTemplate(): any {
             },
         ),
     ]);
+    return result;
 }
 
 /**
@@ -80,7 +83,7 @@ function createRedirectReviewTemplate(): any {
  * @returns Navbox review template node.
  */
 function createNavboxReviewTemplate(): any {
-    return createElement("section", {}, [
+    const result = createElement("section", {}, [
         createTableTemplate(
             "navboxTableColumns",
             "form.navboxRows || []",
@@ -94,6 +97,7 @@ function createNavboxReviewTemplate(): any {
         ),
         createMessageTemplate("reviewState.error", "{{ reviewState.error }}"),
     ]);
+    return result;
 }
 
 /**
@@ -102,7 +106,7 @@ function createNavboxReviewTemplate(): any {
  * @returns Stub-tag review template node.
  */
 function createStubTagReviewTemplate(): any {
-    return createElement("section", {}, [
+    const result = createElement("section", {}, [
         createTableTemplate(
             "stubTagTableColumns",
             "stubTagRows",
@@ -115,6 +119,7 @@ function createStubTagReviewTemplate(): any {
             },
         ),
     ]);
+    return result;
 }
 
 /**
@@ -123,7 +128,7 @@ function createStubTagReviewTemplate(): any {
  * @returns Category table slot nodes.
  */
 function createCategorySlotsTemplate(): Array<any> {
-    return [
+    const result = [
         createTableHeaderTemplate(
             msg("review.categories"),
             createCategoryHeaderActions(),
@@ -145,9 +150,14 @@ function createCategorySlotsTemplate(): Array<any> {
         ),
         createCategoryActionSlotTemplate(),
     ];
+    return result;
 }
 
-/** Creates category-table header actions. */
+/**
+ * Creates category-table header actions.
+ *
+ * @returns Category-table header actions.
+ */
 function createCategoryHeaderActions(): Array<any> {
     const reset = createIconActionLinkTemplate(
         msg("common.reset"),
@@ -175,12 +185,13 @@ function createCategoryHeaderActions(): Array<any> {
  * @returns Category source slot node.
  */
 function createCategorySourceSlotTemplate(): any {
-    return createSlotTemplate("source", [
+    const result = createSlotTemplate("source", [
         createInfoChipTemplate("formatCategoryStatusLabel(row)", {
             status: "getCategoryStatusChipStatus(row)",
             title: "formatCategoryStatusTitle(row)",
         }),
     ]);
+    return result;
 }
 
 /**
@@ -189,7 +200,7 @@ function createCategorySourceSlotTemplate(): any {
  * @returns Category title slot node.
  */
 function createCategoryTitleSlotTemplate(): any {
-    return createInputSlotTemplate("category", {
+    const result = createInputSlotTemplate("category", {
         "v-model": "row.category",
         "v-on:blur": [
             "checkCategoryRow(form.categoryRows",
@@ -200,6 +211,7 @@ function createCategoryTitleSlotTemplate(): any {
             "egoryRows.indexOf(row), $event)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -208,7 +220,7 @@ function createCategoryTitleSlotTemplate(): any {
  * @returns Category action slot node.
  */
 function createCategoryActionSlotTemplate(): any {
-    return createActionSlotTemplate([
+    const result = createActionSlotTemplate([
         createIconActionLinkTemplate(
             msg("review.refresh"),
             "tableActionIcons.reload",
@@ -222,6 +234,7 @@ function createCategoryActionSlotTemplate(): any {
             "removeCategoryRow(form.categoryRows.indexOf(row))",
         ),
     ]);
+    return result;
 }
 
 /**
@@ -230,7 +243,7 @@ function createCategoryActionSlotTemplate(): any {
  * @returns Redirect table slot nodes.
  */
 function createRedirectSlotsTemplate(): Array<any> {
-    return [
+    const result = [
         createTableHeaderTemplate(
             msg("review.redirects"),
             createRedirectHeaderActions(),
@@ -257,9 +270,14 @@ function createRedirectSlotsTemplate(): Array<any> {
         ),
         createRedirectActionSlotTemplate(),
     ];
+    return result;
 }
 
-/** Creates redirect-table header actions. */
+/**
+ * Creates redirect-table header actions.
+ *
+ * @returns Redirect-table header actions.
+ */
 function createRedirectHeaderActions(): Array<any> {
     const reset = createIconActionLinkTemplate(
         msg("common.reset"),
@@ -285,7 +303,11 @@ function createRedirectHeaderActions(): Array<any> {
     return [reset, clean, add, refresh];
 }
 
-/** Creates the redirect-table refresh action. */
+/**
+ * Creates the redirect-table refresh action.
+ *
+ * @returns The redirect-table refresh action.
+ */
 function createRedirectRefreshAction(): any {
     const attributes = {
         "aria-disabled": "reviewState.loading",
@@ -307,7 +329,7 @@ function createRedirectRefreshAction(): any {
  * @returns Redirect title slot node.
  */
 function createRedirectTitleSlotTemplate(): any {
-    return createInputSlotTemplate("title", {
+    const result = createInputSlotTemplate("title", {
         "v-model": "row.title",
         "v-on:blur": [
             "checkRedirectRow((form.redirectRow",
@@ -319,6 +341,7 @@ function createRedirectTitleSlotTemplate(): any {
             "t)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -327,7 +350,7 @@ function createRedirectTitleSlotTemplate(): any {
  * @returns Redirect action slot node.
  */
 function createRedirectActionSlotTemplate(): any {
-    return createActionSlotTemplate([
+    const result = createActionSlotTemplate([
         createIconActionLinkTemplate(
             msg("review.refresh"),
             "tableActionIcons.reload",
@@ -347,6 +370,7 @@ function createRedirectActionSlotTemplate(): any {
             ].join(""),
         ),
     ]);
+    return result;
 }
 
 /**
@@ -355,7 +379,7 @@ function createRedirectActionSlotTemplate(): any {
  * @returns Navbox table slot nodes.
  */
 function createNavboxSlotsTemplate(): Array<any> {
-    return [
+    const result = [
         createTableHeaderTemplate(
             msg("review.navboxes"),
             createNavboxHeaderActions(),
@@ -382,9 +406,14 @@ function createNavboxSlotsTemplate(): Array<any> {
         ),
         createNavboxActionSlotTemplate(),
     ];
+    return result;
 }
 
-/** Creates navbox-table header actions. */
+/**
+ * Creates navbox-table header actions.
+ *
+ * @returns Navbox-table header actions.
+ */
 function createNavboxHeaderActions(): Array<any> {
     const reset = createIconActionLinkTemplate(
         msg("common.reset"),
@@ -412,7 +441,7 @@ function createNavboxHeaderActions(): Array<any> {
  * @returns Navbox text slot node.
  */
 function createNavboxTextSlotTemplate(): any {
-    return createInputSlotTemplate("text", {
+    const result = createInputSlotTemplate("text", {
         "v-model": "row.text",
         "v-on:blur": [
             "checkNavboxRow((form.navboxRows ||",
@@ -423,6 +452,7 @@ function createNavboxTextSlotTemplate(): any {
             "| []).indexOf(row), $event)",
         ].join(""),
     });
+    return result;
 }
 
 /**
@@ -431,7 +461,7 @@ function createNavboxTextSlotTemplate(): any {
  * @returns Navbox action slot node.
  */
 function createNavboxActionSlotTemplate(): any {
-    return createActionSlotTemplate([
+    const result = createActionSlotTemplate([
         createIconActionLinkTemplate(
             msg("review.refresh"),
             "tableActionIcons.reload",
@@ -445,6 +475,7 @@ function createNavboxActionSlotTemplate(): any {
             "removeNavboxRow((form.navboxRows || []).indexOf(row))",
         ),
     ]);
+    return result;
 }
 
 /**
@@ -453,7 +484,7 @@ function createNavboxActionSlotTemplate(): any {
  * @returns Stub-tag table slot nodes.
  */
 function createStubTagSlotsTemplate(): Array<any> {
-    return [
+    const result = [
         createTableHeaderTemplate(
             msg("review.stubTags"),
             createStubTagHeaderActions(),
@@ -479,9 +510,14 @@ function createStubTagSlotsTemplate(): Array<any> {
             ),
         ]),
     ];
+    return result;
 }
 
-/** Creates stub-tag-table header actions. */
+/**
+ * Creates stub-tag-table header actions.
+ *
+ * @returns Stub-tag-table header actions.
+ */
 function createStubTagHeaderActions(): Array<any> {
     const reset = createIconActionLinkTemplate(
         msg("common.reset"),
@@ -508,12 +544,13 @@ function createStubTagHeaderActions(): Array<any> {
  * @returns Stub-tag status slot node.
  */
 function createStubTagStatusSlotTemplate(): any {
-    return createSlotTemplate("type", [
+    const result = createSlotTemplate("type", [
         createInfoChipTemplate("formatStubTagStatusLabel(row)", {
             status: "getStubTagStatusChipStatus(row)",
             title: "formatStubTagLabel(row.stubTag)",
         }),
     ]);
+    return result;
 }
 
 /**
@@ -522,11 +559,12 @@ function createStubTagStatusSlotTemplate(): any {
  * @returns Stub-tag input slot node.
  */
 function createStubTagInputSlotTemplate(): any {
-    return createInputSlotTemplate("stubTag", {
+    const result = createInputSlotTemplate("stubTag", {
         "v-model": "row.stubTag",
         "v-on:update:model-value":
             "updateStubTagRow(stubTagRows.indexOf(row), $event)",
     });
+    return result;
 }
 
 /**
@@ -537,9 +575,10 @@ function createStubTagInputSlotTemplate(): any {
  * @returns Text input slot node.
  */
 function createInputSlotTemplate(column: string, attributes: any): any {
-    return createSlotTemplate(column, [
+    const result = createSlotTemplate(column, [
         createElement("cdx-text-input", attributes),
     ]);
+    return result;
 }
 
 /**
@@ -563,13 +602,14 @@ function createSlotTemplate(
     column: string,
     children: Array<any | string>,
 ): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             [`v-slot:item-${column}`]: "{ row }",
         },
         children,
     );
+    return result;
 }
 
 /**
@@ -579,7 +619,7 @@ function createSlotTemplate(
  * @returns Remove action button node.
  */
 function createRemoveActionTemplate(click: string): any {
-    return createIconActionLinkTemplate(
+    const result = createIconActionLinkTemplate(
         msg("common.remove"),
         "tableActionIcons.remove",
         click,
@@ -587,6 +627,7 @@ function createRemoveActionTemplate(click: string): any {
             class: "vg-stub-creator-destructive-action",
         },
     );
+    return result;
 }
 
 /**
@@ -624,13 +665,14 @@ function createToggleSlotTemplate(
         );
     }
 
-    return createElement(
+    const result = createElement(
         "template",
         {
             [`v-slot:item-${column}`]: "{ row }",
         },
         children,
     );
+    return result;
 }
 
 /**
@@ -648,9 +690,10 @@ function createStatusSlotTemplate(
     label: string,
     status: string = "'notice'",
 ): any {
-    return createSlotTemplate(column, [
+    const result = createSlotTemplate(column, [
         createInfoChipTemplate(label, { status, title }),
     ]);
+    return result;
 }
 
 /**
@@ -665,7 +708,7 @@ function createStatusSlotTemplate(
  * @returns InfoChip node.
  */
 function createInfoChipTemplate(label: string, options: any = {}): any {
-    return createElement(
+    const result = createElement(
         "cdx-info-chip",
         {
             "v-bind:status": options.status || "'notice'",
@@ -673,6 +716,7 @@ function createInfoChipTemplate(label: string, options: any = {}): any {
         },
         [createText(options.bindLabel === false ? label : `{{ ${label} }}`)],
     );
+    return result;
 }
 
 /**
@@ -691,9 +735,10 @@ function createPageEditSlotTemplate(
     existing: string,
     click: string,
 ): any {
-    return createSlotTemplate(column, [
+    const result = createSlotTemplate(column, [
         createPageEditLinkTemplate(condition, existing, click),
     ]);
+    return result;
 }
 
 /**
@@ -710,7 +755,7 @@ function createPageEditLinkTemplate(
     existing: string,
     click: string,
 ): any {
-    return createElement(
+    const result = createElement(
         "a",
         {
             href: "#",
@@ -724,4 +769,5 @@ function createPageEditLinkTemplate(
         },
         [createText(`{{ getReviewPageActionLabel(row, ${existing}) }}`)],
     );
+    return result;
 }

@@ -1,4 +1,6 @@
-/** Public entry point for workspace-wide helpers. */
+/**
+ * Public entry point for workspace-wide helpers.
+ */
 
 import * as cite from "./cite/index.ts";
 import * as html from "./html.ts";

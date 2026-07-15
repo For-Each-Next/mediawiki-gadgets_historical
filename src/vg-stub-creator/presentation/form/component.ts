@@ -180,7 +180,19 @@ const pageEditTextBinding = {
     },
 };
 
-/** Creates the Vue component definition for the dialog. */
+interface CodeMirrorEditor {
+    destroy?: () => void;
+    initialize?: () => void;
+    toTextArea?: () => void;
+}
+
+/**
+ * Creates the Vue component definition for the dialog.
+ *
+ * @param VueModule - Vue module value.
+ * @param dialogOptions - Dialog options value.
+ * @returns The Vue component definition for the dialog.
+ */
 export function createDialogComponent(
     VueModule: any,
     dialogOptions: any,
@@ -193,7 +205,9 @@ export function createDialogComponent(
     return createComponentDefinition();
 }
 
-/** Initializes primary form and review state. */
+/**
+ * Initializes primary form and review state.
+ */
 function initializePrimaryState(): void {
     currentTitle = trimFieldValue(options.currentTitle) || options.defaultName;
     activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
@@ -211,7 +225,9 @@ function initializePrimaryState(): void {
     categoryViewState = Vue.reactive({ title: "", url: "" });
 }
 
-/** Initializes history, move, and pre-save state. */
+/**
+ * Initializes history, move, and pre-save state.
+ */
 function initializeActionState(): void {
     historyEntries = Vue.ref(options.getHistoryEntries());
     historyJsonError = Vue.ref("");
@@ -236,7 +252,9 @@ function initializeActionState(): void {
     preSaveProgressGroups = Vue.computed(getCurrentProgressGroups);
 }
 
-/** Initializes preview, source, and metadata state. */
+/**
+ * Initializes preview, source, and metadata state.
+ */
 function initializePreviewState(): void {
     stubTagRows = Vue.computed(() => form.stubTagRows || []);
     previewOpen = Vue.ref(false);
@@ -259,7 +277,9 @@ function initializePreviewState(): void {
     open = Vue.ref(options.initialOpen === true);
 }
 
-/** Initializes all mutable dialog state. */
+/**
+ * Initializes all mutable dialog state.
+ */
 function initializeDialogState(): void {
     initializePrimaryState();
     initializeActionState();
@@ -279,7 +299,9 @@ function initializeDialogState(): void {
     syncGeneratedNameNoteTaRow(form);
 }
 
-/** Registers dialog watchers and external controls. */
+/**
+ * Registers dialog watchers and external controls.
+ */
 function initializeDialogBehavior(): void {
     watchFormChanges();
     watchActiveTab();
@@ -297,14 +319,22 @@ function initializeDialogBehavior(): void {
     }
 }
 
-/** Creates a standard loading state object. */
+/**
+ * Creates a standard loading state object.
+ *
+ * @returns A standard loading state object.
+ */
 function createLoadingState(): any {
     return { error: "", loading: false };
 }
 
-/** Creates company-category dialog state. */
+/**
+ * Creates company-category dialog state.
+ *
+ * @returns Company-category dialog state.
+ */
 function createCompanyCategoryState(): any {
-    return {
+    const result = {
         category: "",
         company: "",
         englishName: "",
@@ -314,11 +344,16 @@ function createCompanyCategoryState(): any {
         text: "",
         wikidataId: "",
     };
+    return result;
 }
 
-/** Creates page-edit dialog state. */
+/**
+ * Creates page-edit dialog state.
+ *
+ * @returns Page-edit dialog state.
+ */
 function createPageEditState(): any {
-    return {
+    const result = {
         create: false,
         company: "",
         englishName: "",
@@ -332,37 +367,57 @@ function createPageEditState(): any {
         text: "",
         title: "",
     };
+    return result;
 }
 
-/** Creates move-target lookup state. */
+/**
+ * Creates move-target lookup state.
+ *
+ * @returns Move-target lookup state.
+ */
 function createMoveTargetState(): any {
     return { checkedTitle: "", exists: false, loading: false };
 }
 
-/** Creates table-action tooltip state. */
+/**
+ * Creates table-action tooltip state.
+ *
+ * @returns Table-action tooltip state.
+ */
 function createTableActionTooltip(): any {
-    return {
+    const result = {
         label: "",
         style: { left: "0", top: "0" },
         visible: false,
     };
+    return result;
 }
 
-/** Gets current grouped pre-save actions. */
+/**
+ * Gets current grouped pre-save actions.
+ *
+ * @returns Current grouped pre-save actions.
+ */
 function getCurrentPreSaveGroups(): any {
     return createPreSaveGroups(preSaveActions, form);
 }
 
-/** Gets current save progress groups. */
+/**
+ * Gets current save progress groups.
+ *
+ * @returns Current save progress groups.
+ */
 function getCurrentProgressGroups(): any {
     return getSaveProgressGroups(preSaveProgress.value);
 }
 
-/** Watches form mutations and queues dependent work. */
+/**
+ * Watches form mutations and queues dependent work.
+ */
 function watchFormChanges(): void {
     Vue.watch(
         form,
-        function callback(currentForm) {
+        function callback(currentForm: unknown) {
             syncGeneratedNameNoteTaRow(currentForm);
             options.onFormChange(currentForm);
             queueCitationPrefetch(currentForm);
@@ -372,9 +427,11 @@ function watchFormChanges(): void {
     queueCitationPrefetch(form);
 }
 
-/** Watches tab changes that require refreshed data. */
+/**
+ * Watches tab changes that require refreshed data.
+ */
 function watchActiveTab(): void {
-    Vue.watch(activeTab, function callback(tab) {
+    Vue.watch(activeTab, function callback(tab: string) {
         if (tab === "review") {
             refreshReview();
         }
@@ -385,9 +442,11 @@ function watchActiveTab(): void {
     });
 }
 
-/** Watches the article preview editor dialog. */
+/**
+ * Watches the article preview editor dialog.
+ */
 function watchPreviewEditor(): void {
-    Vue.watch(previewOpen, function callback(isOpen) {
+    Vue.watch(previewOpen, function callback(isOpen: unknown) {
         if (isOpen) {
             queueSourceEditor("preview", previewTextArea, previewText);
             return;
@@ -397,9 +456,11 @@ function watchPreviewEditor(): void {
     });
 }
 
-/** Watches the follow-up page editor dialog. */
+/**
+ * Watches the follow-up page editor dialog.
+ */
 function watchPageEditEditor(): void {
-    Vue.watch(pageEditOpen, function callback(isOpen) {
+    Vue.watch(pageEditOpen, function callback(isOpen: unknown) {
         if (!isOpen) {
             destroySourceEditor("pageEdit");
             return;
@@ -409,7 +470,9 @@ function watchPageEditEditor(): void {
     });
 }
 
-/** Registers source editor cleanup for component unmount. */
+/**
+ * Registers source editor cleanup for component unmount.
+ */
 function registerUnmountHandler(): void {
     if (typeof Vue.onBeforeUnmount !== "function") {
         return;
@@ -424,7 +487,9 @@ function registerUnmountHandler(): void {
     });
 }
 
-/** Registers the external singleton dialog controller. */
+/**
+ * Registers the external singleton dialog controller.
+ */
 function registerDialogGlobal(): void {
     (window as any).vgStubCreatorDialog = {
         open: openExternalDialog,
@@ -432,27 +497,37 @@ function registerDialogGlobal(): void {
     };
 }
 
-/** Opens the dialog through its global controller. */
+/**
+ * Opens the dialog through its global controller.
+ */
 function openExternalDialog(): void {
     options.onActivate();
     openDialog(open);
 }
 
-/** Opens pre-save review through the global controller. */
+/**
+ * Opens pre-save review through the global controller.
+ */
 async function submitExternalDialog(): Promise<void> {
     open.value = true;
     await openPreSave();
 }
 
-/** Checks whether initial English Wikipedia metadata is required. */
+/**
+ * Checks whether initial English Wikipedia metadata is required.
+ *
+ * @returns Whether initial English Wikipedia metadata is required.
+ */
 function shouldLoadInitialEnwikiMetadata(): boolean {
-    return (
+    const result =
         options.initialEnwikiLookup === true &&
-        trimFieldValue(form.enwikiTitle) !== ""
-    );
+        trimFieldValue(form.enwikiTitle) !== "";
+    return result;
 }
 
-/** Opens pre-save review state for the current form. */
+/**
+ * Opens pre-save review state for the current form.
+ */
 async function openPreSave() {
     await refreshReview({
         recheck: true,
@@ -518,15 +593,19 @@ function createPreSaveProgressReporter(): any {
     return reporter;
 }
 
-/** Marks the active pre-save step as failed. */
-function failPreSaveProgress(error): void {
+/**
+ * Marks the active pre-save step as failed.
+ *
+ * @param error - Caught error.
+ */
+function failPreSaveProgress(error: unknown): void {
     if (preSaveProgress.value == null) {
         return;
     }
 
-    const running = preSaveProgress.value.steps.find(
-        (step) => step.status === "running",
-    );
+    const steps: Array<{ id: string; status: string }> =
+        preSaveProgress.value.steps;
+    const running = steps.find((step) => step.status === "running");
     reportPreSaveProgress(error);
 
     if (running != null) {
@@ -534,20 +613,29 @@ function failPreSaveProgress(error): void {
     }
 }
 
-/** Records a pre-save error without changing step state. */
-function reportPreSaveProgress(error): void {
+/**
+ * Records a pre-save error without changing step state.
+ *
+ * @param error - Caught error.
+ */
+function reportPreSaveProgress(error: unknown): void {
     if (preSaveProgress.value == null) {
         return;
     }
 
     preSaveProgress.value = {
         ...preSaveProgress.value,
-        error: error.message || String(error),
+        error: error instanceof Error ? error.message : String(error),
     };
 }
 
-/** Starts save progress for the current submit attempt. */
-function startPreSaveProgress(title, pending): void {
+/**
+ * Starts save progress for the current submit attempt.
+ *
+ * @param title - Page title.
+ * @param pending - Pending value.
+ */
+function startPreSaveProgress(title: string, pending: unknown): void {
     preSaveProgress.value = createRunningSaveProgress(title, pending);
 }
 
@@ -556,7 +644,9 @@ function startPreSaveProgress(title, pending): void {
  *
  * @param id - Progress step ID.
  * @param status - New status.
- * @returns */
+ * @returns Result when the function
+ *   updates one in-dialog progress step.
+ */
 function setPreSaveProgressStep(id: string, status: string): void {
     if (preSaveProgress.value == null) {
         return;
@@ -576,10 +666,9 @@ function setPreSaveProgressStep(id: string, status: string): void {
  * submit.
  *
  * @returns Pending submit payload.
- *
  */
 function createReviewedSubmitPending(): any {
-    return {
+    const result = {
         actions: preSaveActions,
         move: {
             enabled: false,
@@ -591,6 +680,7 @@ function createReviewedSubmitPending(): any {
             enabled: form.registerNewPage !== false,
         },
     };
+    return result;
 }
 
 /**
@@ -600,7 +690,6 @@ function createReviewedSubmitPending(): any {
  * dialog.
  *
  * @returns Matching category row.
- *
  */
 function findCompanyCategoryRow(): any | undefined {
     return form.categoryRows.find(isCurrentCompanyCategoryRow);
@@ -614,7 +703,6 @@ function findCompanyCategoryRow(): any | undefined {
  *
  * @param row - Category review row.
  * @returns Whether the row matches.
- *
  */
 function isCurrentCompanyCategoryRow(row: any): boolean {
     return trimFieldValue(row.category) === companyCategoryState.category;
@@ -627,19 +715,69 @@ function isCurrentCompanyCategoryRow(row: any): boolean {
  * @returns Pending creation payload.
  */
 function createPendingCompanyCategory(row: any): any {
-    return {
+    const result = {
         englishName: trimFieldValue(companyCategoryState.englishName),
         previousStatus: row.pendingCreation?.previousStatus || row.status,
         text: companyCategoryState.text,
         wikidataId: trimFieldValue(companyCategoryState.wikidataId),
     };
+    return result;
+}
+
+/**
+ * Describes one persisted save-progress step.
+ */
+interface VisibleProgressStep {
+    id: unknown;
+    label: unknown;
+}
+
+/**
+ * Describes save-progress steps grouped by target page.
+ */
+interface VisibleProgressGroup {
+    steps: VisibleProgressStep[];
+    targetPage: unknown;
+}
+
+/**
+ * Builds one progress row shown in the pre-save dialog.
+ *
+ * @param step - Persisted save-progress step.
+ * @returns Pre-save dialog row.
+ */
+function createVisiblePreSaveRow(step: VisibleProgressStep) {
+    const result = {
+        key: step.id,
+        label: step.label,
+        step,
+        type: "progress",
+    };
+    return result;
+}
+
+/**
+ * Builds one visible pre-save progress group.
+ *
+ * @param group - Persisted target-page progress group.
+ * @returns Pre-save dialog group.
+ */
+function createVisiblePreSaveGroup(group: VisibleProgressGroup) {
+    const result = {
+        key: group.targetPage,
+        rows: group.steps.map(createVisiblePreSaveRow),
+        title: group.targetPage,
+    };
+    return result;
 }
 
 const methods = {
     /**
      * Closes the Codex dialog without writing text.
      *
-     * @returns */
+     * @returns Result when the function
+     *   closes the codex dialog without writing text.
+     */
     closeDialog(): void {
         open.value = false;
     },
@@ -653,7 +791,11 @@ const methods = {
         return msg("form.title", { title: getCurrentTitle() });
     },
 
-    /** Gets the staged company-category dialog title. */
+    /**
+     * Gets the staged company-category dialog title.
+     *
+     * @returns The staged company-category dialog title.
+     */
     getCompanyCategoryDialogTitle(): string {
         const values = { category: companyCategoryState.category };
         if (companyCategoryState.pending) {
@@ -663,7 +805,11 @@ const methods = {
         return msg("review.companyCategoryCreateTitle", values);
     },
 
-    /** Gets the staged category or navbox editor title. */
+    /**
+     * Gets the staged category or navbox editor title.
+     *
+     * @returns The staged category or navbox editor title.
+     */
     getPageEditDialogTitle(): string {
         const values = { title: pageEditState.title };
         if (pageEditState.create) {
@@ -673,7 +819,11 @@ const methods = {
         return msg("preview.modifyPageTitle", values);
     },
 
-    /** Gets the English Wikipedia helper label for a staged page. */
+    /**
+     * Gets the English Wikipedia helper label for a staged page.
+     *
+     * @returns The English Wikipedia helper label for a staged page.
+     */
     getPageEditEnglishLabel(): string {
         if (pageEditState.kind === "navbox") {
             return msg("review.pageEditEnwikiTemplate");
@@ -684,6 +834,9 @@ const methods = {
 
     /**
      * Gets the English Wikipedia helper placeholder for a staged page.
+     *
+     * @returns The English Wikipedia helper placeholder for a staged
+     *   page.
      */
     getPageEditEnglishPlaceholder(): string {
         if (pageEditState.kind === "navbox") {
@@ -696,7 +849,10 @@ const methods = {
     /**
      * Clears all form and helper data across every tab.
      *
-     * @returns */
+     * @returns Result when the function
+     *   clears all form and helper data across every
+     *   tab.
+     */
     clearForm(): void {
         clearFormState();
     },
@@ -802,7 +958,9 @@ const methods = {
     /**
      * Closes the editable preview dialog.
      *
-     * @returns */
+     * @returns Result when the function
+     *   closes the editable preview dialog.
+     */
     closePreviewDialog(): void {
         destroySourceEditor("preview");
         previewOpen.value = false;
@@ -872,7 +1030,9 @@ const methods = {
     /**
      * Opens the form history dialog.
      *
-     * @returns */
+     * @returns Result when the function
+     *   opens the form history dialog.
+     */
     openHistoryDialog(): void {
         historyEntries.value = options.getHistoryEntries();
         historyOpen.value = true;
@@ -885,7 +1045,7 @@ const methods = {
      */
     getPreSaveCurrentStepLabel(): string {
         const step = preSaveProgress.value?.steps.find(
-            function callback(item) {
+            function callback(item: { status: string }) {
                 return item.status === "running" || item.status === "retrying";
             },
         );
@@ -920,13 +1080,14 @@ const methods = {
             },
         );
 
-        return [
+        const result = [
             "vg-stub-creator-pre-save-status-ic",
             "on vg-stub-creator-pre-save-status",
             "-icon--",
             normalized,
             "",
         ].join("");
+        return result;
     },
 
     /**
@@ -943,21 +1104,18 @@ const methods = {
         const status = trimFieldValue(step?.status);
         const active = ["failed", "retrying", "running"].includes(status);
 
-        return selectValue(
-            active,
-            function trueBranch() {
-                return [
-                    "vg-stub-creator-pre-save-progress-",
-                    "row vg-stub-creator-pre-save-progr",
-                    "ess-row--",
-                    status,
-                    "",
-                ].join("");
-            },
-            function falseBranch() {
-                return "vg-stub-creator-pre-save-progress-row";
-            },
-        );
+        let result = "vg-stub-creator-pre-save-progress-row";
+
+        if (active) {
+            result = [
+                "vg-stub-creator-pre-save-progress-",
+                "row vg-stub-creator-pre-save-progr",
+                "ess-row--",
+                status,
+                "",
+            ].join("");
+        }
+        return result;
     },
 
     /**
@@ -970,20 +1128,9 @@ const methods = {
             return preSaveGroups.value;
         }
 
-        return preSaveProgressGroups.value.map(function callback(group) {
-            return {
-                key: group.targetPage,
-                rows: group.steps.map(function callback(step) {
-                    return {
-                        key: step.id,
-                        label: step.label,
-                        step,
-                        type: "progress",
-                    };
-                }),
-                title: group.targetPage,
-            };
-        });
+        const groups: VisibleProgressGroup[] = preSaveProgressGroups.value;
+        const result = groups.map(createVisiblePreSaveGroup);
+        return result;
     },
 
     /**
@@ -992,10 +1139,10 @@ const methods = {
      * @returns Whether progress has active work.
      */
     isPreSaveProgressRunning(): boolean {
-        return (
+        const result =
             preSaveProgress.value != null &&
-            !isSaveProgressComplete(preSaveProgress.value)
-        );
+            !isSaveProgressComplete(preSaveProgress.value);
+        return result;
     },
 
     /**
@@ -1006,16 +1153,15 @@ const methods = {
      *
      * @param row - Category review row.
      * @returns Whether the row should be highlighted.
-     *
      */
     isCategoryAddReviewRow(row: any): boolean {
-        return (
+        const result =
             row?.enabled !== false &&
             trimFieldValue(row?.category) !== "" &&
             (row?.pendingCreation != null ||
                 row?.status === "Not exists" ||
-                row?.status === "Pending creation")
-        );
+                row?.status === "Pending creation");
+        return result;
     },
 
     /**
@@ -1025,14 +1171,14 @@ const methods = {
      * @returns Whether the row should be highlighted.
      */
     isNavboxAddReviewRow(row: any): boolean {
-        return (
+        const result =
             row?.enabled !== false &&
             trimFieldValue(row?.text) !== "" &&
             (row?.pendingCreation != null ||
                 row?.status === "Not exists" ||
                 row?.status === "Missing" ||
-                row?.status === "Pending creation")
-        );
+                row?.status === "Pending creation");
+        return result;
     },
 
     /**
@@ -1043,17 +1189,16 @@ const methods = {
      *
      * @param row - Stub-tag review row.
      * @returns Whether the row should be highlighted.
-     *
      */
     isStubTagAddReviewRow(row: any): boolean {
-        return (
+        const result =
             row?.enabled !== false &&
             trimStubTagValue(row?.stubTag) !== "" &&
             (row?.pendingCreation != null ||
                 row?.status === "Not exists" ||
                 row?.status === "Missing" ||
-                row?.status === "Pending creation")
-        );
+                row?.status === "Pending creation");
+        return result;
     },
 
     /**
@@ -1064,20 +1209,21 @@ const methods = {
      *
      * @param row - Redirect review row.
      * @returns Whether the row should be highlighted.
-     *
      */
     isRedirectConflictReviewRow(row: any): boolean {
-        return (
+        const result =
             row?.enabled !== false &&
             trimFieldValue(row?.title) !== "" &&
-            row?.exists === true
-        );
+            row?.exists === true;
+        return result;
     },
 
     /**
      * Closes the form history dialog.
      *
-     * @returns */
+     * @returns Result when the function
+     *   closes the form history dialog.
+     */
     closeHistoryDialog(): void {
         historyOpen.value = false;
     },
@@ -1092,9 +1238,10 @@ const methods = {
         const page = trimFieldValue(entry.metadata?.page);
 
         if (entry.metadata?.temporary === true) {
-            return msg("history.temporaryPage", {
+            const result = msg("history.temporaryPage", {
                 page: page || msg("history.untitled"),
             });
+            return result;
         }
 
         return page || msg("history.untitled");
@@ -1124,7 +1271,10 @@ const methods = {
      * Opens an editable JSON representation of a history entry.
      *
      * @param entry - History entry.
-     * @returns */
+     * @returns Result when the function
+     *   opens an editable json representation of a
+     *   history entry.
+     */
     openHistoryJsonDialog(entry: any): void {
         historyJsonError.value = "";
         historyJsonEditable.value = entry.metadata?.temporary === true;
@@ -1135,7 +1285,10 @@ const methods = {
     /**
      * Opens the history JSON dialog for importing values.
      *
-     * @returns */
+     * @returns Result when the function
+     *   opens the history json dialog for importing
+     *   values.
+     */
     openHistoryImportDialog(): void {
         historyJsonError.value = "";
         historyJsonEditable.value = true;
@@ -1146,7 +1299,9 @@ const methods = {
     /**
      * Closes the history JSON dialog.
      *
-     * @returns */
+     * @returns Result when the function
+     *   closes the history json dialog.
+     */
     closeHistoryJsonDialog(): void {
         historyJsonOpen.value = false;
         historyJsonText.value = "";
@@ -1155,7 +1310,10 @@ const methods = {
     /**
      * Imports form values from the history JSON dialog.
      *
-     * @returns */
+     * @returns Result when the function
+     *   imports form values from the history json
+     *   dialog.
+     */
     async importHistoryJson(): Promise<void> {
         historyJsonError.value = "";
 
@@ -1188,7 +1346,9 @@ const methods = {
      * Deletes one history entry.
      *
      * @param id - History entry ID.
-     * @returns */
+     * @returns Result when the function
+     *   deletes one history entry.
+     */
     deleteHistoryEntry(id: string): void {
         options.onDeleteHistoryEntry(id);
         historyEntries.value = options.getHistoryEntries();
@@ -1199,7 +1359,10 @@ const methods = {
      *
      * @param event - Focus or mouse event from the action
      * button.
-     * @returns */
+     * @returns Result when the function
+     *   shows the shared table-action tooltip near one
+     *   icon button.
+     */
     showTableActionTooltip(event: Event): void {
         const target = event.currentTarget as HTMLElement | null;
         const label =
@@ -1228,7 +1391,9 @@ const methods = {
     /**
      * Hides the shared table-action tooltip.
      *
-     * @returns */
+     * @returns Result when the function
+     *   hides the shared table-action tooltip.
+     */
     hideTableActionTooltip(): void {
         tableActionTooltip.visible = false;
     },
@@ -1236,7 +1401,10 @@ const methods = {
     /**
      * Updates the temporary draft row from current form values.
      *
-     * @returns */
+     * @returns Result when the function
+     *   updates the temporary draft row from current
+     *   form values.
+     */
     updateTemporaryHistoryEntry(): void {
         options.onFormChange(form);
         historyEntries.value = options.getHistoryEntries();
@@ -1245,7 +1413,9 @@ const methods = {
     /**
      * Clears all form history entries.
      *
-     * @returns */
+     * @returns Result when the function
+     *   clears all form history entries.
+     */
     clearHistory(): void {
         options.onClearHistory();
         historyEntries.value = options.getHistoryEntries();
@@ -1254,7 +1424,9 @@ const methods = {
     /**
      * Opens the move target dialog.
      *
-     * @returns */
+     * @returns Result when the function
+     *   opens the move target dialog.
+     */
     openMoveDialog(): void {
         moveTarget.value = getCurrentTitle();
         movePreviewConfirmation.value = false;
@@ -1280,7 +1452,9 @@ const methods = {
     /**
      * Closes the move target dialog.
      *
-     * @returns */
+     * @returns Result when the function
+     *   closes the move target dialog.
+     */
     closeMoveDialog(): void {
         moveOpen.value = false;
         movePreviewConfirmation.value = false;
@@ -1290,7 +1464,9 @@ const methods = {
      * Updates the move target title from live input.
      *
      * @param value - Raw input value.
-     * @returns */
+     * @returns Result when the function
+     *   updates the move target title from live input.
+     */
     updateMoveTarget(value: string): void {
         moveTarget.value = trimFieldValue(value);
         moveTargetState.checkedTitle = "";
@@ -1341,13 +1517,12 @@ const methods = {
      * page.
      *
      * @returns Whether the move action should be shown.
-     *
      */
     canMovePageName(): boolean {
-        return (
+        const result =
             trimFieldValue(form.pageName) !== "" &&
-            trimFieldValue(form.pageName) !== currentTitle
-        );
+            trimFieldValue(form.pageName) !== currentTitle;
+        return result;
     },
 
     /**
@@ -1358,11 +1533,11 @@ const methods = {
     shouldConfirmPageNameMove(): boolean {
         const title = trimFieldValue(form.pageName);
 
-        return (
+        const result =
             title !== "" &&
             title !== currentTitle &&
-            title !== previewWithoutMoveTitle.value
-        );
+            title !== previewWithoutMoveTitle.value;
+        return result;
     },
 
     /**
@@ -1385,7 +1560,6 @@ const methods = {
      * editor.
      *
      * @returns Resolves after navigation starts.
-     *
      */
     async submitMoveTarget(): Promise<void> {
         await this.checkMoveTarget();
@@ -1402,7 +1576,8 @@ const methods = {
      *
      * @param field - Article parameter field.
      * @param field.key - Form key for the field.
-     * @returns */
+     * @returns Multiline article field values.
+     */
     normalizeFieldValue(field: any): void {
         const value = selectValue(
             field.key === "enwikiTitle",
@@ -1424,7 +1599,9 @@ const methods = {
      * @param field - Source reference field.
      * @param field.sourceKey - Form key for the source
      * URL.
-     * @returns */
+     * @returns Result when the function
+     *   trims pasted source url field values.
+     */
     trimSourceValue(field: any): void {
         form[field.sourceKey] = trimFieldValue(form[field.sourceKey]);
     },
@@ -1434,7 +1611,9 @@ const methods = {
      *
      * @param field - Article parameter field.
      * @param value - Raw input value.
-     * @returns */
+     * @returns Result when the function
+     *   updates one article field from live input.
+     */
     updateFieldValue(field: any, value: string): void {
         if (moveFieldUrlToSource(field, value)) {
             markCategoryRowsUnfixed(form.categoryRows);
@@ -1451,7 +1630,9 @@ const methods = {
      *
      * @param field - Source reference field.
      * @param value - Raw input value.
-     * @returns */
+     * @returns Result when the function
+     *   updates one source url field from live input.
+     */
     updateSourceValue(field: any, value: string): void {
         form[field.sourceKey] = trimFieldValue(value);
     },
@@ -1463,7 +1644,9 @@ const methods = {
      * @param paramIndex - Parameter row index.
      * @param field - Parameter field key.
      * @param value - Raw input value.
-     * @returns */
+     * @returns Result when the function
+     *   updates one managed citation parameter value.
+     */
     updateCitationParam(
         citationIndex: number,
         paramIndex: number,
@@ -1488,7 +1671,9 @@ const methods = {
      * Sorts one managed citation's parameters.
      *
      * @param citationIndex - Citation row index.
-     * @returns */
+     * @returns Result when the function
+     *   sorts one managed citation's parameters.
+     */
     sortCitation(citationIndex: number): void {
         const citation = form.citationRows[citationIndex];
 
@@ -1506,7 +1691,10 @@ const methods = {
      * Appends a blank parameter row to one managed citation.
      *
      * @param citationIndex - Citation row index.
-     * @returns */
+     * @returns Result when the function
+     *   appends a blank parameter row to one managed
+     *   citation.
+     */
     addCitationParam(citationIndex: number): void {
         const citation = form.citationRows[citationIndex];
 
@@ -1522,7 +1710,10 @@ const methods = {
      * Removes blank editable parameters from one managed citation.
      *
      * @param citationIndex - Citation row index.
-     * @returns */
+     * @returns Result when the function
+     *   removes blank editable parameters from one
+     *   managed citation.
+     */
     cleanCitationParams(citationIndex: number): void {
         const citation = form.citationRows[citationIndex];
 
@@ -1530,7 +1721,8 @@ const methods = {
             return;
         }
 
-        citation.params = (citation.params || []).filter(
+        const params: Array<{ value?: unknown }> = citation.params || [];
+        citation.params = params.filter(
             (param) => trimFieldValue(param?.value) !== "",
         );
         citation.modified = true;
@@ -1541,7 +1733,9 @@ const methods = {
      *
      * @param citationIndex - Citation row index.
      * @param paramIndex - Parameter row index.
-     * @returns */
+     * @returns Result when the function
+     *   removes one managed citation parameter row.
+     */
     removeCitationParam(citationIndex: number, paramIndex: number): void {
         const citation = form.citationRows[citationIndex];
 
@@ -1592,7 +1786,10 @@ const methods = {
      * Resets one managed citation to its generated parameters.
      *
      * @param citationIndex - Citation row index.
-     * @returns */
+     * @returns Result when the function
+     *   resets one managed citation to its generated
+     *   parameters.
+     */
     resetCitation(citationIndex: number): void {
         const citation = form.citationRows[citationIndex];
 
@@ -1613,7 +1810,6 @@ const methods = {
      * @param citationIndex - Citation row index.
      * @returns Resolves after the citation is
      * refreshed.
-     *
      */
     async refetchCitation(citationIndex: number): Promise<void> {
         const citation = form.citationRows[citationIndex];
@@ -1646,7 +1842,9 @@ const methods = {
      * Trims one form value by key.
      *
      * @param key - Form value key.
-     * @returns */
+     * @returns Result when the function
+     *   trims one form value by key.
+     */
     trimFormValue(key: string): void {
         form[key] = trimFieldValue(form[key]);
     },
@@ -1656,7 +1854,9 @@ const methods = {
      *
      * @param key - Form value key.
      * @param value - Raw input value.
-     * @returns */
+     * @returns Result when the function
+     *   updates one form value by key from live input.
+     */
     updateFormValue(key: string, value: string): void {
         form[key] = trimFieldValue(value);
         markCategoryRowsUnfixed(form.categoryRows);
@@ -1670,7 +1870,6 @@ const methods = {
      *
      * @returns Resolves after metadata is
      * refreshed.
-     *
      */
     async updateEnwikiTitle(): Promise<void> {
         await refreshEnwikiMetadata();
@@ -1682,7 +1881,8 @@ const methods = {
      * @param field - Article parameter field.
      * @param field.key - Form key for the field.
      * @param event - Clipboard paste event.
-     * @returns */
+     * @returns Pasted multiline article field values.
+     */
     normalizePastedFieldValue(field: any, event: any): void {
         const clipboardData =
             event.clipboardData || event.originalEvent.clipboardData;
@@ -1722,7 +1922,9 @@ const methods = {
      * @param key - Localized name group key.
      * @param index - Row index.
      * @param field - Row field key.
-     * @returns */
+     * @returns Result when the function
+     *   trims a localized name row value.
+     */
     updateNameRow(key: string, index: number, field: string): void {
         form[key][index][field] = trimFieldValue(form[key][index][field]);
         ensureTrailingNameRow(form[key]);
@@ -1736,7 +1938,10 @@ const methods = {
      * @param index - Row index.
      * @param field - Row field key.
      * @param value - Raw input value.
-     * @returns */
+     * @returns Result when the function
+     *   updates a localized name row value from live
+     *   input.
+     */
     updateNameRowValue(
         key: string,
         index: number,
@@ -1754,7 +1959,10 @@ const methods = {
      * @param key - Localized name group key.
      * @param index - Row index.
      * @param value - Whether the row is official.
-     * @returns */
+     * @returns Result when the function
+     *   updates whether a localized name row is
+     *   official.
+     */
     updateNameOfficial(key: string, index: number, value: boolean): void {
         form[key][index].official = Boolean(value);
         ensureTrailingNameRow(form[key]);
@@ -1768,7 +1976,9 @@ const methods = {
      * @param index - Row index.
      * @param market - Region key.
      * @param value - Whether the region is selected.
-     * @returns */
+     * @returns Result when the function
+     *   updates one localized name row region.
+     */
     updateNameMarket(
         key: string,
         index: number,
@@ -1790,7 +2000,9 @@ const methods = {
      * Appends a blank localized name row.
      *
      * @param key - Localized name group key.
-     * @returns */
+     * @returns Result when the function
+     *   appends a blank localized name row.
+     */
     addNameRow(key: string): void {
         form[key].push(createNameRow());
     },
@@ -1800,7 +2012,9 @@ const methods = {
      *
      * @param key - Localized name group key.
      * @param index - Row index.
-     * @returns */
+     * @returns Result when the function
+     *   removes one localized name row.
+     */
     removeNameRow(key: string, index: number): void {
         form[key].splice(index, 1);
         ensureTrailingNameRow(form[key]);
@@ -1811,7 +2025,9 @@ const methods = {
      * Updates the Steam helper URL.
      *
      * @param value - Raw Steam URL.
-     * @returns */
+     * @returns Result when the function
+     *   updates the steam helper url.
+     */
     updateSteamUrl(value: string): void {
         steamUrl.value = trimFieldValue(value);
         fetchedSteamNameRows.value = [];
@@ -1830,7 +2046,10 @@ const methods = {
      * Applies one Steam name helper suggestion choice.
      *
      * @param choice - Steam helper choice key.
-     * @returns */
+     * @returns Result when the function
+     *   applies one steam name helper suggestion
+     *   choice.
+     */
     applySteamNameChoice(choice: string): void {
         if (!choice) {
             return;
@@ -1851,7 +2070,9 @@ const methods = {
      * Clears all localized name rows.
      *
      * @param key - Localized name group key.
-     * @returns */
+     * @returns Result when the function
+     *   clears all localized name rows.
+     */
     clearNameRows(key: string): void {
         form[key] = [createNameRow()];
         syncGeneratedNameNoteTaRow(form);
@@ -1875,7 +2096,6 @@ const methods = {
      *
      * @returns Resolves after category rows are
      * rebuilt.
-     *
      */
     async rebuildCategoryRows(): Promise<void> {
         form.stubTagRows = null;
@@ -1888,7 +2108,9 @@ const methods = {
     /**
      * Adds one manual category row.
      *
-     * @returns */
+     * @returns Result when the function
+     *   adds one manual category row.
+     */
     addCategoryRow(): void {
         form.categoryRows.push(options.onCreateCategoryRow());
         ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
@@ -1898,7 +2120,9 @@ const methods = {
      * Removes one category row.
      *
      * @param index - Category row index.
-     * @returns */
+     * @returns Result when the function
+     *   removes one category row.
+     */
     removeCategoryRow(index: number): void {
         form.categoryRows.splice(index, 1);
         ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
@@ -1907,7 +2131,9 @@ const methods = {
     /**
      * Removes surplus blank category rows.
      *
-     * @returns */
+     * @returns Result when the function
+     *   removes surplus blank category rows.
+     */
     cleanCategoryRows(): void {
         form.categoryRows = cleanEditableRows(
             form.categoryRows,
@@ -1919,7 +2145,9 @@ const methods = {
     /**
      * Appends a blank stub-tag row.
      *
-     * @returns */
+     * @returns Result when the function
+     *   appends a blank stub-tag row.
+     */
     addStubTagRow(): void {
         ensureStubTagRows(form).push(createStubTagRow());
         ensureTrailingStubTagRow(form);
@@ -1928,7 +2156,10 @@ const methods = {
     /**
      * Resets stub-tag rows from current category metadata.
      *
-     * @returns */
+     * @returns Result when the function
+     *   resets stub-tag rows from current category
+     *   metadata.
+     */
     resetStubTagRows(): void {
         form.stubTagRows = buildStubTagRowsFromCategories(form.categoryRows);
         ensureTrailingStubTagRow(form);
@@ -1939,7 +2170,9 @@ const methods = {
      *
      * @param index - Stub-tag row index.
      * @param stubTag - Stub template name.
-     * @returns */
+     * @returns Result when the function
+     *   updates one stub-tag row.
+     */
     updateStubTagRow(index: number, stubTag: string): void {
         const row = ensureStubTagRows(form)[index];
 
@@ -1953,7 +2186,9 @@ const methods = {
      * Removes one stub-tag row.
      *
      * @param index - Stub-tag row index.
-     * @returns */
+     * @returns Result when the function
+     *   removes one stub-tag row.
+     */
     removeStubTagRow(index: number): void {
         ensureStubTagRows(form).splice(index, 1);
         ensureTrailingStubTagRow(form);
@@ -1962,7 +2197,9 @@ const methods = {
     /**
      * Removes surplus blank stub-tag rows.
      *
-     * @returns */
+     * @returns Result when the function
+     *   removes surplus blank stub-tag rows.
+     */
     cleanStubTagRows(): void {
         form.stubTagRows = cleanEditableRows(
             ensureStubTagRows(form),
@@ -1974,7 +2211,9 @@ const methods = {
     /**
      * Appends a blank redirect row.
      *
-     * @returns */
+     * @returns Result when the function
+     *   appends a blank redirect row.
+     */
     addRedirectRow(): void {
         ensureRedirectRows(form).push(createRedirectRow());
         ensureTrailingRedirectRow(form);
@@ -1997,7 +2236,10 @@ const methods = {
      *
      * @param index - Redirect row index.
      * @param value - Raw title input.
-     * @returns */
+     * @returns Result when the function
+     *   updates one redirect row title from live
+     *   input.
+     */
     updateRedirectRowTitle(index: number, value: string): void {
         const row = form.redirectRows?.[index];
 
@@ -2011,7 +2253,9 @@ const methods = {
      * Removes one redirect row.
      *
      * @param index - Redirect row index.
-     * @returns */
+     * @returns Result when the function
+     *   removes one redirect row.
+     */
     removeRedirectRow(index: number): void {
         ensureRedirectRows(form).splice(index, 1);
         ensureTrailingRedirectRow(form);
@@ -2020,7 +2264,9 @@ const methods = {
     /**
      * Removes surplus blank redirect rows.
      *
-     * @returns */
+     * @returns Result when the function
+     *   removes surplus blank redirect rows.
+     */
     cleanRedirectRows(): void {
         form.redirectRows = cleanEditableRows(
             ensureRedirectRows(form),
@@ -2032,7 +2278,9 @@ const methods = {
     /**
      * Appends a blank navbox row.
      *
-     * @returns */
+     * @returns Result when the function
+     *   appends a blank navbox row.
+     */
     addNavboxRow(): void {
         ensureNavboxRows(form).push(createNavboxRow());
         ensureTrailingNavboxRow(form);
@@ -2042,7 +2290,9 @@ const methods = {
     /**
      * Removes surplus blank navbox rows.
      *
-     * @returns */
+     * @returns Result when the function
+     *   removes surplus blank navbox rows.
+     */
     cleanNavboxRows(): void {
         form.navboxRows = cleanEditableRows(
             ensureNavboxRows(form),
@@ -2055,7 +2305,9 @@ const methods = {
     /**
      * Appends a blank NoteTA row.
      *
-     * @returns */
+     * @returns Result when the function
+     *   appends a blank noteta row.
+     */
     addNoteTaRow(): void {
         ensureNoteTaRows(form).push(createNoteTaRow());
     },
@@ -2064,7 +2316,9 @@ const methods = {
      * Removes one NoteTA row.
      *
      * @param index - NoteTA row index.
-     * @returns */
+     * @returns Result when the function
+     *   removes one noteta row.
+     */
     removeNoteTaRow(index: number): void {
         const rows = ensureNoteTaRows(form);
         const row = rows[index];
@@ -2079,7 +2333,9 @@ const methods = {
     /**
      * Removes surplus blank NoteTA rows.
      *
-     * @returns */
+     * @returns Result when the function
+     *   removes surplus blank noteta rows.
+     */
     cleanNoteTaRows(): void {
         const rows = ensureNoteTaRows(form);
 
@@ -2096,7 +2352,10 @@ const methods = {
      * @param index - NoteTA row index.
      * @param field - Row field key.
      * @param value - Raw input value.
-     * @returns */
+     * @returns Result when the function
+     *   updates one noteta row key or value from live
+     *   input.
+     */
     updateNoteTaRow(index: number, field: string, value: string): void {
         const row = ensureNoteTaRows(form)[index];
 
@@ -2110,7 +2369,9 @@ const methods = {
     /**
      * Sorts NoteTA rows by output source order.
      *
-     * @returns */
+     * @returns Result when the function
+     *   sorts noteta rows by output source order.
+     */
     sortNoteTaRows(): void {
         const rows = ensureNoteTaRows(form);
 
@@ -2120,7 +2381,10 @@ const methods = {
     /**
      * Rebuilds generated NoteTA rows and preserves manual extras.
      *
-     * @returns */
+     * @returns Result when the function
+     *   rebuilds generated noteta rows and preserves
+     *   manual extras.
+     */
     regenerateNoteTaRows(): void {
         regenerateNoteTaRows(form);
     },
@@ -2130,7 +2394,9 @@ const methods = {
      *
      * @param index - Navbox row index.
      * @param navbox - Navbox wikitext.
-     * @returns */
+     * @returns Result when the function
+     *   updates one navbox row.
+     */
     updateNavboxRow(index: number, navbox: string): void {
         const row = ensureNavboxRows(form)[index];
 
@@ -2144,7 +2410,9 @@ const methods = {
      * Removes one navbox row.
      *
      * @param index - Navbox row index.
-     * @returns */
+     * @returns Result when the function
+     *   removes one navbox row.
+     */
     removeNavboxRow(index: number): void {
         ensureNavboxRows(form).splice(index, 1);
         ensureTrailingNavboxRow(form);
@@ -2276,7 +2544,10 @@ const methods = {
      *
      * @param index - Category row index.
      * @param category - New category title.
-     * @returns */
+     * @returns Result when the function
+     *   updates one category row title and its
+     *   modified marker.
+     */
     updateCategoryRowCategory(index: number, category: string): void {
         const current = form.categoryRows[index];
 
@@ -2359,7 +2630,9 @@ const methods = {
     /**
      * Closes the company category editor.
      *
-     * @returns */
+     * @returns Result when the function
+     *   closes the company category editor.
+     */
     closeCompanyCategory(): void {
         companyCategoryOpen.value = false;
     },
@@ -2367,9 +2640,13 @@ const methods = {
     /**
      * Cancels the staged category creation.
      *
-     * @returns */
+     * @returns Result when the function
+     *   cancels the staged category creation.
+     */
     cancelCompanyCategoryCreation(): void {
-        const row = form.categoryRows.find(function callback(item) {
+        const row = form.categoryRows.find(function callback(item: {
+            category: unknown;
+        }) {
             return (
                 trimFieldValue(item.category) === companyCategoryState.category
             );
@@ -2439,20 +2716,12 @@ const methods = {
      */
     getCompanyCategoryWikidataUrl(): string {
         const id = trimFieldValue(companyCategoryState.wikidataId);
+        let result = "";
 
-        return selectValue(
-            id === "",
-            function trueBranch() {
-                return "";
-            },
-            function falseBranch() {
-                return [
-                    "https://www.wikidata.org/wiki/",
-                    encodeURIComponent(id),
-                    "",
-                ].join("");
-            },
-        );
+        if (id !== "") {
+            result = `https://www.wikidata.org/wiki/${encodeURIComponent(id)}`;
+        }
+        return result;
     },
 
     /**
@@ -2463,11 +2732,11 @@ const methods = {
      * shown.
      */
     canCreateCategory(row: any): boolean {
-        return (
+        const result =
             trimFieldValue(row.category) !== "" &&
             row.status !== "OK" &&
-            row.pendingCreation == null
-        );
+            row.pendingCreation == null;
+        return result;
     },
 
     /**
@@ -2490,7 +2759,9 @@ const methods = {
     /**
      * Closes the category page viewer.
      *
-     * @returns */
+     * @returns Result when the function
+     *   closes the category page viewer.
+     */
     closeCategoryView(): void {
         categoryViewOpen.value = false;
     },
@@ -2528,7 +2799,10 @@ const methods = {
     /**
      * Closes the page edit dialog without staging changes.
      *
-     * @returns */
+     * @returns Result when the function
+     *   closes the page edit dialog without staging
+     *   changes.
+     */
     closePageEditDialog(): void {
         destroySourceEditor("pageEdit");
         pageEditOpen.value = false;
@@ -2538,7 +2812,10 @@ const methods = {
     /**
      * Cancels staged source changes for the current review row.
      *
-     * @returns */
+     * @returns Result when the function
+     *   cancels staged source changes for the current
+     *   review row.
+     */
     resetPageEdit(): void {
         resetPageEdit();
     },
@@ -2546,7 +2823,10 @@ const methods = {
     /**
      * Stages the edited page source for final submission.
      *
-     * @returns */
+     * @returns Result when the function
+     *   stages the edited page source for final
+     *   submission.
+     */
     stagePageEdit(): void {
         syncSourceEditorText("pageEdit", {
             get value() {
@@ -2629,7 +2909,7 @@ const methods = {
      * @returns Compact status label.
      */
     formatStubTagStatusLabel(row: any): string {
-        return selectValue(
+        const result = selectValue(
             isBlankStubTagRow(row),
             function trueBranch() {
                 return msg("review.empty");
@@ -2638,6 +2918,7 @@ const methods = {
                 return formatReviewRowStatusLabel(row, isBlankStubTagRow);
             },
         );
+        return result;
     },
 
     /**
@@ -2659,7 +2940,7 @@ const methods = {
     getCategoryPageUrl(row: any): string {
         const category = trimFieldValue(row?.category);
 
-        return selectValue(
+        const result = selectValue(
             category === "",
             function trueBranch() {
                 return "";
@@ -2668,6 +2949,7 @@ const methods = {
                 return options.getPageUrl(`Category:${category}`);
             },
         );
+        return result;
     },
 
     /**
@@ -2703,7 +2985,7 @@ const methods = {
     getStubTagPageUrl(row: any): string {
         const stubTag = trimStubTagValue(row?.stubTag);
 
-        return selectValue(
+        const result = selectValue(
             stubTag === "",
             function trueBranch() {
                 return "";
@@ -2712,6 +2994,7 @@ const methods = {
                 return options.getPageUrl(`Template:${stubTag}`);
             },
         );
+        return result;
     },
 
     /**
@@ -2733,11 +3016,18 @@ const methods = {
         return exists ? msg("review.editAction") : msg("review.createAction");
     },
 
-    /** Formats an accessible label for a review page action. */
+    /**
+     * Formats an accessible label for a review page action.
+     *
+     * @param row - Row values.
+     * @param exists - Exists value.
+     * @returns An accessible label for a review page action.
+     */
     getReviewPageActionAriaLabel(row: any, exists: boolean): string {
-        return msg("review.pageAction", {
+        const result = msg("review.pageAction", {
             action: this.getReviewPageActionLabel(row, exists),
         });
+        return result;
     },
 
     /**
@@ -2789,12 +3079,12 @@ const methods = {
             return msg("review.unchecked");
         }
 
-        return (
+        const result =
             {
                 Exists: msg("review.overwrite"),
                 Missing: msg("review.ok"),
-            }[status] || msg("review.unchecked")
-        );
+            }[status] || msg("review.unchecked");
+        return result;
     },
 
     /**
@@ -2863,7 +3153,6 @@ const methods = {
      * @param field.key - Form field key.
      * @param field.label - Field display label.
      * @returns Field label for metadata table display.
-     *
      */
     getMetadataFieldLabel(field: any): string {
         const label = field?.label || "";
@@ -2885,23 +3174,31 @@ const methods = {
      *
      * @param row - Localized name row.
      * @returns Whether the row was helper-generated.
-     *
      */
     isSteamNameHelperRow(row: any): boolean {
         return row?.[STEAM_NAME_HELPER_ROW] === true;
     },
 };
 
-/** Checks whether submit must first move to another title. */
+/**
+ * Checks whether submit must first move to another title.
+ *
+ * @param moveTitle - Move title value.
+ * @returns Whether submit must first move to another title.
+ */
 function shouldMoveBeforeSubmit(moveTitle: string): boolean {
-    return (
+    const result =
         preSaveMoveEnabled.value &&
         moveTitle !== "" &&
-        moveTitle !== getCurrentTitle()
-    );
+        moveTitle !== getCurrentTitle();
+    return result;
 }
 
-/** Moves the pending article target before submission. */
+/**
+ * Moves the pending article target before submission.
+ *
+ * @param moveTitle - Move title value.
+ */
 async function submitMoveTarget(moveTitle: string): Promise<void> {
     await options.onMoveTarget(form, moveTitle, sourceFetchState);
 
@@ -2910,7 +3207,11 @@ async function submitMoveTarget(moveTitle: string): Promise<void> {
     }
 }
 
-/** Gets the edited preview payload when one was submitted. */
+/**
+ * Gets the edited preview payload when one was submitted.
+ *
+ * @returns The edited preview payload when one was submitted.
+ */
 function getReviewedPreview(): any | undefined {
     if (!previewSubmitted.value) {
         return undefined;
@@ -2919,7 +3220,13 @@ function getReviewedPreview(): any | undefined {
     return { summary: previewSummary.value, text: previewText.value };
 }
 
-/** Formats one live field input value. */
+/**
+ * Formats one live field input value.
+ *
+ * @param field - Field value.
+ * @param value - Input value.
+ * @returns One live field input value.
+ */
 function getFormattedFieldValue(field: any, value: string): string {
     const completed = completeWikiLinkBrackets(
         field.key,
@@ -2939,7 +3246,11 @@ function getFormattedFieldValue(field: any, value: string): string {
     return formatArticleFormField(form, field.key, normalized);
 }
 
-/** Refreshes state derived from an updated field. */
+/**
+ * Refreshes state derived from an updated field.
+ *
+ * @param key - Lookup key.
+ */
 function updateFieldDependencies(key: string): void {
     if (
         key === "pageName" &&
@@ -2957,15 +3268,27 @@ function updateFieldDependencies(key: string): void {
     }
 }
 
-/** Finds a refreshed citation matching the requested source. */
+/**
+ * Finds a refreshed citation matching the requested source.
+ *
+ * @param rows - Row values.
+ * @param citation - Citation value.
+ * @returns A refreshed citation matching the requested source.
+ */
 function findRefetchedCitation(rows: Array<any>, citation: any): any {
     const sourceUrl = trimFieldValue(citation.sourceUrl);
-    return rows.map(createCitationRow).find(function callback(row) {
+    const result = rows.map(createCitationRow).find(function callback(row) {
         return trimFieldValue(row.sourceUrl) === sourceUrl;
     });
+    return result;
 }
 
-/** Replaces one citation with refreshed generated parameters. */
+/**
+ * Replaces one citation with refreshed generated parameters.
+ *
+ * @param index - Zero-based item index.
+ * @param refreshed - Refreshed value.
+ */
 function replaceRefetchedCitation(index: number, refreshed: any): void {
     form.citationRows.splice(index, 1, {
         ...refreshed,
@@ -2974,9 +3297,13 @@ function replaceRefetchedCitation(index: number, refreshed: any): void {
     });
 }
 
-/** Creates Vue component options from initialized dialog state. */
+/**
+ * Creates Vue component options from initialized dialog state.
+ *
+ * @returns Vue component options from initialized dialog state.
+ */
 function createComponentDefinition(): any {
-    return {
+    const result = {
         methods,
         /**
          * Exposes dialog state and actions to the template.
@@ -2994,9 +3321,14 @@ function createComponentDefinition(): any {
         },
         template: createDialogTemplate(),
     };
+    return result;
 }
 
-/** Gets core dialog setup bindings. */
+/**
+ * Gets core dialog setup bindings.
+ *
+ * @returns Core dialog setup bindings.
+ */
 function getCoreSetupState(): any {
     const state = {
         activeCitationTab,
@@ -3020,7 +3352,11 @@ function getCoreSetupState(): any {
     return state;
 }
 
-/** Gets form field helper setup bindings. */
+/**
+ * Gets form field helper setup bindings.
+ *
+ * @returns Form field helper setup bindings.
+ */
 function getFieldSetupState(): any {
     const state = {
         getSteamNameSuggestions,
@@ -3045,7 +3381,11 @@ function getFieldSetupState(): any {
     return state;
 }
 
-/** Gets history and navigation setup bindings. */
+/**
+ * Gets history and navigation setup bindings.
+ *
+ * @returns History and navigation setup bindings.
+ */
 function getHistorySetupState(): any {
     const state = {
         historyEntries,
@@ -3072,7 +3412,11 @@ function getHistorySetupState(): any {
     return state;
 }
 
-/** Gets save and preview setup bindings. */
+/**
+ * Gets save and preview setup bindings.
+ *
+ * @returns Save and preview setup bindings.
+ */
 function getPreviewSetupState(): any {
     const state = {
         preSaveMoveEnabled,
@@ -3106,7 +3450,10 @@ function getPreviewSetupState(): any {
  * Positions the shared table-action tooltip inside the viewport.
  *
  * @param rect - Trigger button bounds.
- * @returns */
+ * @returns Result when the function
+ *   positions the shared table-action tooltip inside
+ *   the viewport.
+ */
 function positionTableActionTooltip(rect: DOMRect): void {
     const tooltip = tableActionTooltipRef.value;
     const margin = 8;
@@ -3172,7 +3519,6 @@ function queueSourceEditor(key: string, textareaRef: any, textRef: any): void {
  * @param textareaRef - Vue template ref.
  * @param textRef - Mutable text ref.
  * @returns Resolves after enhancement attempt.
- *
  */
 async function initializeSourceEditor(
     key: string,
@@ -3204,22 +3550,44 @@ async function initializeSourceEditor(
     }
 }
 
-/** Checks whether a source editor can start loading. */
+/**
+ * Checks whether a source editor can start loading.
+ *
+ * @param key - Lookup key.
+ * @param textarea - Textarea value.
+ * @returns Whether a source editor can start loading.
+ */
 function canInitializeSourceEditor(key: string, textarea: any): boolean {
-    return (
+    const result =
         textarea != null &&
         !sourceEditors.has(key) &&
-        !sourceEditorLoads.has(key)
-    );
+        !sourceEditorLoads.has(key);
+    return result;
 }
 
-/** Attaches a loaded CodeMirror editor to the current textarea. */
+/**
+ * Attaches a loaded CodeMirror editor to the current textarea.
+ *
+ * @param key - Lookup key.
+ * @param textarea - Textarea value.
+ * @param textareaRef - Textarea ref value.
+ * @param textRef - Text ref value.
+ * @param require - Require value.
+ */
 function attachLoadedSourceEditor(
-    key,
-    textarea,
-    textareaRef,
-    textRef,
-    require,
+    key: string,
+    textarea: HTMLTextAreaElement,
+    textareaRef: { value: unknown },
+    textRef: unknown,
+    require: {
+        (
+            module: "ext.CodeMirror",
+        ): new (
+            textarea: HTMLTextAreaElement,
+            mode: unknown,
+        ) => CodeMirrorEditor;
+        (module: "ext.CodeMirror.mode.mediawiki"): () => unknown;
+    },
 ): void {
     const current = findTextareaElement(textareaRef.value);
 
@@ -3247,7 +3615,9 @@ function attachLoadedSourceEditor(
  * Destroys one source editor instance.
  *
  * @param key - Editor instance key.
- * @returns */
+ * @returns Result when the function
+ *   destroys one source editor instance.
+ */
 function destroySourceEditor(key: string): void {
     const state = sourceEditors.get(key);
 
@@ -3292,7 +3662,10 @@ function isSourceEditorOpen(key: string): boolean {
  * Tears down a CodeMirror instance with either supported API.
  *
  * @param editor - CodeMirror instance.
- * @returns */
+ * @returns Result when the function
+ *   tears down a codemirror instance with either
+ *   supported api.
+ */
 function destroyLoadedSourceEditor(editor: any): void {
     if (typeof editor.destroy === "function") {
         editor.destroy();
@@ -3307,7 +3680,10 @@ function destroyLoadedSourceEditor(editor: any): void {
 /**
  * Releases generated preview text and HTML after dismissal.
  *
- * @returns */
+ * @returns Result when the function
+ *   releases generated preview text and html after
+ *   dismissal.
+ */
 function clearPreviewState(): void {
     previewText.value = "";
     previewSummary.value = "";
@@ -3317,7 +3693,10 @@ function clearPreviewState(): void {
 /**
  * Releases fetched page edit text and parsed HTML after dismissal.
  *
- * @returns */
+ * @returns Result when the function
+ *   releases fetched page edit text and parsed html
+ *   after dismissal.
+ */
 function clearPageEditState(): void {
     Object.assign(pageEditState, {
         error: "",
@@ -3333,7 +3712,9 @@ function clearPageEditState(): void {
  *
  * @param key - Editor instance key.
  * @param textRef - Mutable text ref.
- * @returns */
+ * @returns Result when the function
+ *   copies the live editor text into a vue ref.
+ */
 function syncSourceEditorText(key: string, textRef: any): void {
     const state = sourceEditors.get(key);
 
@@ -3355,7 +3736,10 @@ function syncSourceEditorText(key: string, textRef: any): void {
  *
  * @param key - Editor instance key.
  * @param text - Source text.
- * @returns */
+ * @returns Result when the function
+ *   pushes refreshed source text into an existing
+ *   editor instance.
+ */
 function setSourceEditorText(key: string, text: string): void {
     const state = sourceEditors.get(key);
 
@@ -3369,13 +3753,16 @@ function setSourceEditorText(key: string, text: string): void {
 /**
  * Refreshes category rows through the owning module.
  *
+ * @param refreshOptions - Refresh options value.
  * @returns Resolves after rows are refreshed.
  */
 async function refreshCategoryRows(refreshOptions = {}): Promise<void> {
+    const categoryRows: unknown[] = form.categoryRows;
+
     if (
         shouldSkipFixedRows(
             refreshOptions,
-            form.categoryRows.filter((row) => !isBlankCategoryRow(row)),
+            categoryRows.filter((row) => !isBlankCategoryRow(row)),
             isCategoryRowFixed,
         )
     ) {
@@ -3401,15 +3788,17 @@ function getCategoryRefreshOptions(refreshOptions: any): any {
         return refreshOptions;
     }
 
-    return {
+    const result = {
         ...refreshOptions,
         bypassCache: true,
     };
+    return result;
 }
 
 /**
  * Refreshes categories and generated review details.
  *
+ * @param refreshOptions - Refresh options value.
  * @returns Resolves after review data is refreshed.
  */
 async function refreshReview(refreshOptions: any = {}): Promise<void> {
@@ -3469,7 +3858,10 @@ async function refreshCitationRows(): Promise<void> {
 /**
  * Keeps the active citation tab pointed at an available row.
  *
- * @returns */
+ * @returns Result when the function
+ *   keeps the active citation tab pointed at an
+ *   available row.
+ */
 function syncActiveCitationTab(): void {
     const names = form.citationRows.map(getCitationTabName);
 
@@ -3506,6 +3898,8 @@ function updatePreparedNavboxRow(row: any, index: number): any {
  * Generates navbox rows when needed or explicitly requested.
  *
  * @param force - Whether to replace reviewed rows.
+ * @param rebuild - Rebuild value.
+ * @param refreshOptions - Refresh options value.
  * @returns Resolves after navbox rows are
  * refreshed.
  */
@@ -3535,28 +3929,46 @@ async function refreshNavboxRows(
     navboxRowsPrepared = true;
 }
 
-/** Checks whether fixed navbox rows should be preserved. */
-function shouldSkipNavboxRefresh(force, rebuild, refreshOptions): boolean {
-    const rows = (form.navboxRows || []).filter(
-        (row) => !isBlankNavboxRow(row),
-    );
-    return (
+/**
+ * Checks whether fixed navbox rows should be preserved.
+ *
+ * @param force - Force value.
+ * @param rebuild - Rebuild value.
+ * @returns Whether fixed navbox rows should be preserved.
+ */
+function shouldSkipNavboxRefresh(
+    force: boolean,
+    rebuild: boolean,
+    refreshOptions: {},
+): boolean {
+    const navboxRows: unknown[] = form.navboxRows || [];
+    const rows = navboxRows.filter((row) => !isBlankNavboxRow(row));
+    const result =
         force &&
         !rebuild &&
-        shouldSkipFixedRows(refreshOptions, rows, isNavboxRowFixed)
-    );
+        shouldSkipFixedRows(refreshOptions, rows, isNavboxRowFixed);
+    return result;
 }
 
-/** Builds patched generated navbox rows. */
+/**
+ * Builds patched generated navbox rows.
+ *
+ * @param rebuild - Rebuild value.
+ * @returns Patched generated navbox rows.
+ */
 async function getPreparedNavboxRows(rebuild: boolean): Promise<any[]> {
     const prepared = await options.onPrepareReview(form, rebuild);
-    const rows = prepared.map(function callback(row) {
+    const rows = prepared.map(function callback(row: unknown) {
         return createNavboxRow(row, true);
     });
     return applyNavboxPatches(rows, form.historyPatches?.navboxes);
 }
 
-/** Merges generated navboxes into the current reactive rows. */
+/**
+ * Merges generated navboxes into the current reactive rows.
+ *
+ * @param rows - Row values.
+ */
 function mergePreparedNavboxRows(rows: Array<any>): void {
     const merged = rows.map(updatePreparedNavboxRow);
     form.navboxRows.splice(0, form.navboxRows.length, ...merged);
@@ -3567,6 +3979,7 @@ function mergePreparedNavboxRows(rows: Array<any>): void {
 /**
  * Refreshes generated redirect review rows.
  *
+ * @param refreshOptions - Refresh options value.
  * @returns Resolves after redirect rows are
  * refreshed.
  */
@@ -3580,9 +3993,11 @@ async function refreshRedirectRows(refreshOptions = {}): Promise<void> {
         return;
     }
 
-    const rows = (
-        await options.onPrepareRedirectRows(form, getCurrentTitle())
-    ).map((row) => createRedirectRow(row, true));
+    const preparedRows: unknown[] = await options.onPrepareRedirectRows(
+        form,
+        getCurrentTitle(),
+    );
+    const rows = preparedRows.map((row) => createRedirectRow(row, true));
 
     form.redirectRows = rows;
     ensureTrailingRedirectRow(form);
@@ -3591,6 +4006,7 @@ async function refreshRedirectRows(refreshOptions = {}): Promise<void> {
 /**
  * Checks current redirect review rows in place.
  *
+ * @param refreshOptions - Refresh options value.
  * @returns Resolves after redirect rows are fixed.
  */
 async function checkRedirectRows(refreshOptions = {}): Promise<void> {
@@ -3609,15 +4025,25 @@ async function checkRedirectRows(refreshOptions = {}): Promise<void> {
         return;
     }
 
-    const rows = (
-        await options.onCheckRedirectRows(rowsToCheck, getCurrentTitle())
-    ).map((row) => createRedirectRow(row, true));
+    const checkedRows: unknown[] = await options.onCheckRedirectRows(
+        rowsToCheck,
+        getCurrentTitle(),
+    );
+    const rows = checkedRows.map((row) => createRedirectRow(row, true));
 
     form.redirectRows = rows.map(mergeCheckedRedirectRow);
     ensureTrailingRedirectRow(form);
 }
 
-/** Preserves editable state for a checked redirect row. */
+/**
+ * Preserves editable state for a checked redirect row.
+ *
+ * @param row - Row values.
+ * @param index - Zero-based item index.
+ * @returns Result when the function
+ *   preserves editable state for a checked redirect
+ *   row.
+ */
 function mergeCheckedRedirectRow(row: any, index: number): any {
     const current = form.redirectRows[index];
 
@@ -3653,7 +4079,12 @@ async function openPageEdit(params: any): Promise<void> {
     }
 }
 
-/** Creates initial state for an opened page editor. */
+/**
+ * Creates initial state for an opened page editor.
+ *
+ * @param params - Params value.
+ * @returns Initial state for an opened page editor.
+ */
 function createOpenPageEditState(params: any): any {
     const row = params.row;
     let company = "";
@@ -3661,7 +4092,7 @@ function createOpenPageEditState(params: any): any {
     if (params.kind === "category") {
         company = trimFieldValue(row.company);
     }
-    return {
+    const result = {
         create: params.create,
         company,
         englishName: trimFieldValue(
@@ -3677,9 +4108,14 @@ function createOpenPageEditState(params: any): any {
         text: "",
         title: params.title,
     };
+    return result;
 }
 
-/** Loads and parses the source used by a page editor. */
+/**
+ * Loads and parses the source used by a page editor.
+ *
+ * @param params - Params value.
+ */
 async function loadPageEditText(params: any): Promise<void> {
     const staged = getStagedPageText(params.row, params.kind);
     pageEditState.text = staged ?? (await getPageEditFallbackText(params));
@@ -3690,7 +4126,12 @@ async function loadPageEditText(params: any): Promise<void> {
     );
 }
 
-/** Gets source text when no staged page edit exists. */
+/**
+ * Gets source text when no staged page edit exists.
+ *
+ * @param params - Params value.
+ * @returns Source text when no staged page edit exists.
+ */
 async function getPageEditFallbackText(params: any): Promise<string> {
     if (params.create) {
         return await getNewPageEditText(params);
@@ -3727,7 +4168,6 @@ function getStagedPageText(row: any, kind: string): string | undefined {
  * @param row - Review row.
  * @param fallbackCreate - Status-derived create state.
  * @returns Whether the editor should stage a create.
- *
  */
 function getPageEditCreateState(row: any, fallbackCreate: boolean): boolean {
     if (row?.pendingEdit != null) {
@@ -3765,7 +4205,9 @@ async function getNewPageEditText(params: any): Promise<string> {
 /**
  * Stages the current page edit for the final submit.
  *
- * @returns */
+ * @returns Result when the function
+ *   stages the current page edit for the final submit.
+ */
 function stagePageEdit(): void {
     const row = pageEditState.row;
 
@@ -3788,7 +4230,11 @@ function stagePageEdit(): void {
     closePageEditor();
 }
 
-/** Stages a new company category page. */
+/**
+ * Stages a new company category page.
+ *
+ * @param row - Row values.
+ */
 function stageCategoryCreation(row: any): void {
     row.pendingCreation = {
         englishName: trimFieldValue(pageEditState.englishName),
@@ -3800,7 +4246,12 @@ function stageCategoryCreation(row: any): void {
     closePageEditor();
 }
 
-/** Creates a staged generic page edit payload. */
+/**
+ * Creates a staged generic page edit payload.
+ *
+ * @param row - Row values.
+ * @returns A staged generic page edit payload.
+ */
 function createPendingPageEdit(row: any): any {
     const englishName = trimFieldValue(pageEditState.englishName);
     const pending = {
@@ -3815,7 +4266,9 @@ function createPendingPageEdit(row: any): any {
     return pending;
 }
 
-/** Closes and clears the page source editor. */
+/**
+ * Closes and clears the page source editor.
+ */
 function closePageEditor(): void {
     destroySourceEditor("pageEdit");
     pageEditOpen.value = false;
@@ -3825,7 +4278,10 @@ function closePageEditor(): void {
 /**
  * Cancels staged source changes for the current review row.
  *
- * @returns */
+ * @returns Result when the function
+ *   cancels staged source changes for the current
+ *   review row.
+ */
 function resetPageEdit(): void {
     const row = pageEditState.row;
 
@@ -3889,7 +4345,6 @@ function getCurrentTitle(): string {
  * URL.
  * @param value - Raw input value.
  * @returns Whether the URL was moved.
- *
  */
 function moveFieldUrlToSource(field: any, value: string): boolean {
     const sourceKey = field.sourceField?.sourceKey;
@@ -3951,11 +4406,16 @@ function getGroupPreview(group: any): string {
     return options.getFieldPreview(form, group.previewKey) || "";
 }
 
-/** Formats the generated prose length for the full-text preview. */
+/**
+ * Formats the generated prose length for the full-text preview.
+ *
+ * @returns The generated prose length for the full-text preview.
+ */
 function getProseReviewDescription(): string {
-    return msg("preview.sinographs", {
+    const result = msg("preview.sinographs", {
         count: options.getProseSinographs(form),
     });
+    return result;
 }
 
 /**
@@ -3964,16 +4424,20 @@ function getProseReviewDescription(): string {
  * @returns Wikidata ID or lookup status text.
  */
 function getWikidataText(): string {
-    return (
+    const result =
         form.wikidataId ||
         options.getFieldPlaceholder(form, {
             key: "wikidataId",
         }) ||
-        ""
-    );
+        "";
+    return result;
 }
 
-/** Formats the Wikidata lookup note beside the metadata fields. */
+/**
+ * Formats the Wikidata lookup note beside the metadata fields.
+ *
+ * @returns The Wikidata lookup note beside the metadata fields.
+ */
 function getWikidataStatusText(): string {
     return msg("metadata.wikidataText", { value: getWikidataText() });
 }
@@ -3998,7 +4462,12 @@ function getEnwikiTipLinks(): Array<any> {
     return links;
 }
 
-/** Creates the Wikidata lookup tip link. */
+/**
+ * Creates the Wikidata lookup tip link.
+ *
+ * @param title - Page title.
+ * @returns The Wikidata lookup tip link.
+ */
 function createWikidataTipLink(title: string): any {
     const id = form.wikidataId;
     let url = getOptionalSearchUrl(title, buildWikidataSearchUrl);
@@ -4006,29 +4475,48 @@ function createWikidataTipLink(title: string): any {
     if (id) {
         url = `https://www.wikidata.org/wiki/${encodeURIComponent(id)}`;
     }
-    return {
+    const result = {
         label: "Wikidata",
         value: id || getWikidataLookupStatus(enwikiMetadata.pageExists),
         url,
     };
+    return result;
 }
 
-/** Creates one external review service tip link. */
-function createServiceTipLink(label, id, title): any {
+/**
+ * Creates one external review service tip link.
+ *
+ * @param label - Label value.
+ * @param id - Id value.
+ * @param title - Page title.
+ * @returns One external review service tip link.
+ */
+function createServiceTipLink(
+    label: string,
+    id: string,
+    title: string,
+): unknown {
     let url = getServiceSearchUrl(label, title);
 
     if (id) {
         url = buildServiceUrl(label, id);
     }
-    return {
+    const result = {
         label,
         value:
             id || (title ? msg("metadata.search") : msg("metadata.notFound")),
         url,
     };
+    return result;
 }
 
-/** Builds a direct external review service URL. */
+/**
+ * Builds a direct external review service URL.
+ *
+ * @param label - Label value.
+ * @param id - Id value.
+ * @returns A direct external review service URL.
+ */
 function buildServiceUrl(label: string, id: string): string {
     if (label === "Metacritic") {
         return buildMetacriticUrl(id);
@@ -4041,7 +4529,13 @@ function buildServiceUrl(label: string, id: string): string {
     return buildSteamUrl(id);
 }
 
-/** Builds an external review service search URL. */
+/**
+ * Builds an external review service search URL.
+ *
+ * @param label - Label value.
+ * @param title - Page title.
+ * @returns An external review service search URL.
+ */
 function getServiceSearchUrl(label: string, title: string): string {
     if (title === "") {
         return "";
@@ -4058,15 +4552,28 @@ function getServiceSearchUrl(label: string, title: string): string {
     return buildSteamSearchUrl(title);
 }
 
-/** Calls a search URL builder only for a nonblank title. */
-function getOptionalSearchUrl(title, buildUrl): string {
+/**
+ * Calls a search URL builder only for a nonblank title.
+ *
+ * @param title - Page title.
+ * @returns Result when the function
+ *   calls a search url builder only for a nonblank
+ *   title.
+ */
+function getOptionalSearchUrl(
+    title: string,
+    buildUrl: { (title: string): string; (arg0: unknown): string },
+): string {
     return title === "" ? "" : buildUrl(title);
 }
 
 /**
  * Opens Metacritic and OpenCritic lookup links in new tabs.
  *
- * @returns */
+ * @returns Result when the function
+ *   opens metacritic and opencritic lookup links in
+ *   new tabs.
+ */
 function openEnwikiReviewLinks(): void {
     if (typeof window?.open !== "function") {
         return;
@@ -4111,14 +4618,16 @@ function getNameSearchRows(): Array<any> {
         },
     ].filter((row) => row.query !== "");
 
-    return (rows.length === 0 ? [{ key: "blank", query: "" }] : rows).map(
-        function callback(row) {
-            return {
-                ...row,
-                links: buildNameSearchLinks(row.query),
-            };
-        },
-    );
+    const result = (
+        rows.length === 0 ? [{ key: "blank", query: "" }] : rows
+    ).map(function callback(row) {
+        const result = {
+            ...row,
+            links: buildNameSearchLinks(row.query),
+        };
+        return result;
+    });
+    return result;
 }
 
 /**
@@ -4128,7 +4637,7 @@ function getNameSearchRows(): Array<any> {
  * @returns Search link definitions.
  */
 function buildNameSearchLinks(query: string): Array<any> {
-    return [
+    const result = [
         {
             label: msg("names.cnDomain"),
             url: buildGoogleSiteSearchUrl(query, "*.cn"),
@@ -4144,6 +4653,7 @@ function buildNameSearchLinks(query: string): Array<any> {
                 encodeURIComponent(`"${getBasePageTitle(query)}"`),
         },
     ];
+    return result;
 }
 
 /**
@@ -4236,7 +4746,12 @@ async function refreshEnwikiMetadata(): Promise<void> {
     }
 }
 
-/** Clears metadata before starting an English Wikipedia lookup. */
+/**
+ * Clears metadata before starting an English Wikipedia lookup.
+ *
+ * @param title - Page title.
+ * @param serial - Serial value.
+ */
 function resetEnwikiMetadataLookup(title: string, serial: number): void {
     enwikiLookupSerial.value = serial;
     enwikiLookupLoading.value =
@@ -4245,7 +4760,12 @@ function resetEnwikiMetadataLookup(title: string, serial: number): void {
     Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
 }
 
-/** Fetches English Wikipedia metadata with an empty fallback. */
+/**
+ * Fetches English Wikipedia metadata with an empty fallback.
+ *
+ * @param title - Page title.
+ * @returns English Wikipedia metadata with an empty fallback.
+ */
 async function fetchEnwikiMetadata(title: string): Promise<any> {
     try {
         return await options.onEnwikiTitleChange(title);
@@ -4254,7 +4774,11 @@ async function fetchEnwikiMetadata(title: string): Promise<any> {
     }
 }
 
-/** Applies fetched English Wikipedia metadata to form state. */
+/**
+ * Applies fetched English Wikipedia metadata to form state.
+ *
+ * @param metadata - Article metadata.
+ */
 function applyEnwikiMetadata(metadata: any): void {
     const hasPageState =
         metadata.pageExists === true || metadata.pageExists === false;
@@ -4271,7 +4795,9 @@ function applyEnwikiMetadata(metadata: any): void {
     }
 }
 
-/** Fills blank review source URLs from fetched service IDs. */
+/**
+ * Fills blank review source URLs from fetched service IDs.
+ */
 function applyEnwikiSourceUrls(): void {
     if (
         trimFieldValue(form.metacriticScoreSourceUrl) === "" &&
@@ -4292,7 +4818,13 @@ function applyEnwikiSourceUrls(): void {
     }
 }
 
-/** Prepares a Steam name lookup when a new app ID is available. */
+/**
+ * Prepares a Steam name lookup when a new app ID is available.
+ *
+ * @returns Result when the function
+ *   prepares a steam name lookup when a new app id is
+ *   available.
+ */
 function prepareEnwikiSteamNames(): boolean {
     const shouldFetch =
         trimFieldValue(steamUrl.value) === "" && enwikiMetadata.steamId;
@@ -4312,7 +4844,6 @@ function prepareEnwikiSteamNames(): boolean {
  * title.
  *
  * @returns Resolves after lookup state is updated.
- *
  */
 async function refreshCompanyCategoryMetadata(): Promise<void> {
     const title = normalizeEnglishCategoryTitle(
@@ -4329,7 +4860,7 @@ async function refreshCompanyCategoryMetadata(): Promise<void> {
         return;
     }
 
-    let metadata;
+    let metadata: { wikidataId?: unknown };
 
     try {
         metadata = await options.onEnwikiTitleChange(title);
@@ -4365,7 +4896,9 @@ async function restoreHistoryForm(values: any): Promise<void> {
 /**
  * Clears form values and helper state.
  *
- * @returns */
+ * @returns Result when the function
+ *   clears form values and helper state.
+ */
 function clearFormState(): void {
     replaceFormValues(form, {
         ...createFormValues(),
@@ -4389,9 +4922,14 @@ function clearFormState(): void {
 /**
  * Removes rows previously inserted by the Steam helper.
  *
- * @returns */
+ * @returns Result when the function
+ *   removes rows previously inserted by the steam
+ *   helper.
+ */
 function removeSteamAppliedNameRows(): void {
-    form.localizedNames = form.localizedNames.filter(function callback(row) {
+    form.localizedNames = form.localizedNames.filter(function callback(
+        row: Record<PropertyKey, unknown>,
+    ) {
         return row[STEAM_NAME_HELPER_ROW] !== true && hasAnyNameRowValue(row);
     });
 }
@@ -4413,7 +4951,7 @@ function formatReviewRowStatusLabel(
 
     const status = typeof row === "object" && row != null ? row.status : row;
 
-    return (
+    const result =
         {
             Exists: msg("review.ok"),
             Missing: msg("review.missing"),
@@ -4421,8 +4959,8 @@ function formatReviewRowStatusLabel(
             OK: msg("review.ok"),
             "Pending creation": msg("review.pending"),
             "Pending edit": msg("review.pending"),
-        }[status] || msg("review.unchecked")
-    );
+        }[status] || msg("review.unchecked");
+    return result;
 }
 
 /**
@@ -4458,12 +4996,13 @@ function findGeneratedCitationParam(
 ): any | undefined {
     const param = citation.params[paramIndex];
     const name = trimFieldValue(param?.name);
-    const generatedParams = citation.generatedParams || [];
+    const generatedParams: Array<{ name: string }> =
+        citation.generatedParams || [];
 
-    return (
+    const result =
         generatedParams.find((generated) => generated.name === name) ||
-        generatedParams[paramIndex]
-    );
+        generatedParams[paramIndex];
+    return result;
 }
 
 /**
@@ -4568,10 +5107,11 @@ function getInsertedText(previousText: string, text: string): any | null {
         return null;
     }
 
-    return {
+    const result = {
         index: start,
         text: text.slice(start, textEnd),
     };
+    return result;
 }
 
 /**
@@ -4619,13 +5159,14 @@ function completeOpeningWikiLink(text: string, markerIndex: number): string {
     const trailingWhitespace = segmentAfterMarker.match(/\s*$/u)[0];
     const insertIndex = segmentEnd - trailingWhitespace.length;
 
-    return [
+    const result = [
         "",
         text.slice(0, insertIndex),
         "]]",
         text.slice(insertIndex),
         "",
     ].join("");
+    return result;
 }
 
 /**
@@ -4650,13 +5191,14 @@ function completeClosingWikiLink(text: string, markerIndex: number): string {
     const leadingWhitespace = segmentBeforeMarker.match(/^\s*/u)[0];
     const insertIndex = segmentStart + leadingWhitespace.length;
 
-    return [
+    const result = [
         "",
         text.slice(0, insertIndex),
         "[[",
         text.slice(insertIndex),
         "",
     ].join("");
+    return result;
 }
 
 /**
@@ -4668,7 +5210,6 @@ function completeClosingWikiLink(text: string, markerIndex: number): string {
  * @param text - Current input text.
  * @param index - Index inside the current item.
  * @returns Segment start index.
- *
  */
 function findListSegmentStart(text: string, index: number): number {
     const before = text.slice(0, index);

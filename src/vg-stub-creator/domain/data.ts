@@ -1,4 +1,6 @@
-/** Article metadata builders. */
+/**
+ * Article metadata builders.
+ */
 
 import { get as getTerminology } from "#stub/terms";
 import { formatText, getTextTemplate } from "#stub/wiki";
@@ -26,6 +28,9 @@ const COMPLETABLE_METADATA_FIELDS = {
 
 /**
  * Checks whether a metadata field supports item completion.
+ *
+ * @param key - Lookup key.
+ * @returns Whether a metadata field supports item completion.
  */
 export function isCompletableMetadataField(key: string): boolean {
     return Object.hasOwn(COMPLETABLE_METADATA_FIELDS, key);
@@ -67,12 +72,25 @@ export function completeMetadataFieldValue(
     return output.join("");
 }
 
-/** Treats commas between explicit wikilinks as item separators. */
+/**
+ * Treats commas between explicit wikilinks as item separators.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   treats commas between explicit wikilinks as item
+ *   separators.
+ */
 function normalizeExplicitWikilinkSeparators(value: string): string {
     return value.replace(/(\]\])\s*[,，、]\s*(?=\[\[)/gu, "$1; ");
 }
 
-/** Resolves one completed metadata item. */
+/**
+ * Resolves one completed metadata item.
+ *
+ * @param type - Type value.
+ * @param value - Input value.
+ * @returns One completed metadata item.
+ */
 function resolveMetadataItem(type: string | null, value: string): string {
     const item = trimValue(value);
 
@@ -85,8 +103,12 @@ function resolveMetadataItem(type: string | null, value: string): string {
 
 /**
  * Defines the module-level build year metadata.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level build year metadata.
  */
-export function buildYearMetadata(value) {
+export function buildYearMetadata(value: string | null) {
     const normalized = normalizeYearFieldValue(value);
     const reference = getYearReference(normalized);
     const metadata = {
@@ -100,8 +122,13 @@ export function buildYearMetadata(value) {
 
 /**
  * Defines the module-level normalize year field value.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level normalize year field
+ *   value.
  */
-export function normalizeYearFieldValue(value) {
+export function normalizeYearFieldValue(value: string | null) {
     const entered = value == null ? "" : String(value).trim();
     const planned = entered.startsWith("~");
     const rawYear = planned ? entered.slice(1).trim() : entered;
@@ -119,6 +146,11 @@ export function normalizeYearFieldValue(value) {
 
 /**
  * Adds the canonical suffix to an otherwise unknown four-digit year.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   adds the canonical suffix to an otherwise unknown
+ *   four-digit year.
  */
 function addYearSuffix(value: string): string {
     return /^\d{4}$/u.test(value) ? `${value}年` : value;
@@ -126,23 +158,29 @@ function addYearSuffix(value: string): string {
 
 /**
  * Defines the module-level get year reference.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level get year reference.
  */
-function getYearReference(value) {
+function getYearReference(value: string) {
     const year = trimValue(value);
     const definition = getTerminology("year", year);
 
     if (year === "") {
-        return {
+        const result = {
             categories: [],
             phrase: "",
         };
+        return result;
     }
 
     if (year === "~") {
-        return {
+        const result = {
             categories: [getTextTemplate("patterns.yearFuture")],
             phrase: getTextTemplate("patterns.yearUnreleased"),
         };
+        return result;
     }
 
     if (year.startsWith("~")) {
@@ -161,8 +199,13 @@ function getYearReference(value) {
 
 /**
  * Defines the module-level get planned year reference.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level get planned year
+ *   reference.
  */
-function getPlannedYearReference(value) {
+function getPlannedYearReference(value: string) {
     const year = trimValue(value);
     const definition = getTerminology("year", year);
     const reference = {
@@ -180,19 +223,24 @@ function getPlannedYearReference(value) {
 
 /**
  * Defines the module-level build genre metadata.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level build genre metadata.
  */
-export function buildGenreMetadata(value) {
+export function buildGenreMetadata(value: string) {
     const genres = splitFieldValues(value);
     const items = genres.map(buildGenreItem);
     const references = getGenreReferences(value);
     const links = items
         .filter((item) => item.linkTarget != null)
         .map(function callback(item) {
-            return {
+            const result = {
                 displayText: item.displayText,
                 target: item.linkTarget,
                 wikitext: item.wikitext,
             };
+            return result;
         });
     const metadata = {
         categories: uniqueValues(getReferenceValues(references, "categories")),
@@ -208,8 +256,12 @@ export function buildGenreMetadata(value) {
 
 /**
  * Defines the module-level build genre item.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level build genre item.
  */
-function buildGenreItem(value): ArticleDataValue {
+function buildGenreItem(value: string): ArticleDataValue {
     if (isWikilinkValue(value)) {
         return buildLinkedGenreItem(value);
     }
@@ -217,11 +269,12 @@ function buildGenreItem(value): ArticleDataValue {
     const reference = getTerminology("genre", value);
 
     if (reference == null) {
-        return {
+        const result = {
             displayText: value,
             normalizedText: value,
             wikitext: value,
         };
+        return result;
     }
 
     const item: ArticleDataValue = {
@@ -238,22 +291,32 @@ function buildGenreItem(value): ArticleDataValue {
     return item;
 }
 
-/** Builds a genre item from an explicit wikilink. */
+/**
+ * Builds a genre item from an explicit wikilink.
+ *
+ * @param value - Input value.
+ * @returns A genre item from an explicit wikilink.
+ */
 function buildLinkedGenreItem(value: string): ArticleDataValue {
     const parts = getWikilinkParts(value);
 
-    return {
+    const result = {
         displayText: parts.label || parts.target,
         linkTarget: parts.target,
         normalizedText: value,
         wikitext: value,
     };
+    return result;
 }
 
 /**
  * Defines the module-level get genre references.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level get genre references.
  */
-function getGenreReferences(value) {
+function getGenreReferences(value: string) {
     const references = splitFieldValues(value)
         .map((genre) => getTerminology("genre", genre))
         .filter(Boolean);
@@ -271,7 +334,6 @@ function getGenreReferences(value) {
  * @param companies.developers - Developer names.
  * @param companies.publishers - Publisher names.
  * @returns Company role values and category metadata.
- *
  */
 export function buildCompanyData(companies: any): any {
     const references = getCompanyReferences(companies);
@@ -299,8 +361,17 @@ export function buildCompanyData(companies: any): any {
     return data;
 }
 
-/** Builds normalized data for one company role. */
-function buildCompanyRoleData(items, value): any {
+/**
+ * Builds normalized data for one company role.
+ *
+ * @param items - Items value.
+ * @param value - Input value.
+ * @returns Normalized data for one company role.
+ */
+function buildCompanyRoleData(
+    items: Array<{ wikitext: string }>,
+    value: string,
+): Record<string, unknown> {
     const data = {
         items,
         text: joinCompanyTextList(items.map((item) => item.wikitext)),
@@ -379,7 +450,12 @@ function buildCompanyItem(references: Array<any>, value: string): any {
     return item;
 }
 
-/** Builds a company item from an explicit wikilink. */
+/**
+ * Builds a company item from an explicit wikilink.
+ *
+ * @param value - Input value.
+ * @returns A company item from an explicit wikilink.
+ */
 function buildLinkedCompanyItem(value: string): ArticleDataValue {
     const parts = getWikilinkParts(value);
     const item = {
@@ -420,14 +496,16 @@ function buildCompanyCategoryItems(companies: any): Array<any> {
     const sharedCompanies = getSharedValues(developers, publishers);
     const values = uniqueCompanyLookupValues([...developers, ...publishers]);
 
-    return values.flatMap(function callback(company) {
-        return buildCompanyCategoryItemsForValue(company.lookup, {
+    const result = values.flatMap(function callback(company) {
+        const result = buildCompanyCategoryItemsForValue(company.lookup, {
             company: company.title,
             stubTagEnabled: sharedCompanies.includes(
                 normalizeValueKey(company.lookup),
             ),
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -437,14 +515,16 @@ function buildCompanyCategoryItems(companies: any): Array<any> {
  * @returns Company lookup values.
  */
 function buildCompanyLookupValues(value: string): Array<any> {
-    return splitFieldValues(value).map(function callback(company) {
+    const result = splitFieldValues(value).map(function callback(company) {
         const parts = getWikilinkParts(company);
 
-        return {
+        const result = {
             lookup: getWikilinkValue(company),
             title: parts?.target || getWikilinkValue(company),
         };
+        return result;
     });
+    return result;
 }
 
 /**
@@ -456,7 +536,7 @@ function buildCompanyLookupValues(value: string): Array<any> {
 function uniqueCompanyLookupValues(values: Array<any>): Array<any> {
     const seen = new Set();
 
-    return values.filter(function callback(value) {
+    const result = values.filter(function callback(value) {
         const key = normalizeValueKey(value.lookup);
 
         if (seen.has(key)) {
@@ -466,6 +546,7 @@ function uniqueCompanyLookupValues(values: Array<any>): Array<any> {
         seen.add(key);
         return true;
     });
+    return result;
 }
 
 /**
@@ -486,19 +567,24 @@ function buildCompanyCategoryItemsForValue(
     const companyTitle = getCompanyTitle(company, options.company);
 
     if (reference != null && (reference.categories || []).length > 0) {
-        return reference.categories.map(function callback(category, index) {
+        const result = reference.categories.map(function callback(
+            category: unknown,
+            index: string | number,
+        ) {
             const stubTag = reference.stubTags?.[index] || "";
 
-            return {
+            const result = {
                 category,
                 company: companyTitle,
                 stubTag,
                 stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
             };
+            return result;
         });
+        return result;
     }
 
-    return [
+    const result = [
         {
             candidates: buildCompanyCategoryCandidates(company),
             company: companyTitle,
@@ -507,9 +593,16 @@ function buildCompanyCategoryItemsForValue(
             }),
         },
     ];
+    return result;
 }
 
-/** Gets the preferred article title for a company. */
+/**
+ * Gets the preferred article title for a company.
+ *
+ * @param company - Company value.
+ * @param fallback - Fallback value.
+ * @returns The preferred article title for a company.
+ */
 function getCompanyTitle(company: string, fallback: string): string {
     const title =
         getTerminology("company", company, "page") ||
@@ -535,9 +628,10 @@ function getSharedValues(
         return normalizeValueKey(value.lookup);
     });
 
-    return values
+    const result = values
         .map((value) => normalizeValueKey(value.lookup))
         .filter((value) => candidateKeys.includes(value));
+    return result;
 }
 
 /**
@@ -557,11 +651,12 @@ function normalizeValueKey(value: string): string {
  * @returns Candidate category titles.
  */
 function buildCompanyCategoryCandidates(company: string): Array<string> {
-    return uniqueValues(
+    const result = uniqueValues(
         [company, getDisambiguationBaseTitle(company)].flatMap(
             buildCompanyTitleCategoryCandidates,
         ),
     );
+    return result;
 }
 
 /**
@@ -571,11 +666,12 @@ function buildCompanyCategoryCandidates(company: string): Array<string> {
  * @returns Candidate category titles.
  */
 function buildCompanyTitleCategoryCandidates(title: string): Array<string> {
-    return [
+    const result = [
         formatText("patterns.titleVideoGames", { title }),
         formatText("patterns.titleGame", { title }),
         title,
     ];
+    return result;
 }
 
 /**
@@ -600,11 +696,12 @@ function getCompanyReferences(companies: any): any {
     const developers = getCompanyRoleReferences(companies.developers);
     const publishers = getCompanyRoleReferences(getPublisherValue(companies));
 
-    return {
+    const result = {
         all: [...developers, ...publishers],
         developers,
         publishers,
     };
+    return result;
 }
 
 /**
@@ -614,13 +711,14 @@ function getCompanyReferences(companies: any): any {
  * @returns Matched company metadata.
  */
 function getCompanyRoleReferences(value: string): Array<any> {
-    return splitFieldValues(value)
+    const result = splitFieldValues(value)
         .map(function callback(source) {
             const reference = getTerminology("company", source);
 
             return reference == null ? undefined : { ...reference, source };
         })
         .filter(Boolean);
+    return result;
 }
 
 /**
@@ -638,11 +736,12 @@ export function buildPlatformMetadata(value: any): any {
     const links = items
         .filter((item) => item.linkTarget != null)
         .map(function callback(item) {
-            return {
+            const result = {
                 displayText: item.displayText,
                 target: item.linkTarget,
                 wikitext: item.wikitext,
             };
+            return result;
         });
     const metadata = {
         categories: uniqueValues(getReferenceValues(references, "categories")),
@@ -659,8 +758,16 @@ export function buildPlatformMetadata(value: any): any {
 
 /**
  * Defines the module-level build platform item.
+ *
+ * @param references - References value.
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level build platform item.
  */
-function buildPlatformItem(references: any[], value): ArticleDataValue {
+function buildPlatformItem(
+    references: Array<{ source: string }>,
+    value: string,
+): ArticleDataValue {
     if (isWikilinkValue(value)) {
         return buildLinkedPlatformItem(value);
     }
@@ -668,11 +775,12 @@ function buildPlatformItem(references: any[], value): ArticleDataValue {
     const reference = references.find((item) => item.source === value);
 
     if (reference == null) {
-        return {
+        const result = {
             displayText: value,
             normalizedText: value,
             wikitext: value,
         };
+        return result;
     }
 
     const item: ArticleDataValue = {
@@ -689,22 +797,34 @@ function buildPlatformItem(references: any[], value): ArticleDataValue {
     return item;
 }
 
-/** Builds a platform item from an explicit wikilink. */
+/**
+ * Builds a platform item from an explicit wikilink.
+ *
+ * @param value - Input value.
+ * @returns A platform item from an explicit wikilink.
+ */
 function buildLinkedPlatformItem(value: string): ArticleDataValue {
     const parts = getWikilinkParts(value);
 
-    return {
+    const result = {
         displayText: parts.label || parts.target,
         linkTarget: parts.target,
         normalizedText: value,
         wikitext: value,
     };
+    return result;
 }
 
 /**
  * Defines the module-level get platform references.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level get platform references.
  */
-function getPlatformReferences(value): any[] {
+function getPlatformReferences(
+    value: string,
+): Array<Record<string, unknown> & { source: string }> {
     const references = splitFieldValues(value)
         .map(function callback(source) {
             const reference = getTerminology("platform", source);
@@ -728,11 +848,12 @@ export function buildSeriesMetadata(value: any): any {
     const links = items
         .filter((item) => item.linkTarget != null)
         .map(function callback(item) {
-            return {
+            const result = {
                 displayText: item.displayText,
                 target: item.linkTarget,
                 wikitext: item.wikitext,
             };
+            return result;
         });
     const metadata = {
         categoryPlans: buildSeriesCategoryPlans(values),
@@ -749,8 +870,12 @@ export function buildSeriesMetadata(value: any): any {
 
 /**
  * Defines the module-level build series item.
+ *
+ * @param series - Series value.
+ * @returns Result when the function
+ *   defines the module-level build series item.
  */
-function buildSeriesItem(series): ArticleDataValue {
+function buildSeriesItem(series: string): ArticleDataValue {
     const marker = getSeriesMarker(series);
     const value = marker.value;
 
@@ -763,8 +888,12 @@ function buildSeriesItem(series): ArticleDataValue {
 
 /**
  * Defines the module-level build series title item.
+ *
+ * @param series - Series value.
+ * @returns Result when the function
+ *   defines the module-level build series title item.
  */
-function buildSeriesTitleItem(series): ArticleDataValue {
+function buildSeriesTitleItem(series: string): ArticleDataValue {
     if (!isWikilinkValue(series)) {
         const displayText = formatText("patterns.seriesDisplayTitle", {
             title: series,
@@ -781,7 +910,12 @@ function buildSeriesTitleItem(series): ArticleDataValue {
     return buildLinkedSeriesTitleItem(series);
 }
 
-/** Builds a series-title item from an explicit wikilink. */
+/**
+ * Builds a series-title item from an explicit wikilink.
+ *
+ * @param series - Series value.
+ * @returns A series-title item from an explicit wikilink.
+ */
 function buildLinkedSeriesTitleItem(series: string): ArticleDataValue {
     const parts = getWikilinkParts(series);
     const label = parts.label || parts.target;
@@ -797,28 +931,35 @@ function buildLinkedSeriesTitleItem(series: string): ArticleDataValue {
     const displayText = formatText("patterns.seriesDisplayTitle", {
         title: label,
     });
-    return {
+    const result = {
         displayText,
         linkTarget,
         normalizedText: series,
         wikitext: buildLinkText(linkTarget, displayText),
     };
+    return result;
 }
 
 /**
  * Defines the module-level build derivative work item.
+ *
+ * @param series - Series value.
+ * @returns Result when the function
+ *   defines the module-level build derivative work
+ *   item.
  */
-function buildDerivativeWorkItem(series): ArticleDataValue {
+function buildDerivativeWorkItem(series: string): ArticleDataValue {
     if (!isWikilinkValue(series)) {
         const displayText = formatText("patterns.derivativeWorkDisplayTitle", {
             title: series,
         });
 
-        return {
+        const result = {
             displayText,
             normalizedText: series,
             wikitext: displayText,
         };
+        return result;
     }
 
     const parts = getWikilinkParts(series);
@@ -828,18 +969,23 @@ function buildDerivativeWorkItem(series): ArticleDataValue {
         title: displayLink,
     });
 
-    return {
+    const result = {
         displayText,
         linkTarget: parts.target,
         normalizedText: series,
         wikitext: displayText,
     };
+    return result;
 }
 
 /**
  * Defines the module-level normalize series values.
+ *
+ * @param series - Series value.
+ * @returns Result when the function
+ *   defines the module-level normalize series values.
  */
-function normalizeSeriesValues(series) {
+function normalizeSeriesValues(series: string) {
     const values = splitFieldValues(series).map(normalizeSeriesValue);
 
     return values;
@@ -847,8 +993,12 @@ function normalizeSeriesValues(series) {
 
 /**
  * Defines the module-level normalize series value.
+ *
+ * @param series - Series value.
+ * @returns Result when the function
+ *   defines the module-level normalize series value.
  */
-function normalizeSeriesValue(series) {
+function normalizeSeriesValue(series: string) {
     const marker = getSeriesMarker(series);
     const value = marker.value;
 
@@ -869,28 +1019,42 @@ function normalizeSeriesValue(series) {
 
 /**
  * Defines the module-level get series marker.
+ *
+ * @param series - Series value.
+ * @returns Result when the function
+ *   defines the module-level get series marker.
  */
-function getSeriesMarker(series) {
+function getSeriesMarker(series: string) {
     const value = trimValue(series);
     const derivativeWork = value.endsWith("*");
 
     if (!derivativeWork) {
-        return {
+        const result = {
             derivativeWork,
             value,
         };
+        return result;
     }
 
-    return {
+    const result = {
         derivativeWork,
         value: trimValue(value.slice(0, -1)),
     };
+    return result;
 }
 
 /**
  * Defines the module-level add series marker.
+ *
+ * @param value - Input value.
+ * @param marker - Marker value.
+ * @returns Result when the function
+ *   defines the module-level add series marker.
  */
-function addSeriesMarker(value, marker) {
+function addSeriesMarker(
+    value: string,
+    marker: { derivativeWork: unknown; value?: string },
+) {
     if (!marker.derivativeWork) {
         return value;
     }
@@ -900,15 +1064,24 @@ function addSeriesMarker(value, marker) {
 
 /**
  * Defines the module-level trim series suffix.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level trim series suffix.
  */
-function trimSeriesSuffix(value) {
+function trimSeriesSuffix(value: string) {
     return trimValue(value).replace(/系列$/u, "");
 }
 
 /**
  * Defines the module-level build series category plans.
+ *
+ * @param series - Series value.
+ * @returns Result when the function
+ *   defines the module-level build series category
+ *   plans.
  */
-function buildSeriesCategoryPlans(series) {
+function buildSeriesCategoryPlans(series: string[]) {
     const plans = series
         .map((value) => getSeriesMarker(value).value)
         .flatMap((value) => splitLookupFieldValues(value))
@@ -919,8 +1092,13 @@ function buildSeriesCategoryPlans(series) {
 
 /**
  * Defines the module-level build series category plan.
+ *
+ * @param series - Series value.
+ * @returns Result when the function
+ *   defines the module-level build series category
+ *   plan.
  */
-function buildSeriesCategoryPlan(series) {
+function buildSeriesCategoryPlan(series: string) {
     const plan = {
         candidates: buildSeriesCategoryCandidates(series),
         fallback: formatText("patterns.titleVideoGames", { title: series }),
@@ -931,8 +1109,13 @@ function buildSeriesCategoryPlan(series) {
 
 /**
  * Defines the module-level build series category candidates.
+ *
+ * @param title - Page title.
+ * @returns Result when the function
+ *   defines the module-level build series category
+ *   candidates.
  */
-function buildSeriesCategoryCandidates(title) {
+function buildSeriesCategoryCandidates(title: string) {
     const candidates = uniqueValues(
         [formatText("patterns.titleSeries", { title }), title].flatMap(
             buildSeriesTitleCandidates,
@@ -944,13 +1127,19 @@ function buildSeriesCategoryCandidates(title) {
 
 /**
  * Defines the module-level build series title candidates.
+ *
+ * @param title - Page title.
+ * @returns Result when the function
+ *   defines the module-level build series title
+ *   candidates.
  */
-function buildSeriesTitleCandidates(title) {
-    return [
+function buildSeriesTitleCandidates(title: string) {
+    const result = [
         formatText("patterns.titleVideoGames", { title }),
         formatText("patterns.titleGame", { title }),
         title,
     ];
+    return result;
 }
 
 /**

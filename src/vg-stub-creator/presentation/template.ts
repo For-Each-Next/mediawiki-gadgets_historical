@@ -10,12 +10,22 @@ export { renderTemplate };
 
 /**
  * Escapes localized text for use as a Vue expression string literal.
+ *
+ * @param value - Input value.
+ * @returns Localized text for use as a Vue expression string literal.
  */
 export function toVueString(value: string): string {
     return JSON.stringify(value);
 }
 
-/** Creates a template element with localized static attributes. */
+/**
+ * Creates a template element with localized static attributes.
+ *
+ * @param tagName - Tag name value.
+ * @param attributes - Attributes value.
+ * @param children - Children value.
+ * @returns A template element with localized static attributes.
+ */
 export function createElement(
     tagName: string,
     attributes: Record<string, any> = {},
@@ -24,7 +34,12 @@ export function createElement(
     return createRawElement(tagName, attributes, children);
 }
 
-/** Creates a localized static template text node. */
+/**
+ * Creates a localized static template text node.
+ *
+ * @param value - Input value.
+ * @returns A localized static template text node.
+ */
 export function createText(value: string): string {
     return createRawText(value);
 }
@@ -63,9 +78,10 @@ export function createButtonTemplate(options: any): any {
         attributes.weight = options.weight;
     }
 
-    return createElement("cdx-button", attributes, [
+    const result = createElement("cdx-button", attributes, [
         createText(options.label),
     ]);
+    return result;
 }
 
 /**
@@ -86,7 +102,7 @@ export function createActionFooterTemplate(
         return createSplitActionFooterTemplate(actions, style);
     }
 
-    return createElement(
+    const result = createElement(
         "div",
         {
             style: {
@@ -99,6 +115,7 @@ export function createActionFooterTemplate(
         },
         actions,
     );
+    return result;
 }
 
 /**
@@ -111,7 +128,7 @@ export function createActionFooterTemplate(
  * @returns Dialog action footer node.
  */
 function createSplitActionFooterTemplate(groups: any, style: any = {}): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             style: {
@@ -128,6 +145,7 @@ function createSplitActionFooterTemplate(groups: any, style: any = {}): any {
             createActionFooterGroupTemplate(groups.right || []),
         ],
     );
+    return result;
 }
 
 /**
@@ -137,7 +155,7 @@ function createSplitActionFooterTemplate(groups: any, style: any = {}): any {
  * @returns Action group node.
  */
 function createActionFooterGroupTemplate(actions: Array<any>): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             style: {
@@ -147,6 +165,7 @@ function createActionFooterGroupTemplate(actions: Array<any>): any {
         },
         actions,
     );
+    return result;
 }
 
 /**
@@ -189,14 +208,22 @@ export function createIconActionButtonTemplate(
     return button;
 }
 
-/** Creates shared icon-action button attributes. */
+/**
+ * Creates shared icon-action button attributes.
+ *
+ * @param label - Label value.
+ * @param click - Click value.
+ * @param className - Class name value.
+ * @param extra - Extra value.
+ * @returns Shared icon-action button attributes.
+ */
 function createIconButtonAttributes(
     label: string,
     click: string,
     className: string,
     extra: any,
 ): any {
-    return {
+    const result = {
         "aria-label": label,
         class: ["vg-stub-creator-icon-button", className]
             .filter(Boolean)
@@ -211,6 +238,7 @@ function createIconButtonAttributes(
         "v-on:mouseleave": "hideTableActionTooltip",
         "v-on:mouseenter": "showTableActionTooltip($event)",
     };
+    return result;
 }
 
 /**
@@ -370,13 +398,14 @@ export function createTableHeaderTemplate(
     actions: Array<any | string> = [],
     _options: any = {},
 ): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-slot:header": "",
         },
         actions.flatMap(createTableActionTemplate),
     );
+    return result;
 }
 
 /**
@@ -411,7 +440,7 @@ export function createTableTemplate(
     slots: Array<any | string>,
     attributes: any = {},
 ): any {
-    return createElement(
+    const result = createElement(
         "cdx-table",
         {
             ...attributes,
@@ -420,6 +449,7 @@ export function createTableTemplate(
         },
         slots,
     );
+    return result;
 }
 
 /**
@@ -494,13 +524,14 @@ function createPreviewCardSupportingText(
  * @returns Description node.
  */
 function createPreviewCardDescriptionTemplate(description: string): any {
-    return createElement(
+    const result = createElement(
         "p",
         {
             class: "vg-stub-creator-preview-card-description",
         },
         [createText(`{{ ${description} }}`)],
     );
+    return result;
 }
 
 /**
@@ -511,11 +542,12 @@ function createPreviewCardDescriptionTemplate(description: string): any {
  * @returns Preview text node.
  */
 function createPreviewCardTextTemplate(expression: string): any {
-    return createElement(
+    const result = createElement(
         "pre",
         {
             class: "vg-stub-creator-preview-card-text",
         },
         [createText(`{{ ${expression} }}`)],
     );
+    return result;
 }

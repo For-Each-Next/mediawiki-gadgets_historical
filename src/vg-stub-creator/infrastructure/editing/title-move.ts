@@ -44,7 +44,6 @@ export function updateMovedTitleText(
  * @param current - Current-title article data.
  * @param target - Target-title article data.
  * @returns Updated wikitext.
- *
  */
 function updateLeadTitle(text: string, current: any, target: any): string {
     const exact = replaceOnce(text, current.leadNameText, target.leadNameText);
@@ -89,7 +88,7 @@ function updateInfoboxTitleLines(
     const blockEnd = end + INFOBOX_END.length;
     let infobox = text.slice(start, blockEnd);
 
-    lines.keys.forEach(function callback(key) {
+    lines.keys.forEach(function callback(key: string) {
         infobox = updateInfoboxParameterLine(
             infobox,
             lines.current.get(key),
@@ -100,7 +99,16 @@ function updateInfoboxTitleLines(
     return replaceInfoboxBlock(text, start, blockEnd, infobox);
 }
 
-/** Replaces the located infobox block. */
+/**
+ * Replaces the located infobox block.
+ *
+ * @param text - Source text.
+ * @param start - Start value.
+ * @param blockEnd - Block end value.
+ * @param infobox - Infobox value.
+ * @returns Result when the function
+ *   replaces the located infobox block.
+ */
 function replaceInfoboxBlock(
     text: string,
     start: number,
@@ -120,7 +128,12 @@ function replaceInfoboxBlock(
     return updated;
 }
 
-/** Gets the start and end positions of the generated infobox. */
+/**
+ * Gets the start and end positions of the generated infobox.
+ *
+ * @param text - Source text.
+ * @returns The start and end positions of the generated infobox.
+ */
 function getInfoboxBounds(text: string): any | null {
     const start = text.indexOf(INFOBOX_START);
     const end = start < 0 ? -1 : text.indexOf(INFOBOX_END, start);
@@ -128,8 +141,21 @@ function getInfoboxBounds(text: string): any | null {
     return start < 0 || end < 0 ? null : { end, start };
 }
 
-/** Gets current, target, and changed infobox parameter lines. */
-function getChangedInfoboxLines(current, target): any {
+/**
+ * Gets current, target, and changed infobox parameter lines.
+ *
+ * @param current - Current value.
+ * @param target - Target value.
+ * @returns Current, target, and changed infobox parameter lines.
+ */
+function getChangedInfoboxLines(
+    current: { infoboxText: string },
+    target: { infoboxText: string },
+): {
+    current: Map<string, string>;
+    keys: Set<string>;
+    target: Map<string, string>;
+} {
     const currentLines = parseTemplateParameterLines(current.infoboxText);
     const targetLines = parseTemplateParameterLines(target.infoboxText);
     const keys = new Set([...currentLines.keys(), ...targetLines.keys()]);
@@ -137,8 +163,21 @@ function getChangedInfoboxLines(current, target): any {
     return { current: currentLines, keys, target: targetLines };
 }
 
-/** Updates one changed generated infobox parameter line. */
-function updateInfoboxParameterLine(infobox, currentLine, targetLine): string {
+/**
+ * Updates one changed generated infobox parameter line.
+ *
+ * @param infobox - Infobox value.
+ * @param currentLine - Current line value.
+ * @param targetLine - Target line value.
+ * @returns Result when the function
+ *   updates one changed generated infobox parameter
+ *   line.
+ */
+function updateInfoboxParameterLine(
+    infobox: string,
+    currentLine: string | null,
+    targetLine: string | null,
+): string {
     if (currentLine === targetLine) {
         return infobox;
     }
@@ -170,7 +209,7 @@ function updateInfoboxParameterLine(infobox, currentLine, targetLine): string {
  * @returns Parameter lines keyed by name.
  */
 function parseTemplateParameterLines(template: string): Map<string, string> {
-    return new Map<string, string>(
+    const result = new Map<string, string>(
         String(template || "")
             .split("\n")
             .map(function callback(line) {
@@ -184,6 +223,7 @@ function parseTemplateParameterLines(template: string): Map<string, string> {
             })
             .filter((entry): entry is [string, string] => entry != null),
     );
+    return result;
 }
 
 /**
@@ -205,9 +245,10 @@ function replaceOnce(text: string, current: string, target: string): string {
         return text;
     }
 
-    return `${text.slice(0, index)}${target || ""}${text.slice(
+    const result = `${text.slice(0, index)}${target || ""}${text.slice(
         index + current.length,
     )}`;
+    return result;
 }
 
 /**

@@ -42,17 +42,23 @@ export function createSaveProgress(
         steps.push(...buildRegistrationProgressSteps(registration));
     }
 
-    return {
+    const result = {
         error: "",
         open: true,
         steps,
         title,
     };
+    return result;
 }
 
-/** Builds the primary article-save progress step. */
+/**
+ * Builds the primary article-save progress step.
+ *
+ * @param title - Page title.
+ * @returns The primary article-save progress step.
+ */
 function buildSaveProgressStep(title: string): any {
-    return {
+    const result = {
         id: "save",
         label: msg("progress.savePage", { title }),
         parts: buildProgressParts("progress.savePage", {
@@ -61,11 +67,18 @@ function buildSaveProgressStep(title: string): any {
         status: "pending",
         targetPage: title,
     };
+    return result;
 }
 
-/** Builds an optional article-move progress step. */
+/**
+ * Builds an optional article-move progress step.
+ *
+ * @param title - Page title.
+ * @param move - Move value.
+ * @returns An optional article-move progress step.
+ */
 function buildMoveProgressStep(title: string, move: any): any {
-    return {
+    const result = {
         id: "move",
         label: msg("progress.movePage", { title: move.to }),
         parts: buildProgressParts("progress.movePage", {
@@ -74,13 +87,23 @@ function buildMoveProgressStep(title: string, move: any): any {
         status: "pending",
         targetPage: title,
     };
+    return result;
 }
 
-/** Builds progress steps for selected follow-up actions. */
-function buildSelectedActionProgressSteps(actions, title): Array<any> {
-    return actions
+/**
+ * Builds progress steps for selected follow-up actions.
+ *
+ * @param actions - Actions value.
+ * @param title - Page title.
+ * @returns Progress steps for selected follow-up actions.
+ */
+function buildSelectedActionProgressSteps(
+    actions: Array<{ id: string; label: string; selected: boolean }>,
+    title: string,
+): Array<unknown> {
+    const result = actions
         .filter((action) => action.selected)
-        .flatMap(function callback(action) {
+        .flatMap(function callback(action: { id: unknown; label: unknown }) {
             const step = {
                 id: action.id,
                 label: action.label,
@@ -91,15 +114,23 @@ function buildSelectedActionProgressSteps(actions, title): Array<any> {
 
             return [step, ...buildBundledActionProgressSteps(action)];
         });
+    return result;
 }
 
-/** Builds the optional new-page-list registration progress step. */
-function buildRegistrationProgressSteps(registration): Array<any> {
+/**
+ * Builds the optional new-page-list registration progress step.
+ *
+ * @param registration - Registration value.
+ * @returns The optional new-page-list registration progress step.
+ */
+function buildRegistrationProgressSteps(registration: {
+    enabled: boolean;
+}): Array<unknown> {
     if (registration.enabled !== true) {
         return [];
     }
 
-    return [
+    const result = [
         {
             id: "new-page-list",
             label: msg("progress.registerNewPage"),
@@ -108,6 +139,7 @@ function buildRegistrationProgressSteps(registration): Array<any> {
             targetPage: NEW_PAGE_LIST_TITLE,
         },
     ];
+    return result;
 }
 
 /**
@@ -117,15 +149,22 @@ function buildRegistrationProgressSteps(registration): Array<any> {
  * @returns Target-page progress groups.
  */
 export function getSaveProgressGroups(progress: any): Array<any> {
-    const groups = (progress?.steps || []).reduce(
-        (groups, step) => addStepToTargetGroup(groups, step, progress),
-        [],
-    );
+    const groups = (progress?.steps || []).reduce(function addStep(
+        groups: unknown[],
+        step: unknown,
+    ) {
+        return addStepToTargetGroup(groups, step, progress);
+    }, []);
 
-    return [
-        ...groups.filter((group) => !isWikidataTargetPage(group.targetPage)),
-        ...groups.filter((group) => isWikidataTargetPage(group.targetPage)),
+    const result = [
+        ...groups.filter(function isLocal(group: { targetPage: string }) {
+            return !isWikidataTargetPage(group.targetPage);
+        }),
+        ...groups.filter(function isWikidata(group: { targetPage: string }) {
+            return isWikidataTargetPage(group.targetPage);
+        }),
     ];
+    return result;
 }
 
 /**
@@ -135,9 +174,12 @@ export function getSaveProgressGroups(progress: any): Array<any> {
  * @returns Whether every step has a terminal status.
  */
 export function isSaveProgressComplete(progress: any): boolean {
-    return (progress?.steps || []).every(function callback(step) {
+    const result = (progress?.steps || []).every(function callback(step: {
+        status: string;
+    }) {
         return ["complete", "failed", "skipped"].includes(step.status);
     });
+    return result;
 }
 
 /**
@@ -205,52 +247,102 @@ function buildActionProgressParts(
     return undefined;
 }
 
-/** Builds connection progress fragments. */
-function buildConnectionProgressParts(title, wikidataId): Array<any> {
-    return buildProgressParts("progress.connectTo", {
+/**
+ * Builds connection progress fragments.
+ *
+ * @param title - Page title.
+ * @param wikidataId - Wikidata id value.
+ * @returns Connection progress fragments.
+ */
+function buildConnectionProgressParts(
+    title: string,
+    wikidataId: unknown,
+): Array<unknown> {
+    const result = buildProgressParts("progress.connectTo", {
         target: { code: wikidataId },
         title: { code: title },
     });
+    return result;
 }
 
-/** Builds redirect progress fragments. */
-function buildRedirectProgressParts(action, title): Array<any> {
-    return buildProgressParts("progress.redirectTo", {
+/**
+ * Builds redirect progress fragments.
+ *
+ * @param action - Action value.
+ * @param title - Page title.
+ * @returns Redirect progress fragments.
+ */
+function buildRedirectProgressParts(
+    action: { redirectTitle: unknown },
+    title: string,
+): Array<unknown> {
+    const result = buildProgressParts("progress.redirectTo", {
         redirect: { code: action.redirectTitle },
         title: { code: title },
     });
+    return result;
 }
 
-/** Builds talk-banner progress fragments. */
-function buildTalkBannerProgressParts(title): Array<any> {
-    return buildProgressParts("progress.addTalkBanner", {
+/**
+ * Builds talk-banner progress fragments.
+ *
+ * @param title - Page title.
+ * @returns Talk-banner progress fragments.
+ */
+function buildTalkBannerProgressParts(title: string): Array<unknown> {
+    const result = buildProgressParts("progress.addTalkBanner", {
         title: { code: `Talk:${title}` },
     });
+    return result;
 }
 
-/** Builds category progress fragments. */
-function buildCategoryProgressParts(action): Array<any> {
-    return buildProgressParts("progress.createCategory", {
+/**
+ * Builds category progress fragments.
+ *
+ * @param action - Action value.
+ * @returns Category progress fragments.
+ */
+function buildCategoryProgressParts(action: {
+    category: unknown;
+}): Array<unknown> {
+    const result = buildProgressParts("progress.createCategory", {
         title: { code: `Category:${action.category}` },
     });
+    return result;
 }
 
-/** Builds page-edit progress fragments. */
-function buildPageEditProgressParts(action): Array<any> {
+/**
+ * Builds page-edit progress fragments.
+ *
+ * @param action - Action value.
+ * @returns Page-edit progress fragments.
+ */
+function buildPageEditProgressParts(action: {
+    create: unknown;
+    title: unknown;
+}): Array<unknown> {
     const id = action.create ? "progress.createPage" : "progress.editPage";
-    return buildProgressParts(id, {
+    const result = buildProgressParts(id, {
         title: { code: action.title },
     });
+    return result;
 }
 
-/** Converts translated message parts to progress display fragments. */
+/**
+ * Converts translated message parts to progress display fragments.
+ *
+ * @param id - Id value.
+ * @param values - Input values.
+ * @returns Translated message parts to progress display fragments.
+ */
 function buildProgressParts(
     id: MessageId,
     values: Record<string, any>,
 ): Array<any> {
-    return msgParts<any>(id, values).map(function callback(part) {
+    const result = msgParts<unknown>(id, values).map(function callback(part) {
         return typeof part === "string" ? { text: part } : part;
     });
+    return result;
 }
 
 /**
@@ -266,25 +358,28 @@ export function updateSaveProgress(
     id: string,
     status: string,
 ): any {
-    return {
+    const result = {
         ...progress,
-        steps: progress.steps.map(function callback(step) {
-            return selectValue(
+        steps: progress.steps.map(function callback(step: { id: string }) {
+            const result = selectValue(
                 step.id === id ||
                     (id === "new-page-list" &&
                         step.id?.endsWith(":register-new-page")),
                 function trueBranch() {
-                    return {
+                    const result = {
                         ...step,
                         status,
                     };
+                    return result;
                 },
                 function falseBranch() {
                     return step;
                 },
             );
+            return result;
         }),
     };
+    return result;
 }
 
 /**
@@ -292,7 +387,9 @@ export function updateSaveProgress(
  *
  * @param progress - Save progress state.
  * @param storage - Session storage implementation.
- * @returns */
+ * @returns Result when the function
+ *   stores progress in session storage.
+ */
 export function storeSaveProgress(
     progress: any,
     storage: Storage = sessionStorage,
@@ -334,14 +431,16 @@ function buildChecklistProgressSteps(groups: Array<any>): Array<any> {
         return [];
     }
 
-    return groups.flatMap(function callback(group) {
+    const result = groups.flatMap(function callback(group) {
         const targetPage = normalizeActionText(group?.title);
 
         if (targetPage === "" || !Array.isArray(group?.rows)) {
             return [];
         }
 
-        return group.rows.flatMap(function callback(row) {
+        const result = group.rows.flatMap(function callback(row: {
+            label: unknown;
+        }) {
             const id = getChecklistProgressStepId(row);
             const label = normalizeActionText(row?.label);
 
@@ -349,7 +448,7 @@ function buildChecklistProgressSteps(groups: Array<any>): Array<any> {
                 return [];
             }
 
-            return [
+            const result = [
                 {
                     id,
                     label,
@@ -358,8 +457,11 @@ function buildChecklistProgressSteps(groups: Array<any>): Array<any> {
                     targetPage,
                 },
             ];
+            return result;
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -408,10 +510,19 @@ function buildBundledActionProgressSteps(action: any): Array<any> {
     return steps;
 }
 
-/** Builds a bundled category talk-banner progress step. */
-function buildBundledTalkProgressStep(action, categoryTitle): any {
+/**
+ * Builds a bundled category talk-banner progress step.
+ *
+ * @param action - Action value.
+ * @param categoryTitle - Category title value.
+ * @returns A bundled category talk-banner progress step.
+ */
+function buildBundledTalkProgressStep(
+    action: { category: unknown; id: unknown },
+    categoryTitle: unknown,
+): unknown {
     const title = `Category talk:${normalizeActionText(action.category)}`;
-    return {
+    const result = {
         id: `${action.id}:talk-banner`,
         label: msg("progress.addTalkBanner", { title }),
         parts: buildProgressParts("progress.addTalkBanner", {
@@ -420,12 +531,23 @@ function buildBundledTalkProgressStep(action, categoryTitle): any {
         status: "pending",
         targetPage: categoryTitle,
     };
+    return result;
 }
 
-/** Builds bundled category Wikidata progress steps. */
-function buildBundledWikidataProgressSteps(options): Array<any> {
+/**
+ * Builds bundled category Wikidata progress steps.
+ *
+ * @param options - Operation options.
+ * @returns Bundled category Wikidata progress steps.
+ */
+function buildBundledWikidataProgressSteps(options: {
+    action: { id: string };
+    categoryTitle: string;
+    englishName: string;
+    wikidataId: string;
+}): Array<unknown> {
     if (options.wikidataId !== "") {
-        return [
+        const result = [
             {
                 id: `${options.action.id}:wikidata`,
                 label: buildWikidataProgressLabel(options),
@@ -437,9 +559,10 @@ function buildBundledWikidataProgressSteps(options): Array<any> {
                 targetPage: options.categoryTitle,
             },
         ];
+        return result;
     }
     if (options.englishName !== "") {
-        return [
+        const result = [
             {
                 id: `${options.action.id}:wikidata`,
                 label: msg("progress.connectCategory"),
@@ -448,17 +571,27 @@ function buildBundledWikidataProgressSteps(options): Array<any> {
                 targetPage: options.categoryTitle,
             },
         ];
+        return result;
     }
 
     return [];
 }
 
-/** Builds the category Wikidata action label. */
-function buildWikidataProgressLabel(options): string {
-    return msg("progress.connectTo", {
+/**
+ * Builds the category Wikidata action label.
+ *
+ * @param options - Operation options.
+ * @returns The category Wikidata action label.
+ */
+function buildWikidataProgressLabel(options: {
+    wikidataId: string;
+    categoryTitle: string;
+}): string {
+    const result = msg("progress.connectTo", {
         target: options.wikidataId,
         title: options.categoryTitle,
     });
+    return result;
 }
 
 /**
@@ -509,7 +642,6 @@ function isWikidataTargetPage(targetPage: string): boolean {
  * @param step - Stored progress step.
  * @param progress - Save progress state.
  * @returns Target page title.
- *
  */
 function getStoredStepTargetPage(step: any, progress: any): string {
     if (step.id === "new-page-list") {

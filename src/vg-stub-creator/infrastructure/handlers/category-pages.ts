@@ -38,7 +38,7 @@ export function buildCompanyCategoryText(
     });
     const allCompanies = getTextTemplate("handlers.allCompaniesCategory");
 
-    return [
+    const result = [
         `{{portal|${portal}}}`,
         "",
         description,
@@ -47,6 +47,7 @@ export function buildCompanyCategoryText(
         ...parentCategories,
         `[[Category:${allCompanies}]]`,
     ].join("\n");
+    return result;
 }
 
 /**
@@ -59,16 +60,16 @@ export function buildCompanyCategoryText(
  * @param row.company - Company page title.
  * @param api - MediaWiki API client.
  * @returns Prefilled category page text.
- *
  */
 export async function prepareCompanyCategoryText(
     row: any,
     api: any = new mw.Api(),
 ): Promise<string> {
-    return buildCompanyCategoryText(
+    const result = buildCompanyCategoryText(
         row.company,
         await categoryExists(api, row.company),
     );
+    return result;
 }
 
 /**
@@ -113,8 +114,19 @@ export async function saveCompanyCategory(
     await addCompanyCategoryTalkBanner(categoryTitle, api, options);
 }
 
-/** Fetches optional English-category metadata. */
-async function fetchCompanyCategoryMetadata(englishTitle, options) {
+/**
+ * Fetches optional English-category metadata.
+ *
+ * @param englishTitle - English title value.
+ * @param options - Operation options.
+ * @returns Optional English-category metadata.
+ */
+async function fetchCompanyCategoryMetadata(
+    englishTitle: string,
+    options: {
+        fetchMetadata: (title: string, options?: unknown) => Promise<unknown>;
+    },
+) {
     if (englishTitle === "") {
         return null;
     }
@@ -125,8 +137,19 @@ async function fetchCompanyCategoryMetadata(englishTitle, options) {
     return metadata;
 }
 
-/** Saves the primary company-category page. */
-async function saveCompanyCategoryPage(context): Promise<void> {
+/**
+ * Saves the primary company-category page.
+ *
+ * @param context - Operation context.
+ */
+async function saveCompanyCategoryPage(context: {
+    api: mw.Api;
+    category: string;
+    englishTitle: string;
+    metadata: { pageExists: boolean; wikidataId: string };
+    options: { onProgress?: (step: string, status: string) => void };
+    text: string;
+}): Promise<void> {
     try {
         await saveCategoryPage(
             context.category,
@@ -145,12 +168,22 @@ async function saveCompanyCategoryPage(context): Promise<void> {
     }
 }
 
-/** Connects a category to Wikidata when English metadata exists. */
+/**
+ * Connects a category to Wikidata when English metadata exists.
+ *
+ * @param categoryTitle - Category title value.
+ * @param englishTitle - English title value.
+ * @param metadata - Article metadata.
+ * @param options - Operation options.
+ */
 async function connectCompanyCategory(
-    categoryTitle,
-    englishTitle,
-    metadata,
-    options,
+    categoryTitle: string,
+    englishTitle: string,
+    metadata: { pageExists: boolean; wikidataId: string },
+    options: {
+        wikidataApi: mw.ForeignApi;
+        onProgress: (arg0: string, arg1: string) => void;
+    },
 ): Promise<void> {
     if (metadata == null || metadata.pageExists === false) {
         return;
@@ -174,8 +207,20 @@ async function connectCompanyCategory(
     }
 }
 
-/** Creates or updates the category's Wikidata sitelink. */
-async function saveCompanyCategorySitelink(api, english, category, id) {
+/**
+ * Creates or updates the category's Wikidata sitelink.
+ *
+ * @param api - MediaWiki API client.
+ * @param english - English value.
+ * @param category - Category value.
+ * @param id - Id value.
+ */
+async function saveCompanyCategorySitelink(
+    api: unknown,
+    english: string,
+    category: string,
+    id: string,
+) {
     if (String(id || "").trim() === "") {
         await createWikidataCategoryItem(api, english, category);
         return;
@@ -184,8 +229,18 @@ async function saveCompanyCategorySitelink(api, english, category, id) {
     await connectWikidataSitelink(api, id, category);
 }
 
-/** Adds the WikiProject banner to the category talk page. */
-async function addCompanyCategoryTalkBanner(categoryTitle, api, options) {
+/**
+ * Adds the WikiProject banner to the category talk page.
+ *
+ * @param categoryTitle - Category title value.
+ * @param api - MediaWiki API client.
+ * @param options - Operation options.
+ */
+async function addCompanyCategoryTalkBanner(
+    categoryTitle: string,
+    api: unknown,
+    options: { onProgress: (arg0: string, arg1: string) => void },
+) {
     try {
         options.onProgress?.("talk-banner", "running");
         await addTalkPageBanner(api, categoryTitle);
@@ -255,7 +310,6 @@ function buildWikidataSummaryLink(id: string): string {
  * @param englishTitle - English Wikipedia category title.
  * @param chineseTitle - Chinese Wikipedia category title.
  * @returns Resolves after the item is created.
- *
  */
 export async function createWikidataCategoryItem(
     api: any,

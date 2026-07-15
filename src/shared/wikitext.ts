@@ -2,10 +2,14 @@
  * Provides shared formatting and reference lookup helpers.
  */
 
-/** A value accepted by a MediaWiki template parameter. */
+/**
+ * A value accepted by a MediaWiki template parameter.
+ */
 export type TemplateParamValue = string | number | boolean | null | undefined;
 
-/** A MediaWiki template parameter key and value. */
+/**
+ * A MediaWiki template parameter key and value.
+ */
 export type TemplateParam = [string | number | null, TemplateParamValue];
 
 /**
@@ -51,13 +55,14 @@ function buildInlineTemplateText(
     name: string,
     entries: Array<TemplateParam>,
 ): string {
-    return [
+    const result = [
         "{{",
         name,
         "",
         entries.map(buildInlineTemplateParam).join(""),
         "}}",
     ].join("");
+    return result;
 }
 
 /**
@@ -71,13 +76,14 @@ function buildBlockTemplateText(
     name: string,
     entries: Array<TemplateParam>,
 ): string {
-    return [
+    const result = [
         "{{",
         name,
         "\n",
         entries.map(buildBlockTemplateParam).join("\n"),
         "\n}}",
     ].join("");
+    return result;
 }
 
 /**
@@ -148,7 +154,6 @@ export function buildLinkText(title: string, label: string): string {
  * @param title - Link target.
  * @param label - Link label.
  * @returns Whether an unpiped link can use the label.
- *
  */
 function hasSameFirstLetterCaseInsensitiveText(
     title: string,
@@ -157,10 +162,10 @@ function hasSameFirstLetterCaseInsensitiveText(
     const [titleFirst = "", ...titleRest] = [...title.replace(/_/gu, " ")];
     const [labelFirst = "", ...labelRest] = [...label.replace(/_/gu, " ")];
 
-    return (
+    const result =
         titleFirst.toLocaleLowerCase() === labelFirst.toLocaleLowerCase() &&
-        titleRest.join("") === labelRest.join("")
-    );
+        titleRest.join("") === labelRest.join("");
+    return result;
 }
 
 /**
@@ -204,10 +209,11 @@ export function splitFieldValues(value: string): Array<string> {
  * @returns Individual values with wikilinks normalized.
  */
 export function splitLookupFieldValues(value: string): Array<string> {
-    return splitDelimitedFieldValue(value)
+    const result = splitDelimitedFieldValue(value)
         .map(getWikilinkValue)
         .map(trimValue)
         .filter(Boolean);
+    return result;
 }
 
 /**
@@ -243,10 +249,11 @@ export function getWikilinkParts(value: string): any | null {
 
     const [target, label] = splitWikilinkParts(match[1]);
 
-    return {
+    const result = {
         label: trimValue(label),
         target: trimValue(target),
     };
+    return result;
 }
 
 /**
@@ -310,7 +317,13 @@ function splitDelimitedFieldValue(value: string): Array<string> {
     return items;
 }
 
-/** Gets the wikilink state after consuming a delimiter pair. */
+/**
+ * Gets the wikilink state after consuming a delimiter pair.
+ *
+ * @param pair - Pair value.
+ * @param inWikilink - In wikilink value.
+ * @returns The wikilink state after consuming a delimiter pair.
+ */
 function getWikilinkTransition(pair: string, inWikilink: boolean) {
     if (pair === "[[") {
         return true;
@@ -453,12 +466,12 @@ export function getReferenceEntry(
     const entries = getReferenceEntries(definitions);
     const normalizedValue = normalizeAlias(getWikilinkValue(value));
     const entry = entries.find(function callback([key, definition]) {
-        return (
+        const result =
             normalizeAlias(key) === normalizedValue ||
             normalizeAlias(definition.page || "") === normalizedValue ||
             normalizeAlias(definition.label || "") === normalizedValue ||
-            hasMatchingReferenceAlias(definition.aliases, value)
-        );
+            hasMatchingReferenceAlias(definition.aliases, value);
+        return result;
     });
 
     if (entry == null) {
@@ -483,9 +496,10 @@ function getReferenceEntries(
     definitions: any | Array<any>,
 ): Array<Array<string | any>> {
     if (Array.isArray(definitions)) {
-        return definitions.map(function callback(definition) {
+        const result = definitions.map(function callback(definition) {
             return [getReferenceKey(definition), definition];
         });
+        return result;
     }
 
     return Object.entries(definitions || {});
@@ -500,15 +514,25 @@ function getReferenceEntries(
  * @param definition.page - Canonical page title.
  * @returns Canonical alias key.
  */
-function getReferenceKey(definition: any): string | undefined {
-    return (
+function getReferenceKey(definition: {
+    aliases?: string[];
+    label?: string;
+    page?: string;
+}): string | undefined {
+    const result =
         definition.page ||
         definition.label ||
-        definition.aliases?.find((alias) => typeof alias === "string")
-    );
+        definition.aliases?.find((alias) => typeof alias === "string");
+    return result;
 }
 
-/** Checks whether any definition alias matches a whole value. */
+/**
+ * Checks whether unknown definition alias matches a whole value.
+ *
+ * @param aliases - Aliases value.
+ * @param value - Input value.
+ * @returns Whether unknown definition alias matches a whole value.
+ */
 function hasMatchingReferenceAlias(
     aliases: Array<any>,
     value: string,
@@ -522,7 +546,15 @@ function hasMatchingReferenceAlias(
     return false;
 }
 
-/** Matches a string or regex alias against a whole value. */
+/**
+ * Matches a string or regex alias against a whole value.
+ *
+ * @param alias - Alias value.
+ * @param value - Input value.
+ * @returns Result when the function
+ *   matches a string or regex alias against a whole
+ *   value.
+ */
 function matchesReferenceAlias(
     alias: string | RegExp,
     value: string,

@@ -15,7 +15,9 @@ const DIALOG_CSS = selectValue(
 /**
  * Adds dialog styles to the current page.
  *
- * @returns */
+ * @returns Result when the function
+ *   adds dialog styles to the current page.
+ */
 export function addDialogStyles(): void {
     if (DIALOG_CSS !== "") {
         mw.util.addCSS(DIALOG_CSS);

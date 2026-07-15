@@ -45,7 +45,8 @@ export function failSaveProgress(error: Error): any | undefined {
     }
 
     progress.error = error instanceof Error ? error.message : String(error);
-    const running = progress.steps.find((step) => step.status === "running");
+    const steps: Array<{ id: string; status: string }> = progress.steps;
+    const running = steps.find((step) => step.status === "running");
     const failed = selectValue(
         running == null,
         function trueBranch() {

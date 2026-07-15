@@ -1,4 +1,6 @@
-/** Simplified Chinese catalog for VG Page Assessor. */
+/**
+ * Simplified Chinese catalog for VG Page Assessor.
+ */
 
 import { i18n } from "#shared";
 import type english from "#assessor/i18n/en.ts";

@@ -7,7 +7,11 @@ export interface CitationStore {
     refetch(url: string): Promise<string>;
 }
 
-/** Creates a cached citation fetch store. */
+/**
+ * Creates a cached citation fetch store.
+ *
+ * @returns A cached citation fetch store.
+ */
 export function createCitationStore(): CitationStore {
     const cache: Record<string, string> = {};
     const pending: Record<string, Promise<string>> = {};
@@ -21,9 +25,18 @@ export function createCitationStore(): CitationStore {
     return store;
 }
 
-/** Creates the cache-aware citation fetch method. */
-function createCitationFetcher(cache, pending) {
-    return function fetchCitation(url: string): Promise<string> {
+/**
+ * Creates the cache-aware citation fetch method.
+ *
+ * @param cache - Cached values.
+ * @param pending - Pending value.
+ * @returns The cache-aware citation fetch method.
+ */
+function createCitationFetcher(
+    cache: Record<string, string>,
+    pending: Record<string, Promise<string>>,
+) {
+    const result = function fetchCitation(url: string): Promise<string> {
         const key = url.trim();
         if (cache[key] != null) {
             return Promise.resolve(cache[key]);
@@ -37,11 +50,21 @@ function createCitationFetcher(cache, pending) {
         }
         return pending[key];
     };
+    return result;
 }
 
-/** Creates the forced citation refresh method. */
-function createCitationRefetcher(cache, pending) {
-    return function refetchCitation(url: string): Promise<string> {
+/**
+ * Creates the forced citation refresh method.
+ *
+ * @param cache - Cached values.
+ * @param pending - Pending value.
+ * @returns The forced citation refresh method.
+ */
+function createCitationRefetcher(
+    cache: Record<string, string>,
+    pending: Record<string, Promise<string>>,
+) {
+    const result = function refetchCitation(url: string): Promise<string> {
         const key = url.trim();
         delete cache[key];
         delete pending[key];
@@ -52,19 +75,31 @@ function createCitationRefetcher(cache, pending) {
         );
         return pending[key];
     };
+    return result;
 }
 
-/** Creates the fire-and-forget prefetch method. */
+/**
+ * Creates the fire-and-forget prefetch method.
+ *
+ * @param store - Store value.
+ * @returns The fire-and-forget prefetch method.
+ */
 function createCitationPrefetcher(store: CitationStore) {
-    return function prefetchCitation(url: string): void {
+    const result = function prefetchCitation(url: string): void {
         if (!isFetchableSourceUrl(url)) {
             return;
         }
         store.fetch(url).catch(function callback() {});
     };
+    return result;
 }
 
-/** Checks whether a source URL can be fetched. */
+/**
+ * Checks whether a source URL can be fetched.
+ *
+ * @param url - Request URL.
+ * @returns Whether a source URL can be fetched.
+ */
 function isFetchableSourceUrl(url: string): boolean {
     try {
         const parsed = new URL(url.trim());

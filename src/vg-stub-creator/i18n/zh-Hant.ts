@@ -1,4 +1,6 @@
-/** Traditional Chinese source catalog for VG Stub Creator. */
+/**
+ * Traditional Chinese source catalog for VG Stub Creator.
+ */
 
 import { i18n } from "#shared";
 import type english from "#stub/i18n/en.ts";
@@ -8,14 +10,8 @@ export default i18n.defineMessages({
         "title": "為「{title}」建立小作品",
         "sourceUrls": "來源網址",
         "moveTitle": "移動到頁面名稱",
-        // prettier-ignore
-        "movePrompt":
-            "頁面名稱與目前頁面不同。" +
-            "要先移動到該頁面名稱再預覽嗎？",
-        // prettier-ignore
-        "moveConflict":
-            "目標頁面已存在。" +
-            "開啟後可能覆寫現有內容或與之衝突。",
+        "movePrompt": "頁面名稱與目前頁面不同。要先移動到該頁面名稱再預覽嗎？",
+        "moveConflict": "目標頁面已存在。開啟後可能覆寫現有內容或與之衝突。",
         "historyTitle": "表單歷史",
         "historyEmpty": "沒有已儲存的表單歷史。",
         "historyData": "歷史資料",
@@ -130,10 +126,8 @@ export default i18n.defineMessages({
     },
     "review": {
         "tab": "檢查",
-        // prettier-ignore
         "description":
-            "儲存前確認後續頁面、重新導向、分類、" +
-            "導覽模板和小作品模板。",
+            "儲存前確認後續頁面、重新導向、分類、導覽模板和小作品模板。",
         "categories": "分類",
         "includeCategory": "包含分類",
         "refreshCategory": "重新整理此分類的頁面狀態和編輯或建立操作",

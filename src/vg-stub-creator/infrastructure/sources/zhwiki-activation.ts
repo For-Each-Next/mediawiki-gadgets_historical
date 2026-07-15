@@ -30,7 +30,6 @@ export function removeEnwikiVideoGameSuffix(title: string): string {
  *
  * @param enwikiTitle - English Wikipedia page title.
  * @returns zhwiki creation title.
- *
  */
 export function buildZhwikiCreationTitle(enwikiTitle: string): string {
     return removeEnwikiVideoGameSuffix(enwikiTitle);
@@ -45,7 +44,6 @@ export function buildZhwikiCreationTitle(enwikiTitle: string): string {
  * @param enwikiTitle - English Wikipedia page title.
  * @param api - zhwiki MediaWiki API client.
  * @returns zhwiki creation title.
- *
  */
 export async function resolveZhwikiCreationTitle(
     enwikiTitle: string,
@@ -147,9 +145,10 @@ export function readZhwikiActivationForm(
         return null;
     }
 
-    return {
+    const result = {
         enwikiTitle,
     };
+    return result;
 }
 
 /**

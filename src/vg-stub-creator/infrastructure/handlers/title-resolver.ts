@@ -11,6 +11,42 @@ const API_ENDPOINT = "/w/api.php";
 const DEFAULT_BATCH_SIZE = 50;
 
 /**
+ * Configures MediaWiki title resolution.
+ */
+interface TitleResolverConfig {
+    namespace: string;
+    batchSize?: number;
+    endpoint?: string;
+    getRedirectTarget?: (page: unknown) => string | undefined;
+    pageProps?: string;
+    prop?: string;
+    variantFallback?: boolean;
+}
+
+/**
+ * Describes one normalized title-resolution result.
+ */
+interface TitleResolution {
+    exists: boolean;
+    requestedTitle: string;
+    title: string;
+    page?: unknown;
+    redirectTarget?: string;
+    category?: string;
+    template?: string;
+}
+
+/**
+ * Controls one title-resolution request.
+ */
+interface TitleResolverOptions {
+    bypassCache?: boolean;
+    cache?: Record<string, TitleResolution | null>;
+    fetcher?: typeof fetch;
+    variant?: string;
+}
+
+/**
  * Resolves requested titles to actual page titles.
  *
  * @param titles - Titles with or without the configured
@@ -34,9 +70,9 @@ const DEFAULT_BATCH_SIZE = 50;
  */
 export async function resolvePageTitles(
     titles: Array<string>,
-    config: any,
-    options: any = {},
-): Promise<any> {
+    config: TitleResolverConfig,
+    options: TitleResolverOptions = {},
+): Promise<Record<string, TitleResolution>> {
     const cache = options.cache || {};
     const uniqueTitles = normalizeRequestedTitles(titles, config.namespace);
     const missing = getUncachedTitles(uniqueTitles, config.namespace, cache);
@@ -55,8 +91,14 @@ export async function resolvePageTitles(
     return resolutions;
 }
 
-/** Normalizes and deduplicates requested titles. */
-function normalizeRequestedTitles(titles: Array<string>, namespace) {
+/**
+ * Normalizes and deduplicates requested titles.
+ *
+ * @param titles - Page titles.
+ * @param namespace - MediaWiki namespace.
+ * @returns And deduplicates requested titles.
+ */
+function normalizeRequestedTitles(titles: Array<string>, namespace: string) {
     const normalized: Array<string> = titles
         .map((title) => stripNamespace(title, namespace))
         .filter(Boolean);
@@ -64,16 +106,42 @@ function normalizeRequestedTitles(titles: Array<string>, namespace) {
     return uniqueValues(normalized);
 }
 
-/** Gets requested titles absent from the resolution cache. */
-function getUncachedTitles(titles, namespace, cache): Array<string> {
-    return titles.filter(function callback(title) {
+/**
+ * Gets requested titles absent from the resolution cache.
+ *
+ * @param titles - Page titles.
+ * @param namespace - MediaWiki namespace.
+ * @param cache - Cached values.
+ * @returns Requested titles absent from the resolution cache.
+ */
+function getUncachedTitles(
+    titles: string[],
+    namespace: string,
+    cache: Record<string, TitleResolution | null>,
+): Array<string> {
+    const result = titles.filter(function callback(title: string) {
         const key = normalizeTitleKey(title, namespace);
         return cache[key] == null;
     });
+    return result;
 }
 
-/** Fetches and caches title-resolution batches. */
-async function fetchResolutionBatches(titles, size, config, options, cache) {
+/**
+ * Fetches and caches title-resolution batches.
+ *
+ * @param titles - Page titles.
+ * @param size - Size value.
+ * @param config - Operation configuration.
+ * @param options - Operation options.
+ * @param cache - Cached values.
+ */
+async function fetchResolutionBatches(
+    titles: string[],
+    size: number,
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
+    cache: Record<string, TitleResolution | null>,
+): Promise<void> {
     for (const batch of chunkValues(titles, size)) {
         const resolutions = await fetchTitleResolutions(
             batch,
@@ -84,10 +152,21 @@ async function fetchResolutionBatches(titles, size, config, options, cache) {
     }
 }
 
-/** Builds normalized results from cached resolutions. */
-function buildCachedResolutions(titles, config, cache): any {
-    return Object.fromEntries(
-        titles.map(function callback(title) {
+/**
+ * Builds normalized results from cached resolutions.
+ *
+ * @param titles - Page titles.
+ * @param config - Operation configuration.
+ * @param cache - Cached values.
+ * @returns Normalized results from cached resolutions.
+ */
+function buildCachedResolutions(
+    titles: string[],
+    config: TitleResolverConfig,
+    cache: Record<string, TitleResolution | null>,
+): Record<string, TitleResolution> {
+    const resolutions = Object.fromEntries(
+        titles.map(function callback(title: string) {
             const key = normalizeTitleKey(title, config.namespace);
             const resolution = normalizeCachedResolution(
                 cache[key],
@@ -98,6 +177,8 @@ function buildCachedResolutions(titles, config, cache): any {
             return [key, resolution];
         }),
     );
+
+    return resolutions;
 }
 
 /**
@@ -110,7 +191,6 @@ function buildCachedResolutions(titles, config, cache): any {
  * @param data - MediaWiki query response.
  * @param namespace - Namespace prefix without a colon.
  * @returns Actual namespaced title.
- *
  */
 export function getActualTitle(
     requestedTitle: string,
@@ -149,9 +229,11 @@ export function getResolvedPage(
     namespace: string,
 ): any | undefined {
     const titleKey = normalizeTitleKey(title, namespace);
-    const page = (data?.query?.pages || []).find(
-        (item) => normalizeTitleKey(item.title, namespace) === titleKey,
-    );
+    const page = (data?.query?.pages || []).find(function findPage(item: {
+        title: string;
+    }) {
+        return normalizeTitleKey(item.title, namespace) === titleKey;
+    });
 
     return page;
 }
@@ -201,8 +283,18 @@ export function normalizeTitleKey(value: any, namespace: string): string {
 
 /**
  * Defines the module-level fetch title resolutions.
+ *
+ * @param titles - Page titles.
+ * @param config - Operation configuration.
+ * @param options - Operation options.
+ * @returns Result when the function
+ *   defines the module-level fetch title resolutions.
  */
-async function fetchTitleResolutions(titles, config, options) {
+async function fetchTitleResolutions(
+    titles: string[],
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
+): Promise<Record<string, TitleResolution>> {
     if (config.variantFallback === true) {
         return fetchVariantFallbackTitleResolutions(titles, config, options);
     }
@@ -218,16 +310,29 @@ async function fetchTitleResolutions(titles, config, options) {
 
 /**
  * Defines the module-level fetch variant fallback title resolutions.
+ *
+ * @param titles - Page titles.
+ * @param config - Operation configuration.
+ * @param options - Operation options.
+ * @returns Result when the function
+ *   defines the module-level fetch variant fallback
+ *   title resolutions.
  */
-async function fetchVariantFallbackTitleResolutions(titles, config, options) {
+async function fetchVariantFallbackTitleResolutions(
+    titles: string[],
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
+): Promise<Record<string, TitleResolution>> {
     try {
         const directData = await fetchTitleQuery(titles, config, options, {
             convertTitles: false,
         });
         const resolutions = createResolutions(titles, directData, config);
         const missingTitles = titles.filter(function callback(title) {
-            return !resolutions[normalizeTitleKey(title, config.namespace)]
-                ?.exists;
+            const result =
+                !resolutions[normalizeTitleKey(title, config.namespace)]
+                    ?.exists;
+            return result;
         });
 
         await addVariantFallbackResolutions(
@@ -243,33 +348,77 @@ async function fetchVariantFallbackTitleResolutions(titles, config, options) {
     }
 }
 
-/** Adds Hans/Hant resolutions for titles missed by the direct query. */
+/**
+ * Adds Hans/Hant resolutions for titles missed by the direct query.
+ *
+ * @param titles - Page titles.
+ * @param resolutions - Resolutions value.
+ * @param config - Operation configuration.
+ * @param options - Operation options.
+ */
 async function addVariantFallbackResolutions(
-    titles,
-    resolutions,
-    config,
-    options,
+    titles: string[],
+    resolutions: Record<string, TitleResolution>,
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
 ): Promise<void> {
     if (titles.length === 0) {
         return;
     }
-    const sets = await Promise.all(
-        ["zh-hans", "zh-hant"].map(async function callback(variant) {
-            const data = await fetchTitleQuery(
-                titles,
-                config,
-                { ...options, variant },
-                { convertTitles: true },
-            );
-            return createResolutions(titles, data, config);
-        }),
-    );
+    const variants = ["zh-hans", "zh-hant"];
+    const fetchVariant = function fetchVariant(variant: string) {
+        const result = fetchVariantResolutionSet(
+            titles,
+            config,
+            options,
+            variant,
+        );
+        return result;
+    };
+    const sets = await Promise.all(variants.map(fetchVariant));
 
     mergeVariantResolutions(titles, resolutions, sets, config.namespace);
 }
 
-/** Chooses the best direct or variant resolution for each title. */
-function mergeVariantResolutions(titles, resolutions, sets, namespace): void {
+/**
+ * Fetches one Chinese-variant resolution set.
+ *
+ * @param variant - MediaWiki language variant code.
+ * @param titles - Bare page titles to resolve.
+ * @param config - Title resolver configuration.
+ * @param options - Request behavior and dependencies.
+ * @returns Resolutions keyed by normalized requested title.
+ */
+async function fetchVariantResolutionSet(
+    titles: string[],
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
+    variant: string,
+): Promise<Record<string, TitleResolution>> {
+    const data = await fetchTitleQuery(
+        titles,
+        config,
+        { ...options, variant },
+        { convertTitles: true },
+    );
+
+    return createResolutions(titles, data, config);
+}
+
+/**
+ * Chooses the best direct or variant resolution for each title.
+ *
+ * @param titles - Page titles.
+ * @param resolutions - Resolutions value.
+ * @param sets - Sets value.
+ * @param namespace - MediaWiki namespace.
+ */
+function mergeVariantResolutions(
+    titles: string[],
+    resolutions: Record<string, TitleResolution>,
+    sets: Array<Record<string, TitleResolution>>,
+    namespace: string,
+): void {
     titles.forEach(function callback(title) {
         const key = normalizeTitleKey(title, namespace);
         const candidates = [resolutions[key], ...sets.map((set) => set[key])];
@@ -284,10 +433,21 @@ function mergeVariantResolutions(titles, resolutions, sets, namespace): void {
 
 /**
  * Defines the module-level finalize title resolutions.
+ *
+ * @param resolutions - Resolutions value.
+ * @param config - Operation configuration.
+ * @param options - Operation options.
+ * @returns Result when the function
+ *   defines the module-level finalize title
+ *   resolutions.
  */
-async function finalizeTitleResolutions(resolutions, config, options) {
+async function finalizeTitleResolutions(
+    resolutions: Record<string, TitleResolution>,
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
+): Promise<Record<string, TitleResolution>> {
     const redirectTargets = uniqueValues(
-        (Object.values(resolutions) as any[])
+        Object.values(resolutions)
             .map((resolution) => resolution.redirectTarget)
             .filter(Boolean),
     );
@@ -323,9 +483,19 @@ async function finalizeTitleResolutions(resolutions, config, options) {
 
 /**
  * Defines the module-level create resolutions.
+ *
+ * @param titles - Page titles.
+ * @param data - Input data.
+ * @param config - Operation configuration.
+ * @returns Result when the function
+ *   defines the module-level create resolutions.
  */
-function createResolutions(titles, data, config) {
-    return Object.fromEntries(
+function createResolutions(
+    titles: string[],
+    data: unknown,
+    config: TitleResolverConfig,
+): Record<string, TitleResolution> {
+    const resolutions = Object.fromEntries(
         titles.map(function callback(title) {
             const key = normalizeTitleKey(title, config.namespace);
             const resolution = createResolution(title, data, config);
@@ -333,13 +503,24 @@ function createResolutions(titles, data, config) {
             return [key, resolution];
         }),
     );
+
+    return resolutions;
 }
 
 /**
  * Defines the module-level create missing resolutions.
+ *
+ * @param titles - Page titles.
+ * @param config - Operation configuration.
+ * @returns Result when the function
+ *   defines the module-level create missing
+ *   resolutions.
  */
-function createMissingResolutions(titles, config) {
-    return Object.fromEntries(
+function createMissingResolutions(
+    titles: string[],
+    config: TitleResolverConfig,
+): Record<string, TitleResolution> {
+    const resolutions = Object.fromEntries(
         titles.map(function callback(title) {
             const bareTitle = stripNamespace(title, config.namespace);
             const resolution = {
@@ -353,16 +534,35 @@ function createMissingResolutions(titles, config) {
             return [normalizeTitleKey(title, config.namespace), resolution];
         }),
     );
+
+    return resolutions;
 }
 
 /**
  * Defines the module-level choose variant resolution.
+ *
+ * @param requestedTitle - Requested title value.
+ * @param namespace - MediaWiki namespace.
+ * @param resolutions - Resolutions value.
+ * @returns Result when the function
+ *   defines the module-level choose variant
+ *   resolution.
  */
-function chooseVariantResolution(requestedTitle, namespace, resolutions) {
-    const existing = resolutions.filter((resolution) => resolution?.exists);
+function chooseVariantResolution(
+    requestedTitle: string,
+    namespace: string,
+    resolutions: Array<TitleResolution | undefined>,
+): TitleResolution {
+    const existing = resolutions.filter(
+        function isExistingResolution(
+            resolution,
+        ): resolution is TitleResolution {
+            return resolution?.exists === true;
+        },
+    );
 
     if (existing.length === 0) {
-        return resolutions.find(Boolean);
+        return resolutions.find(Boolean) as TitleResolution;
     }
 
     const requested = stripNamespace(requestedTitle, namespace);
@@ -374,23 +574,31 @@ function chooseVariantResolution(requestedTitle, namespace, resolutions) {
         return exact;
     }
 
-    return existing
+    const closest = existing
         .map(function callback(resolution) {
-            return {
+            const result = {
                 resolution,
                 score: getCommonPrefixLength(
                     requested,
                     stripNamespace(resolution.title, namespace),
                 ),
             };
+            return result;
         })
         .sort((left, right) => right.score - left.score)[0].resolution;
+
+    return closest;
 }
 
 /**
  * Defines the module-level get common prefix length.
+ *
+ * @param left - Left value.
+ * @param right - Right value.
+ * @returns Result when the function
+ *   defines the module-level get common prefix length.
  */
-function getCommonPrefixLength(left, right) {
+function getCommonPrefixLength(left: string, right: string): number {
     const leftChars = Array.from(left);
     const rightChars = Array.from(right);
     let index = 0;
@@ -407,8 +615,20 @@ function getCommonPrefixLength(left, right) {
 
 /**
  * Defines the module-level fetch title query.
+ *
+ * @param titles - Page titles.
+ * @param config - Operation configuration.
+ * @param options - Operation options.
+ * @param queryOptions - Query options value.
+ * @returns Result when the function
+ *   defines the module-level fetch title query.
  */
-async function fetchTitleQuery(titles, config, options, queryOptions = {}) {
+async function fetchTitleQuery(
+    titles: string[],
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
+    queryOptions: { convertTitles?: boolean } = {},
+): Promise<unknown> {
     const fetcher = options.fetcher || fetch;
     const url = buildTitleApiUrl(titles, config, options, queryOptions);
     const response = await fetcher(url, {
@@ -428,8 +648,20 @@ async function fetchTitleQuery(titles, config, options, queryOptions = {}) {
 
 /**
  * Defines the module-level build title api url.
+ *
+ * @param titles - Page titles.
+ * @param config - Operation configuration.
+ * @param options - Operation options.
+ * @param queryOptions - Query options value.
+ * @returns Result when the function
+ *   defines the module-level build title api url.
  */
-function buildTitleApiUrl(titles, config, options, queryOptions) {
+function buildTitleApiUrl(
+    titles: string[],
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
+    queryOptions: { convertTitles?: boolean },
+): string {
     const values: Record<string, string> = {
         action: "query",
         format: "json",
@@ -454,8 +686,20 @@ function buildTitleApiUrl(titles, config, options, queryOptions) {
     return url;
 }
 
-/** Adds optional title-query parameters. */
-function addOptionalTitleQueryValues(values, config, options, queryOptions) {
+/**
+ * Adds optional title-query parameters.
+ *
+ * @param values - Input values.
+ * @param config - Operation configuration.
+ * @param options - Operation options.
+ * @param queryOptions - Query options value.
+ */
+function addOptionalTitleQueryValues(
+    values: Record<string, string>,
+    config: TitleResolverConfig,
+    options: TitleResolverOptions,
+    queryOptions: { convertTitles?: boolean },
+): void {
     if (queryOptions.convertTitles !== false) {
         values.converttitles = "1";
     }
@@ -472,8 +716,18 @@ function addOptionalTitleQueryValues(values, config, options, queryOptions) {
 
 /**
  * Defines the module-level create resolution.
+ *
+ * @param requestedTitle - Requested title value.
+ * @param data - Input data.
+ * @param config - Operation configuration.
+ * @returns Result when the function
+ *   defines the module-level create resolution.
  */
-function createResolution(requestedTitle, data, config) {
+function createResolution(
+    requestedTitle: string,
+    data: unknown,
+    config: TitleResolverConfig,
+): TitleResolution {
     const actualTitle = getActualTitle(requestedTitle, data, config.namespace);
     const page = getResolvedPage(actualTitle, data, config.namespace);
     const redirectTarget = config.getRedirectTarget?.(page);
@@ -498,8 +752,18 @@ function createResolution(requestedTitle, data, config) {
 
 /**
  * Defines the module-level follow metadata redirect.
+ *
+ * @param resolution - Resolution value.
+ * @param resolutions - Resolutions value.
+ * @param config - Operation configuration.
+ * @returns Result when the function
+ *   defines the module-level follow metadata redirect.
  */
-function followMetadataRedirect(resolution, resolutions, config) {
+function followMetadataRedirect(
+    resolution: TitleResolution,
+    resolutions: Record<string, TitleResolution>,
+    config: TitleResolverConfig,
+): TitleResolution {
     if (resolution.redirectTarget == null) {
         return resolution;
     }
@@ -511,38 +775,59 @@ function followMetadataRedirect(resolution, resolutions, config) {
         return target;
     }
 
-    return {
+    const redirected = {
         ...resolution,
         exists: true,
         title: resolution.redirectTarget,
     };
+
+    return redirected;
 }
 
 /**
  * Defines the module-level add resolution aliases.
+ *
+ * @param resolutions - Resolutions value.
+ * @param namespace - MediaWiki namespace.
+ * @returns Result when the function
+ *   defines the module-level add resolution aliases.
  */
-function addResolutionAliases(resolutions, namespace) {
-    (Object.values(resolutions) as any[]).forEach(
-        function callback(resolution) {
-            const key = normalizeTitleKey(resolution.title, namespace);
+function addResolutionAliases(
+    resolutions: Record<string, TitleResolution>,
+    namespace: string,
+): Record<string, TitleResolution> {
+    Object.values(resolutions).forEach(function callback(resolution) {
+        const key = normalizeTitleKey(resolution.title, namespace);
 
-            resolutions[key] = resolution;
-        },
-    );
+        resolutions[key] = resolution;
+    });
 
     return resolutions;
 }
 
 /**
  * Defines the module-level normalize cached resolution.
+ *
+ * @param resolution - Resolution value.
+ * @param requestedTitle - Requested title value.
+ * @param config - Operation configuration.
+ * @returns Result when the function
+ *   defines the module-level normalize cached
+ *   resolution.
  */
-function normalizeCachedResolution(resolution, requestedTitle, config) {
+function normalizeCachedResolution(
+    resolution: TitleResolution | null,
+    requestedTitle: string,
+    config: TitleResolverConfig,
+): TitleResolution {
     if (resolution == null) {
-        return {
+        const missing = {
             exists: false,
             requestedTitle,
             title: requestedTitle,
         };
+
+        return missing;
     }
 
     if (resolution.title != null) {
@@ -562,9 +847,14 @@ function normalizeCachedResolution(resolution, requestedTitle, config) {
 
 /**
  * Defines the module-level chunk values.
+ *
+ * @param values - Input values.
+ * @param size - Size value.
+ * @returns Result when the function
+ *   defines the module-level chunk values.
  */
-function chunkValues(values, size) {
-    const chunks = [];
+function chunkValues(values: string[], size: number): string[][] {
+    const chunks: string[][] = [];
 
     for (let index = 0; index < values.length; index += size) {
         chunks.push(values.slice(index, index + size));
@@ -575,15 +865,25 @@ function chunkValues(values, size) {
 
 /**
  * Defines the module-level unique values.
+ *
+ * @param values - Input values.
+ * @returns Result when the function
+ *   defines the module-level unique values.
  */
-function uniqueValues(values) {
-    return [...new Set(values)];
+function uniqueValues<T>(values: Iterable<T>): T[] {
+    const unique = [...new Set(values)];
+
+    return unique;
 }
 
 /**
  * Defines the module-level escape reg exp.
+ *
+ * @param text - Source text.
+ * @returns Result when the function
+ *   defines the module-level escape reg exp.
  */
-function escapeRegExp(text) {
+function escapeRegExp(text: string) {
     return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 

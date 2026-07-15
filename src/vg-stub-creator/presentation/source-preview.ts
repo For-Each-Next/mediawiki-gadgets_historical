@@ -14,7 +14,7 @@ import { msg } from "#stub/i18n";
  * @returns Preview dialog template node.
  */
 export function createPreviewDialogTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-dialog",
         {
             class: "vg-stub-creator-preview-dialog",
@@ -39,6 +39,7 @@ export function createPreviewDialogTemplate(): any {
             createFooterSlot(createPreviewFooterActions()),
         ],
     );
+    return result;
 }
 
 /**
@@ -47,10 +48,11 @@ export function createPreviewDialogTemplate(): any {
  * @returns Footer action groups.
  */
 function createPreviewFooterActions(): any {
-    return {
+    const result = {
         left: [createPreviewDismissButton()],
         right: [createPreviewRefreshButton(), createPreviewContinueButton()],
     };
+    return result;
 }
 
 /**
@@ -59,11 +61,12 @@ function createPreviewFooterActions(): any {
  * @returns Dismiss button node.
  */
 function createPreviewDismissButton(): any {
-    return createButtonTemplate({
+    const result = createButtonTemplate({
         click: "closePreviewDialog",
         label: msg("preview.dismiss"),
         weight: "quiet",
     });
+    return result;
 }
 
 /**
@@ -72,13 +75,14 @@ function createPreviewDismissButton(): any {
  * @returns Refresh button node.
  */
 function createPreviewRefreshButton(): any {
-    return createRefreshButton({
+    const result = createRefreshButton({
         click: "refreshParsedPreview",
         disabled: "sourceFetchState.loading",
         label: `{{ sourceFetchState.loading ? ${toVueString(
             msg("preview.updating"),
         )} : ${toVueString(msg("preview.updatePreview"))} }}`,
     });
+    return result;
 }
 
 /**
@@ -87,11 +91,12 @@ function createPreviewRefreshButton(): any {
  * @returns Continue button node.
  */
 function createPreviewContinueButton(): any {
-    return createPrimaryButton({
+    const result = createPrimaryButton({
         click: "submitPreviewText",
         disabled: "sourceFetchState.loading || !previewText.trim()",
         label: msg("preview.continue"),
     });
+    return result;
 }
 
 /**
@@ -103,7 +108,7 @@ function createPreviewContinueButton(): any {
  * @returns Edit-summary field node.
  */
 function createEditSummaryInput(options: any): any {
-    return createFieldTemplate(
+    const result = createFieldTemplate(
         msg("preview.editSummary"),
         [
             createElement("cdx-text-input", {
@@ -117,6 +122,7 @@ function createEditSummaryInput(options: any): any {
             },
         },
     );
+    return result;
 }
 
 /**
@@ -125,7 +131,7 @@ function createEditSummaryInput(options: any): any {
  * @returns Page edit dialog template node.
  */
 export function createPageEditDialogTemplate(): any {
-    return createElement(
+    const result = createElement(
         "cdx-dialog",
         {
             class: "vg-stub-creator-preview-dialog",
@@ -148,6 +154,7 @@ export function createPageEditDialogTemplate(): any {
             createFooterSlot(createPageEditFooterActions()),
         ],
     );
+    return result;
 }
 
 /**
@@ -156,7 +163,7 @@ export function createPageEditDialogTemplate(): any {
  * @returns Footer action groups.
  */
 function createPageEditFooterActions(): any {
-    return {
+    const result = {
         left: [createPageEditCancelButton()],
         right: [
             createPageEditRefreshButton(),
@@ -164,6 +171,7 @@ function createPageEditFooterActions(): any {
             createPageEditStageButton(),
         ],
     };
+    return result;
 }
 
 /**
@@ -172,11 +180,12 @@ function createPageEditFooterActions(): any {
  * @returns Cancel button node.
  */
 function createPageEditCancelButton(): any {
-    return createButtonTemplate({
+    const result = createButtonTemplate({
         click: "closePageEditDialog",
         label: msg("preview.cancel"),
         weight: "quiet",
     });
+    return result;
 }
 
 /**
@@ -185,13 +194,14 @@ function createPageEditCancelButton(): any {
  * @returns Refresh button node.
  */
 function createPageEditRefreshButton(): any {
-    return createRefreshButton({
+    const result = createRefreshButton({
         click: "refreshPageEditPreview",
         disabled: "pageEditState.loading",
         label: `{{ pageEditState.loading ? ${toVueString(
             msg("preview.updating"),
         )} : ${toVueString(msg("preview.updatePreview"))} }}`,
     });
+    return result;
 }
 
 /**
@@ -200,13 +210,14 @@ function createPageEditRefreshButton(): any {
  * @returns Reset button node.
  */
 function createPageEditResetButton(): any {
-    return createButtonTemplate({
+    const result = createButtonTemplate({
         action: "destructive",
         click: "resetPageEdit",
         disabled: "pageEditState.loading",
         label: msg("common.reset"),
         show: "pageEditState.pending",
     });
+    return result;
 }
 
 /**
@@ -215,11 +226,12 @@ function createPageEditResetButton(): any {
  * @returns Stage button node.
  */
 function createPageEditStageButton(): any {
-    return createPrimaryButton({
+    const result = createPrimaryButton({
         click: "stagePageEdit",
         disabled: "pageEditState.loading || !pageEditState.text.trim()",
         label: msg("preview.stage"),
     });
+    return result;
 }
 
 /**
@@ -233,7 +245,7 @@ function createPageEditStageButton(): any {
  * @returns Source preview layout node.
  */
 function createSourcePreviewLayout(options: any): any {
-    return createElement(
+    const result = createElement(
         "div",
         {
             class: "vg-stub-creator-preview-layout",
@@ -246,6 +258,7 @@ function createSourcePreviewLayout(options: any): any {
             }),
         ],
     );
+    return result;
 }
 
 /**
@@ -316,13 +329,14 @@ function createErrorParagraph(condition: string, message: string): any {
  * @returns Footer slot node.
  */
 function createFooterSlot(actions: Array<any> | any): any {
-    return createElement(
+    const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
         [createActionFooterTemplate(actions)],
     );
+    return result;
 }
 
 /**
@@ -342,9 +356,10 @@ function createRefreshButton(options: any): any {
  * @returns Button node.
  */
 function createPrimaryButton(options: any): any {
-    return createButtonTemplate({
+    const result = createButtonTemplate({
         ...options,
         action: "progressive",
         weight: "primary",
     });
+    return result;
 }

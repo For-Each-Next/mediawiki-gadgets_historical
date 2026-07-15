@@ -32,9 +32,10 @@ const SOURCE_MANUAL = "manual";
  * @returns Category review row.
  */
 export function createManualCategoryRow(): any {
-    return createCategoryRow({
+    const result = createCategoryRow({
         source: SOURCE_MANUAL,
     });
+    return result;
 }
 
 /**
@@ -45,10 +46,11 @@ export function createManualCategoryRow(): any {
  * @returns Updated category review row.
  */
 export function updateCategoryRowCategory(row: any, category: string): any {
-    return normalizeCategoryRow({
+    const result = normalizeCategoryRow({
         ...row,
         category,
     });
+    return result;
 }
 
 /**
@@ -87,10 +89,11 @@ export async function buildCategoryRows(
         ),
     ];
 
-    return sortRowsByArticleProse(
+    const result = sortRowsByArticleProse(
         uniqueCategoryRows(rows.map(normalizeCategoryRow)),
         params,
     );
+    return result;
 }
 
 /**
@@ -114,9 +117,19 @@ export function buildFallbackCategoryRows(params: any): Array<any> {
     return sortRowsByArticleProse(normalized, params);
 }
 
-/** Builds fallback rows for one article metadata role. */
-function buildFallbackRoleRows(metadata): Array<any> {
-    return buildSourceCategoryRows(
+/**
+ * Builds fallback rows for one article metadata role.
+ *
+ * @param metadata - Article metadata.
+ * @returns Fallback rows for one article metadata role.
+ */
+function buildFallbackRoleRows(metadata: {
+    assumedCategories: string[];
+    categories: string[];
+    assumedStubTags: string[];
+    stubTags: string[];
+}): Array<unknown> {
+    const result = buildSourceCategoryRows(
         SOURCE_DATA,
         metadata.assumedCategories || metadata.categories,
         {
@@ -124,6 +137,7 @@ function buildFallbackRoleRows(metadata): Array<any> {
             stubTags: metadata.assumedStubTags || metadata.stubTags,
         },
     );
+    return result;
 }
 
 /**
@@ -151,8 +165,8 @@ export async function resolveCategoryRows(
 
     const resolutions = await resolveCategories(categories, options);
 
-    return normalizedRows.map(function callback(row) {
-        return normalizeCategoryRow({
+    const result = normalizedRows.map(function callback(row) {
+        const result = normalizeCategoryRow({
             ...row,
             category:
                 resolutions[normalizeCategoryKey(row.category)]?.category ||
@@ -161,7 +175,9 @@ export async function resolveCategoryRows(
                 resolutions[normalizeCategoryKey(row.category)]?.status ||
                 CATEGORY_STATUS.unchecked,
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -190,15 +206,30 @@ async function buildGeneratedCategoryRows(
     );
     const resolutions = await resolveCategories(candidates, options);
 
-    return [
+    const result = [
         ...resolveCategoryPlans(companyRows, resolutions),
         ...resolveCategoryPlans(seriesRows, resolutions),
         ...applyCategoryResolutions(metadataRows, resolutions),
     ];
+    return result;
 }
 
-/** Builds generated platform and release category rows. */
-function buildGeneratedMetadataRows(metadata): Array<any> {
+/**
+ * Builds generated platform and release category rows.
+ *
+ * @param metadata - Article metadata.
+ * @returns Generated platform and release category rows.
+ */
+function buildGeneratedMetadataRows(metadata: {
+    platform: {
+        assumedCategories: string[];
+        categories: string[];
+        count: number;
+        assumedStubTags: string[];
+        stubTags: string[];
+    };
+    release: { categories: string[]; stubTags: string[] };
+}): Array<{ category: string }> {
     const platformRows = buildSourceCategoryRows(
         SOURCE_DATA,
         metadata.platform.assumedCategories || metadata.platform.categories,
@@ -218,8 +249,19 @@ function buildGeneratedMetadataRows(metadata): Array<any> {
     return [...platformRows, ...releaseRows];
 }
 
-/** Gets unique category candidates needed by generated rows. */
-function getGeneratedCategoryCandidates(companies, series, metadata) {
+/**
+ * Gets unique category candidates needed by generated rows.
+ *
+ * @param companies - Companies value.
+ * @param series - Series value.
+ * @param metadata - Article metadata.
+ * @returns Unique category candidates needed by generated rows.
+ */
+function getGeneratedCategoryCandidates(
+    companies: unknown[],
+    series: unknown[],
+    metadata: Array<{ category: string }>,
+) {
     const candidates = [
         ...companies.flatMap(getCategoryPlanCandidates),
         ...series.flatMap(getCategoryPlanCandidates),
@@ -243,9 +285,18 @@ function getArticleCategoryMetadata(params: any): any {
     return getRecordArticleCategoryMetadata(params.records);
 }
 
-/** Gets category metadata from legacy processed parameters. */
-function getLegacyArticleCategoryMetadata(params): any {
-    return {
+/**
+ * Gets category metadata from legacy processed parameters.
+ *
+ * @param params - Params value.
+ * @returns Category metadata from legacy processed parameters.
+ */
+function getLegacyArticleCategoryMetadata(params: {
+    companyMetadata: unknown;
+    platformSeriesMetadata: { platformCount: unknown };
+    yearGenreMetadata: unknown;
+}): unknown {
+    const result = {
         companies: params.companyMetadata,
         platform: {
             ...params.platformSeriesMetadata,
@@ -254,11 +305,23 @@ function getLegacyArticleCategoryMetadata(params): any {
         release: params.yearGenreMetadata,
         series: params.platformSeriesMetadata,
     };
+    return result;
 }
 
-/** Gets category metadata from article data records. */
-function getRecordArticleCategoryMetadata(records): any {
-    return {
+/**
+ * Gets category metadata from article data records.
+ *
+ * @param records - Records value.
+ * @returns Category metadata from article data records.
+ */
+function getRecordArticleCategoryMetadata(records: {
+    companies: unknown;
+    platform: Record<string, unknown> & { metadata: { count: number } };
+    genre: { assumedCategories: string[]; assumedStubTags: string[] };
+    year: { assumedCategories: string[]; assumedStubTags: string[] };
+    series: unknown;
+}): unknown {
+    const result = {
         companies: records.companies,
         platform: {
             ...records.platform,
@@ -276,6 +339,7 @@ function getRecordArticleCategoryMetadata(records): any {
         },
         series: records.series,
     };
+    return result;
 }
 
 /**
@@ -287,7 +351,6 @@ function getRecordArticleCategoryMetadata(records): any {
  * @param rows - Category review rows.
  * @param params - Processed article data or legacy parameters.
  * @returns Prose-ordered category rows.
- *
  */
 function sortRowsByArticleProse(rows: Array<any>, params: any): Array<any> {
     return sortCategoryRowsByProse(rows, params.prose?.text || "");
@@ -309,16 +372,18 @@ function buildSourceCategoryRows(
     categories: Array<string>,
     options: any = {},
 ): Array<any> {
-    return (categories || []).map(function callback(category, index) {
+    const result = (categories || []).map(function callback(category, index) {
         const stubTag = options.stubTags?.[index] || "";
 
-        return createCategoryRow({
+        const result = createCategoryRow({
             category,
             source,
             stubTag,
             stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -333,16 +398,18 @@ function buildCategoryItems(
     items: Array<any> = [],
     options: any = {},
 ): Array<any> {
-    return items.map(function callback(item) {
+    const result = items.map(function callback(item) {
         if (Array.isArray(item.candidates)) {
             return createCategoryPlan(item);
         }
 
-        return createCategoryRow({
+        const result = createCategoryRow({
             source: options.source,
             ...item,
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -354,11 +421,12 @@ function buildCategoryItems(
  * @returns Category lookup plan.
  */
 function createCategoryPlan(values: any): any {
-    return {
+    const result = {
         candidates: uniqueValues(values.candidates || []),
         company: values.company || "",
         fallback: values.fallback,
     };
+    return result;
 }
 
 /**
@@ -386,32 +454,41 @@ function resolveCategoryPlans(
     items: Array<any>,
     resolutions: any,
 ): Array<any> {
-    return items.map(function callback(item) {
+    const result = items.map(function callback(item) {
         if (!Array.isArray(item.candidates)) {
             return applyCategoryResolution(item, resolutions);
         }
 
         const resolution = item.candidates
-            .map((candidate) => resolutions[normalizeCategoryKey(candidate)])
-            .find((candidateResolution) => candidateResolution?.exists);
+            .map(function resolveCandidate(candidate: string) {
+                return resolutions[normalizeCategoryKey(candidate)];
+            })
+            .find(function findExisting(candidateResolution: {
+                exists: boolean;
+            }) {
+                return candidateResolution?.exists;
+            });
 
         if (resolution != null) {
-            return createCategoryRow({
+            const result = createCategoryRow({
                 category: resolution.category,
                 company: item.company,
                 source: SOURCE_FETCH,
                 status: resolution.status,
             });
+            return result;
         }
 
-        return createCategoryRow({
+        const result = createCategoryRow({
             category: item.fallback,
             company: item.company,
             enabled: false,
             source: SOURCE_FITTING,
             status: CATEGORY_STATUS.unchecked,
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -441,7 +518,7 @@ function applyCategoryResolution(row: any, resolutions: any): any {
         normalizeCategoryKey(row.category) !==
         normalizeCategoryKey(row.originalCategory);
 
-    return normalizeCategoryRow({
+    const result = normalizeCategoryRow({
         ...row,
         category: resolution?.category || row.category,
         originalCategory: selectValue(
@@ -455,6 +532,7 @@ function applyCategoryResolution(row: any, resolutions: any): any {
         ),
         status: resolution?.status || CATEGORY_STATUS.unchecked,
     });
+    return result;
 }
 
 /**
@@ -476,7 +554,7 @@ function applyCategoryResolution(row: any, resolutions: any): any {
  * @returns Category review row.
  */
 function createCategoryRow(values: any = {}): any {
-    return normalizeCategoryRow({
+    const result = normalizeCategoryRow({
         category: "",
         enabled: true,
         originalCategory: values.category || "",
@@ -487,6 +565,7 @@ function createCategoryRow(values: any = {}): any {
         originalStubTagEnabled: values.stubTagEnabled === true,
         ...values,
     });
+    return result;
 }
 
 /**
@@ -506,7 +585,7 @@ function normalizeCategoryRow(row: any): any {
         originalCategory,
     );
 
-    return {
+    const result = {
         category,
         company: trimValue(row.company),
         enabled: row.enabled !== false,
@@ -525,6 +604,7 @@ function normalizeCategoryRow(row: any): any {
             },
         ),
     };
+    return result;
 }
 
 /**
@@ -579,7 +659,6 @@ function getManualCategoryRows(rows: Array<any>): Array<any> {
  * @param generatedRows - Resolved generated category
  * rows.
  * @returns Manual rows with matching stub metadata.
- *
  */
 function enrichManualCategoryRows(
     manualRows: Array<any>,
@@ -591,7 +670,7 @@ function enrichManualCategoryRows(
             .map((row) => [normalizeCategoryKey(row.category), row]),
     );
 
-    return manualRows.map(function callback(row) {
+    const result = manualRows.map(function callback(row) {
         if (trimValue(row.stubTag) !== "") {
             return row;
         }
@@ -604,13 +683,15 @@ function enrichManualCategoryRows(
             return row;
         }
 
-        return normalizeCategoryRow({
+        const result = normalizeCategoryRow({
             ...row,
             originalStubTagEnabled: generated.originalStubTagEnabled,
             stubTag: generated.stubTag,
             stubTagEnabled: generated.stubTagEnabled,
         });
+        return result;
     });
+    return result;
 }
 
 /**
@@ -642,7 +723,7 @@ function getConfiguredCategoryStubMetadata(category: string): any | undefined {
  * @returns Matching stub metadata.
  */
 function findConfiguredCategoryStubMetadata(
-    definitions: Array<any>,
+    definitions: Array<{ categories?: string[]; stubTags?: string[] }>,
     category: string,
 ): any | undefined {
     const categoryKey = normalizeCategoryKey(category);
@@ -654,11 +735,12 @@ function findConfiguredCategoryStubMetadata(
         const stubTag = definition.stubTags?.[index];
 
         if (index >= 0 && trimValue(stubTag) !== "") {
-            return {
+            const result = {
                 originalStubTagEnabled: true,
                 stubTag,
                 stubTagEnabled: true,
             };
+            return result;
         }
     }
 
@@ -672,9 +754,10 @@ function findConfiguredCategoryStubMetadata(
  * @returns Whether the row is manual.
  */
 function isManualCategoryRow(row: any): boolean {
-    return [SOURCE_MANUAL, LEGACY_MANUAL_CATEGORY_SOURCE].includes(
+    const result = [SOURCE_MANUAL, LEGACY_MANUAL_CATEGORY_SOURCE].includes(
         getBaseSource(row.source),
     );
+    return result;
 }
 
 /**
@@ -688,7 +771,7 @@ function mergePreviousGeneratedRows(
     generatedRows: Array<any>,
     previousRows: Array<any>,
 ): Array<any> {
-    return generatedRows.map(function callback(row) {
+    const result = generatedRows.map(function callback(row) {
         const previous = previousRows.find(function callback(item) {
             return hasSameGeneratedRow(row, item);
         });
@@ -697,7 +780,7 @@ function mergePreviousGeneratedRows(
             return row;
         }
 
-        return {
+        const result = {
             ...row,
             category: previous.category,
             enabled: previous.enabled,
@@ -712,7 +795,9 @@ function mergePreviousGeneratedRows(
                 },
             ),
         };
+        return result;
     });
+    return result;
 }
 
 /**
@@ -725,7 +810,6 @@ function mergePreviousGeneratedRows(
  * @param options - API options.
  * @returns Category rows with refreshed
  * statuses.
- *
  */
 async function resolveCheckableCategoryRows(
     rows: Array<any>,
@@ -737,9 +821,10 @@ async function resolveCheckableCategoryRows(
         resolvedRows.map((row) => [getCategoryRowIdentity(row), row]),
     );
 
-    return rows.map(
+    const result = rows.map(
         (row) => resolvedByOriginal[getCategoryRowIdentity(row)] || row,
     );
+    return result;
 }
 
 /**
@@ -749,11 +834,11 @@ async function resolveCheckableCategoryRows(
  * @returns Whether the row should be checked.
  */
 function shouldCheckCategoryRow(row: any): boolean {
-    return (
+    const result =
         normalizeCategoryTitle(row.category) !== "" &&
         normalizeCategoryKey(row.category) !==
-            normalizeCategoryKey(row.originalCategory)
-    );
+            normalizeCategoryKey(row.originalCategory);
+    return result;
 }
 
 /**
@@ -763,13 +848,14 @@ function shouldCheckCategoryRow(row: any): boolean {
  * @returns Category row identity.
  */
 function getCategoryRowIdentity(row: any): string {
-    return [
+    const result = [
         "",
         getBaseSource(row.source),
         "\n",
         normalizeCategoryKey(row.originalCategory),
         "",
     ].join("");
+    return result;
 }
 
 /**
@@ -780,11 +866,11 @@ function getCategoryRowIdentity(row: any): string {
  * @returns Whether the rows match.
  */
 function hasSameGeneratedRow(row: any, previous: any): boolean {
-    return (
+    const result =
         getBaseSource(row.source) === getBaseSource(previous.source) &&
         normalizeCategoryKey(row.originalCategory) ===
-            normalizeCategoryKey(previous.originalCategory)
-    );
+            normalizeCategoryKey(previous.originalCategory);
+    return result;
 }
 
 /**
@@ -794,10 +880,11 @@ function hasSameGeneratedRow(row: any, previous: any): boolean {
  * @returns Base source label.
  */
 function getBaseSource(source: string): string {
-    return trimValue(source).replace(
+    const result = trimValue(source).replace(
         new RegExp(`${escapeRegExp(MODIFIED_SOURCE_SUFFIX)}$`, "u"),
         "",
     );
+    return result;
 }
 
 /**
@@ -834,18 +921,29 @@ async function resolveCategories(
     return resolutions;
 }
 
-/** Adds category-specific fields to a title resolution. */
-function buildCategoryResolution(resolution): any {
+/**
+ * Adds category-specific fields to a title resolution.
+ *
+ * @param resolution - Resolution value.
+ * @returns Result when the function
+ *   adds category-specific fields to a title
+ *   resolution.
+ */
+function buildCategoryResolution(resolution: {
+    exists: unknown;
+    title: unknown;
+}): unknown {
     let status = CATEGORY_STATUS.missing;
 
     if (resolution.exists) {
         status = CATEGORY_STATUS.exists;
     }
-    return {
+    const result = {
         ...resolution,
         category: resolution.title,
         status,
     };
+    return result;
 }
 
 /**
@@ -869,7 +967,7 @@ function getCategoryRedirectTarget(page: any): string | undefined {
  * @param value - Category title.
  * @returns API page title.
  */
-function normalizeCategoryTitle(value): string {
+function normalizeCategoryTitle(value: unknown): string {
     return stripNamespace(value, CATEGORY_NAMESPACE);
 }
 
@@ -892,7 +990,7 @@ function normalizeCategoryKey(value: any): string {
 function uniqueCategoryRows(rows: Array<any>): Array<any> {
     const seen = new Set();
 
-    return rows.filter(function callback(row) {
+    const result = rows.filter(function callback(row) {
         const key = normalizeCategoryKey(row.category);
 
         if (key === "" || seen.has(key)) {
@@ -903,6 +1001,7 @@ function uniqueCategoryRows(rows: Array<any>): Array<any> {
 
         return true;
     });
+    return result;
 }
 
 /**

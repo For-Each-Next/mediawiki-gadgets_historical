@@ -1,4 +1,6 @@
-/** Wikitext and generated prose builders. */
+/**
+ * Wikitext and generated prose builders.
+ */
 
 import type { AggregateScoreRecord, SourceTags } from "#stub/article";
 import { buildNameSourceReferenceKey } from "#stub/local/form-values.ts";
@@ -221,9 +223,10 @@ export function buildAggScoresText(params: AggregateScoresParams): string {
         return "";
     }
 
-    return formatText("prose.sentence3", {
+    const result = formatText("prose.sentence3", {
         clauses: clauses.join(getTextTemplate("prose.scoreSeparator")),
     });
+    return result;
 }
 
 /**
@@ -242,11 +245,11 @@ function buildMetacriticClause(params: AggregateScoresParams): string {
         return "";
     }
 
-    return (
+    const result =
         formatText("prose.metacritic", { score }) +
         buildPlatformEditionText(platform) +
-        (params.metacriticSourceTag || "")
-    );
+        (params.metacriticSourceTag || "");
+    return result;
 }
 
 /**
@@ -266,10 +269,10 @@ function buildOpenCriticClause(params: AggregateScoresParams): string {
         return "";
     }
 
-    return (
+    const result =
         formatText("prose.openCritic", { score }) +
-        (params.openCriticSourceTag || "")
-    );
+        (params.openCriticSourceTag || "");
+    return result;
 }
 
 /**
@@ -287,16 +290,18 @@ function normalizeMetacriticScoreParams(
     const score = trimValue(params.metacriticScore || "");
 
     if (!hasDigit(score) && hasDigit(platform)) {
-        return {
+        const result = {
             platform: score,
             score: platform,
         };
+        return result;
     }
 
-    return {
+    const result = {
         platform,
         score,
     };
+    return result;
 }
 
 /**
@@ -312,9 +317,10 @@ function buildPlatformEditionText(platform: string): string {
         return "";
     }
 
-    return formatText("prose.metacriticPlatformEdition", {
+    const result = formatText("prose.metacriticPlatformEdition", {
         label,
     });
+    return result;
 }
 
 /**
@@ -394,9 +400,10 @@ export function buildDefaultSortKey(params: any): string {
  * @returns Normalized sort key.
  */
 function normalizeSortKey(value: string): string {
-    return toTitleUpperCase(
+    const result = toTitleUpperCase(
         normalizeSortPunctuation(normalizeDefaultSortValue(value) || ""),
     );
+    return result;
 }
 
 /**
@@ -406,7 +413,7 @@ function normalizeSortKey(value: string): string {
  * @returns Sort key with mechanical punctuation cleanup.
  */
 function normalizeSortPunctuation(value: string): string {
-    return value
+    const result = value
         .normalize("NFKC")
         .replace(/\.{3,}/gu, " ")
         .replace(/(\d)[,.](?=\d)/gu, "$1")
@@ -417,6 +424,7 @@ function normalizeSortPunctuation(value: string): string {
         .replace(/[^\p{Letter}\p{Mark}\p{Number}\s.'-]+/gu, " ")
         .replace(/\s+/gu, " ")
         .trim();
+    return result;
 }
 
 /**
@@ -426,9 +434,10 @@ function normalizeSortPunctuation(value: string): string {
  * @returns Title-style value.
  */
 function toTitleUpperCase(value: string): string {
-    return value
+    const result = value
         .replace(/\s+/gu, " ")
         .replace(/\p{Letter}[\p{Letter}\p{Mark}'’-]*/gu, titleUpperWord);
+    return result;
 }
 
 /**
@@ -438,11 +447,12 @@ function toTitleUpperCase(value: string): string {
  * @returns Title-style word.
  */
 function titleUpperWord(word: string): string {
-    return word
+    const result = word
         .toLocaleLowerCase()
         .replace(/(^|-)\p{Letter}/gu, function callback(character) {
             return character.toLocaleUpperCase();
         });
+    return result;
 }
 
 /**
@@ -561,44 +571,66 @@ export function getStubTagRows(params: any): Array<any> {
         rows.map((row) => normalizeStubTag(row.stubTag)),
     );
 
-    return stubTags.map(function callback(stubTag) {
-        return {
+    const result = stubTags.map(function callback(stubTag) {
+        const result = {
             enabled: rows.some(function callback(row) {
-                return (
+                const result =
                     normalizeStubTag(row.stubTag) === stubTag &&
-                    row.stubTagEnabled === true
-                );
+                    row.stubTagEnabled === true;
+                return result;
             }),
             stubTag,
         };
+        return result;
     });
+    return result;
 }
 
 /**
  * Defines the module-level get reviewed stub tag rows.
+ *
+ * @param rows - Row values.
+ * @returns Result when the function
+ *   defines the module-level get reviewed stub tag
+ *   rows.
  */
-function getReviewedStubTagRows(rows) {
+function getReviewedStubTagRows(
+    rows: Array<{ enabled: boolean; stubTag: string }>,
+) {
     const stubTags = uniqueValues(
         rows.map((row) => normalizeStubTag(row.stubTag)),
     );
 
-    return stubTags.filter(Boolean).map(function callback(stubTag) {
-        return {
-            enabled: rows.some(function callback(row) {
-                return (
+    const result = stubTags.filter(Boolean).map(function callback(stubTag) {
+        const result = {
+            enabled: rows.some(function callback(row: {
+                stubTag: unknown;
+                enabled: boolean;
+            }) {
+                const result =
                     normalizeStubTag(row.stubTag) === stubTag &&
-                    row.enabled !== false
-                );
+                    row.enabled !== false;
+                return result;
             }),
             stubTag,
         };
+        return result;
     });
+    return result;
 }
 
 /**
  * Defines the module-level is renderable category row.
+ *
+ * @param row - Row values.
+ * @returns Result when the function
+ *   defines the module-level is renderable category
+ *   row.
  */
-function isRenderableCategoryRow(row) {
+function isRenderableCategoryRow(row: {
+    enabled: boolean;
+    category: unknown;
+}) {
     return (
         row.enabled !== false && normalizeCategoryTitle(row.category) !== ""
     );
@@ -606,12 +638,16 @@ function isRenderableCategoryRow(row) {
 
 /**
  * Defines the module-level has stub tag.
+ *
+ * @param row - Row values.
+ * @returns Result when the function
+ *   defines the module-level has stub tag.
  */
-function hasStubTag(row) {
-    return (
+function hasStubTag(row: { category: unknown; stubTag: unknown }) {
+    const result =
         normalizeCategoryTitle(row.category) !== "" &&
-        normalizeStubTag(row.stubTag) !== ""
-    );
+        normalizeStubTag(row.stubTag) !== "";
+    return result;
 }
 
 /**
@@ -631,13 +667,14 @@ export function sortCategoryRowsByProse(
         return rows;
     }
 
-    return rows
+    const result = rows
         .map(function callback(row, index) {
-            return {
+            const result = {
                 index,
                 position: getCategoryProsePosition(row, normalizedProse),
                 row,
             };
+            return result;
         })
         .sort(function callback(left, right) {
             if (left.position === right.position) {
@@ -647,12 +684,22 @@ export function sortCategoryRowsByProse(
             return left.position - right.position;
         })
         .map((item) => item.row);
+    return result;
 }
 
 /**
  * Defines the module-level get category prose position.
+ *
+ * @param row - Row values.
+ * @param prose - Prose value.
+ * @returns Result when the function
+ *   defines the module-level get category prose
+ *   position.
  */
-function getCategoryProsePosition(row, prose) {
+function getCategoryProsePosition(
+    row: { category: unknown; originalCategory: unknown },
+    prose: string | string[],
+) {
     const titles = uniqueValues([
         normalizeCategoryTitle(row.category),
         normalizeCategoryTitle(row.originalCategory),
@@ -662,7 +709,7 @@ function getCategoryProsePosition(row, prose) {
         .map((term) => prose.indexOf(term))
         .filter((position) => position >= 0);
 
-    return selectCategoryValue(
+    const result = selectCategoryValue(
         positions.length === 0,
         function trueBranch() {
             return Number.POSITIVE_INFINITY;
@@ -671,12 +718,18 @@ function getCategoryProsePosition(row, prose) {
             return Math.min(...positions);
         },
     );
+    return result;
 }
 
 /**
  * Defines the module-level get category search terms.
+ *
+ * @param category - Category value.
+ * @returns Result when the function
+ *   defines the module-level get category search
+ *   terms.
  */
-function getCategorySearchTerms(category) {
+function getCategorySearchTerms(category: string) {
     const normalized = normalizeRelatedText(category);
     const gameSuffix = new RegExp(
         ["(?:电子游戏|電子遊戲", "|游戏|遊戲)$"].join(""),
@@ -689,67 +742,100 @@ function getCategorySearchTerms(category) {
 
 /**
  * Defines the module-level strip lead title text.
+ *
+ * @param prose - Prose value.
+ * @returns Result when the function
+ *   defines the module-level strip lead title text.
  */
-function stripLeadTitleText(prose) {
-    return trimCategoryValue(prose)
+function stripLeadTitleText(prose: string) {
+    const result = trimCategoryValue(prose)
         .replace(/^《[^》]+》(?:（[^）]+）)?/u, "")
         .replace(/^''[^']+''(?:（[^）]+）)?/u, "");
+    return result;
 }
 
 /**
  * Defines the module-level normalize related text.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level normalize related text.
  */
-function normalizeRelatedText(value) {
-    return foldChineseVariants(
+function normalizeRelatedText(value: string) {
+    const result = foldChineseVariants(
         trimCategoryValue(value)
             .replace(/\[\[([^|\]]+\|)?([^\]]+)\]\]/gu, "$2")
             .replace(/[\s\u200e\u200f]/gu, "")
             .toLocaleLowerCase(),
     );
+    return result;
 }
 
 /**
  * Defines the module-level fold chinese variants.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level fold chinese variants.
  */
-function foldChineseVariants(value) {
-    return value
+function foldChineseVariants(value: string) {
+    const result = value
         .replace(/電/gu, "电")
         .replace(/體/gu, "体")
         .replace(/遊/gu, "游")
         .replace(/戲/gu, "戏")
         .replace(/鬥/gu, "斗");
+    return result;
 }
 
 /**
  * Defines the module-level build category link.
+ *
+ * @param row - Row values.
+ * @returns Result when the function
+ *   defines the module-level build category link.
  */
-function buildCategoryLink(row) {
+function buildCategoryLink(row: { category: unknown }) {
     return `[[Category:${normalizeCategoryTitle(row.category)}]]`;
 }
 
 /**
  * Defines the module-level normalize category title.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level normalize category title.
  */
-function normalizeCategoryTitle(value) {
-    return trimCategoryValue(value)
+function normalizeCategoryTitle(value: unknown) {
+    const result = trimCategoryValue(value)
         .replace(/^Category:/iu, "")
         .trim();
+    return result;
 }
 
 /**
  * Defines the module-level normalize stub tag.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level normalize stub tag.
  */
-function normalizeStubTag(value) {
-    return trimCategoryValue(value)
+function normalizeStubTag(value: unknown) {
+    const result = trimCategoryValue(value)
         .replace(/^\{\{/u, "")
         .replace(/\}\}$/u, "")
         .trim();
+    return result;
 }
 
 /**
  * Defines the module-level trim value.
+ *
+ * @param value - Input value.
+ * @returns Result when the function
+ *   defines the module-level trim value.
  */
-function trimCategoryValue(value) {
+function trimCategoryValue(value: unknown): string {
     return value == null ? "" : String(value).trim();
 }
 
@@ -810,7 +896,7 @@ const NAME_MARKETS = ["ww", "hans", "hant", "cn", "tw", "hk"];
  * @returns Infobox template wikitext.
  */
 export function buildInfoboxText(params: any): string {
-    return buildTemplateText(
+    const result = buildTemplateText(
         "Infobox VG",
         [
             ["onlysourced", "no"],
@@ -823,6 +909,7 @@ export function buildInfoboxText(params: any): string {
         ],
         "block",
     );
+    return result;
 }
 
 /**
@@ -877,7 +964,7 @@ function buildJapaneseNameText(params: any): string | undefined {
 
     const originalName = normalizeInfoboxValue(params.originalName);
 
-    return selectInfoboxValue(
+    const result = selectInfoboxValue(
         isSameInfoboxBaseTitle(originalName, params.name),
         function trueBranch() {
             return undefined;
@@ -886,6 +973,7 @@ function buildJapaneseNameText(params: any): string | undefined {
             return originalName;
         },
     );
+    return result;
 }
 
 /**
@@ -919,10 +1007,11 @@ function buildVgnText(rows: Array<any>): string | undefined {
         return undefined;
     }
 
-    return buildTemplateText(
+    const result = buildTemplateText(
         "vgn",
         entries.map((entry) => [1, entry]),
     );
+    return result;
 }
 
 /**
@@ -994,10 +1083,10 @@ function isSameInfoboxBaseTitle(value: string, articleTitle: string): boolean {
         return false;
     }
 
-    return (
+    const result =
         normalizeInfoboxTitleForComparison(value) ===
-        normalizeInfoboxTitleForComparison(articleTitle)
-    );
+        normalizeInfoboxTitleForComparison(articleTitle);
+    return result;
 }
 
 /**
@@ -1007,9 +1096,10 @@ function isSameInfoboxBaseTitle(value: string, articleTitle: string): boolean {
  * @returns Normalized title.
  */
 function normalizeInfoboxTitleForComparison(title: string): string {
-    return String(title || "")
+    const result = String(title || "")
         .trim()
         .replace(/ \(.+?\)$/u, "");
+    return result;
 }
 
 /**
@@ -1077,11 +1167,12 @@ function buildVariantNameText(params: any): string {
             return "";
         }
 
-        return buildVariantNameVariantText({
+        const result = buildVariantNameVariantText({
             code: params.originalLanguage,
             name: params.originalName,
             ref: params.sourceTags.originalName || "",
         });
+        return result;
     }
 
     if (params.englishName !== "") {
@@ -1089,11 +1180,12 @@ function buildVariantNameText(params: any): string {
             return "";
         }
 
-        return buildVariantNameVariantText({
+        const result = buildVariantNameVariantText({
             code: "en",
             name: params.englishName,
             ref: params.sourceTags.englishName || "",
         });
+        return result;
     }
 
     return "";
@@ -1126,12 +1218,13 @@ function buildVariantNameVariantText(variant: any): string {
  * @returns Langx template wikitext.
  */
 function buildLangxTemplate(language: string, text: string): string {
-    return buildTemplateText("langx", [
+    const result = buildTemplateText("langx", [
         [1, language],
         [2, text],
         ["italic", buildLangxItalicParam(language)],
         ["label", "none"],
     ]);
+    return result;
 }
 
 /**
@@ -1152,10 +1245,10 @@ function buildLangxItalicParam(language: string): string {
  * @returns Whether the names are equivalent.
  */
 function isSameBaseTitle(variantName: string, articleTitle: string): boolean {
-    return (
+    const result =
         normalizeTitleForComparison(variantName) ===
-        normalizeTitleForComparison(articleTitle)
-    );
+        normalizeTitleForComparison(articleTitle);
+    return result;
 }
 
 /**
@@ -1165,9 +1258,10 @@ function isSameBaseTitle(variantName: string, articleTitle: string): boolean {
  * @returns Normalized title.
  */
 function normalizeTitleForComparison(title: string): string {
-    return String(title || "")
+    const result = String(title || "")
         .trim()
         .replace(/ \(.+?\)$/u, "");
+    return result;
 }
 
 /**
@@ -1238,7 +1332,12 @@ export function buildNoteTaText(params: any = {}): string {
     return text;
 }
 
-/** Gets manual NoteTA rows or the default group row. */
+/**
+ * Gets manual NoteTA rows or the default group row.
+ *
+ * @param manualEntries - Manual entries value.
+ * @returns Manual NoteTA rows or the default group row.
+ */
 function getNoteTaEntries(manualEntries: Array<any>): Array<any> {
     let entries = [{ key: "G1", value: "Games" }];
 
@@ -1249,12 +1348,21 @@ function getNoteTaEntries(manualEntries: Array<any>): Array<any> {
     return entries;
 }
 
-/** Gets generated official-name conversion text when needed. */
-function getNoteTaConversionText(entries, params): string | undefined {
+/**
+ * Gets generated official-name conversion text when needed.
+ *
+ * @param entries - Entries value.
+ * @param params - Params value.
+ * @returns Generated official-name conversion text when needed.
+ */
+function getNoteTaConversionText(
+    entries: unknown[],
+    params: { namesRemoved: boolean; officialNames: unknown[] },
+): string | undefined {
     const suppressed =
         hasEditableNameConversionEntry(entries) ||
         params.namesRemoved === true;
-    let text;
+    let text: string;
 
     if (!suppressed) {
         text = buildOfficialNameConversionText(params.officialNames);
@@ -1271,12 +1379,12 @@ function getNoteTaConversionText(entries, params): string | undefined {
  *
  * @param entries - Normalized NoteTA rows.
  * @returns Whether name conversion has an editable row.
- *
  */
 function hasEditableNameConversionEntry(entries: Array<any>): boolean {
-    return entries.some(function callback(entry) {
+    const result = entries.some(function callback(entry) {
         return entry.source === "names" || trimNoteTaText(entry.key) === "1";
     });
+    return result;
 }
 
 /**
@@ -1316,16 +1424,18 @@ function normalizeNoteTaEntries(entries: Array<any>): Array<any> {
         return [];
     }
 
-    return entries
+    const result = entries
         .map(function callback(entry) {
-            return {
+            const result = {
                 key: trimNoteTaText(entry?.key),
                 modified: entry?.modified === true,
                 source: trimNoteTaText(entry?.source),
                 value: trimNoteTaText(entry?.value),
             };
+            return result;
         })
         .filter((entry) => entry.key !== "" || entry.value !== "");
+    return result;
 }
 
 /**
@@ -1335,15 +1445,17 @@ function normalizeNoteTaEntries(entries: Array<any>): Array<any> {
  * @returns Sorted NoteTA row objects.
  */
 export function sortNoteTaEntries(entries: Array<any>): Array<any> {
-    return entries
+    const result = entries
         .map(function callback(entry, index) {
-            return {
+            const result = {
                 ...entry,
                 index,
             };
+            return result;
         })
         .sort(compareNoteTaEntries)
         .map(({ index: _index, ...entry }) => entry);
+    return result;
 }
 
 /**
@@ -1357,11 +1469,11 @@ function compareNoteTaEntries(a: any, b: any): number {
     const rankA = getNoteTaEntryRank(a);
     const rankB = getNoteTaEntryRank(b);
 
-    return (
+    const result =
         rankA.group - rankB.group ||
         rankA.number - rankB.number ||
-        a.index - b.index
-    );
+        a.index - b.index;
+    return result;
 }
 
 /**
@@ -1394,7 +1506,13 @@ function getNoteTaEntryRank(entry: any): any {
     return createNoteTaRank(4, entry.index);
 }
 
-/** Creates a sortable NoteTA row rank. */
+/**
+ * Creates a sortable NoteTA row rank.
+ *
+ * @param group - Group value.
+ * @param number - Number value.
+ * @returns A sortable NoteTA row rank.
+ */
 function createNoteTaRank(group: number, number: number): any {
     return { group, number };
 }
@@ -1441,13 +1559,14 @@ export function buildOfficialNameConversionText(
         return undefined;
     }
 
-    return [
+    const result = [
         buildConversionEntry("cn", simplifiedName),
         buildConversionEntry("hk", hongKongName),
         buildConversionEntry("tw", taiwanName),
     ]
         .filter(Boolean)
         .join(" ");
+    return result;
 }
 
 /**
@@ -1475,10 +1594,10 @@ function findOfficialName(
     rows: Array<any> = [],
     markets: Array<string>,
 ): string | undefined {
-    return (
+    const result =
         rows.find((row) => hasAnyMarket(row, markets))?.name?.trim() ||
-        undefined
-    );
+        undefined;
+    return result;
 }
 
 /**
@@ -1512,9 +1631,10 @@ export function buildReferencesText(references: Array<any>): string {
         return "";
     }
 
-    return buildReferencesSection(references, {
+    const result = buildReferencesSection(references, {
         heading: getTextTemplate("referencesHeading"),
     });
+    return result;
 }
 
 /**
@@ -1560,11 +1680,11 @@ export function countProseSinographs(text: string): number {
     const withoutLatin = plainText.replace(getLatinPhrasePattern(), "");
     const withoutNumbers = withoutLatin.replace(getNumberPattern(), "");
 
-    return (
+    const result =
         countHanCharacters(withoutNumbers) +
         countMatches(plainText, getLatinPhrasePattern()) * 2 +
-        countMatches(withoutLatin, getNumberPattern()) * 2
-    );
+        countMatches(withoutLatin, getNumberPattern()) * 2;
+    return result;
 }
 
 /**
@@ -1598,12 +1718,13 @@ function buildGeneratedProseText(params: any): string {
  * @returns Plain prose.
  */
 function stripWikitext(text: string): string {
-    return String(text || "")
+    const result = String(text || "")
         .replace(/<ref\b[^>]*\/>/giu, "")
         .replace(/<ref\b[^>]*>[\s\S]*?<\/ref>/giu, "")
         .replace(/\[\[[^\]|]*\|([^\]]+)\]\]/gu, "$1")
         .replace(/\[\[([^\]]+)\]\]/gu, "$1")
         .replace(/\{\{[^{}]*\}\}/gu, "");
+    return result;
 }
 
 /**
@@ -1633,7 +1754,7 @@ function countMatches(text: string, pattern: RegExp): number {
  * @returns Latin phrase matcher.
  */
 function getLatinPhrasePattern(): RegExp {
-    return new RegExp(
+    const result = new RegExp(
         [
             "\\b[A-Za-z][A-Za-z0-9]*",
             "(?:[ \\t./&",
@@ -1641,6 +1762,7 @@ function getLatinPhrasePattern(): RegExp {
         ].join(""),
         "gu",
     );
+    return result;
 }
 
 /**
@@ -1692,8 +1814,33 @@ export function buildArticleProse(records: any, sourceTags: any): any {
     return prose;
 }
 
-/** Builds the opening title, year, genre, and company sentence. */
-function buildOpeningProse(records, sourceTags): any {
+interface OpeningProseRecords {
+    companies: {
+        metadata: { sameCompanies: boolean };
+        wikitext: { developers: string; publishers: string };
+    };
+    genre: Parameters<typeof buildYearGenreProse>[1];
+    names: { metadata: NameMetadata };
+    year: Parameters<typeof buildYearGenreProse>[0];
+}
+
+interface OpeningProseSentence {
+    s1a: { text: string; titles: string; yearGenre: string };
+    s1b: string;
+    text: string;
+}
+
+/**
+ * Builds the opening title, year, genre, and company sentence.
+ *
+ * @param records - Normalized article records.
+ * @param sourceTags - Source tags keyed by article field.
+ * @returns Opening sentence fragments and rendered text.
+ */
+function buildOpeningProse(
+    records: OpeningProseRecords,
+    sourceTags: Record<string, string>,
+): OpeningProseSentence {
     const names = records.names.metadata;
     const leadValues = buildLeadValues(names, sourceTags);
     const titles = buildLeadNameText(leadValues);
@@ -1723,19 +1870,52 @@ function buildOpeningProse(records, sourceTags): any {
     return sentence;
 }
 
-/** Builds lead-name input values from normalized name metadata. */
-function buildLeadValues(names, sourceTags): any {
-    return {
+/**
+ * Describes normalized primary article names.
+ */
+interface NameMetadata {
+    englishName: string;
+    name: string;
+    original: { language: string; name: string };
+}
+
+/**
+ * Builds lead-name input values from normalized name metadata.
+ *
+ * @param names - Normalized primary names.
+ * @param sourceTags - Source tags keyed by name field.
+ * @returns Lead-name input values.
+ */
+function buildLeadValues(
+    names: NameMetadata,
+    sourceTags: Record<string, string>,
+): Record<string, unknown> {
+    const result = {
         englishName: names.englishName,
         name: names.name,
         originalLanguage: names.original.language,
         originalName: names.original.name,
         sourceTags,
     };
+    return result;
 }
 
-/** Builds prose text with titles excluded from the length count. */
-function buildCountedProseText(sentence1, proseValues): string {
+/**
+ * Builds prose text with titles excluded from the length count.
+ *
+ * @param sentence1 - Sentence1 value.
+ * @param proseValues - Prose values value.
+ * @returns Prose text with titles excluded from the length count.
+ */
+function buildCountedProseText(
+    sentence1: { s1a: { yearGenre: string }; s1b: string },
+    proseValues: {
+        sentence1: string;
+        sentence2: string;
+        sentence3: string;
+        sentence4: string;
+    },
+): string {
     const countedSentence1a = formatText("prose.countedSentence1a", {
         yearGenre: sentence1.s1a.yearGenre,
     });
@@ -1771,9 +1951,10 @@ export function buildYearGenreProse(
             return "";
         },
         function falseBranch() {
-            return formatText("prose.genreClass", {
+            const result = formatText("prose.genreClass", {
                 genreText: genre.wikitext.list,
             });
+            return result;
         },
     );
     const prefix =
@@ -1796,7 +1977,13 @@ export function buildYearGenreProse(
  * @param options.sourceTag - Combined company source tags.
  * @returns Company attribution clause.
  */
-export function buildCompanyProse(companies, options: any = {}): string {
+export function buildCompanyProse(
+    companies: {
+        wikitext: { developers: string; publishers: string };
+        metadata: { sameCompanies: boolean };
+    },
+    options: { sourceTag?: string } = {},
+): string {
     const developerText = companies.wikitext.developers || "";
     const publisherText = companies.wikitext.publishers || "";
     const roleText = buildCompanyRoleText(
@@ -1859,7 +2046,13 @@ export function buildPlatformsAndSeriesProse(
     return prose;
 }
 
-/** Builds the optional series clause following platform prose. */
+/**
+ * Builds the optional series clause following platform prose.
+ *
+ * @param seriesText - Series text value.
+ * @param sourceTags - Source tags value.
+ * @returns The optional series clause following platform prose.
+ */
 function buildSeriesClause(seriesText: string, sourceTags: any): string {
     if (seriesText === "") {
         return "";
@@ -1933,44 +2126,63 @@ export function buildAppendProse(
 
 /**
  * Defines the module-level build company role text.
+ *
+ * @param developers - Developers value.
+ * @param publishers - Publishers value.
+ * @param sameCompanies - Same companies value.
+ * @returns Result when the function
+ *   defines the module-level build company role text.
  */
-function buildCompanyRoleText(developers, publishers, sameCompanies) {
+function buildCompanyRoleText(
+    developers: string,
+    publishers: string,
+    sameCompanies: unknown,
+) {
     if (developers === "" && publishers === "") {
         return "";
     }
 
     if (developers !== "" && sameCompanies) {
-        return formatText("prose.developedAndPublished", {
+        const result = formatText("prose.developedAndPublished", {
             developers,
         });
+        return result;
     }
 
     if (developers === "") {
-        return formatText("prose.published", {
+        const result = formatText("prose.published", {
             publishers,
         });
+        return result;
     }
 
     if (publishers === "") {
-        return formatText("prose.developed", {
+        const result = formatText("prose.developed", {
             developers,
         });
+        return result;
     }
 
-    return formatText("prose.developedThenPublished", {
+    const result = formatText("prose.developedThenPublished", {
         developers,
         publishers,
     });
+    return result;
 }
 
 /**
  * Defines the module-level build series list text.
+ *
+ * @param values - Input values.
+ * @returns Result when the function
+ *   defines the module-level build series list text.
  */
-function buildSeriesListText(values) {
-    const names = values.map(function callback(value) {
-        return formatText("prose.seriesTitle", {
+function buildSeriesListText(values: unknown[]) {
+    const names = values.map(function callback(value: { wikitext: unknown }) {
+        const result = formatText("prose.seriesTitle", {
             value: value.wikitext,
         });
+        return result;
     });
 
     if (names.length === 2) {
@@ -1982,8 +2194,16 @@ function buildSeriesListText(values) {
 
 /**
  * Defines the module-level join source tags.
+ *
+ * @param sourceTags - Source tags keyed by article field.
+ * @param keys - Keys value.
+ * @returns Result when the function
+ *   defines the module-level join source tags.
  */
-function joinSourceTags(sourceTags, keys) {
+function joinSourceTags(
+    sourceTags: Record<string, string>,
+    keys: string[],
+): string {
     const tags = keys.map((key) => sourceTags[key] || "").join("");
 
     return tags;
@@ -2042,31 +2262,45 @@ export function buildArticleRenderers(records: any, sourceTags: any): any {
         officialNames: names.officialNames,
     });
 
-    return {
+    const result = {
         defaultSort,
         infobox,
         navboxes: records.review.wikitext.navbox,
         noteTa,
     };
+    return result;
 }
 
-/** Builds default-sort text from normalized names. */
+/**
+ * Builds default-sort text from normalized names.
+ *
+ * @param names - Names value.
+ * @returns Default-sort text from normalized names.
+ */
 function buildNameDefaultSort(names: any): string {
-    return buildDefaultSortText({
+    const result = buildDefaultSortText({
         english: names.englishName,
         original: names.original.name,
         sortKey: names.sortKey,
         title: names.name,
     });
+    return result;
 }
 
-/** Builds infobox text from normalized names. */
+/**
+ * Builds infobox text from normalized names.
+ *
+ * @param names - Names value.
+ * @param commonNames - Common names value.
+ * @param officialNames - Official names value.
+ * @returns Infobox text from normalized names.
+ */
 function buildNameInfobox(
     names: any,
     commonNames: any,
     officialNames: any,
 ): string {
-    return buildInfoboxText({
+    const result = buildInfoboxText({
         commonNames,
         englishName: names.englishName,
         name: names.name,
@@ -2074,13 +2308,27 @@ function buildNameInfobox(
         originalLanguage: names.original.language,
         originalName: names.original.name,
     });
+    return result;
 }
 
 /**
  * Defines the module-level add name reference tags.
+ *
+ * @param rows - Row values.
+ * @param sourceTags - Source tags keyed by localized-name field.
+ * @param key - Lookup key.
+ * @returns Result when the function
+ *   defines the module-level add name reference tags.
  */
-function addNameReferenceTags(rows, sourceTags, key) {
-    const values = (rows || []).map(function callback(row, index) {
+function addNameReferenceTags(
+    rows: Array<{ sourceKey: string }>,
+    sourceTags: Record<string, string>,
+    key: string,
+) {
+    const values = (rows || []).map(function callback(
+        row: { sourceKey: string },
+        index: number,
+    ) {
         const sourceKey =
             row.sourceKey || buildNameSourceReferenceKey(key, index);
         const value = {
@@ -2124,7 +2372,7 @@ export function buildArticleWikitext(params: any): string {
     const review = params.records?.review?.wikitext || {};
     const intro = params.prose?.text || buildLegacyProse(params);
 
-    return [
+    const result = [
         params.renderers?.noteTa || params.noteTaText,
         params.renderers?.infobox || params.infoboxText,
         intro,
@@ -2136,12 +2384,24 @@ export function buildArticleWikitext(params: any): string {
     ]
         .filter(Boolean)
         .join("\n\n");
+    return result;
 }
 
 /**
  * Defines the module-level build legacy prose.
+ *
+ * @param params - Params value.
+ * @returns Result when the function
+ *   defines the module-level build legacy prose.
  */
-function buildLegacyProse(params) {
+function buildLegacyProse(params: {
+    leadNameText: unknown;
+    yearGenreMetadata: { text: unknown };
+    companyMetadata: { text: string };
+    platformSeriesMetadata: { text: unknown };
+    aggScoresText: unknown;
+    additionalProseText: unknown;
+}) {
     const sentence1a = formatText("prose.sentence1a", {
         titles: params.leadNameText,
         yearGenre: params.yearGenreMetadata.text,

@@ -1,4 +1,6 @@
-/** Runtime terminology catalog entry. */
+/**
+ * Runtime terminology catalog entry.
+ */
 export type TerminologyAlias = string | RegExp;
 
 export interface TerminologyDefinition {

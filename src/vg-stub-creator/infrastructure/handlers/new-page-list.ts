@@ -37,7 +37,6 @@ interface NewPageListEntry {
  * without namespace.
  * @param date - Registration date.
  * @returns Resolves after the list is updated.
- *
  */
 export async function registerNewPage(
     api: any,
@@ -61,7 +60,12 @@ export async function registerNewPage(
     }
 }
 
-/** Runs one new-page-list registration attempt. */
+/**
+ * Runs one new-page-list registration attempt.
+ *
+ * @param api - MediaWiki API client.
+ * @param entry - Input entry.
+ */
 async function registerNewPageAttempt(
     api: any,
     entry: NewPageRegistration,
@@ -117,7 +121,7 @@ function buildNewPageListSummary(
         return `register the new article "${article}"`;
     }
 
-    return (
+    const result =
         `register the new article "${article}" as well as ` +
         [
             "categor",
@@ -125,8 +129,8 @@ function buildNewPageListSummary(
             " ",
             formatSummaryList(categories),
             "",
-        ].join("")
-    );
+        ].join("");
+    return result;
 }
 
 /**
@@ -179,7 +183,14 @@ export function addNewPageListEntry(
     return updated;
 }
 
-/** Inserts a new year section for a registration. */
+/**
+ * Inserts a new year section for a registration.
+ *
+ * @param source - Source text.
+ * @param entry - Input entry.
+ * @returns Result when the function
+ *   inserts a new year section for a registration.
+ */
 function insertNewPageListYear(
     source: string,
     entry: NewPageListEntry,
@@ -195,7 +206,14 @@ function insertNewPageListYear(
     return updated;
 }
 
-/** Builds normalized registration entry values. */
+/**
+ * Builds normalized registration entry values.
+ *
+ * @param articleTitle - Article title value.
+ * @param companyCategories - Company categories value.
+ * @param date - Date value.
+ * @returns Normalized registration entry values.
+ */
 function buildNewPageListEntry(
     articleTitle: string,
     companyCategories: Array<string>,
@@ -241,7 +259,7 @@ async function fetchNewPageList(api: any): Promise<any> {
         );
     }
 
-    return {
+    const result = {
         basetimestamp: revision.timestamp,
         starttimestamp: response.curtimestamp,
         text:
@@ -250,6 +268,7 @@ async function fetchNewPageList(api: any): Promise<any> {
             revision["*"] ??
             "",
     };
+    return result;
 }
 
 /**
@@ -287,40 +306,61 @@ function updateYearSection(section: string, entry: NewPageListEntry): string {
     return lines.join("\n");
 }
 
-/** Finds a matching date line. */
+/**
+ * Finds a matching date line.
+ *
+ * @param lines - Lines value.
+ * @param pattern - Pattern value.
+ * @param entry - Input entry.
+ * @returns A matching date line.
+ */
 function findDateLine(
     lines: Array<string>,
     pattern: RegExp,
     entry: NewPageListEntry,
 ): number {
-    return lines.findIndex(function callback(line) {
+    const result = lines.findIndex(function callback(line) {
         const match = line.match(pattern);
-        return (
+        const result =
             match != null &&
             Number(match[1]) === entry.month &&
-            Number(match[2]) === entry.day
-        );
+            Number(match[2]) === entry.day;
+        return result;
     });
+    return result;
 }
 
-/** Finds the descending-date insertion point. */
+/**
+ * Finds the descending-date insertion point.
+ *
+ * @param lines - Lines value.
+ * @param pattern - Pattern value.
+ * @param entry - Input entry.
+ * @returns The descending-date insertion point.
+ */
 function findDateInsertIndex(
     lines: Array<string>,
     pattern: RegExp,
     entry: NewPageListEntry,
 ): number {
-    return lines.findIndex(function callback(line) {
+    const result = lines.findIndex(function callback(line) {
         const match = line.match(pattern);
-        return (
+        const result =
             match != null &&
             (Number(match[1]) < entry.month ||
                 (Number(match[1]) === entry.month &&
-                    Number(match[2]) < entry.day))
-        );
+                    Number(match[2]) < entry.day));
+        return result;
     });
+    return result;
 }
 
-/** Finds the first trailing blank line. */
+/**
+ * Finds the first trailing blank line.
+ *
+ * @param lines - Lines value.
+ * @returns The first trailing blank line.
+ */
 function findTrailingBlankLines(lines: Array<string>): number {
     const index = lines.findIndex(function callback(line, lineIndex) {
         const blankTail = lines
@@ -338,7 +378,10 @@ function findTrailingBlankLines(lines: Array<string>): number {
  * @param lines - Section lines.
  * @param index - Date-line index.
  * @param value - Template call.
- * @returns */
+ * @returns Result when the function
+ *   appends an article call when it is not already
+ *   present.
+ */
 function appendUnique(
     lines: Array<string>,
     index: number,
@@ -359,7 +402,10 @@ function appendUnique(
  * @param lines - Section lines.
  * @param dateIndex - Date-line index.
  * @param categories - Category template calls.
- * @returns */
+ * @returns Result when the function
+ *   adds company categories to the date's category
+ *   continuation line.
+ */
 function appendCategories(
     lines: Array<string>,
     dateIndex: number,
@@ -374,11 +420,11 @@ function appendCategories(
     });
     const blockEnd = nextDateIndex === -1 ? lines.length : nextDateIndex;
     const categoryIndex = lines.findIndex(function callback(line, index) {
-        return (
+        const result =
             index > dateIndex &&
             index < blockEnd &&
-            /^\*:\s*分類：/u.test(line)
-        );
+            /^\*:\s*分類：/u.test(line);
+        return result;
     });
 
     if (categoryIndex === -1) {
@@ -406,7 +452,7 @@ function buildDateBlock(
     article: string,
     categories: Array<string>,
 ): string {
-    return [
+    const result = [
         `* ${month}月${day}日 - ${article}`,
         ...selectValue(
             categories.length === 0,
@@ -418,6 +464,7 @@ function buildDateBlock(
             },
         ),
     ].join("\n");
+    return result;
 }
 
 /**
@@ -440,10 +487,11 @@ function findYearSection(text: string, year: number): any | null {
     nextHeading.lastIndex = contentStart;
     const next = nextHeading.exec(text);
 
-    return {
+    const result = {
         contentStart,
         end: next?.index ?? text.length,
     };
+    return result;
 }
 
 /**
@@ -500,11 +548,11 @@ function normalizeCategoryTitle(category: string): string {
  * @returns Whether the error is an edit conflict.
  */
 function isEditConflict(error: any): boolean {
-    return (
+    const result =
         error === "editconflict" ||
         error?.code === "editconflict" ||
-        error?.error?.code === "editconflict"
-    );
+        error?.error?.code === "editconflict";
+    return result;
 }
 
 /**

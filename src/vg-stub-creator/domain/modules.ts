@@ -1,4 +1,6 @@
-/** Article data-flow modules in visual output order. */
+/**
+ * Article data-flow modules in visual output order.
+ */
 
 import {
     buildCompanyData,
@@ -8,7 +10,7 @@ import {
     buildYearMetadata,
     normalizeYearFieldValue,
 } from "#stub/data";
-import { defineArticleModule } from "#stub/article/module.ts";
+import { defineArticleModule } from "#stub/article";
 import {
     buildNameSourceReferenceKey,
     formatPrefixedValue,
@@ -61,9 +63,10 @@ export const namesModule = defineArticleModule({
      */
     formatField(key: string, value: any): string {
         if (key === "originalName") {
-            return formatPrefixedValue(value, {
-                normalizePrefix: (prefix) => prefix.toLocaleLowerCase(),
+            const result = formatPrefixedValue(value, {
+                normalizePrefix: normalizeLanguagePrefix,
             });
+            return result;
         }
 
         return trimFieldValue(value);
@@ -83,7 +86,7 @@ export const namesModule = defineArticleModule({
         );
         const localizedNames = getLocalizedNameRows(form);
 
-        return {
+        const result = {
             commonNames: localizedNames.filter((row) => !row.official),
             englishName: trimFieldValue(form.englishName),
             localizedNames,
@@ -95,6 +98,7 @@ export const namesModule = defineArticleModule({
             originalName: original.value,
             sortKey: trimFieldValue(form.sortKey),
         };
+        return result;
     },
 
     /**
@@ -139,8 +143,18 @@ export const namesModule = defineArticleModule({
 
 /**
  * Defines the module-level build name values.
+ *
+ * @param form - Form values.
+ * @returns Result when the function
+ *   defines the module-level build name values.
  */
-function buildNameValues(form) {
+function buildNameValues(form: {
+    name: string;
+    originalLanguage: string;
+    originalName: string;
+    englishName: string;
+    localizedNames: Array<{ name: string }>;
+}) {
     const primaryValues = [
         {
             key: "name",
@@ -169,14 +183,32 @@ function buildNameValues(form) {
     return values;
 }
 
-/** Builds a normalized localized-name value. */
-function buildLocalizedNameValue(row): any {
-    return {
+/**
+ * Normalizes a compact language prefix.
+ *
+ * @param prefix - Entered language prefix.
+ * @returns Lowercase language prefix.
+ */
+function normalizeLanguagePrefix(prefix: string): string {
+    return prefix.toLocaleLowerCase();
+}
+
+/**
+ * Builds a normalized localized-name value.
+ *
+ * @param row - Row values.
+ * @returns A normalized localized-name value.
+ */
+function buildLocalizedNameValue(row: {
+    name: string;
+}): Record<string, unknown> {
+    const result = {
         key: "localizedName",
         metadata: row,
         normalizedText: row.name,
         wikitext: row.name,
     };
+    return result;
 }
 
 /**
@@ -209,10 +241,23 @@ function getLocalizedNameRows(form: any): Array<any> {
     return [...official, ...common];
 }
 
-/** Normalizes localized-name rows with stable source keys. */
-function normalizeLocalizedNameRows(rows, key, official?): Array<any> {
-    return rows.map(function callback(row, index) {
-        const normalized = {
+/**
+ * Normalizes localized-name rows with stable source keys.
+ *
+ * @param rows - Row values.
+ * @param key - Lookup key.
+ * @param official - Official value.
+ * @returns Localized-name rows with stable source keys.
+ */
+function normalizeLocalizedNameRows(
+    rows: Array<
+        Record<string, unknown> & { name: unknown; sourceUrl: unknown }
+    >,
+    key: string,
+    official?: boolean,
+): Array<Record<string, unknown>> {
+    const result = rows.map(function callback(row, index: number) {
+        const normalized: Record<string, unknown> = {
             ...row,
             name: trimFieldValue(row.name),
             sourceKey: buildNameSourceReferenceKey(key, index),
@@ -225,6 +270,7 @@ function normalizeLocalizedNameRows(rows, key, official?): Array<any> {
 
         return normalized;
     });
+    return result;
 }
 
 /**
@@ -260,9 +306,10 @@ export const yearModule = defineArticleModule({
      * @returns Normalized year patch.
      */
     normalize(form: any): any {
-        return {
+        const result = {
             year: normalizeYearFieldValue(form.year),
         };
+        return result;
     },
 
     /**
@@ -283,12 +330,13 @@ export const yearModule = defineArticleModule({
                 return [];
             },
             function falseBranch() {
-                return [
+                const result = [
                     {
                         normalizedText: metadata.value,
                         wikitext: metadata.value,
                     },
                 ];
+                return result;
             },
         );
         const output = {
@@ -361,9 +409,10 @@ export const genreModule = defineArticleModule({
      * @returns Normalized genre patch.
      */
     normalize(form: any): any {
-        return {
+        const result = {
             genres: normalizeListFieldValue(form.genres),
         };
+        return result;
     },
 
     /**
@@ -436,7 +485,7 @@ export const companiesModule = defineArticleModule({
      * @returns Normalized company patch.
      */
     normalize(form: any): any {
-        return {
+        const result = {
             developers: normalizeListFieldValue(form.developers),
             publishers: selectCompanyValue(
                 trimFieldValue(form.publishers) === "=",
@@ -448,6 +497,7 @@ export const companiesModule = defineArticleModule({
                 },
             ),
         };
+        return result;
     },
 
     /**
@@ -487,7 +537,14 @@ export const companiesModule = defineArticleModule({
     },
 });
 
-/** Adds a company role to normalized company values. */
+/**
+ * Adds a company role to normalized company values.
+ *
+ * @param items - Items value.
+ * @param role - Role value.
+ * @returns Result when the function
+ *   adds a company role to normalized company values.
+ */
 function addCompanyRole(items: Array<any>, role: string): Array<any> {
     const values = items.map(function callback(item) {
         return { ...item, role };
@@ -552,9 +609,10 @@ export const platformModule = defineArticleModule({
      * @returns Normalized platform patch.
      */
     normalize(form: any): any {
-        return {
+        const result = {
             platforms: normalizeListFieldValue(form.platforms),
         };
+        return result;
     },
 
     /**
@@ -618,9 +676,10 @@ export const seriesModule = defineArticleModule({
      * @returns Normalized series patch.
      */
     normalize(form: any): any {
-        return {
+        const result = {
             series: normalizeListFieldValue(form.series),
         };
+        return result;
     },
 
     /**
@@ -692,9 +751,10 @@ export const scoresModule = defineArticleModule({
             },
         );
 
-        return formatPrefixedValue(score, {
+        const result = formatPrefixedValue(score, {
             normalizePrefix: normalizeScorePlatform,
         });
+        return result;
     },
 
     /**
@@ -709,11 +769,12 @@ export const scoresModule = defineArticleModule({
             form.metacriticPlatform || "",
         );
 
-        return {
+        const result = {
             metacriticPlatform: normalizeScorePlatform(metacritic.prefix),
             metacriticScore: metacritic.value,
             openCriticRecommend: trimFieldValue(form.openCriticRecommend),
         };
+        return result;
     },
 
     /**
@@ -751,8 +812,21 @@ export const scoresModule = defineArticleModule({
     },
 });
 
-/** Builds normalized aggregate-score values. */
-function buildScoreValues(form, metadata): Array<any> {
+/**
+ * Builds normalized aggregate-score values.
+ *
+ * @param form - Form values.
+ * @param metadata - Article metadata.
+ * @returns Normalized aggregate-score values.
+ */
+function buildScoreValues(
+    form: {
+        metacriticPlatform: unknown;
+        metacriticScore: unknown;
+        openCriticRecommend: unknown;
+    },
+    metadata: { metacritic: unknown; openCritic: unknown },
+): Array<unknown> {
     const metacriticText = [form.metacriticPlatform, form.metacriticScore]
         .filter(Boolean)
         .join(":");
@@ -818,23 +892,24 @@ export const noteTaModule = defineArticleModule({
     fields: ["noteTaRows", "noteTaNamesRemoved"],
     key: "noteTa",
 
-    normalize(form) {
-        return {
+    normalize(form: { noteTaNamesRemoved: boolean; noteTaRows: NoteTaRow[] }) {
+        const result = {
             noteTaNamesRemoved: form.noteTaNamesRemoved === true,
             noteTaRows: normalizeNoteTaRows(form.noteTaRows),
         };
+        return result;
     },
 
-    flush(form) {
-        return {
+    flush(form: { noteTaNamesRemoved: boolean; noteTaRows: NoteTaRow[] }) {
+        const result = {
             metadata: {
                 namesRemoved: form.noteTaNamesRemoved,
                 rows: form.noteTaRows,
             },
             values: form.noteTaRows
                 .filter((row) => row.value !== "")
-                .map(function callback(row) {
-                    return {
+                .map(function callback(row: NoteTaRow) {
+                    const result = {
                         key: "noteTaRow",
                         metadata: {
                             key: row.key,
@@ -844,27 +919,44 @@ export const noteTaModule = defineArticleModule({
                         normalizedText: row.value,
                         wikitext: row.value,
                     };
+                    return result;
                 }),
         };
+        return result;
     },
 });
 
 /**
- * Defines the module-level normalize note ta rows.
+ * Describes one editable NoteTA row.
  */
-function normalizeNoteTaRows(rows) {
+interface NoteTaRow {
+    key: string;
+    modified: boolean;
+    source: string;
+    value: string;
+}
+
+/**
+ * Normalizes editable NoteTA rows.
+ *
+ * @param rows - NoteTA rows from the form.
+ * @returns Normalized NoteTA rows.
+ */
+function normalizeNoteTaRows(rows: NoteTaRow[]): NoteTaRow[] {
     if (!Array.isArray(rows)) {
         return [];
     }
 
-    return rows.map(function callback(row) {
-        return {
+    const result = rows.map(function callback(row) {
+        const result = {
             key: trimFieldValue(row?.key),
             modified: row?.modified === true,
             source: trimFieldValue(row?.source),
             value: trimFieldValue(row?.value),
         };
+        return result;
     });
+    return result;
 }
 
 /**
@@ -885,11 +977,11 @@ export const additionalProseModule = defineArticleModule({
         },
     ],
 
-    formatField(_key, value) {
+    formatField(_key: unknown, value: unknown) {
         return trimFieldValue(value);
     },
 
-    normalize(form) {
+    normalize(form: { additionalProse: unknown }) {
         const normalized = {
             additionalProse: trimFieldValue(form.additionalProse),
         };
@@ -897,7 +989,10 @@ export const additionalProseModule = defineArticleModule({
         return normalized;
     },
 
-    flush(form, context) {
+    flush(
+        form: { additionalProse: string },
+        context: { getCitations: (arg0: { keys: string[] }) => unknown },
+    ) {
         const citations = context.getCitations({
             keys: ["additionalProse"],
         });
@@ -907,12 +1002,13 @@ export const additionalProseModule = defineArticleModule({
                 return [];
             },
             function falseBranch() {
-                return [
+                const result = [
                     {
                         normalizedText: form.additionalProse,
                         wikitext: form.additionalProse,
                     },
                 ];
+                return result;
             },
         );
         const output = {
@@ -964,7 +1060,7 @@ export const reviewModule = defineArticleModule({
      * @returns Normalized review patch.
      */
     normalize(form: any): any {
-        return {
+        const result = {
             categoryRows: selectReviewValue(
                 Array.isArray(form.categoryRows),
                 function trueBranch() {
@@ -986,6 +1082,7 @@ export const reviewModule = defineArticleModule({
             navboxRows: Array.isArray(form.navboxRows) ? form.navboxRows : [],
             navboxText: trimFieldValue(form.navboxText),
         };
+        return result;
     },
 
     /**
@@ -1015,8 +1112,17 @@ export const reviewModule = defineArticleModule({
 
 /**
  * Defines the module-level normalize navbox.
+ *
+ * @param row - Row values.
+ * @returns Result when the function
+ *   defines the module-level normalize navbox.
  */
-function normalizeNavbox(row) {
+function normalizeNavbox(row: {
+    enabled: boolean;
+    status: unknown;
+    text: unknown;
+    title: unknown;
+}) {
     const navbox = {
         enabled: row.enabled !== false,
         status: row.status || "",

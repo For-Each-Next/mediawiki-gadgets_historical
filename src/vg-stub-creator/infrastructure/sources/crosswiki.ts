@@ -39,7 +39,15 @@ export async function fetchEnwikiMetadata(
     }
 }
 
-/** Adds Wikidata identifiers when their entity request succeeds. */
+/**
+ * Adds Wikidata identifiers when their entity request succeeds.
+ *
+ * @param metadata - Article metadata.
+ * @param fetcher - Fetch implementation.
+ * @returns Result when the function
+ *   adds wikidata identifiers when their entity
+ *   request succeeds.
+ */
 async function addWikidataIdentifiers(metadata: any, fetcher: any) {
     try {
         const response = await fetcher(
@@ -51,13 +59,14 @@ async function addWikidataIdentifiers(metadata: any, fetcher: any) {
             return metadata;
         }
 
-        return {
+        const result = {
             ...metadata,
             ...parseWikidataIdentifiers(
                 metadata.wikidataId,
                 await response.json(),
             ),
         };
+        return result;
     } catch (_error) {
         return metadata;
     }
@@ -78,12 +87,13 @@ export function buildEnwikiMetadataUrl(title: string): string {
         titles: title,
     });
 
-    return [
+    const result = [
         "https://en.wikipedia.org/w/api.php",
         "?",
         params.toString(),
         "",
     ].join("");
+    return result;
 }
 
 /**
@@ -101,12 +111,13 @@ export function buildWikidataEntityUrl(wikidataId: string): string {
         props: "claims",
     });
 
-    return [
+    const result = [
         "https://www.wikidata.org/w/api.php",
         "?",
         params.toString(),
         "",
     ].join("");
+    return result;
 }
 
 /**
@@ -120,18 +131,20 @@ export function parseEnwikiMetadata(title: string, data: any): any {
     const page: any = Object.values(data?.query?.pages || {})[0];
 
     if (page == null || page.missing != null) {
-        return {
+        const result = {
             ...createBlankEnwikiMetadata(title),
             pageExists: false,
         };
+        return result;
     }
 
-    return {
+    const result = {
         pageExists: true,
         title: page.title || title,
         wikidataId: page.pageprops?.wikibase_item || "",
         ...createBlankExternalIdentifiers(),
     };
+    return result;
 }
 
 /**
@@ -144,11 +157,12 @@ export function parseEnwikiMetadata(title: string, data: any): any {
 export function parseWikidataIdentifiers(wikidataId: string, data: any): any {
     const claims = data?.entities?.[wikidataId]?.claims || {};
 
-    return {
+    const result = {
         metacriticId: getClaimValue(claims.P12054),
         openCriticId: getClaimValue(claims.P2864),
         steamId: getClaimValue(claims.P1733),
     };
+    return result;
 }
 
 /**
@@ -158,12 +172,13 @@ export function parseWikidataIdentifiers(wikidataId: string, data: any): any {
  * @returns Blank metadata.
  */
 function createBlankEnwikiMetadata(title: string): any {
-    return {
+    const result = {
         pageExists: null,
         title,
         wikidataId: "",
         ...createBlankExternalIdentifiers(),
     };
+    return result;
 }
 
 /**
@@ -172,11 +187,12 @@ function createBlankEnwikiMetadata(title: string): any {
  * @returns Blank identifier values.
  */
 function createBlankExternalIdentifiers(): any {
-    return {
+    const result = {
         metacriticId: "",
         openCriticId: "",
         steamId: "",
     };
+    return result;
 }
 
 /**
@@ -187,11 +203,11 @@ function createBlankExternalIdentifiers(): any {
  */
 function getClaimValue(statements: Array<any>): string {
     const statement = (statements || []).find(function callback(item) {
-        return (
+        const result =
             item.rank !== "deprecated" &&
             item.mainsnak?.snaktype === "value" &&
-            item.mainsnak?.datavalue?.value != null
-        );
+            item.mainsnak?.datavalue?.value != null;
+        return result;
     });
 
     return String(statement?.mainsnak?.datavalue?.value || "").trim();

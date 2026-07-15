@@ -60,8 +60,19 @@ export function buildPreSaveActions(
     return actions;
 }
 
-/** Builds interwiki and talk-banner pre-save actions. */
-function buildInitialPreSaveActions(form, title, finalTitle): Array<any> {
+/**
+ * Builds interwiki and talk-banner pre-save actions.
+ *
+ * @param form - Form values.
+ * @param title - Page title.
+ * @param finalTitle - Final title value.
+ * @returns Interwiki and talk-banner pre-save actions.
+ */
+function buildInitialPreSaveActions(
+    form: { wikidataId: unknown },
+    title: string,
+    finalTitle: string,
+): Array<unknown> {
     const actions = [createTalkBannerAction(finalTitle)];
     const wikidataId = normalizeTitle(form.wikidataId);
 
@@ -85,11 +96,16 @@ function buildInitialPreSaveActions(form, title, finalTitle): Array<any> {
     return actions;
 }
 
-/** Creates the article talk-banner action. */
-function createTalkBannerAction(title): any {
+/**
+ * Creates the article talk-banner action.
+ *
+ * @param title - Page title.
+ * @returns The article talk-banner action.
+ */
+function createTalkBannerAction(title: unknown): unknown {
     const talkTitle = `Talk:${title}`;
 
-    return {
+    const result = {
         displayLabel: msg("presave.tagBanner", { title: talkTitle }),
         id: "talk-banner",
         label: msg("progress.addTalkBanner", { title: talkTitle }),
@@ -97,10 +113,21 @@ function createTalkBannerAction(title): any {
         selected: true,
         type: "talk-banner",
     };
+    return result;
 }
 
-/** Builds staged page-edit actions from review-row collections. */
-function buildPageEditActions(form): Array<any> {
+/**
+ * Builds staged page-edit actions from review-row collections.
+ *
+ * @param form - Form values.
+ * @returns Staged page-edit actions from review-row collections.
+ */
+function buildPageEditActions(form: {
+    categoryRows: Array<{ pendingEdit: DynamicRecord }>;
+    redirectRows: Array<{ pendingEdit: DynamicRecord }>;
+    navboxRows: Array<{ pendingEdit: DynamicRecord }>;
+    stubTagRows: Array<{ pendingEdit: DynamicRecord }>;
+}): Array<unknown> {
     const collections = [
         form.categoryRows,
         form.redirectRows,
@@ -108,10 +135,11 @@ function buildPageEditActions(form): Array<any> {
         form.stubTagRows,
     ];
 
-    return collections
+    const result = collections
         .flatMap((rows) => rows || [])
         .filter(isPreSavePageEditRow)
         .map((row) => createPageEditAction(row.pendingEdit));
+    return result;
 }
 
 /**
@@ -121,11 +149,11 @@ function buildPageEditActions(form): Array<any> {
  * @returns Whether the category should be staged.
  */
 function isPreSaveCategoryRow(row: any): boolean {
-    return (
+    const result =
         row.enabled !== false &&
         row.pendingCreation != null &&
-        normalizeTitle(row.category) !== ""
-    );
+        normalizeTitle(row.category) !== "";
+    return result;
 }
 
 /**
@@ -138,18 +166,28 @@ function isPreSavePageEditRow(row: any): boolean {
     return isPreSaveRowEnabled(row) && hasCompletePendingEdit(row.pendingEdit);
 }
 
-/** Checks whether a pre-save row is enabled. */
+/**
+ * Checks whether a pre-save row is enabled.
+ *
+ * @param row - Row values.
+ * @returns Whether a pre-save row is enabled.
+ */
 function isPreSaveRowEnabled(row: any): boolean {
     return row.enabled === undefined || row.enabled === true;
 }
 
-/** Checks whether a staged page edit has a title and text. */
+/**
+ * Checks whether a staged page edit has a title and text.
+ *
+ * @param edit - Edit value.
+ * @returns Whether a staged page edit has a title and text.
+ */
 function hasCompletePendingEdit(edit: any): boolean {
-    return (
+    const result =
         Boolean(edit) &&
         normalizeTitle(edit.title).length > 0 &&
-        String(edit.text || "").trim().length > 0
-    );
+        String(edit.text || "").trim().length > 0;
+    return result;
 }
 
 /**
@@ -161,7 +199,7 @@ function hasCompletePendingEdit(edit: any): boolean {
 function createCategoryAction(row: any): any {
     const category = normalizeTitle(row.category);
 
-    return {
+    const result = {
         category,
         company: normalizeTitle(row.company),
         displayLabel: msg("review.createCategoryPage"),
@@ -174,6 +212,7 @@ function createCategoryAction(row: any): any {
         type: "category",
         wikidataId: normalizeTitle(row.pendingCreation.wikidataId),
     };
+    return result;
 }
 
 /**
@@ -191,7 +230,7 @@ function createPageEditAction(edit: any): any {
         displayLabel = msg("presave.createPage");
     }
 
-    return {
+    const result = {
         create,
         displayLabel,
         ...(englishName === "" ? {} : { englishName }),
@@ -206,21 +245,29 @@ function createPageEditAction(edit: any): any {
         title,
         type: "page-edit",
     };
+    return result;
 }
 
-/** Gets the staged page edit summary. */
+/**
+ * Gets the staged page edit summary.
+ *
+ * @param edit - Edit value.
+ * @param title - Page title.
+ * @param create - Create value.
+ * @returns The staged page edit summary.
+ */
 function getPageEditSummary(
     edit: any,
     title: string,
     create: boolean,
 ): string {
-    return (
+    const result =
         normalizeTitle(edit.summary) ||
         msg(
             create ? "presave.createPageSummary" : "presave.updatePageSummary",
             { title },
-        )
-    );
+        );
+    return result;
 }
 
 /**
@@ -236,11 +283,12 @@ export function buildRedirectRows(
     articleTitle: string,
     existingRedirectTitles: Array<any | string> = [],
 ): Array<any> {
-    return buildRedirectRowsFromTitles(
+    const result = buildRedirectRowsFromTitles(
         buildRedirectTitles(form, articleTitle),
         articleTitle,
         existingRedirectTitles,
     );
+    return result;
 }
 
 /**
@@ -258,7 +306,7 @@ export function buildRedirectRowsFromTitles(
 ): Array<any> {
     const existingRows = createExistingTitleRows(existingRedirectTitles);
     const targetKey = normalizeTitleKey(articleTitle);
-    const seen = new Set();
+    const seen = new Set<string>();
 
     const context = { existingRows, seen, targetKey };
     const rows = titles.map(normalizeTitle).flatMap(function callback(title) {
@@ -268,8 +316,21 @@ export function buildRedirectRowsFromTitles(
     return rows;
 }
 
-/** Normalizes one redirect candidate into a unique review row. */
-function normalizeRedirectReviewTitle(title, context): Array<any> {
+/**
+ * Normalizes one redirect candidate into a unique review row.
+ *
+ * @param title - Page title.
+ * @param context - Operation context.
+ * @returns One redirect candidate into a unique review row.
+ */
+function normalizeRedirectReviewTitle(
+    title: string,
+    context: {
+        existingRows: DynamicRecord[];
+        seen: Set<string>;
+        targetKey: string;
+    },
+): Array<unknown> {
     const resolvedTitle = normalizeTitle(title);
     const resolvedKey = normalizeTitleKey(resolvedTitle);
 
@@ -286,7 +347,7 @@ function normalizeRedirectReviewTitle(title, context): Array<any> {
 
     context.seen.add(resolvedKey);
 
-    return [
+    const result = [
         {
             enabled: !exists,
             exists,
@@ -294,6 +355,7 @@ function normalizeRedirectReviewTitle(title, context): Array<any> {
             title: resolvedTitle,
         },
     ];
+    return result;
 }
 
 /**
@@ -313,9 +375,9 @@ export function buildRedirectTitles(
         form.englishName,
         ...getChineseNames(form),
     ];
-    const seen = new Set();
+    const seen = new Set<string>();
 
-    return names.map(normalizeTitle).filter(function callback(title) {
+    const result = names.map(normalizeTitle).filter(function callback(title) {
         const key = normalizeTitleKey(title);
 
         if (key === "" || key === targetKey || seen.has(key)) {
@@ -325,6 +387,7 @@ export function buildRedirectTitles(
         seen.add(key);
         return true;
     });
+    return result;
 }
 
 /**
@@ -341,18 +404,41 @@ function getPreSaveRedirectRows(form: any, articleTitle: string): Array<any> {
         rows = buildRedirectRows(form, articleTitle);
     }
     const targetKey = normalizeTitleKey(articleTitle);
-    const seen = new Set();
+    const seen = new Set<string>();
 
     const context = { seen, targetKey };
-    const normalized = rows.flatMap(function callback(row) {
+    const normalized = rows.flatMap(function callback(row: {
+        title: string;
+        redirectTitle: string;
+        pendingEdit: DynamicRecord | null;
+        enabled: boolean;
+        selected: boolean;
+        exists: boolean;
+    }) {
         return normalizePreSaveRedirectRow(row, context);
     });
 
     return normalized;
 }
 
-/** Normalizes one row into a unique pre-save redirect row. */
-function normalizePreSaveRedirectRow(row, context): Array<any> {
+/**
+ * Normalizes one row into a unique pre-save redirect row.
+ *
+ * @param row - Row values.
+ * @param context - Operation context.
+ * @returns One row into a unique pre-save redirect row.
+ */
+function normalizePreSaveRedirectRow(
+    row: {
+        title: string;
+        redirectTitle: string;
+        pendingEdit: DynamicRecord | null;
+        enabled: boolean;
+        selected: boolean;
+        exists: boolean;
+    },
+    context: { seen: Set<string>; targetKey: string },
+): Array<unknown> {
     const title = normalizeTitle(row.title ?? row.redirectTitle);
     const key = normalizeTitleKey(title);
 
@@ -367,13 +453,14 @@ function normalizePreSaveRedirectRow(row, context): Array<any> {
 
     context.seen.add(key);
 
-    return [
+    const result = [
         {
             enabled: row.enabled !== false && row.selected !== false,
             exists: row.exists === true,
             title,
         },
     ];
+    return result;
 }
 
 /**
@@ -402,7 +489,7 @@ function createRedirectAction(
         label = `Redirect: ${redirectTitle} (page exists)`;
     }
 
-    return {
+    const result = {
         displayLabel,
         id: `redirect:${redirectTitle}`,
         exists,
@@ -413,6 +500,7 @@ function createRedirectAction(
         targetTitle: title,
         type: "redirect",
     };
+    return result;
 }
 
 /**
@@ -436,22 +524,24 @@ function createExistingTitleRow(value: any | string): any {
         const requestedTitle = normalizeTitle(value.requestedTitle);
         const title = normalizeTitle(value.title);
 
-        return {
+        const result = {
             exists: value.exists !== false,
             key: normalizeTitleKey(requestedTitle || title),
             requestedTitle,
             title,
         };
+        return result;
     }
 
     const title = normalizeTitle(value);
 
-    return {
+    const result = {
         exists: true,
         key: normalizeTitleKey(title),
         requestedTitle: title,
         title,
     };
+    return result;
 }
 
 /**
@@ -511,17 +601,15 @@ function getExistenceStatus(exists: boolean): string {
  * @returns Chinese name values.
  */
 function getChineseNames(form: any): Array<string> {
-    return [
-        ...(form.localizedNames || [])
-            .filter(isChineseNameRow)
-            .map((row) => row.name),
-        ...(form.officialNames || [])
-            .filter(isChineseNameRow)
-            .map((row) => row.name),
-        ...(form.commonNames || [])
-            .filter(isChineseNameRow)
-            .map((row) => row.name),
+    const localizedNames: Array<{ name: string }> = form.localizedNames || [];
+    const officialNames: Array<{ name: string }> = form.officialNames || [];
+    const commonNames: Array<{ name: string }> = form.commonNames || [];
+    const result = [
+        ...localizedNames.filter(isChineseNameRow).map((row) => row.name),
+        ...officialNames.filter(isChineseNameRow).map((row) => row.name),
+        ...commonNames.filter(isChineseNameRow).map((row) => row.name),
     ];
+    return result;
 }
 
 /**
@@ -531,10 +619,11 @@ function getChineseNames(form: any): Array<string> {
  * @returns Original title without its language prefix.
  */
 function getOriginalName(value: any): string {
-    return normalizeTitle(value).replace(
+    const result = normalizeTitle(value).replace(
         /^[a-z]{2,3}(?:-[a-z0-9]+)*:\s*/iu,
         "",
     );
+    return result;
 }
 
 /**
@@ -567,8 +656,19 @@ export async function fetchExistingPageTitles(
     return matches;
 }
 
-/** Extracts normalized title lookup collections. */
-function getExistingTitleContext(data): any {
+/**
+ * Extracts normalized title lookup collections.
+ *
+ * @param data - Input data.
+ * @returns Result when the function
+ *   extracts normalized title lookup collections.
+ */
+function getExistingTitleContext(data: {
+    query: {
+        converted: Array<{ from: string; to: string }>;
+        pages: Record<string, { missing?: string; title: string }>;
+    };
+}): { conversionMap: Map<string, string>; existingKeys: Set<string> } {
     const converted = data?.query?.converted || [];
     const conversionMap = new Map<string, string>(
         converted.map(function callback(item) {
@@ -587,8 +687,20 @@ function getExistingTitleContext(data): any {
     return { conversionMap, existingKeys };
 }
 
-/** Creates an existing or converted page-title match. */
-function createExistingPageTitleMatch(title, context): Array<any> {
+/**
+ * Creates an existing or converted page-title match.
+ *
+ * @param title - Page title.
+ * @param context - Operation context.
+ * @returns An existing or converted page-title match.
+ */
+function createExistingPageTitleMatch(
+    title: string,
+    context: {
+        conversionMap: Map<string, string>;
+        existingKeys: Set<string>;
+    },
+): Array<unknown> {
     const requestedKey = normalizeTitleKey(title);
     const convertedTitle = context.conversionMap.get(requestedKey) || title;
     const exists = context.existingKeys.has(normalizeTitleKey(convertedTitle));
@@ -659,15 +771,80 @@ export async function runSelectedActions(
         });
     }
 
-    return {
+    const result = {
         completed,
         failed,
         title: finalTitle,
     };
+    return result;
 }
 
-/** Runs the optional page move before follow-up actions. */
-async function runSelectedMove(from, to, enabled, options): Promise<void> {
+/**
+ * Describes one selectable action performed after saving an article.
+ */
+interface SelectedAction {
+    id: string;
+    selected: boolean;
+    type: string;
+    category?: string;
+    company?: string;
+    englishName?: string;
+    redirectTitle?: string;
+    text?: string;
+    wikidataId?: string;
+}
+
+/**
+ * Carries shared state while selected actions execute.
+ */
+interface SelectedActionContext {
+    completed: SelectedAction[];
+    failed: SelectedAction[];
+    finalTitle: string;
+    options: SelectedActionOptions;
+}
+
+interface SelectedActionOptions {
+    api: mw.Api;
+    move: { leaveRedirect: boolean };
+    onActionComplete?: (action: SelectedAction) => void;
+    onActionFailed?: (action: SelectedAction, error?: unknown) => void;
+    onActionProgressFailed?: () => void;
+    onActionSkipped?: (action: SelectedAction) => void;
+    onActionStart?: (action: SelectedAction) => void;
+    onBeforeWikidataActions?: (result: {
+        completed: SelectedAction[];
+        failed: SelectedAction[];
+        title: string;
+    }) => Promise<void> | void;
+    saveCategory?: CategorySaveHandler;
+    saveCompanyCategory?: CategorySaveHandler;
+}
+
+type CategorySaveHandler = (
+    category: string,
+    text: string,
+    englishName: string,
+    options: { onProgress: (operation: string, status: string) => void },
+) => Promise<void>;
+
+/**
+ * Runs the optional page move before follow-up actions.
+ *
+ * @param from - From value.
+ * @param to - To value.
+ * @param enabled - Enabled value.
+ * @param options - Operation options.
+ */
+async function runSelectedMove(
+    from: string,
+    to: string,
+    enabled: boolean,
+    options: SelectedActionOptions & {
+        onMoveStart?: (title: string) => void;
+        onMoveComplete?: (title: string) => void;
+    },
+): Promise<void> {
     if (!enabled) {
         return;
     }
@@ -679,8 +856,16 @@ async function runSelectedMove(from, to, enabled, options): Promise<void> {
     options.onMoveComplete?.(to);
 }
 
-/** Runs one selected action phase. */
-async function runSelectedActionPhase(phase, context): Promise<void> {
+/**
+ * Runs one selected action phase.
+ *
+ * @param phase - Phase value.
+ * @param context - Operation context.
+ */
+async function runSelectedActionPhase(
+    phase: { type: string; actions: SelectedAction[] },
+    context: SelectedActionContext,
+): Promise<void> {
     if (phase.type === "wikidata") {
         await context.options.onBeforeWikidataActions?.({
             completed: context.completed,
@@ -694,8 +879,16 @@ async function runSelectedActionPhase(phase, context): Promise<void> {
     }
 }
 
-/** Runs one selected action row and records its result. */
-async function runSelectedActionRow(action, context): Promise<void> {
+/**
+ * Runs one selected action row and records its result.
+ *
+ * @param action - Action value.
+ * @param context - Operation context.
+ */
+async function runSelectedActionRow(
+    action: SelectedAction,
+    context: SelectedActionContext,
+): Promise<void> {
     if (isRedirectToFinalTitle(action, context.finalTitle)) {
         action.selected = false;
         context.options.onActionSkipped?.(action);
@@ -719,24 +912,53 @@ async function runSelectedActionRow(action, context): Promise<void> {
     }
 }
 
-/** Checks whether a redirect points to its own final title. */
-function isRedirectToFinalTitle(action, finalTitle): boolean {
-    return (
+/**
+ * Checks whether a redirect points to its own final title.
+ *
+ * @param action - Action value.
+ * @param finalTitle - Final title value.
+ * @returns Whether a redirect points to its own final title.
+ */
+function isRedirectToFinalTitle(
+    action: SelectedAction,
+    finalTitle: string,
+): boolean {
+    const result =
         action.type === "redirect" &&
         normalizeTitleKey(action.redirectTitle) ===
-            normalizeTitleKey(finalTitle)
-    );
+            normalizeTitleKey(finalTitle);
+    return result;
 }
 
-/** Records a completed selected action. */
-function completeSelectedAction(action, context): void {
+/**
+ * Records a completed selected action.
+ *
+ * @param action - Action value.
+ * @param context - Operation context.
+ */
+function completeSelectedAction(
+    action: SelectedAction,
+    context: SelectedActionContext,
+): void {
     action.selected = false;
     context.completed.push(action);
     context.options.onActionComplete?.(action);
 }
 
-/** Records a failed selected action. */
-function failSelectedAction(action, error, progress, context): void {
+/**
+ * Records a failed selected action.
+ *
+ * @param action - Action value.
+ * @param error - Caught error.
+ * @param progress - Progress value.
+ * @param context - Operation context.
+ */
+function failSelectedAction(
+    action: SelectedAction,
+    error: unknown,
+    progress: { failureHandled: boolean },
+    context: SelectedActionContext,
+): void {
     action.selected = false;
     context.failed.push(action);
     if (!progress.failureHandled) {
@@ -759,7 +981,7 @@ function getSelectedActionPhases(actions: Array<any>): Array<any> {
         (action) => action.type === "interwiki",
     );
 
-    return [
+    const result = [
         {
             actions: localActions,
             type: "local",
@@ -769,6 +991,7 @@ function getSelectedActionPhases(actions: Array<any>): Array<any> {
             type: "wikidata",
         },
     ];
+    return result;
 }
 
 /**
@@ -841,8 +1064,16 @@ async function runSelectedAction(action: any, options: any): Promise<void> {
     }
 }
 
-/** Runs a generic or company category action. */
-async function runCategoryAction(action, options): Promise<void> {
+/**
+ * Runs a generic or company category action.
+ *
+ * @param action - Action value.
+ * @param options - Operation options.
+ */
+async function runCategoryAction(
+    action: SelectedAction,
+    options: SelectedActionOptions,
+): Promise<void> {
     let save = options.saveCompanyCategory;
 
     if (normalizeTitle(action.company) === "") {
@@ -854,18 +1085,25 @@ async function runCategoryAction(action, options): Promise<void> {
     }
 
     await save(action.category, action.text, action.englishName, {
-        onProgress(operation, status) {
+        onProgress(operation: string, status: string) {
             reportCategoryActionProgress(action, operation, status, options);
         },
     });
 }
 
-/** Reports progress for work bundled into a category action. */
+/**
+ * Reports progress for work bundled into a category action.
+ *
+ * @param action - Action value.
+ * @param operation - Operation value.
+ * @param status - Status value.
+ * @param options - Operation options.
+ */
 function reportCategoryActionProgress(
-    action,
-    operation,
-    status,
-    options,
+    action: SelectedAction,
+    operation: string,
+    status: string,
+    options: SelectedActionOptions,
 ): void {
     const progressAction = {
         ...action,
@@ -893,7 +1131,7 @@ async function runSelectedActionWithRetry(
     action: any,
     options: any,
 ): Promise<void> {
-    let lastError;
+    let lastError: unknown;
 
     for (let attempt = 1; attempt <= MAX_ACTION_ATTEMPTS; attempt += 1) {
         try {
@@ -1030,7 +1268,13 @@ export async function addTalkPageBanner(
     await api.postWithToken("csrf", params);
 }
 
-/** Fetches the current talk-page wikitext. */
+/**
+ * Fetches the current talk-page wikitext.
+ *
+ * @param api - MediaWiki API client.
+ * @param title - Page title.
+ * @returns The current talk-page wikitext.
+ */
 async function fetchTalkPageText(api: any, title: string): Promise<string> {
     const data = await api.get({
         action: "query",
@@ -1056,10 +1300,9 @@ async function fetchTalkPageText(api: any, title: string): Promise<string> {
  *
  * @param title - Subject-page title.
  * @returns Talk-page banner wikitext.
- *
  */
 function getTalkPageBanner(title: string): string {
-    return selectValue(
+    const result = selectValue(
         /^Category:/iu.test(normalizeTitle(title)),
         function trueBranch() {
             return UNASSESSED_TALK_PAGE_BANNER;
@@ -1068,6 +1311,7 @@ function getTalkPageBanner(title: string): string {
             return TALK_PAGE_BANNER;
         },
     );
+    return result;
 }
 
 /**
@@ -1079,7 +1323,7 @@ function getTalkPageBanner(title: string): string {
 function getTalkPageTitle(title: string): string {
     const categoryMatch = normalizeTitle(title).match(/^Category:(.+)$/iu);
 
-    return selectValue(
+    const result = selectValue(
         categoryMatch == null,
         function trueBranch() {
             return `Talk:${normalizeTitle(title)}`;
@@ -1088,6 +1332,7 @@ function getTalkPageTitle(title: string): string {
             return `Category talk:${categoryMatch[1]}`;
         },
     );
+    return result;
 }
 
 /**
@@ -1097,9 +1342,10 @@ function getTalkPageTitle(title: string): string {
  * @returns Normalized title.
  */
 function normalizeTitle(value: any): string {
-    return String(value || "")
+    const result = String(value || "")
         .trim()
         .replace(/_/gu, " ");
+    return result;
 }
 
 /**

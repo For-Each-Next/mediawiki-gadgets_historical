@@ -1,4 +1,6 @@
-/** Simplified Chinese source catalog for VG Stub Creator. */
+/**
+ * Simplified Chinese source catalog for VG Stub Creator.
+ */
 
 import { i18n } from "#shared";
 import type english from "#stub/i18n/en.ts";
@@ -8,14 +10,8 @@ export default i18n.defineMessages({
         "title": "为“{title}”创建小作品",
         "sourceUrls": "来源网址",
         "moveTitle": "移动到页面名称",
-        // prettier-ignore
-        "movePrompt":
-            "页面名称与当前页面不同。" +
-            "要先移动到该页面名称再预览吗？",
-        // prettier-ignore
-        "moveConflict":
-            "目标页面已存在。" +
-            "打开后可能覆盖现有内容或与之冲突。",
+        "movePrompt": "页面名称与当前页面不同。要先移动到该页面名称再预览吗？",
+        "moveConflict": "目标页面已存在。打开后可能覆盖现有内容或与之冲突。",
         "historyTitle": "表单历史",
         "historyEmpty": "没有已保存的表单历史。",
         "historyData": "历史数据",

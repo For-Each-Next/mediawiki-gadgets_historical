@@ -2,18 +2,16 @@
  * Collects source URLs and provides shared citation fetching.
  */
 
-import { getArticleSourceFields } from "../../domain/article";
-import {
-    buildCiteTemplateFromParts,
-    parseCiteTemplate,
-    sortCitationParams,
-} from "../../../shared/cite";
-import type { CitationStore } from "./citation-store.ts";
+import { getArticleSourceFields } from "#stub/article";
+import type { CitationStore } from "#stub/sources/citation-store.ts";
 import {
     buildNameSourceReferenceKey,
     splitSourceUrls,
     trimFieldValue,
-} from "../../shared/form-values.ts";
+} from "#stub/local/form-values.ts";
+import { cite } from "#shared";
+const { buildCiteTemplateFromParts, parseCiteTemplate, sortCitationParams } =
+    cite;
 
 const NAME_GROUP_KEYS = ["localizedNames", "officialNames", "commonNames"];
 

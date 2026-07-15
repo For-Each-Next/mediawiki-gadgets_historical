@@ -5,6 +5,8 @@
  * redirects.
  */
 
+import { msg } from "#stub/i18n";
+
 const API_ENDPOINT = "/w/api.php";
 const DEFAULT_BATCH_SIZE = 50;
 
@@ -416,7 +418,9 @@ async function fetchTitleQuery(titles, config, options, queryOptions = {}) {
     });
 
     if (!response.ok) {
-        throw new Error(`Title request failed: HTTP ${response.status}`);
+        throw new Error(
+            msg("errors.titleRequestHttp", { status: response.status }),
+        );
     }
 
     return response.json();

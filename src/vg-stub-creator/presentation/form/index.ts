@@ -4,4 +4,4 @@
 
 export { SOURCE_REFERENCE_FIELDS } from "./constants.ts";
 export { createDialogComponent } from "./component.ts";
-export { createPreSaveGroups } from "../pre-save.ts";
+export { createPreSaveGroups } from "#stub/ui/pre-save.ts";

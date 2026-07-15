@@ -5,7 +5,7 @@
  * URLs.
  */
 
-import { trimFieldValue } from "../../shared/form-values.ts";
+import { trimFieldValue } from "#stub/local/form-values.ts";
 
 export const ZHWIKI_API_URL = "https://zh.wikipedia.org/w/api.php";
 export const ZHWIKI_ORIGIN = "https://zh.wikipedia.org";

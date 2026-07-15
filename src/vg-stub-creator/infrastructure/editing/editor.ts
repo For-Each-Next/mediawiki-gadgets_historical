@@ -2,6 +2,8 @@
  * Writes generated content into the MediaWiki edit form.
  */
 
+import { msg } from "#stub/i18n";
+
 /**
  * Replaces the MediaWiki edit textarea with generated wikitext.
  *
@@ -13,7 +15,7 @@ export function writeEditText(text: string): void {
     ) as HTMLTextAreaElement | null;
 
     if (textbox == null) {
-        throw new Error("MediaWiki edit textbox is unavailable.");
+        throw new Error(msg("errors.editorUnavailable"));
     }
 
     textbox.value = text;
@@ -104,7 +106,7 @@ export function submitEditForm(): void {
     const saveButton = document.getElementById("wpSave");
 
     if (editForm == null || saveButton == null) {
-        throw new Error("MediaWiki save form is unavailable.");
+        throw new Error(msg("errors.saveFormUnavailable"));
     }
 
     allowNextSaveSubmit = true;
@@ -122,7 +124,7 @@ export function submitPreviewForm(): void {
     const previewButton = document.getElementById("wpPreview");
 
     if (editForm == null || previewButton == null) {
-        throw new Error("MediaWiki preview form is unavailable.");
+        throw new Error(msg("errors.previewFormUnavailable"));
     }
 
     editForm.requestSubmit(previewButton);

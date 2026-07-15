@@ -3,7 +3,8 @@ import {
     createIconActionLinkTemplate,
     createTableHeaderTemplate,
     createTableTemplate,
-} from "../template.ts";
+} from "#stub/ui/template.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Creates editable NoteTA rows.
@@ -22,7 +23,7 @@ export function createNoteTaGroupTemplate(): any {
                 "form.noteTaRows",
                 createNoteTaSlotsTemplate(),
                 {
-                    caption: "NoteTA items",
+                    caption: msg("noteta.items"),
                 },
             ),
         ],
@@ -36,24 +37,24 @@ export function createNoteTaGroupTemplate(): any {
  */
 function createNoteTaSlotsTemplate(): any {
     return [
-        createTableHeaderTemplate("NoteTA items", [
+        createTableHeaderTemplate(msg("noteta.items"), [
             createIconActionLinkTemplate(
-                "Sort",
+                msg("noteta.sort"),
                 "tableActionIcons.sort",
                 "sortNoteTaRows",
             ),
             createIconActionLinkTemplate(
-                "Reset",
+                msg("common.reset"),
                 "tableActionIcons.regenerate",
                 "regenerateNoteTaRows",
             ),
             createIconActionLinkTemplate(
-                "Remove empty rows",
+                msg("common.clean"),
                 "tableActionIcons.clean",
                 "cleanNoteTaRows",
             ),
             createIconActionLinkTemplate(
-                "Add",
+                msg("common.add"),
                 "tableActionIcons.cdxIconArticleAdd",
                 "addNoteTaRow",
             ),
@@ -71,7 +72,7 @@ function createNoteTaSlotsTemplate(): any {
  */
 function createNoteTaKeySlotTemplate(): any {
     return createInputSlotTemplate("key", {
-        placeholder: "T, G1, 1, or blank",
+        placeholder: msg("noteta.keyPlaceholder"),
         "v-bind:model-value": "row.key",
         "v-on:update:model-value": [
             "updateNoteTaRow(form.noteTaRows.in",
@@ -87,7 +88,7 @@ function createNoteTaKeySlotTemplate(): any {
  */
 function createNoteTaValueSlotTemplate(): any {
     return createInputSlotTemplate("value", {
-        placeholder: "Games or zh-cn:...; zh-tw:...;",
+        placeholder: msg("noteta.valuePlaceholder"),
         "v-bind:model-value": "row.value",
         "v-on:update:model-value": [
             "updateNoteTaRow(form.noteTaRows.in",
@@ -104,7 +105,7 @@ function createNoteTaValueSlotTemplate(): any {
 function createNoteTaActionSlotTemplate(): any {
     return createSlotTemplate("actions", [
         createIconActionLinkTemplate(
-            "Remove",
+            msg("common.remove"),
             "tableActionIcons.remove",
             "removeNoteTaRow(form.noteTaRows.indexOf(row))",
             {

@@ -2,14 +2,11 @@
  * Normalizes form data and flushes registered article modules.
  */
 
-import { trimFieldValue } from "../../shared/form-values.ts";
-import { buildArticleRenderers } from "../wikitext/outputs.ts";
-import { buildArticleProse } from "../wikitext/prose.ts";
-import { ARTICLE_MODULES } from "./modules";
-import {
-    buildReferenceReuseTag,
-    nameCitationReferences,
-} from "../../../shared/cite";
+import { trimFieldValue } from "#stub/local/form-values.ts";
+import { buildArticleProse, buildArticleRenderers } from "#stub/wiki";
+import { ARTICLE_MODULES } from "#stub/modules";
+import { cite } from "#shared";
+const { buildReferenceReuseTag, nameCitationReferences } = cite;
 
 /**
  * Creates normalized article data and compatibility parameters.

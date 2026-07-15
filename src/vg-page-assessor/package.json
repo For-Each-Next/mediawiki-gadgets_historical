@@ -1,11 +1,21 @@
 {
     "name": "vg-page-assessor",
-    "version": "1.0.0-rc.6",
+    "version": "1.0.0-rc.7",
     "description": "Assess Chinese Wikipedia video game talk pages and register pages on the WikiProject new-page list.",
     "private": true,
     "license": "CC BY-SA 4.0",
     "author": "For Each ... Next",
     "type": "module",
+    "imports": {
+        "#assessor/app/*": "./application/*",
+        "#assessor/config/*": "./config/*",
+        "#assessor/domain/*": "./domain/*",
+        "#assessor/i18n": "./i18n/index.ts",
+        "#assessor/i18n/*": "./i18n/*",
+        "#assessor/infra/*": "./infrastructure/*",
+        "#assessor/ui/*": "./presentation/*",
+        "#shared": "@mediawiki-gadgets/shared"
+    },
     "main": "./index.ts",
     "browser": "./index.ts",
     "gadgetBuild": {
@@ -31,6 +41,7 @@
         "config",
         "domain",
         "infrastructure",
+        "i18n",
         "presentation"
     ],
     "keywords": [

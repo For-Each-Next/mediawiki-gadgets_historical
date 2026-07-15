@@ -4,7 +4,9 @@ import {
     createElement,
     createFieldTemplate,
     createMessageTemplate,
-} from "./template.ts";
+    toVueString,
+} from "#stub/ui/template.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Creates the editable generated wikitext preview dialog.
@@ -59,7 +61,7 @@ function createPreviewFooterActions(): any {
 function createPreviewDismissButton(): any {
     return createButtonTemplate({
         click: "closePreviewDialog",
-        label: "Dismiss",
+        label: msg("preview.dismiss"),
         weight: "quiet",
     });
 }
@@ -73,10 +75,9 @@ function createPreviewRefreshButton(): any {
     return createRefreshButton({
         click: "refreshParsedPreview",
         disabled: "sourceFetchState.loading",
-        label: [
-            "{{ sourceFetchState.loading ? 'Upd",
-            "ating' : 'Update preview' }}",
-        ].join(""),
+        label: `{{ sourceFetchState.loading ? ${toVueString(
+            msg("preview.updating"),
+        )} : ${toVueString(msg("preview.updatePreview"))} }}`,
     });
 }
 
@@ -89,7 +90,7 @@ function createPreviewContinueButton(): any {
     return createPrimaryButton({
         click: "submitPreviewText",
         disabled: "sourceFetchState.loading || !previewText.trim()",
-        label: "Continue",
+        label: msg("preview.continue"),
     });
 }
 
@@ -103,7 +104,7 @@ function createPreviewContinueButton(): any {
  */
 function createEditSummaryInput(options: any): any {
     return createFieldTemplate(
-        "Edit summary",
+        msg("preview.editSummary"),
         [
             createElement("cdx-text-input", {
                 "v-bind:disabled": options.disabled || "false",
@@ -128,11 +129,7 @@ export function createPageEditDialogTemplate(): any {
         "cdx-dialog",
         {
             class: "vg-stub-creator-preview-dialog",
-            "v-bind:title": [
-                "(pageEditState.create ? 'Create ' ",
-                ": 'Modify ') + '\\'' + pageEditSta",
-                "te.title + '\\''",
-            ].join(""),
+            "v-bind:title": "getPageEditDialogTitle()",
             "v-if": "pageEditOpen",
             "v-model:open": "pageEditOpen",
         },
@@ -177,7 +174,7 @@ function createPageEditFooterActions(): any {
 function createPageEditCancelButton(): any {
     return createButtonTemplate({
         click: "closePageEditDialog",
-        label: "Cancel",
+        label: msg("preview.cancel"),
         weight: "quiet",
     });
 }
@@ -191,10 +188,9 @@ function createPageEditRefreshButton(): any {
     return createRefreshButton({
         click: "refreshPageEditPreview",
         disabled: "pageEditState.loading",
-        label: [
-            "{{ pageEditState.loading ? 'Updati",
-            "ng' : 'Update preview' }}",
-        ].join(""),
+        label: `{{ pageEditState.loading ? ${toVueString(
+            msg("preview.updating"),
+        )} : ${toVueString(msg("preview.updatePreview"))} }}`,
     });
 }
 
@@ -208,7 +204,7 @@ function createPageEditResetButton(): any {
         action: "destructive",
         click: "resetPageEdit",
         disabled: "pageEditState.loading",
-        label: "Reset",
+        label: msg("common.reset"),
         show: "pageEditState.pending",
     });
 }
@@ -222,7 +218,7 @@ function createPageEditStageButton(): any {
     return createPrimaryButton({
         click: "stagePageEdit",
         disabled: "pageEditState.loading || !pageEditState.text.trim()",
-        label: "Stage",
+        label: msg("preview.stage"),
     });
 }
 
@@ -283,17 +279,10 @@ function createSourceTextArea(options: any): any {
  * @returns English page field node.
  */
 function createEnglishPageField(): any {
-    const label = [
-        "{{ pageEditState.kind === 'navbox'",
-        " ? 'English Wikipedia template' : ",
-        "'English Wikipedia category' }}",
-    ].join("");
+    const label = "getPageEditEnglishLabel()";
     const input = createElement("cdx-text-input", {
         "v-bind:disabled": "pageEditState.loading",
-        "v-bind:placeholder": [
-            "pageEditState.kind === 'navbox' ? ",
-            "'e.g. Template:Final Fantasy series' : 'e.g. Action games'",
-        ].join(""),
+        "v-bind:placeholder": "getPageEditEnglishPlaceholder()",
         "v-model": "pageEditState.englishName",
     });
     const condition = [
@@ -302,7 +291,7 @@ function createEnglishPageField(): any {
     ].join("");
     const field = createFieldTemplate(label, [input], {
         attributes: { "v-if": condition },
-        bindLabel: false,
+        bindLabel: true,
     });
 
     return field;

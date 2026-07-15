@@ -2,7 +2,8 @@
  * Fetches localized official game names from Steam citations.
  */
 
-import { trimFieldValue } from "../../shared/form-values.ts";
+import { trimFieldValue } from "#stub/local/form-values.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Fetches localized Steam names.
@@ -34,12 +35,12 @@ export async function fetchSteamNameRows(
 function buildSteamLanguages(includeJapanese: boolean): Record<string, any>[] {
     const languages: Record<string, any>[] = [
         {
-            label: "Simplified",
+            label: msg("names.simplifiedFull"),
             language: "schinese",
             markets: ["hans"],
         },
         {
-            label: "Traditional",
+            label: msg("names.traditionalFull"),
             language: "tchinese",
             markets: ["hant"],
         },
@@ -47,7 +48,7 @@ function buildSteamLanguages(includeJapanese: boolean): Record<string, any>[] {
 
     if (includeJapanese) {
         languages.push({
-            label: "Japanese",
+            label: msg("names.japanese"),
             language: "japanese",
             markets: [],
             previewOnly: true,
@@ -101,7 +102,7 @@ function getSteamAppId(sourceUrl: string): string {
     const match = trimFieldValue(sourceUrl).match(/\/app\/(\d+)(?:[/?#]|$)/u);
 
     if (match == null) {
-        throw new Error("Enter a Steam app URL.");
+        throw new Error(msg("errors.steamUrl"));
     }
 
     return match[1];

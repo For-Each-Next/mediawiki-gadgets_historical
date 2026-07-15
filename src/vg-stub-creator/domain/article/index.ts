@@ -10,8 +10,8 @@ export {
 } from "./processor.ts";
 export { createDataRecord, createDataValue } from "./data-record.ts";
 export { defineArticleModule } from "./module.ts";
-export { ARTICLE_MODULES } from "./modules";
-export { buildArticleProse } from "../wikitext/prose.ts";
+export { ARTICLE_MODULES } from "#stub/modules";
+export { buildArticleProse } from "#stub/wiki";
 export type {
     AggregateScoreMetadata,
     AggregateScoreRecord,

@@ -1,16 +1,4 @@
-/**
- * Mounts the talk assessment gadget.
- */
-
-import {
-    createElement,
-    createEscapedText,
-    replaceElementContent,
-    renderTemplate,
-    type TemplateElement,
-    type TemplateNode,
-} from "../../shared";
-import { interfaceLocale, msg } from "../config/locales";
+import { interfaceLocale, msg } from "#assessor/i18n";
 import {
     CLASS_VALUES,
     IMPORTANCE_VALUES,
@@ -21,13 +9,13 @@ import {
     isEmptyImportanceOnlyChange,
     previewTalkPageTopSection,
     shouldRegisterByDefault,
-} from "../domain/assessment.ts";
+} from "#assessor/domain/assessment.ts";
 import {
     fetchPageCreationTimes,
     fetchSubjectPageInfo,
     fetchPageText,
     saveTalkAssessment,
-} from "../infrastructure/mediawiki-api.ts";
+} from "#assessor/infra/mediawiki-api.ts";
 import {
     buildLineComparison,
     buildNewPageListSummary,
@@ -35,9 +23,18 @@ import {
     getTitlesForDate,
     prepareNewPageListRegistration,
     savePreparedNewPageList,
-} from "../application/new-page-list.ts";
-import { logStep } from "../infrastructure/logger.ts";
-import projectConfig from "../config/project-config.ts";
+} from "#assessor/app/new-page-list.ts";
+import { logStep } from "#assessor/infra/logger.ts";
+import projectConfig from "#assessor/config/project-config.ts";
+import { html } from "#shared";
+const {
+    createElement,
+    createEscapedText,
+    replaceElementContent,
+    renderTemplate,
+} = html;
+type TemplateElement = html.TemplateElement;
+type TemplateNode = html.TemplateNode;
 
 const PROJECT_CONFIG = projectConfig;
 const DIALOG_CSS = __ASSESS_VG_PAGE_DIALOG_CSS__;
@@ -1304,16 +1301,13 @@ function buildEditSummary(assessment: any): string {
     const summary = selectValue(
         banners.length === 0,
         function trueBranch() {
-            return "Tag project banners";
+            return msg("summary.tagProjects");
         },
         function falseBranch() {
-            return [
-                "Tag project banners (",
+            return msg("summary.tagProjectsWithClass", {
                 className,
-                "): ",
-                banners.join(", "),
-                "",
-            ].join("");
+                projects: banners.join(", "),
+            });
         },
     );
 
@@ -1327,7 +1321,24 @@ function buildEditSummary(assessment: any): string {
  * @returns Video games summary fragment.
  */
 function buildVideoGamesSummary(assessment: any): string {
-    const details = [];
+    const details = buildVideoGamesSummaryDetails(assessment);
+
+    return selectValue(
+        details.length === 0,
+        function trueBranch() {
+            return msg("summary.videoGames");
+        },
+        function falseBranch() {
+            return msg("summary.videoGamesWithDetails", {
+                details: details.join("; "),
+            });
+        },
+    );
+}
+
+/** Builds the selected Video games summary details. */
+function buildVideoGamesSummaryDetails(assessment: any): Array<string> {
+    const details: Array<string> = [];
     const taskForces = getSelectedLabels(
         PROJECT_CONFIG.videoGames.taskForces,
         assessment.taskForces,
@@ -1338,7 +1349,11 @@ function buildVideoGamesSummary(assessment: any): string {
     );
 
     if (assessment.importance) {
-        details.push(`${assessment.importance}-importance`);
+        details.push(
+            msg("summary.importance", {
+                importance: assessment.importance,
+            }),
+        );
     }
 
     if (taskForces.length > 0) {
@@ -1349,15 +1364,7 @@ function buildVideoGamesSummary(assessment: any): string {
         details.push(maintenance.join(", "));
     }
 
-    return selectValue(
-        details.length === 0,
-        function trueBranch() {
-            return "Video games";
-        },
-        function falseBranch() {
-            return `Video games (${details.join("; ")})`;
-        },
-    );
+    return details;
 }
 
 /**
@@ -1477,7 +1484,7 @@ async function saveDialogTalkPage(dialog, state, options): Promise<void> {
         options.summary || DEFAULT_EDIT_SUMMARY,
     );
 
-    setStatus(dialog, msg("status.saved"), false);
+    setStatus(dialog, msg("dialog.saved"), false);
     logStep("saveDialog done");
 }
 

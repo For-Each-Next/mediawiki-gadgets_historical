@@ -1,15 +1,12 @@
-/**
- * Builds and resolves category review data.
- */
-
-import { uniqueValues } from "../../../shared";
-import { getDefinitionCollections } from "../../domain/terminologies";
+import { getDefinitionCollections } from "#stub/terms";
 import {
     normalizeTitleKey,
     resolvePageTitles,
     stripNamespace,
-} from "./title-resolver.ts";
-import { sortCategoryRowsByProse } from "../../domain/wikitext";
+} from "#stub/handlers/title-resolver.ts";
+import { sortCategoryRowsByProse } from "#stub/wiki";
+import { wikitext } from "#shared";
+const { uniqueValues } = wikitext;
 
 const CATEGORY_NAMESPACE = "Category";
 const CATEGORY_REDIRECT_PROPS = [

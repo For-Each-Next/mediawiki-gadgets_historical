@@ -5,7 +5,8 @@ import {
     createTableHeaderTemplate,
     createTableTemplate,
     createText,
-} from "../template.ts";
+} from "#stub/ui/template.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Creates the editable citation management template node.
@@ -24,7 +25,7 @@ export function createCitationGroupTemplate(): any {
                 {
                     "v-if": "form.citationRows.length === 0",
                 },
-                [createText("Add source URLs to article fields.")],
+                [createText(msg("references.empty"))],
             ),
             createCitationTabsTemplate(),
             createMessageTemplate(
@@ -110,12 +111,9 @@ function createCitationParamSlotsTemplate(): any {
 
 /** Creates citation-table header actions. */
 function createCitationHeaderActions(): Array<any> {
-    const refetchTitle = [
-        "Re-fetch citation template data an",
-        "d overwrite edited parameters",
-    ].join("");
+    const refetchTitle = [msg("references.refetch")].join("");
     const refetch = createIconActionLinkTemplate(
-        "Re-fetch",
+        msg("references.refetchAction"),
         "tableActionIcons.regenerate",
         "refetchCitation(citationIndex)",
         {
@@ -124,12 +122,12 @@ function createCitationHeaderActions(): Array<any> {
         },
     );
     const clean = createIconActionLinkTemplate(
-        "Remove empty rows",
+        msg("common.clean"),
         "tableActionIcons.clean",
         "cleanCitationParams(citationIndex)",
     );
     const add = createIconActionLinkTemplate(
-        "Add parameter",
+        msg("references.addParameter"),
         "tableActionIcons.cdxIconArticleAdd",
         "addCitationParam(citationIndex)",
     );
@@ -144,7 +142,7 @@ function createCitationHeaderActions(): Array<any> {
  */
 function createCitationNameSlotTemplate(): any {
     return createInputSlotTemplate("name", {
-        placeholder: "Field name",
+        placeholder: msg("references.parameterName"),
         "v-bind:model-value": "row.param.name",
         "v-on:change": "sortCitation(citationIndex)",
         "v-on:update:model-value": [
@@ -161,7 +159,7 @@ function createCitationNameSlotTemplate(): any {
  */
 function createCitationValueSlotTemplate(): any {
     return createInputSlotTemplate("value", {
-        placeholder: "Value",
+        placeholder: msg("common.value"),
         "v-bind:model-value": "row.param.value",
         "v-on:change": "sortCitation(citationIndex)",
         "v-on:update:model-value": [
@@ -179,7 +177,7 @@ function createCitationValueSlotTemplate(): any {
 function createCitationActionSlotTemplate(): any {
     return createSlotTemplate("actions", [
         createIconActionLinkTemplate(
-            "Reset",
+            msg("common.reset"),
             "tableActionIcons.regenerate",
             "resetCitationParam(citationIndex, row.index)",
             {
@@ -187,7 +185,7 @@ function createCitationActionSlotTemplate(): any {
             },
         ),
         createIconActionLinkTemplate(
-            "Remove",
+            msg("common.remove"),
             "tableActionIcons.remove",
             "removeCitationParam(citationIndex, row.index)",
             {

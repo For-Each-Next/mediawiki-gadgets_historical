@@ -2,6 +2,8 @@
  * Stores and restores vg-stub-creator form history.
  */
 
+import { msg } from "#stub/i18n";
+
 const HISTORY_LIMIT = 20;
 const HISTORY_STORAGE_KEY = "vg-stub-creator-form-history";
 const DRAFT_STORAGE_KEY = "vg-stub-creator-form-draft";
@@ -198,7 +200,7 @@ function createFormHistoryEntry(form: any, page: string, citations: any): any {
                 normalizePage(page) ||
                 normalizePage(snapshot.pageName) ||
                 normalizePage(snapshot.name) ||
-                "(untitled)",
+                msg("history.untitled"),
             savedAt: new Date().toLocaleString(),
         },
     };
@@ -572,7 +574,7 @@ function readFormDraftSavedAt(): string {
     try {
         return JSON.parse(localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY));
     } catch (_error) {
-        return "Temporary draft";
+        return msg("history.temporaryDraft");
     }
 }
 

@@ -1,18 +1,11 @@
-/**
- * Resolves series navbox templates for generated video game stubs.
- */
-
-import {
-    splitLookupFieldValues,
-    trimValue,
-    uniqueValues,
-} from "../../../shared";
-import { formatText } from "../../domain/wikitext/text-templates.ts";
+import { formatText } from "#stub/wiki";
 import {
     normalizeTitleKey,
     resolvePageTitles,
     stripNamespace,
-} from "./title-resolver.ts";
+} from "#stub/handlers/title-resolver.ts";
+import { wikitext } from "#shared";
+const { splitLookupFieldValues, trimValue, uniqueValues } = wikitext;
 
 const TEMPLATE_NAMESPACE = "Template";
 

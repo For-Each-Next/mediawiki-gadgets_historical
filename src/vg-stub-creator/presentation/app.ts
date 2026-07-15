@@ -8,7 +8,7 @@
 import {
     createManualCategoryRow,
     updateCategoryRowCategory,
-} from "../infrastructure/handlers/categories.ts";
+} from "#stub/handlers/categories.ts";
 import {
     buildStubFromForm as buildArticleStubFromForm,
     flushArticleData as createArticleData,
@@ -17,17 +17,17 @@ import {
     getFormProseSinographs as countFormProseSinographs,
     prepareCategoryRows,
     prepareNavboxRows,
-} from "../application/workflow.ts";
-import { createCategoryCacheStore } from "../infrastructure/handlers";
+} from "#stub/app/workflow.ts";
+import { createCategoryCacheStore } from "#stub/handlers";
 import {
     prepareCompanyCategoryText,
     saveCategoryPage,
     saveCompanyCategory,
-} from "../infrastructure/handlers/category-pages.ts";
-import { createDialogComponent } from "./form";
-import { getBasePageTitle } from "./form/helpers.ts";
-import { addDialogStyles } from "./styles.ts";
-import { trimFieldValue } from "../shared/form-values.ts";
+} from "#stub/handlers/category-pages.ts";
+import { createDialogComponent } from "#stub/form";
+import { getBasePageTitle } from "#stub/form/helpers.ts";
+import { addDialogStyles } from "#stub/ui/styles.ts";
+import { trimFieldValue } from "#stub/local/form-values.ts";
 import {
     clearFormHistory,
     deleteFormHistoryEntry,
@@ -36,8 +36,8 @@ import {
     readFormHistory,
     saveFormDraft,
     saveFormHistory,
-} from "./history.ts";
-import { fetchEnwikiMetadata } from "../infrastructure/sources/crosswiki.ts";
+} from "#stub/ui/history.ts";
+import { fetchEnwikiMetadata } from "#stub/sources/crosswiki.ts";
 import {
     clearMovedEdit,
     clearPendingSaveData,
@@ -48,7 +48,7 @@ import {
     normalizePageTitle,
     storeMovedEdit,
     storePreviewFormData,
-} from "../infrastructure/editing/session.ts";
+} from "#stub/editing/session.ts";
 import {
     interceptEditSave,
     readEditSummary,
@@ -58,9 +58,9 @@ import {
     submitPreviewForm,
     writeEditSummary,
     writeEditText,
-} from "../infrastructure/editing/editor.ts";
-import { buildEditSummary } from "../infrastructure/editing/summary.ts";
-import { updateMovedTitleText } from "../infrastructure/editing/title-move.ts";
+} from "#stub/editing/editor.ts";
+import { buildEditSummary } from "#stub/editing/summary.ts";
+import { updateMovedTitleText } from "#stub/editing/title-move.ts";
 import {
     buildPreSaveActions,
     buildRedirectRows,
@@ -69,31 +69,33 @@ import {
     fetchExistingPageTitles,
     getRedirectTitleCheckTitles,
     runSelectedActions,
-} from "../infrastructure/editing/pre-save.ts";
-import { registerNewPage } from "../infrastructure/handlers/new-page-list.ts";
+} from "#stub/editing/pre-save.ts";
+import { registerNewPage } from "#stub/handlers/new-page-list.ts";
 import {
     addEnwikiCreateTrigger,
     addMissingPageEditTrigger,
     addViewPageTrigger,
-} from "./page-trigger.ts";
-import { serializeElementContent } from "../../shared";
+} from "#stub/ui/page-trigger.ts";
 import {
     failSaveProgress,
     reportSaveProgressError,
     setSaveProgressStep,
-} from "../infrastructure/save/controller.ts";
-import { SAVE_PROGRESS_STORAGE_KEY } from "../infrastructure/save/progress.ts";
+} from "#stub/save/controller.ts";
+import { SAVE_PROGRESS_STORAGE_KEY } from "#stub/save/progress.ts";
 import {
     createCitationStore,
     prepareManagedCitationRows,
-} from "../infrastructure/sources";
-import { fetchSteamNameRows } from "../infrastructure/sources/steam-names.ts";
+} from "#stub/sources";
+import { fetchSteamNameRows } from "#stub/sources/steam-names.ts";
 import {
     ZHWIKI_API_URL,
     buildZhwikiCreationUrl,
     readZhwikiActivationForm,
     resolveZhwikiCreationTitle,
-} from "../infrastructure/sources/zhwiki-activation.ts";
+} from "#stub/sources/zhwiki-activation.ts";
+import { msg } from "#stub/i18n";
+import { html } from "#shared";
+const { serializeElementContent } = html;
 
 const CITATION_PREFETCH_DELAY = 800;
 const WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php";
@@ -327,7 +329,9 @@ async function parseNativePreviewText(
     );
 
     if (!response.ok) {
-        throw new Error(`MediaWiki preview failed: HTTP ${response.status}`);
+        throw new Error(
+            msg("errors.previewHttp", { status: response.status }),
+        );
     }
 
     return extractNativePreviewHtml(await response.text());
@@ -373,7 +377,7 @@ function extractNativePreviewHtml(html: string): string {
     const preview = doc.querySelector("#wikiPreview");
 
     if (preview == null) {
-        throw new Error("MediaWiki preview output was not found.");
+        throw new Error(msg("errors.previewMissing"));
     }
 
     const parserOutput = selectValue(
@@ -433,7 +437,7 @@ async function fetchPageText(title: string): Promise<string> {
     const revision = page?.revisions?.[0];
 
     if (page == null || page.missing != null || revision == null) {
-        throw new Error(`Unable to read ${title}.`);
+        throw new Error(msg("errors.unableRead", { title }));
     }
 
     return (
@@ -1523,10 +1527,12 @@ function formatPendingActionFailures(actions: Array<any>): string {
         .filter((label) => trimFieldValue(label) !== "");
 
     if (labels.length === 0) {
-        return "Some follow-up actions failed after 3 attempts.";
+        return msg("errors.followUpFailed");
     }
 
-    return `Failed after 3 attempts: ${labels.join("; ")}`;
+    return msg("errors.followUpFailedDetails", {
+        actions: labels.join("; "),
+    });
 }
 
 const currentAction = mw.config.get("wgAction");

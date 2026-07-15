@@ -9,7 +9,7 @@ import {
     loggedApiGet,
     loggedPostWithToken,
     logStep,
-} from "../infrastructure/logger.ts";
+} from "#assessor/infra/logger.ts";
 
 export const NEW_PAGE_LIST_TITLE = "WikiProject:电子游戏/新进条目";
 

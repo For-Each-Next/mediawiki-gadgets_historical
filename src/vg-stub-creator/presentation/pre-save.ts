@@ -2,14 +2,16 @@
  * Builds the pre-save review dialog UI.
  */
 
-import { trimFieldValue } from "../shared/form-values.ts";
+import { trimFieldValue } from "#stub/local/form-values.ts";
 import {
     createActionFooterTemplate,
     createButtonTemplate,
     createElement,
     createMessageTemplate,
     createText,
-} from "./template.ts";
+    toVueString,
+} from "#stub/ui/template.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Groups pre-save fixes by the page they will edit.
@@ -94,7 +96,7 @@ function addArticleRegistrationGroup(groups, byTitle, actions, form): void {
 
     getPreSaveGroup(groups, byTitle, title).rows.push({
         key: "register-new-page",
-        label: "Register on WikiProject new-page list",
+        label: msg("progress.registerNewPage"),
         type: "registration",
     });
 }
@@ -116,7 +118,7 @@ function addCompanyRegistrationGroups(groups, byTitle, actions, form): void {
 
         getPreSaveGroup(groups, byTitle, title).rows.push({
             key: `${action.id}:register-new-page`,
-            label: "Register on WikiProject new-page list",
+            label: msg("progress.registerNewPage"),
             type: "registration",
         });
     }
@@ -181,7 +183,9 @@ function getPreSaveActionNotes(action: any): Array<any> {
     const notes = [
         {
             key: "talk-banner",
-            label: `Tag banner on [[Category talk:${category}]]`,
+            label: msg("presave.tagBanner", {
+                title: `Category talk:${category}`,
+            }),
         },
     ];
 
@@ -190,12 +194,12 @@ function getPreSaveActionNotes(action: any): Array<any> {
     if (wikidataId !== "") {
         notes.push({
             key: "wikidata",
-            label: `Connect to [[d:${wikidataId}]]`,
+            label: msg("presave.connectTo", { target: `d:${wikidataId}` }),
         });
     } else if (trimFieldValue(action.englishName) !== "") {
         notes.push({
             key: "wikidata",
-            label: "Connect matching Wikidata category item",
+            label: msg("progress.connectCategory"),
         });
     }
 
@@ -297,7 +301,7 @@ export function createPreSaveDialogTemplate(): any {
         "cdx-dialog",
         {
             "v-model:open": "preSaveOpen",
-            title: "Pre-save fixes",
+            title: msg("presave.title"),
         },
         [
             createPreSaveIntroTemplate(),
@@ -317,13 +321,9 @@ export function createPreSaveDialogTemplate(): any {
 function createPreSaveIntroTemplate(): any {
     return createElement("p", {}, [
         createText(
-            [
-                "{{ preSaveProgress == null ? 'Choo",
-                "se fixes to run after the article ",
-                "is submitted.' : 'Running selected",
-                " fixes after the article is submit",
-                "ted.' }}",
-            ].join(""),
+            `{{ preSaveProgress == null ? ${toVueString(
+                msg("presave.description"),
+            )} : ${toVueString(msg("presave.running"))} }}`,
         ),
     ]);
 }
@@ -515,7 +515,7 @@ function createPreSaveCloseButtonTemplate(): any {
     return createButtonTemplate({
         click: "preSaveOpen = false",
         disabled: "sourceFetchState.loading",
-        label: "Close",
+        label: msg("common.close"),
         weight: "quiet",
     });
 }
@@ -530,7 +530,9 @@ function createPreSaveSubmitButtonTemplate(): any {
         action: "progressive",
         click: "confirmSubmit",
         disabled: "sourceFetchState.loading || preSaveProgress != null",
-        label: "{{ sourceFetchState.loading ? 'Preparing' : 'Save' }}",
+        label: `{{ sourceFetchState.loading ? ${toVueString(
+            msg("presave.preparing"),
+        )} : ${toVueString(msg("common.save"))} }}`,
         weight: "primary",
     });
 }

@@ -6,7 +6,8 @@ import {
     createSourceUrlInputTemplate,
     createTableTemplate,
     createText,
-} from "../template.ts";
+} from "#stub/ui/template.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Creates the article field group template node.
@@ -104,7 +105,7 @@ function createMetadataFieldTableTemplate(): any {
         createMetadataFieldTableSlotsTemplate(),
         {
             class: "vg-stub-creator-metadata-table",
-            caption: "Metadata fields",
+            caption: msg("metadata.fields"),
         },
     );
 }
@@ -132,7 +133,7 @@ function createMetadataFieldTableSlotsTemplate(): Array<any> {
 /** Creates the metadata field source-input slot. */
 function createMetadataSourceSlotTemplate(): any {
     const input = createSourceUrlInputTemplate({
-        placeholder: "Source URLs",
+        placeholder: msg("form.sourceUrls"),
         model: "form[row.field.sourceField.sourceKey]",
         change: "trimSourceValue(row.field.sourceField)",
         update: "updateSourceValue(row.field.sourceField, $event)",
@@ -215,7 +216,7 @@ function createGroupedFieldTemplate(): any {
  */
 function createMetadataPreviewTemplate(): any {
     return createPreviewCardTemplate(
-        "Wikitext preview",
+        msg("preview.wikitext"),
         "getGroupPreview(group)",
         {
             condition: "group.previewKey && getGroupPreview(group)",
@@ -230,11 +231,11 @@ function createMetadataPreviewTemplate(): any {
  */
 function createFullTextPreviewTemplate(): any {
     return createPreviewCardTemplate(
-        "Full text review",
+        msg("preview.fullText"),
         "getProseWikitext()",
         {
             condition: "group.fullTextReview && getProseWikitext()",
-            description: "getProseSinographs() + ' equivalent sinographs'",
+            description: "getProseReviewDescription()",
         },
     );
 }
@@ -388,7 +389,7 @@ function createSourceUrlFieldOptions(): any {
     return {
         change: "trimSourceValue(field.sourceField)",
         model: "form[field.sourceField.sourceKey]",
-        placeholder: "Source URLs",
+        placeholder: msg("form.sourceUrls"),
         update: "updateSourceValue(field.sourceField, $event)",
     };
 }
@@ -402,7 +403,7 @@ function createMovePageButtonTemplate(): any {
     return createButtonTemplate({
         click: "openMoveDialog",
         disabled: "sourceFetchState.loading",
-        label: "Move",
+        label: msg("text.move"),
         show: "field.key === 'pageName' && canMovePageName()",
     });
 }
@@ -462,7 +463,7 @@ function createEnwikiHelpTextTemplate(): Array<any | string> {
             {
                 "v-else": "",
             },
-            [createText("Wikidata: {{ getWikidataText() }}")],
+            [createText("{{ getWikidataStatusText() }}")],
         ),
     ];
 }

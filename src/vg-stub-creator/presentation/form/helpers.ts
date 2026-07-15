@@ -8,17 +8,19 @@ import {
     NOTE_TA_NAMES_SOURCE,
     SOURCE_REFERENCE_FIELDS,
     STEAM_NAME_HELPER_ROW,
-} from "./constants.ts";
+} from "#stub/form/constants.ts";
 import {
     parsePrefixedValue,
     trimFieldValue,
-} from "../../shared/form-values.ts";
-import { getEnteredSourceUrls } from "../../infrastructure/sources";
-import { sortCitationParams } from "../../../shared/cite";
+} from "#stub/local/form-values.ts";
+import { getEnteredSourceUrls } from "#stub/sources";
 import {
     buildOfficialNameConversionText,
     sortNoteTaEntries,
-} from "../../domain/wikitext/note-ta.ts";
+} from "#stub/wiki";
+import { msg } from "#stub/i18n";
+import { cite } from "#shared";
+const { sortCitationParams } = cite;
 
 /**
  * Marks a localized-name row as inserted by the Steam helper.
@@ -56,7 +58,7 @@ export function formatCategorySourceLabel(source: string): string {
 export function formatCategorySourceTitle(source: string): string {
     const { label, modified } = getCategorySourceDisplay(source);
 
-    return modified ? `${label} (modified)` : label;
+    return modified ? msg("review.modified", { label }) : label;
 }
 
 /**
@@ -70,10 +72,10 @@ export function getCategorySourceDisplay(source: string): any {
     const modified = value.endsWith("†");
     const base = modified ? value.replace(/\s*†$/u, "") : value;
     const labels = {
-        found: "Found",
-        known: "Known",
-        manual: "Manual",
-        suggested: "Suggested",
+        found: msg("review.found"),
+        known: msg("review.known"),
+        manual: msg("review.manual"),
+        suggested: msg("review.suggested"),
     };
     const label = labels[base] || base;
 
@@ -856,14 +858,14 @@ export function createBlankEnwikiMetadata(): any {
  */
 export function getWikidataLookupStatus(pageExists: boolean | null): string {
     if (pageExists === false) {
-        return "no enwiki page";
+        return msg("metadata.noEnwikiPage");
     }
 
     if (pageExists === true) {
-        return "not connected";
+        return msg("metadata.notConnected");
     }
 
-    return "lookup failed";
+    return msg("metadata.lookupFailed");
 }
 
 /**

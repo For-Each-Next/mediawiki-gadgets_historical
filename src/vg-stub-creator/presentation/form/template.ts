@@ -5,9 +5,9 @@
 import {
     createPageEditDialogTemplate,
     createPreviewDialogTemplate,
-} from "../source-preview.ts";
-import { createTabsTemplate } from "../main";
-import { createPreSaveDialogTemplate } from "../pre-save.ts";
+} from "#stub/ui/source-preview.ts";
+import { createTabsTemplate } from "#stub/main";
+import { createPreSaveDialogTemplate } from "#stub/ui/pre-save.ts";
 import {
     createActionFooterTemplate,
     createButtonTemplate,
@@ -16,8 +16,10 @@ import {
     createMessageTemplate,
     createText,
     renderTemplate,
-} from "../template.ts";
-import { DIALOG_BODY_MASK_CLASS } from "./constants.ts";
+    toVueString,
+} from "#stub/ui/template.ts";
+import { DIALOG_BODY_MASK_CLASS } from "#stub/form/constants.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Creates the Vue dialog template as a serialized markup tree.
@@ -96,7 +98,7 @@ function createCategoryViewFooterActions(): any {
 function createCloseCategoryViewButtonTemplate(): any {
     return createButtonTemplate({
         click: "closeCategoryView",
-        label: "Close",
+        label: msg("common.close"),
         weight: "quiet",
     });
 }
@@ -110,12 +112,7 @@ function createCompanyCategoryDialogTemplate(): any {
     return createElement(
         "cdx-dialog",
         {
-            "v-bind:title": [
-                "(companyCategoryState.pending ? 'M",
-                "odify ' : 'Create ') + '\\'Categor",
-                "y:' + companyCategoryState.categor",
-                "y + '\\''",
-            ].join(""),
+            "v-bind:title": "getCompanyCategoryDialogTitle()",
             "v-model:open": "companyCategoryOpen",
         },
         [
@@ -137,10 +134,10 @@ function createCompanyCategoryDialogTemplate(): any {
  */
 function createCompanyCategoryEnglishFieldTemplate(): any {
     return createFieldTemplate(
-        "English Wikipedia category",
+        msg("review.companyCategoryEnglishName"),
         [
             createElement("cdx-text-input", {
-                placeholder: "e.g. Private Division games",
+                placeholder: msg("review.companyCategoryEnglishPlaceholder"),
                 "v-bind:disabled": "companyCategoryState.loading",
                 "v-model": "companyCategoryState.englishName",
                 "v-on:blur": "refreshCompanyCategoryMetadata",
@@ -164,7 +161,7 @@ function createCompanyCategoryLookupTemplate(): Array<any> {
             {
                 "v-if": "companyCategoryLookupLoading",
             },
-            [createText("Checking Wikidata...")],
+            [createText(msg("review.companyCategoryCheckingWikidata"))],
         ),
         createElement(
             "a",
@@ -185,7 +182,7 @@ function createCompanyCategoryLookupTemplate(): Array<any> {
  * @returns Company-category text area node.
  */
 function createCompanyCategoryTextTemplate(): any {
-    return createFieldTemplate("Category page wikitext", [
+    return createFieldTemplate(msg("review.companyCategoryWikitext"), [
         createElement("cdx-text-area", {
             class: "vg-stub-creator-company-category-text",
             rows: "10",
@@ -234,7 +231,7 @@ function createCloseCompanyCategoryButtonTemplate(): any {
     return createButtonTemplate({
         click: "closeCompanyCategory",
         disabled: "companyCategoryState.loading",
-        label: "Close",
+        label: msg("common.close"),
         weight: "quiet",
     });
 }
@@ -249,7 +246,7 @@ function createDeleteCompanyCategoryButtonTemplate(): any {
         action: "destructive",
         click: "cancelCompanyCategoryCreation",
         disabled: "companyCategoryState.loading",
-        label: "Delete",
+        label: msg("common.delete"),
         show: "companyCategoryState.pending",
     });
 }
@@ -267,10 +264,9 @@ function createSaveCompanyCategoryButtonTemplate(): any {
             "companyCategoryState.loading || !c",
             "ompanyCategoryState.text.trim()",
         ].join(""),
-        label: [
-            "{{ companyCategoryState.loading ? ",
-            "'Saving' : 'Save' }}",
-        ].join(""),
+        label: `{{ companyCategoryState.loading ? ${toVueString(
+            msg("review.saving"),
+        )} : ${toVueString(msg("common.save"))} }}`,
         weight: "primary",
     });
 }
@@ -358,7 +354,7 @@ function createMainDialogMaskTemplate(): any {
 function createMainDialogMaskPanelContentTemplate(): Array<any> {
     return [
         createElement("cdx-progress-bar", {
-            "aria-label": "Preparing preview",
+            "aria-label": msg("preview.preparing"),
         }),
         createElement(
             "p",
@@ -408,7 +404,7 @@ function createMainDialogFooterActions(): any {
 function createMainCloseButtonTemplate(): any {
     return createButtonTemplate({
         click: "closeDialog",
-        label: "Close",
+        label: msg("common.close"),
         weight: "quiet",
     });
 }
@@ -427,7 +423,7 @@ function createMainActionMenuTemplate(): any {
             "v-model:selected": "mainActionMenuSelection",
             "v-on:update:selected": "handleMainActionSelect",
         },
-        [createText("More")],
+        [createText(msg("form.more"))],
     );
 }
 
@@ -441,9 +437,11 @@ function createMainSubmitButtonTemplate(): any {
         action: "progressive",
         click: "submitForm",
         disabled: "sourceFetchState.loading || previewLoading",
-        label:
-            "{{ previewLoading ? 'Preparing preview' : " +
-            "sourceFetchState.loading ? 'Loading' : 'Review' }}",
+        label: `{{ previewLoading ? ${toVueString(
+            msg("preview.preparing"),
+        )} : sourceFetchState.loading ? ${toVueString(
+            msg("form.loading"),
+        )} : ${toVueString(msg("form.review"))} }}`,
         weight: "primary",
     });
 }
@@ -458,7 +456,7 @@ function createHistoryDialogTemplate(): any {
         "cdx-dialog",
         {
             "v-model:open": "historyOpen",
-            title: "Form history",
+            title: msg("form.historyTitle"),
         },
         [
             createHistoryProgressBarTemplate(),
@@ -467,7 +465,7 @@ function createHistoryDialogTemplate(): any {
                 {
                     "v-if": "historyEntries.length === 0",
                 },
-                [createText("No saved form history.")],
+                [createText(msg("form.historyEmpty"))],
             ),
             createHistoryEntryListTemplate(),
             createHistoryDialogFooterTemplate(),
@@ -483,7 +481,7 @@ function createHistoryDialogTemplate(): any {
 function createHistoryJsonDialogTemplate(): any {
     const attributes = {
         "v-model:open": "historyJsonOpen",
-        title: "History data",
+        title: msg("form.historyData"),
     };
     const dialog = createElement(
         "cdx-dialog",
@@ -496,10 +494,7 @@ function createHistoryJsonDialogTemplate(): any {
 
 /** Creates the editable history JSON dialog children. */
 function createHistoryJsonDialogChildren(): Array<any> {
-    const description = [
-        "Copy exported history data, or pas",
-        "te history data to load this form.",
-    ].join("");
+    const description = msg("form.historyHelp");
     const textArea = createElement("cdx-text-area", {
         class: "vg-stub-creator-history-json-text",
         "v-bind:readonly": "!historyJsonEditable",
@@ -557,7 +552,7 @@ function createHistoryJsonCloseButtonTemplate(): any {
     return createButtonTemplate({
         click: "closeHistoryJsonDialog",
         disabled: "historyLoading",
-        label: "Close",
+        label: msg("common.close"),
         weight: "quiet",
     });
 }
@@ -572,7 +567,9 @@ function createHistoryJsonLoadButtonTemplate(): any {
         action: "progressive",
         click: "importHistoryJson",
         disabled: "historyLoading",
-        label: "{{ historyLoading ? 'Loading' : 'Load' }}",
+        label: `{{ historyLoading ? ${toVueString(
+            msg("form.loading"),
+        )} : ${toVueString(msg("form.load"))} }}`,
         weight: "primary",
     });
 }
@@ -584,7 +581,7 @@ function createHistoryJsonLoadButtonTemplate(): any {
  */
 function createHistoryProgressBarTemplate(): any {
     return createElement("cdx-progress-bar", {
-        "aria-label": "Loading history entry",
+        "aria-label": msg("form.historyLoading"),
         "v-if": "historyLoading",
     });
 }
@@ -679,7 +676,9 @@ function createHistoryEntryLoadButtonTemplate(): any {
     return createButtonTemplate({
         click: "fillHistoryEntry(entry)",
         disabled: "historyLoading",
-        label: "{{ historyLoading ? 'Loading' : 'Load' }}",
+        label: `{{ historyLoading ? ${toVueString(
+            msg("form.loading"),
+        )} : ${toVueString(msg("form.load"))} }}`,
     });
 }
 
@@ -692,7 +691,7 @@ function createHistoryEntryExportButtonTemplate(): any {
     return createButtonTemplate({
         click: "openHistoryJsonDialog(entry)",
         disabled: "historyLoading",
-        label: "Export",
+        label: msg("form.export"),
     });
 }
 
@@ -706,7 +705,7 @@ function createHistoryEntryDeleteButtonTemplate(): any {
         action: "destructive",
         click: "deleteHistoryEntry(entry.id)",
         disabled: "historyLoading",
-        label: "Delete",
+        label: msg("common.delete"),
         show: "!entry.metadata.temporary",
     });
 }
@@ -720,7 +719,7 @@ function createHistoryEntryUpdateButtonTemplate(): any {
     return createButtonTemplate({
         click: "updateTemporaryHistoryEntry",
         disabled: "historyLoading",
-        label: "Update",
+        label: msg("form.update"),
         show: "entry.metadata.temporary",
     });
 }
@@ -764,7 +763,7 @@ function createHistoryCloseButtonTemplate(): any {
     return createButtonTemplate({
         click: "closeHistoryDialog",
         disabled: "historyLoading",
-        label: "Close",
+        label: msg("common.close"),
         weight: "quiet",
     });
 }
@@ -784,7 +783,7 @@ function createHistoryClearButtonTemplate(): any {
                 "!historyEntries.some((entry) => !e",
                 "ntry.metadata.temporary)",
             ].join(""),
-        label: "Clear",
+        label: msg("form.clear"),
     });
 }
 
@@ -798,7 +797,7 @@ function createHistoryImportButtonTemplate(): any {
         action: "progressive",
         click: "openHistoryImportDialog",
         disabled: "historyLoading",
-        label: "Import",
+        label: msg("form.import"),
     });
 }
 
@@ -810,7 +809,7 @@ function createHistoryImportButtonTemplate(): any {
 function createMoveDialogTemplate(): any {
     const attributes = {
         "v-model:open": "moveOpen",
-        title: "Move to page name",
+        title: msg("form.moveTitle"),
     };
     const dialog = createElement(
         "cdx-dialog",
@@ -823,14 +822,8 @@ function createMoveDialogTemplate(): any {
 
 /** Creates the move dialog message and control children. */
 function createMoveDialogChildren(): Array<any> {
-    const confirmation = [
-        "Page name differs from the current",
-        " page. Move to that page name before previewing?",
-    ].join("");
-    const warning = [
-        "Target page exists. Opening it may",
-        " overwrite or conflict with existing content.",
-    ].join("");
+    const confirmation = msg("form.movePrompt");
+    const warning = msg("form.moveConflict");
 
     return [
         createMessageTemplate("movePreviewConfirmation", confirmation, {
@@ -854,9 +847,9 @@ function createMoveDialogChildren(): Array<any> {
  * @returns Move target field node.
  */
 function createMoveTargetFieldTemplate(): any {
-    return createFieldTemplate("Page name", [
+    return createFieldTemplate(msg("text.pageName"), [
         createElement("cdx-text-input", {
-            placeholder: "Actual wiki page title",
+            placeholder: msg("text.pageNamePlaceholder"),
             "v-bind:model-value": "moveTarget",
             "v-on:update:model-value": "updateMoveTarget($event)",
         }),
@@ -901,7 +894,7 @@ function createMoveFooterActions(): any {
 function createMoveCloseButtonTemplate(): any {
     return createButtonTemplate({
         click: "closeMoveDialog",
-        label: "Close",
+        label: msg("common.close"),
         weight: "quiet",
     });
 }
@@ -915,7 +908,7 @@ function createMovePreviewWithoutMovingButtonTemplate(): any {
     return createButtonTemplate({
         click: "previewWithoutMoving",
         disabled: "sourceFetchState.loading || moveTargetState.loading",
-        label: "Preview without moving",
+        label: msg("text.previewWithoutMoving"),
         show: "movePreviewConfirmation",
         weight: "quiet",
     });
@@ -927,15 +920,15 @@ function createMovePreviewWithoutMovingButtonTemplate(): any {
  * @returns Submit button node.
  */
 function createMoveSubmitButtonTemplate(): any {
+    const loading = "sourceFetchState.loading || moveTargetState.loading";
+
     return createButtonTemplate({
         action: "progressive",
         click: "submitMoveTarget",
         disabled: "sourceFetchState.loading || moveTargetState.loading",
-        label:
-            [
-                "{{ sourceFetchState.loading || mov",
-                "eTargetState.loading ",
-            ].join("") + "? 'Opening' : 'Open page name' }}",
+        label: `{{ ${loading} ? ${toVueString(
+            msg("text.opening"),
+        )} : ${toVueString(msg("text.openPageName"))} }}`,
         weight: "primary",
     });
 }

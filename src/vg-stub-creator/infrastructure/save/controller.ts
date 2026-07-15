@@ -6,7 +6,7 @@ import {
     readSaveProgress,
     storeSaveProgress,
     updateSaveProgress,
-} from "./progress.ts";
+} from "#stub/save/progress.ts";
 
 /**
  * Updates and renders one save progress row.

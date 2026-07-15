@@ -2,27 +2,28 @@
  * Coordinates form data, review handlers, and final wikitext.
  */
 
-import { createArticleData as flushRawArticleData } from "../domain/article";
+import { createArticleData as flushRawArticleData } from "#stub/article";
 import {
     buildCategoryRows,
     buildFallbackCategoryRows,
-} from "../infrastructure/handlers/categories.ts";
+} from "#stub/handlers/categories.ts";
 import {
     resolveNavboxTitles,
     resolveReviewedNavboxRows,
-} from "../infrastructure/handlers/navboxes.ts";
-import { fetchSourceReferences } from "../infrastructure/sources";
+} from "#stub/handlers/navboxes.ts";
+import { fetchSourceReferences } from "#stub/sources";
 import {
+    buildArticleWikitext,
     buildDefaultSortKey,
     buildNavboxText,
     buildReviewedNavboxText,
+    buildSentence1Text,
     countGeneratedProseSinographs,
+    formatText,
     sortCategoryRowsByProse,
-} from "../domain/wikitext";
-import { trimFieldValue } from "../shared/form-values.ts";
-import { buildArticleWikitext } from "../domain/wikitext/article.ts";
-import { buildSentence1Text } from "../domain/wikitext/sentence.ts";
-import { formatText } from "../domain/wikitext/text-templates.ts";
+} from "#stub/wiki";
+import { trimFieldValue } from "#stub/local/form-values.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Builds normalized article data from raw form values.
@@ -231,10 +232,10 @@ export function getArticleFieldPlaceholder(
         return selectValue(
             trimFieldValue(form.enwikiTitle) === "",
             function trueBranch() {
-                return "Enter enwiki title first";
+                return msg("metadata.enterEnwikiTitle");
             },
             function falseBranch() {
-                return "No connected Wikidata item";
+                return msg("metadata.noWikidataItem");
             },
         );
     }

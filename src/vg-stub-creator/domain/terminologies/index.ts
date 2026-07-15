@@ -1,12 +1,9 @@
-/**
- * Resolves canonical terminology metadata and display values.
- */
-
-import { buildLinkText, getReferenceDefinition } from "../../../shared";
-import companies from "./companies.ts";
-import genres from "./genres.ts";
-import platforms from "./platforms.ts";
-import years from "./years.ts";
+import companies from "#stub/terms/companies.ts";
+import genres from "#stub/terms/genres.ts";
+import platforms from "#stub/terms/platforms.ts";
+import years from "#stub/terms/years.ts";
+import { wikitext } from "#shared";
+const { buildLinkText, getReferenceDefinition } = wikitext;
 
 const TERMINOLOGY_DEFINITIONS = { companies, genres, platforms, years };
 

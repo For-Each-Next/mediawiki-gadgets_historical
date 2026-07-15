@@ -2,7 +2,10 @@
  * Persists and renders article-save progress across navigation.
  */
 
-import { NEW_PAGE_LIST_TITLE } from "../handlers/new-page-list.ts";
+import { NEW_PAGE_LIST_TITLE } from "#stub/handlers/new-page-list.ts";
+import { msg, msgParts } from "#stub/i18n";
+
+type MessageId = Parameters<typeof msgParts>[0];
 
 export const SAVE_PROGRESS_STORAGE_KEY = "vg-stub-creator-save-progress";
 
@@ -51,8 +54,10 @@ export function createSaveProgress(
 function buildSaveProgressStep(title: string): any {
     return {
         id: "save",
-        label: `Save page: ${title}`,
-        parts: [{ text: "Save page: " }, { code: title }],
+        label: msg("progress.savePage", { title }),
+        parts: buildProgressParts("progress.savePage", {
+            title: { code: title },
+        }),
         status: "pending",
         targetPage: title,
     };
@@ -62,8 +67,10 @@ function buildSaveProgressStep(title: string): any {
 function buildMoveProgressStep(title: string, move: any): any {
     return {
         id: "move",
-        label: `Move page to ${move.to}`,
-        parts: [{ text: "Move page to " }, { code: move.to }],
+        label: msg("progress.movePage", { title: move.to }),
+        parts: buildProgressParts("progress.movePage", {
+            title: { code: move.to },
+        }),
         status: "pending",
         targetPage: title,
     };
@@ -95,8 +102,8 @@ function buildRegistrationProgressSteps(registration): Array<any> {
     return [
         {
             id: "new-page-list",
-            label: "Register on WikiProject new-page list",
-            parts: [{ text: "Register on WikiProject new-page list" }],
+            label: msg("progress.registerNewPage"),
+            parts: [{ text: msg("progress.registerNewPage") }],
             status: "pending",
             targetPage: NEW_PAGE_LIST_TITLE,
         },
@@ -200,46 +207,50 @@ function buildActionProgressParts(
 
 /** Builds connection progress fragments. */
 function buildConnectionProgressParts(title, wikidataId): Array<any> {
-    return [
-        { text: "Connect " },
-        { code: title },
-        { text: " to " },
-        { code: wikidataId },
-    ];
+    return buildProgressParts("progress.connectTo", {
+        target: { code: wikidataId },
+        title: { code: title },
+    });
 }
 
 /** Builds redirect progress fragments. */
 function buildRedirectProgressParts(action, title): Array<any> {
-    return [
-        { text: "Redirect name: " },
-        { code: action.redirectTitle },
-        { text: " to " },
-        { code: title },
-    ];
+    return buildProgressParts("progress.redirectTo", {
+        redirect: { code: action.redirectTitle },
+        title: { code: title },
+    });
 }
 
 /** Builds talk-banner progress fragments. */
 function buildTalkBannerProgressParts(title): Array<any> {
-    return [
-        { text: "Add WikiProject Video games banner to " },
-        { code: `Talk:${title}` },
-    ];
+    return buildProgressParts("progress.addTalkBanner", {
+        title: { code: `Talk:${title}` },
+    });
 }
 
 /** Builds category progress fragments. */
 function buildCategoryProgressParts(action): Array<any> {
-    return [
-        { text: "Create category: " },
-        { code: `Category:${action.category}` },
-    ];
+    return buildProgressParts("progress.createCategory", {
+        title: { code: `Category:${action.category}` },
+    });
 }
 
 /** Builds page-edit progress fragments. */
 function buildPageEditProgressParts(action): Array<any> {
-    return [
-        { text: `${action.create ? "Create" : "Edit"} page: ` },
-        { code: action.title },
-    ];
+    const id = action.create ? "progress.createPage" : "progress.editPage";
+    return buildProgressParts(id, {
+        title: { code: action.title },
+    });
+}
+
+/** Converts translated message parts to progress display fragments. */
+function buildProgressParts(
+    id: MessageId,
+    values: Record<string, any>,
+): Array<any> {
+    return msgParts<any>(id, values).map(function callback(part) {
+        return typeof part === "string" ? { text: part } : part;
+    });
 }
 
 /**
@@ -399,18 +410,13 @@ function buildBundledActionProgressSteps(action: any): Array<any> {
 
 /** Builds a bundled category talk-banner progress step. */
 function buildBundledTalkProgressStep(action, categoryTitle): any {
+    const title = `Category talk:${normalizeActionText(action.category)}`;
     return {
         id: `${action.id}:talk-banner`,
-        label: [
-            "Add WikiProject Video games banner",
-            " to Category talk:",
-            normalizeActionText(action.category),
-            "",
-        ].join(""),
-        parts: [
-            { text: "Add WikiProject Video games banner to " },
-            { code: `Category talk:${normalizeActionText(action.category)}` },
-        ],
+        label: msg("progress.addTalkBanner", { title }),
+        parts: buildProgressParts("progress.addTalkBanner", {
+            title: { code: title },
+        }),
         status: "pending",
         targetPage: categoryTitle,
     };
@@ -423,12 +429,10 @@ function buildBundledWikidataProgressSteps(options): Array<any> {
             {
                 id: `${options.action.id}:wikidata`,
                 label: buildWikidataProgressLabel(options),
-                parts: [
-                    { text: "Connect " },
-                    { code: options.categoryTitle },
-                    { text: " to " },
-                    { code: options.wikidataId },
-                ],
+                parts: buildProgressParts("progress.connectTo", {
+                    target: { code: options.wikidataId },
+                    title: { code: options.categoryTitle },
+                }),
                 status: "pending",
                 targetPage: options.categoryTitle,
             },
@@ -438,8 +442,8 @@ function buildBundledWikidataProgressSteps(options): Array<any> {
         return [
             {
                 id: `${options.action.id}:wikidata`,
-                label: "Connect matching Wikidata category item",
-                parts: [{ text: "Connect matching Wikidata category item" }],
+                label: msg("progress.connectCategory"),
+                parts: [{ text: msg("progress.connectCategory") }],
                 status: "pending",
                 targetPage: options.categoryTitle,
             },
@@ -451,7 +455,10 @@ function buildBundledWikidataProgressSteps(options): Array<any> {
 
 /** Builds the category Wikidata action label. */
 function buildWikidataProgressLabel(options): string {
-    return `Connect ${options.categoryTitle} to ${options.wikidataId}`;
+    return msg("progress.connectTo", {
+        target: options.wikidataId,
+        title: options.categoryTitle,
+    });
 }
 
 /**

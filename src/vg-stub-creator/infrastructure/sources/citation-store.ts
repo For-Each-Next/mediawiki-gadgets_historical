@@ -1,6 +1,5 @@
-/** Fetch cache for generated citation-template wikitext. */
-
-import { fetchCiteTemplate } from "../../../shared/cite";
+import { cite } from "#shared";
+const { fetchCiteTemplate } = cite;
 
 export interface CitationStore {
     fetch(url: string): Promise<string>;

@@ -1,12 +1,7 @@
-/**
- * Describes the pre-save module.
- *
- * Builds the pre-save checklist and runs its selected follow-up
- * actions.
- */
-
-import { buildTemplateCall, buildTemplateText } from "../../../shared";
-import { addEditSummarySuffix } from "./summary.ts";
+import { addEditSummarySuffix } from "#stub/editing/summary.ts";
+import { msg } from "#stub/i18n";
+import { wikitext } from "#shared";
+const { buildTemplateCall, buildTemplateText } = wikitext;
 
 type DynamicRecord = Record<string, any>;
 
@@ -72,9 +67,14 @@ function buildInitialPreSaveActions(form, title, finalTitle): Array<any> {
 
     if (wikidataId !== "") {
         actions.unshift({
-            displayLabel: `Connect to [[d:${wikidataId}]]`,
+            displayLabel: msg("presave.connectTo", {
+                target: `d:${wikidataId}`,
+            }),
             id: "interwiki",
-            label: `Connect ${title} to ${wikidataId}`,
+            label: msg("progress.connectTo", {
+                target: wikidataId,
+                title,
+            }),
             pageTitle: title,
             selected: true,
             type: "interwiki",
@@ -87,17 +87,12 @@ function buildInitialPreSaveActions(form, title, finalTitle): Array<any> {
 
 /** Creates the article talk-banner action. */
 function createTalkBannerAction(title): any {
-    const label = [
-        "Add WikiProject Video games banner",
-        " to Talk:",
-        title,
-        "",
-    ].join("");
+    const talkTitle = `Talk:${title}`;
 
     return {
-        displayLabel: `Tag banner on [[Talk:${title}]]`,
+        displayLabel: msg("presave.tagBanner", { title: talkTitle }),
         id: "talk-banner",
-        label,
+        label: msg("progress.addTalkBanner", { title: talkTitle }),
         pageTitle: title,
         selected: true,
         type: "talk-banner",
@@ -169,10 +164,10 @@ function createCategoryAction(row: any): any {
     return {
         category,
         company: normalizeTitle(row.company),
-        displayLabel: "Create category page",
+        displayLabel: msg("review.createCategoryPage"),
         englishName: normalizeTitle(row.pendingCreation.englishName),
         id: `category:${category}`,
-        label: `Create category: ${category}`,
+        label: msg("progress.createCategory", { title: category }),
         pageTitle: `Category:${category}`,
         selected: true,
         text: String(row.pendingCreation.text || ""),
@@ -190,32 +185,42 @@ function createCategoryAction(row: any): any {
 function createPageEditAction(edit: any): any {
     const title = normalizeTitle(edit.title);
     const create = edit.create === true;
+    const englishName = normalizeTitle(edit.englishName);
+    let displayLabel = msg("presave.editPage");
+    if (create) {
+        displayLabel = msg("presave.createPage");
+    }
 
     return {
         create,
-        displayLabel: create ? "Create page" : "Edit page",
-        ...selectValue(
-            normalizeTitle(edit.englishName) === "",
-            function trueBranch() {
-                return {};
-            },
-            function falseBranch() {
-                return {
-                    englishName: normalizeTitle(edit.englishName),
-                };
-            },
-        ),
+        displayLabel,
+        ...(englishName === "" ? {} : { englishName }),
         id: `page-edit:${title}`,
-        label: `${create ? "Create" : "Edit"} page: ${title}`,
+        label: msg(create ? "progress.createPage" : "progress.editPage", {
+            title,
+        }),
         pageTitle: title,
         selected: true,
-        summary:
-            normalizeTitle(edit.summary) ||
-            `${create ? "Create" : "Update"} ${title}`,
+        summary: getPageEditSummary(edit, title, create),
         text: String(edit.text || ""),
         title,
         type: "page-edit",
     };
+}
+
+/** Gets the staged page edit summary. */
+function getPageEditSummary(
+    edit: any,
+    title: string,
+    create: boolean,
+): string {
+    return (
+        normalizeTitle(edit.summary) ||
+        msg(
+            create ? "presave.createPageSummary" : "presave.updatePageSummary",
+            { title },
+        )
+    );
 }
 
 /**
@@ -953,7 +958,7 @@ async function runCategoryAction(action, options): Promise<void> {
     }
 
     if (save == null) {
-        throw new Error("Category save handler is unavailable.");
+        throw new Error(msg("errors.categorySaveUnavailable"));
     }
 
     await save(action.category, action.text, action.englishName, {

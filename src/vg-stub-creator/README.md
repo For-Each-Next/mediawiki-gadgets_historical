@@ -20,8 +20,10 @@ You can get compressed code from <https://meta.wikimedia.org/wiki/User:For_Each_
 ## Source
 
 - `index.ts`: minimal browser bundle entry point.
-- `domain/article/`: normalized article records and field modules.
-- `domain/wikitext/`: pure wikitext rendering and language templates.
+- `domain/article/`: normalized article records and processing contracts.
+- `domain/data.ts`: pure field parsing and metadata extraction.
+- `domain/modules.ts`: field ownership and normalized record adapters.
+- `domain/wiki.ts`: pure wikitext rendering and language templates.
 - `domain/terminologies/`: configured video-game terminology data.
 - `application/workflow.ts`: article creation use cases.
 - `infrastructure/`: MediaWiki, source, editing, and persistence adapters.

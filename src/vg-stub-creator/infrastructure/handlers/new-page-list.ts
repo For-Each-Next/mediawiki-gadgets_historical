@@ -5,7 +5,8 @@
  * list.
  */
 
-import { addEditSummarySuffix } from "../editing/summary.ts";
+import { addEditSummarySuffix } from "#stub/editing/summary.ts";
+import { msg } from "#stub/i18n";
 
 export const NEW_PAGE_LIST_TITLE = "WikiProject:电子游戏/新进条目";
 const MAX_EDIT_ATTEMPTS = 3;
@@ -235,7 +236,9 @@ async function fetchNewPageList(api: any): Promise<any> {
     const revision = page?.revisions?.[0];
 
     if (page == null || page.missing != null || revision == null) {
-        throw new Error(`Unable to read ${NEW_PAGE_LIST_TITLE}.`);
+        throw new Error(
+            msg("errors.unableRead", { title: NEW_PAGE_LIST_TITLE }),
+        );
     }
 
     return {

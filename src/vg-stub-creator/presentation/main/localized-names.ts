@@ -5,8 +5,8 @@ import {
     createIconActionLinkTemplate,
     createSourceUrlInputTemplate,
     createText,
-} from "../template.ts";
-import { msg, msgParts } from "../../config/locales";
+} from "#stub/ui/template.ts";
+import { msg, msgParts } from "#stub/i18n";
 
 const STEAM_NAME_SUGGESTION_SOURCE = [
     "suggestion in getSteamNameSuggesti",

@@ -8,8 +8,12 @@ import {
     previewTalkPageTopSection,
     updateTalkPageAssessment,
     updateTalkPageTopSection,
-} from "../domain/assessment.ts";
-import { loggedApiGet, loggedPostWithToken, logStep } from "./logger.ts";
+} from "#assessor/domain/assessment.ts";
+import {
+    loggedApiGet,
+    loggedPostWithToken,
+    logStep,
+} from "#assessor/infra/logger.ts";
 
 const MAX_EDIT_ATTEMPTS = 3;
 const MAX_TITLES_PER_QUERY = 50;

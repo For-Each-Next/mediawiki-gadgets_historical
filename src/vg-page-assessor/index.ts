@@ -1,3 +1,3 @@
 /** Browser entry point for the VG Page Assessor gadget. */
 
-import "./presentation/app.ts";
+import "#assessor/ui/app.ts";

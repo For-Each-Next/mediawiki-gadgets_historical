@@ -4,6 +4,9 @@
     "private": true,
     "description": "TypeScript development workspace for MediaWiki gadgets.",
     "type": "module",
+    "imports": {
+        "#shared": "./src/shared/index.ts"
+    },
     "workspaces": [
         "src/*"
     ],

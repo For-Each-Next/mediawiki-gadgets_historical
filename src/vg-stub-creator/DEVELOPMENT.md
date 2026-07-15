@@ -6,11 +6,11 @@ raw article module emits the `ArticleDataRecord` shape from
 citations, metadata, assumed categories, navboxes, and module-specific
 wikitext.
 
-- `domain/article/data/`: pure field parsing and metadata extraction.
-- `domain/article/modules/`: field ownership and normalized record adapters.
+- `domain/data.ts`: pure field parsing and metadata extraction.
+- `domain/modules.ts`: field ownership and normalized record adapters.
 - `domain/article/processor.ts`: flushes registered modules into article data.
 - `domain/terminologies/`: canonical names, aliases, pages, and metadata.
-- `domain/wikitext/`: pure builders and generated-language templates.
+- `domain/wiki.ts`: pure builders and generated-language templates.
 - `application/workflow.ts`: coordinates records, adapters, and final text.
 - `infrastructure/handlers/`: title, category, and navbox resolution.
 - `infrastructure/sources/`: citations and external metadata acquisition.
@@ -57,19 +57,19 @@ their original parameter order.
 
 ### Interface messages
 
-Edit interface messages in `config/locales/`. English is the source catalog;
+Edit interface messages in `i18n/`. English is the source catalog;
 every translated catalog must contain the same semantic IDs and named
 placeholders. Import `msg`, `msgParts`, and `interfaceLocale` from the locale
 directory entry point rather than importing an individual catalog.
 
 ### Language text
 
-Edit generated language text in `domain/wikitext/wikitext.ts`. Builders retain
-structural wikitext and substitute named placeholders through
-`domain/wikitext/text-templates.ts`.
+Edit generated language text and its structural builders in `domain/wiki.ts`.
+The template catalog remains separate from interface messages because it
+produces article wikitext rather than gadget UI.
 
-Prose composition belongs to `domain/wikitext/prose.ts`. It builds the lead
-paragraph from the relevant named records and returns:
+Prose composition in `domain/wiki.ts` builds the lead paragraph from the
+relevant named records and returns:
 
 ```js
 const result = {

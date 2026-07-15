@@ -2,8 +2,8 @@
  * Defines vg-stub-creator dialog form metadata and reusable constants.
  */
 
-import { getArticleSourceFields } from "../../domain/article";
-import { msg } from "../../config/locales";
+import { getArticleSourceFields } from "#stub/article";
+import { msg } from "#stub/i18n";
 
 /**
  * Describes a reusable article parameter input.
@@ -110,23 +110,23 @@ export const NAME_MARKETS = [
 const STEAM_NAME_CHOICES = [
     {
         key: "neither",
-        label: "Neither",
+        label: msg("names.neither"),
     },
     {
         key: "simp",
-        label: "Simp",
+        label: msg("names.simplified"),
     },
     {
         key: "trad",
-        label: "Trad",
+        label: msg("names.traditional"),
     },
     {
         key: "diff",
-        label: "Diff",
+        label: msg("names.diff"),
     },
     {
         key: "same",
-        label: "Same",
+        label: msg("names.same"),
     },
 ];
 export const STEAM_NAME_BUTTONS = STEAM_NAME_CHOICES.map(
@@ -145,10 +145,8 @@ export const CODEMIRROR_MODULES = [
     "ext.CodeMirror",
     "ext.CodeMirror.mode.mediawiki",
 ];
-const ARTICLE_TITLE_PLACEHOLDER =
-    "Leave blank to use the page title in article text";
-export const HISTORY_EXPORT_ERROR =
-    "Paste history data exported by this tool.";
+const ARTICLE_TITLE_PLACEHOLDER = msg("text.articleTitlePlaceholder");
+export const HISTORY_EXPORT_ERROR = msg("form.historyImportHelp");
 export const DIALOG_BODY_MASK_CLASS = [
     "{ 'vg-stub-creator-dialog-body--ma",
     "sked': previewLoading }",
@@ -164,17 +162,17 @@ export const CATEGORY_TABLE_COLUMNS = [
     { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     {
         id: "source",
-        label: msg("common.status"),
+        label: msg("review.status"),
         width: REVIEW_COLUMN_WIDTHS.status,
     },
     {
         id: "category",
-        label: msg("common.categoryName"),
+        label: msg("review.categoryName"),
         width: REVIEW_COLUMN_WIDTHS.main,
     },
     {
         id: "page",
-        label: msg("common.page"),
+        label: msg("review.page"),
         width: REVIEW_COLUMN_WIDTHS.page,
     },
     {
@@ -184,30 +182,30 @@ export const CATEGORY_TABLE_COLUMNS = [
     },
 ];
 export const CITATION_TABLE_COLUMNS = [
-    { id: "name", label: msg("common.parameter") },
+    { id: "name", label: msg("references.parameter") },
     { id: "value", label: msg("common.value") },
     { id: "actions", label: msg("common.actions") },
 ];
 export const METADATA_TABLE_COLUMNS = [
-    { id: "label", label: msg("common.field") },
+    { id: "label", label: msg("metadata.field") },
     { id: "value", label: msg("common.value") },
-    { id: "source", label: msg("common.reference") },
+    { id: "source", label: msg("metadata.reference") },
 ];
 export const NAVBOX_TABLE_COLUMNS = [
     { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     {
         id: "status",
-        label: msg("common.status"),
+        label: msg("review.status"),
         width: REVIEW_COLUMN_WIDTHS.status,
     },
     {
         id: "text",
-        label: msg("common.templateName"),
+        label: msg("review.templateName"),
         width: REVIEW_COLUMN_WIDTHS.main,
     },
     {
         id: "page",
-        label: msg("common.page"),
+        label: msg("review.page"),
         width: REVIEW_COLUMN_WIDTHS.page,
     },
     {
@@ -217,25 +215,25 @@ export const NAVBOX_TABLE_COLUMNS = [
     },
 ];
 export const NOTETA_TABLE_COLUMNS = [
-    { id: "key", label: msg("common.rule") },
-    { id: "value", label: msg("common.conversion") },
+    { id: "key", label: msg("noteta.rule") },
+    { id: "value", label: msg("noteta.conversion") },
     { id: "actions", label: msg("common.actions") },
 ];
 export const REDIRECT_TABLE_COLUMNS = [
     { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     {
         id: "status",
-        label: msg("common.status"),
+        label: msg("review.status"),
         width: REVIEW_COLUMN_WIDTHS.status,
     },
     {
         id: "title",
-        label: msg("common.pageName"),
+        label: msg("review.pageName"),
         width: REVIEW_COLUMN_WIDTHS.main,
     },
     {
         id: "page",
-        label: msg("common.page"),
+        label: msg("review.page"),
         width: REVIEW_COLUMN_WIDTHS.page,
     },
     {
@@ -248,17 +246,17 @@ export const STUB_TAG_TABLE_COLUMNS = [
     { id: "enabled", label: "", width: REVIEW_COLUMN_WIDTHS.enabled },
     {
         id: "type",
-        label: msg("common.status"),
+        label: msg("review.status"),
         width: REVIEW_COLUMN_WIDTHS.status,
     },
     {
         id: "stubTag",
-        label: msg("common.templateName"),
+        label: msg("review.templateName"),
         width: REVIEW_COLUMN_WIDTHS.main,
     },
     {
         id: "page",
-        label: msg("common.page"),
+        label: msg("review.page"),
         width: REVIEW_COLUMN_WIDTHS.page,
     },
     {
@@ -268,9 +266,9 @@ export const STUB_TAG_TABLE_COLUMNS = [
     },
 ];
 export const MAIN_ACTION_MENU_ITEMS = [
-    { label: msg("common.history"), value: "history" },
-    { label: msg("common.reload"), value: "reload" },
-    { label: msg("common.clear"), value: "clear" },
+    { label: msg("form.history"), value: "history" },
+    { label: msg("form.reload"), value: "reload" },
+    { label: msg("form.clear"), value: "clear" },
 ];
 export const TABLE_ACTION_ICONS = {
     cdxIconArticleAdd: {
@@ -348,69 +346,69 @@ export const PRE_SAVE_STATUS_ICONS = {
 export const ARTICLE_PARAMETER_GROUPS = [
     new ArticleParameterGroup(
         "metadata",
-        "Metadata",
+        msg("metadata.tab"),
         [
             new ArticleParameterField(
                 "enwikiTitle",
-                "English Wikipedia page",
+                msg("metadata.enwikiPage"),
                 "enwikiTitle",
                 null,
                 {
-                    placeholder: "Page title in English Wikipedia",
+                    placeholder: msg("metadata.enwikiPagePlaceholder"),
                 },
             ),
             new ArticleParameterField(
                 "developers",
-                "Developers",
+                msg("metadata.developers"),
                 "companies.developers",
                 getSourceReferenceField("developers"),
                 {
-                    placeholder: "Names",
+                    placeholder: msg("metadata.namesPlaceholder"),
                 },
             ),
             new ArticleParameterField(
                 "publishers",
-                "Publishers",
+                msg("metadata.publishers"),
                 "companies.publishers",
                 getSourceReferenceField("publishers"),
                 {
-                    placeholder: "Names",
+                    placeholder: msg("metadata.namesPlaceholder"),
                 },
             ),
             new ArticleParameterField(
                 "series",
-                "Series",
+                msg("metadata.series"),
                 "series",
                 getSourceReferenceField("series"),
                 {
-                    placeholder: "Title",
+                    placeholder: msg("metadata.titlePlaceholder"),
                 },
             ),
             new ArticleParameterField(
                 "platforms",
-                "Platforms",
+                msg("metadata.platforms"),
                 "platforms",
                 getSourceReferenceField("platforms"),
                 {
-                    placeholder: "Names",
+                    placeholder: msg("metadata.namesPlaceholder"),
                 },
             ),
             new ArticleParameterField(
                 "year",
-                "Release year",
+                msg("metadata.releaseYear"),
                 "year",
                 getSourceReferenceField("year"),
                 {
-                    placeholder: "YYYY",
+                    placeholder: msg("metadata.yearPlaceholder"),
                 },
             ),
             new ArticleParameterField(
                 "genres",
-                "Genres",
+                msg("metadata.genres"),
                 "genres",
                 getSourceReferenceField("genres"),
                 {
-                    placeholder: "Names",
+                    placeholder: msg("metadata.namesPlaceholder"),
                     previewKey: "attribution",
                 },
             ),
@@ -422,11 +420,11 @@ export const ARTICLE_PARAMETER_GROUPS = [
     ),
     new ArticleParameterGroup(
         "titles",
-        "Titles",
+        msg("titles.tab"),
         [
             new ArticleParameterField(
                 "originalName",
-                "Original-language title",
+                msg("titles.originalTitle"),
                 "originalName",
                 getSourceReferenceField("originalName"),
                 {
@@ -435,51 +433,47 @@ export const ARTICLE_PARAMETER_GROUPS = [
             ),
             new ArticleParameterField(
                 "englishName",
-                "English-language title",
+                msg("titles.englishTitle"),
                 "englishName",
                 getSourceReferenceField("englishName"),
                 {
-                    placeholder: "Localized title",
+                    placeholder: msg("titles.localizedTitlePlaceholder"),
                     previewKey: "names",
                 },
             ),
             new ArticleParameterField(
                 "sortKey",
-                "Default sort key",
+                msg("titles.defaultSortKey"),
                 "sortKey",
                 null,
                 {
-                    placeholder: "Leave blank to use the generated value",
+                    placeholder: msg("titles.defaultSortPlaceholder"),
                 },
             ),
         ],
         "localizedNames",
         {
-            description: [
-                "Review foreign titles, fetch Steam",
-                " names, add Chinese name parts, an",
-                "d maintain the NoteTA table.",
-            ].join(""),
-            fieldsetLabel: "Foreign titles",
+            description: msg("titles.description"),
+            fieldsetLabel: msg("titles.foreignTitles"),
             noteTaReview: true,
         },
     ),
     new ArticleParameterGroup(
         "text",
-        "Text",
+        msg("text.tab"),
         [
             new ArticleParameterField(
                 "pageName",
-                "Page name",
+                msg("text.pageName"),
                 "pageName",
                 null,
                 {
-                    placeholder: "Actual wiki page title",
+                    placeholder: msg("text.pageNamePlaceholder"),
                 },
             ),
             new ArticleParameterField(
                 "name",
-                "Article display title",
+                msg("text.articleDisplayTitle"),
                 "name",
                 null,
                 {
@@ -488,63 +482,50 @@ export const ARTICLE_PARAMETER_GROUPS = [
             ),
             new ArticleParameterField(
                 "metacriticScore",
-                "Metacritic score",
+                msg("text.metacriticScore"),
                 "scores.metacriticScore",
                 getSourceReferenceField("metacriticScore"),
                 {
                     compact: true,
-                    heading: "Metacritic score",
+                    heading: msg("text.metacriticScore"),
                     placeholder: "ps4:95 or 95",
                 },
             ),
             new ArticleParameterField(
                 "openCriticRecommend",
-                "OpenCritic recommendation",
+                msg("text.openCritic"),
                 "scores.openCriticRecommend",
                 getSourceReferenceField("openCriticRecommend"),
                 {
                     compact: true,
-                    heading: "OpenCritic recommendation",
-                    placeholder: "Recommend rate",
+                    heading: msg("text.openCritic"),
+                    placeholder: msg("text.openCriticPlaceholder"),
                     previewKey: "score",
                 },
             ),
             new ArticleParameterField(
                 "additionalProse",
-                "Additional prose",
+                msg("text.additionalProse"),
                 "additionalProse",
                 getSourceReferenceField("additionalProse"),
                 {
                     multiline: true,
-                    placeholder: "Text appended after the generated prose",
+                    placeholder: msg("text.additionalProsePlaceholder"),
                 },
             ),
         ],
         null,
         {
-            description: [
-                "Fix generated review-score text, t",
-                "he display title, and additional p",
-                "rose before reviewing the full lea",
-                "d text.",
-            ].join(""),
+            description: msg("text.description"),
             fullTextReview: true,
         },
     ),
-    new ArticleParameterGroup("references", "References", [], null, {
+    new ArticleParameterGroup("references", msg("references.tab"), [], null, {
         citationReview: true,
-        description: [
-            "Normalize citation parameters for ",
-            "every source URL entered in the ar",
-            "ticle fields.",
-        ].join(""),
+        description: msg("references.description"),
     }),
-    new ArticleParameterGroup("review", "Checks", [], null, {
+    new ArticleParameterGroup("review", msg("review.tab"), [], null, {
         categoryReview: true,
-        description: [
-            "Confirm follow-up pages, redirects",
-            ", categories, navboxes, and stub t",
-            "ags before saving.",
-        ].join(""),
+        description: msg("review.description"),
     }),
 ];

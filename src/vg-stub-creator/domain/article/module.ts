@@ -2,7 +2,7 @@
  * Defines the common contract for article data-flow modules.
  */
 
-import { createDataRecord } from "./data-record.ts";
+import { createDataRecord } from "#stub/article/data-record.ts";
 
 /**
  * Defines one registered article data module.

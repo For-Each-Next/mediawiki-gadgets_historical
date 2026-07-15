@@ -5,7 +5,8 @@ import {
     createTableHeaderTemplate,
     createTableTemplate,
     createText,
-} from "../template.ts";
+} from "#stub/ui/template.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Creates the review panel and category grid template node.
@@ -39,7 +40,7 @@ function createCategoryReviewTemplate(): any {
             "form.categoryRows",
             createCategorySlotsTemplate(),
             {
-                caption: "Categories",
+                caption: msg("review.categories"),
                 class:
                     "vg-stub-creator-review-table " +
                     "vg-stub-creator-category-table",
@@ -64,7 +65,7 @@ function createRedirectReviewTemplate(): any {
             "form.redirectRows || []",
             createRedirectSlotsTemplate(),
             {
-                caption: "Redirects",
+                caption: msg("review.redirects"),
                 class:
                     "vg-stub-creator-review-table " +
                     "vg-stub-creator-redirect-table",
@@ -85,7 +86,7 @@ function createNavboxReviewTemplate(): any {
             "form.navboxRows || []",
             createNavboxSlotsTemplate(),
             {
-                caption: "Navboxes",
+                caption: msg("review.navboxes"),
                 class:
                     "vg-stub-creator-review-table " +
                     "vg-stub-creator-navbox-table",
@@ -107,7 +108,7 @@ function createStubTagReviewTemplate(): any {
             "stubTagRows",
             createStubTagSlotsTemplate(),
             {
-                caption: "Stub tags",
+                caption: msg("review.stubTags"),
                 class:
                     "vg-stub-creator-review-table " +
                     "vg-stub-creator-stub-tag-table",
@@ -123,11 +124,14 @@ function createStubTagReviewTemplate(): any {
  */
 function createCategorySlotsTemplate(): Array<any> {
     return [
-        createTableHeaderTemplate("Categories", createCategoryHeaderActions()),
+        createTableHeaderTemplate(
+            msg("review.categories"),
+            createCategoryHeaderActions(),
+        ),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
-            "Include category",
+            msg("review.includeCategory"),
             "isCategoryAddReviewRow(row)",
             "vg-stub-creator-review-row-marker--category-add",
         ),
@@ -146,18 +150,18 @@ function createCategorySlotsTemplate(): Array<any> {
 /** Creates category-table header actions. */
 function createCategoryHeaderActions(): Array<any> {
     const reset = createIconActionLinkTemplate(
-        "Reset",
+        msg("common.reset"),
         "tableActionIcons.regenerate",
         "rebuildCategoryRows",
         { "aria-disabled": "categoryState.loading" },
     );
     const clean = createIconActionLinkTemplate(
-        "Remove empty rows",
+        msg("common.clean"),
         "tableActionIcons.clean",
         "cleanCategoryRows",
     );
     const add = createIconActionLinkTemplate(
-        "Add",
+        msg("common.add"),
         "tableActionIcons.cdxIconArticleAdd",
         "addCategoryRow",
     );
@@ -206,14 +210,11 @@ function createCategoryTitleSlotTemplate(): any {
 function createCategoryActionSlotTemplate(): any {
     return createActionSlotTemplate([
         createIconActionLinkTemplate(
-            "Refresh",
+            msg("review.refresh"),
             "tableActionIcons.reload",
             "checkCategoryRow(form.categoryRows.indexOf(row))",
             {
-                title: [
-                    "Refresh this category's page statu",
-                    "s and edit/create action",
-                ].join(""),
+                title: [msg("review.refreshCategory")].join(""),
                 "v-if": "row.category",
             },
         ),
@@ -230,11 +231,14 @@ function createCategoryActionSlotTemplate(): any {
  */
 function createRedirectSlotsTemplate(): Array<any> {
     return [
-        createTableHeaderTemplate("Redirects", createRedirectHeaderActions()),
+        createTableHeaderTemplate(
+            msg("review.redirects"),
+            createRedirectHeaderActions(),
+        ),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
-            "Include redirect",
+            msg("review.includeRedirect"),
             "isRedirectConflictReviewRow(row)",
             "vg-stub-creator-review-row-marker--redirect-conflict",
         ),
@@ -258,21 +262,21 @@ function createRedirectSlotsTemplate(): Array<any> {
 /** Creates redirect-table header actions. */
 function createRedirectHeaderActions(): Array<any> {
     const reset = createIconActionLinkTemplate(
-        "Reset",
+        msg("common.reset"),
         "tableActionIcons.regenerate",
         "rebuildRedirectRows",
         {
             "aria-disabled": "reviewState.loading",
-            title: "Reset generated redirects",
+            title: msg("review.resetRedirects"),
         },
     );
     const clean = createIconActionLinkTemplate(
-        "Remove empty rows",
+        msg("common.clean"),
         "tableActionIcons.clean",
         "cleanRedirectRows",
     );
     const add = createIconActionLinkTemplate(
-        "Add",
+        msg("common.add"),
         "tableActionIcons.cdxIconArticleAdd",
         "addRedirectRow",
     );
@@ -285,10 +289,10 @@ function createRedirectHeaderActions(): Array<any> {
 function createRedirectRefreshAction(): any {
     const attributes = {
         "aria-disabled": "reviewState.loading",
-        title: "Refresh existence status for all redirect rows",
+        title: msg("review.refreshRedirects"),
     };
     const action = createIconActionLinkTemplate(
-        "Refresh",
+        msg("review.refresh"),
         "tableActionIcons.reload",
         "checkRedirectRows",
         attributes,
@@ -325,14 +329,14 @@ function createRedirectTitleSlotTemplate(): any {
 function createRedirectActionSlotTemplate(): any {
     return createActionSlotTemplate([
         createIconActionLinkTemplate(
-            "Refresh",
+            msg("review.refresh"),
             "tableActionIcons.reload",
             [
                 "checkRedirectRow((form.redirectRow",
                 "s || []).indexOf(row))",
             ].join(""),
             {
-                title: "Refresh this redirect's existence status",
+                title: msg("review.refreshRedirect"),
                 "v-if": "row.title",
             },
         ),
@@ -352,11 +356,14 @@ function createRedirectActionSlotTemplate(): any {
  */
 function createNavboxSlotsTemplate(): Array<any> {
     return [
-        createTableHeaderTemplate("Navboxes", createNavboxHeaderActions()),
+        createTableHeaderTemplate(
+            msg("review.navboxes"),
+            createNavboxHeaderActions(),
+        ),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
-            "Include navbox",
+            msg("review.includeNavbox"),
             "isNavboxAddReviewRow(row)",
             "vg-stub-creator-review-row-marker--navbox-add",
         ),
@@ -380,18 +387,18 @@ function createNavboxSlotsTemplate(): Array<any> {
 /** Creates navbox-table header actions. */
 function createNavboxHeaderActions(): Array<any> {
     const reset = createIconActionLinkTemplate(
-        "Reset",
+        msg("common.reset"),
         "tableActionIcons.regenerate",
         "rebuildNavboxRows",
         { "aria-disabled": "reviewState.loading" },
     );
     const clean = createIconActionLinkTemplate(
-        "Remove empty rows",
+        msg("common.clean"),
         "tableActionIcons.clean",
         "cleanNavboxRows",
     );
     const add = createIconActionLinkTemplate(
-        "Add",
+        msg("common.add"),
         "tableActionIcons.cdxIconArticleAdd",
         "addNavboxRow",
     );
@@ -426,14 +433,11 @@ function createNavboxTextSlotTemplate(): any {
 function createNavboxActionSlotTemplate(): any {
     return createActionSlotTemplate([
         createIconActionLinkTemplate(
-            "Refresh",
+            msg("review.refresh"),
             "tableActionIcons.reload",
             "checkNavboxRow((form.navboxRows || []).indexOf(row))",
             {
-                title: [
-                    "Refresh this navbox's page status ",
-                    "and edit/create action",
-                ].join(""),
+                title: [msg("review.refreshNavbox")].join(""),
                 "v-if": "row.title",
             },
         ),
@@ -450,11 +454,14 @@ function createNavboxActionSlotTemplate(): any {
  */
 function createStubTagSlotsTemplate(): Array<any> {
     return [
-        createTableHeaderTemplate("Stub tags", createStubTagHeaderActions()),
+        createTableHeaderTemplate(
+            msg("review.stubTags"),
+            createStubTagHeaderActions(),
+        ),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
-            "Include stub tag",
+            msg("review.includeStubTag"),
             "isStubTagAddReviewRow(row)",
             "vg-stub-creator-review-row-marker--stub-tag-add",
         ),
@@ -477,17 +484,17 @@ function createStubTagSlotsTemplate(): Array<any> {
 /** Creates stub-tag-table header actions. */
 function createStubTagHeaderActions(): Array<any> {
     const reset = createIconActionLinkTemplate(
-        "Reset",
+        msg("common.reset"),
         "tableActionIcons.regenerate",
         "resetStubTagRows",
     );
     const clean = createIconActionLinkTemplate(
-        "Remove empty rows",
+        msg("common.clean"),
         "tableActionIcons.clean",
         "cleanStubTagRows",
     );
     const add = createIconActionLinkTemplate(
-        "Add",
+        msg("common.add"),
         "tableActionIcons.cdxIconArticleAdd",
         "addStubTagRow",
     );
@@ -573,7 +580,7 @@ function createSlotTemplate(
  */
 function createRemoveActionTemplate(click: string): any {
     return createIconActionLinkTemplate(
-        "Remove",
+        msg("common.remove"),
         "tableActionIcons.remove",
         click,
         {
@@ -708,9 +715,9 @@ function createPageEditLinkTemplate(
         {
             href: "#",
             "v-bind:aria-label": [
-                "getReviewPageActionLabel(row, ",
+                "getReviewPageActionAriaLabel(row, ",
                 existing,
-                ") + ' page'",
+                ")",
             ].join(""),
             "v-if": condition,
             "v-on:click.prevent": click,

@@ -2,17 +2,13 @@
  * Prepares and saves company video game categories.
  */
 
-import { addEditSummarySuffix } from "../editing/summary.ts";
+import { addEditSummarySuffix } from "#stub/editing/summary.ts";
 import {
     addTalkPageBanner,
     connectWikidataSitelink,
-} from "../editing/pre-save.ts";
-import { buildDefaultSortText } from "../../domain/wikitext";
-import { fetchEnwikiMetadata } from "../sources/crosswiki.ts";
-import {
-    formatText,
-    getTextTemplate,
-} from "../../domain/wikitext/text-templates.ts";
+} from "#stub/editing/pre-save.ts";
+import { buildDefaultSortText, formatText, getTextTemplate } from "#stub/wiki";
+import { fetchEnwikiMetadata } from "#stub/sources/crosswiki.ts";
 
 const CATEGORY_NAMESPACE = "Category:";
 

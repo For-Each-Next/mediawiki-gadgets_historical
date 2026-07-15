@@ -2,27 +2,23 @@
  * Builds the vg-stub-creator dialog form component.
  */
 
-import {
-    formatArticleFormField,
-    isArticleListField,
-} from "../../domain/article";
+import { formatArticleFormField, isArticleListField } from "#stub/article";
 import {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,
     trimFieldValue,
-} from "../../shared/form-values.ts";
-import { splitFieldValues } from "../../../shared";
+} from "#stub/local/form-values.ts";
 import {
     createSaveProgress,
     getSaveProgressGroups,
     isSaveProgressComplete,
     updateSaveProgress,
-} from "../../infrastructure/save/progress.ts";
-import { sortNoteTaEntries } from "../../domain/wikitext/note-ta.ts";
+} from "#stub/save/progress.ts";
+import { sortNoteTaEntries } from "#stub/wiki";
 import {
     createPreSaveGroups,
     serializePreSaveProgressGroups,
-} from "../pre-save.ts";
+} from "#stub/ui/pre-save.ts";
 import {
     ARTICLE_PARAMETER_GROUPS,
     CATEGORY_TABLE_COLUMNS,
@@ -41,8 +37,9 @@ import {
     STEAM_NAME_HELPER_ROW,
     STUB_TAG_TABLE_COLUMNS,
     TABLE_ACTION_ICONS,
-} from "./constants.ts";
-import { createDialogTemplate } from "./template.ts";
+} from "#stub/form/constants.ts";
+import { createDialogTemplate } from "#stub/form/template.ts";
+import { msg } from "#stub/i18n";
 
 /**
  * Creates the Vue component definition for the Codex dialog.
@@ -243,7 +240,7 @@ function initializePreviewState(): void {
     previewSummary = Vue.ref("");
     previewHtml = Vue.ref("");
     previewLoading = Vue.ref(false);
-    previewLoadingMessage = Vue.ref("Preparing preview");
+    previewLoadingMessage = Vue.ref(msg("preview.preparing"));
     previewSubmitted = Vue.ref(false);
     pageEditTextArea = Vue.ref(null);
     enwikiLookupLoading = Vue.ref(false);
@@ -648,7 +645,47 @@ const methods = {
      * @returns Main dialog title.
      */
     getDialogTitle(): string {
-        return `Create a stub for ${getCurrentTitle()}`;
+        return msg("form.title", { title: getCurrentTitle() });
+    },
+
+    /** Gets the staged company-category dialog title. */
+    getCompanyCategoryDialogTitle(): string {
+        const values = { category: companyCategoryState.category };
+        if (companyCategoryState.pending) {
+            return msg("review.companyCategoryModifyTitle", values);
+        }
+
+        return msg("review.companyCategoryCreateTitle", values);
+    },
+
+    /** Gets the staged category or navbox editor title. */
+    getPageEditDialogTitle(): string {
+        const values = { title: pageEditState.title };
+        if (pageEditState.create) {
+            return msg("preview.createPageTitle", values);
+        }
+
+        return msg("preview.modifyPageTitle", values);
+    },
+
+    /** Gets the English Wikipedia helper label for a staged page. */
+    getPageEditEnglishLabel(): string {
+        if (pageEditState.kind === "navbox") {
+            return msg("review.pageEditEnwikiTemplate");
+        }
+
+        return msg("review.pageEditEnwikiCategory");
+    },
+
+    /**
+     * Gets the English Wikipedia helper placeholder for a staged page.
+     */
+    getPageEditEnglishPlaceholder(): string {
+        if (pageEditState.kind === "navbox") {
+            return msg("review.pageEditEnwikiTemplatePlaceholder");
+        }
+
+        return msg("review.pageEditEnwikiCategoryPlaceholder");
     },
 
     /**
@@ -704,13 +741,13 @@ const methods = {
      */
     async previewForm(): Promise<void> {
         previewLoading.value = true;
-        previewLoadingMessage.value = "Preparing citations";
+        previewLoadingMessage.value = msg("progress.preparingCitations");
 
         try {
             await refreshCitationRows();
-            previewLoadingMessage.value = "Checking follow-up pages";
+            previewLoadingMessage.value = msg("progress.checkingPages");
             await refreshReview();
-            previewLoadingMessage.value = "Building preview";
+            previewLoadingMessage.value = msg("progress.buildingPreview");
             options.onSubmitHistory(form, getCurrentTitle());
             historyEntries.value = options.getHistoryEntries();
             const preview = await options.onPreview(form, sourceFetchState);
@@ -727,7 +764,7 @@ const methods = {
             queueSourceEditor("preview", previewTextArea, previewText);
         } finally {
             previewLoading.value = false;
-            previewLoadingMessage.value = "Preparing preview";
+            previewLoadingMessage.value = msg("preview.preparing");
         }
     },
 
@@ -848,7 +885,7 @@ const methods = {
             },
         );
 
-        return step == null ? "Saving" : step.label;
+        return step == null ? msg("progress.saving") : step.label;
     },
 
     /**
@@ -1050,10 +1087,12 @@ const methods = {
         const page = trimFieldValue(entry.metadata?.page);
 
         if (entry.metadata?.temporary === true) {
-            return `${page || "Untitled"} (temporary draft)`;
+            return msg("history.temporaryPage", {
+                page: page || msg("history.untitled"),
+            });
         }
 
-        return page || "(untitled)";
+        return page || msg("history.untitled");
     },
 
     /**
@@ -2352,7 +2391,7 @@ const methods = {
             const row = findCompanyCategoryRow();
 
             if (row == null) {
-                throw new Error("Category row is unavailable.");
+                throw new Error(msg("errors.categoryRowUnavailable"));
             }
 
             row.pendingCreation = createPendingCompanyCategory(row);
@@ -2586,7 +2625,7 @@ const methods = {
         return selectValue(
             isBlankStubTagRow(row),
             function trueBranch() {
-                return "empty";
+                return msg("review.empty");
             },
             function falseBranch() {
                 return formatReviewRowStatusLabel(row, isBlankStubTagRow);
@@ -2681,10 +2720,17 @@ const methods = {
             row?.pendingCreation != null ||
             String(row?.status || "").startsWith("Pending")
         ) {
-            return "pending";
+            return msg("review.pendingAction");
         }
 
-        return exists ? "edit" : "create";
+        return exists ? msg("review.editAction") : msg("review.createAction");
+    },
+
+    /** Formats an accessible label for a review page action. */
+    getReviewPageActionAriaLabel(row: any, exists: boolean): string {
+        return msg("review.pageAction", {
+            action: this.getReviewPageActionLabel(row, exists),
+        });
     },
 
     /**
@@ -2722,7 +2768,7 @@ const methods = {
             row != null &&
             isBlankRedirectRow(row)
         ) {
-            return "empty";
+            return msg("review.empty");
         }
 
         const status =
@@ -2733,14 +2779,14 @@ const methods = {
             row != null &&
             !isRedirectRowFixed(row)
         ) {
-            return "Unchecked";
+            return msg("review.unchecked");
         }
 
         return (
             {
-                Exists: "Overwrite",
-                Missing: "OK",
-            }[status] || "Unchecked"
+                Exists: msg("review.overwrite"),
+                Missing: msg("review.ok"),
+            }[status] || msg("review.unchecked")
         );
     },
 
@@ -2979,9 +3025,11 @@ function getFieldSetupState(): any {
         getFieldPlaceholder: options.getFieldPlaceholder.bind(null, form),
         getFieldPreview,
         getGroupPreview,
+        getProseReviewDescription,
         getNameSearchRows,
         getEnwikiTipLinks,
         getWikidataText,
+        getWikidataStatusText,
     };
     return state;
 }
@@ -3861,7 +3909,7 @@ function moveFieldUrlToSource(field: any, value: string): boolean {
  * @returns Preview dialog title.
  */
 function getArticlePreviewTitle(): string {
-    return `Create '${getCurrentTitle()}'`;
+    return msg("preview.createPageTitle", { title: getCurrentTitle() });
 }
 
 /**
@@ -3892,6 +3940,13 @@ function getGroupPreview(group: any): string {
     return options.getFieldPreview(form, group.previewKey) || "";
 }
 
+/** Formats the generated prose length for the full-text preview. */
+function getProseReviewDescription(): string {
+    return msg("preview.sinographs", {
+        count: options.getProseSinographs(form),
+    });
+}
+
 /**
  * Gets the Wikidata note text.
  *
@@ -3907,6 +3962,11 @@ function getWikidataText(): string {
     );
 }
 
+/** Formats the Wikidata lookup note beside the metadata fields. */
+function getWikidataStatusText(): string {
+    return msg("metadata.wikidataText", { value: getWikidataText() });
+}
+
 /**
  * Gets external links discovered from the English Wikipedia title.
  *
@@ -3914,7 +3974,7 @@ function getWikidataText(): string {
  */
 function getEnwikiTipLinks(): Array<any> {
     if (enwikiLookupLoading.value) {
-        return createEnwikiTipPlaceholders("checking...");
+        return createEnwikiTipPlaceholders(msg("metadata.checking"));
     }
 
     const title = getBasePageTitle(form.enwikiTitle);
@@ -3951,7 +4011,8 @@ function createServiceTipLink(label, id, title): any {
     }
     return {
         label,
-        value: id || (title ? "search" : "not found"),
+        value:
+            id || (title ? msg("metadata.search") : msg("metadata.notFound")),
         url,
     };
 }
@@ -4058,7 +4119,7 @@ function getNameSearchRows(): Array<any> {
 function buildNameSearchLinks(query: string): Array<any> {
     return [
         {
-            label: "CN domain",
+            label: msg("names.cnDomain"),
             url: buildGoogleSiteSearchUrl(query, "*.cn"),
         },
         {
@@ -4336,20 +4397,20 @@ function formatReviewRowStatusLabel(
     isBlank: (...args: any[]) => any,
 ): string {
     if (typeof row === "object" && row != null && isBlank(row)) {
-        return "empty";
+        return msg("review.empty");
     }
 
     const status = typeof row === "object" && row != null ? row.status : row;
 
     return (
         {
-            Exists: "OK",
-            Missing: "Missing",
-            "Not exists": "Missing",
-            OK: "OK",
-            "Pending creation": "Pending",
-            "Pending edit": "Pending",
-        }[status] || "Unchecked"
+            Exists: msg("review.ok"),
+            Missing: msg("review.missing"),
+            "Not exists": msg("review.missing"),
+            OK: msg("review.ok"),
+            "Pending creation": msg("review.pending"),
+            "Pending edit": msg("review.pending"),
+        }[status] || msg("review.unchecked")
     );
 }
 
@@ -4707,7 +4768,9 @@ import {
     setCodeMirrorText,
     cloneValue,
     openDialog,
-} from "./helpers.ts";
+} from "#stub/form/helpers.ts";
+import { wikitext } from "#shared";
+const { splitFieldValues } = wikitext;
 
 /**
  * Selects a lazily evaluated value for a condition.

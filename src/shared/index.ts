@@ -1,5 +1,8 @@
-/** Public entry point for workspace-wide template helpers. */
+/** Public entry point for workspace-wide helpers. */
 
-export * from "./codex-html-template.ts";
-export * from "./i18n.ts";
-export * from "./wikitext.ts";
+import * as cite from "./cite/index.ts";
+import * as html from "./html.ts";
+import * as i18n from "./i18n.ts";
+import * as wikitext from "./wikitext.ts";
+
+export { cite, html, i18n, wikitext };

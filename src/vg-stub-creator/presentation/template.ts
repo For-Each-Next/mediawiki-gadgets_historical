@@ -1,10 +1,19 @@
-import {
-    createElement as createRawElement,
-    createText as createRawText,
+import { html } from "#shared";
+
+const {
+    createElement: createRawElement,
+    createText: createRawText,
     renderTemplate,
-} from "../../shared";
+} = html;
 
 export { renderTemplate };
+
+/**
+ * Escapes localized text for use as a Vue expression string literal.
+ */
+export function toVueString(value: string): string {
+    return JSON.stringify(value);
+}
 
 /** Creates a template element with localized static attributes. */
 export function createElement(

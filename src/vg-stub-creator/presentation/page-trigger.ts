@@ -1,3 +1,5 @@
+import { msg } from "#stub/i18n";
+
 /**
  * Adds gadget triggers to MediaWiki page actions.
  */
@@ -16,7 +18,7 @@ export function addMissingPageEditTrigger(
     const link = mediaWikiUtil.addPortletLink(
         "p-views",
         "#",
-        "Create VG stub",
+        msg("launcher.createStub"),
         "ca-vg-stub-creator",
     );
 
@@ -48,13 +50,13 @@ export function addViewPageTrigger(
         mediaWikiUtil.addPortletLink(
             "p-views",
             "#",
-            "Create VG stub",
+            msg("launcher.createStub"),
             "ca-vg-stub-creator",
         ) ||
         mediaWikiUtil.addPortletLink(
             "p-tb",
             "#",
-            "Create VG stub",
+            msg("launcher.createStub"),
             "t-vg-stub-creator",
         );
 
@@ -90,13 +92,13 @@ export function addEnwikiCreateTrigger(
         mediaWikiUtil.addPortletLink(
             "p-cactions",
             href,
-            "Create zhwiki VG stub",
+            msg("launcher.createZhwikiStub"),
             "ca-create-zhwiki-vg-stub",
         ) ||
         mediaWikiUtil.addPortletLink(
             "p-tb",
             href,
-            "Create zhwiki VG stub",
+            msg("launcher.createZhwikiStub"),
             "t-create-zhwiki-vg-stub",
         );
 

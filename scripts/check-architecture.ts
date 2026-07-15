@@ -26,6 +26,31 @@ const ALLOWED_DEPENDENCIES = {
     presentation: LAYERS,
     shared: new Set(["shared"]),
 };
+const ALIAS_LAYERS = new Map([
+    ["#shared", "shared"],
+    ["#stub/app", "application"],
+    ["#stub/article", "domain"],
+    ["#stub/config", "config"],
+    ["#stub/data", "domain"],
+    ["#stub/editing", "infrastructure"],
+    ["#stub/form", "presentation"],
+    ["#stub/handlers", "infrastructure"],
+    ["#stub/i18n", "config"],
+    ["#stub/local", "shared"],
+    ["#stub/main", "presentation"],
+    ["#stub/modules", "domain"],
+    ["#stub/save", "infrastructure"],
+    ["#stub/sources", "infrastructure"],
+    ["#stub/terms", "domain"],
+    ["#stub/ui", "presentation"],
+    ["#stub/wiki", "domain"],
+    ["#assessor/app", "application"],
+    ["#assessor/config", "config"],
+    ["#assessor/domain", "domain"],
+    ["#assessor/i18n", "config"],
+    ["#assessor/infra", "infrastructure"],
+    ["#assessor/ui", "presentation"],
+]);
 
 const files = await listTypeScriptFiles(SOURCE_ROOT);
 const errors = (await Promise.all(files.map(checkFile))).flat();
@@ -46,19 +71,18 @@ async function listTypeScriptFiles(directory: string): Promise<string[]> {
     return groups.flat().filter((path) => path.endsWith(".ts"));
 }
 
-/** Checks all relative imports in one source file. */
+/** Checks all local imports in one source file. */
 async function checkFile(file: string): Promise<string[]> {
     const source = await readFile(file, "utf8");
     const sourceLayer = getLayer(file);
-    const imports = readRelativeImports(source);
+    const imports = readLocalImports(source);
 
     if (sourceLayer == null) {
         return [];
     }
 
     return imports.flatMap((specifier) => {
-        const target = normalize(resolve(dirname(file), specifier));
-        const targetLayer = getLayer(target);
+        const targetLayer = getImportLayer(file, specifier);
         const allowed = ALLOWED_DEPENDENCIES[sourceLayer];
         if (targetLayer == null || allowed.has(targetLayer)) {
             return [];
@@ -67,14 +91,32 @@ async function checkFile(file: string): Promise<string[]> {
     });
 }
 
-/** Reads static relative import and re-export specifiers. */
-function readRelativeImports(source: string): string[] {
-    const pattern = /\b(?:from\s+|import\s+)["'](\.[^"']+)["']/gu;
+/** Reads static relative and package-import specifiers. */
+function readLocalImports(source: string): string[] {
+    const pattern = /\b(?:from\s+|import\s+)["']((?:\.|#)[^"']+)["']/gu;
     return Array.from(source.matchAll(pattern), (match) => match[1]);
+}
+
+/** Gets the target architecture layer for one local import. */
+function getImportLayer(file: string, specifier: string): string | null {
+    if (specifier.startsWith(".")) {
+        return getLayer(normalize(resolve(dirname(file), specifier)));
+    }
+
+    const alias = Array.from(ALIAS_LAYERS.keys())
+        .sort((left, right) => right.length - left.length)
+        .find(
+            (prefix) =>
+                specifier === prefix || specifier.startsWith(`${prefix}/`),
+        );
+    return alias == null ? null : ALIAS_LAYERS.get(alias) || null;
 }
 
 /** Gets the architecture layer represented by a source path. */
 function getLayer(path: string): string | null {
     const parts = relative(SOURCE_ROOT, path).split(/[\\/]/u);
+    if (parts.includes("i18n")) {
+        return "config";
+    }
     return parts.find((part) => LAYERS.has(part)) || null;
 }

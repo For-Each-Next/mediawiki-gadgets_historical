@@ -1,5 +1,5 @@
 /**
- * Canonical citation formatting and semantic reference-name rules.
+ * Canonicalizes and orders citation data and derives ref names.
  */
 
 import type {
@@ -7,8 +7,14 @@ import type {
     CitationTemplate,
     CitationTemplateData,
 } from "./types.ts";
+import citeBookTemplateData from "./data/cite-book.ts";
+import citeWebTemplateData from "./data/cite-web.ts";
+import { formatBlockCitation } from "./post-formatter.ts";
+import { applyPreFormatHandlers } from "./pre-formatter.ts";
 import { normalizeTemplateName } from "./templates.ts";
 import { parseTemplateCall } from "./wikitext.ts";
+
+export { formatBlockCitation } from "./post-formatter.ts";
 
 const ENGLISH_MONTHS: Record<string, string> = {
     april: "04",
@@ -55,6 +61,26 @@ const RESPONSIBLE_ORGANIZATION_PARAMS = [
 
 const DEFAULT_AUTHOR_FALLBACK = ["website", "work", "publisher", "title"];
 
+const CITE_WEB_PARAM_ORDER = new Map(
+    citeWebTemplateData.paramOrder.map((name, index) => [name, index]),
+);
+
+const CITE_BOOK_PARAM_ORDER = new Map(
+    citeBookTemplateData.paramOrder.map((name, index) => [name, index]),
+);
+
+const PRINT_CITATION_TEMPLATES = new Set([
+    "cite book",
+    "cite conference",
+    "cite document",
+    "cite encyclopedia",
+    "cite journal",
+    "cite magazine",
+    "cite report",
+    "cite tech report",
+    "cite thesis",
+]);
+
 const TEMPLATE_AUTHOR_FALLBACKS: Record<string, string[]> = {
     "cite av media": ["series", "publisher", "title"],
     "cite av media notes": ["album", "publisher", "title"],
@@ -81,6 +107,10 @@ export interface CitationIdentity {
     locator: string;
     sourceSignature: string;
     year: string;
+}
+
+interface CitationParamMetadata extends CitationParam {
+    order: number;
 }
 
 /**
@@ -125,7 +155,7 @@ export function canonicalizeCitation(
     const canonicalNames = buildCanonicalNameMap(metadata);
     const deduplicated = new Map<string, CitationParam>();
 
-    for (const param of citation.params) {
+    for (const param of applyPreFormatHandlers(citation.params)) {
         const enteredName = param.name.trim();
         const lookupName = enteredName.toLocaleLowerCase("en-US");
         const name = canonicalNames.get(lookupName) || enteredName;
@@ -138,34 +168,74 @@ export function canonicalizeCitation(
         deduplicated.set(name, { name, value });
     }
 
-    const order = new Map(
-        metadata.paramOrder.map((name, index) => [name, index]),
-    );
-    const params = [...deduplicated.values()].sort(
-        function sortParams(left, right) {
-            const leftOrder = order.get(left.name) ?? Number.MAX_SAFE_INTEGER;
-            const rightOrder =
-                order.get(right.name) ?? Number.MAX_SAFE_INTEGER;
-            return leftOrder - rightOrder;
-        },
+    const params = sortCitationParams(
+        citation.name,
+        [...deduplicated.values()],
+        metadata,
     );
     return { name: citation.name, params };
 }
 
 /**
- * Formats a citation with one parameter per line.
+ * Groups author slots, then applies TemplateData parameter order.
  *
- * @param citation - Canonical citation.
- * @returns Block-style template text.
+ * @param template - Normalized citation template name.
+ * @param params - Canonical citation parameters.
+ * @param metadata - TemplateData metadata.
+ * @returns Sorted citation parameters.
  */
-export function formatBlockCitation(citation: CitationTemplate): string {
-    const rows = citation.params
-        .filter((param) => param.value !== "")
-        .map((param) => `  | ${param.name} = ${param.value}`);
-    if (rows.length === 0) {
-        return `{{${citation.name}}}`;
+function sortCitationParams(
+    template: string,
+    params: CitationParam[],
+    metadata: CitationTemplateData,
+): CitationParam[] {
+    const order = new Map(
+        metadata.paramOrder.map((name, index) => [name, index]),
+    );
+    const fallbackOrder = PRINT_CITATION_TEMPLATES.has(template)
+        ? CITE_BOOK_PARAM_ORDER
+        : CITE_WEB_PARAM_ORDER;
+    const activeOrder = params.some(
+        (param) => !order.has(param.name) && fallbackOrder.has(param.name),
+    )
+        ? fallbackOrder
+        : order;
+    const result = params
+        .map(function addOrder(param): CitationParamMetadata {
+            const authorOrder = getAuthorParamOrder(param.name);
+            const paramOrder =
+                activeOrder.get(param.name) ?? Number.MAX_SAFE_INTEGER;
+            const orderedParam = {
+                ...param,
+                order:
+                    authorOrder ??
+                    (paramOrder === Number.MAX_SAFE_INTEGER
+                        ? paramOrder
+                        : 1_000 + paramOrder),
+            };
+            return orderedParam;
+        })
+        .sort((left, right) => left.order - right.order)
+        .map(function removeOrder(param): CitationParam {
+            return { name: param.name, value: param.value };
+        });
+    return result;
+}
+
+/**
+ * Orders all author-name slots before non-author citation fields.
+ *
+ * @param name - Canonical parameter name.
+ * @returns Author-field order, or null for another parameter family.
+ */
+function getAuthorParamOrder(name: string): number | null {
+    const match = name.match(/^(last|first|author-link)(\d*)$/u);
+    if (match == null) {
+        return null;
     }
-    return [`{{${citation.name}`, ...rows, "}}"].join("\n");
+    const index = Number(match[2] || "1");
+    const fieldOrder = ["last", "first", "author-link"].indexOf(match[1]);
+    return (index - 1) * 3 + fieldOrder;
 }
 
 /**
@@ -253,15 +323,20 @@ function isValidCalendarDay(
  * Derives the APA-style author/date identity and source locator.
  *
  * @param citation - Canonical citation.
+ * @param includeInitials - Whether to add the first author's initials.
  * @returns Semantic reference identity.
  */
 export function getCitationIdentity(
     citation: CitationTemplate,
+    includeInitials: boolean = false,
 ): CitationIdentity {
     const values = Object.fromEntries(
         citation.params.map((param) => [param.name, param.value]),
     );
-    const author = getCitationAuthor(citation.name, values);
+    const enteredAuthor = getCitationAuthor(citation.name, values);
+    const author = includeInitials
+        ? addFirstAuthorInitials(enteredAuthor, values)
+        : enteredAuthor;
     const year = getCitationYear(values);
     const locator = getSourceLocator(values);
     const baseName = `${author}, ${year}`;
@@ -275,6 +350,27 @@ export function getCitationIdentity(
         signatureParams.map((param) => [param.name, cleanValue(param.value)]),
     ]);
     return { author, baseName, locator, sourceSignature, year };
+}
+
+/**
+ * Prefixes a structured first author's initials for disambiguation.
+ *
+ * @param author - Family-name-based author key.
+ * @param values - Citation values keyed by canonical name.
+ * @returns Author key with initials when available.
+ */
+function addFirstAuthorInitials(
+    author: string,
+    values: Record<string, string>,
+): string {
+    const first = cleanValue(values.first || "");
+    const initials = first
+        .split(/[\s-]+/u)
+        .map((part) => part.match(/\p{L}/u)?.[0])
+        .filter((letter) => letter != null)
+        .map((letter) => `${letter}.`)
+        .join(" ");
+    return initials === "" ? author : `${initials} ${author}`;
 }
 
 /**
@@ -355,9 +451,21 @@ function collectNumberedValues(
             }
             continue;
         }
-        result.push(nameValue(values[key]));
+        result.push(authorNameValue(values[key]));
     }
     return result;
+}
+
+/**
+ * Extracts an explicitly comma-delimited family name for a creator key.
+ *
+ * @param value - Display citation value or hashtag override.
+ * @returns Creator family name when explicitly supplied.
+ */
+function authorNameValue(value: string): string {
+    const name = nameValue(value);
+    const family = name.match(/^([^,]+),\s*\S/u)?.[1].trim();
+    return family || name;
 }
 
 /**
@@ -463,6 +571,12 @@ function buildCanonicalNameMap(
         result.set(canonical.toLocaleLowerCase("en-US"), canonical);
         for (const alias of metadata.aliases[canonical] || []) {
             result.set(alias.toLocaleLowerCase("en-US"), canonical);
+        }
+    }
+    for (let index = 1; index <= 99; index += 1) {
+        const last = index === 1 ? "last" : `last${index}`;
+        if (canonicalNames.has(last)) {
+            result.set(`author${index}`, last);
         }
     }
     return result;

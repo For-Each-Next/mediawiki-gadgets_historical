@@ -9,7 +9,11 @@ import {
     type CitationIdentity,
 } from "./citation.ts";
 import { isCitationTemplate, normalizeTemplateName } from "./templates.ts";
-import type { CitationTemplateDataMap, TextReplacement } from "./types.ts";
+import type {
+    CitationTemplate,
+    CitationTemplateDataMap,
+    TextReplacement,
+} from "./types.ts";
 import {
     applyReplacements,
     findRefTags,
@@ -18,6 +22,25 @@ import {
     type ParsedTemplateCall,
     type RefTag,
 } from "./wikitext.ts";
+
+const REFERENCE_SECTION_COMMENT =
+    /<!--\s*(?:Section\s+[\d.]+(?::.*?)?|Unused refs)\s*-->/gu;
+const REFERENCE_SECTION_BANNER_COMMENT = new RegExp(
+    String.raw`<!-- -* (?:Section\s+[\d.]+(?::.*?)?|Unused refs) -* -->`,
+    "gu",
+);
+const LEGACY_REFERENCE_SECTION_BANNER_COMMENT = new RegExp(
+    String.raw`<!-- -*\r?\n---- +` +
+        String.raw`(?:Section\s+[\d.]+(?::.*?)?|Unused refs) +----` +
+        String.raw`\r?\n-* -->`,
+    "gu",
+);
+const OLDER_REFERENCE_SECTION_BANNER_COMMENT =
+    /<!-- -*\r?\n-* (?:Section\s+[\d.]+(?::.*?)?|Unused refs) -*\r?\n-* -->/gu;
+const LEGACY_REFERENCE_SECTION_COMMENT =
+    /<!--\s*==\s*(?:lead|Unused refs|.*?)\s*==\s*-->/gu;
+const HTML_COMMENT = /<!--[\s\S]*?-->/gu;
+const SECTION_COMMENT_WIDTH = 79;
 
 interface ReferenceContainer {
     contentEnd: number;
@@ -37,6 +60,8 @@ interface ReferenceDefinition {
     identity?: CitationIdentity;
     oldName: string;
     order: number;
+    section: string;
+    sectionOrder: number;
     tag: RefTag;
     trailingText: string;
 }
@@ -50,12 +75,21 @@ interface PlainDefinitionOptions {
     trailingText: string;
 }
 
+interface FormattedCitation {
+    citation: CitationTemplate;
+    text: string;
+}
+
 /**
  * Summary returned with transformed wikitext.
  */
 export interface CitationFormatResult {
     citationsFormatted: number;
+    individualReferencesFound: number;
+    referenceCallsFound: number;
+    referencesNotFormatted: number;
     referencesMoved: number;
+    rTemplatesFound: number;
     text: string;
 }
 
@@ -93,6 +127,7 @@ export function formatCitationWikitext(
     source: string,
     templateData: CitationTemplateDataMap,
 ): CitationFormatResult {
+    const rTemplatesFound = countRUseTemplates(source);
     const rConverted = convertRTemplates(source);
     const protectedRanges = findProtectedRanges(rConverted);
     const containers = findReferenceContainers(rConverted).filter(
@@ -112,17 +147,44 @@ export function formatCitationWikitext(
     assignFallbackNames(definitions);
     assignCitationNames(definitions);
     ensureUniqueReferenceNames(definitions);
+    assignReferenceSections(definitions, tags, containers, rConverted);
     const replacements = buildAllReplacements(tags, containers, definitions);
     let text = applyReplacements(rConverted, replacements);
     text = appendMissingReferenceContainers(text, containers, definitions);
 
+    const result = summarizeFormatting(
+        definitions,
+        tags,
+        containers,
+        text,
+        rTemplatesFound,
+    );
+    return result;
+}
+
+function summarizeFormatting(
+    definitions: ReferenceDefinition[],
+    tags: RefTag[],
+    containers: ReferenceContainer[],
+    text: string,
+    rTemplatesFound: number,
+): CitationFormatResult {
+    const individual = uniqueDefinitions(definitions);
     const result: CitationFormatResult = {
-        citationsFormatted: definitions.filter(
+        citationsFormatted: individual.filter(
             (definition) => definition.identity != null,
+        ).length,
+        individualReferencesFound: individual.length,
+        referenceCallsFound: tags.filter(
+            (tag) => !isTagInContainers(tag, containers),
+        ).length,
+        referencesNotFormatted: individual.filter(
+            (definition) => definition.identity == null,
         ).length,
         referencesMoved: definitions.filter(
             (definition) => !isTagInContainers(definition.tag, containers),
         ).length,
+        rTemplatesFound,
         text,
     };
     return result;
@@ -217,26 +279,148 @@ function createReferenceDefinition(
         tag,
         trailingText,
     };
-    const citationCall = findWholeCitationCall(trimmed);
-    if (citationCall == null) {
+    const citationCalls = findWholeCitationCalls(trimmed);
+    const citations = formatCitationCalls(citationCalls, templateData);
+    if (citations == null || citations.length === 0) {
         return buildPlainDefinition(plainOptions);
     }
-    const name = normalizeTemplateName(citationCall.name);
-    const metadata = templateData[name];
-    if (metadata == null) {
-        return buildPlainDefinition(plainOptions);
+    if (citations.length > 1) {
+        return buildBundledDefinition(plainOptions, citations);
     }
-    const formatted = formatCitationTemplate(citationCall.raw, metadata);
+    const formatted = citations[0];
     const identity = getCitationIdentity(formatted.citation);
+    return buildFormattedDefinition(plainOptions, formatted.text, identity);
+}
+
+/**
+ * Formats supported citation calls or rejects the whole set.
+ *
+ * @param calls - Whole-body citation calls.
+ * @param templateData - Citation metadata.
+ * @returns Formatted citations, or undefined when one is unsupported.
+ */
+function formatCitationCalls(
+    calls: ParsedTemplateCall[],
+    templateData: CitationTemplateDataMap,
+): FormattedCitation[] | undefined {
+    const result: FormattedCitation[] = [];
+    for (const call of calls) {
+        const metadata = templateData[normalizeTemplateName(call.name)];
+        if (metadata == null) {
+            return undefined;
+        }
+        result.push(formatCitationTemplate(call.raw, metadata));
+    }
+    return result;
+}
+
+/**
+ * Builds a multiline cite-bundle definition and combined APA key.
+ *
+ * @param options - Shared reference definition fields.
+ * @param citations - Formatted bundled citations.
+ * @returns Bundled reference definition.
+ */
+function buildBundledDefinition(
+    options: PlainDefinitionOptions,
+    citations: FormattedCitation[],
+): ReferenceDefinition {
+    const identities = getBundledIdentities(citations);
+    const names = identities.map((identity) =>
+        appendCitationLocator(identity.baseName, identity.locator),
+    );
+    const identity: CitationIdentity = {
+        author: identities.map((item) => item.author).join("; "),
+        baseName: names.join("; "),
+        locator: "",
+        sourceSignature: JSON.stringify(
+            identities.map((item) => item.sourceSignature),
+        ),
+        year: identities.map((item) => item.year).join("; "),
+    };
+    const result = buildFormattedDefinition(
+        options,
+        formatCitationBundle(citations),
+        identity,
+    );
+    return result;
+}
+
+/**
+ * Adds initials when bundled citations contain equal author keys.
+ *
+ * @param citations - Formatted bundled citations.
+ * @returns Disambiguated citation identities.
+ */
+function getBundledIdentities(
+    citations: FormattedCitation[],
+): CitationIdentity[] {
+    const identities = citations.map((item) =>
+        getCitationIdentity(item.citation),
+    );
+    const counts = Map.groupBy(identities, (identity) =>
+        getFirstAuthorKey(identity.author),
+    );
+    const result = citations.map(function disambiguate(item, index) {
+        const identity = identities[index];
+        const key = getFirstAuthorKey(identity.author);
+        const disambiguated =
+            (counts.get(key)?.length || 0) > 1
+                ? getCitationIdentity(item.citation, true)
+                : identity;
+        return disambiguated;
+    });
+    return result;
+}
+
+/**
+ * Gets the first family name from a formatted author key.
+ *
+ * @param author - Formatted author component.
+ * @returns First family-name key.
+ */
+function getFirstAuthorKey(author: string): string {
+    return author.split(/ & | et al\.$/u, 1)[0];
+}
+
+/**
+ * Serializes a multiline unbulleted citation bundle.
+ *
+ * @param citations - Formatted bundled citations.
+ * @returns Cite-bundle wikitext.
+ */
+function formatCitationBundle(citations: FormattedCitation[]): string {
+    const items = citations.map(function formatItem(item, index) {
+        const indented = item.text.replace(/\n/gu, "\n    ");
+        return `  | ${index + 1} = ${indented}`;
+    });
+    return ["{{Unbulleted list citebundle", ...items, "}}"].join("\n");
+}
+
+/**
+ * Builds a formatted citation definition.
+ *
+ * @param options - Shared reference definition fields.
+ * @param content - Formatted citation content.
+ * @param identity - Semantic citation identity.
+ * @returns Formatted reference definition.
+ */
+function buildFormattedDefinition(
+    options: PlainDefinitionOptions,
+    content: string,
+    identity: CitationIdentity,
+): ReferenceDefinition {
     const result: ReferenceDefinition = {
         finalName: identity.baseName,
-        formattedContent: formatted.text,
-        group,
+        formattedContent: content,
+        group: options.group,
         identity,
-        oldName: tag.attributes.name || "",
-        order,
-        tag,
-        trailingText,
+        oldName: options.oldName,
+        order: options.order,
+        section: "",
+        sectionOrder: Number.MAX_SAFE_INTEGER,
+        tag: options.tag,
+        trailingText: options.trailingText,
     };
     return result;
 }
@@ -251,16 +435,125 @@ function buildPlainDefinition(
     options: PlainDefinitionOptions,
 ): ReferenceDefinition {
     const { content, group, oldName, order, tag, trailingText } = options;
-    const result = {
+    const result: ReferenceDefinition = {
         finalName: "",
         formattedContent: content,
         group,
         oldName,
         order,
+        section: "",
+        sectionOrder: Number.MAX_SAFE_INTEGER,
         tag,
         trailingText,
     };
     return result;
+}
+
+/**
+ * Assigns definitions to article sections by their earliest prose use.
+ *
+ * @param definitions - Mutable reference definitions.
+ * @param tags - Parsed reference tags.
+ * @param containers - Reference-list containers.
+ * @param source - Article source wikitext.
+ */
+function assignReferenceSections(
+    definitions: ReferenceDefinition[],
+    tags: RefTag[],
+    containers: ReferenceContainer[],
+    source: string,
+): void {
+    const headings = findSectionHeadings(source);
+    for (const definition of definitions) {
+        const position = getDefinitionUsePosition(
+            definition,
+            tags,
+            containers,
+        );
+        definition.sectionOrder = position;
+        definition.section =
+            position === Number.MAX_SAFE_INTEGER
+                ? "Unused refs"
+                : getSectionAtPosition(position, headings);
+    }
+}
+
+interface SectionHeading {
+    label: string;
+    start: number;
+}
+
+/**
+ * Finds active section headings in source order.
+ *
+ * @param source - Article source wikitext.
+ * @returns Section heading positions and names.
+ */
+function findSectionHeadings(source: string): SectionHeading[] {
+    const protectedRanges = findProtectedRanges(source);
+    const headings: SectionHeading[] = [];
+    const counters = [0, 0, 0, 0, 0];
+    const pattern = /^(={2,6})\s*(.*?)\s*\1\s*$/gmu;
+    for (const match of source.matchAll(pattern)) {
+        const start = match.index || 0;
+        if (isInRanges(start, protectedRanges)) {
+            continue;
+        }
+        const depth = match[1].length - 2;
+        counters[depth] += 1;
+        counters.fill(0, depth + 1);
+        const number = counters.slice(0, depth + 1).join(".");
+        const name = match[2].trim();
+        headings.push({ label: `Section ${number}: ${name}`, start });
+    }
+    return headings;
+}
+
+/**
+ * Finds the earliest prose use of a definition.
+ *
+ * @param definition - Reference definition.
+ * @param tags - Parsed reference tags.
+ * @param containers - Reference-list containers.
+ * @returns Source position, or max-safe integer when unused.
+ */
+function getDefinitionUsePosition(
+    definition: ReferenceDefinition,
+    tags: RefTag[],
+    containers: ReferenceContainer[],
+): number {
+    if (!isTagInContainers(definition.tag, containers)) {
+        return definition.tag.start;
+    }
+    if (definition.oldName === "") {
+        return Number.MAX_SAFE_INTEGER;
+    }
+    const reuse = tags.find(function isMatchingReuse(tag) {
+        const group = tag.attributes.group || "";
+        const result =
+            !isTagInContainers(tag, containers) &&
+            tag.attributes.name === definition.oldName &&
+            group === definition.group;
+        return result;
+    });
+    return reuse?.start ?? Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * Resolves a source position to its nearest preceding section.
+ *
+ * @param position - Source offset.
+ * @param headings - Article section headings.
+ * @returns Numbered section label or lead section.
+ */
+function getSectionAtPosition(
+    position: number,
+    headings: SectionHeading[],
+): string {
+    const heading = headings.findLast(
+        (candidate) => candidate.start < position,
+    );
+    return heading?.label || "Section 0";
 }
 
 /**
@@ -284,16 +577,27 @@ function assignFallbackNames(definitions: ReferenceDefinition[]): void {
  * @param text - Trimmed ref content.
  * @returns Whole citation call when present.
  */
-function findWholeCitationCall(text: string): ParsedTemplateCall | undefined {
-    const result = findTemplateCalls(text).find(
-        function isWholeCitation(call) {
-            const result =
-                call.start === 0 &&
-                call.end === text.length &&
-                isCitationTemplate(call.name);
-            return result;
-        },
+function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
+    const candidates = findTemplateCalls(text).filter((call) =>
+        isCitationTemplate(call.name),
     );
+    const calls = candidates.filter(function isTopLevel(candidate) {
+        const result = !candidates.some(
+            (other) =>
+                other !== candidate &&
+                candidate.start >= other.start &&
+                candidate.end <= other.end,
+        );
+        return result;
+    });
+    let cursor = 0;
+    for (const call of calls) {
+        if (text.slice(cursor, call.start).trim() !== "") {
+            return [];
+        }
+        cursor = call.end;
+    }
+    const result = text.slice(cursor).trim() === "" ? calls : [];
     return result;
 }
 
@@ -505,7 +809,7 @@ function uniqueDefinitions(
 }
 
 /**
- * Builds a native references tag or reflist call.
+ * Builds a native references tag.
  *
  * @param container - Target container.
  * @param definitions - Group definitions.
@@ -515,35 +819,126 @@ function buildReferenceContainer(
     container: ReferenceContainer,
     definitions: ReferenceDefinition[],
 ): string {
-    const rows =
-        container.prefixText + definitions.map(buildDefinitionTag).join("\n");
-    if (container.kind === "references") {
-        let group = "";
-        if (container.group !== "") {
-            group = ` group="${escapeAttribute(container.group)}"`;
-        }
-        if (rows === "") {
-            return `<references${group} />`;
-        }
-        return `<references${group}>\n${rows}\n</references>`;
-    }
-
-    const otherParams = container.namedParams
-        .filter(([name]) => !["group", "list", "refs"].includes(name))
-        .map(([name, value]) => `| ${name} = ${value}`);
-    const groupParam =
-        container.group === "" ? [] : [`| group = ${container.group}`];
+    const rows = buildSectionedDefinitionRows(container, definitions);
+    const comments = getContainerGeneralComments(container, definitions);
+    const group =
+        container.group === ""
+            ? ""
+            : ` group="${escapeAttribute(container.group)}"`;
     if (rows === "") {
-        return [`{{reflist`, ...groupParam, ...otherParams, "}}"].join("\n");
+        return [`<references${group} />`, ...comments].join("\n");
     }
-    const result = [
-        "{{reflist",
-        ...groupParam,
-        ...otherParams,
-        "| list =",
+    const parts = [
+        `<references${group}>\n`,
         rows,
-        "}}",
-    ].join("\n");
+        "</references>",
+        ...comments,
+    ];
+    return parts.join("\n");
+}
+
+/**
+ * Collects list-body comments for output after the list.
+ *
+ * @param container - Source reference container.
+ * @param definitions - Definitions rendered in the container.
+ * @returns Non-navigation HTML comments in source order.
+ */
+function getContainerGeneralComments(
+    container: ReferenceContainer,
+    definitions: ReferenceDefinition[],
+): string[] {
+    const values = [
+        container.prefixText,
+        ...definitions.map((definition) => definition.trailingText),
+    ];
+    const result = values.flatMap(function findGeneralComments(value) {
+        const comments = Array.from(
+            value.matchAll(HTML_COMMENT),
+            ([comment]) => comment,
+        );
+        const general = comments.filter(function isGeneral(comment) {
+            return !isReferenceSectionComment(comment);
+        });
+        return general;
+    });
+    return result;
+}
+
+/**
+ * Builds section-labeled definition rows for one reference list.
+ *
+ * @param container - Target reference container.
+ * @param definitions - Group definitions.
+ * @returns Sectioned list body.
+ */
+function buildSectionedDefinitionRows(
+    container: ReferenceContainer,
+    definitions: ReferenceDefinition[],
+): string {
+    const prefix = stripReferenceSectionComments(container.prefixText).trim();
+    const sorted = [...definitions].sort(
+        (left, right) => left.sectionOrder - right.sectionOrder,
+    );
+    const groups = Map.groupBy(sorted, (definition) => definition.section);
+    const sections = Array.from(groups, function buildSection([name, items]) {
+        const rows = items.map(buildDefinitionTag).join("\n\n");
+        return `${formatReferenceSectionBanner(name)}\n\n${rows}`;
+    });
+    return [prefix, ...sections].filter(Boolean).join("\n\n");
+}
+
+/**
+ * Builds a centered three-line reference section banner.
+ *
+ * @param name - Numbered section label.
+ * @returns A 79-column HTML comment banner.
+ */
+function formatReferenceSectionBanner(name: string): string {
+    const label = ` ${name} `;
+    const delimiters = "<!--  -->".length;
+    const available = SECTION_COMMENT_WIDTH - delimiters - label.length;
+    const fill = Math.max(0, available);
+    const left = Math.floor(fill / 2);
+    const right = fill - left;
+    return `<!-- ${"-".repeat(left)}${label}${"-".repeat(right)} -->`;
+}
+
+/**
+ * Removes section-navigation comments before regenerating them.
+ *
+ * @param value - Existing reference-list text.
+ * @returns Text without section-navigation comments.
+ */
+function stripReferenceSectionComments(value: string): string {
+    const result = value
+        .replace(REFERENCE_SECTION_BANNER_COMMENT, "")
+        .replace(LEGACY_REFERENCE_SECTION_BANNER_COMMENT, "")
+        .replace(OLDER_REFERENCE_SECTION_BANNER_COMMENT, "")
+        .replace(REFERENCE_SECTION_COMMENT, "")
+        .replace(LEGACY_REFERENCE_SECTION_COMMENT, "")
+        .replace(HTML_COMMENT, "");
+    return result;
+}
+
+/**
+ * Checks whether a comment is generated reference-section navigation.
+ *
+ * @param comment - Complete HTML comment.
+ * @returns Whether the comment is a generated section marker.
+ */
+function isReferenceSectionComment(comment: string): boolean {
+    REFERENCE_SECTION_BANNER_COMMENT.lastIndex = 0;
+    LEGACY_REFERENCE_SECTION_BANNER_COMMENT.lastIndex = 0;
+    OLDER_REFERENCE_SECTION_BANNER_COMMENT.lastIndex = 0;
+    REFERENCE_SECTION_COMMENT.lastIndex = 0;
+    LEGACY_REFERENCE_SECTION_COMMENT.lastIndex = 0;
+    const result =
+        REFERENCE_SECTION_BANNER_COMMENT.test(comment) ||
+        LEGACY_REFERENCE_SECTION_BANNER_COMMENT.test(comment) ||
+        OLDER_REFERENCE_SECTION_BANNER_COMMENT.test(comment) ||
+        REFERENCE_SECTION_COMMENT.test(comment) ||
+        LEGACY_REFERENCE_SECTION_COMMENT.test(comment);
     return result;
 }
 
@@ -554,9 +949,10 @@ function buildReferenceContainer(
  * @returns Full ref tag.
  */
 function buildDefinitionTag(definition: ReferenceDefinition): string {
-    const name = escapeAttribute(definition.finalName);
+    const name = escapeRefName(definition.finalName);
     const tag = `<ref name="${name}">${definition.formattedContent}</ref>`;
-    return `${tag}${definition.trailingText}`;
+    const trailing = stripReferenceSectionComments(definition.trailingText);
+    return `${tag}${trailing}`.trimEnd();
 }
 
 /**
@@ -569,7 +965,7 @@ function buildDefinitionTag(definition: ReferenceDefinition): string {
 function buildReuseTag(name: string, group: string): string {
     const groupAttribute =
         group === "" ? "" : ` group="${escapeAttribute(group)}"`;
-    return `<ref name="${escapeAttribute(name)}"${groupAttribute} />`;
+    return `<ref name="${escapeRefName(name)}"${groupAttribute} />`;
 }
 
 /**
@@ -823,14 +1219,7 @@ function getContainingGroup(
  * @returns Source with native ref tags.
  */
 function convertRTemplates(text: string): string {
-    const protectedRanges = findProtectedRanges(text);
-    const replacements = findTemplateCalls(text)
-        .filter(function isConvertibleR(call) {
-            const result =
-                normalizeTemplateName(call.name) === "r" &&
-                !isInRanges(call.start, protectedRanges);
-            return result;
-        })
+    const replacements = findActiveRTemplates(text)
         .map(function replaceR(call) {
             const result = {
                 end: call.end,
@@ -840,6 +1229,40 @@ function convertRTemplates(text: string): string {
             return result;
         });
     return applyReplacements(text, removeNestedReplacements(replacements));
+}
+
+/**
+ * Finds active R-template calls.
+ *
+ * @param text - Source wikitext.
+ * @returns R calls outside protected ranges.
+ */
+function findActiveRTemplates(text: string): ParsedTemplateCall[] {
+    const protectedRanges = findProtectedRanges(text);
+    const result = findTemplateCalls(text).filter(function isActiveR(call) {
+        const active =
+            normalizeTemplateName(call.name) === "r" &&
+            !isInRanges(call.start, protectedRanges);
+        return active;
+    });
+    return result;
+}
+
+/**
+ * Counts active R calls outside reference-list containers.
+ *
+ * @param source - Original article source.
+ * @returns R call count before conversion.
+ */
+function countRUseTemplates(source: string): number {
+    const containers = findReferenceContainers(source);
+    const result = findActiveRTemplates(source).filter(function isUse(call) {
+        const contained = containers.some(function containsCall(container) {
+            return call.start >= container.start && call.end <= container.end;
+        });
+        return !contained;
+    }).length;
+    return result;
 }
 
 /**
@@ -869,7 +1292,7 @@ function convertRTemplate(call: ParsedTemplateCall): string {
     if (content != null) {
         const groupAttribute =
             group === "" ? "" : ` group="${escapeAttribute(group)}"`;
-        const name = escapeAttribute(definitionName);
+        const name = escapeRefName(definitionName);
         return `<ref name="${name}"${groupAttribute}>${content}</ref>`;
     }
     const result = positional
@@ -954,4 +1377,14 @@ function removeNestedReplacements(
  */
 function escapeAttribute(value: string): string {
     return value.replace(/&/gu, "&amp;").replace(/"/gu, "&quot;");
+}
+
+/**
+ * Escapes a quoted ref name while preserving valid literal ampersands.
+ *
+ * @param value - Raw ref name.
+ * @returns Ref name safe for a quoted attribute.
+ */
+function escapeRefName(value: string): string {
+    return value.replace(/&amp;/gu, "&").replace(/"/gu, "&quot;");
 }

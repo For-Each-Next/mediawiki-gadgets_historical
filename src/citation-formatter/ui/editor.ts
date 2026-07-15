@@ -59,12 +59,13 @@ async function runFormatter(
     try {
         const result = await formatCitations(editor.read());
         editor.write(result.text);
-        const citations = result.citationsFormatted;
-        const references = result.referencesMoved;
+        const notFormatted = result.referencesNotFormatted;
         const message =
-            `Formatted ${citations} citation(s); ` +
-            `moved ${references} reference(s).`;
-        mw.notify(message, { type: "success" });
+            notFormatted === 0
+                ? "Citation formatting complete."
+                : `Citation formatting complete; ${notFormatted} ` +
+                  "reference(s) not formatted.";
+        mw.notify(message, { type: notFormatted === 0 ? "success" : "warn" });
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         mw.notify(`Citation formatting failed: ${message}`, { type: "error" });

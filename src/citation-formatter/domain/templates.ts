@@ -1,7 +1,8 @@
 /**
- * CS1 templates listed by English Wikipedia, plus Cite video game.
+ * Supported English Wikipedia CS1/CS2 citation templates.
  */
 export const SUPPORTED_CITATION_TEMPLATES = [
+    "citation",
     "cite arxiv",
     "cite av media",
     "cite av media notes",

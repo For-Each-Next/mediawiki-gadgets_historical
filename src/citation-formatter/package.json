@@ -1,6 +1,6 @@
 {
     "name": "citation-formatter",
-    "version": "0.1.1",
+    "version": "0.1.10",
     "description": "Format CS1 citations and convert inline citations to list-defined references.",
     "private": true,
     "license": "CC BY-SA 4.0",

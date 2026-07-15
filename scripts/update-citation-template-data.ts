@@ -221,7 +221,7 @@ async function formatTemplateModule(
         "export default templateData;",
         "",
     ].join("\n");
-    return format(source, { parser: "typescript" });
+    return format(source, { parser: "typescript", tabWidth: 4 });
 }
 
 /**
@@ -256,7 +256,7 @@ async function formatTemplateDataIndex(
         "export default templateData;",
         "",
     ].join("\n");
-    return format(source, { parser: "typescript" });
+    return format(source, { parser: "typescript", tabWidth: 4 });
 }
 
 /**

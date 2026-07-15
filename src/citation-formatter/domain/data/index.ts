@@ -3,6 +3,7 @@
  */
 
 import type { CitationTemplateDataMap } from "../types.ts";
+import citation from "./citation.ts";
 import citeArxiv from "./cite-arxiv.ts";
 import citeAvMedia from "./cite-av-media.ts";
 import citeAvMediaNotes from "./cite-av-media-notes.ts";
@@ -34,6 +35,7 @@ import citeVideoGame from "./cite-video-game.ts";
 import citeWeb from "./cite-web.ts";
 
 const templateData: CitationTemplateDataMap = {
+    citation: citation,
     "cite arxiv": citeArxiv,
     "cite av media": citeAvMedia,
     "cite av media notes": citeAvMediaNotes,

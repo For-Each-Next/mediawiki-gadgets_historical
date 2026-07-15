@@ -10,17 +10,31 @@ import {
     getCitationIdentity,
     normalizeEnglishDate,
 } from "citation-formatter/domain/citation.ts";
+import generatedTemplateData from "citation-formatter/domain/data/index.ts";
 import type { CitationTemplateData } from "citation-formatter/domain/types.ts";
 
 const metadata: CitationTemplateData = {
     aliases: {
         "access-date": ["accessdate"],
         first: ["first1"],
+        first2: [],
         last: ["last1", "author", "author1"],
+        last2: ["author2"],
         title: [],
         url: ["URL"],
+        "url-status": [],
     },
-    paramOrder: ["last", "first", "date", "title", "url", "access-date"],
+    paramOrder: [
+        "last",
+        "first",
+        "last2",
+        "first2",
+        "date",
+        "title",
+        "url",
+        "access-date",
+        "url-status",
+    ],
 };
 
 test("normalizes English dates at year, month, and day precision", () => {
@@ -45,12 +59,56 @@ test("canonicalizes aliases and applies TemplateData order", () => {
         result.text,
         [
             "{{cite web",
-            "  | last = Ma",
+            "  | author = Ma",
             "  | title = Example",
             "  | url = https://example.test",
             "  | access-date = 2005-06",
             "}}",
         ].join("\n"),
+    );
+});
+
+test("uses numbered author labels only when multiple authors are present", () => {
+    const unstructured = formatCitationTemplate(
+        "{{cite web|author1=Ma|author2=Li|title=Example}}",
+        metadata,
+    );
+    assert.match(unstructured.text, /\| author1 = Ma/u);
+    assert.match(unstructured.text, /\| author2 = Li/u);
+
+    const structured = formatCitationTemplate(
+        "{{cite web|last1=Ma|first1=Anne|last2=Li|first2=Bo|title=Example}}",
+        metadata,
+    );
+    assert.match(structured.text, /\| last1 = Ma/u);
+    assert.match(structured.text, /\| first1 = Anne/u);
+    assert.match(structured.text, /\| last2 = Li/u);
+    assert.match(structured.text, /\| first2 = Bo/u);
+});
+
+test("replaces removed dead-url parameters and converts boolean values", () => {
+    const live = formatCitationTemplate(
+        "{{cite web|title=Example|url=https://example.test|archive-url=https://archive.test|dead-url=no}}",
+        metadata,
+    );
+    assert.match(live.text, /\| url-status = live/u);
+    assert.doesNotMatch(live.text, /dead-url/u);
+
+    const dead = formatCitationTemplate(
+        "{{cite web|title=Example|url=https://example.test|archive-url=https://archive.test|deadurl=yes}}",
+        metadata,
+    );
+    assert.match(dead.text, /\| url-status = dead/u);
+});
+
+test("uses cite book ordering as the print-template fallback", () => {
+    const result = formatCitationTemplate(
+        "{{cite journal|title=Example|name-list-style=amp|archive-format=PDF}}",
+        generatedTemplateData["cite journal"],
+    );
+    assert.ok(
+        result.text.indexOf("| archive-format =") <
+            result.text.indexOf("| name-list-style ="),
     );
 });
 
@@ -62,6 +120,15 @@ test("uses hashtag comments, multiple authors, and n.d. in names", () => {
     assert.equal(
         getCitationIdentity(commented.citation).baseName,
         "Yoisaki, n.d.",
+    );
+
+    const familyNames = formatCitationTemplate(
+        "{{cite web|author1=堀井雄二<!-- # Horii, Yūji -->|author2=早坂将昭<!-- # Hayasaka, Masaaki -->|date=2025|title=X}}",
+        metadata,
+    );
+    assert.equal(
+        getCitationIdentity(familyNames.citation).baseName,
+        "Horii & Hayasaka, 2025",
     );
 
     const multiple = formatCitationTemplate(

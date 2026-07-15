@@ -27,6 +27,10 @@ import {
 import { createDialogComponent } from "#stub/form";
 import { getBasePageTitle } from "#stub/form/helpers.ts";
 import { addDialogStyles } from "#stub/ui/styles.ts";
+import {
+    buildWhatLinksHerePageTitle,
+    selectArticleSubmissionTitle,
+} from "#stub/ui/navigation.ts";
 import { trimFieldValue } from "#stub/local/form-values.ts";
 import {
     clearFormHistory,
@@ -483,10 +487,10 @@ async function submitForm(context: any): Promise<void> {
         const submission = await prepareFormSubmission(context);
         const api = new mw.Api();
 
-        preSave.progress?.start(getPageName(), submission.pending);
+        preSave.progress?.start(submission.title, submission.pending);
         await saveSubmittedArticle(
             api,
-            getPageName(),
+            submission.title,
             submission.text,
             submission.summary,
         );
@@ -495,6 +499,7 @@ async function submitForm(context: any): Promise<void> {
             api,
             submission.pending,
             preSave,
+            submission.title,
         );
     } catch (error) {
         preSave.progress?.fail(error);
@@ -535,8 +540,30 @@ async function prepareFormSubmission(context: any): Promise<any> {
     }
     const text = previewText ?? stub?.text ?? readEditText();
     const pending = createPendingSubmission(preSave, shouldMove, moveTitle);
+    const title = getSubmissionTitle(context, shouldMove);
 
-    return { pending, summary, text };
+    return { pending, summary, text, title };
+}
+
+/**
+ * Gets the page that receives the submitted article text.
+ *
+ * New articles can be saved directly under an entered free title.
+ * Existing articles and explicit moves must start from the
+ * current page.
+ *
+ * @param context - Submit context.
+ * @param shouldMove - Whether an existing page move follows the save.
+ * @returns Submission page title.
+ */
+function getSubmissionTitle(context: any, shouldMove: boolean): string {
+    const result = selectArticleSubmissionTitle({
+        currentPageExists: context.currentPageExists === true,
+        currentTitle: getPageName(),
+        enteredTitle: trimFieldValue(context.form?.pageName),
+        shouldMove,
+    });
+    return result;
 }
 
 /**
@@ -609,16 +636,18 @@ function createPendingSubmission(
  * @param api - MediaWiki API client.
  * @param pending - Pending value.
  * @param preSave - Pre save value.
+ * @param title - Article title that received the saved text.
  */
 async function completeSubmittedFollowUpActions(
     api: mw.Api,
     pending: unknown,
     preSave: { progress: { report: (arg0: string) => void } },
+    title: string,
 ) {
     const result = await runSubmittedFollowUpActions(
         api,
         pending,
-        getPageName(),
+        title,
         preSave.progress,
     );
 
@@ -627,7 +656,7 @@ async function completeSubmittedFollowUpActions(
         return;
     }
 
-    window.location.href = mw.util.getUrl(result.title);
+    navigateToWhatLinksHere(result.title);
 }
 
 /**
@@ -979,13 +1008,15 @@ function normalizeEnglishCategoryTitle(title: string): string {
  *
  * @param citationStore - Citation fetch/cache store.
  * @param submit - Submit implementation.
+ * @param currentPageExists - Whether the current article exists.
  * @returns Dialog submit callback.
  */
 export function createSubmitHandler(
     citationStore: any,
     submit: (...args: any[]) => any = submitForm,
+    currentPageExists = true,
 ): (...args: any[]) => any {
-    const binding = { citationStore, submit };
+    const binding = { citationStore, currentPageExists, submit };
     return invokeSubmitHandler.bind(null, binding);
 }
 
@@ -1001,6 +1032,7 @@ export function createSubmitHandler(
 function invokeSubmitHandler(
     binding: {
         citationStore: unknown;
+        currentPageExists: boolean;
         submit: (...args: unknown[]) => unknown;
     },
     ...args: unknown[]
@@ -1009,6 +1041,7 @@ function invokeSubmitHandler(
     const context = {
         citationStore: binding.citationStore,
         closeDialog,
+        currentPageExists: binding.currentPageExists,
         form,
         preSave,
         preview,
@@ -1489,6 +1522,7 @@ interface InitContext {
     activationForm?: unknown;
     categoryStore: ReturnType<typeof createCategoryCacheStore>;
     citationStore: CitationStore;
+    currentPageExists: boolean;
     currentPageName: string;
     defaultName: string;
     movedEdit?: { form: unknown; preview?: boolean };
@@ -1518,6 +1552,7 @@ function createInitContext(require: {
         activationForm: readZhwikiActivationForm(window.location.search),
         categoryStore: createCategoryCacheStore(currentPageName),
         citationStore: createCitationStore(),
+        currentPageExists: mw.config.get("wgArticleId") !== 0,
         currentPageName,
         defaultName: getDefaultName(),
         movedEdit: getMovedEdit(currentPageName),
@@ -1561,6 +1596,7 @@ function createDialogOptions(context: InitContext): Record<string, unknown> {
  * @returns Basic form and history dialog options.
  */
 function createBaseDialogOptions(context: {
+    currentPageExists: boolean;
     currentPageName: string;
     defaultName: string;
     activationForm?: unknown;
@@ -1569,6 +1605,7 @@ function createBaseDialogOptions(context: {
 }): Record<string, unknown> {
     const result = {
         citationPrefetchDelay: CITATION_PREFETCH_DELAY,
+        currentPageExists: context.currentPageExists,
         currentTitle: context.currentPageName,
         defaultName: context.defaultName,
         getPageUrl,
@@ -1645,6 +1682,7 @@ function createReviewDialogOptions(context: {
  */
 function createSourceDialogOptions(context: {
     citationStore: CitationStore;
+    currentPageExists: boolean;
 }): Record<string, unknown> {
     const result = {
         onEnwikiTitleChange: fetchEnwikiMetadata,
@@ -1660,7 +1698,11 @@ function createSourceDialogOptions(context: {
             null,
             context.citationStore,
         ),
-        onSubmit: createSubmitHandler(context.citationStore),
+        onSubmit: createSubmitHandler(
+            context.citationStore,
+            submitForm,
+            context.currentPageExists,
+        ),
     };
     return result;
 }
@@ -2000,7 +2042,7 @@ async function runPendingSaveActions(): Promise<void> {
 
         clearPendingSaveData();
         completePendingSaveProgress(result);
-        reloadAfterPendingSave(result.title);
+        navigateToWhatLinksHere(result.title);
     } catch (error) {
         failSaveProgress(error);
     }
@@ -2021,17 +2063,13 @@ function completePendingSaveProgress(result: { failed: unknown[] }): void {
 }
 
 /**
- * Reloads the completed page or navigates to its moved title.
+ * Navigates to backlinks for the completed article.
  *
  * @param title - Page title.
  */
-function reloadAfterPendingSave(title: string): void {
-    if (normalizePageTitle(title) !== normalizePageTitle(getPageName())) {
-        window.location.href = mw.util.getUrl(title);
-        return;
-    }
-
-    window.location.reload();
+function navigateToWhatLinksHere(title: string): void {
+    const page = buildWhatLinksHerePageTitle(title);
+    window.location.href = mw.util.getUrl(page);
 }
 
 /**

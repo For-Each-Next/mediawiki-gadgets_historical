@@ -1215,14 +1215,42 @@ function normalizeReceivedNameRows(form: {
     officialNames: Array<Record<string, unknown>>;
     commonNames: Array<Record<string, unknown>>;
 }): void {
-    if (form.localizedNames != null) {
+    if (Array.isArray(form.localizedNames)) {
+        form.localizedNames = form.localizedNames.map(createNameRowFromValues);
+        ensureTrailingNameRow(form.localizedNames);
         return;
     }
 
     const official = addOfficialNameState(form.officialNames || [], true);
     const common = addOfficialNameState(form.commonNames || [], false);
 
-    form.localizedNames = [...official, ...common];
+    form.localizedNames = [...official, ...common].map(
+        createNameRowFromValues,
+    );
+    ensureTrailingNameRow(form.localizedNames);
+}
+
+/**
+ * Fills the article page title from one localized-name row.
+ *
+ * @param form - Mutable form values.
+ * @param key - Localized-name group key.
+ * @param index - Localized-name row index.
+ * @returns Whether a non-empty title was applied.
+ */
+export function applyLocalizedNameAsPageTitle(
+    form: any,
+    key: string,
+    index: number,
+): boolean {
+    const title = trimFieldValue(form[key]?.[index]?.name);
+
+    if (title === "") {
+        return false;
+    }
+
+    form.pageName = title;
+    return true;
 }
 
 /**

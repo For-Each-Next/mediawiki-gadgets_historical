@@ -52,6 +52,8 @@ import { msg } from "#stub/i18n";
  * @param Vue - ResourceLoader Vue module.
  * @param options - Dialog options.
  * @param options.currentTitle - Current page title.
+ * @param options.currentPageExists - Whether the current article
+ * exists.
  * @param options.defaultName - Default article display title.
  * @param options.getFieldPlaceholder - Field placeholder
  * builder.
@@ -988,7 +990,7 @@ const methods = {
      * ready.
      */
     async submitForm(): Promise<void> {
-        if (this.shouldConfirmPageNameMove()) {
+        if (await this.shouldConfirmPageNameMove()) {
             this.openMovePreviewConfirmation();
             return;
         }
@@ -1446,7 +1448,10 @@ const methods = {
         moveTarget.value = getCurrentTitle();
         movePreviewConfirmation.value = true;
         moveOpen.value = true;
-        this.checkMoveTarget();
+
+        if (moveTargetState.checkedTitle !== moveTarget.value) {
+            this.checkMoveTarget();
+        }
     },
 
     /**
@@ -1519,25 +1524,46 @@ const methods = {
      * @returns Whether the move action should be shown.
      */
     canMovePageName(): boolean {
+        const title = trimFieldValue(form.pageName);
+
+        if (title === "" || title === currentTitle) {
+            return false;
+        }
+
+        if (options.currentPageExists === true) {
+            return true;
+        }
+
         const result =
-            trimFieldValue(form.pageName) !== "" &&
-            trimFieldValue(form.pageName) !== currentTitle;
+            moveTargetState.exists === true &&
+            moveTargetState.checkedTitle === title;
         return result;
     },
 
     /**
      * Checks whether preview needs an explicit move decision first.
      *
-     * @returns Whether to prompt before previewing.
+     * @returns Resolves to whether preview needs confirmation.
      */
-    shouldConfirmPageNameMove(): boolean {
+    async shouldConfirmPageNameMove(): Promise<boolean> {
         const title = trimFieldValue(form.pageName);
 
-        const result =
-            title !== "" &&
-            title !== currentTitle &&
-            title !== previewWithoutMoveTitle.value;
-        return result;
+        if (
+            title === "" ||
+            title === currentTitle ||
+            title === previewWithoutMoveTitle.value
+        ) {
+            return false;
+        }
+
+        if (options.currentPageExists === true) {
+            return true;
+        }
+
+        moveTarget.value = title;
+        await this.checkMoveTarget();
+
+        return moveTargetState.exists === true;
     },
 
     /**
@@ -2019,6 +2045,22 @@ const methods = {
         form[key].splice(index, 1);
         ensureTrailingNameRow(form[key]);
         syncGeneratedNameNoteTaRow(form);
+    },
+
+    /**
+     * Fills the page title from one Chinese-name row.
+     *
+     * @param key - Localized name group key.
+     * @param index - Localized name row index.
+     * @returns Result when the title is applied.
+     */
+    applyNameAsPageTitle(key: string, index: number): void {
+        if (!applyLocalizedNameAsPageTitle(form, key, index)) {
+            return;
+        }
+
+        updateFieldDependencies("pageName");
+        markCategoryRowsUnfixed(form.categoryRows);
     },
 
     /**
@@ -3257,6 +3299,8 @@ function updateFieldDependencies(key: string): void {
         trimFieldValue(form.pageName) !== previewWithoutMoveTitle.value
     ) {
         previewWithoutMoveTitle.value = "";
+        moveTargetState.checkedTitle = "";
+        moveTargetState.exists = false;
     }
 
     if (key === "enwikiTitle") {
@@ -5256,6 +5300,7 @@ import {
     createCitationPrefetchQueue,
     createFormValues,
     createNameRow,
+    applyLocalizedNameAsPageTitle,
     createNoteTaRow,
     createNameRowFromValues,
     getSteamNameSuggestions,

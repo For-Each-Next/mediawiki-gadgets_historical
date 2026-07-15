@@ -81,6 +81,7 @@ export default i18n.defineMessages({
         "official": "官方名稱？",
         "title": "標題",
         "sourceUrls": "來源網址",
+        "applyAsPageTitle": "用作頁面名稱",
         "remove": "移除本地化名稱",
         "bySteamHelper": "由 Steam 名稱助手新增",
         "simplifiedFull": "簡體",

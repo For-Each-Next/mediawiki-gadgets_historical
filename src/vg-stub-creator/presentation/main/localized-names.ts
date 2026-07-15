@@ -352,6 +352,7 @@ function createNameFieldTemplate(): any {
                 [
                     createLocalizedNameLabelTemplate(),
                     createSteamNameHelperLabelTemplate(),
+                    createNameApplyTitleTemplate(),
                     createNameRemoveTemplate(),
                 ],
             ),
@@ -516,6 +517,23 @@ function createNameRemoveTemplate(): any {
         "removeNameRow(group.nameGroupKey, index)",
         {
             class: "vg-stub-creator-destructive-action",
+        },
+    );
+    return result;
+}
+
+/**
+ * Creates the action that fills the page title from a Chinese name.
+ *
+ * @returns Apply-page-title action.
+ */
+function createNameApplyTitleTemplate(): any {
+    const result = createIconActionLinkTemplate(
+        msg("names.applyAsPageTitle"),
+        "tableActionIcons.applyTitle",
+        "applyNameAsPageTitle(group.nameGroupKey, index)",
+        {
+            "v-if": "row.name.trim()",
         },
     );
     return result;

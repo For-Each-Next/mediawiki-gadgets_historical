@@ -304,6 +304,16 @@ export const MAIN_ACTION_MENU_ITEMS = [
     { label: msg("form.clear"), value: "clear" },
 ];
 export const TABLE_ACTION_ICONS = {
+    applyTitle: {
+        ltr: {
+            path: [
+                "M18 9.804v1.392l-5.688 5.883-1.436-",
+                "1.39L14.93 11.5H1v-2h13.923l-4.047-",
+                "4.165 1.434-1.394z",
+            ].join(""),
+        },
+        shouldFlip: true,
+    },
     cdxIconArticleAdd: {
         path: [
             "M3 3h8l4 4v2h-2V8h-3V5H5v12h5v2H3z",

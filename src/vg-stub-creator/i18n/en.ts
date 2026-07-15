@@ -86,6 +86,7 @@ export default i18n.defineMessages({
         "official": "Official?",
         "title": "Title",
         "sourceUrls": "Source URLs",
+        "applyAsPageTitle": "Use as page title",
         "remove": "Remove localized name",
         "bySteamHelper": "by Steam helper",
         "simplifiedFull": "Simplified",

@@ -610,12 +610,28 @@ function getSourceLocator(values: Record<string, string>): string {
         ["scene", "scene"],
     ];
     for (const [key, prefix] of locatorEntries) {
-        const value = cleanValue(values[key] || "");
+        let value = cleanValue(values[key] || "");
+        if (["time", "timestamp", "duration"].includes(key)) {
+            value = normalizeLocatorTime(value);
+        }
         if (value !== "") {
             return prefix === "" ? value : `${prefix} ${value}`;
         }
     }
     return "";
+}
+
+/**
+ * Restores colon notation for a time used in a reference name.
+ *
+ * @param value - Display-formatted citation time.
+ * @returns Colon-delimited locator time.
+ */
+function normalizeLocatorTime(value: string): string {
+    const result = value
+        .replace(/(\d+)ʰ(\d{2})′(\d{2})″/gu, "$1:$2:$3")
+        .replace(/(\d+)′(\d{2})″/gu, "$1:$2");
+    return result;
 }
 
 /**

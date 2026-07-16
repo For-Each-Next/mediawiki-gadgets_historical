@@ -91,6 +91,28 @@ test("uses canonical citation template casing", () => {
     }
 });
 
+test("formats displayed times while keeping colon locators", () => {
+    const single = formatCitationTemplate(
+        "{{Cite AV media|last=Ma|time=1:15:41|title=Video}}",
+        generatedTemplateData["cite av media"],
+    );
+    assert.match(single.text, /\| time = 1e15′41″/u);
+    assert.equal(
+        getCitationIdentity(single.citation).locator,
+        "at time 1:15:41",
+    );
+
+    const range = formatCitationTemplate(
+        "{{Cite AV media|last=Ma|time=0:00–5:00|title=Video}}",
+        generatedTemplateData["cite av media"],
+    );
+    assert.match(range.text, /\| time = 0′00″–5′00″/u);
+    assert.equal(
+        getCitationIdentity(range.citation).locator,
+        "at time 0:00–5:00",
+    );
+});
+
 test("uses numbered author labels only when multiple authors are present", () => {
     const unstructured = formatCitationTemplate(
         "{{cite web|author1=Ma|author2=Li|title=Example}}",

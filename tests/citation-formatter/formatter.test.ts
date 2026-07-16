@@ -556,6 +556,7 @@ test("formats Sea of Stars timestamp, platform, and tweet citations", () => {
         );
     }
     assert.doesNotMatch(result.text, /Boulanger, n\.d\.-[a-e]/u);
+    assert.match(result.text, /\| time = 0′00″–5′00″/u);
     for (const suffix of ["a", "b", "c", "d"]) {
         assert.match(
             result.text,

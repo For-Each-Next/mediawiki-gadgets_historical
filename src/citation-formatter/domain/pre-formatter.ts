@@ -6,7 +6,10 @@ import type { CitationParam } from "./types.ts";
 
 type PreFormatHandler = (param: CitationParam) => CitationParam;
 
-const PRE_FORMAT_HANDLERS: PreFormatHandler[] = [migrateDeadUrlParameter];
+const PRE_FORMAT_HANDLERS: PreFormatHandler[] = [
+    migrateDeadUrlParameter,
+    formatTimeParameter,
+];
 
 /**
  * Applies all pre-format parameter migrations in declaration order.
@@ -61,4 +64,43 @@ function normalizeDeadUrlStatus(value: string): string {
         return "dead";
     }
     return trimmed;
+}
+
+/**
+ * Formats colon-delimited citation times with typographic unit marks.
+ *
+ * @param param - Parsed citation parameter.
+ * @returns Parameter with a formatted time value when recognized.
+ */
+function formatTimeParameter(param: CitationParam): CitationParam {
+    if (param.name.trim().toLocaleLowerCase("en-US") !== "time") {
+        return param;
+    }
+    const value = param.value.trim();
+    const match = value.match(
+        /^(\d+:\d{2}(?::\d{2})?)(?:\s*([–—-])\s*(\d+:\d{2}(?::\d{2})?))?$/u,
+    );
+    if (match == null) {
+        return param;
+    }
+    const start = formatColonTime(match[1]);
+    const formatted =
+        match[3] == null
+            ? start
+            : `${start}${match[2]}${formatColonTime(match[3])}`;
+    return { name: param.name, value: formatted };
+}
+
+/**
+ * Formats one H:MM:SS or M:SS value.
+ *
+ * @param value - Colon-delimited time.
+ * @returns Time with hour, minute, and second marks.
+ */
+function formatColonTime(value: string): string {
+    const parts = value.split(":");
+    if (parts.length === 3) {
+        return `${parts[0]}ʰ${parts[1]}′${parts[2]}″`;
+    }
+    return `${parts[0]}′${parts[1]}″`;
 }

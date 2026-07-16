@@ -30,6 +30,7 @@ export const SUPPORTED_CITATION_TEMPLATES = [
     "cite ssrn",
     "cite tech report",
     "cite thesis",
+    "cite tweet",
     "cite web",
     "cite video game",
 ] as const;

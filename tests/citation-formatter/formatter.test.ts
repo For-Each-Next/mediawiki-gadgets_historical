@@ -300,6 +300,18 @@ test("adds year suffixes for distinct works in source order", () => {
     assert.match(result.text, /name="Ma, 2006b"/u);
 });
 
+test("hyphenates no-date suffixes for distinct works", () => {
+    const source = [
+        "A<ref>{{cite web|last=Ma|title=First}}</ref>",
+        "B<ref>{{cite web|last=Ma|title=Second}}</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /name="Ma, n\.d\.-a"/u);
+    assert.match(result.text, /name="Ma, n\.d\.-b"/u);
+});
+
 test("distinguishes same-source page and media locators without year letters", () => {
     const source = [
         "A<ref>{{cite book|last=Ma|date=2006|title=Book|page=59}}</ref>",
@@ -313,6 +325,49 @@ test("distinguishes same-source page and media locators without year letters", (
     assert.match(result.text, /name="Ma, 2006, p\. 60"/u);
     assert.match(result.text, /name="Li, 2020, timestamp 12:30"/u);
     assert.doesNotMatch(result.text, /2006a/u);
+});
+
+test("matches source identity across parts and position URLs", () => {
+    const source = [
+        "A<ref>{{cite web|last=Ma|date=2006|title=Book|url=https://example.test/book#one|pages=1-2}}</ref>",
+        "B<ref>{{cite web|last=Ma|date=2006|title=Book|url=https://example.test/book#two|chapter=Second}}</ref>",
+        "C<ref>{{cite web|last=Li|date=2020|title=Video|url=https://www.youtube.com/watch?v=abc&t=1m|time=1:00}}</ref>",
+        "D<ref>{{cite web|last=Li|date=2020|title=Video|url=https://www.youtube.com/watch?start=120&v=abc|time=2:00}}</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /name="Ma, 2006, pp\. 1-2"/u);
+    assert.match(result.text, /name="Ma, 2006, chapter Second"/u);
+    assert.match(result.text, /name="Li, 2020, timestamp 1:00"/u);
+    assert.match(result.text, /name="Li, 2020, timestamp 2:00"/u);
+    assert.doesNotMatch(result.text, /Ma, 2006[ab]/u);
+    assert.doesNotMatch(result.text, /Li, 2020[ab]/u);
+});
+
+test("keeps different sources with similar titles separate", () => {
+    const source = [
+        "A<ref>{{cite web|last=Ma|date=2006|title=Report|url=https://one.test/report}}</ref>",
+        "B<ref>{{cite web|last=Ma|date=2006|title=Report|url=https://two.test/report}}</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /name="Ma, 2006a"/u);
+    assert.match(result.text, /name="Ma, 2006b"/u);
+});
+
+test("formats cite tweet and leaves a blank line before references closes", () => {
+    const source = [
+        "Text.<ref>{{cite tweet|user=Pigsonthewing|number=564068436633214977|author=Andy Mabbett|date=February 7, 2015|title=Example tweet}}</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, generatedTemplateData);
+
+    assert.match(result.text, /<ref name="Andy Mabbett, 2015" \/>/u);
+    assert.match(result.text, /\{\{cite tweet\n  \| author = Andy Mabbett/u);
+    assert.match(result.text, /\| date = 2015-02-07/u);
+    assert.match(result.text, /<\/ref>\n\n<\/references>/u);
 });
 
 test("uses numeric-colon fallbacks for plain and mixed note content", () => {
@@ -398,3 +453,120 @@ test("formats EarthBound Beginnings article reference patterns", () => {
     assert.doesNotMatch(result.text, /25em/u);
     assert.match(result.text, /<!--<ref name="commented">/u);
 });
+
+test("formats Dragon Quest I and II draft citation patterns", () => {
+    const source = [
+        'Text.<ref name="Horii & Hayasaka, 2025a" />',
+        'Text.<ref name="Horii & Hayasaka, 2025b" />',
+        'Text.<ref name="Horii & Hayasaka, 2025c" />',
+        'Text.<ref name="Khan, 2025" />',
+        "<references>",
+        '<ref name="Horii & Hayasaka, 2025a">{{Cite interview',
+        "|title=発売記念特集 ドラゴンクエストI&II",
+        "|author2=早坂将昭<!-- # Hayasaka, Masaaki -->",
+        "|work=週刊ファミ通|date=2025-10-30|pages=16—21",
+        "|author1=堀井雄二<!-- # Horii, Yūji -->}}</ref>",
+        '<ref name="Horii & Hayasaka, 2025b">{{Cite interview',
+        "|title=『ドラクエ1＆2』堀井雄二氏×早坂P対談をお届け。",
+        "|author2=早坂将昭<!-- # Hayasaka, Masaaki -->",
+        "|url=https://www.famitsu.com/article/202511/56367",
+        "|work=ファミ通.com|date=2025-11-01",
+        "|author1=堀井雄二<!-- # Horii, Yūji -->}}</ref>",
+        '<ref name="Horii & Hayasaka, 2025c">{{Cite interview',
+        "|title=ドラゴンクエストI&II 公式ガイドブック【HD-2D版】",
+        "|author2=早坂将昭<!-- # Hayasaka, Masaaki -->",
+        "|publisher=スクウェア・エニックス|date=2025-11-27",
+        "|pages=488—492|author1=堀井雄二<!-- # Horii, Yūji -->",
+        "|isbn=978-4-301-00084-6|chapter=スペシャル対談}}</ref>",
+        '<ref name="Khan, 2025">{{Cite web|last=Khan|first=Zubi',
+        "|date=2025-10-29|title=Dragon Quest review",
+        "|url=https://example.test/review|dead-url=no}}</ref>",
+        "</references>",
+    ].join("\n");
+    const result = formatCitationWikitext(source, generatedTemplateData);
+
+    assert.match(
+        result.text,
+        /<ref name="Horii & Hayasaka, 2025a, pp\. 16—21" \/>/u,
+    );
+    assert.match(
+        result.text,
+        /<ref name="Horii & Hayasaka, 2025b" \/>/u,
+    );
+    assert.match(
+        result.text,
+        /<ref name="Horii & Hayasaka, 2025c, pp\. 488—492" \/>/u,
+    );
+    assert.match(result.text, /\| url-status = live/u);
+    assert.doesNotMatch(result.text, /\| dead-url =/u);
+    assert.match(result.text, /<\/ref>\n\n<\/references>/u);
+});
+
+test("formats Sea of Stars timestamp, platform, and tweet citations", () => {
+    const source = [
+        ...["0:00–5:00", "5:00–10:00", "10:00–15:00", "15:00–20:00", "20:00–25:00"].map(
+            (time) => `<ref name="Boulanger, n.d., ${time}" />`,
+        ),
+        ...["a", "b", "c", "d"].map(
+            (suffix) => `<ref name="Metacritic, n.d.-${suffix}" />`,
+        ),
+        '<ref name="Sea of Stars, 2023" />',
+        "<references>",
+        ...[0, 5, 10, 15, 20].map(function buildVideoDefinition(minute) {
+            const start = `${minute}:00`;
+            const end = `${minute + 5}:00`;
+            const position = minute === 0 ? "" : `&t=0h${minute}m00s`;
+            return [
+                `<ref name="Boulanger, n.d., ${start}–${end}">{{Cite AV media`,
+                `|url=https://www.youtube.com/watch?v=NvsDBAcKFDw${position}`,
+                "|title=The Making of Sea of Stars &verbar; Escapist Documentary",
+                "|last=Boulanger|first=Thierry|publisher=[[The Escapist]]",
+                `|time=${start}–${end}|via=YouTube}}</ref>`,
+            ].join("\n");
+        }),
+        ...["pc", "nintendo-switch", "playstation-5", "xbox-series-x"].map(
+            function buildPlatformDefinition(platform, index) {
+                const suffix = alphabeticTestSuffix(index);
+                return [
+                    `<ref name="Metacritic, n.d.-${suffix}">{{Cite web`,
+                    `|title=Sea of Stars for ${platform} Reviews`,
+                    `|url=https://www.metacritic.com/game/sea-of-stars/critic-reviews/?platform=${platform}`,
+                    "|website=[[Metacritic]]}}</ref>",
+                ].join("\n");
+            },
+        ),
+        '<ref name="Sea of Stars, 2023">{{Cite tweet',
+        "|author=Sea of Stars|user=seaofstarsgame",
+        "|number=1699175546930766092|date=2023-09-05",
+        "|title=Thank you}}</ref>",
+        "</references>",
+    ].join("\n");
+    const result = formatCitationWikitext(source, generatedTemplateData);
+
+    for (const time of [
+        "0:00–5:00",
+        "5:00–10:00",
+        "10:00–15:00",
+        "15:00–20:00",
+        "20:00–25:00",
+    ]) {
+        assert.match(
+            result.text,
+            new RegExp(`name="Boulanger, n\\.d\\., timestamp ${time}"`, "u"),
+        );
+    }
+    assert.doesNotMatch(result.text, /Boulanger, n\.d\.-[a-e]/u);
+    for (const suffix of ["a", "b", "c", "d"]) {
+        assert.match(
+            result.text,
+            new RegExp(`name="Metacritic, n\\.d\\.-${suffix}"`, "u"),
+        );
+    }
+    assert.match(result.text, /\{\{cite tweet\n/u);
+    assert.match(result.text, /name="Sea of Stars, 2023"/u);
+    assert.match(result.text, /<\/ref>\n\n<\/references>/u);
+});
+
+function alphabeticTestSuffix(index: number): string {
+    return String.fromCharCode("a".charCodeAt(0) + index);
+}

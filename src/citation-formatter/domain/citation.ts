@@ -40,15 +40,73 @@ const DATE_PARAMS = new Set([
     "publication-date",
 ]);
 
-const LOCATOR_PARAMS = new Set([
-    "at",
-    "duration",
-    "level",
-    "minutes",
+const SOURCE_IDENTITY_PARAMS = new Set([
+    "agency",
+    "arxiv",
+    "asin",
+    "bibcode",
+    "biorxiv",
+    "citeseerx",
+    "conference",
+    "date",
+    "department",
+    "developer",
+    "doi",
+    "encyclopedia",
+    "event",
+    "id",
+    "institution",
+    "isbn",
+    "issn",
+    "journal",
+    "jstor",
+    "lccn",
+    "magazine",
+    "mr",
+    "network",
+    "newspaper",
+    "number",
+    "oclc",
+    "ol",
+    "organization",
+    "orig-date",
+    "osti",
+    "pmc",
+    "pmid",
+    "podcast",
+    "program",
+    "publication-date",
+    "publisher",
+    "rfc",
+    "script-title",
+    "series",
+    "ssrn",
+    "title",
+    "trans-title",
+    "university",
+    "url",
+    "user",
+    "website",
+    "work",
+    "year",
+    "zbl",
+]);
+
+const CREATOR_PARAM_PATTERNS = [
+    /^(?:author|editor|first|host|last)(?:-first|-last)?\d*$/u,
+    /^(?:contributor|interviewer)(?:-first|-last)?\d*$/u,
+    /^(?:cartography|translator)(?:-first|-last)?\d*$/u,
+];
+
+const POSITION_QUERY_PARAMS = new Set([
+    "begin",
+    "chapter",
     "page",
-    "pages",
-    "scene",
+    "section",
+    "start",
+    "t",
     "time",
+    "time_continue",
     "timestamp",
 ]);
 
@@ -98,6 +156,7 @@ const TEMPLATE_AUTHOR_FALLBACKS: Record<string, string[]> = {
     "cite serial": ["series", "network", "publisher", "title"],
     "cite speech": ["event", "conference", "publisher", "title"],
     "cite thesis": ["university", "publisher", "title"],
+    "cite tweet": ["user", "title"],
     "cite video game": ["developer", "work", "publisher", "title"],
 };
 
@@ -341,15 +400,46 @@ export function getCitationIdentity(
     const locator = getSourceLocator(values);
     const baseName = `${author}, ${year}`;
     const signatureParams = citation.params.filter(
-        function omitLocator(param) {
-            return !LOCATOR_PARAMS.has(param.name);
+        function isSourceIdentity(param) {
+            const result =
+                SOURCE_IDENTITY_PARAMS.has(param.name) ||
+                isCreatorParam(param.name);
+            return result;
         },
     );
     const sourceSignature = JSON.stringify([
         citation.name,
-        signatureParams.map((param) => [param.name, cleanValue(param.value)]),
+        signatureParams.map(mapSourceIdentityParam),
     ]);
     return { author, baseName, locator, sourceSignature, year };
+}
+
+/**
+ * Checks whether a parameter names a source creator.
+ *
+ * @param name - Canonical parameter name.
+ * @returns Whether the parameter contributes to source identity.
+ */
+function isCreatorParam(name: string): boolean {
+    for (const pattern of CREATOR_PARAM_PATTERNS) {
+        if (pattern.test(name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Converts one identity parameter to its comparison representation.
+ *
+ * @param param - Canonical citation parameter.
+ * @returns Name and normalized value.
+ */
+function mapSourceIdentityParam(param: CitationParam): [string, string] {
+    if (param.name === "url") {
+        return [param.name, canonicalizeSourceUrl(param.value)];
+    }
+    return [param.name, cleanValue(param.value)];
 }
 
 /**
@@ -507,6 +597,10 @@ function getSourceLocator(values: Record<string, string>): string {
     const locatorEntries: Array<[string, string]> = [
         ["page", "p."],
         ["pages", "pp."],
+        ["quote-page", "p."],
+        ["quote-pages", "pp."],
+        ["chapter", "chapter"],
+        ["section", "section"],
         ["at", ""],
         ["time", "timestamp"],
         ["timestamp", "timestamp"],
@@ -522,6 +616,29 @@ function getSourceLocator(values: Record<string, string>): string {
         }
     }
     return "";
+}
+
+/**
+ * Removes source-position data from a URL.
+ *
+ * @param value - Entered source URL.
+ * @returns Deterministic URL used only for source comparison.
+ */
+function canonicalizeSourceUrl(value: string): string {
+    const clean = cleanValue(value).replace(/&amp;/gu, "&");
+    try {
+        const url = new URL(clean);
+        url.hash = "";
+        for (const name of [...url.searchParams.keys()]) {
+            if (POSITION_QUERY_PARAMS.has(name.toLocaleLowerCase("en-US"))) {
+                url.searchParams.delete(name);
+            }
+        }
+        url.searchParams.sort();
+        return url.toString();
+    } catch {
+        return clean.replace(/#.*$/u, "");
+    }
 }
 
 /**

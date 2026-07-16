@@ -631,7 +631,12 @@ function assignCitationNames(definitions: ReferenceDefinition[]): void {
             [_signature, sameSource],
             index,
         ) {
-            const suffix = needsYearSuffix ? alphabeticSuffix(index) : "";
+            const identity = sameSource[0].identity as CitationIdentity;
+            const separator = identity.year === "n.d." ? "-" : "";
+            let suffix = "";
+            if (needsYearSuffix) {
+                suffix = `${separator}${alphabeticSuffix(index)}`;
+            }
             for (const definition of sameSource) {
                 const identity = definition.identity as CitationIdentity;
                 definition.finalName = appendCitationLocator(
@@ -831,6 +836,7 @@ function buildReferenceContainer(
     const parts = [
         `<references${group}>\n`,
         rows,
+        "",
         "</references>",
         ...comments,
     ];

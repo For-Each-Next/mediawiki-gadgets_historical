@@ -31,6 +31,7 @@ import citeSpeech from "./cite-speech.ts";
 import citeSsrn from "./cite-ssrn.ts";
 import citeTechReport from "./cite-tech-report.ts";
 import citeThesis from "./cite-thesis.ts";
+import citeTweet from "./cite-tweet.ts";
 import citeVideoGame from "./cite-video-game.ts";
 import citeWeb from "./cite-web.ts";
 
@@ -63,6 +64,7 @@ const templateData: CitationTemplateDataMap = {
     "cite ssrn": citeSsrn,
     "cite tech report": citeTechReport,
     "cite thesis": citeThesis,
+    "cite tweet": citeTweet,
     "cite video game": citeVideoGame,
     "cite web": citeWeb,
 };

@@ -412,6 +412,58 @@ test("uses numeric-colon fallbacks for plain and mixed note content", () => {
     assert.equal(result.citationsFormatted, 0);
 });
 
+test("preserves citation maintenance templates with APA names", () => {
+    const source = [
+        "A<ref>{{cite web|last=Haywald|first=Justin|date=October 30, 2016|title=Example}}{{cbignore}}</ref>",
+        "B<ref>{{cite web|last=Reynolds|date=2024|title=Example}} {{Dead link|date=July 2026}}</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /<ref name="Haywald, 2016" \/>/u);
+    assert.match(result.text, /<ref name="Reynolds, 2024" \/>/u);
+    assert.match(result.text, /\}\}\{\{cbignore\}\}<\/ref>/u);
+    assert.match(
+        result.text,
+        /\}\} \{\{Dead link\|date=July 2026\}\}<\/ref>/u,
+    );
+    assert.equal(result.citationsFormatted, 2);
+    assert.equal(result.referencesNotFormatted, 0);
+});
+
+test("assigns unnamed names and year suffixes by first use on every run", () => {
+    const source = [
+        '<ref name=":3" />',
+        '<ref name="Ma, 2020b" />',
+        '<ref name=":1" />',
+        '<ref name="Ma, 2020a" />',
+        '<ref name=":2" />',
+        "<references>",
+        '<ref name=":3">Third plain note</ref>',
+        '<ref name="Ma, 2020b">{{cite web|last=Ma|date=2020|title=Second}}</ref>',
+        '<ref name=":1">First plain note</ref>',
+        '<ref name="Ma, 2020a">{{cite web|last=Ma|date=2020|title=First}}</ref>',
+        '<ref name=":2">Second plain note</ref>',
+        "</references>",
+    ].join("\n");
+    const first = formatCitationWikitext(source, templateData).text;
+    const second = formatCitationWikitext(first, templateData).text;
+
+    for (const text of [first, second]) {
+        const names = Array.from(
+            text.matchAll(/<ref name="([^"]+)">/gu),
+            (match) => match[1],
+        );
+        assert.deepEqual(names, [
+            ":1",
+            "Ma, 2020a",
+            ":2",
+            "Ma, 2020b",
+            ":3",
+        ]);
+    }
+});
+
 test("moves standalone list comments after references", () => {
     const source = [
         "Text.<ref name=\"used\" />",

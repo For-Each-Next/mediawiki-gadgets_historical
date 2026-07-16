@@ -53,6 +53,13 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.2
+
+- Preserved adjacent `Cbignore` and `Dead link` maintenance templates while
+  assigning their citations normal APA-style names.
+- Assigned unnamed-reference numbers and same-year suffixes by first citation,
+  and retained first-citation order on every formatting run.
+
 ### 0.3.1
 
 - Applied the author fallback through credited creators, organizations,

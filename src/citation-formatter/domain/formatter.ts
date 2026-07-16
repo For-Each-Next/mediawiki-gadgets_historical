@@ -47,6 +47,7 @@ const LEGACY_REFERENCE_SECTION_COMMENT =
     /<!--\s*==\s*(?:lead|Unused refs|.*?)\s*==\s*-->/gu;
 const HTML_COMMENT = /<!--[\s\S]*?-->/gu;
 const SECTION_COMMENT_WIDTH = 79;
+const CITATION_MAINTENANCE_TEMPLATES = new Set(["cbignore", "dead link"]);
 
 interface ReferenceContainer {
     contentEnd: number;
@@ -150,10 +151,10 @@ export function formatCitationWikitext(
         rConverted,
     );
 
-    assignFallbackNames(definitions);
-    assignCitationNames(definitions);
-    ensureUniqueReferenceNames(definitions);
     assignReferenceSections(definitions, tags, containers, rConverted);
+    assignCitationNames(definitions);
+    assignFallbackNames(definitions);
+    ensureUniqueReferenceNames(definitions);
     const replacements = buildAllReplacements(tags, containers, definitions);
     let text = applyReplacements(rConverted, replacements);
     text = appendMissingReferenceContainers(text, containers, definitions);
@@ -295,7 +296,31 @@ function createReferenceDefinition(
     }
     const formatted = citations[0];
     const identity = getCitationIdentity(formatted.citation);
-    return buildFormattedDefinition(plainOptions, formatted.text, identity);
+    const content = replaceSingleCitation(
+        trimmed,
+        citationCalls[0],
+        formatted,
+    );
+    return buildFormattedDefinition(plainOptions, content, identity);
+}
+
+/**
+ * Formats a citation while retaining adjacent maintenance templates.
+ *
+ * @param content - Complete trimmed reference body.
+ * @param call - Citation call within the body.
+ * @param formatted - Formatted citation call.
+ * @returns Formatted body retaining surrounding maintenance templates.
+ */
+function replaceSingleCitation(
+    content: string,
+    call: ParsedTemplateCall,
+    formatted: FormattedCitation,
+): string {
+    const result = applyReplacements(content, [
+        { end: call.end, start: call.start, text: formatted.text },
+    ]);
+    return result;
 }
 
 /**
@@ -572,6 +597,7 @@ function assignFallbackNames(definitions: ReferenceDefinition[]): void {
         .filter(function isPlainDefinition(definition) {
             return definition.identity == null;
         })
+        .sort(compareReferenceOrder)
         .forEach(function assignFallback(definition, index) {
             definition.finalName = `:${index + 1}`;
         });
@@ -588,23 +614,71 @@ function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
         isCitationTemplate(call.name),
     );
     const calls = candidates.filter(function isTopLevel(candidate) {
-        const result = !candidates.some(
-            (other) =>
-                other !== candidate &&
-                candidate.start >= other.start &&
-                candidate.end <= other.end,
-        );
+        const result = !isNestedTemplateCall(candidate, candidates);
         return result;
     });
     let cursor = 0;
+    const gaps: string[] = [];
     for (const call of calls) {
-        if (text.slice(cursor, call.start).trim() !== "") {
-            return [];
+        gaps.push(text.slice(cursor, call.start));
+        cursor = call.end;
+    }
+    gaps.push(text.slice(cursor));
+    const onlyWhitespace = gaps.every((gap) => gap.trim() === "");
+    const onlyMaintenance =
+        calls.length === 1 && gaps.every(isCitationMaintenanceText);
+    const result = onlyWhitespace || onlyMaintenance ? calls : [];
+    return result;
+}
+
+/**
+ * Checks whether text contains only citation maintenance templates.
+ *
+ * @param text - Text adjacent to a citation call.
+ * @returns Whether no prose or unsupported templates are present.
+ */
+function isCitationMaintenanceText(text: string): boolean {
+    const allCalls = findTemplateCalls(text);
+    const calls = allCalls.filter(function isTopLevel(call) {
+        const nested = isNestedTemplateCall(call, allCalls);
+        return !nested;
+    });
+    let cursor = 0;
+    for (const call of calls) {
+        if (
+            text.slice(cursor, call.start).trim() !== "" ||
+            !CITATION_MAINTENANCE_TEMPLATES.has(
+                normalizeTemplateName(call.name),
+            )
+        ) {
+            return false;
         }
         cursor = call.end;
     }
-    const result = text.slice(cursor).trim() === "" ? calls : [];
-    return result;
+    return text.slice(cursor).trim() === "";
+}
+
+/**
+ * Checks whether one parsed call is contained by another.
+ *
+ * @param call - Candidate child call.
+ * @param calls - Calls from the same wikitext fragment.
+ * @returns Whether the candidate is nested.
+ */
+function isNestedTemplateCall(
+    call: ParsedTemplateCall,
+    calls: ParsedTemplateCall[],
+): boolean {
+    for (const other of calls) {
+        if (
+            other !== call &&
+            call.start >= other.start &&
+            call.end <= other.end
+        ) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -613,7 +687,9 @@ function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
  * @param definitions - Mutable reference definitions.
  */
 function assignCitationNames(definitions: ReferenceDefinition[]): void {
-    const citationDefinitions = definitions.filter(isCitationDefinition);
+    const citationDefinitions = definitions
+        .filter(isCitationDefinition)
+        .sort(compareReferenceOrder);
     const baseGroups = Map.groupBy(
         citationDefinitions,
         function getBaseGroup(definition) {
@@ -902,15 +978,28 @@ function buildSectionedDefinitionRows(
     definitions: ReferenceDefinition[],
 ): string {
     const prefix = stripReferenceSectionComments(container.prefixText).trim();
-    const sorted = [...definitions].sort(
-        (left, right) => left.sectionOrder - right.sectionOrder,
-    );
+    const sorted = [...definitions].sort(compareReferenceOrder);
     const groups = Map.groupBy(sorted, (definition) => definition.section);
     const sections = Array.from(groups, function buildSection([name, items]) {
         const rows = items.map(buildDefinitionTag).join("\n");
         return `${formatReferenceSectionBanner(name)}\n\n${rows}`;
     });
     return [prefix, ...sections].filter(Boolean).join("\n\n");
+}
+
+/**
+ * Sorts by first use and retains source order for exact ties.
+ *
+ * @param left - Left definition.
+ * @param right - Right definition.
+ * @returns Sort comparison.
+ */
+function compareReferenceOrder(
+    left: ReferenceDefinition,
+    right: ReferenceDefinition,
+): number {
+    const byFirstUse = left.sectionOrder - right.sectionOrder;
+    return byFirstUse || left.order - right.order;
 }
 
 /**

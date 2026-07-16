@@ -588,7 +588,7 @@ function getCitationYear(values: Record<string, string>): string {
 }
 
 /**
- * Selects a page, timestamp, or interactive-media locator.
+ * Selects a page, time, or interactive-media locator.
  *
  * @param values - Citation values.
  * @returns Part-of-source locator.
@@ -602,10 +602,10 @@ function getSourceLocator(values: Record<string, string>): string {
         ["chapter", "chapter"],
         ["section", "section"],
         ["at", ""],
-        ["time", "timestamp"],
-        ["timestamp", "timestamp"],
+        ["time", "at time"],
+        ["timestamp", "at time"],
         ["minutes", "min."],
-        ["duration", "timestamp"],
+        ["duration", "at time"],
         ["level", "level"],
         ["scene", "scene"],
     ];

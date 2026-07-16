@@ -32,7 +32,7 @@ test("moves and formats citations into an existing references tag", () => {
     assert.match(result.text, /<ref name="Ma, 2006" \/>/u);
     assert.match(
         result.text,
-        /<references>\n\n<!-- -+ Section 0 -+ -->\n\n<ref name="Ma, 2006">\{\{cite web/u,
+        /<references>\n\n<!-- -+ Section 0 -+ -->\n\n<ref name="Ma, 2006">\{\{Cite web/u,
     );
     assertReferenceBanner(result.text, "Section 0");
     assert.match(result.text, /\| date = 2006-06-01/u);
@@ -48,7 +48,7 @@ test("formats the general Citation template", () => {
     const result = formatCitationWikitext(source, generatedTemplateData);
 
     assert.match(result.text, /<ref name="Ma, 2020" \/>/u);
-    assert.match(result.text, /\{\{citation\n  \| last = Ma\n  \| first = Anne/u);
+    assert.match(result.text, /\{\{Citation\n  \| last = Ma\n  \| first = Anne/u);
     assert.equal(result.citationsFormatted, 1);
     assert.equal(result.referencesNotFormatted, 0);
 });
@@ -190,9 +190,9 @@ test("bundles multiple whole-ref citations with multiline inner templates", () =
     );
     assert.match(
         result.text,
-        /\{\{Unbulleted list citebundle\n  \| 1 = \{\{cite web\n/u,
+        /\{\{Unbulleted list citebundle\n  \| 1 = \{\{Cite web\n/u,
     );
-    assert.match(result.text, /\n  \| 2 = \{\{cite book\n/u);
+    assert.match(result.text, /\n  \| 2 = \{\{Cite book\n/u);
     assert.match(result.text, /\n      \| last = Taylor/u);
 });
 
@@ -323,7 +323,7 @@ test("distinguishes same-source page and media locators without year letters", (
 
     assert.match(result.text, /name="Ma, 2006, p\. 59"/u);
     assert.match(result.text, /name="Ma, 2006, p\. 60"/u);
-    assert.match(result.text, /name="Li, 2020, timestamp 12:30"/u);
+    assert.match(result.text, /name="Li, 2020, at time 12:30"/u);
     assert.doesNotMatch(result.text, /2006a/u);
 });
 
@@ -339,8 +339,8 @@ test("matches source identity across parts and position URLs", () => {
 
     assert.match(result.text, /name="Ma, 2006, pp\. 1-2"/u);
     assert.match(result.text, /name="Ma, 2006, chapter Second"/u);
-    assert.match(result.text, /name="Li, 2020, timestamp 1:00"/u);
-    assert.match(result.text, /name="Li, 2020, timestamp 2:00"/u);
+    assert.match(result.text, /name="Li, 2020, at time 1:00"/u);
+    assert.match(result.text, /name="Li, 2020, at time 2:00"/u);
     assert.doesNotMatch(result.text, /Ma, 2006[ab]/u);
     assert.doesNotMatch(result.text, /Li, 2020[ab]/u);
 });
@@ -365,7 +365,7 @@ test("formats cite tweet and leaves a blank line before references closes", () =
     const result = formatCitationWikitext(source, generatedTemplateData);
 
     assert.match(result.text, /<ref name="Andy Mabbett, 2015" \/>/u);
-    assert.match(result.text, /\{\{cite tweet\n  \| author = Andy Mabbett/u);
+    assert.match(result.text, /\{\{Cite tweet\n  \| author = Andy Mabbett/u);
     assert.match(result.text, /\| date = 2015-02-07/u);
     assert.match(result.text, /<\/ref>\n\n<\/references>/u);
 });
@@ -552,7 +552,7 @@ test("formats Sea of Stars timestamp, platform, and tweet citations", () => {
     ]) {
         assert.match(
             result.text,
-            new RegExp(`name="Boulanger, n\\.d\\., timestamp ${time}"`, "u"),
+            new RegExp(`name="Boulanger, n\\.d\\., at time ${time}"`, "u"),
         );
     }
     assert.doesNotMatch(result.text, /Boulanger, n\.d\.-[a-e]/u);
@@ -562,7 +562,7 @@ test("formats Sea of Stars timestamp, platform, and tweet citations", () => {
             new RegExp(`name="Metacritic, n\\.d\\.-${suffix}"`, "u"),
         );
     }
-    assert.match(result.text, /\{\{cite tweet\n/u);
+    assert.match(result.text, /\{\{Cite tweet\n/u);
     assert.match(result.text, /name="Sea of Stars, 2023"/u);
     assert.match(result.text, /<\/ref>\n\n<\/references>/u);
 });

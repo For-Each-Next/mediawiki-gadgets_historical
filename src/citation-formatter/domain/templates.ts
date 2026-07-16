@@ -2,40 +2,46 @@
  * Supported English Wikipedia CS1/CS2 citation templates.
  */
 export const SUPPORTED_CITATION_TEMPLATES = [
-    "citation",
-    "cite arxiv",
-    "cite av media",
-    "cite av media notes",
-    "cite biorxiv",
-    "cite book",
-    "cite citeseerx",
-    "cite conference",
-    "cite document",
-    "cite encyclopedia",
-    "cite episode",
-    "cite interview",
-    "cite journal",
-    "cite magazine",
-    "cite mailing list",
-    "cite map",
-    "cite medrxiv",
-    "cite news",
-    "cite newsgroup",
-    "cite podcast",
-    "cite press release",
-    "cite report",
-    "cite serial",
-    "cite sign",
-    "cite speech",
-    "cite ssrn",
-    "cite tech report",
-    "cite thesis",
-    "cite tweet",
-    "cite web",
-    "cite video game",
+    "Citation",
+    "Cite arXiv",
+    "Cite AV media",
+    "Cite AV media notes",
+    "Cite bioRxiv",
+    "Cite book",
+    "Cite CiteSeerX",
+    "Cite conference",
+    "Cite document",
+    "Cite encyclopedia",
+    "Cite episode",
+    "Cite interview",
+    "Cite journal",
+    "Cite magazine",
+    "Cite mailing list",
+    "Cite map",
+    "Cite medRxiv",
+    "Cite news",
+    "Cite newsgroup",
+    "Cite podcast",
+    "Cite press release",
+    "Cite report",
+    "Cite serial",
+    "Cite sign",
+    "Cite speech",
+    "Cite SSRN",
+    "Cite tech report",
+    "Cite thesis",
+    "Cite tweet",
+    "Cite web",
+    "Cite video game",
 ] as const;
 
-const SUPPORTED_TEMPLATE_SET = new Set<string>(SUPPORTED_CITATION_TEMPLATES);
+const CANONICAL_TEMPLATE_NAMES = new Map(
+    SUPPORTED_CITATION_TEMPLATES.map(function indexCanonicalName(name) {
+        return [normalizeTemplateName(name), name] as const;
+    }),
+);
+
+const SUPPORTED_TEMPLATE_SET = new Set(CANONICAL_TEMPLATE_NAMES.keys());
 
 /**
  * Normalizes a template title for comparison and metadata lookup.
@@ -50,6 +56,17 @@ export function normalizeTemplateName(value: string): string {
         .replace(/[_\s]+/gu, " ")
         .toLocaleLowerCase("en-US");
     return result;
+}
+
+/**
+ * Returns the canonical display casing of a supported template name.
+ *
+ * @param value - Entered or normalized template title.
+ * @returns Canonically cased template name.
+ */
+export function getCanonicalTemplateName(value: string): string {
+    const normalized = normalizeTemplateName(value);
+    return CANONICAL_TEMPLATE_NAMES.get(normalized) || normalized;
 }
 
 /**

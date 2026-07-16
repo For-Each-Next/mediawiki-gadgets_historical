@@ -58,7 +58,7 @@ test("canonicalizes aliases and applies TemplateData order", () => {
     assert.equal(
         result.text,
         [
-            "{{cite web",
+            "{{Cite web",
             "  | author = Ma",
             "  | title = Example",
             "  | url = https://example.test",
@@ -66,6 +66,29 @@ test("canonicalizes aliases and applies TemplateData order", () => {
             "}}",
         ].join("\n"),
     );
+});
+
+test("uses canonical citation template casing", () => {
+    const cases = [
+        ["citation", "Citation"],
+        ["cite arxiv", "Cite arXiv"],
+        ["cite av media", "Cite AV media"],
+        ["cite av media notes", "Cite AV media notes"],
+        ["cite biorxiv", "Cite bioRxiv"],
+        ["cite citeseerx", "Cite CiteSeerX"],
+        ["cite medrxiv", "Cite medRxiv"],
+        ["cite ssrn", "Cite SSRN"],
+        ["cite tweet", "Cite tweet"],
+        ["cite web", "Cite web"],
+    ] as const;
+
+    for (const [entered, canonical] of cases) {
+        const result = formatCitationTemplate(
+            `{{${entered}|title=Example}}`,
+            generatedTemplateData[entered],
+        );
+        assert.match(result.text, new RegExp(`^\\{\\{${canonical}\\n`, "u"));
+    }
 });
 
 test("uses numbered author labels only when multiple authors are present", () => {

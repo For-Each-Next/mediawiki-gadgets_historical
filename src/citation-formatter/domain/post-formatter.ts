@@ -3,6 +3,7 @@
  */
 
 import type { CitationParam, CitationTemplate } from "./types.ts";
+import { getCanonicalTemplateName } from "./templates.ts";
 
 /**
  * Formats a citation with one parameter per line.
@@ -12,6 +13,7 @@ import type { CitationParam, CitationTemplate } from "./types.ts";
  */
 export function formatBlockCitation(citation: CitationTemplate): string {
     const authorCount = countAuthors(citation.params);
+    const templateName = getCanonicalTemplateName(citation.name);
     const rows = citation.params
         .filter((param) => param.value !== "")
         .map(function formatParam(param) {
@@ -23,9 +25,9 @@ export function formatBlockCitation(citation: CitationTemplate): string {
             return `  | ${name} = ${param.value}`;
         });
     if (rows.length === 0) {
-        return `{{${citation.name}}}`;
+        return `{{${templateName}}}`;
     }
-    return [`{{${citation.name}`, ...rows, "}}"].join("\n");
+    return [`{{${templateName}`, ...rows, "}}"].join("\n");
 }
 
 /**

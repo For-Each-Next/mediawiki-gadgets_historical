@@ -52,7 +52,7 @@ async function fetchAllTemplateData(): Promise<CitationTemplateDataMap> {
     }
     const missing = SUPPORTED_CITATION_TEMPLATES.filter(
         function isMissing(name) {
-            return result[name] == null;
+            return result[normalizeTemplateName(name)] == null;
         },
     );
     if (missing.length > 0) {

@@ -8,7 +8,7 @@ citations** page action:
   TemplateData;
 - normalizes unambiguous English citation dates to ISO dates;
 - names references with an APA-style author/date key, including `n.d.`,
-  same-year letter suffixes, and page or timestamp locators;
+  same-year letter suffixes, and page or time locators;
 - names plain-text and mixed-content notes sequentially as `:1`, `:2`, etc.;
 - converts `{{r}}` calls to native ref tags; and
 - moves full refs into matching grouped `<references>` containers.

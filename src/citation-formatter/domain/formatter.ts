@@ -23,10 +23,16 @@ import {
     type RefTag,
 } from "./wikitext.ts";
 
-const REFERENCE_SECTION_COMMENT =
-    /<!--\s*(?:Section\s+[\d.]+(?::.*?)?|Unused refs)\s*-->/gu;
+const REFERENCE_SECTION_COMMENT = new RegExp(
+    String.raw`<!--\s*(?:` +
+        String.raw`§\s+(?:[\d.]+(?:\s+.*?)?|A\s+Unused references)|` +
+        String.raw`Section\s+[\d.]+(?::.*?)?|Unused refs)\s*-->`,
+    "gu",
+);
 const REFERENCE_SECTION_BANNER_COMMENT = new RegExp(
-    String.raw`<!-- -* (?:Section\s+[\d.]+(?::.*?)?|Unused refs) -* -->`,
+    String.raw`<!-- -* (?:` +
+        String.raw`§\s+(?:[\d.]+(?:\s+.*?)?|A\s+Unused references)|` +
+        String.raw`Section\s+[\d.]+(?::.*?)?|Unused refs) -* -->`,
     "gu",
 );
 const LEGACY_REFERENCE_SECTION_BANNER_COMMENT = new RegExp(
@@ -473,7 +479,7 @@ function assignReferenceSections(
         definition.sectionOrder = position;
         definition.section =
             position === Number.MAX_SAFE_INTEGER
-                ? "Unused refs"
+                ? "§ A Unused references"
                 : getSectionAtPosition(position, headings);
     }
 }
@@ -504,7 +510,7 @@ function findSectionHeadings(source: string): SectionHeading[] {
         counters.fill(0, depth + 1);
         const number = counters.slice(0, depth + 1).join(".");
         const name = match[2].trim();
-        headings.push({ label: `Section ${number}: ${name}`, start });
+        headings.push({ label: `§ ${number} ${name}`, start });
     }
     return headings;
 }
@@ -553,7 +559,7 @@ function getSectionAtPosition(
     const heading = headings.findLast(
         (candidate) => candidate.start < position,
     );
-    return heading?.label || "Section 0";
+    return heading?.label || "§ 0 Lead";
 }
 
 /**
@@ -831,10 +837,10 @@ function buildReferenceContainer(
             ? ""
             : ` group="${escapeAttribute(container.group)}"`;
     if (rows === "") {
-        return [`<references${group} />`, ...comments].join("\n");
+        return [`<references${group} responsive />`, ...comments].join("\n");
     }
     const parts = [
-        `<references${group}>\n`,
+        `<references${group} responsive>\n`,
         rows,
         "",
         "</references>",
@@ -888,17 +894,17 @@ function buildSectionedDefinitionRows(
     );
     const groups = Map.groupBy(sorted, (definition) => definition.section);
     const sections = Array.from(groups, function buildSection([name, items]) {
-        const rows = items.map(buildDefinitionTag).join("\n\n");
+        const rows = items.map(buildDefinitionTag).join("\n");
         return `${formatReferenceSectionBanner(name)}\n\n${rows}`;
     });
     return [prefix, ...sections].filter(Boolean).join("\n\n");
 }
 
 /**
- * Builds a centered three-line reference section banner.
+ * Builds a centered reference section marker.
  *
  * @param name - Numbered section label.
- * @returns A 79-column HTML comment banner.
+ * @returns A 79-column HTML comment containing the section marker.
  */
 function formatReferenceSectionBanner(name: string): string {
     const label = ` ${name} `;

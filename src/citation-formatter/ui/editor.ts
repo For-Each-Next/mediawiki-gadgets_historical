@@ -4,6 +4,7 @@
 
 import { formatCitations } from "#me/app/format.ts";
 import { editBox } from "#shared";
+import { openCitationManager } from "#me/ui/manager.ts";
 
 const LINK_ID = "ca-citation-formatter";
 
@@ -19,10 +20,25 @@ export function mountCitationFormatter(): void {
         return;
     }
     const link = addFormatterLink("p-cactions") || addFormatterLink("p-tb");
+    let formatted = false;
     link?.addEventListener("click", function formatOnClick(event) {
         event.preventDefault();
-        void runFormatter(editor, link);
+        if (formatted) {
+            void openCitationManager(editor).catch(notifyManagerFailure);
+            return;
+        }
+        void runFormatter(editor, link).then(function enableManager(success) {
+            formatted = success;
+            if (success) {
+                setLinkLabel(link, "Manage citations");
+            }
+        });
     });
+}
+
+function notifyManagerFailure(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    mw.notify(`Citation manager failed: ${message}`, { type: "error" });
 }
 
 /**
@@ -47,13 +63,14 @@ function addFormatterLink(portlet: string): HTMLElement | null {
  *
  * @param editor - Active MediaWiki source editor.
  * @param link - Command link.
+ * @returns Whether formatting completed successfully.
  */
 async function runFormatter(
     editor: editBox.EditBox,
     link: HTMLElement,
-): Promise<void> {
+): Promise<boolean> {
     if (link.getAttribute("aria-disabled") === "true") {
-        return;
+        return false;
     }
     link.setAttribute("aria-disabled", "true");
     try {
@@ -66,10 +83,18 @@ async function runFormatter(
                 : `Citation formatting complete; ${notFormatted} ` +
                   "reference(s) not formatted.";
         mw.notify(message, { type: notFormatted === 0 ? "success" : "warn" });
+        return true;
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         mw.notify(`Citation formatting failed: ${message}`, { type: "error" });
+        return false;
     } finally {
         link.removeAttribute("aria-disabled");
     }
+}
+
+function setLinkLabel(link: HTMLElement, label: string): void {
+    const target = link.querySelector("a") || link;
+    target.textContent = label;
+    target.title = label;
 }

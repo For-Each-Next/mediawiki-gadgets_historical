@@ -96,7 +96,7 @@ test("formats displayed times while keeping colon locators", () => {
         "{{Cite AV media|last=Ma|time=1:15:41|title=Video}}",
         generatedTemplateData["cite av media"],
     );
-    assert.match(single.text, /\| time = 1e15′41″/u);
+    assert.match(single.text, /\| time = 1ʰ15′41″/u);
     assert.equal(
         getCitationIdentity(single.citation).locator,
         "at time 1:15:41",
@@ -166,6 +166,7 @@ test("uses hashtag comments, multiple authors, and n.d. in names", () => {
         getCitationIdentity(commented.citation).baseName,
         "Yoisaki, n.d.",
     );
+    assert.match(commented.text, /author = 宵崎奏 <!-- # Yoisaki -->/u);
 
     const familyNames = formatCitationTemplate(
         "{{cite web|author1=堀井雄二<!-- # Horii, Yūji -->|author2=早坂将昭<!-- # Hayasaka, Masaaki -->|date=2025|title=X}}",

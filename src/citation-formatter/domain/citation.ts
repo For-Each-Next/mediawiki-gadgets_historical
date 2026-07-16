@@ -219,6 +219,7 @@ export function canonicalizeCitation(
         const lookupName = enteredName.toLocaleLowerCase("en-US");
         const name = canonicalNames.get(lookupName) || enteredName;
         let value = param.value.trim();
+        value = normalizeNameOverrideSpacing(value);
         const isDate =
             DATE_PARAMS.has(name) || metadata.dateParams?.includes(name);
         if (isDate) {
@@ -233,6 +234,18 @@ export function canonicalizeCitation(
         metadata,
     );
     return { name: citation.name, params };
+}
+
+function normalizeNameOverrideSpacing(value: string): string {
+    const result = value.replace(
+        /\s*<!--\s*#\s*([\s\S]*?)-->/gu,
+        formatNameOverrideComment,
+    );
+    return result;
+}
+
+function formatNameOverrideComment(_match: string, override: string): string {
+    return ` <!-- # ${override.trim()} -->`;
 }
 
 /**

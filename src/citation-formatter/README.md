@@ -38,6 +38,12 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.0
+
+- Added a second-run citation manager for reference-name overrides and
+  temporary compact `R` calls.
+- Emitted responsive native reference lists and consecutive definition rows.
+
 ### 0.1.10
 
 - Simplified successful formatting notices and only counted skipped refs.

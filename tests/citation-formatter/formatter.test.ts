@@ -213,8 +213,16 @@ test("bundles multiple whole-ref citations with multiline inner templates", () =
 });
 
 test("converts r invocations and definitions", () => {
-    const source =
-        "Text {{r|old}}.\n<references>{{r|name=old|ref={{cite web|last=Ma|date=2006|title=X}}}}</references>";
+    const openTemplate = "{" + "{";
+    const source = [
+        "Text ",
+        openTemplate,
+        "r|old}}.\n<references>",
+        openTemplate,
+        "r|name=old|ref=",
+        openTemplate,
+        "cite web|last=Ma|date=2006|title=X}}}}</references>",
+    ].join("");
     const result = formatCitationWikitext(source, templateData);
 
     assert.match(result.text, /Text <ref name="Ma, 2006" \/>\./u);
@@ -277,7 +285,7 @@ test("keeps all interview authors before the title", () => {
     ]);
     assert.match(
         result.text,
-        /<ref name="Horii & Hayasaka, 2025, pp\. 488—492"/u,
+        /<ref name="Horii & Hayasaka, 2025"/u,
     );
 });
 
@@ -306,14 +314,15 @@ test("places cite interview editors before the title", () => {
 
 test("adds year suffixes for distinct works in source order", () => {
     const source = [
-        "A<ref>{{cite web|last=Ma|date=2006|title=First}}</ref>",
-        "B<ref>{{cite web|last=Ma|date=2006|title=Second}}</ref>",
+        "A<ref>{{cite web|last=Ma|date=2006|title=First|page=1}}</ref>",
+        "B<ref>{{cite web|last=Ma|date=2006|title=Second|page=2}}</ref>",
         "<references />",
     ].join("\n");
     const result = formatCitationWikitext(source, templateData);
 
     assert.match(result.text, /name="Ma, 2006a"/u);
     assert.match(result.text, /name="Ma, 2006b"/u);
+    assert.doesNotMatch(result.text, /name="Ma, 2006[ab], p\./u);
 });
 
 test("hyphenates no-date suffixes for distinct works", () => {
@@ -328,7 +337,7 @@ test("hyphenates no-date suffixes for distinct works", () => {
     assert.match(result.text, /name="Ma, n\.d\.-b"/u);
 });
 
-test("distinguishes same-source page and media locators without year letters", () => {
+test("uses locators only for multiple parts of the same source", () => {
     const source = [
         "A<ref>{{cite book|last=Ma|date=2006|title=Book|page=59}}</ref>",
         "B<ref>{{cite book|last=Ma|date=2006|title=Book|page=60}}</ref>",
@@ -339,7 +348,8 @@ test("distinguishes same-source page and media locators without year letters", (
 
     assert.match(result.text, /name="Ma, 2006, p\. 59"/u);
     assert.match(result.text, /name="Ma, 2006, p\. 60"/u);
-    assert.match(result.text, /name="Li, 2020, at time 12:30"/u);
+    assert.match(result.text, /name="Li, 2020"/u);
+    assert.doesNotMatch(result.text, /name="Li, 2020, at time/u);
     assert.doesNotMatch(result.text, /2006a/u);
 });
 
@@ -470,8 +480,21 @@ test("formats EarthBound Beginnings article reference patterns", () => {
     assert.match(result.text, /<!--<ref name="commented">/u);
 });
 
-test("formats Dragon Quest I and II draft citation patterns", () => {
-    const source = [
+test(
+    "formats Dragon Quest I and II draft citation patterns",
+    testDragonQuestPatterns,
+);
+
+function testDragonQuestPatterns(): void {
+    const result = formatCitationWikitext(
+        buildDragonQuestSource(),
+        generatedTemplateData,
+    );
+    assertDragonQuestResult(result.text);
+}
+
+function buildDragonQuestSource(): string {
+    const parts = [
         'Text.<ref name="Horii & Hayasaka, 2025a" />',
         'Text.<ref name="Horii & Hayasaka, 2025b" />',
         'Text.<ref name="Horii & Hayasaka, 2025c" />',
@@ -498,91 +521,119 @@ test("formats Dragon Quest I and II draft citation patterns", () => {
         "|date=2025-10-29|title=Dragon Quest review",
         "|url=https://example.test/review|dead-url=no}}</ref>",
         "</references>",
-    ].join("\n");
-    const result = formatCitationWikitext(source, generatedTemplateData);
+    ];
+    return parts.join("\n");
+}
 
+function assertDragonQuestResult(text: string): void {
     assert.match(
-        result.text,
-        /<ref name="Horii & Hayasaka, 2025a, pp\. 16—21" \/>/u,
+        text,
+        /<ref name="Horii & Hayasaka, 2025a" \/>/u,
     );
     assert.match(
-        result.text,
+        text,
         /<ref name="Horii & Hayasaka, 2025b" \/>/u,
     );
     assert.match(
-        result.text,
-        /<ref name="Horii & Hayasaka, 2025c, pp\. 488—492" \/>/u,
+        text,
+        /<ref name="Horii & Hayasaka, 2025c" \/>/u,
     );
-    assert.match(result.text, /\| url-status = live/u);
-    assert.doesNotMatch(result.text, /\| dead-url =/u);
-    assert.match(result.text, /<\/ref>\n\n<\/references>/u);
-});
+    assert.match(text, /\| url-status = live/u);
+    assert.doesNotMatch(text, /\| dead-url =/u);
+    assert.match(text, /<\/ref>\n\n<\/references>/u);
+}
 
-test("formats Sea of Stars timestamp, platform, and tweet citations", () => {
-    const source = [
-        ...["0:00–5:00", "5:00–10:00", "10:00–15:00", "15:00–20:00", "20:00–25:00"].map(
-            (time) => `<ref name="Boulanger, n.d., ${time}" />`,
-        ),
-        ...["a", "b", "c", "d"].map(
-            (suffix) => `<ref name="Metacritic, n.d.-${suffix}" />`,
-        ),
+const VIDEO_TIMES = [
+    "0:00–5:00",
+    "5:00–10:00",
+    "10:00–15:00",
+    "15:00–20:00",
+    "20:00–25:00",
+];
+const PLATFORMS = ["pc", "nintendo-switch", "playstation-5", "xbox-series-x"];
+
+test(
+    "formats Sea of Stars timestamp, platform, and tweet citations",
+    testSeaOfStarsPatterns,
+);
+
+function testSeaOfStarsPatterns(): void {
+    const result = formatCitationWikitext(
+        buildSeaOfStarsSource(),
+        generatedTemplateData,
+    );
+    assertSeaOfStarsResult(result.text);
+}
+
+function buildSeaOfStarsSource(): string {
+    const parts = [
+        ...VIDEO_TIMES.map(buildVideoCall),
+        ...PLATFORMS.map(buildPlatformCall),
         '<ref name="Sea of Stars, 2023" />',
         "<references>",
-        ...[0, 5, 10, 15, 20].map(function buildVideoDefinition(minute) {
-            const start = `${minute}:00`;
-            const end = `${minute + 5}:00`;
-            const position = minute === 0 ? "" : `&t=0h${minute}m00s`;
-            return [
-                `<ref name="Boulanger, n.d., ${start}–${end}">{{Cite AV media`,
-                `|url=https://www.youtube.com/watch?v=NvsDBAcKFDw${position}`,
-                "|title=The Making of Sea of Stars &verbar; Escapist Documentary",
-                "|last=Boulanger|first=Thierry|publisher=[[The Escapist]]",
-                `|time=${start}–${end}|via=YouTube}}</ref>`,
-            ].join("\n");
-        }),
-        ...["pc", "nintendo-switch", "playstation-5", "xbox-series-x"].map(
-            function buildPlatformDefinition(platform, index) {
-                const suffix = alphabeticTestSuffix(index);
-                return [
-                    `<ref name="Metacritic, n.d.-${suffix}">{{Cite web`,
-                    `|title=Sea of Stars for ${platform} Reviews`,
-                    `|url=https://www.metacritic.com/game/sea-of-stars/critic-reviews/?platform=${platform}`,
-                    "|website=[[Metacritic]]}}</ref>",
-                ].join("\n");
-            },
-        ),
+        ...[0, 5, 10, 15, 20].map(buildVideoDefinition),
+        ...PLATFORMS.map(buildPlatformDefinition),
         '<ref name="Sea of Stars, 2023">{{Cite tweet',
         "|author=Sea of Stars|user=seaofstarsgame",
         "|number=1699175546930766092|date=2023-09-05",
         "|title=Thank you}}</ref>",
         "</references>",
-    ].join("\n");
-    const result = formatCitationWikitext(source, generatedTemplateData);
+    ];
+    return parts.join("\n");
+}
 
-    for (const time of [
-        "0:00–5:00",
-        "5:00–10:00",
-        "10:00–15:00",
-        "15:00–20:00",
-        "20:00–25:00",
-    ]) {
+function buildVideoCall(time: string): string {
+    return `<ref name="Boulanger, n.d., ${time}" />`;
+}
+
+function buildPlatformCall(_platform: string, index: number): string {
+    const suffix = alphabeticTestSuffix(index);
+    return `<ref name="Metacritic, n.d.-${suffix}" />`;
+}
+
+function buildVideoDefinition(minute: number): string {
+    const start = `${minute}:00`;
+    const end = `${minute + 5}:00`;
+    const position = minute === 0 ? "" : `&t=0h${minute}m00s`;
+    return [
+        `<ref name="Boulanger, n.d., ${start}–${end}">{{Cite AV media`,
+        `|url=https://www.youtube.com/watch?v=NvsDBAcKFDw${position}`,
+        "|title=The Making of Sea of Stars &verbar; Escapist Documentary",
+        "|last=Boulanger|first=Thierry|publisher=[[The Escapist]]",
+        `|time=${start}–${end}|via=YouTube}}</ref>`,
+    ].join("\n");
+}
+
+function buildPlatformDefinition(platform: string, index: number): string {
+    const suffix = alphabeticTestSuffix(index);
+    return [
+        `<ref name="Metacritic, n.d.-${suffix}">{{Cite web`,
+        `|title=Sea of Stars for ${platform} Reviews`,
+        "|url=https://www.metacritic.com/game/sea-of-stars/" +
+            `critic-reviews/?platform=${platform}`,
+        "|website=[[Metacritic]]}}</ref>",
+    ].join("\n");
+}
+
+function assertSeaOfStarsResult(text: string): void {
+    for (const time of VIDEO_TIMES) {
         assert.match(
-            result.text,
+            text,
             new RegExp(`name="Boulanger, n\\.d\\., at time ${time}"`, "u"),
         );
     }
-    assert.doesNotMatch(result.text, /Boulanger, n\.d\.-[a-e]/u);
-    assert.match(result.text, /\| time = 0′00″–5′00″/u);
+    assert.doesNotMatch(text, /Boulanger, n\.d\.-[a-e]/u);
+    assert.match(text, /\| time = 0′00″–5′00″/u);
     for (const suffix of ["a", "b", "c", "d"]) {
         assert.match(
-            result.text,
+            text,
             new RegExp(`name="Metacritic, n\\.d\\.-${suffix}"`, "u"),
         );
     }
-    assert.match(result.text, /\{\{Cite tweet\n/u);
-    assert.match(result.text, /name="Sea of Stars, 2023"/u);
-    assert.match(result.text, /<\/ref>\n\n<\/references>/u);
-});
+    assert.match(text, /\{\{Cite tweet\n/u);
+    assert.match(text, /name="Sea of Stars, 2023"/u);
+    assert.match(text, /<\/ref>\n\n<\/references>/u);
+}
 
 function alphabeticTestSuffix(index: number): string {
     return String.fromCharCode("a".charCodeAt(0) + index);

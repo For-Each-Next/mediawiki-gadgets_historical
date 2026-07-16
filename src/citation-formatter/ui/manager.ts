@@ -93,18 +93,16 @@ function mountCitationManager(
     const Codex = require("@wikimedia/codex");
     const host = document.createElement("div");
     host.id = HOST_ID;
-    document.body.append(host);
-    let app: VueApp | null = null;
+    document.documentElement.append(host);
     const cleanup = function cleanup(): void {
-        app?.unmount();
+        application.unmount();
         host.remove();
-        app = null;
         removeActiveManager = null;
     };
     const component = createManagerComponent(Vue, editor, cleanup);
-    app = Vue.createMwApp(component);
-    registerCodexComponents(app, Codex);
-    app.mount(host);
+    const application = Vue.createMwApp(component);
+    registerCodexComponents(application, Codex);
+    application.mount(host);
     removeActiveManager = cleanup;
 }
 
@@ -142,6 +140,7 @@ function createManagerSetup(
             );
             return result.length;
         }
+        // noinspection JSUnusedGlobalSymbols -- Vue template bindings.
         const result = {
             countFilter,
             filterOptions: FILTER_OPTIONS,
@@ -201,6 +200,7 @@ function createReviewActions(state: ManagerState): Record<string, unknown> {
             synchronizeFieldOverride(state.reviewField.value);
         }
     }
+    // noinspection JSUnusedGlobalSymbols -- Vue template bindings.
     const result = {
         finishReview,
         onReviewOpenChange,

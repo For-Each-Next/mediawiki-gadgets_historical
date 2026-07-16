@@ -10,11 +10,11 @@ const { createEditBox, registerEditBoxHooks } = editBox;
 test("reads and writes a native source textarea", () => {
     const events: string[] = [];
     let focused = false;
-    // noinspection JSUnusedGlobalSymbols
+    function focus(): void {
+        focused = true;
+    }
     const textarea = Object.assign(new EventTarget(), {
-        focus() {
-            focused = true;
-        },
+        focus,
         value: "before",
     }) as unknown as HTMLTextAreaElement;
     textarea.addEventListener("input", (event) => events.push(event.type));
@@ -61,10 +61,12 @@ test("uses VisualEditor's active source surface without a textarea", () => {
             this.start = start;
         }
     }
-    // noinspection JSUnusedGlobalSymbols
+    function getSurface(): editBox.VisualEditorSurface {
+        return surface;
+    }
     (globalThis as { ve?: unknown }).ve = {
         Range,
-        init: { target: { active: true, getSurface: () => surface } },
+        init: { target: { active: true, getSurface } },
     };
 
     const editor = createEditBox(null);
@@ -84,7 +86,6 @@ test("uses VisualEditor's active source surface without a textarea", () => {
  * @param textarea - Bound native textarea.
  * @returns CodeMirror wrapper and observable state.
  */
-// noinspection JSUnusedGlobalSymbols
 function createCodeMirrorFixture(textarea: HTMLTextAreaElement) {
     const state = { focused: false, text: "CodeMirror source" };
     const doc = {
@@ -95,7 +96,7 @@ function createCodeMirrorFixture(textarea: HTMLTextAreaElement) {
             return state.text;
         },
     };
-    const view = {
+    const view: NonNullable<editBox.CodeMirrorEditor["view"]> = {
         dispatch(transaction: {
             changes: { from: number; insert: string; to: number };
         }) {
@@ -111,7 +112,11 @@ function createCodeMirrorFixture(textarea: HTMLTextAreaElement) {
         },
         state: { doc },
     };
-    const codeMirror = { isActive: true, textarea, view };
+    const codeMirror: editBox.CodeMirrorEditor = {
+        isActive: true,
+        textarea,
+        view,
+    };
     return { codeMirror, state };
 }
 
@@ -120,14 +125,13 @@ function createCodeMirrorFixture(textarea: HTMLTextAreaElement) {
  *
  * @returns VisualEditor surface and observable state.
  */
-// noinspection JSUnusedGlobalSymbols
 function createVisualEditorFixture() {
     const state = {
         focused: false,
         rangeStart: -1,
         text: "VisualEditor source",
     };
-    const fragment = {
+    const fragment: editBox.VisualEditorFragment = {
         expandLinearSelection(scope: string) {
             assert.equal(scope, "root");
             return this;
@@ -136,19 +140,20 @@ function createVisualEditorFixture() {
             state.text = value;
         },
     };
-    const model = {
-        getLinearFragment(range: { start: number }, noAutoSelect: boolean) {
-            state.rangeStart = range.start;
-            assert.equal(noAutoSelect, true);
-            return fragment;
-        },
-    };
-    const view = {
-        focus() {
-            state.focused = true;
-        },
-    };
-    const surface = {
+    function getLinearFragment(
+        range: { start: number },
+        noAutoSelect: boolean,
+    ): editBox.VisualEditorFragment {
+        state.rangeStart = range.start;
+        assert.equal(noAutoSelect, true);
+        return fragment;
+    }
+    function focus(): void {
+        state.focused = true;
+    }
+    const model = { getLinearFragment };
+    const view = { focus };
+    const surface: editBox.VisualEditorSurface = {
         getDom: () => state.text,
         getMode: () => "source",
         getModel: () => model,
@@ -162,17 +167,14 @@ function createVisualEditorFixture() {
  *
  * @returns Hook callbacks keyed by hook name.
  */
-// noinspection JSUnusedGlobalSymbols
 function installMediaWikiHookMock(): Map<string, (...args: any[]) => void> {
     const hooks = new Map<string, (...args: any[]) => void>();
-    (globalThis as { mw?: unknown }).mw = {
-        hook(name: string) {
-            return {
-                add(callback: (...args: any[]) => void) {
-                    hooks.set(name, callback);
-                },
-            };
-        },
-    };
+    function hook(name: string) {
+        function add(callback: (...args: any[]) => void): void {
+            hooks.set(name, callback);
+        }
+        return { add };
+    }
+    (globalThis as { mw?: unknown }).mw = { hook };
     return hooks;
 }

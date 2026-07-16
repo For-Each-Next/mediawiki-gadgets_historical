@@ -20,15 +20,15 @@ export function mountCitationFormatter(): void {
         return;
     }
     const link = addFormatterLink("p-cactions") || addFormatterLink("p-tb");
-    let formatted = false;
+    const state = { formatted: false };
     link?.addEventListener("click", function formatOnClick(event) {
         event.preventDefault();
-        if (formatted) {
+        if (state.formatted) {
             void openCitationManager(editor).catch(notifyManagerFailure);
             return;
         }
         void runFormatter(editor, link).then(function enableManager(success) {
-            formatted = success;
+            state.formatted = success;
             if (success) {
                 setLinkLabel(link, "Manage citations");
             }

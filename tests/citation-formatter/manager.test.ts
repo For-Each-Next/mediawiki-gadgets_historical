@@ -42,6 +42,28 @@ test("finds and applies non-Latin reference-name overrides", () => {
     assert.match(result, /\| title = \{\{lang\|ja\|インタビュー\}\}/u);
 });
 
+test("edits overrides sharing a no-author directive", () => {
+    const source = [
+        "{{Cite web|website=游民星空",
+        "<!-- !no-author # Youmin Xingkong -->|title=X}}",
+    ].join("");
+    const [field] = findNameOverrideFields(source);
+    assert.equal(field.override, "Youmin Xingkong");
+
+    const updated = applyNameOverrides(source, [
+        { ids: field.ids, override: "Gamersky" },
+    ]);
+    assert.match(
+        updated,
+        /website=游民星空<!-- !no-author # Gamersky -->/u,
+    );
+
+    const removed = applyNameOverrides(source, [
+        { ids: field.ids, override: "" },
+    ]);
+    assert.match(removed, /website=游民星空<!-- !no-author -->/u);
+});
+
 test("round trips native reuse tags through temporary R calls", () => {
     const source = [
         'Text.<ref name="First, 2020" /><ref name="Second, 2021" />',
@@ -70,7 +92,8 @@ test("leaves grouped and attributed reuse tags native", () => {
 test("leaves management examples in protected wikitext unchanged", () => {
     const source = [
         '<!-- <ref name="comment" /> {{Cite web|author=作者}} -->',
-        '<nowiki><ref name="code" /> {{r|old}} {{Cite web|author=作者}}</nowiki>',
+        '<nowiki><ref name="code" /> {{r|old}} ' +
+            "{{Cite web|author=作者}}</nowiki>",
     ].join("\n");
     assert.deepEqual(findNameOverrideFields(source), []);
     assert.equal(compactReferenceCalls(source), source);

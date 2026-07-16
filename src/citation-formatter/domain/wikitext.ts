@@ -206,7 +206,11 @@ export function parseTagAttributes(value: string): Record<string, string> {
     return attributes;
 }
 
-/* eslint-disable max-lines-per-function */
+interface SplitState {
+    comment: boolean;
+    linkDepth: number;
+    templateDepth: number;
+}
 
 /**
  * Splits text at top-level separators.
@@ -218,48 +222,22 @@ export function parseTagAttributes(value: string): Record<string, string> {
 export function splitTopLevel(text: string, separator: string): string[] {
     const parts: string[] = [];
     let start = 0;
-    let templateDepth = 0;
-    let linkDepth = 0;
-    let comment = false;
+    const state: SplitState = {
+        comment: false,
+        linkDepth: 0,
+        templateDepth: 0,
+    };
 
     for (let index = 0; index < text.length; index += 1) {
-        if (!comment && text.startsWith("<!--", index)) {
-            comment = true;
-            index += 3;
-            continue;
-        }
-        if (comment && text.startsWith("-->", index)) {
-            comment = false;
-            index += 2;
-            continue;
-        }
-        if (comment) {
-            continue;
-        }
-        if (text.startsWith("{{", index)) {
-            templateDepth += 1;
-            index += 1;
-            continue;
-        }
-        if (text.startsWith("}}", index) && templateDepth > 0) {
-            templateDepth -= 1;
-            index += 1;
-            continue;
-        }
-        if (text.startsWith("[[", index)) {
-            linkDepth += 1;
-            index += 1;
-            continue;
-        }
-        if (text.startsWith("]]", index) && linkDepth > 0) {
-            linkDepth -= 1;
-            index += 1;
+        const skip = updateSplitState(text, index, state);
+        if (skip != null) {
+            index += skip;
             continue;
         }
         if (
             text[index] === separator &&
-            templateDepth === 0 &&
-            linkDepth === 0
+            state.templateDepth === 0 &&
+            state.linkDepth === 0
         ) {
             parts.push(text.slice(start, index));
             start = index + 1;
@@ -269,7 +247,53 @@ export function splitTopLevel(text: string, separator: string): string[] {
     return parts;
 }
 
-/* eslint-enable max-lines-per-function */
+function updateSplitState(
+    text: string,
+    index: number,
+    state: SplitState,
+): number | null {
+    if (state.comment) {
+        return updateCommentState(text, index, state);
+    }
+    if (text.startsWith("<!--", index)) {
+        state.comment = true;
+        return 3;
+    }
+    const token = text.slice(index, index + 2);
+    return updateNestedDepth(token, state);
+}
+
+function updateCommentState(
+    text: string,
+    index: number,
+    state: SplitState,
+): number {
+    if (text.startsWith("-->", index)) {
+        state.comment = false;
+        return 2;
+    }
+    return 0;
+}
+
+function updateNestedDepth(token: string, state: SplitState): number | null {
+    if (token === "{{") {
+        state.templateDepth += 1;
+        return 1;
+    }
+    if (token === "}}" && state.templateDepth > 0) {
+        state.templateDepth -= 1;
+        return 1;
+    }
+    if (token === "[[") {
+        state.linkDepth += 1;
+        return 1;
+    }
+    if (token === "]]" && state.linkDepth > 0) {
+        state.linkDepth -= 1;
+        return 1;
+    }
+    return null;
+}
 
 /**
  * Finds a character outside nested wikitext.

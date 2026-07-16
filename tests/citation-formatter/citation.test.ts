@@ -187,7 +187,7 @@ test("uses hashtag comments, multiple authors, and n.d. in names", () => {
     );
 });
 
-test("falls back from author to publisher and then title", () => {
+test("uses publisher after credited authors and organizations", () => {
     const publisher = formatCitationTemplate(
         "{{cite web|publisher=セガ<!--#Sega-->|date=2020|title=X}}",
         metadata,
@@ -203,11 +203,11 @@ test("falls back from author to publisher and then title", () => {
     );
     assert.equal(
         getCitationIdentity(title.citation).baseName,
-        "Example work, 2020",
+        "“Example work”, 2020",
     );
 });
 
-test("uses a containing work before publisher and title", () => {
+test("uses containing works before publishers", () => {
     const work = formatCitationTemplate(
         "{{cite web|website=Example Site|publisher=Publisher|title=Page}}",
         metadata,
@@ -215,5 +215,107 @@ test("uses a containing work before publisher and title", () => {
     assert.equal(
         getCitationIdentity(work.citation).baseName,
         "Example Site, n.d.",
+    );
+});
+
+test("uses publisher instead of department or magazine", () => {
+    const result = formatCitationTemplate(
+        "{{Cite magazine|title=星之海|department=黄金眼 " +
+            "<!-- # Huangjin Yan -->|magazine=游戏机实用技术|" +
+            "publisher=UCG Media|publication-date=2023-10}}",
+        generatedTemplateData["cite magazine"],
+    );
+    assert.equal(
+        getCitationIdentity(result.citation).baseName,
+        "UCG Media, 2023",
+    );
+});
+
+test("does not use editors as the citation author fallback", () => {
+    const result = formatCitationTemplate(
+        "{{Cite web|editor=Editor|publisher=Publisher<!-- !no-author -->|title=Example}}",
+        metadata,
+    );
+    assert.equal(
+        getCitationIdentity(result.citation).baseName,
+        "“Example”, n.d.",
+    );
+});
+
+test("skips fallback fields marked no-author", () => {
+    const result = formatCitationTemplate(
+        "{{Cite web|website=网站<!-- !no-author # Website -->|" +
+            "work=Work<!-- !no-author -->|publisher=Publisher|title=Example}}",
+        metadata,
+    );
+    assert.equal(
+        getCitationIdentity(result.citation).baseName,
+        "Publisher, n.d.",
+    );
+    assert.match(
+        result.text,
+        /website = 网站 <!-- !no-author # Website -->/u,
+    );
+
+    const explicitAuthor = formatCitationTemplate(
+        "{{Cite web|author=Byline<!-- !no-author # Renamed -->|" +
+            "organization=Organization|title=Example}}",
+        metadata,
+    );
+    assert.equal(
+        getCitationIdentity(explicitAuthor.citation).baseName,
+        "Organization, n.d.",
+    );
+
+    const title = formatCitationTemplate(
+        "{{Cite web|title=Example<!-- !no-author -->}}",
+        metadata,
+    );
+    assert.equal(
+        getCitationIdentity(title.citation).baseName,
+        "Untitled source, n.d.",
+    );
+});
+
+test("skips date and locator fields with exclusion directives", () => {
+    const result = formatCitationTemplate(
+        "{{Cite web|author=Author|date=2025<!-- !no-date -->|year=2024|" +
+            "page=8<!-- !no-part -->|time=1:15:41|title=Example}}",
+        metadata,
+    );
+    const identity = getCitationIdentity(result.citation);
+    assert.equal(identity.baseName, "Author, 2024");
+    assert.equal(identity.locator, "at time 1:15:41");
+
+    const excluded = formatCitationTemplate(
+        "{{Cite web|author=Author|date=2025<!-- !no-date -->|" +
+            "page=8<!-- !no-part -->|title=Example}}",
+        metadata,
+    );
+    const excludedIdentity = getCitationIdentity(excluded.citation);
+    assert.equal(excludedIdentity.baseName, "Author, n.d.");
+    assert.equal(excludedIdentity.locator, "");
+});
+
+test("uses a credited organization before the title", () => {
+    const result = formatCitationTemplate(
+        "{{Cite web|organization=National Geographic Society|" +
+            "publisher=Publisher|title=Example}}",
+        metadata,
+    );
+    assert.equal(
+        getCitationIdentity(result.citation).baseName,
+        "National Geographic Society, n.d.",
+    );
+});
+
+test("shortens and quotes the terminal title fallback", () => {
+    const result = formatCitationTemplate(
+        "{{Cite web|title=Using citations in research papers}}",
+        metadata,
+    );
+    assert.equal(
+        getCitationIdentity(result.citation).baseName,
+        "“Using citations”, n.d.",
     );
 });

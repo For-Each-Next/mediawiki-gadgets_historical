@@ -34,9 +34,32 @@ For a non-Latin author or organization name, an HTML comment beginning with
 | publisher = セガ<!--# Sega -->
 ```
 
+Add `!no-author` to a field's comment to exclude that field from the
+author-fallback chain. It can share a comment with a reference-name override:
+
+```wikitext
+| website = 游民星空<!-- !no-author # Youmin Xingkong -->
+```
+
+The corresponding `!no-date` and `!no-part` directives exclude a field from
+the reference name's date or part locator:
+
+```wikitext
+| publication-date = 2025-05-20<!-- !no-date -->
+| time = 1:15:41<!-- !no-part -->
+```
+
 Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
+
+### 0.3.1
+
+- Applied the author fallback through credited creators, organizations,
+  containers, and publishers, with field-level `!no-author`, `!no-date`, and
+  `!no-part` exclusions, then a shortened curly-quoted title.
+- Added part locators only when multiple citations use different parts of the
+  same source; distinct works continue to use year-letter suffixes.
 
 ### 0.3.0
 

@@ -11,7 +11,7 @@ import {
 } from "./wikitext.ts";
 import type { TextReplacement } from "./types.ts";
 
-const NAME_OVERRIDE = /\s*<!--\s*#\s*([\s\S]*?)-->/gu;
+const HTML_COMMENT = /<!--([\s\S]*?)-->/gu;
 const NAME_PARAM = /^(?:author|last|editor|editor-last)\d*$/u;
 const NAME_FALLBACK_PARAMS = new Set([
     "agency",
@@ -389,11 +389,27 @@ function isNameParam(name: string): boolean {
 }
 
 function getNameOverride(value: string): string {
-    return value.match(/<!--\s*#\s*([\s\S]*?)-->/u)?.[1].trim() || "";
+    const comments = value.matchAll(HTML_COMMENT);
+    for (const comment of comments) {
+        const hashIndex = comment[1].indexOf("#");
+        if (hashIndex >= 0) {
+            return comment[1].slice(hashIndex + 1).trim();
+        }
+    }
+    return "";
 }
 
 function removeNameOverride(value: string): string {
-    return value.replace(NAME_OVERRIDE, "");
+    return value.replace(HTML_COMMENT, stripOverrideFromComment);
+}
+
+function stripOverrideFromComment(_match: string, content: string): string {
+    const hashIndex = content.indexOf("#");
+    if (hashIndex < 0) {
+        return `<!--${content}-->`;
+    }
+    const prefix = content.slice(0, hashIndex).trim();
+    return prefix === "" ? "" : `<!-- ${prefix} -->`;
 }
 
 function cleanDisplayName(value: string): string {
@@ -418,8 +434,22 @@ function updateParamPart(part: string, enteredOverride: string): string {
     const trailing = enteredValue.match(/\s*$/u)?.[0] || "";
     const value = removeNameOverride(enteredValue).trim();
     const override = enteredOverride.trim().replace(/--+/gu, "-");
-    const comment = override === "" ? "" : ` <!-- # ${override} -->`;
-    return `${before}${leading}${value}${comment}${trailing}`;
+    const updatedValue = addNameOverride(value, override);
+    return `${before}${leading}${updatedValue}${trailing}`;
+}
+
+function addNameOverride(value: string, override: string): string {
+    if (override === "") {
+        return value;
+    }
+    const directive = /<!--\s*([^]*?!no-author[^]*?)\s*-->/u;
+    if (directive.test(value)) {
+        function updateDirective(_match: string, content: string): string {
+            return `<!-- ${content.trim()} # ${override} -->`;
+        }
+        return value.replace(directive, updateDirective);
+    }
+    return `${value} <!-- # ${override} -->`;
 }
 
 function isCompactableReuseTag(

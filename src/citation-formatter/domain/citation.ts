@@ -114,10 +114,10 @@ const RESPONSIBLE_ORGANIZATION_PARAMS = [
     "agency",
     "institution",
     "organization",
-    "department",
+    "website",
+    "work",
+    "publisher",
 ];
-
-const DEFAULT_AUTHOR_FALLBACK = ["website", "work", "publisher", "title"];
 
 const CITE_WEB_PARAM_ORDER = new Map(
     citeWebTemplateData.paramOrder.map((name, index) => [name, index]),
@@ -138,27 +138,6 @@ const PRINT_CITATION_TEMPLATES = new Set([
     "cite tech report",
     "cite thesis",
 ]);
-
-const TEMPLATE_AUTHOR_FALLBACKS: Record<string, string[]> = {
-    "cite av media": ["series", "publisher", "title"],
-    "cite av media notes": ["album", "publisher", "title"],
-    "cite book": ["series", "publisher", "title", "chapter"],
-    "cite conference": ["conference", "book-title", "publisher", "title"],
-    "cite encyclopedia": ["encyclopedia", "publisher", "title"],
-    "cite episode": ["series", "network", "publisher", "title"],
-    "cite interview": ["program", "work", "publisher", "title"],
-    "cite journal": ["journal", "work", "publisher", "title"],
-    "cite magazine": ["magazine", "work", "publisher", "title"],
-    "cite map": ["work", "publisher", "title", "map"],
-    "cite news": ["newspaper", "work", "publisher", "title"],
-    "cite podcast": ["podcast", "series", "publisher", "title"],
-    "cite report": ["series", "publisher", "title"],
-    "cite serial": ["series", "network", "publisher", "title"],
-    "cite speech": ["event", "conference", "publisher", "title"],
-    "cite thesis": ["university", "publisher", "title"],
-    "cite tweet": ["user", "title"],
-    "cite video game": ["developer", "work", "publisher", "title"],
-};
 
 export interface CitationIdentity {
     author: string;
@@ -238,14 +217,18 @@ export function canonicalizeCitation(
 
 function normalizeNameOverrideSpacing(value: string): string {
     const result = value.replace(
-        /\s*<!--\s*#\s*([\s\S]*?)-->/gu,
+        /\s*<!--\s*([^]*?#\s*[^]*?)\s*-->/gu,
         formatNameOverrideComment,
     );
     return result;
 }
 
-function formatNameOverrideComment(_match: string, override: string): string {
-    return ` <!-- # ${override.trim()} -->`;
+function formatNameOverrideComment(_match: string, content: string): string {
+    const hashIndex = content.indexOf("#");
+    const prefix = content.slice(0, hashIndex).trim();
+    const override = content.slice(hashIndex + 1).trim();
+    const directive = prefix === "" ? "" : `${prefix} `;
+    return ` <!-- ${directive}# ${override} -->`;
 }
 
 /**
@@ -405,7 +388,7 @@ export function getCitationIdentity(
     const values = Object.fromEntries(
         citation.params.map((param) => [param.name, param.value]),
     );
-    const enteredAuthor = getCitationAuthor(citation.name, values);
+    const enteredAuthor = getCitationAuthor(values);
     const author = includeInitials
         ? addFirstAuthorInitials(enteredAuthor, values)
         : enteredAuthor;
@@ -490,43 +473,49 @@ export function appendCitationLocator(name: string, locator: string): string {
 /**
  * Selects the author component using a general CS1 fallback chain.
  *
- * @param template - Normalized citation template name.
  * @param values - Citation values keyed by canonical name.
  * @returns Author component for the reference name.
  */
-function getCitationAuthor(
-    template: string,
-    values: Record<string, string>,
-): string {
+function getCitationAuthor(values: Record<string, string>): string {
     const authors = collectNumberedValues(values, ["last", "author"]);
     if (authors.length > 0) {
         return formatAuthorList(authors);
     }
-    const editors = collectNumberedValues(values, ["editor-last", "editor"]);
-    if (editors.length > 0) {
-        return `${formatAuthorList(editors)} (ed.)`;
-    }
-
     const creatorFallbacks = [
         "interviewer-last",
         "host",
         "cartography",
         "translator-last",
         "contributor-last",
+        "developer",
+        "user",
     ];
-    const configured =
-        TEMPLATE_AUTHOR_FALLBACKS[template] || DEFAULT_AUTHOR_FALLBACK;
     const fallbackKeys = [
         ...creatorFallbacks,
         ...RESPONSIBLE_ORGANIZATION_PARAMS,
-        ...configured,
     ];
     for (const key of fallbackKeys) {
-        if (values[key]?.trim()) {
+        if (
+            values[key]?.trim() &&
+            !hasFieldDirective(values[key], "no-author")
+        ) {
             return nameValue(values[key]);
         }
     }
+    if (
+        values.title?.trim() &&
+        !hasFieldDirective(values.title, "no-author")
+    ) {
+        return formatTitleFallback(values.title);
+    }
     return "Untitled source";
+}
+
+function formatTitleFallback(title: string): string {
+    const words = cleanValue(title).split(/\s+/u).filter(Boolean);
+    const shortened =
+        words.length < 3 ? words.join(" ") : words.slice(0, 2).join(" ");
+    return shortened === "" ? "Untitled source" : `“${shortened}”`;
 }
 
 /**
@@ -547,7 +536,11 @@ function collectNumberedValues(
         if (index === 1) {
             candidates.push(...bases.map((base) => `${base}1`));
         }
-        const key = candidates.find((candidate) => values[candidate]?.trim());
+        const key = candidates.find(
+            (candidate) =>
+                values[candidate]?.trim() &&
+                !hasFieldDirective(values[candidate], "no-author"),
+        );
         if (key == null) {
             if (index > 1) {
                 break;
@@ -594,8 +587,13 @@ function formatAuthorList(authors: string[]): string {
  * @returns Four-digit year or n.d.
  */
 function getCitationYear(values: Record<string, string>): string {
-    const entered =
-        values.date || values.year || values["publication-date"] || "";
+    const dateKeys = ["date", "year", "publication-date"];
+    const key = dateKeys.find(
+        (candidate) =>
+            values[candidate]?.trim() &&
+            !hasFieldDirective(values[candidate], "no-date"),
+    );
+    const entered = key == null ? "" : values[key];
     const clean = cleanValue(entered);
     return clean.match(/\b(\d{4})\b/u)?.[1] || "n.d.";
 }
@@ -623,6 +621,9 @@ function getSourceLocator(values: Record<string, string>): string {
         ["scene", "scene"],
     ];
     for (const [key, prefix] of locatorEntries) {
+        if (hasFieldDirective(values[key] || "", "no-part")) {
+            continue;
+        }
         let value = cleanValue(values[key] || "");
         if (["time", "timestamp", "duration"].includes(key)) {
             value = normalizeLocatorTime(value);
@@ -677,8 +678,31 @@ function canonicalizeSourceUrl(value: string): string {
  * @returns Value used in the reference name.
  */
 function nameValue(value: string): string {
-    const override = value.match(/<!--\s*#\s*([\s\S]*?)-->/u)?.[1].trim();
+    const override = extractNameOverride(value);
     return cleanValue(override || value) || "Untitled source";
+}
+
+function extractNameOverride(value: string): string {
+    const comments = value.matchAll(/<!--([\s\S]*?)-->/gu);
+    for (const comment of comments) {
+        const hashIndex = comment[1].indexOf("#");
+        if (hashIndex >= 0) {
+            return comment[1].slice(hashIndex + 1).trim();
+        }
+    }
+    return "";
+}
+
+function hasFieldDirective(value: string, directive: string): boolean {
+    const comments = value.matchAll(/<!--([\s\S]*?)-->/gu);
+    const token = `!${directive}`;
+    for (const comment of comments) {
+        const words = comment[1].split(/\s+/u);
+        if (words.includes(token)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

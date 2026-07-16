@@ -613,11 +613,7 @@ function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
  * @param definitions - Mutable reference definitions.
  */
 function assignCitationNames(definitions: ReferenceDefinition[]): void {
-    const citationDefinitions = definitions.filter(
-        function isCitationDefinition(definition) {
-            return definition.identity != null;
-        },
-    );
+    const citationDefinitions = definitions.filter(isCitationDefinition);
     const baseGroups = Map.groupBy(
         citationDefinitions,
         function getBaseGroup(definition) {
@@ -633,25 +629,42 @@ function assignCitationNames(definitions: ReferenceDefinition[]): void {
             ).entries(),
         ).sort((left, right) => left[1][0].order - right[1][0].order);
         const needsYearSuffix = signatures.length > 1;
-        signatures.forEach(function nameSameSource(
-            [_signature, sameSource],
-            index,
-        ) {
-            const identity = sameSource[0].identity as CitationIdentity;
-            const separator = identity.year === "n.d." ? "-" : "";
-            let suffix = "";
-            if (needsYearSuffix) {
-                suffix = `${separator}${alphabeticSuffix(index)}`;
-            }
-            for (const definition of sameSource) {
-                const identity = definition.identity as CitationIdentity;
-                definition.finalName = appendCitationLocator(
-                    `${identity.baseName}${suffix}`,
-                    identity.locator,
-                );
-            }
-        });
+        for (let index = 0; index < signatures.length; index += 1) {
+            const sameSource = signatures[index][1];
+            assignSameSourceNames(sameSource, index, needsYearSuffix);
+        }
     }
+}
+
+function assignSameSourceNames(
+    definitions: ReferenceDefinition[],
+    index: number,
+    needsYearSuffix: boolean,
+): void {
+    const firstIdentity = definitions[0].identity as CitationIdentity;
+    const locators = new Set(definitions.map(getDefinitionLocator));
+    const needsLocator = locators.size > 1;
+    const separator = firstIdentity.year === "n.d." ? "-" : "";
+    const suffix = needsYearSuffix
+        ? `${separator}${alphabeticSuffix(index)}`
+        : "";
+
+    for (const definition of definitions) {
+        const identity = definition.identity as CitationIdentity;
+        const locator = needsLocator ? identity.locator : "";
+        definition.finalName = appendCitationLocator(
+            `${identity.baseName}${suffix}`,
+            locator,
+        );
+    }
+}
+
+function isCitationDefinition(definition: ReferenceDefinition): boolean {
+    return definition.identity != null;
+}
+
+function getDefinitionLocator(definition: ReferenceDefinition): string {
+    return (definition.identity as CitationIdentity).locator;
 }
 
 /**

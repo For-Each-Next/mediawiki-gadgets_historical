@@ -6,7 +6,7 @@ const EDIT_BOX_SELECTOR = "#wpTextbox1";
 const codeMirrorEditors = new Set<CodeMirrorEditor>();
 let hooksRegistered = false;
 
-interface CodeMirrorEditor {
+export interface CodeMirrorEditor {
     isActive?: boolean;
     focus?: () => void;
     surface?: VisualEditorSurface | null;
@@ -20,12 +20,12 @@ interface CodeMirrorEditor {
     };
 }
 
-interface VisualEditorFragment {
+export interface VisualEditorFragment {
     expandLinearSelection(scope: "root"): VisualEditorFragment;
     insertContent(text: string): unknown;
 }
 
-interface VisualEditorSurface {
+export interface VisualEditorSurface {
     getDom(): string | Document;
     getMode(): string;
     getModel(): {
@@ -172,23 +172,6 @@ export function readEditBox(): string {
 }
 
 /**
- * Replaces the current MediaWiki source text.
- *
- * @param text - New source text.
- * @returns Whether an edit box was available.
- */
-export function writeEditBox(text: string): boolean {
-    const editBox = getEditBox();
-
-    if (editBox == null) {
-        return false;
-    }
-
-    editBox.write(text);
-    return true;
-}
-
-/**
  * Tracks an initialized CodeMirror instance.
  *
  * @param editor - MediaWiki CodeMirror wrapper.
@@ -240,15 +223,29 @@ function findCodeMirror(
     const surface = getVisualEditorSurface();
 
     for (const editor of codeMirrorEditors) {
-        const isTarget =
-            (element != null && editor.textarea === element) ||
-            (surface != null && editor.surface === surface);
-        if (isTarget && editor.isActive !== false && editor.view != null) {
+        if (
+            isCodeMirrorTarget(editor, element, surface) &&
+            isCodeMirrorUsable(editor)
+        ) {
             return editor;
         }
     }
 
     return null;
+}
+
+function isCodeMirrorTarget(
+    editor: CodeMirrorEditor,
+    element: HTMLTextAreaElement | null,
+    surface: VisualEditorSurface | null,
+): boolean {
+    const matchesTextarea = Boolean(element) && editor.textarea === element;
+    const matchesSurface = Boolean(surface) && editor.surface === surface;
+    return matchesTextarea || matchesSurface;
+}
+
+function isCodeMirrorUsable(editor: CodeMirrorEditor): boolean {
+    return (editor.isActive ?? true) && Boolean(editor.view);
 }
 
 /**

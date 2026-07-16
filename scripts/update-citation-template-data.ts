@@ -11,11 +11,11 @@ import { format } from "prettier";
 import {
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
-} from "../src/citation-formatter/domain/templates.ts";
+} from "citation-formatter/domain/templates.ts";
 import type {
     CitationTemplateData,
     CitationTemplateDataMap,
-} from "../src/citation-formatter/domain/types.ts";
+} from "citation-formatter/domain/types.ts";
 
 const API_ENDPOINT = "https://en.wikipedia.org/w/api.php";
 const BATCH_SIZE = 20;

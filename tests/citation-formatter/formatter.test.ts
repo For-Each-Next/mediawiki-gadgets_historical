@@ -412,6 +412,104 @@ test("uses numeric-colon fallbacks for plain and mixed note content", () => {
     assert.equal(result.citationsFormatted, 0);
 });
 
+test(
+    "names CITEREF-linked short citations from their source identity",
+    testLinkedShortCitation,
+);
+
+function testLinkedShortCitation(): void {
+    const source = [
+        "Short.<ref>[[#CITEREF_Ma_2006|Ma 2006]], p. 42</ref>",
+        "{{cite web|last=Ma|date=2006|title=Book|ref=CITEREF Ma 2006}}",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /<ref name="Ma, 2006, p\. 42" \/>/u);
+    assert.match(
+        result.text,
+        /<ref name="Ma, 2006, p\. 42">\[\[#CITEREF_Ma_2006\|Ma 2006\]\], p\. 42<\/ref>/u,
+    );
+    assert.equal(result.citationsFormatted, 1);
+    assert.equal(result.referencesNotFormatted, 0);
+}
+
+test(
+    "cleans punctuation from CITEREF-linked citation locators",
+    testColonLinkedShortCitation,
+);
+
+function testColonLinkedShortCitation(): void {
+    const source = [
+        "Short.<ref>[[#CITEREF_Ma_2006|Ma 2006]]: p. 42</ref>",
+        "{{cite web|last=Ma|date=2006|title=Book|ref=CITEREF Ma 2006}}",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /<ref name="Ma, 2006, p\. 42" \/>/u);
+    assert.doesNotMatch(result.text, /name="Ma, 2006, :/u);
+}
+
+test(
+    "names plain linked references from custom citation ref values",
+    testCustomLinkedCitation,
+);
+
+function testCustomLinkedCitation(): void {
+    const source = [
+        "Short.<ref>[[#custom_ref|source]]: pp. 10–12</ref>",
+        "{{cite web|last=Li|date=2020|title=Article|ref=Custom ref}}",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /<ref name="Li, 2020, pp\. 10–12" \/>/u);
+    assert.equal(result.citationsFormatted, 0);
+    assert.equal(result.referencesNotFormatted, 1);
+}
+
+test(
+    "ignores linked-citation sources in protected wikitext",
+    testProtectedLinkedCitationSources,
+);
+
+function testProtectedLinkedCitationSources(): void {
+    const source = [
+        "<nowiki>{{cite web|last=Wrong|date=1999|title=Wrong|ref=Custom ref}}</nowiki>",
+        "{{cite web|last=Li|date=2020|title=Article|ref=Custom ref}}",
+        "{{cite web|last=Ma|date=2006|title=Book|ref=CITEREF Ma 2006}}",
+        "<nowiki>{{cite web|last=Wrong|date=1999|title=Wrong|ref=CITEREF Ma 2006}}</nowiki>",
+        "Custom.<ref>[[#custom_ref|source]], p. 10</ref>",
+        "Short.<ref>[[#CITEREF_Ma_2006|Ma 2006]], p. 42</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /<ref name="Li, 2020, p\. 10" \/>/u);
+    assert.match(result.text, /<ref name="Ma, 2006, p\. 42" \/>/u);
+    assert.doesNotMatch(result.text, /<ref name="Wrong, 1999/u);
+}
+
+test(
+    "preserves existing names while numbering anonymous plain references",
+    testPlainReferenceNames,
+);
+
+function testPlainReferenceNames(): void {
+    const source = [
+        'Named.<ref name=":1">Plain note</ref>',
+        "Anonymous.<ref>Another note</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(result.text, /Named\.<ref name=":1" \/>/u);
+    assert.match(result.text, /Anonymous\.<ref name=":2" \/>/u);
+    assert.match(result.text, /<ref name=":1">Plain note<\/ref>/u);
+    assert.match(result.text, /<ref name=":2">Another note<\/ref>/u);
+}
+
 test("preserves citation maintenance templates with APA names", () => {
     const source = [
         "A<ref>{{cite web|last=Haywald|first=Justin|date=October 30, 2016|title=Example}}{{cbignore}}</ref>",
@@ -431,7 +529,7 @@ test("preserves citation maintenance templates with APA names", () => {
     assert.equal(result.referencesNotFormatted, 0);
 });
 
-test("assigns unnamed names and year suffixes by first use on every run", () => {
+test("preserves plain names and assigns year suffixes by first use", () => {
     const source = [
         '<ref name=":3" />',
         '<ref name="Ma, 2020b" />',
@@ -455,11 +553,11 @@ test("assigns unnamed names and year suffixes by first use on every run", () => 
             (match) => match[1],
         );
         assert.deepEqual(names, [
-            ":1",
-            "Ma, 2020a",
-            ":2",
-            "Ma, 2020b",
             ":3",
+            "Ma, 2020a",
+            ":1",
+            "Ma, 2020b",
+            ":2",
         ]);
     }
 });

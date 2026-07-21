@@ -4,6 +4,7 @@
 
 import {
     appendCitationLocator,
+    cleanValue,
     formatCitationTemplate,
     getCitationIdentity,
     type CitationIdentity,
@@ -153,6 +154,7 @@ export function formatCitationWikitext(
 
     assignReferenceSections(definitions, tags, containers, rConverted);
     assignCitationNames(definitions);
+    assignLinkedCitationNames(definitions, rConverted, templateData);
     assignFallbackNames(definitions);
     ensureUniqueReferenceNames(definitions);
     const replacements = buildAllReplacements(tags, containers, definitions);
@@ -215,6 +217,10 @@ function buildReferenceDefinitions(
     const fullTags = tags.filter(function hasContent(tag) {
         return !tag.selfClosing && tag.content.trim() !== "";
     });
+    const shortCitationSources = buildShortCitationSourceMap(
+        source,
+        templateData,
+    );
     const result = fullTags.map(function buildDefinition(tag, order) {
         const result = createReferenceDefinition(
             tag,
@@ -222,6 +228,7 @@ function buildReferenceDefinitions(
             templateData,
             getContainingGroup(tag, containers),
             getTrailingContainerText(tag, containers, fullTags, source),
+            shortCitationSources,
         );
         return result;
     });
@@ -267,14 +274,18 @@ function buildAllReplacements(
  * @param templateData - Citation metadata.
  * @param containingGroup - Enclosing reference-list group.
  * @param trailingText - Material following a list definition.
+ * @param shortCitationSources - Citation identities keyed by
+ *   CITEREF anchor.
  * @returns Reference definition.
  */
+// eslint-disable-next-line max-lines-per-function, max-params
 function createReferenceDefinition(
     tag: RefTag,
     order: number,
     templateData: CitationTemplateDataMap,
     containingGroup: string,
     trailingText: string,
+    shortCitationSources: Map<string, CitationIdentity>,
 ): ReferenceDefinition {
     const group = tag.attributes.group || containingGroup;
     const trimmed = tag.content.trim();
@@ -289,6 +300,13 @@ function createReferenceDefinition(
     const citationCalls = findWholeCitationCalls(trimmed);
     const citations = formatCitationCalls(citationCalls, templateData);
     if (citations == null || citations.length === 0) {
+        const identity = getShortCitationIdentity(
+            trimmed,
+            shortCitationSources,
+        );
+        if (identity != null) {
+            return buildFormattedDefinition(plainOptions, trimmed, identity);
+        }
         return buildPlainDefinition(plainOptions);
     }
     if (citations.length > 1) {
@@ -343,6 +361,86 @@ function formatCitationCalls(
         result.push(formatCitationTemplate(call.raw, metadata));
     }
     return result;
+}
+
+/**
+ * Indexes citation templates that define an explicit CITEREF anchor.
+ *
+ * @param source - Complete article wikitext.
+ * @param templateData - Citation metadata.
+ * @returns Citation identities keyed by normalized anchor.
+ */
+function buildShortCitationSourceMap(
+    source: string,
+    templateData: CitationTemplateDataMap,
+): Map<string, CitationIdentity> {
+    const result = new Map<string, CitationIdentity>();
+    const protectedRanges = findProtectedRanges(source);
+    for (const call of findTemplateCalls(source)) {
+        if (isInRanges(call.start, protectedRanges)) {
+            continue;
+        }
+        const metadata = templateData[normalizeTemplateName(call.name)];
+        if (metadata == null) {
+            continue;
+        }
+        const refParam = call.params.find(function isRefParam(param) {
+            const name = param.name.toLocaleLowerCase("en-US");
+            return !param.positional && name === "ref";
+        });
+        if (refParam == null) {
+            continue;
+        }
+        const anchor = normalizeShortCitationAnchor(refParam.value);
+        if (!anchor.startsWith("citeref ")) {
+            continue;
+        }
+        const formatted = formatCitationTemplate(call.raw, metadata);
+        const identity = getCitationIdentity(formatted.citation);
+        result.set(anchor, identity);
+    }
+    return result;
+}
+
+/**
+ * Resolves a whole short-citation link to its source identity.
+ *
+ * @param content - Complete reference body.
+ * @param sourceMap - Citation identities keyed by normalized anchor.
+ * @returns Source identity with the short citation's locator.
+ */
+function getShortCitationIdentity(
+    content: string,
+    sourceMap: Map<string, CitationIdentity>,
+): CitationIdentity | null {
+    const linked = parseLinkedCitation(content);
+    if (linked == null) {
+        return null;
+    }
+    const anchor = normalizeShortCitationAnchor(linked.target);
+    const sourceIdentity = sourceMap.get(anchor);
+    if (sourceIdentity == null) {
+        return null;
+    }
+    return {
+        ...sourceIdentity,
+        forceLocator: true,
+        locator: linked.locator,
+    };
+}
+
+/**
+ * Normalizes a CITEREF link target for source lookup.
+ *
+ * @param value - Entered anchor or ref value.
+ * @returns Case-insensitive, space-normalized anchor.
+ */
+function normalizeShortCitationAnchor(value: string): string {
+    return value
+        .replace(/_/gu, " ")
+        .replace(/\s+/gu, " ")
+        .trim()
+        .toLocaleLowerCase("en-US");
 }
 
 /**
@@ -588,18 +686,151 @@ function getSectionAtPosition(
 }
 
 /**
+ * Names plain linked citations from citation templates with
+ * explicit refs.
+ *
+ * @param definitions - Mutable reference definitions.
+ * @param source - Complete article wikitext.
+ * @param templateData - Citation metadata.
+ */
+function assignLinkedCitationNames(
+    definitions: ReferenceDefinition[],
+    source: string,
+    templateData: CitationTemplateDataMap,
+): void {
+    const identities = buildExplicitCitationRefMap(source, templateData);
+    for (const definition of definitions) {
+        if (definition.identity != null || definition.finalName !== "") {
+            continue;
+        }
+        const linked = parseLinkedCitation(definition.formattedContent);
+        if (linked == null) {
+            continue;
+        }
+        const key = normalizeCitationRefKey(linked.target);
+        const identity = identities.get(key);
+        if (identity == null) {
+            continue;
+        }
+        definition.finalName = appendCitationLocator(
+            identity.baseName,
+            linked.locator,
+        );
+    }
+}
+
+/**
+ * Indexes citation identities by their explicit ref parameters.
+ *
+ * @param source - Complete article wikitext.
+ * @param templateData - Citation metadata.
+ * @returns Citation identities keyed by normalized ref value.
+ */
+function buildExplicitCitationRefMap(
+    source: string,
+    templateData: CitationTemplateDataMap,
+): Map<string, CitationIdentity> {
+    const result = new Map<string, CitationIdentity>();
+    const protectedRanges = findProtectedRanges(source);
+    for (const call of findTemplateCalls(source)) {
+        if (isInRanges(call.start, protectedRanges)) {
+            continue;
+        }
+        if (!isCitationTemplate(call.name)) {
+            continue;
+        }
+        const name = normalizeTemplateName(call.name);
+        const metadata = templateData[name];
+        if (metadata == null) {
+            continue;
+        }
+        const formatted = formatCitationTemplate(call.raw, metadata);
+        const entries = formatted.citation.params.map((param) => [
+            param.name,
+            param.value,
+        ]);
+        const values = Object.fromEntries(entries) as Record<string, string>;
+        const enteredRef = values.ref?.trim() || "";
+        if (enteredRef === "") {
+            continue;
+        }
+        const key = normalizeCitationRefKey(enteredRef);
+        if (!result.has(key)) {
+            result.set(key, getCitationIdentity(formatted.citation));
+        }
+    }
+    return result;
+}
+
+/**
+ * Parses a reference body containing only an internal citation link.
+ *
+ * @param content - Complete reference body.
+ * @returns Link target and cleaned locator.
+ */
+function parseLinkedCitation(
+    content: string,
+): { locator: string; target: string } | null {
+    const match = content.match(
+        /^\s*\[\[\s*#([^|\]]+)(?:\|[^\]]*)?\]\]\s*(?:,\s*)?([\s\S]*?)\s*$/u,
+    );
+    if (match == null) {
+        return null;
+    }
+    const locator = cleanValue(match[2]).replace(/^[,;:]\s*/u, "");
+    return { locator, target: match[1] };
+}
+
+/**
+ * Normalizes a citation ref value for link-target lookup.
+ *
+ * @param value - Entered ref value or link target.
+ * @returns Case-insensitive underscore-normalized key.
+ */
+function normalizeCitationRefKey(value: string): string {
+    return value
+        .trim()
+        .replace(/^#/u, "")
+        .replace(/[\s_]+/gu, "_")
+        .toLocaleLowerCase("en-US");
+}
+
+/**
  * Assigns colon-prefixed names to unparseable notes.
  *
  * @param definitions - Mutable reference definitions.
  */
 function assignFallbackNames(definitions: ReferenceDefinition[]): void {
+    let anonymousIndex = 0;
+    const reservedNames = new Set<string>();
+    for (const definition of definitions) {
+        if (definition.oldName !== "") {
+            reservedNames.add(definition.oldName);
+        }
+        if (definition.finalName !== "") {
+            reservedNames.add(definition.finalName);
+        }
+    }
     definitions
         .filter(function isPlainDefinition(definition) {
             return definition.identity == null;
         })
         .sort(compareReferenceOrder)
-        .forEach(function assignFallback(definition, index) {
-            definition.finalName = `:${index + 1}`;
+        .forEach(function assignFallback(definition) {
+            if (definition.finalName !== "") {
+                return;
+            }
+            if (definition.oldName !== "") {
+                definition.finalName = definition.oldName;
+                return;
+            }
+            let name: string;
+            do {
+                anonymousIndex += 1;
+                name = `:${anonymousIndex}`;
+            } while (reservedNames.has(name));
+            definition.finalName = name;
+            reservedNames.add(name);
         });
 }
 
@@ -719,7 +950,10 @@ function assignSameSourceNames(
 ): void {
     const firstIdentity = definitions[0].identity as CitationIdentity;
     const locators = new Set(definitions.map(getDefinitionLocator));
-    const needsLocator = locators.size > 1;
+    const forceLocator = definitions.some(
+        (definition) => definition.identity?.forceLocator === true,
+    );
+    const needsLocator = locators.size > 1 || forceLocator;
     const separator = firstIdentity.year === "n.d." ? "-" : "";
     const suffix = needsYearSuffix
         ? `${separator}${alphabeticSuffix(index)}`

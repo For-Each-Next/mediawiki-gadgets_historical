@@ -142,6 +142,7 @@ const PRINT_CITATION_TEMPLATES = new Set([
 export interface CitationIdentity {
     author: string;
     baseName: string;
+    forceLocator?: boolean;
     locator: string;
     sourceSignature: string;
     year: string;
@@ -711,7 +712,7 @@ function hasFieldDirective(value: string, directive: string): boolean {
  * @param value - Wikitext value.
  * @returns Plain compact text.
  */
-function cleanValue(value: string): string {
+export function cleanValue(value: string): string {
     const result = value
         .replace(/<!--[\s\S]*?-->/gu, "")
         .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/gu, "$2")

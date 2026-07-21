@@ -53,6 +53,13 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.4
+
+- Resolved linked short citations through explicit citation `ref` anchors and
+  retained their locators in generated reference names.
+- Preserved existing names on unformatted references while numbering only
+  anonymous definitions.
+
 ### 0.3.2
 
 - Preserved adjacent `Cbignore` and `Dead link` maintenance templates while

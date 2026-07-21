@@ -10,6 +10,8 @@ const DRAFT_STORAGE_KEY = "vg-stub-creator-form-draft";
 const DRAFT_PAGE_STORAGE_KEY = "vg-stub-creator-form-draft-page";
 const DRAFT_SAVED_AT_STORAGE_KEY = "vg-stub-creator-form-draft-saved-at";
 const HISTORY_DATA_VERSION = 1;
+const FNV_OFFSET_BASIS = 2_166_136_261;
+const FNV_PRIME = 16_777_619;
 const INPUT_FORM_KEYS = new Set([
     "additionalProse",
     "additionalProseSourceUrl",
@@ -53,7 +55,8 @@ export function readFormDraft(): any | undefined {
             return undefined;
         }
 
-        const draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY));
+        const itemResultC = localStorage.getItem(DRAFT_STORAGE_KEY);
+        const draft = JSON.parse(itemResultC);
 
         return draft == null || typeof draft !== "object" ? undefined : draft;
     } catch (_error) {
@@ -70,10 +73,12 @@ export function readFormDraft(): any | undefined {
 export function readFormDraftForPage(page: string): any | undefined {
     const draft = readFormDraft();
 
-    if (
-        draft == null ||
-        normalizePage(readFormDraftPage()) !== normalizePage(page)
-    ) {
+    if (draft == null) {
+        return undefined;
+    }
+
+    const draftPage = readFormDraftPage();
+    if (normalizePage(draftPage) !== normalizePage(page)) {
         return undefined;
     }
 
@@ -87,7 +92,8 @@ export function readFormDraftForPage(page: string): any | undefined {
  */
 export function readFormDraftEntry(): any | undefined {
     const form = readFormDraft();
-    const page = normalizePage(readFormDraftPage());
+    const readFormDraftPageResult = readFormDraftPage();
+    const page = normalizePage(readFormDraftPageResult);
 
     if (form == null) {
         return undefined;
@@ -114,9 +120,12 @@ export function readFormDraftEntry(): any | undefined {
  *   saves the current form draft.
  */
 export function saveFormDraft(form: any, page: string = ""): void {
-    writeStorageItem(DRAFT_STORAGE_KEY, cloneValue(form));
-    writeStorageItem(DRAFT_PAGE_STORAGE_KEY, normalizePage(page));
-    writeStorageItem(DRAFT_SAVED_AT_STORAGE_KEY, new Date().toLocaleString());
+    const cloneValueResultA = cloneValue(form);
+    writeStorageItem(DRAFT_STORAGE_KEY, cloneValueResultA);
+    const pageResultA = normalizePage(page);
+    writeStorageItem(DRAFT_PAGE_STORAGE_KEY, pageResultA);
+    const toLocaleStringResult = new Date().toLocaleString();
+    writeStorageItem(DRAFT_SAVED_AT_STORAGE_KEY, toLocaleStringResult);
 }
 
 /**
@@ -130,13 +139,16 @@ export function readFormHistory(): Array<any> {
             return [];
         }
 
-        const entries = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY));
+        const itemResultB = localStorage.getItem(HISTORY_STORAGE_KEY);
+        const entries = JSON.parse(itemResultB);
 
+        const isArrayValue = Array.isArray(entries);
+        const selectValueCallback = function trueBranch() {
+            return entries.filter(isFormHistoryEntry);
+        };
         const result = selectValue(
-            Array.isArray(entries),
-            function trueBranch() {
-                return entries.filter(isFormHistoryEntry);
-            },
+            isArrayValue,
+            selectValueCallback,
             function falseBranch() {
                 return [];
             },
@@ -178,7 +190,10 @@ export function saveFormHistory(
  *   deletes one form history entry.
  */
 export function deleteFormHistoryEntry(id: string): void {
-    writeFormHistory(readFormHistory().filter((entry) => entry.id !== id));
+    const filteredValuesC = readFormHistory().filter(
+        (entry) => entry.id !== id,
+    );
+    writeFormHistory(filteredValuesC);
 }
 
 /**
@@ -201,16 +216,25 @@ export function clearFormHistory(): void {
  */
 function createFormHistoryEntry(form: any, page: string, citations: any): any {
     const snapshot = cloneValue(form);
+    let historyPage = normalizePage(page);
+
+    if (!historyPage) {
+        historyPage = normalizePage(snapshot.pageName);
+    }
+
+    if (!historyPage) {
+        historyPage = normalizePage(snapshot.name);
+    }
+
+    if (!historyPage) {
+        historyPage = msg("history.untitled");
+    }
 
     const result = {
         data: createHistoryData(snapshot, citations),
         id: createHistoryEntryId(snapshot, page),
         metadata: {
-            page:
-                normalizePage(page) ||
-                normalizePage(snapshot.pageName) ||
-                normalizePage(snapshot.name) ||
-                msg("history.untitled"),
+            page: historyPage,
             savedAt: new Date().toLocaleString(),
         },
     };
@@ -227,15 +251,19 @@ function createFormHistoryEntry(form: any, page: string, citations: any): any {
  * @returns Whether the entry can be used as form history.
  */
 function isFormHistoryEntry(entry: any): boolean {
-    const result =
-        entry != null &&
-        typeof entry === "object" &&
-        Number.isInteger(entry.id) &&
-        entry.data != null &&
-        typeof entry.data === "object" &&
-        entry.metadata != null &&
-        typeof entry.metadata === "object";
-    return result;
+    if (
+        entry == null ||
+        typeof entry !== "object" ||
+        !Number.isInteger(entry.id)
+    ) {
+        return false;
+    }
+
+    if (entry.data == null || typeof entry.data !== "object") {
+        return false;
+    }
+
+    return entry.metadata != null && typeof entry.metadata === "object";
 }
 
 /**
@@ -246,11 +274,13 @@ function isFormHistoryEntry(entry: any): boolean {
  * @returns History entry ID.
  */
 function createHistoryEntryId(form: any, page: string): number {
-    const text = JSON.stringify([normalizePage(page), form]);
-    let hash = 2166136261;
+    const pageResult = [normalizePage(page), form];
+    const text = JSON.stringify(pageResult);
+    let hash = FNV_OFFSET_BASIS;
 
     for (const character of text) {
-        hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+        const charCodeAtResult = hash ^ character.charCodeAt(0);
+        hash = Math.imul(charCodeAtResult, FNV_PRIME);
     }
 
     return hash >>> 0 || 1;
@@ -279,11 +309,13 @@ function createHistoryData(form: any, _citations = {}): any {
  * @returns User-entered input data.
  */
 function createInputData(form: any): any {
-    const result = Object.fromEntries(
-        Object.entries(cloneValue(form)).filter(function callback([key]) {
-            return INPUT_FORM_KEYS.has(key);
-        }),
-    );
+    const cloneValueResult = cloneValue(form);
+    const filterCallbackC = function callback([key]: [string, unknown]) {
+        return INPUT_FORM_KEYS.has(key);
+    };
+    const filteredValuesB =
+        Object.entries(cloneValueResult).filter(filterCallbackC);
+    const result = Object.fromEntries(filteredValuesB);
     return result;
 }
 
@@ -315,26 +347,27 @@ function getCitationPatches(form: any): Array<any> {
         sourceUrl: string;
         template: string;
     }> = form.citationRows || [];
+    const mapCallbackC = function callback(row: {
+        sourceUrl: unknown;
+        template: unknown;
+    }) {
+        const result = {
+            sourceUrl: row.sourceUrl,
+            params: getCitationParamPatches(row),
+            ...createChangedValuePatch(
+                {
+                    template: row.template,
+                },
+                {
+                    template: "cite web",
+                },
+            ),
+        };
+        return result;
+    };
     const result = citationRows
         .filter((row) => row.modified === true)
-        .map(function callback(row: {
-            sourceUrl: unknown;
-            template: unknown;
-        }) {
-            const result = {
-                sourceUrl: row.sourceUrl,
-                params: getCitationParamPatches(row),
-                ...createChangedValuePatch(
-                    {
-                        template: row.template,
-                    },
-                    {
-                        template: "cite web",
-                    },
-                ),
-            };
-            return result;
-        });
+        .map(mapCallbackC);
     return result;
 }
 
@@ -349,29 +382,32 @@ function getCitationParamPatches(row: any): Array<any> {
         row.params || [];
     const originalParams: Array<{ name: string; value: string }> =
         row.generatedParams || [];
-    const params = new Map(
-        currentParams.map((param) => [param.name, param.value]),
+    const currentEntries: Array<[string, string]> = currentParams.map(
+        (param) => [param.name, param.value],
     );
-    const generatedParams = new Map(
-        originalParams.map((param) => [param.name, param.value]),
+    const params = new Map(currentEntries);
+    const originalEntries: Array<[string, string]> = originalParams.map(
+        (param) => [param.name, param.value],
     );
-    const names = new Set([...params.keys(), ...generatedParams.keys()]);
+    const generatedParams = new Map(originalEntries);
+    const currentNames = params.keys();
+    const generatedNames = generatedParams.keys();
+    const names = new Set([...currentNames, ...generatedNames]);
 
-    const result = Array.from(names)
-        .filter(function callback(name) {
-            const result = !isSameJsonValue(
-                params.get(name),
-                generatedParams.get(name),
-            );
-            return result;
-        })
-        .map(function callback(name) {
-            const result = {
-                name,
-                value: params.has(name) ? params.get(name) : null,
-            };
-            return result;
-        });
+    const filterCallbackB = function callback(name: string) {
+        const configValue = params.get(name);
+        const configValueA = generatedParams.get(name);
+        const result = !isSameJsonValue(configValue, configValueA);
+        return result;
+    };
+    const mapCallbackB = function callback(name: string) {
+        const result = {
+            name,
+            value: params.has(name) ? params.get(name) : null,
+        };
+        return result;
+    };
+    const result = Array.from(names).filter(filterCallbackB).map(mapCallbackB);
     return result;
 }
 
@@ -382,26 +418,30 @@ function getCitationParamPatches(row: any): Array<any> {
  * @returns Category patches.
  */
 function getCategoryPatches(form: any): Array<any> {
-    const result = (form.categoryRows || [])
-        .filter(function callback(row: {
-            enabled: boolean;
-            stubTagEnabled: unknown;
-            originalStubTagEnabled: unknown;
-        }) {
-            const result =
-                isManualCategoryRow(row) ||
-                isModifiedCategoryRow(row) ||
-                row.enabled === false ||
-                row.stubTagEnabled !== row.originalStubTagEnabled;
-            return result;
-        })
-        .map(function callback(row: unknown) {
-            if (isManualCategoryRow(row)) {
-                return createManualCategoryPatch(row);
-            }
+    const filterCallbackA = function callback(row: {
+        enabled: boolean;
+        stubTagEnabled: unknown;
+        originalStubTagEnabled: unknown;
+    }) {
+        if (isManualCategoryRow(row) || isModifiedCategoryRow(row)) {
+            return true;
+        }
 
-            return createCategoryPatch(row);
-        });
+        return (
+            row.enabled === false ||
+            row.stubTagEnabled !== row.originalStubTagEnabled
+        );
+    };
+    const mapCallbackA = function callback(row: unknown) {
+        if (isManualCategoryRow(row)) {
+            return createManualCategoryPatch(row);
+        }
+
+        return createCategoryPatch(row);
+    };
+    const result = (form.categoryRows || [])
+        .filter(filterCallbackA)
+        .map(mapCallbackA);
     return result;
 }
 
@@ -486,6 +526,28 @@ function createCategoryPatchSource(row: any): any {
  * @returns Navbox patches.
  */
 function getNavboxPatches(form: any): Array<any> {
+    const mapCallback = function callback(row: {
+        title: unknown;
+        text: unknown;
+        enabled: boolean;
+    }) {
+        const result = {
+            source: {
+                title: row.title || row.text,
+            },
+            ...createChangedValuePatch(
+                {
+                    enabled: row.enabled !== false,
+                    text: row.text,
+                },
+                {
+                    enabled: true,
+                    text: row.title || row.text,
+                },
+            ),
+        };
+        return result;
+    };
     const result = (form.navboxRows || [])
         .filter(function isChanged(row: {
             enabled: boolean;
@@ -494,28 +556,7 @@ function getNavboxPatches(form: any): Array<any> {
         }) {
             return row.enabled === false || row.text !== row.title;
         })
-        .map(function callback(row: {
-            title: unknown;
-            text: unknown;
-            enabled: boolean;
-        }) {
-            const result = {
-                source: {
-                    title: row.title || row.text,
-                },
-                ...createChangedValuePatch(
-                    {
-                        enabled: row.enabled !== false,
-                        text: row.text,
-                    },
-                    {
-                        enabled: true,
-                        text: row.title || row.text,
-                    },
-                ),
-            };
-            return result;
-        });
+        .map(mapCallback);
     return result;
 }
 
@@ -527,11 +568,14 @@ function getNavboxPatches(form: any): Array<any> {
  * @returns Changed values.
  */
 function createChangedValuePatch(values: any, baseValues: any): any {
-    const result = Object.fromEntries(
-        Object.entries(values).filter(
-            ([key, value]) => !isSameJsonValue(value, baseValues[key]),
-        ),
-    );
+    const filterCallback = function hasChangedValue([key, value]: [
+        string,
+        unknown,
+    ]) {
+        return !isSameJsonValue(value, baseValues[key]);
+    };
+    const filteredValuesA = Object.entries(values).filter(filterCallback);
+    const result = Object.fromEntries(filteredValuesA);
     return result;
 }
 
@@ -542,15 +586,17 @@ function createChangedValuePatch(values: any, baseValues: any): any {
  * @returns Present values.
  */
 function createPresentValuePatch(values: any): any {
-    const result = Object.fromEntries(
-        Object.entries(values).filter(function callback([_key, value]) {
-            if (value === "" || value === false) {
-                return false;
-            }
+    const filteredValues = Object.entries(values).filter(function callback([
+        _key,
+        value,
+    ]) {
+        if (value === "" || value === false) {
+            return false;
+        }
 
-            return value != null;
-        }),
-    );
+        return value != null;
+    });
+    const result = Object.fromEntries(filteredValues);
     return result;
 }
 
@@ -618,7 +664,8 @@ function writeFormHistory(entries: Array<any>): void {
  */
 function writeStorageItem(key: string, value: any): void {
     try {
-        localStorage.setItem(key, JSON.stringify(value));
+        const stringifyResultA = JSON.stringify(value);
+        localStorage.setItem(key, stringifyResultA);
     } catch (_error) {
         // Ignore storage quota and privacy-mode failures.
     }
@@ -631,7 +678,8 @@ function writeStorageItem(key: string, value: any): void {
  */
 function readFormDraftSavedAt(): string {
     try {
-        return JSON.parse(localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY));
+        const itemResultA = localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY);
+        return JSON.parse(itemResultA);
     } catch (_error) {
         return msg("history.temporaryDraft");
     }
@@ -644,7 +692,8 @@ function readFormDraftSavedAt(): string {
  */
 function readFormDraftPage(): string {
     try {
-        return JSON.parse(localStorage.getItem(DRAFT_PAGE_STORAGE_KEY));
+        const itemResult = localStorage.getItem(DRAFT_PAGE_STORAGE_KEY);
+        return JSON.parse(itemResult);
     } catch (_error) {
         return "";
     }
@@ -672,7 +721,8 @@ function removeStorageItem(key: string): void {
  * @returns Cloned value.
  */
 function cloneValue(value: any): any {
-    return JSON.parse(JSON.stringify(value));
+    const stringifyResult = JSON.stringify(value);
+    return JSON.parse(stringifyResult);
 }
 
 /**

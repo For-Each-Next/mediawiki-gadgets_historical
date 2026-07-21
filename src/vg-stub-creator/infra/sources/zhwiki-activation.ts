@@ -98,15 +98,16 @@ export function buildZhwikiCreationUrl(
 ): string {
     const title =
         trimValue(targetTitle) || buildZhwikiCreationTitle(enwikiTitle);
-    const url = new URL(
-        ["/wiki/", encodeURIComponent(title.replace(/ /gu, "_")), ""].join(""),
-        ZHWIKI_ORIGIN,
-    );
+    const replacedText = title.replace(/ /gu, "_");
+    const encodedTitle = encodeURIComponent(replacedText);
+    const path = ["/wiki/", encodedTitle, ""].join("");
+    const url = new URL(path, ZHWIKI_ORIGIN);
 
     url.searchParams.set("action", "edit");
     url.searchParams.set("redlink", "1");
     url.searchParams.set(ZHWIKI_ACTIVATION_PARAM, "1");
-    url.searchParams.set(ZHWIKI_ENWIKI_TITLE_PARAM, trimValue(enwikiTitle));
+    const trimmedValue = trimValue(enwikiTitle);
+    url.searchParams.set(ZHWIKI_ENWIKI_TITLE_PARAM, trimmedValue);
 
     return url.toString();
 }
@@ -121,21 +122,24 @@ export function buildZhwikiCreationUrl(
 export function readZhwikiActivationForm(
     search: string | URLSearchParams,
 ): any | null {
+    const selectValueCallback = function falseBranch() {
+        const searchText = String(search || "");
+        return new URLSearchParams(searchText);
+    };
     const params = selectValue(
         search instanceof URLSearchParams,
         function trueBranch() {
             return search;
         },
-        function falseBranch() {
-            return new URLSearchParams(String(search || ""));
-        },
+        selectValueCallback,
     );
 
     if (params.get(ZHWIKI_ACTIVATION_PARAM) !== "1") {
         return null;
     }
 
-    const enwikiTitle = trimValue(params.get(ZHWIKI_ENWIKI_TITLE_PARAM) || "");
+    const configValue = params.get(ZHWIKI_ENWIKI_TITLE_PARAM) || "";
+    const enwikiTitle = trimValue(configValue);
 
     if (enwikiTitle === "") {
         return null;

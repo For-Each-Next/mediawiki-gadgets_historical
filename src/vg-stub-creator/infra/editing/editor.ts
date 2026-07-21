@@ -17,7 +17,8 @@ export function writeEditText(text: string): void {
     const editor = editBox.getEditBox();
 
     if (editor == null) {
-        throw new Error(msg("errors.editorUnavailable"));
+        const message = msg("errors.editorUnavailable");
+        throw new Error(message);
     }
 
     editor.write(text);
@@ -80,8 +81,10 @@ export function writeEditSummary(summary: string): void {
  *   changes.
  */
 function dispatchValueEvents(element: HTMLElement): void {
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-    element.dispatchEvent(new Event("change", { bubbles: true }));
+    const inputEvent = new Event("input", { bubbles: true });
+    element.dispatchEvent(inputEvent);
+    const changeEvent = new Event("change", { bubbles: true });
+    element.dispatchEvent(changeEvent);
 }
 
 /**
@@ -111,7 +114,8 @@ export function submitEditForm(): void {
     const saveButton = document.getElementById("wpSave");
 
     if (editForm == null || saveButton == null) {
-        throw new Error(msg("errors.saveFormUnavailable"));
+        const message = msg("errors.saveFormUnavailable");
+        throw new Error(message);
     }
 
     allowNextSaveSubmit = true;
@@ -132,7 +136,8 @@ export function submitPreviewForm(): void {
     const previewButton = document.getElementById("wpPreview");
 
     if (editForm == null || previewButton == null) {
-        throw new Error(msg("errors.previewFormUnavailable"));
+        const message = msg("errors.previewFormUnavailable");
+        throw new Error(message);
     }
 
     editForm.requestSubmit(previewButton);

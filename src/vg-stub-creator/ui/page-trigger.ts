@@ -15,10 +15,11 @@ export function addMissingPageEditTrigger(
     mediaWikiUtil: any,
     handler: (...args: any[]) => any,
 ): boolean {
+    const messageB = msg("launcher.createStub");
     const link = mediaWikiUtil.addPortletLink(
         "p-views",
         "#",
-        msg("launcher.createStub"),
+        messageB,
         "ca-vg-stub-creator",
     );
 
@@ -45,17 +46,18 @@ export function addViewPageTrigger(
     mediaWikiUtil: any,
     handler: (...args: any[]) => any,
 ): boolean {
+    const messageA = msg("launcher.createStub");
     const link =
         mediaWikiUtil.addPortletLink(
             "p-views",
             "#",
-            msg("launcher.createStub"),
+            messageA,
             "ca-vg-stub-creator",
         ) ||
         mediaWikiUtil.addPortletLink(
             "p-tb",
             "#",
-            msg("launcher.createStub"),
+            messageA,
             "t-vg-stub-creator",
         );
 
@@ -86,17 +88,18 @@ export function addEnwikiCreateTrigger(
     handler: (...args: any[]) => any,
     href: string,
 ): boolean {
+    const message = msg("launcher.createZhwikiStub");
     const link =
         mediaWikiUtil.addPortletLink(
             "p-cactions",
             href,
-            msg("launcher.createZhwikiStub"),
+            message,
             "ca-create-zhwiki-vg-stub",
         ) ||
         mediaWikiUtil.addPortletLink(
             "p-tb",
             href,
-            msg("launcher.createZhwikiStub"),
+            message,
             "t-create-zhwiki-vg-stub",
         );
 

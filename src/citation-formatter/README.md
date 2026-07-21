@@ -16,15 +16,7 @@ citations** page action:
 The supported set is the CS1 list at
 `Template:Citation Style documentation/cs1`, the general CS2 `Citation`
 template, and `Cite video game`. The built gadget makes no metadata request at
-runtime. Refresh the committed data over HTTPS and rebuild with:
-
-```sh
-npm run update:template-data -w citation-formatter
-npm run build -w citation-formatter
-```
-
-The updater accepts a curl proxy through `CITATION_TEMPLATE_PROXY`, for
-example `socks5h://localhost:7897`.
+runtime. Its TemplateData is committed under `domain/data/`.
 
 For a non-Latin author or organization name, an HTML comment beginning with
 `#` supplies its reference-name form without changing the citation display:

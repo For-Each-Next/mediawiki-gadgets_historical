@@ -21,21 +21,28 @@ export function mountCitationFormatter(): void {
     }
     const link = addFormatterLink("p-cactions") || addFormatterLink("p-tb");
     const state = { formatted: false };
-    link?.addEventListener("click", function formatOnClick(event) {
+    const enableManager = function enableManager(success: boolean) {
+        state.formatted = success;
+        if (success) {
+            setLinkLabel(link, "Manage citations");
+        }
+    };
+    const addEventListenerCallback = function formatOnClick(event: Event) {
         event.preventDefault();
         if (state.formatted) {
             void openCitationManager(editor).catch(notifyManagerFailure);
             return;
         }
-        void runFormatter(editor, link).then(function enableManager(success) {
-            state.formatted = success;
-            if (success) {
-                setLinkLabel(link, "Manage citations");
-            }
-        });
-    });
+        void runFormatter(editor, link).then(enableManager);
+    };
+    link?.addEventListener("click", addEventListenerCallback);
 }
 
+/**
+ * Reports a citation-manager startup failure.
+ *
+ * @param error - Rejected startup value.
+ */
 function notifyManagerFailure(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
     mw.notify(`Citation manager failed: ${message}`, { type: "error" });
@@ -74,14 +81,16 @@ async function runFormatter(
     }
     link.setAttribute("aria-disabled", "true");
     try {
-        const result = await formatCitations(editor.read());
+        const source = editor.read();
+        const result = await formatCitations(source);
         editor.write(result.text);
         const notFormatted = result.referencesNotFormatted;
-        const message =
-            notFormatted === 0
-                ? "Citation formatting complete."
-                : `Citation formatting complete; ${notFormatted} ` +
-                  "reference(s) not formatted.";
+        let message = "Citation formatting complete.";
+        if (notFormatted !== 0) {
+            message =
+                `Citation formatting complete; ${notFormatted} ` +
+                "reference(s) not formatted.";
+        }
         mw.notify(message, { type: notFormatted === 0 ? "success" : "warn" });
         return true;
     } catch (error) {
@@ -93,6 +102,12 @@ async function runFormatter(
     }
 }
 
+/**
+ * Updates the formatter command label and tooltip.
+ *
+ * @param link - Portlet command wrapper or anchor.
+ * @param label - New command label.
+ */
 function setLinkLabel(link: HTMLElement, label: string): void {
     const target = link.querySelector("a") || link;
     target.textContent = label;

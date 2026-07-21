@@ -25,7 +25,7 @@ const NAME_SOURCE_PREFIXES = [
     "commonNames.",
 ];
 
-export const namesModule = defineArticleModule({
+const defineArticleModuleArgumentI = {
     fields: [
         "name",
         "originalLanguage",
@@ -133,7 +133,8 @@ export const namesModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const namesModule = defineArticleModule(defineArticleModuleArgumentI);
 
 /**
  * Defines the module-level build name values.
@@ -250,7 +251,10 @@ function normalizeLocalizedNameRows(
     key: string,
     official?: boolean,
 ): Array<Record<string, unknown>> {
-    const result = rows.map(function callback(row, index: number) {
+    const mapCallbackA = function callback(
+        row: Record<string, unknown> & { name: unknown; sourceUrl: unknown },
+        index: number,
+    ) {
         const normalized: Record<string, unknown> = {
             ...row,
             name: trimValue(row.name),
@@ -263,7 +267,8 @@ function normalizeLocalizedNameRows(
         }
 
         return normalized;
-    });
+    };
+    const result = rows.map(mapCallbackA);
     return result;
 }
 
@@ -271,7 +276,7 @@ function normalizeLocalizedNameRows(
  * Flushes release-year values into shared article metadata.
  */
 
-export const yearModule = defineArticleModule({
+const defineArticleModuleArgumentH = {
     fields: ["year"],
     key: "year",
     sourceFields: [
@@ -346,7 +351,8 @@ export const yearModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const yearModule = defineArticleModule(defineArticleModuleArgumentH);
 
 /**
  * Selects a lazily evaluated value for a condition.
@@ -374,7 +380,7 @@ function selectYearValue(
  * Flushes genre values into shared article metadata.
  */
 
-export const genreModule = defineArticleModule({
+const defineArticleModuleArgumentG = {
     fields: ["genres"],
     key: "genre",
     listFields: ["genres"],
@@ -412,13 +418,14 @@ export const genreModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const genreModule = defineArticleModule(defineArticleModuleArgumentG);
 
 /**
  * Flushes developer and publisher values into shared metadata.
  */
 
-export const companiesModule = defineArticleModule({
+const defineArticleModuleArgumentF = {
     fields: ["developers", "publishers"],
     key: "companies",
     listFields: ["developers", "publishers"],
@@ -471,7 +478,10 @@ export const companiesModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const companiesModule = defineArticleModule(
+    defineArticleModuleArgumentF,
+);
 
 /**
  * Adds a company role to normalized company values.
@@ -493,7 +503,7 @@ function addCompanyRole(items: Array<any>, role: string): Array<any> {
  * Flushes platform values into shared article metadata.
  */
 
-export const platformModule = defineArticleModule({
+const defineArticleModuleArgumentE = {
     fields: ["platforms"],
     key: "platform",
     listFields: ["platforms"],
@@ -531,13 +541,16 @@ export const platformModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const platformModule = defineArticleModule(
+    defineArticleModuleArgumentE,
+);
 
 /**
  * Flushes series values into shared article metadata.
  */
 
-export const seriesModule = defineArticleModule({
+const defineArticleModuleArgumentD = {
     fields: ["series"],
     key: "series",
     listFields: ["series"],
@@ -573,13 +586,14 @@ export const seriesModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const seriesModule = defineArticleModule(defineArticleModuleArgumentD);
 
 /**
  * Flushes aggregate review scores into shared article metadata.
  */
 
-export const scoresModule = defineArticleModule({
+const defineArticleModuleArgumentC = {
     fields: ["metacriticPlatform", "metacriticScore", "openCriticRecommend"],
     key: "scores",
     sourceFields: [
@@ -608,14 +622,16 @@ export const scoresModule = defineArticleModule({
         }
 
         const enteredScore = trimValue(value);
+        const hasIncludedValue = enteredScore.includes(":");
+        const selectScoreValueCallback = function falseBranch() {
+            return enteredScore.replace(/^(.+?)\s+(\d{1,3})$/u, "$1:$2");
+        };
         const score = selectScoreValue(
-            enteredScore.includes(":"),
+            hasIncludedValue,
             function trueBranch() {
                 return enteredScore;
             },
-            function falseBranch() {
-                return enteredScore.replace(/^(.+?)\s+(\d{1,3})$/u, "$1:$2");
-            },
+            selectScoreValueCallback,
         );
 
         const result = formatPrefixedValue(score, {
@@ -677,7 +693,8 @@ export const scoresModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const scoresModule = defineArticleModule(defineArticleModuleArgumentC);
 
 /**
  * Builds normalized aggregate-score values.
@@ -755,7 +772,7 @@ function selectScoreValue(
  * Flushes manually editable NoteTA-lite template rows.
  */
 
-export const noteTaModule = defineArticleModule({
+const defineArticleModuleArgumentB = {
     fields: ["noteTaRows", "noteTaNamesRemoved"],
     key: "noteTa",
 
@@ -791,7 +808,8 @@ export const noteTaModule = defineArticleModule({
         };
         return result;
     },
-});
+};
+export const noteTaModule = defineArticleModule(defineArticleModuleArgumentB);
 
 /**
  * Describes one editable NoteTA row.
@@ -814,7 +832,7 @@ function normalizeNoteTaRows(rows: NoteTaRow[]): NoteTaRow[] {
         return [];
     }
 
-    const result = rows.map(function callback(row) {
+    const mapCallback = function callback(row: NoteTaRow) {
         const result = {
             key: trimValue(row?.key),
             modified: row?.modified === true,
@@ -822,7 +840,8 @@ function normalizeNoteTaRows(rows: NoteTaRow[]): NoteTaRow[] {
             value: trimValue(row?.value),
         };
         return result;
-    });
+    };
+    const result = rows.map(mapCallback);
     return result;
 }
 
@@ -833,7 +852,7 @@ function normalizeNoteTaRows(rows: NoteTaRow[]): NoteTaRow[] {
  * sentences.
  */
 
-export const additionalProseModule = defineArticleModule({
+const defineArticleModuleArgumentA = {
     fields: ["additionalProse"],
     key: "additionalProse",
     sourceFields: [
@@ -888,7 +907,10 @@ export const additionalProseModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const additionalProseModule = defineArticleModule(
+    defineArticleModuleArgumentA,
+);
 
 /**
  * Selects a lazily evaluated value for a condition.
@@ -916,7 +938,7 @@ function selectAdditionalProseValue(
  * Flushes reviewed category and navbox selections.
  */
 
-export const reviewModule = defineArticleModule({
+const defineArticleModuleArgument = {
     fields: ["categoryRows", "stubTagRows", "navboxRows", "navboxText"],
     key: "review",
 
@@ -927,9 +949,11 @@ export const reviewModule = defineArticleModule({
      * @returns Normalized review patch.
      */
     normalize(form: any): any {
+        const isArrayValue = Array.isArray(form.categoryRows);
+        const isArrayValueA = Array.isArray(form.stubTagRows);
         const result = {
             categoryRows: selectReviewValue(
-                Array.isArray(form.categoryRows),
+                isArrayValue,
                 function trueBranch() {
                     return form.categoryRows;
                 },
@@ -938,7 +962,7 @@ export const reviewModule = defineArticleModule({
                 },
             ),
             stubTagRows: selectReviewValue(
-                Array.isArray(form.stubTagRows),
+                isArrayValueA,
                 function trueBranch() {
                     return form.stubTagRows;
                 },
@@ -975,7 +999,8 @@ export const reviewModule = defineArticleModule({
 
         return output;
     },
-});
+};
+export const reviewModule = defineArticleModule(defineArticleModuleArgument);
 
 /**
  * Defines the module-level normalize navbox.

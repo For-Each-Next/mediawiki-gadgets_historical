@@ -10,31 +10,45 @@ import {
     normalizeListFieldValue,
 } from "vg-stub-creator/ui/form/helpers.ts";
 
-test("review links can only be claimed once in one browser tab", () => {
+const testCallbackC = () => {
     const storage = createStorage();
 
-    assert.equal(claimReviewLinksOpening(storage), true);
-    assert.equal(claimReviewLinksOpening(storage), false);
-});
+    const claimReviewLinksOpeningResultC = claimReviewLinksOpening(storage);
+    assert.equal(claimReviewLinksOpeningResultC, true);
+    const claimReviewLinksOpeningResultB = claimReviewLinksOpening(storage);
+    assert.equal(claimReviewLinksOpeningResultB, false);
+};
+test(
+    "review links can only be claimed once in one browser tab",
+    testCallbackC,
+);
 
-test("review links use independent browser-tab state", () => {
+const testCallbackB = () => {
     const firstTabStorage = createStorage();
     const secondTabStorage = createStorage();
 
-    assert.equal(claimReviewLinksOpening(firstTabStorage), true);
-    assert.equal(claimReviewLinksOpening(secondTabStorage), true);
-});
+    const claimReviewLinksOpeningResultA =
+        claimReviewLinksOpening(firstTabStorage);
+    assert.equal(claimReviewLinksOpeningResultA, true);
+    const claimReviewLinksOpeningResult =
+        claimReviewLinksOpening(secondTabStorage);
+    assert.equal(claimReviewLinksOpeningResult, true);
+};
+test("review links use independent browser-tab state", testCallbackB);
 
-test("textbox list normalization preserves ordinary commas", () => {
-    assert.equal(normalizeListFieldValue("Alpha, Beta"), "Alpha, Beta");
-});
+const testCallbackA = () => {
+    const listFieldValueResultA = normalizeListFieldValue("Alpha, Beta");
+    assert.equal(listFieldValueResultA, "Alpha, Beta");
+};
+test("textbox list normalization preserves ordinary commas", testCallbackA);
 
-test("textbox list normalization joins first-level lines", () => {
-    assert.equal(
-        normalizeListFieldValue("Alpha\n[[Beta; Gamma]]\nDelta"),
-        "Alpha; [[Beta; Gamma]]; Delta",
+const testCallback = () => {
+    const listFieldValueResult = normalizeListFieldValue(
+        "Alpha\n[[Beta; Gamma]]\nDelta",
     );
-});
+    assert.equal(listFieldValueResult, "Alpha; [[Beta; Gamma]]; Delta");
+};
+test("textbox list normalization joins first-level lines", testCallback);
 
 /**
  * Creates an in-memory Storage implementation.

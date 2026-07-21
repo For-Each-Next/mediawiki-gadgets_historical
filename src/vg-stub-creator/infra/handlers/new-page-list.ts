@@ -82,20 +82,20 @@ async function registerNewPageAttempt(
         return;
     }
 
-    await api.postWithToken("csrf", {
+    const newPageListSummaryResult = buildNewPageListSummary(
+        entry.articleTitle,
+        entry.companyCategories,
+    );
+    const addEditSummarySuffixResult = {
         action: "edit",
         basetimestamp: page.basetimestamp,
         nocreate: true,
         starttimestamp: page.starttimestamp,
-        summary: addEditSummarySuffix(
-            buildNewPageListSummary(
-                entry.articleTitle,
-                entry.companyCategories,
-            ),
-        ),
+        summary: addEditSummarySuffix(newPageListSummaryResult),
         text,
         title: NEW_PAGE_LIST_TITLE,
-    });
+    };
+    await api.postWithToken("csrf", addEditSummarySuffixResult);
 }
 
 /**
@@ -254,19 +254,18 @@ async function fetchNewPageList(api: any): Promise<any> {
     const revision = page?.revisions?.[0];
 
     if (page == null || page.missing != null || revision == null) {
-        throw new Error(
-            msg("errors.unableRead", { title: NEW_PAGE_LIST_TITLE }),
-        );
+        const message = msg("errors.unableRead", {
+            title: NEW_PAGE_LIST_TITLE,
+        });
+        throw new Error(message);
     }
 
+    const mainSlot = revision.slots?.main;
+    const slotContent = mainSlot?.content ?? mainSlot?.["*"];
     const result = {
         basetimestamp: revision.timestamp,
         starttimestamp: response.curtimestamp,
-        text:
-            revision.slots?.main?.content ??
-            revision.slots?.main?.["*"] ??
-            revision["*"] ??
-            "",
+        text: slotContent ?? revision["*"] ?? "",
     };
     return result;
 }
@@ -319,14 +318,15 @@ function findDateLine(
     pattern: RegExp,
     entry: NewPageListEntry,
 ): number {
-    const result = lines.findIndex(function callback(line) {
+    const findIndexCallbackD = function callback(line: string) {
         const match = line.match(pattern);
         const result =
             match != null &&
             Number(match[1]) === entry.month &&
             Number(match[2]) === entry.day;
         return result;
-    });
+    };
+    const result = lines.findIndex(findIndexCallbackD);
     return result;
 }
 
@@ -343,15 +343,21 @@ function findDateInsertIndex(
     pattern: RegExp,
     entry: NewPageListEntry,
 ): number {
-    const result = lines.findIndex(function callback(line) {
+    const findIndexCallbackC = function callback(line: string) {
         const match = line.match(pattern);
-        const result =
-            match != null &&
-            (Number(match[1]) < entry.month ||
-                (Number(match[1]) === entry.month &&
-                    Number(match[2]) < entry.day));
-        return result;
-    });
+
+        if (match == null) {
+            return false;
+        }
+
+        const month = Number(match[1]);
+        if (month < entry.month) {
+            return true;
+        }
+
+        return month === entry.month && Number(match[2]) < entry.day;
+    };
+    const result = lines.findIndex(findIndexCallbackC);
     return result;
 }
 
@@ -362,12 +368,15 @@ function findDateInsertIndex(
  * @returns The first trailing blank line.
  */
 function findTrailingBlankLines(lines: Array<string>): number {
-    const index = lines.findIndex(function callback(line, lineIndex) {
-        const blankTail = lines
-            .slice(lineIndex)
-            .every((remaining) => remaining.trim() === "");
+    const findIndexCallbackB = function callback(
+        line: string,
+        lineIndex: number,
+    ) {
+        const everyCallback = (remaining: string) => remaining.trim() === "";
+        const blankTail = lines.slice(lineIndex).every(everyCallback);
         return lineIndex > 0 && line.trim() === "" && blankTail;
-    });
+    };
+    const index = lines.findIndex(findIndexCallbackB);
 
     return index === -1 ? lines.length : index;
 }
@@ -415,26 +424,30 @@ function appendCategories(
         return;
     }
 
-    const nextDateIndex = lines.findIndex(function callback(line, index) {
+    const findIndexCallbackA = function callback(line: string, index: number) {
         return index > dateIndex && /^\* \d{1,2}月\d{1,2}日 - /u.test(line);
-    });
+    };
+    const nextDateIndex = lines.findIndex(findIndexCallbackA);
     const blockEnd = nextDateIndex === -1 ? lines.length : nextDateIndex;
-    const categoryIndex = lines.findIndex(function callback(line, index) {
+    const findIndexCallback = function callback(line: string, index: number) {
         const result =
             index > dateIndex &&
             index < blockEnd &&
             /^\*:\s*分類：/u.test(line);
         return result;
-    });
+    };
+    const categoryIndex = lines.findIndex(findIndexCallback);
 
     if (categoryIndex === -1) {
-        lines.splice(dateIndex + 1, 0, `*:分類：${categories.join("、")}`);
+        const joinedText = `*:分類：${categories.join("、")}`;
+        lines.splice(dateIndex + 1, 0, joinedText);
         return;
     }
 
-    categories.forEach(function callback(category) {
+    const forEachCallback = function callback(category: string) {
         return appendUnique(lines, categoryIndex, category);
-    });
+    };
+    categories.forEach(forEachCallback);
 }
 
 /**
@@ -452,6 +465,9 @@ function buildDateBlock(
     article: string,
     categories: Array<string>,
 ): string {
+    const selectValueCallback = function falseBranch() {
+        return [`*:分類：${categories.join("、")}`];
+    };
     const result = [
         `* ${month}月${day}日 - ${article}`,
         ...selectValue(
@@ -459,9 +475,7 @@ function buildDateBlock(
             function trueBranch() {
                 return [];
             },
-            function falseBranch() {
-                return [`*:分類：${categories.join("、")}`];
-            },
+            selectValueCallback,
         ),
     ].join("\n");
     return result;

@@ -113,7 +113,8 @@ function getTerminologyDefinition(
         return exact;
     }
 
-    return getReferenceDefinition(definitions, stripGenreTypeSuffix(value));
+    const stripGenreTypeSuffixResult = stripGenreTypeSuffix(value);
+    return getReferenceDefinition(definitions, stripGenreTypeSuffixResult);
 }
 
 /**

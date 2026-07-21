@@ -10,22 +10,26 @@ import {
     normalizeReceivedFormValues,
 } from "vg-stub-creator/ui/form/helpers.ts";
 
-test("restored forms always show a blank Chinese-name row", () => {
+const testCallbackA = () => {
     const form = normalizeReceivedFormValues({ localizedNames: [] });
 
     assert.equal(form.localizedNames.length, 1);
     assert.equal(form.localizedNames[0].name, "");
-});
+};
+test("restored forms always show a blank Chinese-name row", testCallbackA);
 
-test("a Chinese name can fill the page-title field", () => {
+const testCallback = () => {
     const form = {
         localizedNames: [{ name: " 游戏名称 " }],
         pageName: "Old title",
     };
 
-    assert.equal(
-        applyLocalizedNameAsPageTitle(form, "localizedNames", 0),
-        true,
+    const applyLocalizedNameAsPageTitleA = applyLocalizedNameAsPageTitle(
+        form,
+        "localizedNames",
+        0,
     );
+    assert.equal(applyLocalizedNameAsPageTitleA, true);
     assert.equal(form.pageName, "游戏名称");
-});
+};
+test("a Chinese name can fill the page-title field", testCallback);

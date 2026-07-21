@@ -86,14 +86,17 @@ export function createTranslator(
     catalogs: MessageCatalogs,
     locale: string = getMediaWikiInterfaceLanguage(),
 ): Translator {
-    const resolvedLocale = resolveLocale(locale, Object.keys(catalogs));
+    const availableLocales = Object.keys(catalogs);
+    const resolvedLocale = resolveLocale(locale, availableLocales);
     const result: Translator = {
         locale: resolvedLocale,
         parts(message, values) {
-            const result = interpolateMessageParts(
-                getTranslatedMessage(catalogs, resolvedLocale, message),
-                values,
+            const translated = getTranslatedMessage(
+                catalogs,
+                resolvedLocale,
+                message,
             );
+            const result = interpolateMessageParts(translated, values);
             return result;
         },
         text(message, values = {}) {
@@ -133,7 +136,8 @@ export function getMediaWikiInterfaceLanguage(): string {
     if (typeof mw === "undefined") {
         return "en";
     }
-    return String(mw.config.get("wgUserLanguage") || "en");
+    const language = mw.config.get("wgUserLanguage") || "en";
+    return String(language);
 }
 
 /**
@@ -147,16 +151,22 @@ export function resolveLocale(
     locale: string,
     availableLocales: string[],
 ): string {
-    const available = new Map(
-        availableLocales.map((item) => [item.toLocaleLowerCase(), item]),
-    );
+    const localeEntries = availableLocales.map(createLocaleEntry);
+    const available = new Map(localeEntries);
     const normalized = normalizeLocale(locale);
-    const exact = available.get(normalized.toLocaleLowerCase());
+    const normalizedKey = normalized.toLocaleLowerCase();
+    const exact = available.get(normalizedKey);
     if (exact != null) {
         return exact;
     }
-    const base = available.get(normalized.split("-")[0].toLocaleLowerCase());
-    return base || available.get("en") || availableLocales[0] || "en";
+    const baseLocale = normalized.split("-")[0];
+    const baseKey = baseLocale.toLocaleLowerCase();
+    const base = available.get(baseKey);
+    if (base != null) {
+        return base;
+    }
+    const english = available.get("en");
+    return english || availableLocales[0] || "en";
 }
 
 /**
@@ -185,13 +195,19 @@ function normalizeLocale(locale: string): string {
  *   substitutes named values in a translated message.
  */
 function interpolateMessage(message: string, values: MessageValues): string {
-    const result = message.replace(
-        /\{([A-Za-z][A-Za-z0-9]*)\}/gu,
-        function replace(text, key) {
-            return Object.hasOwn(values, key) ? String(values[key]) : text;
-        },
-    );
+    const parts = interpolateMessageParts(message, values);
+    const result = parts.join("");
     return result;
+}
+
+/**
+ * Creates one case-insensitive locale lookup entry.
+ *
+ * @param locale - Available locale.
+ * @returns Lowercase lookup key and original locale.
+ */
+function createLocaleEntry(locale: string): [string, string] {
+    return [locale.toLocaleLowerCase(), locale];
 }
 
 /**
@@ -211,11 +227,13 @@ function interpolateMessageParts<T>(
     const pattern = /\{([A-Za-z][A-Za-z0-9]*)\}/gu;
     let offset = 0;
     for (const match of message.matchAll(pattern)) {
-        parts.push(message.slice(offset, match.index));
+        const precedingText = message.slice(offset, match.index);
+        parts.push(precedingText);
         appendMessagePart(parts, values[match[1]], match[0]);
         offset = match.index + match[0].length;
     }
-    parts.push(message.slice(offset));
+    const trailingText = message.slice(offset);
+    parts.push(trailingText);
     return parts.filter((part) => part !== "");
 }
 

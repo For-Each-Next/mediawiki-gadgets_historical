@@ -119,13 +119,18 @@ const RESPONSIBLE_ORGANIZATION_PARAMS = [
     "publisher",
 ];
 
-const CITE_WEB_PARAM_ORDER = new Map(
-    citeWebTemplateData.paramOrder.map((name, index) => [name, index]),
-);
+const FALLBACK_PARAM_ORDER_OFFSET = 1_000;
+const MAX_NUMBERED_CREATORS = 50;
 
-const CITE_BOOK_PARAM_ORDER = new Map(
-    citeBookTemplateData.paramOrder.map((name, index) => [name, index]),
+const citeWebParamOrderEntries = citeWebTemplateData.paramOrder.map(
+    (name, index) => [name, index] as const,
 );
+const CITE_WEB_PARAM_ORDER = new Map(citeWebParamOrderEntries);
+
+const citeBookParamOrderEntries = citeBookTemplateData.paramOrder.map(
+    (name, index) => [name, index] as const,
+);
+const CITE_BOOK_PARAM_ORDER = new Map(citeBookParamOrderEntries);
 
 const PRINT_CITATION_TEMPLATES = new Set([
     "cite book",
@@ -164,19 +169,15 @@ export function formatCitationTemplate(
     metadata: CitationTemplateData,
 ): { citation: CitationTemplate; text: string } {
     const parsed = parseTemplateCall(raw);
-    const citation = canonicalizeCitation(
-        {
-            name: normalizeTemplateName(parsed.name),
-            params: parsed.params.map(function mapParam(param) {
-                const result = {
-                    name: param.name,
-                    value: param.value,
-                };
-                return result;
-            }),
-        },
-        metadata,
-    );
+    const name = normalizeTemplateName(parsed.name);
+    const params = parsed.params.map(function mapParam(param) {
+        const result = {
+            name: param.name,
+            value: param.value,
+        };
+        return result;
+    });
+    const citation = canonicalizeCitation({ name, params }, metadata);
     return { citation, text: formatBlockCitation(citation) };
 }
 
@@ -208,14 +209,21 @@ export function canonicalizeCitation(
         deduplicated.set(name, { name, value });
     }
 
+    const deduplicatedParams = [...deduplicated.values()];
     const params = sortCitationParams(
         citation.name,
-        [...deduplicated.values()],
+        deduplicatedParams,
         metadata,
     );
     return { name: citation.name, params };
 }
 
+/**
+ * Normalizes spacing around a reference-name override comment.
+ *
+ * @param value - Entered citation field value.
+ * @returns Value with normalized override spacing.
+ */
 function normalizeNameOverrideSpacing(value: string): string {
     const result = value.replace(
         /\s*<!--\s*([^]*?#\s*[^]*?)\s*-->/gu,
@@ -224,6 +232,13 @@ function normalizeNameOverrideSpacing(value: string): string {
     return result;
 }
 
+/**
+ * Formats one reference-name override comment.
+ *
+ * @param _match - Complete matched comment.
+ * @param content - Comment content.
+ * @returns Normalized override comment.
+ */
 function formatNameOverrideComment(_match: string, content: string): string {
     const hashIndex = content.indexOf("#");
     const prefix = content.slice(0, hashIndex).trim();
@@ -245,36 +260,58 @@ function sortCitationParams(
     params: CitationParam[],
     metadata: CitationTemplateData,
 ): CitationParam[] {
-    const order = new Map(
-        metadata.paramOrder.map((name, index) => [name, index]),
+    const orderEntries = metadata.paramOrder.map(
+        (name, index) => [name, index] as const,
     );
-    const fallbackOrder = PRINT_CITATION_TEMPLATES.has(template)
-        ? CITE_BOOK_PARAM_ORDER
-        : CITE_WEB_PARAM_ORDER;
-    const activeOrder = params.some(
-        (param) => !order.has(param.name) && fallbackOrder.has(param.name),
-    )
-        ? fallbackOrder
-        : order;
+    const order = new Map(orderEntries);
+    let fallbackOrder = CITE_WEB_PARAM_ORDER;
+    if (PRINT_CITATION_TEMPLATES.has(template)) {
+        fallbackOrder = CITE_BOOK_PARAM_ORDER;
+    }
+    const someCallback = function isFallbackParam(param: CitationParam) {
+        return !order.has(param.name) && fallbackOrder.has(param.name);
+    };
+    const hasFallbackParam = params.some(someCallback);
+    let activeOrder = order;
+    if (hasFallbackParam) {
+        activeOrder = fallbackOrder;
+    }
+    const mapCallbackA = function addOrder(
+        param: CitationParam,
+    ): CitationParamMetadata {
+        const orderedParam = {
+            ...param,
+            order: getCitationParamSortOrder(param.name, activeOrder),
+        };
+        return orderedParam;
+    };
     const result = params
-        .map(function addOrder(param): CitationParamMetadata {
-            const authorOrder = getAuthorParamOrder(param.name);
-            const paramOrder =
-                activeOrder.get(param.name) ?? Number.MAX_SAFE_INTEGER;
-            const orderedParam = {
-                ...param,
-                order:
-                    authorOrder ??
-                    (paramOrder === Number.MAX_SAFE_INTEGER
-                        ? paramOrder
-                        : 1_000 + paramOrder),
-            };
-            return orderedParam;
-        })
+        .map(mapCallbackA)
         .sort((left, right) => left.order - right.order)
         .map(function removeOrder(param): CitationParam {
             return { name: param.name, value: param.value };
         });
+    return result;
+}
+
+/**
+ * Gets the effective sort order for one citation parameter.
+ *
+ * @param name - Canonical citation parameter name.
+ * @param activeOrder - Active TemplateData or fallback order.
+ * @returns Parameter sort order.
+ */
+function getCitationParamSortOrder(
+    name: string,
+    activeOrder: Map<string, number>,
+): number {
+    let result = getAuthorParamOrder(name);
+    if (result == null) {
+        result = activeOrder.get(name) ?? Number.MAX_SAFE_INTEGER;
+        if (result !== Number.MAX_SAFE_INTEGER) {
+            result += FALLBACK_PARAM_ORDER_OFFSET;
+        }
+    }
     return result;
 }
 
@@ -366,13 +403,15 @@ function isValidCalendarDay(
     month: string,
     day: number,
 ): boolean {
-    const date = new Date(Date.UTC(Number(year), Number(month) - 1, day));
-    const result =
-        day >= 1 &&
-        date.getUTCFullYear() === Number(year) &&
-        date.getUTCMonth() === Number(month) - 1 &&
-        date.getUTCDate() === day;
-    return result;
+    const numericYear = Number(year);
+    const numericMonth = Number(month);
+    const timestamp = Date.UTC(numericYear, numericMonth - 1, day);
+    const date = new Date(timestamp);
+    const validDay = day >= 1;
+    const matchingYear = validDay && date.getUTCFullYear() === numericYear;
+    const matchingMonth =
+        matchingYear && date.getUTCMonth() === numericMonth - 1;
+    return matchingMonth && date.getUTCDate() === day;
 }
 
 /**
@@ -386,28 +425,27 @@ export function getCitationIdentity(
     citation: CitationTemplate,
     includeInitials: boolean = false,
 ): CitationIdentity {
-    const values = Object.fromEntries(
-        citation.params.map((param) => [param.name, param.value]),
-    );
+    const valueEntries = citation.params.map(function createValueEntry(param) {
+        return [param.name, param.value] as const;
+    });
+    const values = Object.fromEntries(valueEntries);
     const enteredAuthor = getCitationAuthor(values);
-    const author = includeInitials
-        ? addFirstAuthorInitials(enteredAuthor, values)
-        : enteredAuthor;
+    let author = enteredAuthor;
+    if (includeInitials) {
+        author = addFirstAuthorInitials(enteredAuthor, values);
+    }
     const year = getCitationYear(values);
     const locator = getSourceLocator(values);
     const baseName = `${author}, ${year}`;
-    const signatureParams = citation.params.filter(
-        function isSourceIdentity(param) {
-            const result =
-                SOURCE_IDENTITY_PARAMS.has(param.name) ||
-                isCreatorParam(param.name);
-            return result;
-        },
-    );
-    const sourceSignature = JSON.stringify([
-        citation.name,
-        signatureParams.map(mapSourceIdentityParam),
-    ]);
+    const filterCallback = function isSourceIdentity(param: CitationParam) {
+        const result =
+            SOURCE_IDENTITY_PARAMS.has(param.name) ||
+            isCreatorParam(param.name);
+        return result;
+    };
+    const signatureParams = citation.params.filter(filterCallback);
+    const signatureValues = signatureParams.map(mapSourceIdentityParam);
+    const sourceSignature = JSON.stringify([citation.name, signatureValues]);
     return { author, baseName, locator, sourceSignature, year };
 }
 
@@ -451,9 +489,10 @@ function addFirstAuthorInitials(
     values: Record<string, string>,
 ): string {
     const first = cleanValue(values.first || "");
+    const mapCallback = (part: string) => part.match(/\p{L}/u)?.[0];
     const initials = first
         .split(/[\s-]+/u)
-        .map((part) => part.match(/\p{L}/u)?.[0])
+        .map(mapCallback)
         .filter((letter) => letter != null)
         .map((letter) => `${letter}.`)
         .join(" ");
@@ -512,6 +551,12 @@ function getCitationAuthor(values: Record<string, string>): string {
     return "Untitled source";
 }
 
+/**
+ * Builds a short reference-name fallback from a citation title.
+ *
+ * @param title - Entered citation title.
+ * @returns Short quoted title or the untitled marker.
+ */
 function formatTitleFallback(title: string): string {
     const words = cleanValue(title).split(/\s+/u).filter(Boolean);
     const shortened =
@@ -531,24 +576,28 @@ function collectNumberedValues(
     bases: string[],
 ): string[] {
     const result: string[] = [];
-    for (let index = 1; index <= 50; index += 1) {
+    for (let index = 1; index <= MAX_NUMBERED_CREATORS; index += 1) {
         const suffix = index === 1 ? "" : String(index);
         const candidates = bases.map((base) => `${base}${suffix}`);
         if (index === 1) {
-            candidates.push(...bases.map((base) => `${base}1`));
+            const explicitFirstCandidates = bases.map((base) => `${base}1`);
+            candidates.push(...explicitFirstCandidates);
         }
-        const key = candidates.find(
-            (candidate) =>
+        const findCallbackA = function identifiesAuthor(candidate: string) {
+            return (
                 values[candidate]?.trim() &&
-                !hasFieldDirective(values[candidate], "no-author"),
-        );
+                !hasFieldDirective(values[candidate], "no-author")
+            );
+        };
+        const key = candidates.find(findCallbackA);
         if (key == null) {
             if (index > 1) {
                 break;
             }
             continue;
         }
-        result.push(authorNameValue(values[key]));
+        const author = authorNameValue(values[key]);
+        result.push(author);
     }
     return result;
 }
@@ -589,11 +638,13 @@ function formatAuthorList(authors: string[]): string {
  */
 function getCitationYear(values: Record<string, string>): string {
     const dateKeys = ["date", "year", "publication-date"];
-    const key = dateKeys.find(
-        (candidate) =>
+    const findCallback = function identifiesDate(candidate: string) {
+        return (
             values[candidate]?.trim() &&
-            !hasFieldDirective(values[candidate], "no-date"),
-    );
+            !hasFieldDirective(values[candidate], "no-date")
+        );
+    };
+    const key = dateKeys.find(findCallback);
     const entered = key == null ? "" : values[key];
     const clean = cleanValue(entered);
     return clean.match(/\b(\d{4})\b/u)?.[1] || "n.d.";
@@ -661,7 +712,8 @@ function canonicalizeSourceUrl(value: string): string {
         const url = new URL(clean);
         url.hash = "";
         for (const name of [...url.searchParams.keys()]) {
-            if (POSITION_QUERY_PARAMS.has(name.toLocaleLowerCase("en-US"))) {
+            const normalizedName = name.toLocaleLowerCase("en-US");
+            if (POSITION_QUERY_PARAMS.has(normalizedName)) {
                 url.searchParams.delete(name);
             }
         }
@@ -683,6 +735,12 @@ function nameValue(value: string): string {
     return cleanValue(override || value) || "Untitled source";
 }
 
+/**
+ * Extracts a hashtag reference-name override from comments.
+ *
+ * @param value - Citation field value.
+ * @returns Entered override, if present.
+ */
 function extractNameOverride(value: string): string {
     const comments = value.matchAll(/<!--([\s\S]*?)-->/gu);
     for (const comment of comments) {
@@ -694,6 +752,14 @@ function extractNameOverride(value: string): string {
     return "";
 }
 
+/**
+ * Checks whether a citation field comment contains a directive.
+ *
+ * @param value - Citation field value.
+ * @param directive - Directive name without the leading
+ *   exclamation mark.
+ * @returns Whether the directive is present.
+ */
 function hasFieldDirective(value: string, directive: string): boolean {
     const comments = value.matchAll(/<!--([\s\S]*?)-->/gu);
     const token = `!${directive}`;
@@ -734,21 +800,57 @@ function buildCanonicalNameMap(
     metadata: CitationTemplateData,
 ): Map<string, string> {
     const result = new Map<string, string>();
-    const canonicalNames = new Set([
-        ...metadata.paramOrder,
-        ...Object.keys(metadata.aliases),
-    ]);
+    const aliasNames = Object.keys(metadata.aliases);
+    const canonicalNames = new Set([...metadata.paramOrder, ...aliasNames]);
     for (const canonical of canonicalNames) {
-        result.set(canonical.toLocaleLowerCase("en-US"), canonical);
-        for (const alias of metadata.aliases[canonical] || []) {
-            result.set(alias.toLocaleLowerCase("en-US"), canonical);
-        }
+        const normalizedCanonical = canonical.toLocaleLowerCase("en-US");
+        result.set(normalizedCanonical, canonical);
+        addCanonicalAliases(result, canonical, metadata.aliases[canonical]);
     }
-    for (let index = 1; index <= 99; index += 1) {
-        const last = index === 1 ? "last" : `last${index}`;
-        if (canonicalNames.has(last)) {
-            result.set(`author${index}`, last);
-        }
-    }
+    addNumberedAuthorAliases(result, canonicalNames);
     return result;
+}
+
+/**
+ * Adds numbered author aliases for canonical family-name parameters.
+ *
+ * @param names - Mutable canonical-name map.
+ * @param canonicalNames - Available canonical parameter names.
+ */
+function addNumberedAuthorAliases(
+    names: Map<string, string>,
+    canonicalNames: Set<string>,
+): void {
+    for (const canonical of canonicalNames) {
+        let authorIndex: string | undefined;
+        if (canonical === "last") {
+            authorIndex = "1";
+        } else {
+            const numberedLast = canonical.match(/^last([1-9]\d*)$/u)?.[1];
+            if (numberedLast != null && numberedLast !== "1") {
+                authorIndex = numberedLast;
+            }
+        }
+        if (authorIndex != null) {
+            names.set(`author${authorIndex}`, canonical);
+        }
+    }
+}
+
+/**
+ * Adds case-normalized aliases for one canonical citation parameter.
+ *
+ * @param names - Mutable canonical-name map.
+ * @param canonical - Canonical parameter name.
+ * @param aliases - Configured aliases.
+ */
+function addCanonicalAliases(
+    names: Map<string, string>,
+    canonical: string,
+    aliases: string[] | undefined,
+): void {
+    for (const alias of aliases || []) {
+        const normalizedAlias = alias.toLocaleLowerCase("en-US");
+        names.set(normalizedAlias, canonical);
+    }
 }

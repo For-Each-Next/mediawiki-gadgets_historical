@@ -14,17 +14,18 @@ import { msg } from "#me/i18n/index.ts";
  * @returns Category review grid node.
  */
 export function createCategoryGroupTemplate(): any {
+    const redirectReviewResult = [
+        createRedirectReviewTemplate(),
+        createCategoryReviewTemplate(),
+        createStubTagReviewTemplate(),
+        createNavboxReviewTemplate(),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "group.categoryReview",
         },
-        [
-            createRedirectReviewTemplate(),
-            createCategoryReviewTemplate(),
-            createStubTagReviewTemplate(),
-            createNavboxReviewTemplate(),
-        ],
+        redirectReviewResult,
     );
     return result;
 }
@@ -35,23 +36,25 @@ export function createCategoryGroupTemplate(): any {
  * @returns Category review template node.
  */
 function createCategoryReviewTemplate(): any {
-    const result = createElement("section", {}, [
+    const categorySlotsResult = createCategorySlotsTemplate();
+    const messageAD = {
+        caption: msg("review.categories"),
+        class:
+            "vg-stub-creator-review-table " + "vg-stub-creator-category-table",
+    };
+    const tableResultC = [
         createTableTemplate(
             "categoryTableColumns",
             "form.categoryRows",
-            createCategorySlotsTemplate(),
-            {
-                caption: msg("review.categories"),
-                class:
-                    "vg-stub-creator-review-table " +
-                    "vg-stub-creator-category-table",
-            },
+            categorySlotsResult,
+            messageAD,
         ),
         createMessageTemplate(
             "categoryState.error",
             "{{ categoryState.error }}",
         ),
-    ]);
+    ];
+    const result = createElement("section", {}, tableResultC);
     return result;
 }
 
@@ -61,19 +64,21 @@ function createCategoryReviewTemplate(): any {
  * @returns Redirect review template node.
  */
 function createRedirectReviewTemplate(): any {
-    const result = createElement("section", {}, [
+    const redirectSlotsResult = createRedirectSlotsTemplate();
+    const messageAC = {
+        caption: msg("review.redirects"),
+        class:
+            "vg-stub-creator-review-table " + "vg-stub-creator-redirect-table",
+    };
+    const tableResultB = [
         createTableTemplate(
             "redirectTableColumns",
             "form.redirectRows || []",
-            createRedirectSlotsTemplate(),
-            {
-                caption: msg("review.redirects"),
-                class:
-                    "vg-stub-creator-review-table " +
-                    "vg-stub-creator-redirect-table",
-            },
+            redirectSlotsResult,
+            messageAC,
         ),
-    ]);
+    ];
+    const result = createElement("section", {}, tableResultB);
     return result;
 }
 
@@ -83,20 +88,22 @@ function createRedirectReviewTemplate(): any {
  * @returns Navbox review template node.
  */
 function createNavboxReviewTemplate(): any {
-    const result = createElement("section", {}, [
+    const navboxSlotsResult = createNavboxSlotsTemplate();
+    const messageAB = {
+        caption: msg("review.navboxes"),
+        class:
+            "vg-stub-creator-review-table " + "vg-stub-creator-navbox-table",
+    };
+    const tableResultA = [
         createTableTemplate(
             "navboxTableColumns",
             "form.navboxRows || []",
-            createNavboxSlotsTemplate(),
-            {
-                caption: msg("review.navboxes"),
-                class:
-                    "vg-stub-creator-review-table " +
-                    "vg-stub-creator-navbox-table",
-            },
+            navboxSlotsResult,
+            messageAB,
         ),
         createMessageTemplate("reviewState.error", "{{ reviewState.error }}"),
-    ]);
+    ];
+    const result = createElement("section", {}, tableResultA);
     return result;
 }
 
@@ -106,19 +113,21 @@ function createNavboxReviewTemplate(): any {
  * @returns Stub-tag review template node.
  */
 function createStubTagReviewTemplate(): any {
-    const result = createElement("section", {}, [
+    const stubTagSlotsResult = createStubTagSlotsTemplate();
+    const messageAA = {
+        caption: msg("review.stubTags"),
+        class:
+            "vg-stub-creator-review-table " + "vg-stub-creator-stub-tag-table",
+    };
+    const tableResult = [
         createTableTemplate(
             "stubTagTableColumns",
             "stubTagRows",
-            createStubTagSlotsTemplate(),
-            {
-                caption: msg("review.stubTags"),
-                class:
-                    "vg-stub-creator-review-table " +
-                    "vg-stub-creator-stub-tag-table",
-            },
+            stubTagSlotsResult,
+            messageAA,
         ),
-    ]);
+    ];
+    const result = createElement("section", {}, tableResult);
     return result;
 }
 
@@ -128,15 +137,15 @@ function createStubTagReviewTemplate(): any {
  * @returns Category table slot nodes.
  */
 function createCategorySlotsTemplate(): Array<any> {
+    const messageY = msg("review.categories");
+    const categoryHeaderActionsResult = createCategoryHeaderActions();
+    const messageZ = msg("review.includeCategory");
     const result = [
-        createTableHeaderTemplate(
-            msg("review.categories"),
-            createCategoryHeaderActions(),
-        ),
+        createTableHeaderTemplate(messageY, categoryHeaderActionsResult),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
-            msg("review.includeCategory"),
+            messageZ,
             "isCategoryAddReviewRow(row)",
             "vg-stub-creator-review-row-marker--category-add",
         ),
@@ -159,19 +168,22 @@ function createCategorySlotsTemplate(): Array<any> {
  * @returns Category-table header actions.
  */
 function createCategoryHeaderActions(): Array<any> {
+    const messageX = msg("common.reset");
     const reset = createIconActionLinkTemplate(
-        msg("common.reset"),
+        messageX,
         "tableActionIcons.regenerate",
         "rebuildCategoryRows",
         { "aria-disabled": "categoryState.loading" },
     );
+    const messageW = msg("common.clean");
     const clean = createIconActionLinkTemplate(
-        msg("common.clean"),
+        messageW,
         "tableActionIcons.clean",
         "cleanCategoryRows",
     );
+    const messageV = msg("common.add");
     const add = createIconActionLinkTemplate(
-        msg("common.add"),
+        messageV,
         "tableActionIcons.cdxIconArticleAdd",
         "addCategoryRow",
     );
@@ -185,12 +197,13 @@ function createCategoryHeaderActions(): Array<any> {
  * @returns Category source slot node.
  */
 function createCategorySourceSlotTemplate(): any {
-    const result = createSlotTemplate("source", [
+    const infoChipResultB = [
         createInfoChipTemplate("formatCategoryStatusLabel(row)", {
             status: "getCategoryStatusChipStatus(row)",
             title: "formatCategoryStatusTitle(row)",
         }),
-    ]);
+    ];
+    const result = createSlotTemplate("source", infoChipResultB);
     return result;
 }
 
@@ -200,7 +213,7 @@ function createCategorySourceSlotTemplate(): any {
  * @returns Category title slot node.
  */
 function createCategoryTitleSlotTemplate(): any {
-    const result = createInputSlotTemplate("category", {
+    const joinedTextG = {
         "v-model": "row.category",
         "v-on:blur": [
             "checkCategoryRow(form.categoryRows",
@@ -210,7 +223,8 @@ function createCategoryTitleSlotTemplate(): any {
             "updateCategoryRowCategory(form.cat",
             "egoryRows.indexOf(row), $event)",
         ].join(""),
-    });
+    };
+    const result = createInputSlotTemplate("category", joinedTextG);
     return result;
 }
 
@@ -220,20 +234,23 @@ function createCategoryTitleSlotTemplate(): any {
  * @returns Category action slot node.
  */
 function createCategoryActionSlotTemplate(): any {
-    const result = createActionSlotTemplate([
+    const messageU = msg("review.refresh");
+    const joinedTextF = {
+        title: [msg("review.refreshCategory")].join(""),
+        "v-if": "row.category",
+    };
+    const iconActionLinkResultB = [
         createIconActionLinkTemplate(
-            msg("review.refresh"),
+            messageU,
             "tableActionIcons.reload",
             "checkCategoryRow(form.categoryRows.indexOf(row))",
-            {
-                title: [msg("review.refreshCategory")].join(""),
-                "v-if": "row.category",
-            },
+            joinedTextF,
         ),
         createRemoveActionTemplate(
             "removeCategoryRow(form.categoryRows.indexOf(row))",
         ),
-    ]);
+    ];
+    const result = createActionSlotTemplate(iconActionLinkResultB);
     return result;
 }
 
@@ -243,15 +260,15 @@ function createCategoryActionSlotTemplate(): any {
  * @returns Redirect table slot nodes.
  */
 function createRedirectSlotsTemplate(): Array<any> {
+    const messageS = msg("review.redirects");
+    const redirectHeaderActionsResult = createRedirectHeaderActions();
+    const messageT = msg("review.includeRedirect");
     const result = [
-        createTableHeaderTemplate(
-            msg("review.redirects"),
-            createRedirectHeaderActions(),
-        ),
+        createTableHeaderTemplate(messageS, redirectHeaderActionsResult),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
-            msg("review.includeRedirect"),
+            messageT,
             "isRedirectConflictReviewRow(row)",
             "vg-stub-creator-review-row-marker--redirect-conflict",
         ),
@@ -279,22 +296,26 @@ function createRedirectSlotsTemplate(): Array<any> {
  * @returns Redirect-table header actions.
  */
 function createRedirectHeaderActions(): Array<any> {
+    const messageQ = msg("common.reset");
+    const messageR = {
+        "aria-disabled": "reviewState.loading",
+        title: msg("review.resetRedirects"),
+    };
     const reset = createIconActionLinkTemplate(
-        msg("common.reset"),
+        messageQ,
         "tableActionIcons.regenerate",
         "rebuildRedirectRows",
-        {
-            "aria-disabled": "reviewState.loading",
-            title: msg("review.resetRedirects"),
-        },
+        messageR,
     );
+    const messageP = msg("common.clean");
     const clean = createIconActionLinkTemplate(
-        msg("common.clean"),
+        messageP,
         "tableActionIcons.clean",
         "cleanRedirectRows",
     );
+    const messageO = msg("common.add");
     const add = createIconActionLinkTemplate(
-        msg("common.add"),
+        messageO,
         "tableActionIcons.cdxIconArticleAdd",
         "addRedirectRow",
     );
@@ -313,8 +334,9 @@ function createRedirectRefreshAction(): any {
         "aria-disabled": "reviewState.loading",
         title: msg("review.refreshRedirects"),
     };
+    const messageN = msg("review.refresh");
     const action = createIconActionLinkTemplate(
-        msg("review.refresh"),
+        messageN,
         "tableActionIcons.reload",
         "checkRedirectRows",
         attributes,
@@ -329,7 +351,7 @@ function createRedirectRefreshAction(): any {
  * @returns Redirect title slot node.
  */
 function createRedirectTitleSlotTemplate(): any {
-    const result = createInputSlotTemplate("title", {
+    const joinedTextE = {
         "v-model": "row.title",
         "v-on:blur": [
             "checkRedirectRow((form.redirectRow",
@@ -340,7 +362,8 @@ function createRedirectTitleSlotTemplate(): any {
             "ectRows || []).indexOf(row), $even",
             "t)",
         ].join(""),
-    });
+    };
+    const result = createInputSlotTemplate("title", joinedTextE);
     return result;
 }
 
@@ -350,26 +373,29 @@ function createRedirectTitleSlotTemplate(): any {
  * @returns Redirect action slot node.
  */
 function createRedirectActionSlotTemplate(): any {
-    const result = createActionSlotTemplate([
+    const messageL = msg("review.refresh");
+    const joinedTextC = [
+        "checkRedirectRow((form.redirectRow",
+        "s || []).indexOf(row))",
+    ].join("");
+    const messageM = {
+        title: msg("review.refreshRedirect"),
+        "v-if": "row.title",
+    };
+    const joinedTextD = [
+        "removeRedirectRow((form.redirectRo",
+        "ws || []).indexOf(row))",
+    ].join("");
+    const iconActionLinkResultA = [
         createIconActionLinkTemplate(
-            msg("review.refresh"),
+            messageL,
             "tableActionIcons.reload",
-            [
-                "checkRedirectRow((form.redirectRow",
-                "s || []).indexOf(row))",
-            ].join(""),
-            {
-                title: msg("review.refreshRedirect"),
-                "v-if": "row.title",
-            },
+            joinedTextC,
+            messageM,
         ),
-        createRemoveActionTemplate(
-            [
-                "removeRedirectRow((form.redirectRo",
-                "ws || []).indexOf(row))",
-            ].join(""),
-        ),
-    ]);
+        createRemoveActionTemplate(joinedTextD),
+    ];
+    const result = createActionSlotTemplate(iconActionLinkResultA);
     return result;
 }
 
@@ -379,15 +405,15 @@ function createRedirectActionSlotTemplate(): any {
  * @returns Navbox table slot nodes.
  */
 function createNavboxSlotsTemplate(): Array<any> {
+    const messageJ = msg("review.navboxes");
+    const navboxHeaderActionsResult = createNavboxHeaderActions();
+    const messageK = msg("review.includeNavbox");
     const result = [
-        createTableHeaderTemplate(
-            msg("review.navboxes"),
-            createNavboxHeaderActions(),
-        ),
+        createTableHeaderTemplate(messageJ, navboxHeaderActionsResult),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
-            msg("review.includeNavbox"),
+            messageK,
             "isNavboxAddReviewRow(row)",
             "vg-stub-creator-review-row-marker--navbox-add",
         ),
@@ -415,19 +441,22 @@ function createNavboxSlotsTemplate(): Array<any> {
  * @returns Navbox-table header actions.
  */
 function createNavboxHeaderActions(): Array<any> {
+    const messageI = msg("common.reset");
     const reset = createIconActionLinkTemplate(
-        msg("common.reset"),
+        messageI,
         "tableActionIcons.regenerate",
         "rebuildNavboxRows",
         { "aria-disabled": "reviewState.loading" },
     );
+    const messageH = msg("common.clean");
     const clean = createIconActionLinkTemplate(
-        msg("common.clean"),
+        messageH,
         "tableActionIcons.clean",
         "cleanNavboxRows",
     );
+    const messageG = msg("common.add");
     const add = createIconActionLinkTemplate(
-        msg("common.add"),
+        messageG,
         "tableActionIcons.cdxIconArticleAdd",
         "addNavboxRow",
     );
@@ -441,7 +470,7 @@ function createNavboxHeaderActions(): Array<any> {
  * @returns Navbox text slot node.
  */
 function createNavboxTextSlotTemplate(): any {
-    const result = createInputSlotTemplate("text", {
+    const joinedTextB = {
         "v-model": "row.text",
         "v-on:blur": [
             "checkNavboxRow((form.navboxRows ||",
@@ -451,7 +480,8 @@ function createNavboxTextSlotTemplate(): any {
             "updateNavboxRow((form.navboxRows |",
             "| []).indexOf(row), $event)",
         ].join(""),
-    });
+    };
+    const result = createInputSlotTemplate("text", joinedTextB);
     return result;
 }
 
@@ -461,20 +491,23 @@ function createNavboxTextSlotTemplate(): any {
  * @returns Navbox action slot node.
  */
 function createNavboxActionSlotTemplate(): any {
-    const result = createActionSlotTemplate([
+    const messageF = msg("review.refresh");
+    const joinedTextA = {
+        title: [msg("review.refreshNavbox")].join(""),
+        "v-if": "row.title",
+    };
+    const iconActionLinkResult = [
         createIconActionLinkTemplate(
-            msg("review.refresh"),
+            messageF,
             "tableActionIcons.reload",
             "checkNavboxRow((form.navboxRows || []).indexOf(row))",
-            {
-                title: [msg("review.refreshNavbox")].join(""),
-                "v-if": "row.title",
-            },
+            joinedTextA,
         ),
         createRemoveActionTemplate(
             "removeNavboxRow((form.navboxRows || []).indexOf(row))",
         ),
-    ]);
+    ];
+    const result = createActionSlotTemplate(iconActionLinkResult);
     return result;
 }
 
@@ -484,15 +517,20 @@ function createNavboxActionSlotTemplate(): any {
  * @returns Stub-tag table slot nodes.
  */
 function createStubTagSlotsTemplate(): Array<any> {
-    const result = [
-        createTableHeaderTemplate(
-            msg("review.stubTags"),
-            createStubTagHeaderActions(),
+    const messageD = msg("review.stubTags");
+    const stubTagHeaderActionsResult = createStubTagHeaderActions();
+    const messageE = msg("review.includeStubTag");
+    const removeActionResult = [
+        createRemoveActionTemplate(
+            "removeStubTagRow(stubTagRows.indexOf(row))",
         ),
+    ];
+    const result = [
+        createTableHeaderTemplate(messageD, stubTagHeaderActionsResult),
         createToggleSlotTemplate(
             "enabled",
             "row.enabled",
-            msg("review.includeStubTag"),
+            messageE,
             "isStubTagAddReviewRow(row)",
             "vg-stub-creator-review-row-marker--stub-tag-add",
         ),
@@ -504,11 +542,7 @@ function createStubTagSlotsTemplate(): Array<any> {
             "true",
             "openStubTagEdit(row)",
         ),
-        createActionSlotTemplate([
-            createRemoveActionTemplate(
-                "removeStubTagRow(stubTagRows.indexOf(row))",
-            ),
-        ]),
+        createActionSlotTemplate(removeActionResult),
     ];
     return result;
 }
@@ -519,18 +553,21 @@ function createStubTagSlotsTemplate(): Array<any> {
  * @returns Stub-tag-table header actions.
  */
 function createStubTagHeaderActions(): Array<any> {
+    const messageC = msg("common.reset");
     const reset = createIconActionLinkTemplate(
-        msg("common.reset"),
+        messageC,
         "tableActionIcons.regenerate",
         "resetStubTagRows",
     );
+    const messageB = msg("common.clean");
     const clean = createIconActionLinkTemplate(
-        msg("common.clean"),
+        messageB,
         "tableActionIcons.clean",
         "cleanStubTagRows",
     );
+    const messageA = msg("common.add");
     const add = createIconActionLinkTemplate(
-        msg("common.add"),
+        messageA,
         "tableActionIcons.cdxIconArticleAdd",
         "addStubTagRow",
     );
@@ -544,12 +581,13 @@ function createStubTagHeaderActions(): Array<any> {
  * @returns Stub-tag status slot node.
  */
 function createStubTagStatusSlotTemplate(): any {
-    const result = createSlotTemplate("type", [
+    const infoChipResultA = [
         createInfoChipTemplate("formatStubTagStatusLabel(row)", {
             status: "getStubTagStatusChipStatus(row)",
             title: "formatStubTagLabel(row.stubTag)",
         }),
-    ]);
+    ];
+    const result = createSlotTemplate("type", infoChipResultA);
     return result;
 }
 
@@ -575,9 +613,8 @@ function createStubTagInputSlotTemplate(): any {
  * @returns Text input slot node.
  */
 function createInputSlotTemplate(column: string, attributes: any): any {
-    const result = createSlotTemplate(column, [
-        createElement("cdx-text-input", attributes),
-    ]);
+    const elementResultA = [createElement("cdx-text-input", attributes)];
+    const result = createSlotTemplate(column, elementResultA);
     return result;
 }
 
@@ -619,8 +656,9 @@ function createSlotTemplate(
  * @returns Remove action button node.
  */
 function createRemoveActionTemplate(click: string): any {
+    const message = msg("common.remove");
     const result = createIconActionLinkTemplate(
-        msg("common.remove"),
+        message,
         "tableActionIcons.remove",
         click,
         {
@@ -656,13 +694,12 @@ function createToggleSlotTemplate(
     const children = [checkbox];
 
     if (markerCondition !== "") {
-        children.push(
-            createElement("span", {
-                "aria-hidden": "true",
-                class: `vg-stub-creator-review-row-marker ${markerClass}`,
-                "v-if": markerCondition,
-            }),
-        );
+        const elementResult = createElement("span", {
+            "aria-hidden": "true",
+            class: `vg-stub-creator-review-row-marker ${markerClass}`,
+            "v-if": markerCondition,
+        });
+        children.push(elementResult);
     }
 
     const result = createElement(
@@ -690,9 +727,8 @@ function createStatusSlotTemplate(
     label: string,
     status: string = "'notice'",
 ): any {
-    const result = createSlotTemplate(column, [
-        createInfoChipTemplate(label, { status, title }),
-    ]);
+    const infoChipResult = [createInfoChipTemplate(label, { status, title })];
+    const result = createSlotTemplate(column, infoChipResult);
     return result;
 }
 
@@ -708,13 +744,16 @@ function createStatusSlotTemplate(
  * @returns InfoChip node.
  */
 function createInfoChipTemplate(label: string, options: any = {}): any {
+    const textResultA = [
+        createText(options.bindLabel === false ? label : `{{ ${label} }}`),
+    ];
     const result = createElement(
         "cdx-info-chip",
         {
             "v-bind:status": options.status || "'notice'",
             ...(options.title ? { "v-bind:title": options.title } : {}),
         },
-        [createText(options.bindLabel === false ? label : `{{ ${label} }}`)],
+        textResultA,
     );
     return result;
 }
@@ -735,9 +774,10 @@ function createPageEditSlotTemplate(
     existing: string,
     click: string,
 ): any {
-    const result = createSlotTemplate(column, [
+    const pageEditLinkResult = [
         createPageEditLinkTemplate(condition, existing, click),
-    ]);
+    ];
+    const result = createSlotTemplate(column, pageEditLinkResult);
     return result;
 }
 
@@ -755,19 +795,19 @@ function createPageEditLinkTemplate(
     existing: string,
     click: string,
 ): any {
-    const result = createElement(
-        "a",
-        {
-            href: "#",
-            "v-bind:aria-label": [
-                "getReviewPageActionAriaLabel(row, ",
-                existing,
-                ")",
-            ].join(""),
-            "v-if": condition,
-            "v-on:click.prevent": click,
-        },
-        [createText(`{{ getReviewPageActionLabel(row, ${existing}) }}`)],
-    );
+    const joinedText = {
+        href: "#",
+        "v-bind:aria-label": [
+            "getReviewPageActionAriaLabel(row, ",
+            existing,
+            ")",
+        ].join(""),
+        "v-if": condition,
+        "v-on:click.prevent": click,
+    };
+    const textResult = [
+        createText(`{{ getReviewPageActionLabel(row, ${existing}) }}`),
+    ];
+    const result = createElement("a", joinedText, textResult);
     return result;
 }

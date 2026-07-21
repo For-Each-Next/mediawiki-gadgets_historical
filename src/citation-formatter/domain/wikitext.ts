@@ -32,13 +32,17 @@ export function applyReplacements(
     text: string,
     replacements: TextReplacement[],
 ): string {
+    const reduceCallback = function replaceText(
+        result: string,
+        replacement: TextReplacement,
+    ) {
+        const before = result.slice(0, replacement.start);
+        const after = result.slice(replacement.end);
+        return `${before}${replacement.text}${after}`;
+    };
     const result = [...replacements]
         .sort((left, right) => right.start - left.start)
-        .reduce(function replaceText(result, replacement) {
-            const before = result.slice(0, replacement.start);
-            const after = result.slice(replacement.end);
-            return `${before}${replacement.text}${after}`;
-        }, text);
+        .reduce(reduceCallback, text);
     return result;
 }
 
@@ -78,7 +82,8 @@ export function findTemplateCalls(text: string): ParsedTemplateCall[] {
         const start = stack.pop() as number;
         const end = index + 2;
         const raw = text.slice(start, end);
-        calls.push(parseTemplateCall(raw, start));
+        const call = parseTemplateCall(raw, start);
+        calls.push(call);
         index += 1;
     }
 
@@ -100,7 +105,7 @@ export function parseTemplateCall(
     const parts = splitTopLevel(inner, "|");
     const name = parts.shift()?.trim() || "";
     let positionalIndex = 0;
-    const params = parts.map(function parsePart(part) {
+    const mapCallback = function parsePart(part: string) {
         const separator = findTopLevelCharacter(part, "=");
         if (separator < 0) {
             positionalIndex += 1;
@@ -117,7 +122,8 @@ export function parseTemplateCall(
             value: part.slice(separator + 1).trim(),
         };
         return result;
-    });
+    };
+    const params = parts.map(mapCallback);
     return { end: start + raw.length, name, params, raw, start };
 }
 
@@ -137,14 +143,13 @@ export function findRefTags(text: string): RefTag[] {
         const openingEnd = openingPattern.lastIndex;
         const selfClosing = match[2] === "/";
         if (selfClosing) {
-            tags.push(
-                buildRefTag(text, match, {
-                    content: "",
-                    end: openingEnd,
-                    selfClosing: true,
-                    start,
-                }),
-            );
+            const tag = buildRefTag(text, match, {
+                content: "",
+                end: openingEnd,
+                selfClosing: true,
+                start,
+            });
+            tags.push(tag);
             continue;
         }
         const closing = /<\/ref\s*>/giu;
@@ -155,14 +160,13 @@ export function findRefTags(text: string): RefTag[] {
         }
         const end = closing.lastIndex;
         const content = text.slice(openingEnd, closingMatch.index);
-        tags.push(
-            buildRefTag(text, match, {
-                content,
-                end,
-                selfClosing: false,
-                start,
-            }),
-        );
+        const tag = buildRefTag(text, match, {
+            content,
+            end,
+            selfClosing: false,
+            start,
+        });
+        tags.push(tag);
         openingPattern.lastIndex = end;
     }
     return tags;
@@ -200,8 +204,9 @@ export function parseTagAttributes(value: string): Record<string, string> {
     const pattern =
         /([^\s=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gu;
     for (const match of value.matchAll(pattern)) {
-        attributes[match[1].toLocaleLowerCase()] =
-            match[2] ?? match[3] ?? match[4] ?? "";
+        const name = match[1].toLocaleLowerCase();
+        const quotedValue = match[2] ?? match[3];
+        attributes[name] = quotedValue ?? match[4] ?? "";
     }
     return attributes;
 }
@@ -239,14 +244,24 @@ export function splitTopLevel(text: string, separator: string): string[] {
             state.templateDepth === 0 &&
             state.linkDepth === 0
         ) {
-            parts.push(text.slice(start, index));
+            const part = text.slice(start, index);
+            parts.push(part);
             start = index + 1;
         }
     }
-    parts.push(text.slice(start));
+    const trailing = text.slice(start);
+    parts.push(trailing);
     return parts;
 }
 
+/**
+ * Updates nesting state at one source offset.
+ *
+ * @param text - Wikitext being scanned.
+ * @param index - Current source offset.
+ * @param state - Mutable nesting state.
+ * @returns Number of additional characters to skip, when applicable.
+ */
 function updateSplitState(
     text: string,
     index: number,
@@ -263,6 +278,14 @@ function updateSplitState(
     return updateNestedDepth(token, state);
 }
 
+/**
+ * Updates comment state at one source offset.
+ *
+ * @param text - Wikitext being scanned.
+ * @param index - Current source offset.
+ * @param state - Mutable nesting state.
+ * @returns Number of additional characters to skip.
+ */
 function updateCommentState(
     text: string,
     index: number,
@@ -275,6 +298,13 @@ function updateCommentState(
     return 0;
 }
 
+/**
+ * Updates template or link depth for a two-character token.
+ *
+ * @param token - Candidate opening or closing token.
+ * @param state - Mutable nesting state.
+ * @returns Number of additional characters to skip, when applicable.
+ */
 function updateNestedDepth(token: string, state: SplitState): number | null {
     if (token === "{{") {
         state.templateDepth += 1;

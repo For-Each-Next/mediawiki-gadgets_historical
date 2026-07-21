@@ -14,7 +14,7 @@ import {
     selectArticleSubmissionTitle,
 } from "vg-stub-creator/ui/navigation.ts";
 
-test("title lookup detects an occupied converted variant", async () => {
+const testCallbackB = async () => {
     const api: PageLookupApi = {
         async get(params: any) {
             assert.equal(params.converttitles, "1");
@@ -44,33 +44,34 @@ test("title lookup detects an occupied converted variant", async () => {
             title: "游戏名称",
         },
     ]);
-});
+};
+test("title lookup detects an occupied converted variant", testCallbackB);
 
-test("completed saves navigate to the final article backlinks", () => {
+const testCallbackA = () => {
+    const whatLinksHerePageTitleResult =
+        buildWhatLinksHerePageTitle(" Final title ");
     assert.equal(
-        buildWhatLinksHerePageTitle(" Final title "),
+        whatLinksHerePageTitleResult,
         "Special:WhatLinksHere/Final title",
     );
-});
+};
+test("completed saves navigate to the final article backlinks", testCallbackA);
 
-test("new pages save directly to a free entered title", () => {
-    assert.equal(
-        selectArticleSubmissionTitle({
-            currentPageExists: false,
-            currentTitle: "Initial title",
-            enteredTitle: "Entered title",
-            shouldMove: false,
-        }),
-        "Entered title",
-    );
+const testCallback = () => {
+    const selectArticleSubmissionTitleRA = selectArticleSubmissionTitle({
+        currentPageExists: false,
+        currentTitle: "Initial title",
+        enteredTitle: "Entered title",
+        shouldMove: false,
+    });
+    assert.equal(selectArticleSubmissionTitleRA, "Entered title");
 
-    assert.equal(
-        selectArticleSubmissionTitle({
-            currentPageExists: true,
-            currentTitle: "Existing title",
-            enteredTitle: "Entered title",
-            shouldMove: false,
-        }),
-        "Existing title",
-    );
-});
+    const selectArticleSubmissionTitleRe = selectArticleSubmissionTitle({
+        currentPageExists: true,
+        currentTitle: "Existing title",
+        enteredTitle: "Entered title",
+        shouldMove: false,
+    });
+    assert.equal(selectArticleSubmissionTitleRe, "Existing title");
+};
+test("new pages save directly to a free entered title", testCallback);

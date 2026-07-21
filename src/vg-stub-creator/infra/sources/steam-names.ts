@@ -23,11 +23,11 @@ export async function fetchSteamNameRows(
 ): Promise<Array<any>> {
     getSteamAppId(sourceUrl);
     const languages = buildSteamLanguages(options.includeJapanese === true);
-    const rows = await Promise.all(
-        languages.map(function callback(item) {
-            return fetchSteamNameRow(sourceUrl, item, citationStore);
-        }),
-    );
+    const mapCallback = function callback(item: Record<string, any>) {
+        return fetchSteamNameRow(sourceUrl, item, citationStore);
+    };
+    const mappedValues = languages.map(mapCallback);
+    const rows = await Promise.all(mappedValues);
 
     return rows.filter(Boolean);
 }
@@ -53,12 +53,13 @@ function buildSteamLanguages(includeJapanese: boolean): Record<string, any>[] {
     ];
 
     if (includeJapanese) {
-        languages.push({
+        const message: Record<string, any> = {
             label: msg("names.japanese"),
             language: "japanese",
             markets: [],
             previewOnly: true,
-        });
+        };
+        languages.push(message);
     }
 
     return languages;
@@ -82,7 +83,8 @@ async function fetchSteamNameRow(
         item.language,
     );
     const citation = await citationStore.fetch(localizedUrl);
-    const name = cleanSteamNameTitle(getTemplateParam(citation, "title"));
+    const templateParamResult = getTemplateParam(citation, "title");
+    const name = cleanSteamNameTitle(templateParamResult);
 
     if (name === "") {
         return undefined;
@@ -109,7 +111,8 @@ function getSteamAppId(sourceUrl: string): string {
     const match = trimValue(sourceUrl).match(/\/app\/(\d+)(?:[/?#]|$)/u);
 
     if (match == null) {
-        throw new Error(msg("errors.steamUrl"));
+        const message = msg("errors.steamUrl");
+        throw new Error(message);
     }
 
     return match[1];
@@ -126,7 +129,8 @@ function buildSteamLocalizedSourceUrl(
     sourceUrl: string,
     language: string,
 ): string {
-    const url = new URL(trimValue(sourceUrl));
+    const normalizedSourceUrl = trimValue(sourceUrl);
+    const url = new URL(normalizedSourceUrl);
 
     url.searchParams.set("l", language);
 
@@ -141,8 +145,9 @@ function buildSteamLocalizedSourceUrl(
  * @returns Template parameter value.
  */
 function getTemplateParam(template: string, key: string): string {
+    const escapedKey = escapeRegExp(key);
     const pattern = new RegExp(
-        `(?:^|\\|)\\s*${escapeRegExp(key)}\\s*=\\s*([^|}]*)`,
+        `(?:^|\\|)\\s*${escapedKey}\\s*=\\s*([^|}]*)`,
         "u",
     );
     const match = String(template).match(pattern);

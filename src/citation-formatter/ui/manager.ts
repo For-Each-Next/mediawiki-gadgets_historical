@@ -85,6 +85,12 @@ export async function openCitationManager(
     mountCitationManager(editor, require);
 }
 
+/**
+ * Mounts the citation manager in a temporary document host.
+ *
+ * @param editor - Active MediaWiki source editor.
+ * @param require - ResourceLoader module resolver.
+ */
 function mountCitationManager(
     editor: editBox.EditBox,
     require: ResourceLoaderRequire,
@@ -106,19 +112,36 @@ function mountCitationManager(
     removeActiveManager = cleanup;
 }
 
+/**
+ * Creates the citation-manager Vue component.
+ *
+ * @param Vue - Loaded Vue module.
+ * @param editor - Active MediaWiki source editor.
+ * @param cleanup - Dialog cleanup callback.
+ * @returns Vue component definition.
+ */
 function createManagerComponent(
     Vue: VueModule,
     editor: editBox.EditBox,
     cleanup: () => void,
 ): unknown {
+    const setup = createManagerSetup(Vue, editor, cleanup);
     const component = Vue.defineComponent({
         name: "CitationFormatterManager",
-        setup: createManagerSetup(Vue, editor, cleanup),
+        setup,
         template: MANAGER_TEMPLATE,
     });
     return component;
 }
 
+/**
+ * Creates the citation-manager setup callback.
+ *
+ * @param Vue - Loaded Vue module.
+ * @param editor - Active MediaWiki source editor.
+ * @param cleanup - Dialog cleanup callback.
+ * @returns Vue setup callback.
+ */
 function createManagerSetup(
     Vue: VueModule,
     editor: editBox.EditBox,
@@ -154,23 +177,34 @@ function createManagerSetup(
     return setup;
 }
 
+/**
+ * Creates reactive state for the citation manager.
+ *
+ * @param Vue - Loaded Vue module.
+ * @param editor - Active MediaWiki source editor.
+ * @returns Reactive manager state.
+ */
 function createManagerState(
     Vue: VueModule,
     editor: editBox.EditBox,
 ): ManagerState {
     const source = editor.read();
-    const fields = Vue.ref(findNameOverrideFields(source));
+    const enteredFields = findNameOverrideFields(source);
+    const fields = Vue.ref(enteredFields);
     const filter = Vue.ref<OverrideFilter>("unfilled");
-    const initiallyFilled = new Set(
-        fields.value.filter(isFieldFilled).map(getFieldKey),
-    );
+    const initiallyFilledKeys = fields.value
+        .filter(isFieldFilled)
+        .map(getFieldKey);
+    const initiallyFilled = new Set(initiallyFilledKeys);
+    const compactReferences = hasCompactReferenceCalls(source);
+    const computedCallback = function getFilteredFields() {
+        return filterFields(fields.value, filter.value, initiallyFilled);
+    };
     const result = {
-        compact: Vue.ref(hasCompactReferenceCalls(source)),
+        compact: Vue.ref(compactReferences),
         fields,
         filter,
-        filteredFields: Vue.computed(() =>
-            filterFields(fields.value, filter.value, initiallyFilled),
-        ),
+        filteredFields: Vue.computed(computedCallback),
         initiallyFilled,
         open: Vue.ref(true),
         reviewField: Vue.ref<NameOverrideField | null>(null),
@@ -180,6 +214,12 @@ function createManagerState(
     return result;
 }
 
+/**
+ * Creates actions for reviewing individual name overrides.
+ *
+ * @param state - Reactive manager state.
+ * @returns Review actions exposed to the template.
+ */
 function createReviewActions(state: ManagerState): Record<string, unknown> {
     function reviewIndividually(field: NameOverrideField): void {
         state.reviewField.value = field;
@@ -210,6 +250,12 @@ function createReviewActions(state: ManagerState): Record<string, unknown> {
     return result;
 }
 
+/**
+ * Creates the manager's apply and close actions.
+ *
+ * @param context - Manager state and editor dependencies.
+ * @returns Manager actions exposed to the template.
+ */
 function createManagerActions(context: {
     cleanup: () => void;
     compact: { value: boolean };
@@ -243,14 +289,22 @@ function createManagerActions(context: {
         });
         close();
     };
-    const onOpenChange = (value: boolean): void => {
+    function onOpenChange(value: boolean): void {
         if (!value) {
             queueMicrotask(context.cleanup);
         }
-    };
+    }
     return { apply, close, onOpenChange };
 }
 
+/**
+ * Filters override fields by their initially populated state.
+ *
+ * @param fields - Available override fields.
+ * @param filter - Selected population filter.
+ * @param initiallyFilled - Keys populated when the dialog opened.
+ * @returns Fields matching the selected filter.
+ */
 function filterFields(
     fields: ReturnType<typeof findNameOverrideFields>,
     filter: OverrideFilter,
@@ -260,37 +314,61 @@ function filterFields(
         return fields;
     }
     const filled = filter === "filled";
-    const result = fields.filter(
-        (field) => initiallyFilled.has(getFieldKey(field)) === filled,
-    );
+    const filterCallback = function matchesFilter(field: NameOverrideField) {
+        const key = getFieldKey(field);
+        return initiallyFilled.has(key) === filled;
+    };
+    const result = fields.filter(filterCallback);
     return result;
 }
 
+/**
+ * Builds a stable key for one grouped override field.
+ *
+ * @param field - Grouped override field.
+ * @returns Stable occurrence key.
+ */
 function getFieldKey(field: NameOverrideField): string {
     return field.ids.join("|");
 }
 
+/**
+ * Checks whether every occurrence has an override.
+ *
+ * @param field - Grouped override field.
+ * @returns Whether every occurrence is populated.
+ */
 function isFieldFilled(field: NameOverrideField): boolean {
-    const result = field.occurrences.every(
-        (occurrence) => occurrence.override.trim() !== "",
-    );
+    const everyCallback = (
+        occurrence: NameOverrideField["occurrences"][number],
+    ) => occurrence.override.trim() !== "";
+    const result = field.occurrences.every(everyCallback);
     return result;
 }
 
+/**
+ * Synchronizes a grouped value after individual review.
+ *
+ * @param field - Reviewed override field, when selected.
+ */
 function synchronizeFieldOverride(field: NameOverrideField | null): void {
     if (field == null) {
         return;
     }
-    const values = new Set(
-        field.occurrences.map((occurrence) => occurrence.override),
+    const overrideValues = field.occurrences.map(
+        (occurrence) => occurrence.override,
     );
+    const values = new Set(overrideValues);
     field.override = values.size === 1 ? [...values][0] : "";
 }
 
-function registerCodexComponents(
-    app: VueApp,
-    Codex: CodexComponents,
-): void {
+/**
+ * Registers the Codex components used by the manager template.
+ *
+ * @param app - Citation-manager Vue application.
+ * @param Codex - Loaded Codex component module.
+ */
+function registerCodexComponents(app: VueApp, Codex: CodexComponents): void {
     app.component("CdxButton", Codex.CdxButton);
     app.component("CdxCheckbox", Codex.CdxCheckbox);
     app.component("CdxDialog", Codex.CdxDialog);

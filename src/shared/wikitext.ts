@@ -262,7 +262,8 @@ export function getReferenceValues(
  * @returns Unique values.
  */
 export function uniqueValues(values: Array<string>): Array<string> {
-    return Array.from(new Set(values));
+    const unique = new Set(values);
+    return Array.from(unique);
 }
 
 /**
@@ -328,7 +329,8 @@ export function getWikilinkValue(value: string): string {
  * @returns Wikilink target and display label.
  */
 export function getWikilinkParts(value: string): any | null {
-    const match = getWikilinkMatch(trimValue(value));
+    const trimmedValue = trimValue(value);
+    const match = getWikilinkMatch(trimmedValue);
 
     if (match == null) {
         return null;
@@ -350,7 +352,8 @@ export function getWikilinkParts(value: string): any | null {
  * @returns Whether the item is a wikilink.
  */
 export function isWikilinkValue(value: string): boolean {
-    return getWikilinkMatch(trimValue(value)) != null;
+    const trimmedValue = trimValue(value);
+    return getWikilinkMatch(trimmedValue) != null;
 }
 
 /**
@@ -551,7 +554,8 @@ export function getReferenceEntry(
     value: string,
 ): any {
     const entries = getReferenceEntries(definitions);
-    const normalizedValue = normalizeAlias(getWikilinkValue(value));
+    const wikilinkValue = getWikilinkValue(value);
+    const normalizedValue = normalizeAlias(wikilinkValue);
 
     if (normalizedValue === "") {
         return {};
@@ -605,9 +609,11 @@ function getReferenceEntries(
     definitions: any | Array<any>,
 ): Array<Array<string | any>> {
     if (Array.isArray(definitions)) {
-        const result = definitions.map(function callback(definition) {
-            return [getReferenceKey(definition), definition];
-        });
+        const result = [];
+        for (const definition of definitions) {
+            const key = getReferenceKey(definition);
+            result.push([key, definition]);
+        }
         return result;
     }
 

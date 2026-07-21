@@ -99,9 +99,8 @@ export async function resolvePageTitles(
  * @returns And deduplicates requested titles.
  */
 function normalizeRequestedTitles(titles: Array<string>, namespace: string) {
-    const normalized: Array<string> = titles
-        .map((title) => stripNamespace(title, namespace))
-        .filter(Boolean);
+    const mapCallbackF = (title: string) => stripNamespace(title, namespace);
+    const normalized: Array<string> = titles.map(mapCallbackF).filter(Boolean);
 
     return uniqueValues(normalized);
 }
@@ -119,10 +118,11 @@ function getUncachedTitles(
     namespace: string,
     cache: Record<string, TitleResolution | null>,
 ): Array<string> {
-    const result = titles.filter(function callback(title: string) {
+    const filterCallbackA = function callback(title: string) {
         const key = normalizeTitleKey(title, namespace);
         return cache[key] == null;
-    });
+    };
+    const result = titles.filter(filterCallbackA);
     return result;
 }
 
@@ -165,18 +165,18 @@ function buildCachedResolutions(
     config: TitleResolverConfig,
     cache: Record<string, TitleResolution | null>,
 ): Record<string, TitleResolution> {
-    const resolutions = Object.fromEntries(
-        titles.map(function callback(title: string) {
-            const key = normalizeTitleKey(title, config.namespace);
-            const resolution = normalizeCachedResolution(
-                cache[key],
-                title,
-                config,
-            );
+    const mapCallbackE = function callback(title: string) {
+        const key = normalizeTitleKey(title, config.namespace);
+        const resolution = normalizeCachedResolution(
+            cache[key],
+            title,
+            config,
+        );
 
-            return [key, resolution];
-        }),
-    );
+        return [key, resolution];
+    };
+    const mappedValuesD = titles.map(mapCallbackE);
+    const resolutions = Object.fromEntries(mappedValuesD);
 
     return resolutions;
 }
@@ -205,12 +205,16 @@ export function getActualTitle(
     ]
         .flat()
         .filter(Boolean);
-    const actualTitle = transformations.reduce(function callback(title, item) {
+    const reduceCallback = function callback(
+        title: string,
+        item: { from: string; to: string },
+    ) {
         const fromKey = normalizeTitleKey(item.from, namespace);
         const titleKey = normalizeTitleKey(title, namespace);
 
         return fromKey === titleKey ? item.to : title;
-    }, initialTitle);
+    };
+    const actualTitle = transformations.reduce(reduceCallback, initialTitle);
 
     return actualTitle;
 }
@@ -229,11 +233,10 @@ export function getResolvedPage(
     namespace: string,
 ): any | undefined {
     const titleKey = normalizeTitleKey(title, namespace);
-    const page = (data?.query?.pages || []).find(function findPage(item: {
-        title: string;
-    }) {
+    const findCallbackA = function findPage(item: { title: string }) {
         return normalizeTitleKey(item.title, namespace) === titleKey;
-    });
+    };
+    const page = (data?.query?.pages || []).find(findCallbackA);
 
     return page;
 }
@@ -264,7 +267,8 @@ export function formatNamespacedTitle(
  */
 export function stripNamespace(value: any, namespace: string): string {
     const text = value == null ? "" : String(value).trim();
-    const pattern = new RegExp(`^${escapeRegExp(namespace)}:`, "iu");
+    const escapedNamespace = escapeRegExp(namespace);
+    const pattern = new RegExp(`^${escapedNamespace}:`, "iu");
     const title = text.replace(pattern, "").trim();
 
     return title;
@@ -328,12 +332,13 @@ async function fetchVariantFallbackTitleResolutions(
             convertTitles: false,
         });
         const resolutions = createResolutions(titles, directData, config);
-        const missingTitles = titles.filter(function callback(title) {
+        const filterCallback = function callback(title: string) {
             const result =
                 !resolutions[normalizeTitleKey(title, config.namespace)]
                     ?.exists;
             return result;
-        });
+        };
+        const missingTitles = titles.filter(filterCallback);
 
         await addVariantFallbackResolutions(
             missingTitles,
@@ -375,7 +380,8 @@ async function addVariantFallbackResolutions(
         );
         return result;
     };
-    const sets = await Promise.all(variants.map(fetchVariant));
+    const mappedValuesC = variants.map(fetchVariant);
+    const sets = await Promise.all(mappedValuesC);
 
     mergeVariantResolutions(titles, resolutions, sets, config.namespace);
 }
@@ -419,7 +425,7 @@ function mergeVariantResolutions(
     sets: Array<Record<string, TitleResolution>>,
     namespace: string,
 ): void {
-    titles.forEach(function callback(title) {
+    const forEachCallbackB = function callback(title: string) {
         const key = normalizeTitleKey(title, namespace);
         const candidates = [resolutions[key], ...sets.map((set) => set[key])];
 
@@ -428,7 +434,8 @@ function mergeVariantResolutions(
             namespace,
             candidates,
         );
-    });
+    };
+    titles.forEach(forEachCallbackB);
 }
 
 /**
@@ -446,11 +453,10 @@ async function finalizeTitleResolutions(
     config: TitleResolverConfig,
     options: TitleResolverOptions,
 ): Promise<Record<string, TitleResolution>> {
-    const redirectTargets = uniqueValues(
-        Object.values(resolutions)
-            .map((resolution) => resolution.redirectTarget)
-            .filter(Boolean),
-    );
+    const filteredValues = Object.values(resolutions)
+        .map((resolution) => resolution.redirectTarget)
+        .filter(Boolean);
+    const redirectTargets = uniqueValues(filteredValues);
 
     if (redirectTargets.length > 0) {
         const redirectData = await fetchTitleQuery(
@@ -459,24 +465,28 @@ async function finalizeTitleResolutions(
             options,
         );
 
-        redirectTargets.forEach(function callback(title) {
+        const forEachCallbackA = function callback(title: string) {
             const key = normalizeTitleKey(title, config.namespace);
 
             resolutions[key] = createResolution(title, redirectData, config);
-        });
+        };
+        redirectTargets.forEach(forEachCallbackA);
     }
 
-    const finalResolutions = Object.fromEntries(
-        Object.entries(resolutions).map(function callback([key, resolution]) {
-            const finalResolution = followMetadataRedirect(
-                resolution,
-                resolutions,
-                config,
-            );
+    const mapCallbackD = function callback([key, resolution]: [
+        string,
+        TitleResolution,
+    ]) {
+        const finalResolution = followMetadataRedirect(
+            resolution,
+            resolutions,
+            config,
+        );
 
-            return [key, finalResolution];
-        }),
-    );
+        return [key, finalResolution];
+    };
+    const mappedValuesB = Object.entries(resolutions).map(mapCallbackD);
+    const finalResolutions = Object.fromEntries(mappedValuesB);
 
     return addResolutionAliases(finalResolutions, config.namespace);
 }
@@ -495,14 +505,14 @@ function createResolutions(
     data: unknown,
     config: TitleResolverConfig,
 ): Record<string, TitleResolution> {
-    const resolutions = Object.fromEntries(
-        titles.map(function callback(title) {
-            const key = normalizeTitleKey(title, config.namespace);
-            const resolution = createResolution(title, data, config);
+    const mapCallbackC = function callback(title: string) {
+        const key = normalizeTitleKey(title, config.namespace);
+        const resolution = createResolution(title, data, config);
 
-            return [key, resolution];
-        }),
-    );
+        return [key, resolution];
+    };
+    const mappedValuesA = titles.map(mapCallbackC);
+    const resolutions = Object.fromEntries(mappedValuesA);
 
     return resolutions;
 }
@@ -520,20 +530,20 @@ function createMissingResolutions(
     titles: string[],
     config: TitleResolverConfig,
 ): Record<string, TitleResolution> {
-    const resolutions = Object.fromEntries(
-        titles.map(function callback(title) {
-            const bareTitle = stripNamespace(title, config.namespace);
-            const resolution = {
-                exists: false,
-                page: undefined,
-                redirectTarget: undefined,
-                requestedTitle: bareTitle,
-                title: bareTitle,
-            };
+    const mapCallbackB = function callback(title: string) {
+        const bareTitle = stripNamespace(title, config.namespace);
+        const resolution = {
+            exists: false,
+            page: undefined,
+            redirectTarget: undefined,
+            requestedTitle: bareTitle,
+            title: bareTitle,
+        };
 
-            return [normalizeTitleKey(title, config.namespace), resolution];
-        }),
-    );
+        return [normalizeTitleKey(title, config.namespace), resolution];
+    };
+    const mappedValues = titles.map(mapCallbackB);
+    const resolutions = Object.fromEntries(mappedValues);
 
     return resolutions;
 }
@@ -566,25 +576,28 @@ function chooseVariantResolution(
     }
 
     const requested = stripNamespace(requestedTitle, namespace);
-    const exact = existing.find(function callback(resolution) {
+    const findCallback = function callback(resolution: TitleResolution) {
         return stripNamespace(resolution.title, namespace) === requested;
-    });
+    };
+    const exact = existing.find(findCallback);
 
     if (exact != null) {
         return exact;
     }
 
+    const mapCallbackA = function callback(resolution: TitleResolution) {
+        const stripNamespaceResult = stripNamespace(
+            resolution.title,
+            namespace,
+        );
+        const result = {
+            resolution,
+            score: getCommonPrefixLength(requested, stripNamespaceResult),
+        };
+        return result;
+    };
     const closest = existing
-        .map(function callback(resolution) {
-            const result = {
-                resolution,
-                score: getCommonPrefixLength(
-                    requested,
-                    stripNamespace(resolution.title, namespace),
-                ),
-            };
-            return result;
-        })
+        .map(mapCallbackA)
         .sort((left, right) => right.score - left.score)[0].resolution;
 
     return closest;
@@ -638,9 +651,10 @@ async function fetchTitleQuery(
     });
 
     if (!response.ok) {
-        throw new Error(
-            msg("errors.titleRequestHttp", { status: response.status }),
-        );
+        const message = msg("errors.titleRequestHttp", {
+            status: response.status,
+        });
+        throw new Error(message);
     }
 
     return response.json();
@@ -662,14 +676,15 @@ function buildTitleApiUrl(
     options: TitleResolverOptions,
     queryOptions: { convertTitles?: boolean },
 ): string {
+    const mapCallback = function formatTitle(title: string) {
+        return formatNamespacedTitle(title, config.namespace);
+    };
     const values: Record<string, string> = {
         action: "query",
         format: "json",
         formatversion: "2",
         redirects: "1",
-        titles: titles
-            .map((title) => formatNamespacedTitle(title, config.namespace))
-            .join("|"),
+        titles: titles.map(mapCallback).join("|"),
     };
 
     addOptionalTitleQueryValues(values, config, options, queryOptions);
@@ -731,6 +746,9 @@ function createResolution(
     const actualTitle = getActualTitle(requestedTitle, data, config.namespace);
     const page = getResolvedPage(actualTitle, data, config.namespace);
     const redirectTarget = config.getRedirectTarget?.(page);
+    const selectValueCallback = function falseBranch() {
+        return stripNamespace(redirectTarget, config.namespace);
+    };
     const resolution = {
         exists: page != null && !page.missing,
         page,
@@ -739,9 +757,7 @@ function createResolution(
             function trueBranch() {
                 return undefined;
             },
-            function falseBranch() {
-                return stripNamespace(redirectTarget, config.namespace);
-            },
+            selectValueCallback,
         ),
         requestedTitle: stripNamespace(requestedTitle, config.namespace),
         title: stripNamespace(actualTitle, config.namespace),
@@ -796,11 +812,12 @@ function addResolutionAliases(
     resolutions: Record<string, TitleResolution>,
     namespace: string,
 ): Record<string, TitleResolution> {
-    Object.values(resolutions).forEach(function callback(resolution) {
+    const forEachCallback = function callback(resolution: TitleResolution) {
         const key = normalizeTitleKey(resolution.title, namespace);
 
         resolutions[key] = resolution;
-    });
+    };
+    Object.values(resolutions).forEach(forEachCallback);
 
     return resolutions;
 }
@@ -857,7 +874,8 @@ function chunkValues(values: string[], size: number): string[][] {
     const chunks: string[][] = [];
 
     for (let index = 0; index < values.length; index += size) {
-        chunks.push(values.slice(index, index + size));
+        const slicedValue = values.slice(index, index + size);
+        chunks.push(slicedValue);
     }
 
     return chunks;

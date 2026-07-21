@@ -16,15 +16,17 @@ const templateData: CitationTemplateDataMap = {
 
 function assertReferenceMarker(text: string, label: string): void {
     const lines = text.split("\n");
-    const index = lines.findIndex((line) => line.includes(` ${label} `));
+    const findIndexCallback = (line: string) => line.includes(` ${label} `);
+    const index = lines.findIndex(findIndexCallback);
     assert.ok(index >= 1);
     assert.equal(lines[index - 1], "");
-    assert.match(lines[index], new RegExp(`^<!-- -+ ${label} -+ -->$`, "u"));
+    const markerPattern = new RegExp(`^<!-- -+ ${label} -+ -->$`, "u");
+    assert.match(lines[index], markerPattern);
     assert.equal(lines[index + 1], "");
     assert.equal(lines[index].length, 79);
 }
 
-test("moves and formats citations into an existing references tag", () => {
+const testCallbackAA = () => {
     const source =
         "Text.<ref>{{cite web|url=https://example.test|title=Example|last=Ma|date=June 1, 2006}}</ref>\n\n<references />";
     const result = formatCitationWikitext(source, templateData);
@@ -38,14 +40,19 @@ test("moves and formats citations into an existing references tag", () => {
     assert.match(result.text, /\| date = 2006-06-01/u);
     assert.equal(result.citationsFormatted, 1);
     assert.equal(result.referencesMoved, 1);
-});
+};
+test(
+    "moves and formats citations into an existing references tag",
+    testCallbackAA,
+);
 
-test("adds responsive to an empty native references list", () => {
+const testCallbackZ = () => {
     const result = formatCitationWikitext("<references />", templateData);
     assert.equal(result.text, "<references responsive />");
-});
+};
+test("adds responsive to an empty native references list", testCallbackZ);
 
-test("formats the general Citation template", () => {
+const testCallbackY = () => {
     const source = [
         "Text.<ref>{{Citation|last=Ma|first=Anne|date=2020|title=Book|publisher=Publisher}}</ref>",
         "<references />",
@@ -53,12 +60,16 @@ test("formats the general Citation template", () => {
     const result = formatCitationWikitext(source, generatedTemplateData);
 
     assert.match(result.text, /<ref name="Ma, 2020" \/>/u);
-    assert.match(result.text, /\{\{Citation\n  \| last = Ma\n  \| first = Anne/u);
+    assert.match(
+        result.text,
+        /\{\{Citation\n  \| last = Ma\n  \| first = Anne/u,
+    );
     assert.equal(result.citationsFormatted, 1);
     assert.equal(result.referencesNotFormatted, 0);
-});
+};
+test("formats the general Citation template", testCallbackY);
 
-test("replaces reflist and ignores positional column widths", () => {
+const testCallbackX = () => {
     const source =
         "Text.<ref>{{cite web|title=Example|publisher=Site}}</ref>\n{{reflist|20em}}";
     const result = formatCitationWikitext(source, templateData);
@@ -69,9 +80,10 @@ test("replaces reflist and ignores positional column widths", () => {
     );
     assert.doesNotMatch(result.text, /\{\{reflist/iu);
     assert.doesNotMatch(result.text, /20em/u);
-});
+};
+test("replaces reflist and ignores positional column widths", testCallbackX);
 
-test("replaces grouped parameterized reflists with references tags", () => {
+const testCallbackW = () => {
     const source = [
         'Text.<ref group="note">{{cite web|author=Site|date=2020|title=Example}}</ref>',
         "{{Reflist|group=note|30em|colwidth=20em}}",
@@ -83,9 +95,13 @@ test("replaces grouped parameterized reflists with references tags", () => {
         /<references group="note" responsive>\n\n<!-- -+ § 0 Lead -+ -->/u,
     );
     assert.doesNotMatch(result.text, /\{\{reflist|30em|colwidth/iu);
-});
+};
+test(
+    "replaces grouped parameterized reflists with references tags",
+    testCallbackW,
+);
 
-test("keeps reference groups paired with their list", () => {
+const testCallbackV = () => {
     const source = [
         "Text.<ref group=note>{{cite web|title=X|publisher=Site|date=2020}}</ref>",
         '<references group="note" />',
@@ -98,9 +114,10 @@ test("keeps reference groups paired with their list", () => {
         result.text,
         /<references group="note" responsive>\n<ref[^>]+group=/u,
     );
-});
+};
+test("keeps reference groups paired with their list", testCallbackV);
 
-test("groups definitions by lead, article section, and unused status", () => {
+const testCallbackU = () => {
     const source = [
         "Lead.<ref>{{cite web|author=Lead|date=2020|title=Lead source}}</ref>",
         "== Gameplay ==",
@@ -127,9 +144,13 @@ test("groups definitions by lead, article section, and unused status", () => {
         /§ A Unused references -+ -->\n\n<ref name="Unused, 2022">/u,
     );
     assertReferenceMarker(result.text, "§ 1 Gameplay");
-});
+};
+test(
+    "groups definitions by lead, article section, and unused status",
+    testCallbackU,
+);
 
-test("emits section comments when the lead has no reference", () => {
+const testCallbackT = () => {
     const source = [
         "Lead without a reference.",
         "== 內容 ==",
@@ -163,9 +184,10 @@ test("emits section comments when the lead has no reference", () => {
     assertReferenceMarker(result.text, "§ 2 製作");
     assertReferenceMarker(result.text, "§ 3 評測");
     assert.doesNotMatch(result.text, /§ 0 Lead/u);
-});
+};
+test("emits section comments when the lead has no reference", testCallbackT);
 
-test("uses hierarchical section markers", () => {
+const testCallbackS = () => {
     const source = [
         "== Gameplay ==",
         "=== Combat ===",
@@ -174,9 +196,10 @@ test("uses hierarchical section markers", () => {
     ].join("\n");
     const result = formatCitationWikitext(source, templateData);
     assert.match(result.text, /§ 1\.1 Combat -+ -->/u);
-});
+};
+test("uses hierarchical section markers", testCallbackS);
 
-test("places adjacent definitions on consecutive lines", () => {
+const testCallbackR = () => {
     const source = [
         "A.<ref>{{cite web|author=First|date=2020|title=First}}</ref>",
         "B.<ref>{{cite web|author=Second|date=2021|title=Second}}</ref>",
@@ -184,13 +207,11 @@ test("places adjacent definitions on consecutive lines", () => {
     ].join("\n");
     const result = formatCitationWikitext(source, templateData);
 
-    assert.match(
-        result.text,
-        /<\/ref>\n<ref name="Second, 2021">/u,
-    );
-});
+    assert.match(result.text, /<\/ref>\n<ref name="Second, 2021">/u);
+};
+test("places adjacent definitions on consecutive lines", testCallbackR);
 
-test("bundles multiple whole-ref citations with multiline inner templates", () => {
+const testCallbackQ = () => {
     const source = [
         "Text.<ref>",
         "{{cite web|last=Taylor|first=John Michael|last2=Neimeyer|date=2015|title=First}}",
@@ -210,9 +231,13 @@ test("bundles multiple whole-ref citations with multiline inner templates", () =
     );
     assert.match(result.text, /\n  \| 2 = \{\{Cite book\n/u);
     assert.match(result.text, /\n      \| last = Taylor/u);
-});
+};
+test(
+    "bundles multiple whole-ref citations with multiline inner templates",
+    testCallbackQ,
+);
 
-test("converts r invocations and definitions", () => {
+const testCallbackP = () => {
     const openTemplate = "{" + "{";
     const source = [
         "Text ",
@@ -230,9 +255,10 @@ test("converts r invocations and definitions", () => {
     assert.equal(result.individualReferencesFound, 1);
     assert.equal(result.referenceCallsFound, 1);
     assert.equal(result.rTemplatesFound, 1);
-});
+};
+test("converts r invocations and definitions", testCallbackP);
 
-test("counts individual references separately from repeated call tags", () => {
+const testCallbackO = () => {
     const source = [
         'A.<ref name="source">{{cite web|author=Ma|date=2020|title=X}}</ref>',
         'B.<ref name="source" />',
@@ -244,9 +270,13 @@ test("counts individual references separately from repeated call tags", () => {
     assert.equal(result.individualReferencesFound, 1);
     assert.equal(result.referenceCallsFound, 3);
     assert.equal(result.rTemplatesFound, 1);
-});
+};
+test(
+    "counts individual references separately from repeated call tags",
+    testCallbackO,
+);
 
-test("normalizes incomplete author aliases and keeps ref ampersands literal", () => {
+const testCallbackN = () => {
     const source = [
         "Text.<ref>{{cite interview|author1=Horii &amp; Hayasaka|author2=Editor|date=2025|title=Interview}}</ref>",
         "<references />",
@@ -257,9 +287,13 @@ test("normalizes incomplete author aliases and keeps ref ampersands literal", ()
     assert.match(result.text, /\| author2 = Editor/u);
     assert.match(result.text, /<ref name="Horii & Hayasaka & Editor, 2025"/u);
     assert.doesNotMatch(result.text, /name="[^"]*&amp;/u);
-});
+};
+test(
+    "normalizes incomplete author aliases and keeps ref ampersands literal",
+    testCallbackN,
+);
 
-test("keeps all interview authors before the title", () => {
+const testCallbackM = () => {
     const source = [
         "Text.<ref>{{cite interview",
         "|author1=堀井雄二<!-- # Horii, Yūji -->",
@@ -279,17 +313,14 @@ test("keeps all interview authors before the title", () => {
     const author1 = result.text.indexOf("| author1 =");
     const author2 = result.text.indexOf("| author2 =");
     assert.ok(author1 < author2);
-    assert.deepEqual(result.text.match(/\| author\d =/gu)?.slice(0, 2), [
-        "| author1 =",
-        "| author2 =",
-    ]);
-    assert.match(
-        result.text,
-        /<ref name="Horii & Hayasaka, 2025"/u,
-    );
-});
+    const authorMatches = result.text.match(/\| author\d =/gu);
+    const firstAuthors = authorMatches?.slice(0, 2);
+    assert.deepEqual(firstAuthors, ["| author1 =", "| author2 ="]);
+    assert.match(result.text, /<ref name="Horii & Hayasaka, 2025"/u);
+};
+test("keeps all interview authors before the title", testCallbackM);
 
-test("places cite interview editors before the title", () => {
+const testCallbackL = () => {
     const source = [
         "Text.<ref>{{cite interview",
         "|last=Hayasaka|first=Masaaki",
@@ -310,9 +341,10 @@ test("places cite interview editors before the title", () => {
     assert.ok(editorLast < editorFirst);
     assert.ok(editorFirst < title);
     assert.match(result.text, /<ref name="Hayasaka, 2025"/u);
-});
+};
+test("places cite interview editors before the title", testCallbackL);
 
-test("adds year suffixes for distinct works in source order", () => {
+const testCallbackK = () => {
     const source = [
         "A<ref>{{cite web|last=Ma|date=2006|title=First|page=1}}</ref>",
         "B<ref>{{cite web|last=Ma|date=2006|title=Second|page=2}}</ref>",
@@ -323,9 +355,10 @@ test("adds year suffixes for distinct works in source order", () => {
     assert.match(result.text, /name="Ma, 2006a"/u);
     assert.match(result.text, /name="Ma, 2006b"/u);
     assert.doesNotMatch(result.text, /name="Ma, 2006[ab], p\./u);
-});
+};
+test("adds year suffixes for distinct works in source order", testCallbackK);
 
-test("hyphenates no-date suffixes for distinct works", () => {
+const testCallbackJ = () => {
     const source = [
         "A<ref>{{cite web|last=Ma|title=First}}</ref>",
         "B<ref>{{cite web|last=Ma|title=Second}}</ref>",
@@ -335,9 +368,10 @@ test("hyphenates no-date suffixes for distinct works", () => {
 
     assert.match(result.text, /name="Ma, n\.d\.-a"/u);
     assert.match(result.text, /name="Ma, n\.d\.-b"/u);
-});
+};
+test("hyphenates no-date suffixes for distinct works", testCallbackJ);
 
-test("uses locators only for multiple parts of the same source", () => {
+const testCallbackI = () => {
     const source = [
         "A<ref>{{cite book|last=Ma|date=2006|title=Book|page=59}}</ref>",
         "B<ref>{{cite book|last=Ma|date=2006|title=Book|page=60}}</ref>",
@@ -351,9 +385,13 @@ test("uses locators only for multiple parts of the same source", () => {
     assert.match(result.text, /name="Li, 2020"/u);
     assert.doesNotMatch(result.text, /name="Li, 2020, at time/u);
     assert.doesNotMatch(result.text, /2006a/u);
-});
+};
+test(
+    "uses locators only for multiple parts of the same source",
+    testCallbackI,
+);
 
-test("matches source identity across parts and position URLs", () => {
+const testCallbackH = () => {
     const source = [
         "A<ref>{{cite web|last=Ma|date=2006|title=Book|url=https://example.test/book#one|pages=1-2}}</ref>",
         "B<ref>{{cite web|last=Ma|date=2006|title=Book|url=https://example.test/book#two|chapter=Second}}</ref>",
@@ -369,9 +407,10 @@ test("matches source identity across parts and position URLs", () => {
     assert.match(result.text, /name="Li, 2020, at time 2:00"/u);
     assert.doesNotMatch(result.text, /Ma, 2006[ab]/u);
     assert.doesNotMatch(result.text, /Li, 2020[ab]/u);
-});
+};
+test("matches source identity across parts and position URLs", testCallbackH);
 
-test("keeps different sources with similar titles separate", () => {
+const testCallbackG = () => {
     const source = [
         "A<ref>{{cite web|last=Ma|date=2006|title=Report|url=https://one.test/report}}</ref>",
         "B<ref>{{cite web|last=Ma|date=2006|title=Report|url=https://two.test/report}}</ref>",
@@ -381,9 +420,10 @@ test("keeps different sources with similar titles separate", () => {
 
     assert.match(result.text, /name="Ma, 2006a"/u);
     assert.match(result.text, /name="Ma, 2006b"/u);
-});
+};
+test("keeps different sources with similar titles separate", testCallbackG);
 
-test("formats cite tweet and leaves a blank line before references closes", () => {
+const testCallbackF = () => {
     const source = [
         "Text.<ref>{{cite tweet|user=Pigsonthewing|number=564068436633214977|author=Andy Mabbett|date=February 7, 2015|title=Example tweet}}</ref>",
         "<references />",
@@ -394,9 +434,13 @@ test("formats cite tweet and leaves a blank line before references closes", () =
     assert.match(result.text, /\{\{Cite tweet\n  \| author = Andy Mabbett/u);
     assert.match(result.text, /\| date = 2015-02-07/u);
     assert.match(result.text, /<\/ref>\n\n<\/references>/u);
-});
+};
+test(
+    "formats cite tweet and leaves a blank line before references closes",
+    testCallbackF,
+);
 
-test("uses numeric-colon fallbacks for plain and mixed note content", () => {
+const testCallbackE = () => {
     const source = [
         "A<ref>Plain note</ref>",
         "B<ref>See {{cite web|title=Nested}}</ref>",
@@ -410,7 +454,11 @@ test("uses numeric-colon fallbacks for plain and mixed note content", () => {
     assert.match(result.text, /<ref name=":2">See \{\{cite web/u);
     assert.equal(result.referencesNotFormatted, 2);
     assert.equal(result.citationsFormatted, 0);
-});
+};
+test(
+    "uses numeric-colon fallbacks for plain and mixed note content",
+    testCallbackE,
+);
 
 test(
     "names CITEREF-linked short citations from their source identity",
@@ -510,7 +558,7 @@ function testPlainReferenceNames(): void {
     assert.match(result.text, /<ref name=":2">Another note<\/ref>/u);
 }
 
-test("preserves citation maintenance templates with APA names", () => {
+const testCallbackD = () => {
     const source = [
         "A<ref>{{cite web|last=Haywald|first=Justin|date=October 30, 2016|title=Example}}{{cbignore}}</ref>",
         "B<ref>{{cite web|last=Reynolds|date=2024|title=Example}} {{Dead link|date=July 2026}}</ref>",
@@ -527,9 +575,10 @@ test("preserves citation maintenance templates with APA names", () => {
     );
     assert.equal(result.citationsFormatted, 2);
     assert.equal(result.referencesNotFormatted, 0);
-});
+};
+test("preserves citation maintenance templates with APA names", testCallbackD);
 
-test("preserves plain names and assigns year suffixes by first use", () => {
+const testCallbackC = () => {
     const source = [
         '<ref name=":3" />',
         '<ref name="Ma, 2020b" />',
@@ -548,26 +597,22 @@ test("preserves plain names and assigns year suffixes by first use", () => {
     const second = formatCitationWikitext(first, templateData).text;
 
     for (const text of [first, second]) {
-        const names = Array.from(
-            text.matchAll(/<ref name="([^"]+)">/gu),
-            (match) => match[1],
-        );
-        assert.deepEqual(names, [
-            ":3",
-            "Ma, 2020a",
-            ":1",
-            "Ma, 2020b",
-            ":2",
-        ]);
+        const matches = text.matchAll(/<ref name="([^"]+)">/gu);
+        const names = Array.from(matches, (match) => match[1]);
+        assert.deepEqual(names, [":3", "Ma, 2020a", ":1", "Ma, 2020b", ":2"]);
     }
-});
+};
+test(
+    "preserves plain names and assigns year suffixes by first use on every run",
+    testCallbackC,
+);
 
-test("moves standalone list comments after references", () => {
+const testCallbackB = () => {
     const source = [
-        "Text.<ref name=\"used\" />",
+        'Text.<ref name="used" />',
         "{{Reflist|25em|refs=",
         '<ref name="used">{{cite web|author=Used|date=2020|title=Source}}</ref>',
-        "<!--<ref name=\"disabled\">{{cite web|title=Disabled}}</ref> -->",
+        '<!--<ref name="disabled">{{cite web|title=Disabled}}</ref> -->',
         "}}",
     ].join("\n");
     const result = formatCitationWikitext(source, templateData);
@@ -580,17 +625,20 @@ test("moves standalone list comments after references", () => {
         result.text,
         /<!--<ref name="disabled">[\s\S]*?<\/references>/u,
     );
-});
+};
+test("moves standalone list comments after references", testCallbackB);
 
-test("does not parse refs in comments or nowiki blocks", () => {
+const testCallbackA = () => {
     const source = [
         "<!-- <ref>{{cite web|title=Comment}}</ref> -->",
         "<nowiki><ref>{{cite web|title=Code}}</ref></nowiki>",
     ].join("\n");
-    assert.equal(formatCitationWikitext(source, templateData).text, source);
-});
+    const result = formatCitationWikitext(source, templateData);
+    assert.equal(result.text, source);
+};
+test("does not parse refs in comments or nowiki blocks", testCallbackA);
 
-test("formats EarthBound Beginnings article reference patterns", () => {
+const testCallback = () => {
     const source = [
         "Lead.<ref>{{Cite web |title=Releases Section " +
             "|url=https://www.nintendo.co.jp/n08/before/n2005_b01.html " +
@@ -628,7 +676,8 @@ test("formats EarthBound Beginnings article reference patterns", () => {
     assert.doesNotMatch(result.text, /\{\{reflist/iu);
     assert.doesNotMatch(result.text, /25em/u);
     assert.match(result.text, /<!--<ref name="commented">/u);
-});
+};
+test("formats EarthBound Beginnings article reference patterns", testCallback);
 
 test(
     "formats Dragon Quest I and II draft citation patterns",
@@ -636,10 +685,8 @@ test(
 );
 
 function testDragonQuestPatterns(): void {
-    const result = formatCitationWikitext(
-        buildDragonQuestSource(),
-        generatedTemplateData,
-    );
+    const source = buildDragonQuestSource();
+    const result = formatCitationWikitext(source, generatedTemplateData);
     assertDragonQuestResult(result.text);
 }
 
@@ -676,18 +723,9 @@ function buildDragonQuestSource(): string {
 }
 
 function assertDragonQuestResult(text: string): void {
-    assert.match(
-        text,
-        /<ref name="Horii & Hayasaka, 2025a" \/>/u,
-    );
-    assert.match(
-        text,
-        /<ref name="Horii & Hayasaka, 2025b" \/>/u,
-    );
-    assert.match(
-        text,
-        /<ref name="Horii & Hayasaka, 2025c" \/>/u,
-    );
+    assert.match(text, /<ref name="Horii & Hayasaka, 2025a" \/>/u);
+    assert.match(text, /<ref name="Horii & Hayasaka, 2025b" \/>/u);
+    assert.match(text, /<ref name="Horii & Hayasaka, 2025c" \/>/u);
     assert.match(text, /\| url-status = live/u);
     assert.doesNotMatch(text, /\| dead-url =/u);
     assert.match(text, /<\/ref>\n\n<\/references>/u);
@@ -708,10 +746,8 @@ test(
 );
 
 function testSeaOfStarsPatterns(): void {
-    const result = formatCitationWikitext(
-        buildSeaOfStarsSource(),
-        generatedTemplateData,
-    );
+    const source = buildSeaOfStarsSource();
+    const result = formatCitationWikitext(source, generatedTemplateData);
     assertSeaOfStarsResult(result.text);
 }
 
@@ -767,18 +803,20 @@ function buildPlatformDefinition(platform: string, index: number): string {
 
 function assertSeaOfStarsResult(text: string): void {
     for (const time of VIDEO_TIMES) {
-        assert.match(
-            text,
-            new RegExp(`name="Boulanger, n\\.d\\., at time ${time}"`, "u"),
+        const timePattern = new RegExp(
+            `name="Boulanger, n\\.d\\., at time ${time}"`,
+            "u",
         );
+        assert.match(text, timePattern);
     }
     assert.doesNotMatch(text, /Boulanger, n\.d\.-[a-e]/u);
     assert.match(text, /\| time = 0′00″–5′00″/u);
     for (const suffix of ["a", "b", "c", "d"]) {
-        assert.match(
-            text,
-            new RegExp(`name="Metacritic, n\\.d\\.-${suffix}"`, "u"),
+        const suffixPattern = new RegExp(
+            `name="Metacritic, n\\.d\\.-${suffix}"`,
+            "u",
         );
+        assert.match(text, suffixPattern);
     }
     assert.match(text, /\{\{Cite tweet\n/u);
     assert.match(text, /name="Sea of Stars, 2023"/u);
@@ -786,5 +824,6 @@ function assertSeaOfStarsResult(text: string): void {
 }
 
 function alphabeticTestSuffix(index: number): string {
-    return String.fromCharCode("a".charCodeAt(0) + index);
+    const firstCode = "a".charCodeAt(0);
+    return String.fromCharCode(firstCode + index);
 }

@@ -170,13 +170,15 @@ export function syncStubTagRowsFromCategories(form: any): void {
     }
 
     const rows = ensureStubTagRows(form);
-    const existingTags = rows.map((row) => trimStubTagValue(row.stubTag));
-    const additions = buildStubTagRowsFromCategories(form.categoryRows).filter(
-        function callback(row) {
-            const stubTag = trimStubTagValue(row.stubTag);
+    const mapCallbackG = (row: any) => trimStubTagValue(row.stubTag);
+    const existingTags = rows.map(mapCallbackG);
+    const filterCallbackC = function callback(row: any) {
+        const stubTag = trimStubTagValue(row.stubTag);
 
-            return stubTag !== "" && !existingTags.includes(stubTag);
-        },
+        return stubTag !== "" && !existingTags.includes(stubTag);
+    };
+    const additions = buildStubTagRowsFromCategories(form.categoryRows).filter(
+        filterCallbackC,
     );
 
     if (additions.length === 0) {
@@ -184,7 +186,8 @@ export function syncStubTagRowsFromCategories(form: any): void {
         return;
     }
 
-    const nonBlankRows = rows.filter((row) => !isBlankStubTagRow(row));
+    const filterCallbackB = (row: any) => !isBlankStubTagRow(row);
+    const nonBlankRows = rows.filter(filterCallbackB);
 
     rows.splice(0, rows.length, ...nonBlankRows, ...additions);
     ensureTrailingStubTagRow(form);
@@ -200,33 +203,38 @@ export function buildStubTagRowsFromCategories(rows: Array<any>): Array<any> {
     const tags = [];
     const safeRows = (rows || []).filter(Boolean);
 
-    safeRows.forEach(function callback(row) {
+    const forEachCallbackC = function callback(row: any) {
         const stubTag = trimStubTagValue(row.stubTag);
 
         if (stubTag !== "" && !tags.includes(stubTag)) {
             tags.push(stubTag);
         }
-    });
+    };
+    safeRows.forEach(forEachCallbackC);
 
-    const result = tags.map(function callback(stubTag) {
-        const result = createStubTagRow({
-            enabled: safeRows.some(function callback(row) {
-                const result =
-                    trimStubTagValue(row.stubTag) === stubTag &&
-                    row.stubTagEnabled === true;
-                return result;
-            }),
-            originalEnabled: safeRows.some(function callback(row) {
-                const result =
-                    trimStubTagValue(row.stubTag) === stubTag &&
-                    row.originalStubTagEnabled === true;
-                return result;
-            }),
+    const mapCallbackF = function callback(stubTag: string) {
+        const someCallbackA = function callback(row: any) {
+            const result =
+                trimStubTagValue(row.stubTag) === stubTag &&
+                row.stubTagEnabled === true;
+            return result;
+        };
+        const someCallbackB = function callback(row: any) {
+            const result =
+                trimStubTagValue(row.stubTag) === stubTag &&
+                row.originalStubTagEnabled === true;
+            return result;
+        };
+        const someResult = {
+            enabled: safeRows.some(someCallbackA),
+            originalEnabled: safeRows.some(someCallbackB),
             originalStubTag: stubTag,
             stubTag,
-        });
+        };
+        const result = createStubTagRow(someResult);
         return result;
-    });
+    };
+    const result = tags.map(mapCallbackF);
     return result;
 }
 
@@ -260,7 +268,8 @@ export function cleanEditableRows(
     isBlank: (...args: any[]) => any,
     createBlank: (...args: any[]) => any,
 ): Array<any> {
-    const nonBlankRows = rows.filter((row) => !isBlank(row));
+    const filterCallbackA = (row: any) => !isBlank(row);
+    const nonBlankRows = rows.filter(filterCallbackA);
     const hasBlankRow = rows.some(isBlank);
 
     if (hasBlankRow || nonBlankRows.length === 0) {
@@ -285,9 +294,11 @@ export function ensureTrailingEditableRow(
     isBlank: (...args: any[]) => any,
     createBlank: (...args: any[]) => any,
 ): void {
-    const nonBlankRows = rows.filter((row) => !isBlank(row));
+    const filterCallback = (row: any) => !isBlank(row);
+    const nonBlankRows = rows.filter(filterCallback);
 
-    rows.splice(0, rows.length, ...nonBlankRows, createBlank());
+    const blankResult = createBlank();
+    rows.splice(0, rows.length, ...nonBlankRows, blankResult);
 }
 
 /**
@@ -323,8 +334,9 @@ export function ensureTrailingCategoryRow(
  *   row.
  */
 export function ensureTrailingRedirectRow(form: any): void {
+    const ensureRedirectRowsResult = ensureRedirectRows(form);
     ensureTrailingEditableRow(
-        ensureRedirectRows(form),
+        ensureRedirectRowsResult,
         isBlankRedirectRow,
         createRedirectRow,
     );
@@ -338,8 +350,9 @@ export function ensureTrailingRedirectRow(form: any): void {
  *   ensures navbox review rows end with one blank row.
  */
 export function ensureTrailingNavboxRow(form: any): void {
+    const ensureNavboxRowsResult = ensureNavboxRows(form);
     ensureTrailingEditableRow(
-        ensureNavboxRows(form),
+        ensureNavboxRowsResult,
         isBlankNavboxRow,
         createNavboxRow,
     );
@@ -354,8 +367,9 @@ export function ensureTrailingNavboxRow(form: any): void {
  *   row.
  */
 export function ensureTrailingStubTagRow(form: any): void {
+    const ensureStubTagRowsResult = ensureStubTagRows(form);
     ensureTrailingEditableRow(
-        ensureStubTagRows(form),
+        ensureStubTagRowsResult,
         isBlankStubTagRow,
         createStubTagRow,
     );
@@ -488,9 +502,13 @@ export function createCitationPrefetchQueue(
             clearTimeout(timer);
         }
 
-        timer = setTimeout(function callback() {
+        const setTimeoutCallback = function callback() {
             urls.forEach(options.onSourceUrlChange);
-        }, options.citationPrefetchDelay || 0);
+        };
+        timer = setTimeout(
+            setTimeoutCallback,
+            options.citationPrefetchDelay || 0,
+        );
     };
     return result;
 }
@@ -501,12 +519,12 @@ export function createCitationPrefetchQueue(
  * @returns Initial dialog form values.
  */
 export function createFormValues(): any {
+    const mappedValuesA = [
+        ...getArticleFields(),
+        ...SOURCE_REFERENCE_FIELDS,
+    ].map(getEmptyFieldValue);
     const result = {
-        ...Object.fromEntries(
-            [...getArticleFields(), ...SOURCE_REFERENCE_FIELDS].map(
-                getEmptyFieldValue,
-            ),
-        ),
+        ...Object.fromEntries(mappedValuesA),
         categoryRows: [],
         citationRows: [],
         localizedNames: [createNameRow()],
@@ -536,12 +554,14 @@ export function createNameRow(
     selectedMarkets: Array<string> = [],
     options: any = {},
 ): any {
+    const mapCallbackE = function callback(
+        market: (typeof NAME_MARKETS)[number],
+    ) {
+        return [market.key, selectedMarkets.includes(market.key)];
+    };
+    const mappedValues = NAME_MARKETS.map(mapCallbackE);
     const result = {
-        ...Object.fromEntries(
-            NAME_MARKETS.map(function callback(market) {
-                return [market.key, selectedMarkets.includes(market.key)];
-            }),
-        ),
+        ...Object.fromEntries(mappedValues),
         name: "",
         official: Boolean(options.official),
         sourceUrl: "",
@@ -598,8 +618,9 @@ export function createNoteTaRow(key: any = "", value: string = ""): any {
  * @returns Localized name row.
  */
 export function createNameRowFromValues(values: any): any {
+    const nameRowSelectedMarketsResult = getNameRowSelectedMarkets(values);
     const result = {
-        ...createNameRow(getNameRowSelectedMarkets(values)),
+        ...createNameRow(nameRowSelectedMarketsResult),
         ...values,
     };
     return result;
@@ -612,14 +633,15 @@ export function createNameRowFromValues(values: any): any {
  * @returns Labeled Steam name suggestions.
  */
 export function getSteamNameSuggestions(rows: Array<any>): Array<any> {
-    const result = rows.map(function callback(row) {
+    const mapCallbackD = function callback(row: any) {
         const result = {
             label: row.label || formatSteamNameMarkets(row),
             url: row.sourceUrl,
             value: row.name,
         };
         return result;
-    });
+    };
+    const result = rows.map(mapCallbackD);
     return result;
 }
 
@@ -707,7 +729,10 @@ export function findSteamNameRow(
     rows: Array<any>,
     market: string,
 ): any | undefined {
-    return rows.find((row) => getNameRowSelectedMarkets(row).includes(market));
+    const findCallback = function matchesSteamMarket(row: any) {
+        return getNameRowSelectedMarkets(row).includes(market);
+    };
+    return rows.find(findCallback);
 }
 
 /**
@@ -773,12 +798,14 @@ export function getNameRowSelectedMarkets(values: any): Array<string> {
  */
 export function ensureTrailingNameRow(rows: Array<any>): void {
     if (!Array.isArray(rows) || rows.length === 0) {
-        rows.push(createNameRow());
+        const nameRowResultA = createNameRow();
+        rows.push(nameRowResultA);
         return;
     }
 
     if (hasAnyNameRowValue(rows[rows.length - 1])) {
-        rows.push(createNameRow());
+        const nameRowResult = createNameRow();
+        rows.push(nameRowResult);
     }
 }
 
@@ -805,9 +832,14 @@ export function hasAnyNameRowValue(row: any): boolean {
  * @returns Whether the row should be kept.
  */
 export function hasEnteredNameRowValue(row: any): boolean {
-    const result =
-        Boolean(trimValue(row.name)) || Boolean(trimValue(row.sourceUrl));
-    return result;
+    const name = trimValue(row.name);
+
+    if (Boolean(name)) {
+        return true;
+    }
+
+    const sourceUrl = trimValue(row.sourceUrl);
+    return Boolean(sourceUrl);
 }
 
 /**
@@ -997,7 +1029,8 @@ export function extractEnwikiTitleFromUrl(value: any): string {
             return "";
         }
 
-        const title = decodeURIComponent(url.pathname.slice(prefix.length))
+        const slicedValue = url.pathname.slice(prefix.length);
+        const title = decodeURIComponent(slicedValue)
             .replace(/_/gu, " ")
             .trim();
 
@@ -1131,7 +1164,8 @@ export function replaceFormValues(form: any, values: any): void {
     Object.keys(form).forEach(function callback(key) {
         delete form[key];
     });
-    Object.assign(form, normalizeReceivedFormValues(values));
+    const receivedFormValuesResult = normalizeReceivedFormValues(values);
+    Object.assign(form, receivedFormValuesResult);
 }
 
 /**
@@ -1232,7 +1266,8 @@ function normalizeReceivedNoteTaRows(form: Record<string, unknown>): void {
         form.noteTaNamesRemoved = false;
     }
     if (Array.isArray(form.noteTaRows)) {
-        form.noteTaRows = form.noteTaRows.map((row) => createNoteTaRow(row));
+        const mapCallbackC = (row: unknown) => createNoteTaRow(row);
+        form.noteTaRows = form.noteTaRows.map(mapCallbackC);
         return;
     }
 
@@ -1338,16 +1373,17 @@ export function applyCitationPatches(
     rows: Array<any>,
     patches: Array<any> = [],
 ): Array<any> {
-    const result = rows.map(function callback(row) {
-        const patch = patches.find(
-            (item) => trimValue(item.sourceUrl) === row.sourceUrl,
-        );
+    const mapCallbackB = function callback(row: any) {
+        const findCallbackC = function matchesCitationPatch(item: any) {
+            return trimValue(item.sourceUrl) === row.sourceUrl;
+        };
+        const patch = patches.find(findCallbackC);
 
         if (patch == null) {
             return row;
         }
 
-        const result = createCitationRow({
+        const cloneValueResultB = {
             ...row,
             ...cloneValue(patch),
             params: applyCitationParamPatches(
@@ -1356,9 +1392,11 @@ export function applyCitationPatches(
             ),
             modified: true,
             sourceUrl: row.sourceUrl,
-        });
+        };
+        const result = createCitationRow(cloneValueResultB);
         return result;
-    });
+    };
+    const result = rows.map(mapCallbackB);
     return result;
 }
 
@@ -1375,9 +1413,12 @@ export function applyCitationParamPatches(
     patches: Array<any> = [],
 ): Array<any> {
     const clonedParams: Array<{ name: string }> = cloneValue(generatedParams);
-    const params = new Map(clonedParams.map((param) => [param.name, param]));
+    const entries: Array<[string, { name: string }]> = clonedParams.map(
+        (param) => [param.name, param],
+    );
+    const params = new Map(entries);
 
-    patches.forEach(function callback(patch) {
+    const forEachCallbackB = function callback(patch: any) {
         if (trimValue(patch?.name) === "") {
             return;
         }
@@ -1387,10 +1428,13 @@ export function applyCitationParamPatches(
             return;
         }
 
-        params.set(patch.name, cloneValue(patch));
-    });
+        const cloneValueResultA = cloneValue(patch);
+        params.set(patch.name, cloneValueResultA);
+    };
+    patches.forEach(forEachCallbackB);
 
-    return Array.from(params.values());
+    const valuesResult = params.values();
+    return Array.from(valuesResult);
 }
 
 /**
@@ -1406,13 +1450,16 @@ export function applyCategoryPatches(
     rows: Array<any>,
     patches: Array<any> = [],
 ): void {
-    patches.forEach(function callback(patch) {
+    const forEachCallbackA = function callback(patch: any) {
         if (patch.source?.manual === true) {
-            rows.push(createCategoryPatchRow(patch));
+            const categoryPatchRowResult = createCategoryPatchRow(patch);
+            rows.push(categoryPatchRowResult);
             return;
         }
 
-        const row = rows.find((item) => isCategoryPatchTarget(item, patch));
+        const findCallbackB = (item: any) =>
+            isCategoryPatchTarget(item, patch);
+        const row = rows.find(findCallbackB);
 
         if (row != null) {
             const values = cloneValue(patch);
@@ -1420,7 +1467,8 @@ export function applyCategoryPatches(
             delete values.source;
             Object.assign(row, values);
         }
-    });
+    };
+    patches.forEach(forEachCallbackA);
 }
 
 /**
@@ -1434,22 +1482,25 @@ export function applyNavboxPatches(
     rows: Array<any>,
     patches: Array<any> = [],
 ): Array<any> {
-    const result = rows.map(function callback(row) {
-        const patch = patches.find(
-            (item) => trimValue(item.source?.title) === row.title,
-        );
+    const mapCallbackA = function callback(row: any) {
+        const findCallbackA = function matchesNavboxPatch(item: any) {
+            return trimValue(item.source?.title) === row.title;
+        };
+        const patch = patches.find(findCallbackA);
 
         if (patch == null) {
             return row;
         }
 
-        const result = createNavboxRow({
+        const cloneValueResult = {
             ...row,
             ...cloneValue(patch),
             title: row.title,
-        });
+        };
+        const result = createNavboxRow(cloneValueResult);
         return result;
-    });
+    };
+    const result = rows.map(mapCallbackA);
     return result;
 }
 
@@ -1502,8 +1553,9 @@ export function createCategoryPatchRow(patch: any): any {
  *   row.
  */
 export function syncGeneratedNameNoteTaRow(form: any): void {
+    const officialNameNoteTaRowsResultA = getOfficialNameNoteTaRows(form);
     const generated = buildOfficialNameConversionText(
-        getOfficialNameNoteTaRows(form),
+        officialNameNoteTaRowsResultA,
     );
     const rows = ensureNoteTaRows(form);
     const index = rows.findIndex((row) => row.source === NOTE_TA_NAMES_SOURCE);
@@ -1526,7 +1578,9 @@ export function syncGeneratedNameNoteTaRow(form: any): void {
     const row = createGeneratedNameNoteTaRow(generated);
 
     if (index === -1) {
-        rows.splice(getGeneratedNameNoteTaInsertIndex(rows), 0, row);
+        const generatedNameNoteTaInsertIndex =
+            getGeneratedNameNoteTaInsertIndex(rows);
+        rows.splice(generatedNameNoteTaInsertIndex, 0, row);
         return;
     }
 
@@ -1575,28 +1629,28 @@ export function regenerateNoteTaRows(form: any): void {
     const rows = ensureNoteTaRows(form);
     const manualRows = rows.filter(isManualNoteTaRow);
     const generatedRows = [createNoteTaRow("G1", "Games")];
+    const officialNameNoteTaRowsResult = getOfficialNameNoteTaRows(form);
     const generated = buildOfficialNameConversionText(
-        getOfficialNameNoteTaRows(form),
+        officialNameNoteTaRowsResult,
     );
 
     form.noteTaNamesRemoved = false;
 
     if (generated != null) {
-        generatedRows.push(
-            createNoteTaRow({
-                generatedValue: generated,
-                key: "1",
-                source: NOTE_TA_NAMES_SOURCE,
-                value: generated,
-            }),
-        );
+        const noteTaRowResult = createNoteTaRow({
+            generatedValue: generated,
+            key: "1",
+            source: NOTE_TA_NAMES_SOURCE,
+            value: generated,
+        });
+        generatedRows.push(noteTaRowResult);
     }
 
-    rows.splice(
-        0,
-        rows.length,
-        ...sortNoteTaEntries([...manualRows, ...generatedRows]),
-    );
+    const sortNoteTaEntriesResult = sortNoteTaEntries([
+        ...manualRows,
+        ...generatedRows,
+    ]);
+    rows.splice(0, rows.length, ...sortNoteTaEntriesResult);
 }
 
 /**
@@ -1620,12 +1674,14 @@ export function isManualNoteTaRow(row: any): boolean {
 export function getOfficialNameNoteTaRows(form: any): Array<any> {
     const localizedNames: Array<{ official: boolean }> =
         form.localizedNames || [];
+    const isArrayValue = Array.isArray(form.localizedNames);
+    const selectValueCallback = function trueBranch() {
+        const result = localizedNames.filter((row) => row.official);
+        return result;
+    };
     const result = selectValue(
-        Array.isArray(form.localizedNames),
-        function trueBranch() {
-            const result = localizedNames.filter((row) => row.official);
-            return result;
-        },
+        isArrayValue,
+        selectValueCallback,
         function falseBranch() {
             return [];
         },
@@ -1640,11 +1696,12 @@ export function getOfficialNameNoteTaRows(form: any): Array<any> {
  * @returns Insertion index.
  */
 export function getGeneratedNameNoteTaInsertIndex(rows: Array<any>): number {
-    const index = rows.findIndex(function callback(row) {
+    const findIndexCallback = function callback(row: any) {
         const key = trimValue(row.key);
 
         return key !== "T" && !/^G[1-9]\d*$/u.test(key);
-    });
+    };
+    const index = rows.findIndex(findIndexCallback);
 
     return index === -1 ? rows.length : index;
 }
@@ -1742,10 +1799,11 @@ export function isBlankRedirectRow(row: any): boolean {
  *   category titles.
  */
 export function markCategoryRowsFixed(rows: Array<any>): void {
-    rows.forEach(function callback(row) {
+    const forEachCallback = function callback(row: any) {
         row.fixed = true;
         row.fixedCategory = trimValue(row.category);
-    });
+    };
+    rows.forEach(forEachCallback);
 }
 
 /**
@@ -1851,10 +1909,10 @@ export function hasPreparedNavboxRows(form: {
     navboxRows: unknown[];
     series: unknown;
 }) {
+    const someCallback = (row: unknown) => !isBlankNavboxRow(row);
     const result =
         Array.isArray(form.navboxRows) &&
-        (form.navboxRows.some((row) => !isBlankNavboxRow(row)) ||
-            trimValue(form.series) === "");
+        (form.navboxRows.some(someCallback) || trimValue(form.series) === "");
     return result;
 }
 
@@ -1957,12 +2015,15 @@ export function shouldSkipFixedRows(
     rows: Array<any>,
     isFixed: (...args: any[]) => any,
 ): boolean {
-    const result =
-        refreshOptions.recheck !== true &&
-        Array.isArray(rows) &&
-        rows.length > 0 &&
-        rows.every(isFixed);
-    return result;
+    if (
+        refreshOptions.recheck === true ||
+        !Array.isArray(rows) ||
+        rows.length === 0
+    ) {
+        return false;
+    }
+
+    return rows.every(isFixed);
 }
 
 /**
@@ -2033,10 +2094,10 @@ export function sortManagedCitationParams(
     params: Array<any> = [],
     template: string = "cite web",
 ): Array<any> {
-    const result = sortCitationParams(
-        params.map(createCitationParamRow).filter(hasCitationParamValue),
-        template,
-    );
+    const filteredValues = params
+        .map(createCitationParamRow)
+        .filter(hasCitationParamValue);
+    const result = sortCitationParams(filteredValues, template);
     return result;
 }
 
@@ -2076,9 +2137,8 @@ export function getCitationParamTableRows(citation: any): Array<any> {
  * @returns Citation tabs key.
  */
 export function getCitationTabsKey(rows: Array<any>): string {
-    const result = rows
-        .map((citation) => trimValue(citation.sourceUrl))
-        .join("\n");
+    const mapCallback = (citation: any) => trimValue(citation.sourceUrl);
+    const result = rows.map(mapCallback).join("\n");
     return result;
 }
 
@@ -2271,7 +2331,8 @@ export function hasCitationParamValue(param: any): boolean {
  * @returns Cloned value.
  */
 export function cloneValue(value: any): any {
-    return JSON.parse(JSON.stringify(value));
+    const stringifyResult = JSON.stringify(value);
+    return JSON.parse(stringifyResult);
 }
 
 /**

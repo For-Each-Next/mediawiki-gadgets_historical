@@ -37,17 +37,20 @@ export async function loggedApiGet(
     label: string,
     params: any,
 ): Promise<any> {
-    logStep(`API GET start: ${label}`, cloneForLog(params));
+    const loggedParams = cloneForLog(params);
+    logStep(`API GET start: ${label}`, loggedParams);
 
     try {
         const response = await api.get(params);
 
-        logStep(`API GET done: ${label}`, summarizeResponse(response));
+        const responseSummary = summarizeResponse(response);
+        logStep(`API GET done: ${label}`, responseSummary);
         return response;
     } catch (error) {
+        const failedParams = cloneForLog(params);
         logStep(`API GET failed: ${label}`, {
             error,
-            params: cloneForLog(params),
+            params: failedParams,
         });
         throw error;
     }
@@ -68,8 +71,9 @@ export async function loggedPostWithToken(
     token: string,
     params: any,
 ): Promise<any> {
+    const loggedParams = summarizeEditParams(params);
     logStep(`API POST start: ${label}`, {
-        params: summarizeEditParams(params),
+        params: loggedParams,
         token,
     });
 
@@ -79,9 +83,10 @@ export async function loggedPostWithToken(
         logStep(`API POST done: ${label}`, response);
         return response;
     } catch (error) {
+        const failedParams = summarizeEditParams(params);
         logStep(`API POST failed: ${label}`, {
             error,
-            params: summarizeEditParams(params),
+            params: failedParams,
             token,
         });
         throw error;
@@ -96,7 +101,8 @@ export async function loggedPostWithToken(
  */
 function cloneForLog(value: any): any {
     try {
-        return JSON.parse(JSON.stringify(value));
+        const serialized = JSON.stringify(value);
+        return JSON.parse(serialized);
     } catch {
         return value;
     }
@@ -135,43 +141,18 @@ function summarizeResponse(response: any): any {
  * @returns Summarized params.
  */
 function summarizeEditParams(params: any): any {
-    const result = {
-        ...cloneForLog(params),
-        text: selectValue(
-            typeof params?.text === "string",
-            function trueBranch() {
-                const result = {
-                    length: params.text.length,
-                    preview: params.text.slice(0, 500),
-                };
-                return result;
-            },
-            function falseBranch() {
-                return params?.text;
-            },
-        ),
-    };
-    return result;
-}
+    let text = params?.text;
 
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
+    if (typeof params?.text === "string") {
+        text = {
+            length: params.text.length,
+            preview: params.text.slice(0, 500),
+        };
     }
 
-    return falseBranch();
+    const result = {
+        ...cloneForLog(params),
+        text,
+    };
+    return result;
 }

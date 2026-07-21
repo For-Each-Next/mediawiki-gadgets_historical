@@ -7,12 +7,13 @@ export const minifiedOutput = {
     suffix: "//</nowiki>",
 };
 
+const USERSCRIPT_METADATA_KEY_WIDTH = 13;
+
 interface BuildMetadata {
     description: string;
     name: string;
     version: string;
 }
-
 
 /**
  * Formats one metadata line.
@@ -22,9 +23,8 @@ interface BuildMetadata {
  * @returns Metadata line.
  */
 function formatMetadata(key: string, value: string): string {
-    return `// @${key.padEnd(13)}${value}`;
+    return `// @${key.padEnd(USERSCRIPT_METADATA_KEY_WIDTH)}${value}`;
 }
-
 
 /**
  * Wraps minified gadget code for publishing on MediaWiki.

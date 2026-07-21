@@ -11,6 +11,7 @@ import {
 const CITOID_ENDPOINT = "/api/rest_v1/data/citation/zotero/";
 const CITATION_RULES = getCitationRules();
 const DATE_PARTS_LENGTH = 10;
+const HTTP_NOT_FOUND = 404;
 const UNKNOWN_PARAM_ORDER_OFFSET = 10000;
 
 /**
@@ -70,7 +71,8 @@ async function fetchCitoidResponse(
     url: string,
     fetcher: typeof fetch,
 ): Promise<Response> {
-    const response = await fetcher(buildCitoidUrl(url), {
+    const requestUrl = buildCitoidUrl(url);
+    const response = await fetcher(requestUrl, {
         headers: { accept: "application/json" },
     });
 
@@ -90,7 +92,8 @@ async function buildCitoidResponseTemplate(
     response: Response,
     options: { now: unknown; rules: unknown },
 ) {
-    const citation = getFirstCitation(await response.json());
+    const data = await response.json();
+    const citation = getFirstCitation(data);
     const template = buildCiteTemplate(citation, {
         now: options.now,
         rules: options.rules,
@@ -117,7 +120,7 @@ async function handleFailedCitoidResponse(
     fetcher: typeof fetch,
     options: { now: unknown; rules: unknown },
 ) {
-    if (response.status !== 404) {
+    if (response.status !== HTTP_NOT_FOUND) {
         throw new Error(`Citoid request failed: HTTP ${response.status}`);
     }
 
@@ -210,14 +213,14 @@ function normalizeCitationCacheKey(url: string): string {
  */
 export function buildCiteTemplate(citation: any, options: any = {}): string {
     const template = getTemplateName(citation.itemType);
-    const values = applyCitationRules(buildCitationValues(citation, options), {
+    const citationValues = buildCitationValues(citation, options);
+    const values = applyCitationRules(citationValues, {
         rules: options.rules || CITATION_RULES,
         sourceUrl: options.url,
     });
-    const params = sortCitationParamEntries(
-        Object.entries(values).filter(hasTemplateValue),
-        template,
-    );
+    const entries = Object.entries(values);
+    const populatedEntries = entries.filter(hasTemplateValue);
+    const params = sortCitationParamEntries(populatedEntries, template);
 
     return formatTemplateCall(template, params);
 }
@@ -232,9 +235,10 @@ export function parseCiteTemplate(text: string): any {
     const parts = splitTemplateParts(text);
     const [enteredTemplate, ...params] = parts;
     const template = trimFieldText(enteredTemplate) || "cite web";
+    const parsedParams = params.map(parseTemplateParam);
 
     const result = {
-        params: sortCitationParams(params.map(parseTemplateParam), template),
+        params: sortCitationParams(parsedParams, template),
         template,
     };
     return result;
@@ -250,16 +254,10 @@ export function parseCiteTemplate(text: string): any {
  */
 export function buildCiteTemplateFromParts(parts: any): string {
     const template = trimFieldText(parts?.template) || "cite web";
-    const params = sortCitationParams(parts?.params || [], template).filter(
-        function callback(param) {
-            return hasTemplateValue([param.name, param.value]);
-        },
-    );
-
-    const result = formatTemplateCall(
-        template,
-        params.map((param) => [param.name, param.value]),
-    );
+    const params = sortCitationParams(parts?.params || [], template);
+    const entries = params.map((param) => [param.name, param.value]);
+    const valuedEntries = entries.filter(hasTemplateValue);
+    const result = formatTemplateCall(template, valuedEntries);
     return result;
 }
 
@@ -278,9 +276,10 @@ export function sortCitationParams(
     if (templateData == null) {
         return params.map((param) => ({ ...param }));
     }
+    const compareParams = compareCitationParams.bind(null, templateData);
     const result = params
         .map((param, index) => ({ ...param, _index: index }))
-        .sort(compareCitationParams.bind(null, templateData))
+        .sort(compareParams)
         .map(({ _index, ...param }) => param);
     return result;
 }
@@ -299,28 +298,24 @@ async function buildFallbackCiteWebTemplate(
     options: any = {},
 ): Promise<string> {
     const trimmedUrl = normalizeCitationCacheKey(url);
-
-    const result = buildCiteTemplate(
-        {
-            itemType: "webpage",
-            title: await selectValue(
-                isSteamUrl(trimmedUrl),
-                async function trueBranch() {
-                    return "";
-                },
-                async function falseBranch() {
-                    return await fetchFallbackTitle(trimmedUrl, options);
-                },
-            ),
-            url: trimmedUrl,
-            websiteTitle: getFallbackWebsiteTitle(url),
-        },
-        {
-            now: options.now,
-            rules: options.rules || CITATION_RULES,
-            url,
-        },
-    );
+    const steamUrl = isSteamUrl(trimmedUrl);
+    let title = "";
+    if (!steamUrl) {
+        title = await fetchFallbackTitle(trimmedUrl, options);
+    }
+    const websiteTitle = getFallbackWebsiteTitle(url);
+    const citation = {
+        itemType: "webpage",
+        title,
+        url: trimmedUrl,
+        websiteTitle,
+    };
+    const formatOptions = {
+        now: options.now,
+        rules: options.rules || CITATION_RULES,
+        url,
+    };
+    const result = buildCiteTemplate(citation, formatOptions);
     return result;
 }
 
@@ -357,7 +352,8 @@ async function fetchFallbackTitle(url: string, options: any): Promise<string> {
             return "";
         }
 
-        return extractHtmlTitle(await response.text());
+        const html = await response.text();
+        return extractHtmlTitle(html);
     } catch (_error) {
         return "";
     }
@@ -378,7 +374,8 @@ function extractHtmlTitle(html: string): string {
         return "";
     }
 
-    return decodeHtmlEntities(match[1].replace(/\s+/gu, " ").trim());
+    const compactTitle = match[1].replace(/\s+/gu, " ").trim();
+    return decodeHtmlEntities(compactTitle);
 }
 
 /**
@@ -389,18 +386,38 @@ function extractHtmlTitle(html: string): string {
  */
 function decodeHtmlEntities(text: string): string {
     const result = text
-        .replace(/&#(\d+);/gu, function callback(_match, code) {
-            return String.fromCodePoint(Number(code));
-        })
-        .replace(/&#x([\da-f]+);/giu, function callback(_match, code) {
-            return String.fromCodePoint(Number.parseInt(code, 16));
-        })
+        .replace(/&#(\d+);/gu, decodeDecimalHtmlEntity)
+        .replace(/&#x([\da-f]+);/giu, decodeHexHtmlEntity)
         .replace(/&quot;/gu, '"')
         .replace(/&apos;/gu, "'")
         .replace(/&amp;/gu, "&")
         .replace(/&lt;/gu, "<")
         .replace(/&gt;/gu, ">");
     return result;
+}
+
+/**
+ * Decodes one decimal numeric HTML entity.
+ *
+ * @param _match - Full entity text.
+ * @param code - Decimal code point.
+ * @returns Decoded character.
+ */
+function decodeDecimalHtmlEntity(_match: string, code: string): string {
+    const codePoint = Number(code);
+    return String.fromCodePoint(codePoint);
+}
+
+/**
+ * Decodes one hexadecimal numeric HTML entity.
+ *
+ * @param _match - Full entity text.
+ * @param code - Hexadecimal code point.
+ * @returns Decoded character.
+ */
+function decodeHexHtmlEntity(_match: string, code: string): string {
+    const codePoint = Number.parseInt(code, 16);
+    return String.fromCodePoint(codePoint);
 }
 
 /**
@@ -413,7 +430,8 @@ function decodeHtmlEntities(text: string): string {
  * @returns Source URL hostname, or an empty string.
  */
 function getFallbackWebsiteTitle(url: string): string {
-    const parsedUrl = parseUrl(normalizeCitationCacheKey(url));
+    const normalizedUrl = normalizeCitationCacheKey(url);
+    const parsedUrl = parseUrl(normalizedUrl);
 
     return (parsedUrl?.hostname || "").replace(/^www\./u, "");
 }
@@ -492,25 +510,18 @@ function applyCitationRules(values: any, options: any): any {
         options.rules,
         options.sourceUrl || values.url,
     );
-    const initialValues = selectValue(
-        options.sourceUrl == null ||
-            rules.some((rule) => rule.redirect === true),
-        function trueBranch() {
-            return values;
-        },
-        function falseBranch() {
-            const result = {
-                ...values,
-                url: normalizeCitationCacheKey(options.sourceUrl),
-            };
-            return result;
-        },
-    );
+    let preserveValues = options.sourceUrl == null;
+    if (!preserveValues) {
+        preserveValues = rules.some((rule) => rule.redirect === true);
+    }
+    let initialValues = values;
+    if (!preserveValues) {
+        const normalizedUrl = normalizeCitationCacheKey(options.sourceUrl);
+        initialValues = { ...values, url: normalizedUrl };
+    }
 
-    const result = rules.reduce(
-        applyCitationRule.bind(null, options.sourceUrl),
-        initialValues,
-    );
+    const applyRule = applyCitationRule.bind(null, options.sourceUrl);
+    const result = rules.reduce(applyRule, initialValues);
     return result;
 }
 
@@ -523,10 +534,9 @@ function applyCitationRules(values: any, options: any): any {
  * @returns Cleaned citation template values.
  */
 function applyCitationRule(sourceUrl: string, values: any, rule: any): any {
-    const result = (rule.fixes || []).reduce(
-        applyFieldFix.bind(null, sourceUrl),
-        values,
-    );
+    const fixes = rule.fixes || [];
+    const applyFix = applyFieldFix.bind(null, sourceUrl);
+    const result = fixes.reduce(applyFix, values);
     return result;
 }
 
@@ -706,10 +716,8 @@ function replacePattern(value: string, fix: any): string {
         return value;
     }
 
-    const result = value.replace(
-        new RegExp(operand.pattern, "u"),
-        operand.replacement || "",
-    );
+    const pattern = new RegExp(operand.pattern, "u");
+    const result = value.replace(pattern, operand.replacement || "");
     return result;
 }
 
@@ -738,9 +746,9 @@ function preserveSourceQuery(
         return citationUrl;
     }
 
-    getSourceQueryKeys(source, keys).forEach(
-        preserveSourceQueryKey.bind(null, citation, source),
-    );
+    const sourceKeys = getSourceQueryKeys(source, keys);
+    const preserveKey = preserveSourceQueryKey.bind(null, citation, source);
+    sourceKeys.forEach(preserveKey);
 
     return citation.toString();
 }
@@ -757,7 +765,8 @@ function getSourceQueryKeys(source: URL, keys: Array<string>): Array<string> {
         return keys;
     }
 
-    return Array.from(source.searchParams.keys());
+    const iterator = source.searchParams.keys();
+    return Array.from(iterator);
 }
 
 /**
@@ -778,7 +787,8 @@ function preserveSourceQueryKey(
         return;
     }
 
-    citation.searchParams.set(key, source.searchParams.get(key));
+    const value = source.searchParams.get(key);
+    citation.searchParams.set(key, value);
 }
 
 /**
@@ -796,7 +806,8 @@ function getMatchingRules(rules: Array<any>, url: string): Array<any> {
         return globalRules;
     }
 
-    return rules.filter(isMatchingRule.bind(null, parsedUrl.hostname));
+    const matchesHost = isMatchingRule.bind(null, parsedUrl.hostname);
+    return rules.filter(matchesHost);
 }
 
 /**
@@ -857,16 +868,16 @@ function sortCitationParamEntries(
     entries: Array<[string, any]>,
     template: string,
 ): Array<Array<string>> {
-    const result = sortCitationParams(
-        entries.map(function callback([name, value]) {
-            const result = {
-                name: formatTemplateKey(name),
-                value,
-            };
-            return result;
-        }),
-        template,
-    ).map((param) => [param.name, param.value]);
+    const params = [];
+    for (const [name, value] of entries) {
+        const formattedName = formatTemplateKey(name);
+        params.push({
+            name: formattedName,
+            value,
+        });
+    }
+    const sortedParams = sortCitationParams(params, template);
+    const result = sortedParams.map((param) => [param.name, param.value]);
     return result;
 }
 
@@ -883,7 +894,8 @@ function formatTemplateParam(entry: Array<string>, options: any = {}): string {
     const [key, value] = entry;
     const name = options.formatKey === false ? key : formatTemplateKey(key);
 
-    return `|${name}=${escapeTemplateValue(String(value))}`;
+    const text = String(value);
+    return `|${name}=${escapeTemplateValue(text)}`;
 }
 
 /**
@@ -910,12 +922,20 @@ function formatTemplateCall(
         "{{",
         name,
         "",
-        params
-            .map((param) => formatTemplateParam(param, { formatKey: false }))
-            .join(""),
+        params.map(formatUnindentedTemplateParam).join(""),
         "}}",
     ].join("");
     return result;
+}
+
+/**
+ * Formats one template parameter without normalizing its key.
+ *
+ * @param param - Template parameter entry.
+ * @returns Inline template parameter text.
+ */
+function formatUnindentedTemplateParam(param: Array<string>): string {
+    return formatTemplateParam(param, { formatKey: false });
 }
 
 /**
@@ -927,7 +947,8 @@ function formatTemplateCall(
 function formatIndentedTemplateParam(entry: Array<string>): string {
     const [key, value] = entry;
 
-    return `  | ${key} = ${escapeTemplateValue(String(value))}`;
+    const text = String(value);
+    return `  | ${key} = ${escapeTemplateValue(text)}`;
 }
 
 /**
@@ -980,12 +1001,14 @@ function splitTemplateParts(text: string): Array<string> {
         }
 
         if (body[index] === "|" && depth === 0) {
-            parts.push(body.slice(start, index));
+            const part = body.slice(start, index);
+            parts.push(part);
             start = index + 1;
         }
     }
 
-    parts.push(body.slice(start));
+    const finalPart = body.slice(start);
+    parts.push(finalPart);
 
     return parts;
 }
@@ -1007,9 +1030,11 @@ function parseTemplateParam(text: string): any {
         return result;
     }
 
+    const nameText = text.slice(0, separator);
+    const valueText = text.slice(separator + 1);
     const result = {
-        name: trimFieldText(text.slice(0, separator)),
-        value: trimFieldText(text.slice(separator + 1)),
+        name: trimFieldText(nameText),
+        value: trimFieldText(valueText),
     };
     return result;
 }
@@ -1074,10 +1099,13 @@ function getCanonicalParamName(
         return value;
     }
 
-    const result =
-        Object.entries(aliases).find(function callback(entry) {
-            return (entry[1] as string[]).includes(value);
-        })?.[0] || value;
+    let result = value;
+    for (const [key, values] of Object.entries(aliases)) {
+        const matches = (values as string[]).includes(value);
+        if (result === value && matches) {
+            result = key;
+        }
+    }
     return result;
 }
 
@@ -1125,10 +1153,8 @@ function formatCreators(creators: Array<any>, type: string): string {
         return "";
     }
 
-    const result = creators
-        .filter(isCreatorType.bind(null, type))
-        .map(formatCreator)
-        .join("; ");
+    const matchesType = isCreatorType.bind(null, type);
+    const result = creators.filter(matchesType).map(formatCreator).join("; ");
     return result;
 }
 

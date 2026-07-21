@@ -12,21 +12,24 @@ import { msg } from "#me/i18n/index.ts";
  * @returns NoteTA row template node.
  */
 export function createNoteTaGroupTemplate(): any {
+    const noteTaSlotsResult = createNoteTaSlotsTemplate();
+    const messageH = {
+        caption: msg("noteta.items"),
+    };
+    const tableResult = [
+        createTableTemplate(
+            "notetaTableColumns",
+            "form.noteTaRows",
+            noteTaSlotsResult,
+            messageH,
+        ),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "group.noteTaReview",
         },
-        [
-            createTableTemplate(
-                "notetaTableColumns",
-                "form.noteTaRows",
-                createNoteTaSlotsTemplate(),
-                {
-                    caption: msg("noteta.items"),
-                },
-            ),
-        ],
+        tableResult,
     );
     return result;
 }
@@ -37,29 +40,35 @@ export function createNoteTaGroupTemplate(): any {
  * @returns NoteTA row template node.
  */
 function createNoteTaSlotsTemplate(): any {
+    const messageC = msg("noteta.items");
+    const messageD = msg("noteta.sort");
+    const messageE = msg("common.reset");
+    const messageF = msg("common.clean");
+    const messageG = msg("common.add");
+    const iconActionLinkResultA = [
+        createIconActionLinkTemplate(
+            messageD,
+            "tableActionIcons.sort",
+            "sortNoteTaRows",
+        ),
+        createIconActionLinkTemplate(
+            messageE,
+            "tableActionIcons.regenerate",
+            "regenerateNoteTaRows",
+        ),
+        createIconActionLinkTemplate(
+            messageF,
+            "tableActionIcons.clean",
+            "cleanNoteTaRows",
+        ),
+        createIconActionLinkTemplate(
+            messageG,
+            "tableActionIcons.cdxIconArticleAdd",
+            "addNoteTaRow",
+        ),
+    ];
     const result = [
-        createTableHeaderTemplate(msg("noteta.items"), [
-            createIconActionLinkTemplate(
-                msg("noteta.sort"),
-                "tableActionIcons.sort",
-                "sortNoteTaRows",
-            ),
-            createIconActionLinkTemplate(
-                msg("common.reset"),
-                "tableActionIcons.regenerate",
-                "regenerateNoteTaRows",
-            ),
-            createIconActionLinkTemplate(
-                msg("common.clean"),
-                "tableActionIcons.clean",
-                "cleanNoteTaRows",
-            ),
-            createIconActionLinkTemplate(
-                msg("common.add"),
-                "tableActionIcons.cdxIconArticleAdd",
-                "addNoteTaRow",
-            ),
-        ]),
+        createTableHeaderTemplate(messageC, iconActionLinkResultA),
         createNoteTaKeySlotTemplate(),
         createNoteTaValueSlotTemplate(),
         createNoteTaActionSlotTemplate(),
@@ -73,14 +82,15 @@ function createNoteTaSlotsTemplate(): any {
  * @returns Rule-key slot node.
  */
 function createNoteTaKeySlotTemplate(): any {
-    const result = createInputSlotTemplate("key", {
+    const messageB = {
         placeholder: msg("noteta.keyPlaceholder"),
         "v-bind:model-value": "row.key",
         "v-on:update:model-value": [
             "updateNoteTaRow(form.noteTaRows.in",
             "dexOf(row), 'key', $event)",
         ].join(""),
-    });
+    };
+    const result = createInputSlotTemplate("key", messageB);
     return result;
 }
 
@@ -90,14 +100,15 @@ function createNoteTaKeySlotTemplate(): any {
  * @returns Conversion slot node.
  */
 function createNoteTaValueSlotTemplate(): any {
-    const result = createInputSlotTemplate("value", {
+    const messageA = {
         placeholder: msg("noteta.valuePlaceholder"),
         "v-bind:model-value": "row.value",
         "v-on:update:model-value": [
             "updateNoteTaRow(form.noteTaRows.in",
             "dexOf(row), 'value', $event)",
         ].join(""),
-    });
+    };
+    const result = createInputSlotTemplate("value", messageA);
     return result;
 }
 
@@ -107,16 +118,18 @@ function createNoteTaValueSlotTemplate(): any {
  * @returns Action slot node.
  */
 function createNoteTaActionSlotTemplate(): any {
-    const result = createSlotTemplate("actions", [
+    const message = msg("common.remove");
+    const iconActionLinkResult = [
         createIconActionLinkTemplate(
-            msg("common.remove"),
+            message,
             "tableActionIcons.remove",
             "removeNoteTaRow(form.noteTaRows.indexOf(row))",
             {
                 class: "vg-stub-creator-destructive-action",
             },
         ),
-    ]);
+    ];
+    const result = createSlotTemplate("actions", iconActionLinkResult);
     return result;
 }
 
@@ -128,9 +141,8 @@ function createNoteTaActionSlotTemplate(): any {
  * @returns Text input slot node.
  */
 function createInputSlotTemplate(column: string, attributes: any): any {
-    const result = createSlotTemplate(column, [
-        createElement("cdx-text-input", attributes),
-    ]);
+    const elementResult = [createElement("cdx-text-input", attributes)];
+    const result = createSlotTemplate(column, elementResult);
     return result;
 }
 

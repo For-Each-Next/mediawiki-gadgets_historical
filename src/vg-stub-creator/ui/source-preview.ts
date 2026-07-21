@@ -14,6 +14,23 @@ import { msg } from "#me/i18n/index.ts";
  * @returns Preview dialog template node.
  */
 export function createPreviewDialogTemplate(): any {
+    const previewFooterActionsResult = createPreviewFooterActions();
+    const sourcePreviewLayoutResult = [
+        createSourcePreviewLayout({
+            html: "previewHtml",
+            ref: "previewTextArea",
+            text: "previewText",
+        }),
+        createEditSummaryInput({
+            disabled: "sourceFetchState.loading",
+            model: "previewSummary",
+        }),
+        createErrorParagraph(
+            "sourceFetchState.error",
+            "{{ sourceFetchState.error }}",
+        ),
+        createFooterSlot(previewFooterActionsResult),
+    ];
     const result = createElement(
         "cdx-dialog",
         {
@@ -22,22 +39,7 @@ export function createPreviewDialogTemplate(): any {
             "v-model:open": "previewOpen",
             "v-bind:title": "getArticlePreviewTitle()",
         },
-        [
-            createSourcePreviewLayout({
-                html: "previewHtml",
-                ref: "previewTextArea",
-                text: "previewText",
-            }),
-            createEditSummaryInput({
-                disabled: "sourceFetchState.loading",
-                model: "previewSummary",
-            }),
-            createErrorParagraph(
-                "sourceFetchState.error",
-                "{{ sourceFetchState.error }}",
-            ),
-            createFooterSlot(createPreviewFooterActions()),
-        ],
+        sourcePreviewLayoutResult,
     );
     return result;
 }
@@ -61,11 +63,12 @@ function createPreviewFooterActions(): any {
  * @returns Dismiss button node.
  */
 function createPreviewDismissButton(): any {
-    const result = createButtonTemplate({
+    const messageJ = {
         click: "closePreviewDialog",
         label: msg("preview.dismiss"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageJ);
     return result;
 }
 
@@ -75,13 +78,16 @@ function createPreviewDismissButton(): any {
  * @returns Refresh button node.
  */
 function createPreviewRefreshButton(): any {
-    const result = createRefreshButton({
+    const messageH = msg("preview.updating");
+    const messageI = msg("preview.updatePreview");
+    const toVueStringResultA = {
         click: "refreshParsedPreview",
         disabled: "sourceFetchState.loading",
         label: `{{ sourceFetchState.loading ? ${toVueString(
-            msg("preview.updating"),
-        )} : ${toVueString(msg("preview.updatePreview"))} }}`,
-    });
+            messageH,
+        )} : ${toVueString(messageI)} }}`,
+    };
+    const result = createRefreshButton(toVueStringResultA);
     return result;
 }
 
@@ -91,11 +97,12 @@ function createPreviewRefreshButton(): any {
  * @returns Continue button node.
  */
 function createPreviewContinueButton(): any {
-    const result = createPrimaryButton({
+    const messageG = {
         click: "submitPreviewText",
         disabled: "sourceFetchState.loading || !previewText.trim()",
         label: msg("preview.continue"),
-    });
+    };
+    const result = createPrimaryButton(messageG);
     return result;
 }
 
@@ -108,20 +115,18 @@ function createPreviewContinueButton(): any {
  * @returns Edit-summary field node.
  */
 function createEditSummaryInput(options: any): any {
-    const result = createFieldTemplate(
-        msg("preview.editSummary"),
-        [
-            createElement("cdx-text-input", {
-                "v-bind:disabled": options.disabled || "false",
-                "v-model": options.model,
-            }),
-        ],
-        {
-            attributes: {
-                class: "vg-stub-creator-preview-summary",
-            },
+    const messageF = msg("preview.editSummary");
+    const elementResult = [
+        createElement("cdx-text-input", {
+            "v-bind:disabled": options.disabled || "false",
+            "v-model": options.model,
+        }),
+    ];
+    const result = createFieldTemplate(messageF, elementResult, {
+        attributes: {
+            class: "vg-stub-creator-preview-summary",
         },
-    );
+    });
     return result;
 }
 
@@ -131,6 +136,21 @@ function createEditSummaryInput(options: any): any {
  * @returns Page edit dialog template node.
  */
 export function createPageEditDialogTemplate(): any {
+    const pageEditFooterActionsResult = createPageEditFooterActions();
+    const englishPageFieldResult = [
+        createEnglishPageField(),
+        createSourcePreviewLayout({
+            disabled: "pageEditState.loading",
+            html: "pageEditState.html",
+            ref: "pageEditTextArea",
+            text: "pageEditState.text",
+        }),
+        createErrorParagraph(
+            "pageEditState.error",
+            "{{ pageEditState.error }}",
+        ),
+        createFooterSlot(pageEditFooterActionsResult),
+    ];
     const result = createElement(
         "cdx-dialog",
         {
@@ -139,20 +159,7 @@ export function createPageEditDialogTemplate(): any {
             "v-if": "pageEditOpen",
             "v-model:open": "pageEditOpen",
         },
-        [
-            createEnglishPageField(),
-            createSourcePreviewLayout({
-                disabled: "pageEditState.loading",
-                html: "pageEditState.html",
-                ref: "pageEditTextArea",
-                text: "pageEditState.text",
-            }),
-            createErrorParagraph(
-                "pageEditState.error",
-                "{{ pageEditState.error }}",
-            ),
-            createFooterSlot(createPageEditFooterActions()),
-        ],
+        englishPageFieldResult,
     );
     return result;
 }
@@ -180,11 +187,12 @@ function createPageEditFooterActions(): any {
  * @returns Cancel button node.
  */
 function createPageEditCancelButton(): any {
-    const result = createButtonTemplate({
+    const messageE = {
         click: "closePageEditDialog",
         label: msg("preview.cancel"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageE);
     return result;
 }
 
@@ -194,13 +202,16 @@ function createPageEditCancelButton(): any {
  * @returns Refresh button node.
  */
 function createPageEditRefreshButton(): any {
-    const result = createRefreshButton({
+    const messageC = msg("preview.updating");
+    const messageD = msg("preview.updatePreview");
+    const toVueStringResult = {
         click: "refreshPageEditPreview",
         disabled: "pageEditState.loading",
         label: `{{ pageEditState.loading ? ${toVueString(
-            msg("preview.updating"),
-        )} : ${toVueString(msg("preview.updatePreview"))} }}`,
-    });
+            messageC,
+        )} : ${toVueString(messageD)} }}`,
+    };
+    const result = createRefreshButton(toVueStringResult);
     return result;
 }
 
@@ -210,13 +221,14 @@ function createPageEditRefreshButton(): any {
  * @returns Reset button node.
  */
 function createPageEditResetButton(): any {
-    const result = createButtonTemplate({
+    const messageB = {
         action: "destructive",
         click: "resetPageEdit",
         disabled: "pageEditState.loading",
         label: msg("common.reset"),
         show: "pageEditState.pending",
-    });
+    };
+    const result = createButtonTemplate(messageB);
     return result;
 }
 
@@ -226,11 +238,12 @@ function createPageEditResetButton(): any {
  * @returns Stage button node.
  */
 function createPageEditStageButton(): any {
-    const result = createPrimaryButton({
+    const messageA = {
         click: "stagePageEdit",
         disabled: "pageEditState.loading || !pageEditState.text.trim()",
         label: msg("preview.stage"),
-    });
+    };
+    const result = createPrimaryButton(messageA);
     return result;
 }
 
@@ -245,18 +258,19 @@ function createPageEditStageButton(): any {
  * @returns Source preview layout node.
  */
 function createSourcePreviewLayout(options: any): any {
+    const sourceTextAreaResult = [
+        createSourceTextArea(options),
+        createElement("div", {
+            class: "vg-stub-creator-preview-rendered mw-parser-output",
+            "v-html": options.html,
+        }),
+    ];
     const result = createElement(
         "div",
         {
             class: "vg-stub-creator-preview-layout",
         },
-        [
-            createSourceTextArea(options),
-            createElement("div", {
-                class: "vg-stub-creator-preview-rendered mw-parser-output",
-                "v-html": options.html,
-            }),
-        ],
+        sourceTextAreaResult,
     );
     return result;
 }
@@ -329,12 +343,13 @@ function createErrorParagraph(condition: string, message: string): any {
  * @returns Footer slot node.
  */
 function createFooterSlot(actions: Array<any> | any): any {
+    const actionFooterResult = [createActionFooterTemplate(actions)];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createActionFooterTemplate(actions)],
+        actionFooterResult,
     );
     return result;
 }

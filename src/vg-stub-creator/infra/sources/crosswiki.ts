@@ -17,7 +17,8 @@ export async function fetchEnwikiMetadata(
     const fetcher = options.fetcher || fetch;
 
     try {
-        const response = await fetcher(buildEnwikiMetadataUrl(title), {
+        const enwikiMetadataUrlResult = buildEnwikiMetadataUrl(title);
+        const response = await fetcher(enwikiMetadataUrlResult, {
             headers: {
                 accept: "application/json",
             },
@@ -27,7 +28,8 @@ export async function fetchEnwikiMetadata(
             return createBlankEnwikiMetadata(title);
         }
 
-        const metadata = parseEnwikiMetadata(title, await response.json());
+        const responseDataA = await response.json();
+        const metadata = parseEnwikiMetadata(title, responseDataA);
 
         if (metadata.wikidataId === "") {
             return metadata;
@@ -50,21 +52,21 @@ export async function fetchEnwikiMetadata(
  */
 async function addWikidataIdentifiers(metadata: any, fetcher: any) {
     try {
-        const response = await fetcher(
-            buildWikidataEntityUrl(metadata.wikidataId),
-            { headers: { accept: "application/json" } },
+        const wikidataEntityUrlResult = buildWikidataEntityUrl(
+            metadata.wikidataId,
         );
+        const response = await fetcher(wikidataEntityUrlResult, {
+            headers: { accept: "application/json" },
+        });
 
         if (!response.ok) {
             return metadata;
         }
 
+        const responseData = await response.json();
         const result = {
             ...metadata,
-            ...parseWikidataIdentifiers(
-                metadata.wikidataId,
-                await response.json(),
-            ),
+            ...parseWikidataIdentifiers(metadata.wikidataId, responseData),
         };
         return result;
     } catch (_error) {

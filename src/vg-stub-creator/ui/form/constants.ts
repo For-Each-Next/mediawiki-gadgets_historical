@@ -386,190 +386,257 @@ export const PRE_SAVE_STATUS_ICONS = {
         path: "M4 5v10l7-5zm8 0h2v10h-2z",
     },
 };
-export const ARTICLE_PARAMETER_GROUPS = [
-    new ArticleParameterGroup(
-        "metadata",
-        msg("metadata.tab"),
-        [
-            new ArticleParameterField(
-                "enwikiTitle",
-                msg("metadata.enwikiPage"),
-                "enwikiTitle",
-                null,
-                {
-                    placeholder: msg("metadata.enwikiPagePlaceholder"),
-                },
-            ),
-            new ArticleParameterField(
-                "developers",
-                msg("metadata.developers"),
-                "companies.developers",
-                getSourceReferenceField("developers"),
-                {
-                    placeholder: msg("metadata.namesPlaceholder"),
-                },
-            ),
-            new ArticleParameterField(
-                "publishers",
-                msg("metadata.publishers"),
-                "companies.publishers",
-                getSourceReferenceField("publishers"),
-                {
-                    placeholder: msg("metadata.namesPlaceholder"),
-                },
-            ),
-            new ArticleParameterField(
-                "series",
-                msg("metadata.series"),
-                "series",
-                getSourceReferenceField("series"),
-                {
-                    placeholder: msg("metadata.titlePlaceholder"),
-                },
-            ),
-            new ArticleParameterField(
-                "platforms",
-                msg("metadata.platforms"),
-                "platforms",
-                getSourceReferenceField("platforms"),
-                {
-                    placeholder: msg("metadata.namesPlaceholder"),
-                },
-            ),
-            new ArticleParameterField(
-                "year",
-                msg("metadata.releaseYear"),
-                "year",
-                getSourceReferenceField("year"),
-                {
-                    placeholder: msg("metadata.yearPlaceholder"),
-                },
-            ),
-            new ArticleParameterField(
-                "genres",
-                msg("metadata.genres"),
-                "genres",
-                getSourceReferenceField("genres"),
-                {
-                    placeholder: msg("metadata.namesPlaceholder"),
-                    previewKey: "attribution",
-                },
-            ),
-        ],
-        null,
-        {
-            description: msg("metadata.description"),
-            previewKey: "attribution",
-        },
-    ),
-    new ArticleParameterGroup(
-        "titles",
-        msg("titles.tab"),
-        [
-            new ArticleParameterField(
-                "originalName",
-                msg("titles.originalTitle"),
-                "originalName",
-                getSourceReferenceField("originalName"),
-                {
-                    placeholder: msg("titles.originalTitlePlaceholder"),
-                },
-            ),
-            new ArticleParameterField(
-                "englishName",
-                msg("titles.englishTitle"),
-                "englishName",
-                getSourceReferenceField("englishName"),
-                {
-                    placeholder: msg("titles.localizedTitlePlaceholder"),
-                    previewKey: "names",
-                },
-            ),
-            new ArticleParameterField(
-                "sortKey",
-                msg("titles.defaultSortKey"),
-                "sortKey",
-                null,
-                {
-                    placeholder: msg("titles.defaultSortPlaceholder"),
-                },
-            ),
-        ],
-        "localizedNames",
-        {
-            description: msg("titles.description"),
-            fieldsetLabel: msg("titles.foreignTitles"),
-            noteTaReview: true,
-        },
-    ),
-    new ArticleParameterGroup(
-        "text",
-        msg("text.tab"),
-        [
-            new ArticleParameterField(
-                "pageName",
-                msg("text.pageName"),
-                "pageName",
-                null,
-                {
-                    placeholder: msg("text.pageNamePlaceholder"),
-                },
-            ),
-            new ArticleParameterField(
-                "name",
-                msg("text.articleDisplayTitle"),
-                "name",
-                null,
-                {
-                    placeholder: ARTICLE_TITLE_PLACEHOLDER,
-                },
-            ),
-            new ArticleParameterField(
-                "metacriticScore",
-                msg("text.metacriticScore"),
-                "scores.metacriticScore",
-                getSourceReferenceField("metacriticScore"),
-                {
-                    compact: true,
-                    heading: msg("text.metacriticScore"),
-                    placeholder: "ps4:95 or 95",
-                },
-            ),
-            new ArticleParameterField(
-                "openCriticRecommend",
-                msg("text.openCritic"),
-                "scores.openCriticRecommend",
-                getSourceReferenceField("openCriticRecommend"),
-                {
-                    compact: true,
-                    heading: msg("text.openCritic"),
-                    placeholder: msg("text.openCriticPlaceholder"),
-                    previewKey: "score",
-                },
-            ),
-            new ArticleParameterField(
-                "additionalProse",
-                msg("text.additionalProse"),
-                "additionalProse",
-                getSourceReferenceField("additionalProse"),
-                {
-                    multiline: true,
-                    placeholder: msg("text.additionalProsePlaceholder"),
-                },
-            ),
-        ],
-        null,
-        {
-            description: msg("text.description"),
-            fullTextReview: true,
-        },
-    ),
-    new ArticleParameterGroup("references", msg("references.tab"), [], null, {
+const metadataGroupLabel = msg("metadata.tab");
+const enwikiTitleLabel = msg("metadata.enwikiPage");
+const enwikiTitlePlaceholder = msg("metadata.enwikiPagePlaceholder");
+const enwikiTitleField = new ArticleParameterField(
+    "enwikiTitle",
+    enwikiTitleLabel,
+    "enwikiTitle",
+    null,
+    { placeholder: enwikiTitlePlaceholder },
+);
+const developersLabel = msg("metadata.developers");
+const developersSourceField = getSourceReferenceField("developers");
+const developersPlaceholder = msg("metadata.namesPlaceholder");
+const developersField = new ArticleParameterField(
+    "developers",
+    developersLabel,
+    "companies.developers",
+    developersSourceField,
+    { placeholder: developersPlaceholder },
+);
+const publishersLabel = msg("metadata.publishers");
+const publishersSourceField = getSourceReferenceField("publishers");
+const publishersPlaceholder = msg("metadata.namesPlaceholder");
+const publishersField = new ArticleParameterField(
+    "publishers",
+    publishersLabel,
+    "companies.publishers",
+    publishersSourceField,
+    { placeholder: publishersPlaceholder },
+);
+const seriesLabel = msg("metadata.series");
+const seriesSourceField = getSourceReferenceField("series");
+const seriesPlaceholder = msg("metadata.titlePlaceholder");
+const seriesField = new ArticleParameterField(
+    "series",
+    seriesLabel,
+    "series",
+    seriesSourceField,
+    { placeholder: seriesPlaceholder },
+);
+const platformsLabel = msg("metadata.platforms");
+const platformsSourceField = getSourceReferenceField("platforms");
+const platformsPlaceholder = msg("metadata.namesPlaceholder");
+const platformsField = new ArticleParameterField(
+    "platforms",
+    platformsLabel,
+    "platforms",
+    platformsSourceField,
+    { placeholder: platformsPlaceholder },
+);
+const yearLabel = msg("metadata.releaseYear");
+const yearSourceField = getSourceReferenceField("year");
+const yearPlaceholder = msg("metadata.yearPlaceholder");
+const yearField = new ArticleParameterField(
+    "year",
+    yearLabel,
+    "year",
+    yearSourceField,
+    { placeholder: yearPlaceholder },
+);
+const genresLabel = msg("metadata.genres");
+const genresSourceField = getSourceReferenceField("genres");
+const genresPlaceholder = msg("metadata.namesPlaceholder");
+const genresField = new ArticleParameterField(
+    "genres",
+    genresLabel,
+    "genres",
+    genresSourceField,
+    {
+        placeholder: genresPlaceholder,
+        previewKey: "attribution",
+    },
+);
+const metadataFields = [
+    enwikiTitleField,
+    developersField,
+    publishersField,
+    seriesField,
+    platformsField,
+    yearField,
+    genresField,
+];
+const metadataDescription = msg("metadata.description");
+const metadataGroup = new ArticleParameterGroup(
+    "metadata",
+    metadataGroupLabel,
+    metadataFields,
+    null,
+    {
+        description: metadataDescription,
+        previewKey: "attribution",
+    },
+);
+
+const titlesGroupLabel = msg("titles.tab");
+const originalNameLabel = msg("titles.originalTitle");
+const originalNameSourceField = getSourceReferenceField("originalName");
+const originalNamePlaceholder = msg("titles.originalTitlePlaceholder");
+const originalNameField = new ArticleParameterField(
+    "originalName",
+    originalNameLabel,
+    "originalName",
+    originalNameSourceField,
+    { placeholder: originalNamePlaceholder },
+);
+const englishNameLabel = msg("titles.englishTitle");
+const englishNameSourceField = getSourceReferenceField("englishName");
+const englishNamePlaceholder = msg("titles.localizedTitlePlaceholder");
+const englishNameField = new ArticleParameterField(
+    "englishName",
+    englishNameLabel,
+    "englishName",
+    englishNameSourceField,
+    {
+        placeholder: englishNamePlaceholder,
+        previewKey: "names",
+    },
+);
+const sortKeyLabel = msg("titles.defaultSortKey");
+const sortKeyPlaceholder = msg("titles.defaultSortPlaceholder");
+const sortKeyField = new ArticleParameterField(
+    "sortKey",
+    sortKeyLabel,
+    "sortKey",
+    null,
+    { placeholder: sortKeyPlaceholder },
+);
+const titleFields = [originalNameField, englishNameField, sortKeyField];
+const titlesDescription = msg("titles.description");
+const titlesFieldsetLabel = msg("titles.foreignTitles");
+const titlesGroup = new ArticleParameterGroup(
+    "titles",
+    titlesGroupLabel,
+    titleFields,
+    "localizedNames",
+    {
+        description: titlesDescription,
+        fieldsetLabel: titlesFieldsetLabel,
+        noteTaReview: true,
+    },
+);
+
+const textGroupLabel = msg("text.tab");
+const pageNameLabel = msg("text.pageName");
+const pageNamePlaceholder = msg("text.pageNamePlaceholder");
+const pageNameField = new ArticleParameterField(
+    "pageName",
+    pageNameLabel,
+    "pageName",
+    null,
+    { placeholder: pageNamePlaceholder },
+);
+const articleNameLabel = msg("text.articleDisplayTitle");
+const articleNameField = new ArticleParameterField(
+    "name",
+    articleNameLabel,
+    "name",
+    null,
+    { placeholder: ARTICLE_TITLE_PLACEHOLDER },
+);
+const metacriticScoreLabel = msg("text.metacriticScore");
+const metacriticScoreSourceField = getSourceReferenceField("metacriticScore");
+const metacriticScoreHeading = msg("text.metacriticScore");
+const metacriticScoreField = new ArticleParameterField(
+    "metacriticScore",
+    metacriticScoreLabel,
+    "scores.metacriticScore",
+    metacriticScoreSourceField,
+    {
+        compact: true,
+        heading: metacriticScoreHeading,
+        placeholder: "ps4:95 or 95",
+    },
+);
+const openCriticLabel = msg("text.openCritic");
+const openCriticSourceField = getSourceReferenceField("openCriticRecommend");
+const openCriticHeading = msg("text.openCritic");
+const openCriticPlaceholder = msg("text.openCriticPlaceholder");
+const openCriticField = new ArticleParameterField(
+    "openCriticRecommend",
+    openCriticLabel,
+    "scores.openCriticRecommend",
+    openCriticSourceField,
+    {
+        compact: true,
+        heading: openCriticHeading,
+        placeholder: openCriticPlaceholder,
+        previewKey: "score",
+    },
+);
+const additionalProseLabel = msg("text.additionalProse");
+const additionalProseSourceField = getSourceReferenceField("additionalProse");
+const additionalProsePlaceholder = msg("text.additionalProsePlaceholder");
+const additionalProseField = new ArticleParameterField(
+    "additionalProse",
+    additionalProseLabel,
+    "additionalProse",
+    additionalProseSourceField,
+    {
+        multiline: true,
+        placeholder: additionalProsePlaceholder,
+    },
+);
+const textFields = [
+    pageNameField,
+    articleNameField,
+    metacriticScoreField,
+    openCriticField,
+    additionalProseField,
+];
+const textDescription = msg("text.description");
+const textGroup = new ArticleParameterGroup(
+    "text",
+    textGroupLabel,
+    textFields,
+    null,
+    {
+        description: textDescription,
+        fullTextReview: true,
+    },
+);
+
+const referencesGroupLabel = msg("references.tab");
+const referencesDescription = msg("references.description");
+const referencesGroup = new ArticleParameterGroup(
+    "references",
+    referencesGroupLabel,
+    [],
+    null,
+    {
         citationReview: true,
-        description: msg("references.description"),
-    }),
-    new ArticleParameterGroup("review", msg("review.tab"), [], null, {
+        description: referencesDescription,
+    },
+);
+const reviewGroupLabel = msg("review.tab");
+const reviewDescription = msg("review.description");
+const reviewGroup = new ArticleParameterGroup(
+    "review",
+    reviewGroupLabel,
+    [],
+    null,
+    {
         categoryReview: true,
-        description: msg("review.description"),
-    }),
+        description: reviewDescription,
+    },
+);
+
+export const ARTICLE_PARAMETER_GROUPS = [
+    metadataGroup,
+    titlesGroup,
+    textGroup,
+    referencesGroup,
+    reviewGroup,
 ];

@@ -26,7 +26,6 @@ its source adapters and citation cache.
 Dependencies point toward `domain/` and `shared/`. Domain code never imports
 app, infra, or UI code. Infra does not import UI code. Use `#me/*` for
 package-local imports and `#shared` for the workspace-wide shared package.
-Run `npm run architecture:check` to verify these boundaries.
 
 ## Data definitions
 

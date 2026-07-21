@@ -89,8 +89,10 @@ function addPreSaveActionGroups(
             continue;
         }
 
-        group.rows.push(createPreSaveActionRow(action));
-        group.rows.push(...createPreSaveNoteRows(action));
+        const preSaveActionRowResult = createPreSaveActionRow(action);
+        group.rows.push(preSaveActionRowResult);
+        const preSaveNoteRowsResult = createPreSaveNoteRows(action);
+        group.rows.push(...preSaveNoteRowsResult);
     }
 }
 
@@ -168,9 +170,11 @@ function addArticleRegistrationGroup(
         return;
     }
 
-    getPreSaveGroup(groups, byTitle, title).rows.push({
+    const rows = getPreSaveGroup(groups, byTitle, title).rows;
+    const label = msg("progress.registerNewPage");
+    rows.push({
         key: "register-new-page",
-        label: msg("progress.registerNewPage"),
+        label,
         type: "registration",
     });
 }
@@ -202,9 +206,11 @@ function addCompanyRegistrationGroups(
             continue;
         }
 
-        getPreSaveGroup(groups, byTitle, title).rows.push({
+        const rows = getPreSaveGroup(groups, byTitle, title).rows;
+        const label = msg("progress.registerNewPage");
+        rows.push({
             key: `${action.id}:register-new-page`,
-            label: msg("progress.registerNewPage"),
+            label,
             type: "registration",
         });
     }
@@ -288,15 +294,17 @@ function getPreSaveActionNotes(action: any): Array<any> {
     const wikidataId = trimValue(action.wikidataId);
 
     if (wikidataId !== "") {
-        notes.push({
+        const messageG = {
             key: "wikidata",
             label: msg("presave.connectTo", { target: `d:${wikidataId}` }),
-        });
+        };
+        notes.push(messageG);
     } else if (trimValue(action.englishName) !== "") {
-        notes.push({
+        const messageF = {
             key: "wikidata",
             label: msg("progress.connectCategory"),
-        });
+        };
+        notes.push(messageF);
     }
 
     return notes;
@@ -315,7 +323,9 @@ function movePreSaveWikidataRowsLast(group: any): any {
         rows = group.rows;
     }
     const wikidataRows = rows.filter(isPreSaveWikidataRow);
-    const otherRows = rows.filter((row) => !isPreSaveWikidataRow(row));
+    const filterCallback = (row: Record<string, unknown>) =>
+        !isPreSaveWikidataRow(row);
+    const otherRows = rows.filter(filterCallback);
 
     const result = {
         ...group,
@@ -345,29 +355,29 @@ function isPreSaveWikidataRow(row: any): boolean {
 export function serializePreSaveProgressGroups(
     groups: Array<any>,
 ): Array<any> {
-    const result = (Array.isArray(groups) ? groups : []).map(
-        function callback(group) {
+    const mapCallback = function callback(group: any) {
+        const mapCallbackA = function callback(row: {
+            key: unknown;
+            label: unknown;
+            type: unknown;
+        }) {
             const result = {
-                key: trimValue(group?.key),
-                rows: (Array.isArray(group?.rows) ? group.rows : []).map(
-                    function callback(row: {
-                        key: unknown;
-                        label: unknown;
-                        type: unknown;
-                    }) {
-                        const result = {
-                            key: trimValue(row?.key),
-                            label: trimValue(row?.label),
-                            type: trimValue(row?.type),
-                        };
-                        return result;
-                    },
-                ),
-                title: trimValue(group?.title),
+                key: trimValue(row?.key),
+                label: trimValue(row?.label),
+                type: trimValue(row?.type),
             };
             return result;
-        },
-    );
+        };
+        const result = {
+            key: trimValue(group?.key),
+            rows: (Array.isArray(group?.rows) ? group.rows : []).map(
+                mapCallbackA,
+            ),
+            title: trimValue(group?.title),
+        };
+        return result;
+    };
+    const result = (Array.isArray(groups) ? groups : []).map(mapCallback);
     return result;
 }
 
@@ -405,20 +415,18 @@ function isCompanyCategoryPreSaveAction(action: any): boolean {
  * @returns Pre-save fixes dialog template node.
  */
 export function createPreSaveDialogTemplate(): any {
-    const result = createElement(
-        "cdx-dialog",
-        {
-            "v-model:open": "preSaveOpen",
-            title: msg("presave.title"),
-        },
-        [
-            createPreSaveIntroTemplate(),
-            createPreSaveProgressIndicatorTemplate(),
-            createPreSaveGroupsTemplate(),
-            ...createPreSaveErrorTemplates(),
-            createPreSaveFooterTemplate(),
-        ],
-    );
+    const messageE = {
+        "v-model:open": "preSaveOpen",
+        title: msg("presave.title"),
+    };
+    const preSaveIntroResult = [
+        createPreSaveIntroTemplate(),
+        createPreSaveProgressIndicatorTemplate(),
+        createPreSaveGroupsTemplate(),
+        ...createPreSaveErrorTemplates(),
+        createPreSaveFooterTemplate(),
+    ];
+    const result = createElement("cdx-dialog", messageE, preSaveIntroResult);
     return result;
 }
 
@@ -428,13 +436,13 @@ export function createPreSaveDialogTemplate(): any {
  * @returns Intro text node.
  */
 function createPreSaveIntroTemplate(): any {
-    const result = createElement("p", {}, [
-        createText(
-            `{{ preSaveProgress == null ? ${toVueString(
-                msg("presave.description"),
-            )} : ${toVueString(msg("presave.running"))} }}`,
-        ),
-    ]);
+    const messageC = msg("presave.description");
+    const messageD = msg("presave.running");
+    const toVueStringResultA = `{{ preSaveProgress == null ? ${toVueString(
+        messageC,
+    )} : ${toVueString(messageD)} }}`;
+    const textResultE = [createText(toVueStringResultA)];
+    const result = createElement("p", {}, textResultE);
     return result;
 }
 
@@ -444,13 +452,14 @@ function createPreSaveIntroTemplate(): any {
  * @returns Progress indicator node.
  */
 function createPreSaveProgressIndicatorTemplate(): any {
+    const textResultD = [createText("{{ getPreSaveCurrentStepLabel() }}")];
     const result = createElement(
         "cdx-progress-indicator",
         {
             "show-label": "",
             "v-if": "isPreSaveProgressRunning()",
         },
-        [createText("{{ getPreSaveCurrentStepLabel() }}")],
+        textResultD,
     );
     return result;
 }
@@ -461,12 +470,13 @@ function createPreSaveProgressIndicatorTemplate(): any {
  * @returns Pre-save group list node.
  */
 function createPreSaveGroupsTemplate(): any {
+    const preSaveGroupResult = [createPreSaveGroupTemplate()];
     const result = createElement(
         "div",
         {
             class: "vg-stub-creator-pre-save-groups",
         },
-        [createPreSaveGroupTemplate()],
+        preSaveGroupResult,
     );
     return result;
 }
@@ -477,6 +487,24 @@ function createPreSaveGroupsTemplate(): any {
  * @returns Pre-save page group node.
  */
 function createPreSaveGroupTemplate(): any {
+    const textResultC = [createText("{{ group.title }}")];
+    const preSaveRowResult = [createPreSaveRowTemplate()];
+    const elementResultA = [
+        createElement(
+            "div",
+            {
+                class: "vg-stub-creator-pre-save-title",
+            },
+            textResultC,
+        ),
+        createElement(
+            "ul",
+            {
+                class: "vg-stub-creator-pre-save-list",
+            },
+            preSaveRowResult,
+        ),
+    ];
     const result = createElement(
         "section",
         {
@@ -484,22 +512,7 @@ function createPreSaveGroupTemplate(): any {
             "v-bind:key": "group.key",
             "v-for": "group in getVisiblePreSaveGroups()",
         },
-        [
-            createElement(
-                "div",
-                {
-                    class: "vg-stub-creator-pre-save-title",
-                },
-                [createText("{{ group.title }}")],
-            ),
-            createElement(
-                "ul",
-                {
-                    class: "vg-stub-creator-pre-save-list",
-                },
-                [createPreSaveRowTemplate()],
-            ),
-        ],
+        elementResultA,
     );
     return result;
 }
@@ -510,6 +523,7 @@ function createPreSaveGroupTemplate(): any {
  * @returns Pre-save row node.
  */
 function createPreSaveRowTemplate(): any {
+    const textResultB = [createText("{{ row.label }}")];
     const children = [
         createPreSaveProgressRowTemplate(),
         createPreSaveCheckboxTemplate("action", "row.action.selected"),
@@ -518,7 +532,7 @@ function createPreSaveRowTemplate(): any {
         createElement(
             "span",
             { class: "vg-stub-creator-pre-save-note", "v-else": "" },
-            [createText("{{ row.label }}")],
+            textResultB,
         ),
     ];
     const row = createElement(
@@ -541,18 +555,20 @@ function createPreSaveRowTemplate(): any {
  * @returns Progress row branch node.
  */
 function createPreSaveProgressRowTemplate(): any {
+    const textResultA = [createText("{{ row.label }}")];
+    const elementResult = [
+        createElement("cdx-icon", {
+            "v-bind:class": "getPreSaveStatusIconClass(row.step.status)",
+            "v-bind:icon": "getPreSaveStatusIcon(row.step.status)",
+        }),
+        createElement("span", {}, textResultA),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "row.type === 'progress'",
         },
-        [
-            createElement("cdx-icon", {
-                "v-bind:class": "getPreSaveStatusIconClass(row.step.status)",
-                "v-bind:icon": "getPreSaveStatusIcon(row.step.status)",
-            }),
-            createElement("span", {}, [createText("{{ row.label }}")]),
-        ],
+        elementResult,
     );
     return result;
 }
@@ -565,13 +581,14 @@ function createPreSaveProgressRowTemplate(): any {
  * @returns Checkbox branch node.
  */
 function createPreSaveCheckboxTemplate(rowType: string, model: string): any {
+    const textResult = [createText("{{ row.label }}")];
     const result = createElement(
         "cdx-checkbox",
         {
             "v-else-if": `row.type === '${rowType}'`,
             "v-model": model,
         },
-        [createText("{{ row.label }}")],
+        textResult,
     );
     return result;
 }
@@ -601,12 +618,16 @@ function createPreSaveErrorTemplates(): Array<any> {
  * @returns Dialog footer node.
  */
 function createPreSaveFooterTemplate(): any {
+    const preSaveFooterActionsResult = createPreSaveFooterActions();
+    const actionFooterResult = [
+        createActionFooterTemplate(preSaveFooterActionsResult),
+    ];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createActionFooterTemplate(createPreSaveFooterActions())],
+        actionFooterResult,
     );
     return result;
 }
@@ -630,12 +651,13 @@ function createPreSaveFooterActions(): any {
  * @returns Close button node.
  */
 function createPreSaveCloseButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageB = {
         click: "preSaveOpen = false",
         disabled: "sourceFetchState.loading",
         label: msg("common.close"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageB);
     return result;
 }
 
@@ -645,14 +667,17 @@ function createPreSaveCloseButtonTemplate(): any {
  * @returns Submit button node.
  */
 function createPreSaveSubmitButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const message = msg("presave.preparing");
+    const messageA = msg("common.save");
+    const toVueStringResult = {
         action: "progressive",
         click: "confirmSubmit",
         disabled: "sourceFetchState.loading || preSaveProgress != null",
         label: `{{ sourceFetchState.loading ? ${toVueString(
-            msg("presave.preparing"),
-        )} : ${toVueString(msg("common.save"))} }}`,
+            message,
+        )} : ${toVueString(messageA)} }}`,
         weight: "primary",
-    });
+    };
+    const result = createButtonTemplate(toVueStringResult);
     return result;
 }

@@ -43,7 +43,6 @@
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "test": "node --test ../../tests/citation-formatter/*.test.ts",
-        "update:template-data": "node ../../scripts/update-citation-template-data.ts",
         "prepublishOnly": "npm run check"
     },
     "engines": {

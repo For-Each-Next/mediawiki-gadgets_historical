@@ -11,20 +11,22 @@ export interface PageLookupApi {
 
 const MAX_ACTION_ATTEMPTS = 3;
 
+const videoGamesBanner = buildTemplateCall("WikiProject Video games");
 export const TALK_PAGE_BANNER = buildTemplateText(
     "WikiProject banner shell",
     [
         ["class", "stub"],
-        ["1", buildTemplateCall("WikiProject Video games")],
+        ["1", videoGamesBanner],
     ],
     "block",
 );
+const unassessedBannerParams: Parameters<typeof buildTemplateText>[1] = [
+    ["class", "unassessed"],
+    ["1", buildTemplateCall("WikiProject Video games")],
+];
 const UNASSESSED_TALK_PAGE_BANNER = buildTemplateText(
     "WikiProject banner shell",
-    [
-        ["class", "unassessed"],
-        ["1", buildTemplateCall("WikiProject Video games")],
-    ],
+    unassessedBannerParams,
     "block",
 );
 
@@ -46,20 +48,28 @@ export function buildPreSaveActions(
     const title = normalizeTitle(selection.title);
     const finalTitle = normalizeTitle(selection.finalTitle) || title;
     const existingRows = createExistingTitleRows(existingRedirectTitles);
-    const existingKeys = new Set(
-        existingRows.filter((row) => row.exists).map((row) => row.key),
-    );
+    const existingKeyValues = existingRows
+        .filter((row) => row.exists)
+        .map((row) => row.key);
+    const existingKeys = new Set(existingKeyValues);
     const actions = buildInitialPreSaveActions(form, title, finalTitle);
 
     for (const row of getPreSaveRedirectRows(form, title)) {
-        actions.push(createRedirectAction(row, title, existingKeys));
+        const redirectActionResult = createRedirectAction(
+            row,
+            title,
+            existingKeys,
+        );
+        actions.push(redirectActionResult);
     }
 
     for (const row of (form.categoryRows || []).filter(isPreSaveCategoryRow)) {
-        actions.push(createCategoryAction(row));
+        const categoryActionResult = createCategoryAction(row);
+        actions.push(categoryActionResult);
     }
 
-    actions.push(...buildPageEditActions(form));
+    const pageEditActionsResult = buildPageEditActions(form);
+    actions.push(...pageEditActionsResult);
 
     return actions;
 }
@@ -81,7 +91,7 @@ function buildInitialPreSaveActions(
     const wikidataId = normalizeTitle(form.wikidataId);
 
     if (wikidataId !== "") {
-        actions.unshift({
+        const message = {
             displayLabel: msg("presave.connectTo", {
                 target: `d:${wikidataId}`,
             }),
@@ -94,7 +104,8 @@ function buildInitialPreSaveActions(
             selected: true,
             type: "interwiki",
             wikidataId,
-        });
+        };
+        actions.unshift(message);
     }
 
     return actions;
@@ -139,10 +150,11 @@ function buildPageEditActions(form: {
         form.stubTagRows,
     ];
 
+    const mapCallbackB = (row: any) => createPageEditAction(row.pendingEdit);
     const result = collections
         .flatMap((rows) => rows || [])
         .filter(isPreSavePageEditRow)
-        .map((row) => createPageEditAction(row.pendingEdit));
+        .map(mapCallbackB);
     return result;
 }
 
@@ -287,8 +299,9 @@ export function buildRedirectRows(
     articleTitle: string,
     existingRedirectTitles: Array<any | string> = [],
 ): Array<any> {
+    const redirectTitlesResult = buildRedirectTitles(form, articleTitle);
     const result = buildRedirectRowsFromTitles(
-        buildRedirectTitles(form, articleTitle),
+        redirectTitlesResult,
         articleTitle,
         existingRedirectTitles,
     );
@@ -313,9 +326,10 @@ export function buildRedirectRowsFromTitles(
     const seen = new Set<string>();
 
     const context = { existingRows, seen, targetKey };
-    const rows = titles.map(normalizeTitle).flatMap(function callback(title) {
+    const flatMapCallbackB = function callback(title: string) {
         return normalizeRedirectReviewTitle(title, context);
-    });
+    };
+    const rows = titles.map(normalizeTitle).flatMap(flatMapCallbackB);
 
     return rows;
 }
@@ -381,7 +395,7 @@ export function buildRedirectTitles(
     ];
     const seen = new Set<string>();
 
-    const result = names.map(normalizeTitle).filter(function callback(title) {
+    const filterCallback = function callback(title: string) {
         const key = normalizeTitleKey(title);
 
         if (key === "" || key === targetKey || seen.has(key)) {
@@ -390,7 +404,8 @@ export function buildRedirectTitles(
 
         seen.add(key);
         return true;
-    });
+    };
+    const result = names.map(normalizeTitle).filter(filterCallback);
     return result;
 }
 
@@ -411,7 +426,7 @@ function getPreSaveRedirectRows(form: any, articleTitle: string): Array<any> {
     const seen = new Set<string>();
 
     const context = { seen, targetKey };
-    const normalized = rows.flatMap(function callback(row: {
+    const flatMapCallbackA = function callback(row: {
         title: string;
         redirectTitle: string;
         pendingEdit: DynamicRecord | null;
@@ -420,7 +435,8 @@ function getPreSaveRedirectRows(form: any, articleTitle: string): Array<any> {
         exists: boolean;
     }) {
         return normalizePreSaveRedirectRow(row, context);
-    });
+    };
+    const normalized = rows.flatMap(flatMapCallbackA);
 
     return normalized;
 }
@@ -446,12 +462,11 @@ function normalizePreSaveRedirectRow(
     const title = normalizeTitle(row.title ?? row.redirectTitle);
     const key = normalizeTitleKey(title);
 
-    if (
-        row.pendingEdit != null ||
-        key === "" ||
-        key === context.targetKey ||
-        context.seen.has(key)
-    ) {
+    if (row.pendingEdit != null || key === "" || key === context.targetKey) {
+        return [];
+    }
+
+    if (context.seen.has(key)) {
         return [];
     }
 
@@ -481,9 +496,12 @@ function createRedirectAction(
     existingKeys: Set<string>,
 ): any {
     const redirectTitle = normalizeTitle(row.title);
-    const exists =
-        row.exists === true ||
-        existingKeys.has(normalizeTitleKey(redirectTitle));
+    let exists = row.exists === true;
+
+    if (!exists) {
+        const redirectKey = normalizeTitleKey(redirectTitle);
+        exists = existingKeys.has(redirectKey);
+    }
 
     let displayLabel = `Redirect to [[${title}]]`;
     let label = `Redirect name: ${redirectTitle} to ${title}`;
@@ -559,7 +577,8 @@ function findExistingTitleRow(
     title: string,
     rows: Array<any>,
 ): any | undefined {
-    return rows.find((item) => item.key === normalizeTitleKey(title));
+    const findCallback = (item: any) => item.key === normalizeTitleKey(title);
+    return rows.find(findCallback);
 }
 
 /**
@@ -645,17 +664,19 @@ export async function fetchExistingPageTitles(
         return [];
     }
 
-    const data = await api.get({
+    const joinedTextA = {
         action: "query",
         converttitles: "1",
         titles: titles.join("|"),
-    });
+    };
+    const data = await api.get(joinedTextA);
     const { conversionMap, existingKeys } = getExistingTitleContext(data);
     const context = { conversionMap, existingKeys };
     const normalizedTitles = titles.map(normalizeTitle);
-    const matches = normalizedTitles.flatMap(function callback(title) {
+    const flatMapCallback = function callback(title: string) {
         return createExistingPageTitleMatch(title, context);
-    });
+    };
+    const matches = normalizedTitles.flatMap(flatMapCallback);
 
     return matches;
 }
@@ -674,19 +695,22 @@ function getExistingTitleContext(data: {
     };
 }): { conversionMap: Map<string, string>; existingKeys: Set<string> } {
     const converted = data?.query?.converted || [];
-    const conversionMap = new Map<string, string>(
-        converted.map(function callback(item) {
-            const from = normalizeTitleKey(item.from);
-            const pair = [from, normalizeTitle(item.to)];
-            return pair as [string, string];
-        }),
-    );
+    const mapCallbackA = function callback(item: {
+        from: string;
+        to: string;
+    }) {
+        const from = normalizeTitleKey(item.from);
+        const pair = [from, normalizeTitle(item.to)];
+        return pair as [string, string];
+    };
+    const conversionEntries = converted.map(mapCallbackA);
+    const conversionMap = new Map<string, string>(conversionEntries);
     const pages = Object.values(data?.query?.pages || {}) as any[];
-    const existingKeys = new Set(
-        pages
-            .filter((page) => page.missing == null)
-            .map((page) => normalizeTitleKey(page.title)),
-    );
+    const mapCallback = (page: any) => normalizeTitleKey(page.title);
+    const existingKeyValues = pages
+        .filter((page) => page.missing == null)
+        .map(mapCallback);
+    const existingKeys = new Set(existingKeyValues);
 
     return { conversionMap, existingKeys };
 }
@@ -707,7 +731,8 @@ function createExistingPageTitleMatch(
 ): Array<unknown> {
     const requestedKey = normalizeTitleKey(title);
     const convertedTitle = context.conversionMap.get(requestedKey) || title;
-    const exists = context.existingKeys.has(normalizeTitleKey(convertedTitle));
+    const titleKeyResult = normalizeTitleKey(convertedTitle);
+    const exists = context.existingKeys.has(titleKeyResult);
     const converted =
         normalizeTitleKey(convertedTitle) !== normalizeTitleKey(title);
 
@@ -1085,14 +1110,16 @@ async function runCategoryAction(
     }
 
     if (save == null) {
-        throw new Error(msg("errors.categorySaveUnavailable"));
+        const message = msg("errors.categorySaveUnavailable");
+        throw new Error(message);
     }
 
-    await save(action.category, action.text, action.englishName, {
+    const saveArgument = {
         onProgress(operation: string, status: string) {
             reportCategoryActionProgress(action, operation, status, options);
         },
-    });
+    };
+    await save(action.category, action.text, action.englishName, saveArgument);
 }
 
 /**
@@ -1188,14 +1215,14 @@ export async function connectWikidataSitelink(
     wikidataId: string,
     title: string,
 ): Promise<void> {
+    const summaryLink = buildWikidataSummaryLink(title);
+    const wikidataSummaryLinkResult = `see '${summaryLink}'`;
     const params = {
         action: "wbsetsitelink",
         id: wikidataId,
         linksite: "zhwiki",
         linktitle: title,
-        summary: addEditSummarySuffix(
-            `see '${buildWikidataSummaryLink(title)}'`,
-        ),
+        summary: addEditSummarySuffix(wikidataSummaryLinkResult),
     };
 
     await api.postWithToken("csrf", params);
@@ -1256,16 +1283,15 @@ export async function addTalkPageBanner(
         return;
     }
 
+    const joinedText = [
+        "tagging the {{[[Template:WikiProje",
+        "ct Video games|WikiProject Video g",
+        "ames]]}} banner",
+    ].join("");
     const params = {
         action: "edit",
         appendtext: `${text === "" ? "" : "\n\n"}${banner}`,
-        summary: addEditSummarySuffix(
-            [
-                "tagging the {{[[Template:WikiProje",
-                "ct Video games|WikiProject Video g",
-                "ames]]}} banner",
-            ].join(""),
-        ),
+        summary: addEditSummarySuffix(joinedText),
         title,
     };
 
@@ -1306,8 +1332,10 @@ async function fetchTalkPageText(api: any, title: string): Promise<string> {
  * @returns Talk-page banner wikitext.
  */
 function getTalkPageBanner(title: string): string {
+    const titleResult = normalizeTitle(title);
+    const matchesPattern = /^Category:/iu.test(titleResult);
     const result = selectValue(
-        /^Category:/iu.test(normalizeTitle(title)),
+        matchesPattern,
         function trueBranch() {
             return UNASSESSED_TALK_PAGE_BANNER;
         },
@@ -1327,11 +1355,12 @@ function getTalkPageBanner(title: string): string {
 function getTalkPageTitle(title: string): string {
     const categoryMatch = normalizeTitle(title).match(/^Category:(.+)$/iu);
 
+    const selectValueCallback = function trueBranch() {
+        return `Talk:${normalizeTitle(title)}`;
+    };
     const result = selectValue(
         categoryMatch == null,
-        function trueBranch() {
-            return `Talk:${normalizeTitle(title)}`;
-        },
+        selectValueCallback,
         function falseBranch() {
             return `Category talk:${categoryMatch[1]}`;
         },
@@ -1374,9 +1403,12 @@ function isChineseNameRow(row: any): boolean {
         (market) => row[market] === true,
     );
 
-    return (
-        hasChineseMarket || /\p{Script=Han}/u.test(normalizeTitle(row.name))
-    );
+    if (hasChineseMarket) {
+        return true;
+    }
+
+    const title = normalizeTitle(row.name);
+    return /\p{Script=Han}/u.test(title);
 }
 
 /**

@@ -14,25 +14,28 @@ import { msg } from "#me/i18n/index.ts";
  * @returns Citation management template node.
  */
 export function createCitationGroupTemplate(): any {
+    const messageG = msg("references.empty");
+    const textResultA = [createText(messageG)];
+    const elementResultA = [
+        createElement(
+            "p",
+            {
+                "v-if": "form.citationRows.length === 0",
+            },
+            textResultA,
+        ),
+        createCitationTabsTemplate(),
+        createMessageTemplate(
+            "citationState.error",
+            "{{ citationState.error }}",
+        ),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "group.citationReview",
         },
-        [
-            createElement(
-                "p",
-                {
-                    "v-if": "form.citationRows.length === 0",
-                },
-                [createText(msg("references.empty"))],
-            ),
-            createCitationTabsTemplate(),
-            createMessageTemplate(
-                "citationState.error",
-                "{{ citationState.error }}",
-            ),
-        ],
+        elementResultA,
     );
     return result;
 }
@@ -43,6 +46,7 @@ export function createCitationGroupTemplate(): any {
  * @returns Citation tabs node.
  */
 function createCitationTabsTemplate(): any {
+    const citationTabResult = [createCitationTabTemplate()];
     const result = createElement(
         "cdx-tabs",
         {
@@ -50,7 +54,7 @@ function createCitationTabsTemplate(): any {
             "v-bind:key": "getCitationTabsKey(form.citationRows)",
             "v-model:active": "activeCitationTab",
         },
-        [createCitationTabTemplate()],
+        citationTabResult,
     );
     return result;
 }
@@ -61,6 +65,7 @@ function createCitationTabsTemplate(): any {
  * @returns Citation tab node.
  */
 function createCitationTabTemplate(): any {
+    const citationTableResult = [createCitationTableTemplate()];
     const result = createElement(
         "cdx-tab",
         {
@@ -70,7 +75,7 @@ function createCitationTabTemplate(): any {
             "v-bind:name": "getCitationTabName(citation, citationIndex)",
             "v-for": "(citation, citationIndex) in form.citationRows",
         },
-        [createCitationTableTemplate()],
+        citationTableResult,
     );
     return result;
 }
@@ -81,10 +86,11 @@ function createCitationTabTemplate(): any {
  * @returns Citation table node.
  */
 function createCitationTableTemplate(): any {
+    const citationParamSlotsResult = createCitationParamSlotsTemplate();
     const result = createTableTemplate(
         "citationTableColumns",
         "getCitationParamTableRows(citation)",
-        createCitationParamSlotsTemplate(),
+        citationParamSlotsResult,
         {
             "v-bind:caption": "getCitationTabLabel(citation)",
         },
@@ -98,9 +104,10 @@ function createCitationTableTemplate(): any {
  * @returns Citation parameter row template node.
  */
 function createCitationParamSlotsTemplate(): any {
+    const citationHeaderActionsResult = createCitationHeaderActions();
     const header = createTableHeaderTemplate(
         "getCitationTabLabel(citation)",
-        createCitationHeaderActions(),
+        citationHeaderActionsResult,
         { bindTitle: true },
     );
 
@@ -121,8 +128,9 @@ function createCitationParamSlotsTemplate(): any {
  */
 function createCitationHeaderActions(): Array<any> {
     const refetchTitle = [msg("references.refetch")].join("");
+    const messageF = msg("references.refetchAction");
     const refetch = createIconActionLinkTemplate(
-        msg("references.refetchAction"),
+        messageF,
         "tableActionIcons.regenerate",
         "refetchCitation(citationIndex)",
         {
@@ -130,13 +138,15 @@ function createCitationHeaderActions(): Array<any> {
             title: refetchTitle,
         },
     );
+    const messageE = msg("common.clean");
     const clean = createIconActionLinkTemplate(
-        msg("common.clean"),
+        messageE,
         "tableActionIcons.clean",
         "cleanCitationParams(citationIndex)",
     );
+    const messageD = msg("references.addParameter");
     const add = createIconActionLinkTemplate(
-        msg("references.addParameter"),
+        messageD,
         "tableActionIcons.cdxIconArticleAdd",
         "addCitationParam(citationIndex)",
     );
@@ -150,7 +160,7 @@ function createCitationHeaderActions(): Array<any> {
  * @returns Parameter-name slot node.
  */
 function createCitationNameSlotTemplate(): any {
-    const result = createInputSlotTemplate("name", {
+    const messageC = {
         placeholder: msg("references.parameterName"),
         "v-bind:model-value": "row.param.name",
         "v-on:change": "sortCitation(citationIndex)",
@@ -158,7 +168,8 @@ function createCitationNameSlotTemplate(): any {
             "updateCitationParam(citationIndex,",
             " row.index, 'name', $event)",
         ].join(""),
-    });
+    };
+    const result = createInputSlotTemplate("name", messageC);
     return result;
 }
 
@@ -168,7 +179,7 @@ function createCitationNameSlotTemplate(): any {
  * @returns Parameter-value slot node.
  */
 function createCitationValueSlotTemplate(): any {
-    const result = createInputSlotTemplate("value", {
+    const messageB = {
         placeholder: msg("common.value"),
         "v-bind:model-value": "row.param.value",
         "v-on:change": "sortCitation(citationIndex)",
@@ -176,7 +187,8 @@ function createCitationValueSlotTemplate(): any {
             "updateCitationParam(citationIndex,",
             " row.index, 'value', $event)",
         ].join(""),
-    });
+    };
+    const result = createInputSlotTemplate("value", messageB);
     return result;
 }
 
@@ -186,9 +198,11 @@ function createCitationValueSlotTemplate(): any {
  * @returns Citation action slot node.
  */
 function createCitationActionSlotTemplate(): any {
-    const result = createSlotTemplate("actions", [
+    const message = msg("common.reset");
+    const messageA = msg("common.remove");
+    const iconActionLinkResult = [
         createIconActionLinkTemplate(
-            msg("common.reset"),
+            message,
             "tableActionIcons.regenerate",
             "resetCitationParam(citationIndex, row.index)",
             {
@@ -196,7 +210,7 @@ function createCitationActionSlotTemplate(): any {
             },
         ),
         createIconActionLinkTemplate(
-            msg("common.remove"),
+            messageA,
             "tableActionIcons.remove",
             "removeCitationParam(citationIndex, row.index)",
             {
@@ -204,7 +218,8 @@ function createCitationActionSlotTemplate(): any {
                 "v-if": "row.index < citation.params.length",
             },
         ),
-    ]);
+    ];
+    const result = createSlotTemplate("actions", iconActionLinkResult);
     return result;
 }
 
@@ -214,12 +229,13 @@ function createCitationActionSlotTemplate(): any {
  * @returns Citation footer slot node.
  */
 function createCitationFooterTemplate(): any {
+    const citationSourceLinkResult = [createCitationSourceLinkTemplate()];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createCitationSourceLinkTemplate()],
+        citationSourceLinkResult,
     );
     return result;
 }
@@ -230,6 +246,7 @@ function createCitationFooterTemplate(): any {
  * @returns Citation source link node.
  */
 function createCitationSourceLinkTemplate(): any {
+    const textResult = [createText("{{ citation.sourceUrl }}")];
     const result = createElement(
         "a",
         {
@@ -237,7 +254,7 @@ function createCitationSourceLinkTemplate(): any {
             rel: "noopener noreferrer",
             target: "_blank",
         },
-        [createText("{{ citation.sourceUrl }}")],
+        textResult,
     );
     return result;
 }
@@ -250,9 +267,8 @@ function createCitationSourceLinkTemplate(): any {
  * @returns Text input slot node.
  */
 function createInputSlotTemplate(column: string, attributes: any): any {
-    const result = createSlotTemplate(column, [
-        createElement("cdx-text-input", attributes),
-    ]);
+    const elementResult = [createElement("cdx-text-input", attributes)];
+    const result = createSlotTemplate(column, elementResult);
     return result;
 }
 

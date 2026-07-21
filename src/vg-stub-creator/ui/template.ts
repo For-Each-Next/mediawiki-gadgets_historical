@@ -78,9 +78,8 @@ export function createButtonTemplate(options: any): any {
         attributes.weight = options.weight;
     }
 
-    const result = createElement("cdx-button", attributes, [
-        createText(options.label),
-    ]);
+    const textResultE = [createText(options.label)];
+    const result = createElement("cdx-button", attributes, textResultE);
     return result;
 }
 
@@ -128,6 +127,10 @@ export function createActionFooterTemplate(
  * @returns Dialog action footer node.
  */
 function createSplitActionFooterTemplate(groups: any, style: any = {}): any {
+    const actionFooterGroupResult = [
+        createActionFooterGroupTemplate(groups.left || []),
+        createActionFooterGroupTemplate(groups.right || []),
+    ];
     const result = createElement(
         "div",
         {
@@ -140,10 +143,7 @@ function createSplitActionFooterTemplate(groups: any, style: any = {}): any {
                 ...style,
             },
         },
-        [
-            createActionFooterGroupTemplate(groups.left || []),
-            createActionFooterGroupTemplate(groups.right || []),
-        ],
+        actionFooterGroupResult,
     );
     return result;
 }
@@ -311,6 +311,9 @@ export function createFieldTemplate(
     children: Array<any | string>,
     options: any = {},
 ): any {
+    const textResultD = [
+        createText(options.bindLabel ? `{{ ${label} }}` : label),
+    ];
     const fieldChildren = [
         ...children,
         createElement(
@@ -318,18 +321,20 @@ export function createFieldTemplate(
             {
                 "v-slot:label": "",
             },
-            [createText(options.bindLabel ? `{{ ${label} }}` : label)],
+            textResultD,
         ),
     ];
 
     if (options.helpText) {
-        fieldChildren.push(
-            createElement(
-                "template",
-                createHelpTextSlotAttributes(options.helpTextCondition),
-                options.helpText,
-            ),
+        const helpTextSlotAttributesResult = createHelpTextSlotAttributes(
+            options.helpTextCondition,
         );
+        const elementResult = createElement(
+            "template",
+            helpTextSlotAttributesResult,
+            options.helpText,
+        );
+        fieldChildren.push(elementResult);
     }
 
     return createElement("cdx-field", options.attributes || {}, fieldChildren);
@@ -379,7 +384,8 @@ export function createMessageTemplate(
         attributes.inline = "";
     }
 
-    return createElement("cdx-message", attributes, [createText(message)]);
+    const textResultC = [createText(message)];
+    return createElement("cdx-message", attributes, textResultC);
 }
 
 /**
@@ -398,12 +404,13 @@ export function createTableHeaderTemplate(
     actions: Array<any | string> = [],
     _options: any = {},
 ): any {
+    const flattenedValues = actions.flatMap(createTableActionTemplate);
     const result = createElement(
         "template",
         {
             "v-slot:header": "",
         },
-        actions.flatMap(createTableActionTemplate),
+        flattenedValues,
     );
     return result;
 }
@@ -474,9 +481,12 @@ export function createPreviewCardTemplate(
         options.description,
     );
 
-    const titleSlot = createElement("template", { "v-slot:title": "" }, [
-        createText(title),
-    ]);
+    const textResultB = [createText(title)];
+    const titleSlot = createElement(
+        "template",
+        { "v-slot:title": "" },
+        textResultB,
+    );
     const supportingSlot = createElement(
         "template",
         { "v-slot:supporting-text": "" },
@@ -509,10 +519,13 @@ function createPreviewCardSupportingText(
     const children = [];
 
     if (description) {
-        children.push(createPreviewCardDescriptionTemplate(description));
+        const previewCardDescriptionResult =
+            createPreviewCardDescriptionTemplate(description);
+        children.push(previewCardDescriptionResult);
     }
 
-    children.push(createPreviewCardTextTemplate(expression));
+    const previewCardTextResult = createPreviewCardTextTemplate(expression);
+    children.push(previewCardTextResult);
 
     return children;
 }
@@ -524,12 +537,13 @@ function createPreviewCardSupportingText(
  * @returns Description node.
  */
 function createPreviewCardDescriptionTemplate(description: string): any {
+    const textResultA = [createText(`{{ ${description} }}`)];
     const result = createElement(
         "p",
         {
             class: "vg-stub-creator-preview-card-description",
         },
-        [createText(`{{ ${description} }}`)],
+        textResultA,
     );
     return result;
 }
@@ -542,12 +556,13 @@ function createPreviewCardDescriptionTemplate(description: string): any {
  * @returns Preview text node.
  */
 function createPreviewCardTextTemplate(expression: string): any {
+    const textResult = [createText(`{{ ${expression} }}`)];
     const result = createElement(
         "pre",
         {
             class: "vg-stub-creator-preview-card-text",
         },
-        [createText(`{{ ${expression} }}`)],
+        textResult,
     );
     return result;
 }

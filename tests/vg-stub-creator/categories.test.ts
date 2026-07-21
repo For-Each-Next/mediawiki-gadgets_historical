@@ -7,23 +7,30 @@ import test from "node:test";
 
 import * as categories from "vg-stub-creator/infra/handlers/categories.ts";
 
-test("missing categories are unchecked after resolution", async () => {
+const resolvesMissingCategories = async function resolvesMissingCategories() {
+    const options = { fetcher: createCategoryFetcher() };
     const rows = await categories.resolveCategoryRows(
         [
             { category: "Existing games", enabled: true },
             { category: "Missing games", enabled: true },
         ],
-        { fetcher: createCategoryFetcher() },
+        options,
     );
 
-    assert.deepEqual(
-        rows.map((row) => [row.category, row.status, row.enabled]),
-        [
-            ["Existing games", "OK", true],
-            ["Missing games", "Not exists", false],
-        ],
-    );
-});
+    const actualRows = rows.map((row) => [
+        row.category,
+        row.status,
+        row.enabled,
+    ]);
+    assert.deepEqual(actualRows, [
+        ["Existing games", "OK", true],
+        ["Missing games", "Not exists", false],
+    ]);
+};
+test(
+    "missing categories are unchecked after resolution",
+    resolvesMissingCategories,
+);
 
 /**
  * Creates a category lookup response with one missing category.
@@ -32,7 +39,8 @@ test("missing categories are unchecked after resolution", async () => {
  */
 function createCategoryFetcher(): typeof fetch {
     return async function fetcher(input) {
-        const url = new URL(String(input), "https://example.test");
+        const inputText = String(input);
+        const url = new URL(inputText, "https://example.test");
         const titles = url.searchParams.get("titles")?.split("|") || [];
         const pages = titles.map(function createPage(title) {
             if (title === "Category:Missing games") {

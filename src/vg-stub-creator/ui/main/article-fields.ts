@@ -15,17 +15,18 @@ import { msg } from "#me/i18n/index.ts";
  * @returns Article field group template node.
  */
 export function createFieldGroupTemplate(): any {
+    const groupedFieldsetResult = [
+        createGroupedFieldsetTemplate(),
+        createIndividualFieldsTemplate(),
+        createMetadataPreviewTemplate(),
+        createFullTextPreviewTemplate(),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "group.fields.length",
         },
-        [
-            createGroupedFieldsetTemplate(),
-            createIndividualFieldsTemplate(),
-            createMetadataPreviewTemplate(),
-            createFullTextPreviewTemplate(),
-        ],
+        groupedFieldsetResult,
     );
     return result;
 }
@@ -36,12 +37,16 @@ export function createFieldGroupTemplate(): any {
  * @returns Individual field list template node.
  */
 function createIndividualFieldsTemplate(): any {
+    const metadataFieldsResult = [
+        createMetadataFieldsTemplate(),
+        createDefaultFieldsTemplate(),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "!group.fieldsetLabel",
         },
-        [createMetadataFieldsTemplate(), createDefaultFieldsTemplate()],
+        metadataFieldsResult,
     );
     return result;
 }
@@ -52,22 +57,27 @@ function createIndividualFieldsTemplate(): any {
  * @returns Metadata field template node.
  */
 function createMetadataFieldsTemplate(): any {
+    const compactFieldResultA = [
+        createCompactFieldTemplate(),
+        createStandardFieldTemplate(),
+    ];
+    const elementResultB = [
+        createElement(
+            "template",
+            {
+                "v-bind:key": "field.key",
+                "v-for": "field in group.fields.slice(0, 1)",
+            },
+            compactFieldResultA,
+        ),
+        createMetadataFieldTableTemplate(),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "group.key === 'metadata'",
         },
-        [
-            createElement(
-                "template",
-                {
-                    "v-bind:key": "field.key",
-                    "v-for": "field in group.fields.slice(0, 1)",
-                },
-                [createCompactFieldTemplate(), createStandardFieldTemplate()],
-            ),
-            createMetadataFieldTableTemplate(),
-        ],
+        elementResultB,
     );
     return result;
 }
@@ -78,21 +88,26 @@ function createMetadataFieldsTemplate(): any {
  * @returns Default field template node.
  */
 function createDefaultFieldsTemplate(): any {
+    const compactFieldResult = [
+        createCompactFieldTemplate(),
+        createStandardFieldTemplate(),
+    ];
+    const elementResultA = [
+        createElement(
+            "template",
+            {
+                "v-bind:key": "field.key",
+                "v-for": "field in group.fields",
+            },
+            compactFieldResult,
+        ),
+    ];
     const result = createElement(
         "template",
         {
             "v-else": "",
         },
-        [
-            createElement(
-                "template",
-                {
-                    "v-bind:key": "field.key",
-                    "v-for": "field in group.fields",
-                },
-                [createCompactFieldTemplate(), createStandardFieldTemplate()],
-            ),
-        ],
+        elementResultA,
     );
     return result;
 }
@@ -103,14 +118,17 @@ function createDefaultFieldsTemplate(): any {
  * @returns Metadata field table node.
  */
 function createMetadataFieldTableTemplate(): any {
+    const metadataFieldTableSlotsResult =
+        createMetadataFieldTableSlotsTemplate();
+    const messageD = {
+        class: "vg-stub-creator-metadata-table",
+        caption: msg("metadata.fields"),
+    };
     const result = createTableTemplate(
         "metadataTableColumns",
         "getMetadataFieldTableRows(group)",
-        createMetadataFieldTableSlotsTemplate(),
-        {
-            class: "vg-stub-creator-metadata-table",
-            caption: msg("metadata.fields"),
-        },
+        metadataFieldTableSlotsResult,
+        messageD,
     );
     return result;
 }
@@ -121,15 +139,19 @@ function createMetadataFieldTableTemplate(): any {
  * @returns Metadata table slot nodes.
  */
 function createMetadataFieldTableSlotsTemplate(): Array<any> {
+    const textResultF = [createText("{{ getMetadataFieldLabel(row.field) }}")];
     const labelSlot = createElement(
         "template",
         { "v-slot:item-label": "{ row }" },
-        [createText("{{ getMetadataFieldLabel(row.field) }}")],
+        textResultF,
     );
+    const articleFieldValueInputResultB = [
+        createArticleFieldValueInputTemplate({ field: "row.field" }),
+    ];
     const valueSlot = createElement(
         "template",
         { "v-slot:item-value": "{ row }" },
-        [createArticleFieldValueInputTemplate({ field: "row.field" })],
+        articleFieldValueInputResultB,
     );
 
     return [labelSlot, valueSlot, createMetadataSourceSlotTemplate()];
@@ -141,12 +163,13 @@ function createMetadataFieldTableSlotsTemplate(): Array<any> {
  * @returns The metadata field source-input slot.
  */
 function createMetadataSourceSlotTemplate(): any {
-    const input = createSourceUrlInputTemplate({
+    const messageC = {
         placeholder: msg("form.sourceUrls"),
         model: "form[row.field.sourceField.sourceKey]",
         change: "trimSourceValue(row.field.sourceField)",
         update: "updateSourceValue(row.field.sourceField, $event)",
-    });
+    };
+    const input = createSourceUrlInputTemplate(messageC);
     const slot = createElement(
         "template",
         { "v-slot:item-source": "{ row }" },
@@ -162,28 +185,31 @@ function createMetadataSourceSlotTemplate(): any {
  * @returns Grouped fieldset template node.
  */
 function createGroupedFieldsetTemplate(): any {
+    const groupedFieldListResult = [createGroupedFieldListTemplate()];
+    const textResultE = [createText("{{ group.fieldsetLabel }}")];
+    const elementResult = [
+        createElement(
+            "div",
+            {
+                class: "vg-stub-creator-fieldset-fields",
+            },
+            groupedFieldListResult,
+        ),
+        createElement(
+            "template",
+            {
+                "v-slot:label": "",
+            },
+            textResultE,
+        ),
+    ];
     const result = createElement(
         "cdx-field",
         {
             "is-fieldset": "",
             "v-if": "group.fieldsetLabel",
         },
-        [
-            createElement(
-                "div",
-                {
-                    class: "vg-stub-creator-fieldset-fields",
-                },
-                [createGroupedFieldListTemplate()],
-            ),
-            createElement(
-                "template",
-                {
-                    "v-slot:label": "",
-                },
-                [createText("{{ group.fieldsetLabel }}")],
-            ),
-        ],
+        elementResult,
     );
     return result;
 }
@@ -194,13 +220,14 @@ function createGroupedFieldsetTemplate(): any {
  * @returns Grouped field loop node.
  */
 function createGroupedFieldListTemplate(): any {
+    const groupedFieldResult = [createGroupedFieldTemplate()];
     const result = createElement(
         "template",
         {
             "v-bind:key": "field.key",
             "v-for": "field in group.fields",
         },
-        [createGroupedFieldTemplate()],
+        groupedFieldResult,
     );
     return result;
 }
@@ -211,12 +238,13 @@ function createGroupedFieldListTemplate(): any {
  * @returns Grouped field template node.
  */
 function createGroupedFieldTemplate(): any {
+    const fieldControlsResultB = [createFieldControlsTemplate()];
     const result = createElement(
         "div",
         {
             class: "vg-stub-creator-fieldset-field",
         },
-        [createFieldControlsTemplate()],
+        fieldControlsResultB,
     );
     return result;
 }
@@ -227,8 +255,9 @@ function createGroupedFieldTemplate(): any {
  * @returns Metadata preview card node.
  */
 function createMetadataPreviewTemplate(): any {
+    const messageB = msg("preview.wikitext");
     const result = createPreviewCardTemplate(
-        msg("preview.wikitext"),
+        messageB,
         "getGroupPreview(group)",
         {
             condition: "group.previewKey && getGroupPreview(group)",
@@ -243,14 +272,11 @@ function createMetadataPreviewTemplate(): any {
  * @returns Full prose review card node.
  */
 function createFullTextPreviewTemplate(): any {
-    const result = createPreviewCardTemplate(
-        msg("preview.fullText"),
-        "getProseWikitext()",
-        {
-            condition: "group.fullTextReview && getProseWikitext()",
-            description: "getProseReviewDescription()",
-        },
-    );
+    const messageA = msg("preview.fullText");
+    const result = createPreviewCardTemplate(messageA, "getProseWikitext()", {
+        condition: "group.fullTextReview && getProseWikitext()",
+        description: "getProseReviewDescription()",
+    });
     return result;
 }
 
@@ -260,24 +286,26 @@ function createFullTextPreviewTemplate(): any {
  * @returns Compact article field template node.
  */
 function createCompactFieldTemplate(): any {
+    const textResultD = [createText("{{ field.heading || field.label }}")];
+    const fieldControlsResultA = [
+        createFieldControlsTemplate({
+            placeholder: "field.placeholder",
+        }),
+        createElement(
+            "template",
+            {
+                "v-slot:label": "",
+            },
+            textResultD,
+        ),
+    ];
     const result = createElement(
         "cdx-field",
         {
             "v-bind:is-fieldset": "!!field.sourceField",
             "v-if": "field.compact",
         },
-        [
-            createFieldControlsTemplate({
-                placeholder: "field.placeholder",
-            }),
-            createElement(
-                "template",
-                {
-                    "v-slot:label": "",
-                },
-                [createText("{{ field.heading || field.label }}")],
-            ),
-        ],
+        fieldControlsResultA,
     );
     return result;
 }
@@ -288,18 +316,20 @@ function createCompactFieldTemplate(): any {
  * @returns Standard article field template node.
  */
 function createStandardFieldTemplate(): any {
+    const fieldControlsResult = [createFieldControlsTemplate()];
+    const enwikiHelpTextResult = {
+        attributes: {
+            "v-bind:is-fieldset": "!!field.sourceField",
+            "v-else-if": "!field.compact",
+        },
+        bindLabel: true,
+        helpText: createEnwikiHelpTextTemplate(),
+        helpTextCondition: "field.key === 'enwikiTitle'",
+    };
     const result = createFieldTemplate(
         "field.label",
-        [createFieldControlsTemplate()],
-        {
-            attributes: {
-                "v-bind:is-fieldset": "!!field.sourceField",
-                "v-else-if": "!field.compact",
-            },
-            bindLabel: true,
-            helpText: createEnwikiHelpTextTemplate(),
-            helpTextCondition: "field.key === 'enwikiTitle'",
-        },
+        fieldControlsResult,
+        enwikiHelpTextResult,
     );
     return result;
 }
@@ -316,28 +346,30 @@ function createFieldControlsTemplate(options: any = {}): any {
         options.placeholder ||
         "getFieldPlaceholder(field) || field.placeholder";
 
+    const joinedText = {
+        class: "vg-stub-creator-field-controls",
+        "v-bind:class":
+            "{ " +
+            [
+                "'vg-stub-creator-field-controls--w",
+                "ith-source': field.sourceField, ",
+            ].join("") +
+            [
+                "'vg-stub-creator-field-controls--w",
+                "ith-move': field.key === 'pageName",
+                "' ",
+            ].join("") +
+            "}",
+    };
+    const multilineFieldBranchResult = [
+        createMultilineFieldBranchTemplate(placeholder),
+        createSingleLineFieldBranchTemplate(placeholder),
+        createSourceUrlFieldBranchTemplate(),
+    ];
     const result = createElement(
         "div",
-        {
-            class: "vg-stub-creator-field-controls",
-            "v-bind:class":
-                "{ " +
-                [
-                    "'vg-stub-creator-field-controls--w",
-                    "ith-source': field.sourceField, ",
-                ].join("") +
-                [
-                    "'vg-stub-creator-field-controls--w",
-                    "ith-move': field.key === 'pageName",
-                    "' ",
-                ].join("") +
-                "}",
-        },
-        [
-            createMultilineFieldBranchTemplate(placeholder),
-            createSingleLineFieldBranchTemplate(placeholder),
-            createSourceUrlFieldBranchTemplate(),
-        ],
+        joinedText,
+        multilineFieldBranchResult,
     );
     return result;
 }
@@ -349,17 +381,18 @@ function createFieldControlsTemplate(options: any = {}): any {
  * @returns Multiline branch node.
  */
 function createMultilineFieldBranchTemplate(placeholder: string): any {
+    const articleFieldValueInputResultA = [
+        createArticleFieldValueInputTemplate({
+            multiline: true,
+            placeholder,
+        }),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "field.multiline",
         },
-        [
-            createArticleFieldValueInputTemplate({
-                multiline: true,
-                placeholder,
-            }),
-        ],
+        articleFieldValueInputResultA,
     );
     return result;
 }
@@ -371,15 +404,16 @@ function createMultilineFieldBranchTemplate(placeholder: string): any {
  * @returns Single-line branch node.
  */
 function createSingleLineFieldBranchTemplate(placeholder: string): any {
+    const articleFieldValueInputResult = [
+        createArticleFieldValueInputTemplate({ placeholder }),
+        createMovePageButtonTemplate(),
+    ];
     const result = createElement(
         "template",
         {
             "v-else": "",
         },
-        [
-            createArticleFieldValueInputTemplate({ placeholder }),
-            createMovePageButtonTemplate(),
-        ],
+        articleFieldValueInputResult,
     );
     return result;
 }
@@ -390,12 +424,16 @@ function createSingleLineFieldBranchTemplate(placeholder: string): any {
  * @returns Source branch node.
  */
 function createSourceUrlFieldBranchTemplate(): any {
+    const sourceUrlFieldOptionsResult = createSourceUrlFieldOptions();
+    const sourceUrlInputResult = [
+        createSourceUrlInputTemplate(sourceUrlFieldOptionsResult),
+    ];
     const result = createElement(
         "template",
         {
             "v-if": "field.sourceField",
         },
-        [createSourceUrlInputTemplate(createSourceUrlFieldOptions())],
+        sourceUrlInputResult,
     );
     return result;
 }
@@ -421,12 +459,13 @@ function createSourceUrlFieldOptions(): any {
  * @returns Page move button node.
  */
 function createMovePageButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const message = {
         click: "openMoveDialog",
         disabled: "sourceFetchState.loading",
         label: msg("text.move"),
         show: "field.key === 'pageName' && canMovePageName()",
-    });
+    };
+    const result = createButtonTemplate(message);
     return result;
 }
 
@@ -474,20 +513,22 @@ function createArticleFieldValueInputTemplate(options: any = {}): any {
  * @returns English Wikipedia help text nodes.
  */
 function createEnwikiHelpTextTemplate(): Array<any | string> {
+    const enwikiTipListResult = [createEnwikiTipListTemplate()];
+    const textResultC = [createText("{{ getWikidataStatusText() }}")];
     const result = [
         createElement(
             "template",
             {
                 "v-if": "getEnwikiTipLinks().length",
             },
-            [createEnwikiTipListTemplate()],
+            enwikiTipListResult,
         ),
         createElement(
             "template",
             {
                 "v-else": "",
             },
-            [createText("{{ getWikidataStatusText() }}")],
+            textResultC,
         ),
     ];
     return result;
@@ -499,6 +540,7 @@ function createEnwikiHelpTextTemplate(): Array<any | string> {
  * @returns Helper link list node.
  */
 function createEnwikiTipListTemplate(): any {
+    const enwikiTipItemResult = [createEnwikiTipItemTemplate()];
     const result = createElement(
         "span",
         {
@@ -506,7 +548,7 @@ function createEnwikiTipListTemplate(): any {
                 "vg-stub-creator-enwiki-help " +
                 "vg-stub-creator-horizontal-list",
         },
-        [createEnwikiTipItemTemplate()],
+        enwikiTipItemResult,
     );
     return result;
 }
@@ -517,6 +559,11 @@ function createEnwikiTipListTemplate(): any {
  * @returns Helper item node.
  */
 function createEnwikiTipItemTemplate(): any {
+    const textResultB = [
+        createText("{{ link.label }} "),
+        createEnwikiTipLinkTemplate(),
+        createEnwikiTipTextTemplate(),
+    ];
     const result = createElement(
         "span",
         {
@@ -524,11 +571,7 @@ function createEnwikiTipItemTemplate(): any {
             "v-bind:key": "link.label",
             "v-for": "link in getEnwikiTipLinks()",
         },
-        [
-            createText("{{ link.label }} "),
-            createEnwikiTipLinkTemplate(),
-            createEnwikiTipTextTemplate(),
-        ],
+        textResultB,
     );
     return result;
 }
@@ -539,6 +582,7 @@ function createEnwikiTipItemTemplate(): any {
  * @returns Helper link node.
  */
 function createEnwikiTipLinkTemplate(): any {
+    const textResultA = [createText("{{ link.value }}")];
     const result = createElement(
         "a",
         {
@@ -547,7 +591,7 @@ function createEnwikiTipLinkTemplate(): any {
             rel: "noopener noreferrer",
             target: "_blank",
         },
-        [createText("{{ link.value }}")],
+        textResultA,
     );
     return result;
 }
@@ -558,12 +602,13 @@ function createEnwikiTipLinkTemplate(): any {
  * @returns Helper text node.
  */
 function createEnwikiTipTextTemplate(): any {
+    const textResult = [createText("{{ link.value }}")];
     const result = createElement(
         "span",
         {
             "v-else": "",
         },
-        [createText("{{ link.value }}")],
+        textResult,
     );
     return result;
 }

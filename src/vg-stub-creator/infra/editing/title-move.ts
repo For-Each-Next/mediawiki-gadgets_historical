@@ -88,13 +88,16 @@ function updateInfoboxTitleLines(
     const blockEnd = end + INFOBOX_END.length;
     let infobox = text.slice(start, blockEnd);
 
-    lines.keys.forEach(function callback(key: string) {
+    const forEachCallback = function callback(key: string) {
+        const configValue = lines.current.get(key);
+        const configValueA = lines.target.get(key);
         infobox = updateInfoboxParameterLine(
             infobox,
-            lines.current.get(key),
-            lines.target.get(key),
+            configValue,
+            configValueA,
         );
-    });
+    };
+    lines.keys.forEach(forEachCallback);
 
     return replaceInfoboxBlock(text, start, blockEnd, infobox);
 }
@@ -158,7 +161,9 @@ function getChangedInfoboxLines(
 } {
     const currentLines = parseTemplateParameterLines(current.infoboxText);
     const targetLines = parseTemplateParameterLines(target.infoboxText);
-    const keys = new Set([...currentLines.keys(), ...targetLines.keys()]);
+    const currentKeys = currentLines.keys();
+    const targetKeys = targetLines.keys();
+    const keys = new Set([...currentKeys, ...targetKeys]);
 
     return { current: currentLines, keys, target: targetLines };
 }
@@ -209,20 +214,20 @@ function updateInfoboxParameterLine(
  * @returns Parameter lines keyed by name.
  */
 function parseTemplateParameterLines(template: string): Map<string, string> {
-    const result = new Map<string, string>(
-        String(template || "")
-            .split("\n")
-            .map(function callback(line) {
-                const match = line.match(/^\|\s*([^=]+?)\s*=/u);
+    const mapCallback = function callback(line: string) {
+        const match = line.match(/^\|\s*([^=]+?)\s*=/u);
 
-                if (match == null) {
-                    return null;
-                }
+        if (match == null) {
+            return null;
+        }
 
-                return [match[1].trim(), line] as [string, string];
-            })
-            .filter((entry): entry is [string, string] => entry != null),
-    );
+        return [match[1].trim(), line] as [string, string];
+    };
+    const entries = String(template || "")
+        .split("\n")
+        .map(mapCallback)
+        .filter((entry): entry is [string, string] => entry != null);
+    const result = new Map<string, string>(entries);
     return result;
 }
 

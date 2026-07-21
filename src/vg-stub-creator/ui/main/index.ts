@@ -11,30 +11,32 @@ import { createCategoryGroupTemplate } from "#me/ui/main/review.ts";
  * @returns Tab container template node.
  */
 export function createTabsTemplate(): any {
+    const tabDescriptionResult = [
+        createTabDescriptionTemplate(),
+        createFieldGroupTemplate(),
+        createNameGroupTemplate(),
+        createNoteTaGroupTemplate(),
+        createCitationGroupTemplate(),
+        createCategoryGroupTemplate(),
+    ];
+    const elementResult = [
+        createElement(
+            "cdx-tab",
+            {
+                "v-bind:key": "group.key",
+                "v-bind:label": "group.label",
+                "v-bind:name": "group.key",
+                "v-for": "group in groups",
+            },
+            tabDescriptionResult,
+        ),
+    ];
     const result = createElement(
         "cdx-tabs",
         {
             "v-model:active": "activeTab",
         },
-        [
-            createElement(
-                "cdx-tab",
-                {
-                    "v-bind:key": "group.key",
-                    "v-bind:label": "group.label",
-                    "v-bind:name": "group.key",
-                    "v-for": "group in groups",
-                },
-                [
-                    createTabDescriptionTemplate(),
-                    createFieldGroupTemplate(),
-                    createNameGroupTemplate(),
-                    createNoteTaGroupTemplate(),
-                    createCitationGroupTemplate(),
-                    createCategoryGroupTemplate(),
-                ],
-            ),
-        ],
+        elementResult,
     );
     return result;
 }
@@ -45,13 +47,14 @@ export function createTabsTemplate(): any {
  * @returns Tab description node.
  */
 function createTabDescriptionTemplate(): any {
+    const textResult = [createText("{{ group.description }}")];
     const result = createElement(
         "p",
         {
             class: "vg-stub-creator-tab-description",
             "v-if": "group.description",
         },
-        [createText("{{ group.description }}")],
+        textResult,
     );
     return result;
 }

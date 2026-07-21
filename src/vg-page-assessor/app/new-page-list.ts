@@ -27,6 +27,14 @@ const GROUP_LABELS = {
     other: "雜頁",
     template: "模板",
 };
+const NAMESPACE = {
+    category: 14,
+    draft: 118,
+    file: 6,
+    main: 0,
+    module: 828,
+    template: 10,
+};
 
 /**
  * Fetches the current new-page list with edit-conflict timestamps.
@@ -70,14 +78,13 @@ function parseNewPageListResponse(response: any): any {
         throw new Error(`Unable to read ${NEW_PAGE_LIST_TITLE}.`);
     }
 
+    const primaryContent =
+        revision.slots?.main?.content ?? revision.slots?.main?.["*"];
+    const text = primaryContent ?? revision["*"] ?? "";
     const result = {
         basetimestamp: revision.timestamp,
         starttimestamp: response.curtimestamp,
-        text:
-            revision.slots?.main?.content ??
-            revision.slots?.main?.["*"] ??
-            revision["*"] ??
-            "",
+        text,
     };
 
     return result;
@@ -110,8 +117,9 @@ export function prepareNewPageListRegistration({
     creationDate: Date;
     creationTimes?: Map<string, Date>;
 }): any {
+    const creationTimestamp = creationDate?.toISOString?.();
     logStep("prepareNewPageListRegistration start", {
-        creationDate: creationDate?.toISOString?.(),
+        creationDate: creationTimestamp,
         namespaceNumber,
         title,
     });
@@ -207,9 +215,10 @@ function buildNewRegistration(options: RegistrationContext): unknown {
         proposedText,
     };
 
+    const earliestTimestamp = options.earliestDate?.toISOString?.();
     logStep("prepareNewPageListRegistration done", {
         changed: result.changed,
-        earliestDate: options.earliestDate?.toISOString?.(),
+        earliestDate: earliestTimestamp,
         group,
         title: options.title,
     });
@@ -247,8 +256,9 @@ function buildIneligibleRegistration(options: RegistrationContext) {
         proposedText: options.source,
     };
 
+    const earliestTimestamp = options.earliestDate.toISOString();
     logStep("prepareNewPageListRegistration done: not eligible", {
-        earliestDate: options.earliestDate.toISOString(),
+        earliestDate: earliestTimestamp,
         existing: options.existing,
         title: options.title,
     });
@@ -292,22 +302,32 @@ function buildExistingRegistration(options: RegistrationContext) {
  * @returns Listed titles.
  */
 export function getTitlesForDate(text: string, date: Date): Array<string> {
+    const timestamp = date?.toISOString?.();
     logStep("getTitlesForDate start", {
-        date: date?.toISOString?.(),
+        date: timestamp,
     });
     const year = date.getUTCFullYear();
     const month = date.getUTCMonth();
     const day = date.getUTCDate();
-    const section = parseYearSections(String(text || "")).find(
+    const source = String(text || "");
+    const section = parseYearSections(source).find(
         (item) => item.year === year,
     );
-    const block = section?.blocks.find(function callback(item: {
-        date: { getUTCMonth: () => number; getUTCDate: () => number };
-    }) {
-        return (
-            item.date.getUTCMonth() === month && item.date.getUTCDate() === day
-        );
-    });
+    let block;
+
+    for (
+        let index = 0;
+        index < (section?.blocks.length || 0) && block == null;
+        index += 1
+    ) {
+        const candidate = section.blocks[index];
+        const candidateMonth = candidate.date.getUTCMonth();
+        const candidateDay = candidate.date.getUTCDate();
+
+        if (candidateMonth === month && candidateDay === day) {
+            block = candidate;
+        }
+    }
 
     if (block == null) {
         logStep("getTitlesForDate done: no block");
@@ -426,21 +446,25 @@ function parseYearSections(text: string): Array<any> {
         ...String(text || "").matchAll(/^== (\d{4})年 ==\s*$/gmu),
     ];
 
-    const result = headings.map(function callback(heading, index) {
+    const result = [];
+
+    for (let index = 0; index < headings.length; index += 1) {
+        const heading = headings[index];
         const contentStart = heading.index + heading[0].length;
         const end = headings[index + 1]?.index ?? text.length;
+        const section = text.slice(contentStart, end);
+        const year = Number(heading[1]);
+        const blocks = parseDateBlocks(section, year);
 
-        const result = {
-            blocks: parseDateBlocks(
-                text.slice(contentStart, end),
-                Number(heading[1]),
-            ),
+        const yearSection = {
+            blocks,
             contentStart,
             end,
-            year: Number(heading[1]),
+            year,
         };
-        return result;
-    });
+        result.push(yearSection);
+    }
+
     return result;
 }
 
@@ -455,30 +479,26 @@ function parseDateBlocks(section: string, year: number): Array<any> {
     const lines = section.split("\n");
     const blocks = [];
 
-    lines.forEach(function callback(line) {
+    for (const line of lines) {
         const dateBlock = parseDateBlockLine(line, year);
 
         if (dateBlock != null) {
             blocks.push(dateBlock);
-            return;
+        } else {
+            const subgroupMatch = line.match(SUBGROUP_PATTERN);
+            const currentBlock = blocks.at(-1);
+
+            if (currentBlock != null && subgroupMatch != null) {
+                const group = normalizeGroupLabel(subgroupMatch[1]);
+
+                if (group != null) {
+                    const entries = parseEntries(subgroupMatch[2]);
+                    const label = subgroupMatch[1].trim();
+                    currentBlock.groups[group] = { entries, label };
+                }
+            }
         }
-
-        const subgroupMatch = line.match(SUBGROUP_PATTERN);
-        const currentBlock = blocks.at(-1);
-
-        if (currentBlock == null || subgroupMatch == null) {
-            return;
-        }
-
-        const group = normalizeGroupLabel(subgroupMatch[1]);
-
-        if (group != null) {
-            currentBlock.groups[group] = {
-                entries: parseEntries(subgroupMatch[2]),
-                label: subgroupMatch[1].trim(),
-            };
-        }
-    });
+    }
 
     return blocks;
 }
@@ -497,8 +517,11 @@ function parseDateBlockLine(line: string, year: number): any | null {
         return null;
     }
 
+    const month = Number(match[1]) - 1;
+    const day = Number(match[2]);
+    const timestamp = Date.UTC(year, month, day);
     const result = {
-        date: new Date(Date.UTC(year, Number(match[1]) - 1, Number(match[2]))),
+        date: new Date(timestamp),
         entries: parseEntries(match[3]),
         groups: {},
         title: line,
@@ -521,11 +544,8 @@ function addEntry(text: string, entry: any): string {
     const rendered = buildVgcCall(entry.title);
 
     if (yearRange == null) {
-        const result = insertYearSection(
-            text,
-            year,
-            buildDateBlock(month, day, entry.group, [rendered]),
-        );
+        const block = buildDateBlock(month, day, entry.group, [rendered]);
+        const result = insertYearSection(text, year, block);
         return result;
     }
 
@@ -578,15 +598,21 @@ function updateYearSection(section: string, entry: any): string {
  * @returns The existing date line for a new entry.
  */
 function findMatchingDateLine(lines: Array<string>, entry: any): number {
-    const result = lines.findIndex(function callback(line) {
-        const match = line.match(DATE_LINE_PATTERN);
+    let result = -1;
 
-        const result =
-            match != null &&
-            Number(match[1]) === entry.month &&
-            Number(match[2]) === entry.day;
-        return result;
-    });
+    for (let index = 0; index < lines.length && result === -1; index += 1) {
+        const match = lines[index].match(DATE_LINE_PATTERN);
+
+        if (match != null) {
+            const month = Number(match[1]);
+            const day = Number(match[2]);
+
+            if (month === entry.month && day === entry.day) {
+                result = index;
+            }
+        }
+    }
+
     return result;
 }
 
@@ -598,16 +624,24 @@ function findMatchingDateLine(lines: Array<string>, entry: any): number {
  * @returns The descending-date insertion point for a new block.
  */
 function findDateBlockInsertIndex(lines: Array<string>, entry: any): number {
-    const result = lines.findIndex(function callback(line) {
-        const match = line.match(DATE_LINE_PATTERN);
+    let result = -1;
 
-        const result =
-            match != null &&
-            (Number(match[1]) < entry.month ||
-                (Number(match[1]) === entry.month &&
-                    Number(match[2]) < entry.day));
-        return result;
-    });
+    for (let index = 0; index < lines.length && result === -1; index += 1) {
+        const match = lines[index].match(DATE_LINE_PATTERN);
+
+        if (match != null) {
+            const month = Number(match[1]);
+            const day = Number(match[2]);
+            const earlierMonth = month < entry.month;
+            const sameMonth = month === entry.month;
+            const earlierDay = day < entry.day;
+
+            if (earlierMonth || (sameMonth && earlierDay)) {
+                result = index;
+            }
+        }
+    }
+
     return result;
 }
 
@@ -618,13 +652,28 @@ function findDateBlockInsertIndex(lines: Array<string>, entry: any): number {
  * @returns Trailing blank lines, or the end of the section.
  */
 function findTrailingWhitespaceIndex(lines: Array<string>): number {
-    const index = lines.findIndex(function callback(line, lineIndex) {
-        const remainingBlank = lines
-            .slice(lineIndex)
-            .every((remaining) => remaining.trim() === "");
+    let index = -1;
 
-        return lineIndex > 0 && line.trim() === "" && remainingBlank;
-    });
+    for (
+        let lineIndex = 1;
+        lineIndex < lines.length && index === -1;
+        lineIndex += 1
+    ) {
+        const lineIsBlank = lines[lineIndex].trim() === "";
+        let remainingBlank = lineIsBlank;
+
+        for (
+            let remainingIndex = lineIndex + 1;
+            remainingIndex < lines.length && remainingBlank;
+            remainingIndex += 1
+        ) {
+            remainingBlank = lines[remainingIndex].trim() === "";
+        }
+
+        if (remainingBlank) {
+            index = lineIndex;
+        }
+    }
 
     return index === -1 ? lines.length : index;
 }
@@ -648,8 +697,9 @@ function updateExistingDateBlock(
 
     if (entry.group == null) {
         const match = lines[dateIndex].match(DATE_LINE_PATTERN);
+        const parsedEntries = parseEntries(match?.[3] || "");
         const entries = addAndSortEntries(
-            parseEntries(match?.[3] || ""),
+            parsedEntries,
             entry.rendered,
             entry.creationTimes,
         );
@@ -665,11 +715,20 @@ function updateExistingDateBlock(
         entry.creationTimes,
     );
 
-    const subgroupLines = GROUP_ORDER.filter(
-        (group) => (blocks[group] || []).length > 0,
-    ).map(function formatGroup(group) {
-        return `*:${GROUP_LABELS[group]}：${blocks[group].join("、")}`;
-    });
+    const populatedGroups = [];
+
+    for (const group of GROUP_ORDER) {
+        if ((blocks[group] || []).length > 0) {
+            populatedGroups.push(group);
+        }
+    }
+
+    const subgroupLines = [];
+
+    for (const group of populatedGroups) {
+        const entries = blocks[group].join("、");
+        subgroupLines.push(`*:${GROUP_LABELS[group]}：${entries}`);
+    }
 
     lines.splice(dateIndex + 1, blockEnd - dateIndex - 1, ...subgroupLines);
 }
@@ -689,14 +748,16 @@ function readDateSubgroups(
 ): any {
     const blocks = {};
 
-    lines.slice(dateIndex + 1, blockEnd).forEach(function callback(line) {
+    const subgroupLines = lines.slice(dateIndex + 1, blockEnd);
+
+    for (const line of subgroupLines) {
         const match = line.match(SUBGROUP_PATTERN);
         const group = match == null ? null : normalizeGroupLabel(match[1]);
 
         if (group != null) {
             blocks[group] = parseEntries(match[2]);
         }
-    });
+    }
 
     return blocks;
 }
@@ -714,29 +775,56 @@ function addAndSortEntries(
     added: string,
     creationTimes: Map<string, Date>,
 ): Array<string> {
-    const unique = [...entries, added].filter(
-        (entry, index, array) => array.indexOf(entry) === index,
+    const allEntries = [...entries, added];
+    const unique = [];
+
+    for (let index = 0; index < allEntries.length; index += 1) {
+        const entry = allEntries[index];
+
+        if (allEntries.indexOf(entry) === index) {
+            unique.push(entry);
+        }
+    }
+
+    const compareEntries = compareEntriesByCreationTime.bind(
+        null,
+        creationTimes,
     );
-
-    const result = unique.sort(function callback(left, right) {
-        const leftDate = creationTimes.get(extractVgcTitle(left));
-        const rightDate = creationTimes.get(extractVgcTitle(right));
-
-        if (leftDate == null && rightDate == null) {
-            return 0;
-        }
-
-        if (leftDate == null) {
-            return 1;
-        }
-
-        if (rightDate == null) {
-            return -1;
-        }
-
-        return leftDate.getTime() - rightDate.getTime();
-    });
+    const result = unique.sort(compareEntries);
     return result;
+}
+
+/**
+ * Compares two entries by known creation time.
+ *
+ * @param creationTimes - Known creation times.
+ * @param left - Left entry.
+ * @param right - Right entry.
+ * @returns Sort order.
+ */
+function compareEntriesByCreationTime(
+    creationTimes: Map<string, Date>,
+    left: string,
+    right: string,
+): number {
+    const leftTitle = extractVgcTitle(left);
+    const rightTitle = extractVgcTitle(right);
+    const leftDate = creationTimes.get(leftTitle);
+    const rightDate = creationTimes.get(rightTitle);
+
+    if (leftDate == null && rightDate == null) {
+        return 0;
+    }
+
+    if (leftDate == null) {
+        return 1;
+    }
+
+    if (rightDate == null) {
+        return -1;
+    }
+
+    return leftDate.getTime() - rightDate.getTime();
 }
 
 /**
@@ -757,9 +845,21 @@ function findRegisteredEntry(years: Array<any>, title: string): any | null {
                     (group) => group.entries,
                 ),
             ];
-            const found = allEntries.find(function callback(entry) {
-                return normalizeTitle(extractVgcTitle(entry)) === normalized;
-            });
+            let found;
+
+            for (
+                let index = 0;
+                index < allEntries.length && found == null;
+                index += 1
+            ) {
+                const entry = allEntries[index];
+                const entryTitle = extractVgcTitle(entry);
+                const normalizedEntry = normalizeTitle(entryTitle);
+
+                if (normalizedEntry === normalized) {
+                    found = entry;
+                }
+            }
 
             if (found != null) {
                 const result = {
@@ -783,15 +883,27 @@ function findRegisteredEntry(years: Array<any>, title: string): any | null {
 function findEarliestRetainedDate(
     years: Array<{ blocks: Array<{ date: Date }> }>,
 ): Date | null {
-    const dates = years.flatMap(function callback(year) {
-        return year.blocks.map((block) => block.date);
-    });
+    const dates = [];
+
+    for (const year of years) {
+        for (const block of year.blocks) {
+            dates.push(block.date);
+        }
+    }
 
     if (dates.length === 0) {
         return null;
     }
 
-    return new Date(Math.min(...dates.map((date) => date.getTime())));
+    const timestamps = [];
+
+    for (const date of dates) {
+        const timestamp = date.getTime();
+        timestamps.push(timestamp);
+    }
+
+    const earliestTimestamp = Math.min(...timestamps);
+    return new Date(earliestTimestamp);
 }
 
 /**
@@ -863,13 +975,20 @@ function buildDateBlock(
  * @returns End index.
  */
 function findDateBlockEnd(lines: Array<string>, dateIndex: number): number {
-    const nextDateIndex = lines.findIndex(function callback(line, index) {
-        if (index <= dateIndex) {
-            return false;
-        }
+    let nextDateIndex = -1;
 
-        return DATE_LINE_PATTERN.test(line) || !SUBGROUP_PATTERN.test(line);
-    });
+    for (
+        let index = dateIndex + 1;
+        index < lines.length && nextDateIndex === -1;
+        index += 1
+    ) {
+        const isDate = DATE_LINE_PATTERN.test(lines[index]);
+        const isSubgroup = SUBGROUP_PATTERN.test(lines[index]);
+
+        if (isDate || !isSubgroup) {
+            nextDateIndex = index;
+        }
+    }
 
     return nextDateIndex === -1 ? lines.length : nextDateIndex;
 }
@@ -881,10 +1000,22 @@ function findDateBlockEnd(lines: Array<string>, dateIndex: number): number {
  * @returns Entry calls.
  */
 function parseEntries(text: string): Array<string> {
-    const result = String(text || "")
-        .split("、")
-        .map((entry) => entry.trim())
-        .filter(Boolean);
+    const values = String(text || "").split("、");
+    const trimmedValues = [];
+
+    for (const value of values) {
+        const trimmedValue = value.trim();
+        trimmedValues.push(trimmedValue);
+    }
+
+    const result = [];
+
+    for (const value of trimmedValues) {
+        if (value !== "") {
+            result.push(value);
+        }
+    }
+
     return result;
 }
 
@@ -927,23 +1058,26 @@ function normalizeGroupLabel(label: string): string | null {
  * @returns Subgroup, or null for articles.
  */
 function getNamespaceGroup(namespaceNumber: number): string | null {
-    if (namespaceNumber === 0) {
+    if (namespaceNumber === NAMESPACE.main) {
         return null;
     }
 
-    if (namespaceNumber === 118) {
+    if (namespaceNumber === NAMESPACE.draft) {
         return "draft";
     }
 
-    if (namespaceNumber === 14) {
+    if (namespaceNumber === NAMESPACE.category) {
         return "category";
     }
 
-    if (namespaceNumber === 6) {
+    if (namespaceNumber === NAMESPACE.file) {
         return "file";
     }
 
-    if (namespaceNumber === 10 || namespaceNumber === 828) {
+    if (
+        namespaceNumber === NAMESPACE.template ||
+        namespaceNumber === NAMESPACE.module
+    ) {
         return "template";
     }
 
@@ -1010,9 +1144,11 @@ function normalizeTitle(title: string): string {
  * @returns UTC date.
  */
 function startOfUtcDay(date: Date): Date {
-    const result = new Date(
-        Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-    );
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    const timestamp = Date.UTC(year, month, day);
+    const result = new Date(timestamp);
     return result;
 }
 

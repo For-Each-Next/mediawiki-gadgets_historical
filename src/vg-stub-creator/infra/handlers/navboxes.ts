@@ -28,18 +28,15 @@ export async function resolveNavboxTitles(
         return [];
     }
 
-    const resolutions = await resolveTemplates(
-        uniqueValues(plans.flatMap((plan) => plan.candidates)),
-        options,
-    );
+    const flattenedValues = plans.flatMap((plan) => plan.candidates);
+    const uniqueValuesResult = uniqueValues(flattenedValues);
+    const resolutions = await resolveTemplates(uniqueValuesResult, options);
 
-    const titles = uniqueValues(
-        plans
-            .map(function callback(plan) {
-                return getFirstExistingTemplate(plan.candidates, resolutions);
-            })
-            .filter(Boolean),
-    );
+    const mapCallbackC = function callback(plan: { candidates: string[] }) {
+        return getFirstExistingTemplate(plan.candidates, resolutions);
+    };
+    const filteredValuesB = plans.map(mapCallbackC).filter(Boolean);
+    const titles = uniqueValues(filteredValuesB);
 
     return titles;
 }
@@ -57,7 +54,8 @@ export async function resolveReviewedNavboxRows(
     options: any = {},
 ): Promise<Array<any>> {
     const rows = values.map(createReviewedNavboxRow);
-    const titles = uniqueValues(rows.map((row) => row.title).filter(Boolean));
+    const filteredValuesA = rows.map((row) => row.title).filter(Boolean);
+    const titles = uniqueValues(filteredValuesA);
 
     if (titles.length === 0) {
         return rows;
@@ -65,7 +63,7 @@ export async function resolveReviewedNavboxRows(
 
     const resolutions = await resolveTemplates(titles, options);
 
-    const result = rows.map(function callback(row) {
+    const mapCallbackB = function callback(row: any) {
         const resolution = resolutions[normalizeTemplateKey(row.title)];
         const title = resolution?.template || row.title;
 
@@ -76,7 +74,8 @@ export async function resolveReviewedNavboxRows(
             title,
         };
         return result;
-    });
+    };
+    const result = rows.map(mapCallbackB);
     return result;
 }
 
@@ -134,12 +133,13 @@ function replaceTemplateTitle(text: string, title: string): string {
  * @returns Navbox lookup plans.
  */
 function buildNavboxPlans(seriesNames: string | Array<string>): Array<any> {
-    const result = getSeriesValues(seriesNames).map(function callback(series) {
+    const mapCallbackA = function callback(series: string) {
         const result = {
             candidates: buildNavboxCandidates(series),
         };
         return result;
-    });
+    };
+    const result = getSeriesValues(seriesNames).map(mapCallbackA);
     return result;
 }
 
@@ -159,7 +159,8 @@ function getSeriesValues(seriesNames: string | Array<string>): Array<string> {
         values = splitLookupFieldValues(seriesNames || "");
     }
 
-    return uniqueValues(values.map(trimSeriesSuffix).filter(Boolean));
+    const filteredValues = values.map(trimSeriesSuffix).filter(Boolean);
+    return uniqueValues(filteredValues);
 }
 
 /**
@@ -199,8 +200,11 @@ function getFirstExistingTemplate(
     candidates: Array<string>,
     resolutions: any,
 ): string | undefined {
+    const mapCallback = function resolveTemplate(candidate: string) {
+        return resolutions[normalizeTemplateKey(candidate)];
+    };
     const result = candidates
-        .map((candidate) => resolutions[normalizeTemplateKey(candidate)])
+        .map(mapCallback)
         .find((resolution) => resolution?.exists)?.template;
     return result;
 }
@@ -225,20 +229,19 @@ async function resolveTemplates(
         },
         options,
     );
-    const resolutions = Object.fromEntries(
-        (Object.entries(values) as Array<[string, any]>).map(
-            function callback([key, resolution]) {
-                const result = [
-                    key,
-                    {
-                        ...resolution,
-                        template: resolution.title,
-                    },
-                ];
-                return result;
-            },
-        ),
+    const mappedValues = (Object.entries(values) as Array<[string, any]>).map(
+        function callback([key, resolution]) {
+            const result = [
+                key,
+                {
+                    ...resolution,
+                    template: resolution.title,
+                },
+            ];
+            return result;
+        },
     );
+    const resolutions = Object.fromEntries(mappedValues);
 
     return resolutions;
 }

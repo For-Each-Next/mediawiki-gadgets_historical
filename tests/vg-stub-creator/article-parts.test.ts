@@ -25,17 +25,21 @@ const PART_KEYS = [
     "wikitext",
 ];
 
-test("every article part implements the universal contract", () => {
+const testCallbackD = () => {
     const data = createWheelWorldArticleData();
 
     for (const record of Object.values(data.records) as Array<any>) {
-        assert.deepEqual(Object.keys(record).sort(), PART_KEYS);
-        assert.equal(Array.isArray(record.navboxes), true);
-        assert.equal(Array.isArray(record.values), true);
+        const sortResult = Object.keys(record).sort();
+        assert.deepEqual(sortResult, PART_KEYS);
+        const isArrayValueA = Array.isArray(record.navboxes);
+        assert.equal(isArrayValueA, true);
+        const isArrayValue = Array.isArray(record.values);
+        assert.equal(isArrayValue, true);
     }
-});
+};
+test("every article part implements the universal contract", testCallbackD);
 
-test("company navboxes flow through the universal company part", () => {
+const testCallbackC = () => {
     const data = createWheelWorldArticleData();
     const companies = data.records.companies;
 
@@ -43,18 +47,26 @@ test("company navboxes flow through the universal company part", () => {
     assert.deepEqual(companies.metadata.navboxes, ["安納布爾納互動"]);
     assert.equal(companies.wikitext.developers, "[[Messhof]]");
     assert.equal(companies.wikitext.publishers, "[[安纳布尔纳互动]]");
-});
+};
+test(
+    "company navboxes flow through the universal company part",
+    testCallbackC,
+);
 
-test("linked real-world fields preserve their entered wikitext", () => {
+const testCallbackB = () => {
     const data = createWheelWorldArticleData();
 
     assert.equal(data.records.platform.values.length, 4);
     assert.equal(data.records.genre.values.length, 2);
     assert.equal(data.records.scores.metadata.metacritic.score, "71");
     assert.equal(data.records.scores.metadata.openCritic.recommend, "65");
-});
+};
+test(
+    "linked real-world fields preserve their entered wikitext",
+    testCallbackB,
+);
 
-test("empty year and genre use the fallback video-game phrase", () => {
+const testCallbackA = () => {
     const data = createArticleData({
         categoryRows: [],
         genres: "",
@@ -69,9 +81,10 @@ test("empty year and genre use the fallback video-game phrase", () => {
     assert.equal(data.records.year.metadata.value, "");
     assert.equal(data.records.platform.values.length, 0);
     assert.equal(data.prose.text, "《'''Example'''》是一款[[电子游戏]]。");
-});
+};
+test("empty year and genre use the fallback video-game phrase", testCallbackA);
 
-test("article processing preserves entered list text", () => {
+const testCallback = () => {
     const data = createArticleData({
         categoryRows: [],
         genres: "Action\nAdventure",
@@ -88,7 +101,8 @@ test("article processing preserves entered list text", () => {
         "Action\nAdventure",
     );
     assert.equal(data.records.genre.values.length, 2);
-});
+};
+test("article processing preserves entered list text", testCallback);
 
 /**
  * Creates article data from the saved Wheel World input.

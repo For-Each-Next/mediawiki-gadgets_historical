@@ -27,7 +27,7 @@ import { msg } from "#me/i18n/index.ts";
  * @returns Dialog template markup.
  */
 export function createDialogTemplate(): string {
-    const result = renderTemplate([
+    const dialogTemplateRootResult = [
         createDialogTemplateRoot(),
         createPreSaveDialogTemplate(),
         createCompanyCategoryDialogTemplate(),
@@ -37,7 +37,8 @@ export function createDialogTemplate(): string {
         createPreviewDialogTemplate(),
         createHistoryDialogTemplate(),
         createHistoryJsonDialogTemplate(),
-    ]);
+    ];
+    const result = renderTemplate(dialogTemplateRootResult);
     return result;
 }
 
@@ -47,6 +48,14 @@ export function createDialogTemplate(): string {
  * @returns Category viewer dialog template node.
  */
 function createCategoryViewDialogTemplate(): any {
+    const elementResultF = [
+        createElement("iframe", {
+            class: "vg-stub-creator-category-view",
+            "v-bind:src": "categoryViewState.url",
+            "v-bind:title": "categoryViewState.title",
+        }),
+        createCategoryViewFooterTemplate(),
+    ];
     const result = createElement(
         "cdx-dialog",
         {
@@ -54,14 +63,7 @@ function createCategoryViewDialogTemplate(): any {
             "v-bind:title": "categoryViewState.title",
             "v-model:open": "categoryViewOpen",
         },
-        [
-            createElement("iframe", {
-                class: "vg-stub-creator-category-view",
-                "v-bind:src": "categoryViewState.url",
-                "v-bind:title": "categoryViewState.title",
-            }),
-            createCategoryViewFooterTemplate(),
-        ],
+        elementResultF,
     );
     return result;
 }
@@ -72,12 +74,16 @@ function createCategoryViewDialogTemplate(): any {
  * @returns Dialog footer node.
  */
 function createCategoryViewFooterTemplate(): any {
+    const categoryViewFooterActionsResul = createCategoryViewFooterActions();
+    const actionFooterResultE = [
+        createActionFooterTemplate(categoryViewFooterActionsResul),
+    ];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createActionFooterTemplate(createCategoryViewFooterActions())],
+        actionFooterResultE,
     );
     return result;
 }
@@ -100,11 +106,12 @@ function createCategoryViewFooterActions(): any {
  * @returns Close button node.
  */
 function createCloseCategoryViewButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageAG = {
         click: "closeCategoryView",
         label: msg("common.close"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageAG);
     return result;
 }
 
@@ -114,21 +121,22 @@ function createCloseCategoryViewButtonTemplate(): any {
  * @returns Company category dialog template node.
  */
 function createCompanyCategoryDialogTemplate(): any {
+    const companyCategoryEnglishFieldRes = [
+        createCompanyCategoryEnglishFieldTemplate(),
+        createCompanyCategoryTextTemplate(),
+        createMessageTemplate(
+            "companyCategoryState.error",
+            "{{ companyCategoryState.error }}",
+        ),
+        createCompanyCategoryFooterTemplate(),
+    ];
     const result = createElement(
         "cdx-dialog",
         {
             "v-bind:title": "getCompanyCategoryDialogTitle()",
             "v-model:open": "companyCategoryOpen",
         },
-        [
-            createCompanyCategoryEnglishFieldTemplate(),
-            createCompanyCategoryTextTemplate(),
-            createMessageTemplate(
-                "companyCategoryState.error",
-                "{{ companyCategoryState.error }}",
-            ),
-            createCompanyCategoryFooterTemplate(),
-        ],
+        companyCategoryEnglishFieldRes,
     );
     return result;
 }
@@ -139,18 +147,20 @@ function createCompanyCategoryDialogTemplate(): any {
  * @returns Company-category field node.
  */
 function createCompanyCategoryEnglishFieldTemplate(): any {
+    const messageAE = msg("review.companyCategoryEnglishName");
+    const messageAF = {
+        placeholder: msg("review.companyCategoryEnglishPlaceholder"),
+        "v-model": "companyCategoryState.englishName",
+        "v-on:blur": "refreshCompanyCategoryMetadata",
+    };
+    const elementResultE = [createElement("cdx-text-input", messageAF)];
+    const companyCategoryLookupResult = {
+        helpText: createCompanyCategoryLookupTemplate(),
+    };
     const result = createFieldTemplate(
-        msg("review.companyCategoryEnglishName"),
-        [
-            createElement("cdx-text-input", {
-                placeholder: msg("review.companyCategoryEnglishPlaceholder"),
-                "v-model": "companyCategoryState.englishName",
-                "v-on:blur": "refreshCompanyCategoryMetadata",
-            }),
-        ],
-        {
-            helpText: createCompanyCategoryLookupTemplate(),
-        },
+        messageAE,
+        elementResultE,
+        companyCategoryLookupResult,
     );
     return result;
 }
@@ -161,13 +171,16 @@ function createCompanyCategoryEnglishFieldTemplate(): any {
  * @returns Lookup feedback nodes.
  */
 function createCompanyCategoryLookupTemplate(): Array<any> {
+    const messageAD = msg("review.companyCategoryCheckingWikidata");
+    const textResultG = [createText(messageAD)];
+    const textResultH = [createText("{{ companyCategoryState.wikidataId }}")];
     const result = [
         createElement(
             "span",
             {
                 "v-if": "companyCategoryLookupLoading",
             },
-            [createText(msg("review.companyCategoryCheckingWikidata"))],
+            textResultG,
         ),
         createElement(
             "a",
@@ -177,7 +190,7 @@ function createCompanyCategoryLookupTemplate(): Array<any> {
                 rel: "noopener noreferrer",
                 target: "_blank",
             },
-            [createText("{{ companyCategoryState.wikidataId }}")],
+            textResultH,
         ),
     ];
     return result;
@@ -189,14 +202,16 @@ function createCompanyCategoryLookupTemplate(): Array<any> {
  * @returns Company-category text area node.
  */
 function createCompanyCategoryTextTemplate(): any {
-    const result = createFieldTemplate(msg("review.companyCategoryWikitext"), [
+    const messageAC = msg("review.companyCategoryWikitext");
+    const elementResultD = [
         createElement("cdx-text-area", {
             class: "vg-stub-creator-company-category-text",
             rows: "10",
             "v-bind:disabled": "companyCategoryState.loading",
             "v-model": "companyCategoryState.text",
         }),
-    ]);
+    ];
+    const result = createFieldTemplate(messageAC, elementResultD);
     return result;
 }
 
@@ -206,12 +221,17 @@ function createCompanyCategoryTextTemplate(): any {
  * @returns Dialog footer node.
  */
 function createCompanyCategoryFooterTemplate(): any {
+    const companyCategoryFooterActionsRe =
+        createCompanyCategoryFooterActions();
+    const actionFooterResultD = [
+        createActionFooterTemplate(companyCategoryFooterActionsRe),
+    ];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createActionFooterTemplate(createCompanyCategoryFooterActions())],
+        actionFooterResultD,
     );
     return result;
 }
@@ -238,12 +258,13 @@ function createCompanyCategoryFooterActions(): any {
  * @returns Close button node.
  */
 function createCloseCompanyCategoryButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageAB = {
         click: "closeCompanyCategory",
         disabled: "companyCategoryState.loading",
         label: msg("common.close"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageAB);
     return result;
 }
 
@@ -253,13 +274,14 @@ function createCloseCompanyCategoryButtonTemplate(): any {
  * @returns Delete button node.
  */
 function createDeleteCompanyCategoryButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageAA = {
         action: "destructive",
         click: "cancelCompanyCategoryCreation",
         disabled: "companyCategoryState.loading",
         label: msg("common.delete"),
         show: "companyCategoryState.pending",
-    });
+    };
+    const result = createButtonTemplate(messageAA);
     return result;
 }
 
@@ -269,7 +291,9 @@ function createDeleteCompanyCategoryButtonTemplate(): any {
  * @returns Save button node.
  */
 function createSaveCompanyCategoryButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageY = msg("review.saving");
+    const messageZ = msg("common.save");
+    const joinedTextA = {
         action: "progressive",
         click: "saveCompanyCategory",
         disabled: [
@@ -277,10 +301,11 @@ function createSaveCompanyCategoryButtonTemplate(): any {
             "ompanyCategoryState.text.trim()",
         ].join(""),
         label: `{{ companyCategoryState.loading ? ${toVueString(
-            msg("review.saving"),
-        )} : ${toVueString(msg("common.save"))} }}`,
+            messageY,
+        )} : ${toVueString(messageZ)} }}`,
         weight: "primary",
-    });
+    };
+    const result = createButtonTemplate(joinedTextA);
     return result;
 }
 
@@ -290,6 +315,23 @@ function createSaveCompanyCategoryButtonTemplate(): any {
  * @returns Root dialog template node.
  */
 function createDialogTemplateRoot(): any {
+    const tabsResult = [createTabsTemplate(), createMainDialogMaskTemplate()];
+    const elementResultC = [
+        createElement(
+            "div",
+            {
+                class: "vg-stub-creator-dialog-body",
+                "v-bind:class": DIALOG_BODY_MASK_CLASS,
+            },
+            tabsResult,
+        ),
+        createMessageTemplate(
+            "sourceFetchState.error",
+            "{{ sourceFetchState.error }}",
+        ),
+        createTableActionTooltipTemplate(),
+        createMainDialogFooterTemplate(),
+    ];
     const result = createElement(
         "cdx-dialog",
         {
@@ -297,22 +339,7 @@ function createDialogTemplateRoot(): any {
             "v-model:open": "open",
             "v-bind:title": "getDialogTitle()",
         },
-        [
-            createElement(
-                "div",
-                {
-                    class: "vg-stub-creator-dialog-body",
-                    "v-bind:class": DIALOG_BODY_MASK_CLASS,
-                },
-                [createTabsTemplate(), createMainDialogMaskTemplate()],
-            ),
-            createMessageTemplate(
-                "sourceFetchState.error",
-                "{{ sourceFetchState.error }}",
-            ),
-            createTableActionTooltipTemplate(),
-            createMainDialogFooterTemplate(),
-        ],
+        elementResultC,
     );
     return result;
 }
@@ -323,6 +350,7 @@ function createDialogTemplateRoot(): any {
  * @returns Tooltip node.
  */
 function createTableActionTooltipTemplate(): any {
+    const textResultF = [createText("{{ tableActionTooltip.label }}")];
     const result = createElement(
         "span",
         {
@@ -332,7 +360,7 @@ function createTableActionTooltipTemplate(): any {
             "v-bind:style": "tableActionTooltip.style",
             "v-if": "tableActionTooltip.visible",
         },
-        [createText("{{ tableActionTooltip.label }}")],
+        textResultF,
     );
     return result;
 }
@@ -343,21 +371,24 @@ function createTableActionTooltipTemplate(): any {
  * @returns Dialog loading mask template node.
  */
 function createMainDialogMaskTemplate(): any {
+    const mainDialogMaskPanelContentResu =
+        createMainDialogMaskPanelContentTemplate();
+    const elementResultB = [
+        createElement(
+            "div",
+            {
+                class: "vg-stub-creator-dialog-mask-panel",
+            },
+            mainDialogMaskPanelContentResu,
+        ),
+    ];
     const result = createElement(
         "div",
         {
             class: "vg-stub-creator-dialog-mask",
             "v-if": "previewLoading",
         },
-        [
-            createElement(
-                "div",
-                {
-                    class: "vg-stub-creator-dialog-mask-panel",
-                },
-                createMainDialogMaskPanelContentTemplate(),
-            ),
-        ],
+        elementResultB,
     );
     return result;
 }
@@ -368,16 +399,18 @@ function createMainDialogMaskTemplate(): any {
  * @returns Loading-mask content nodes.
  */
 function createMainDialogMaskPanelContentTemplate(): Array<any> {
+    const messageX = {
+        "aria-label": msg("preview.preparing"),
+    };
+    const textResultE = [createText("{{ previewLoadingMessage }}")];
     const result = [
-        createElement("cdx-progress-bar", {
-            "aria-label": msg("preview.preparing"),
-        }),
+        createElement("cdx-progress-bar", messageX),
         createElement(
             "p",
             {
                 class: "vg-stub-creator-dialog-mask-text",
             },
-            [createText("{{ previewLoadingMessage }}")],
+            textResultE,
         ),
     ];
     return result;
@@ -389,12 +422,16 @@ function createMainDialogMaskPanelContentTemplate(): Array<any> {
  * @returns Dialog footer template node.
  */
 function createMainDialogFooterTemplate(): any {
+    const mainDialogFooterActionsResult = createMainDialogFooterActions();
+    const actionFooterResultC = [
+        createActionFooterTemplate(mainDialogFooterActionsResult),
+    ];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createActionFooterTemplate(createMainDialogFooterActions())],
+        actionFooterResultC,
     );
     return result;
 }
@@ -421,11 +458,12 @@ function createMainDialogFooterActions(): any {
  * @returns Close button node.
  */
 function createMainCloseButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageW = {
         click: "closeDialog",
         label: msg("common.close"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageW);
     return result;
 }
 
@@ -435,6 +473,8 @@ function createMainCloseButtonTemplate(): any {
  * @returns Action menu node.
  */
 function createMainActionMenuTemplate(): any {
+    const messageV = msg("form.more");
+    const textResultD = [createText(messageV)];
     const result = createElement(
         "cdx-menu-button",
         {
@@ -443,7 +483,7 @@ function createMainActionMenuTemplate(): any {
             "v-model:selected": "mainActionMenuSelection",
             "v-on:update:selected": "handleMainActionSelect",
         },
-        [createText(msg("form.more"))],
+        textResultD,
     );
     return result;
 }
@@ -454,17 +494,21 @@ function createMainActionMenuTemplate(): any {
  * @returns Submit button node.
  */
 function createMainSubmitButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageS = msg("preview.preparing");
+    const messageT = msg("form.loading");
+    const messageU = msg("form.review");
+    const toVueStringResultC = {
         action: "progressive",
         click: "submitForm",
         disabled: "sourceFetchState.loading || previewLoading",
         label: `{{ previewLoading ? ${toVueString(
-            msg("preview.preparing"),
+            messageS,
         )} : sourceFetchState.loading ? ${toVueString(
-            msg("form.loading"),
-        )} : ${toVueString(msg("form.review"))} }}`,
+            messageT,
+        )} : ${toVueString(messageU)} }}`,
         weight: "primary",
-    });
+    };
+    const result = createButtonTemplate(toVueStringResultC);
     return result;
 }
 
@@ -474,24 +518,28 @@ function createMainSubmitButtonTemplate(): any {
  * @returns History dialog template node.
  */
 function createHistoryDialogTemplate(): any {
+    const messageQ = {
+        "v-model:open": "historyOpen",
+        title: msg("form.historyTitle"),
+    };
+    const messageR = msg("form.historyEmpty");
+    const textResultC = [createText(messageR)];
+    const historyProgressBarResult = [
+        createHistoryProgressBarTemplate(),
+        createElement(
+            "p",
+            {
+                "v-if": "historyEntries.length === 0",
+            },
+            textResultC,
+        ),
+        createHistoryEntryListTemplate(),
+        createHistoryDialogFooterTemplate(),
+    ];
     const result = createElement(
         "cdx-dialog",
-        {
-            "v-model:open": "historyOpen",
-            title: msg("form.historyTitle"),
-        },
-        [
-            createHistoryProgressBarTemplate(),
-            createElement(
-                "p",
-                {
-                    "v-if": "historyEntries.length === 0",
-                },
-                [createText(msg("form.historyEmpty"))],
-            ),
-            createHistoryEntryListTemplate(),
-            createHistoryDialogFooterTemplate(),
-        ],
+        messageQ,
+        historyProgressBarResult,
     );
     return result;
 }
@@ -506,10 +554,11 @@ function createHistoryJsonDialogTemplate(): any {
         "v-model:open": "historyJsonOpen",
         title: msg("form.historyData"),
     };
+    const historyJsonDialogChildrenResul = createHistoryJsonDialogChildren();
     const dialog = createElement(
         "cdx-dialog",
         attributes,
-        createHistoryJsonDialogChildren(),
+        historyJsonDialogChildrenResul,
     );
 
     return dialog;
@@ -534,8 +583,9 @@ function createHistoryJsonDialogChildren(): Array<any> {
         "{{ historyJsonError }}",
     );
 
+    const textResultB = [createText(description)];
     const result = [
-        createElement("p", {}, [createText(description)]),
+        createElement("p", {}, textResultB),
         createHistoryProgressBarTemplate(),
         textArea,
         error,
@@ -550,12 +600,16 @@ function createHistoryJsonDialogChildren(): Array<any> {
  * @returns Dialog footer node.
  */
 function createHistoryJsonDialogFooterTemplate(): any {
+    const historyJsonFooterActionsResult = createHistoryJsonFooterActions();
+    const actionFooterResultB = [
+        createActionFooterTemplate(historyJsonFooterActionsResult),
+    ];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createActionFooterTemplate(createHistoryJsonFooterActions())],
+        actionFooterResultB,
     );
     return result;
 }
@@ -579,12 +633,13 @@ function createHistoryJsonFooterActions(): any {
  * @returns Close button node.
  */
 function createHistoryJsonCloseButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageP = {
         click: "closeHistoryJsonDialog",
         disabled: "historyLoading",
         label: msg("common.close"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageP);
     return result;
 }
 
@@ -594,15 +649,18 @@ function createHistoryJsonCloseButtonTemplate(): any {
  * @returns Load button node.
  */
 function createHistoryJsonLoadButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageN = msg("form.loading");
+    const messageO = msg("form.load");
+    const toVueStringResultB = {
         action: "progressive",
         click: "importHistoryJson",
         disabled: "historyLoading",
         label: `{{ historyLoading ? ${toVueString(
-            msg("form.loading"),
-        )} : ${toVueString(msg("form.load"))} }}`,
+            messageN,
+        )} : ${toVueString(messageO)} }}`,
         weight: "primary",
-    });
+    };
+    const result = createButtonTemplate(toVueStringResultB);
     return result;
 }
 
@@ -612,10 +670,11 @@ function createHistoryJsonLoadButtonTemplate(): any {
  * @returns History loading progress bar node.
  */
 function createHistoryProgressBarTemplate(): any {
-    const result = createElement("cdx-progress-bar", {
+    const messageM = {
         "aria-label": msg("form.historyLoading"),
         "v-if": "historyLoading",
-    });
+    };
+    const result = createElement("cdx-progress-bar", messageM);
     return result;
 }
 
@@ -625,6 +684,7 @@ function createHistoryProgressBarTemplate(): any {
  * @returns History entry list template node.
  */
 function createHistoryEntryListTemplate(): any {
+    const historyEntryResult = [createHistoryEntryTemplate()];
     const result = createElement(
         "div",
         {
@@ -634,7 +694,7 @@ function createHistoryEntryListTemplate(): any {
                 gap: "0.5em",
             },
         },
-        [createHistoryEntryTemplate()],
+        historyEntryResult,
     );
     return result;
 }
@@ -645,6 +705,13 @@ function createHistoryEntryListTemplate(): any {
  * @returns History entry row template node.
  */
 function createHistoryEntryTemplate(): any {
+    const historyEntryTextResult = [
+        createHistoryEntryTextTemplate(),
+        createHistoryEntryLoadButtonTemplate(),
+        createHistoryEntryExportButtonTemplate(),
+        createHistoryEntryDeleteButtonTemplate(),
+        createHistoryEntryUpdateButtonTemplate(),
+    ];
     const result = createElement(
         "div",
         {
@@ -659,13 +726,7 @@ function createHistoryEntryTemplate(): any {
                 padding: "0.5em 0",
             },
         },
-        [
-            createHistoryEntryTextTemplate(),
-            createHistoryEntryLoadButtonTemplate(),
-            createHistoryEntryExportButtonTemplate(),
-            createHistoryEntryDeleteButtonTemplate(),
-            createHistoryEntryUpdateButtonTemplate(),
-        ],
+        historyEntryTextResult,
     );
     return result;
 }
@@ -676,12 +737,14 @@ function createHistoryEntryTemplate(): any {
  * @returns History entry text block node.
  */
 function createHistoryEntryTextTemplate(): any {
-    const result = createElement("div", {}, [
-        createElement("div", {}, [
-            createText("{{ index + 1 }}. {{ formatHistoryEntryPage(entry) }}"),
-        ]),
+    const textResultA = [
+        createText("{{ index + 1 }}. {{ formatHistoryEntryPage(entry) }}"),
+    ];
+    const elementResultA = [
+        createElement("div", {}, textResultA),
         createHistoryEntrySavedAtTemplate(),
-    ]);
+    ];
+    const result = createElement("div", {}, elementResultA);
     return result;
 }
 
@@ -691,6 +754,7 @@ function createHistoryEntryTextTemplate(): any {
  * @returns Saved-at text node.
  */
 function createHistoryEntrySavedAtTemplate(): any {
+    const textResult = [createText("{{ entry.metadata.savedAt }}")];
     const result = createElement(
         "div",
         {
@@ -699,7 +763,7 @@ function createHistoryEntrySavedAtTemplate(): any {
                 fontSize: "0.75em",
             },
         },
-        [createText("{{ entry.metadata.savedAt }}")],
+        textResult,
     );
     return result;
 }
@@ -710,13 +774,16 @@ function createHistoryEntrySavedAtTemplate(): any {
  * @returns Load button node.
  */
 function createHistoryEntryLoadButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageK = msg("form.loading");
+    const messageL = msg("form.load");
+    const toVueStringResultA = {
         click: "fillHistoryEntry(entry)",
         disabled: "historyLoading",
         label: `{{ historyLoading ? ${toVueString(
-            msg("form.loading"),
-        )} : ${toVueString(msg("form.load"))} }}`,
-    });
+            messageK,
+        )} : ${toVueString(messageL)} }}`,
+    };
+    const result = createButtonTemplate(toVueStringResultA);
     return result;
 }
 
@@ -726,11 +793,12 @@ function createHistoryEntryLoadButtonTemplate(): any {
  * @returns Export button node.
  */
 function createHistoryEntryExportButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageJ = {
         click: "openHistoryJsonDialog(entry)",
         disabled: "historyLoading",
         label: msg("form.export"),
-    });
+    };
+    const result = createButtonTemplate(messageJ);
     return result;
 }
 
@@ -740,13 +808,14 @@ function createHistoryEntryExportButtonTemplate(): any {
  * @returns Delete button node.
  */
 function createHistoryEntryDeleteButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageI = {
         action: "destructive",
         click: "deleteHistoryEntry(entry.id)",
         disabled: "historyLoading",
         label: msg("common.delete"),
         show: "!entry.metadata.temporary",
-    });
+    };
+    const result = createButtonTemplate(messageI);
     return result;
 }
 
@@ -756,12 +825,13 @@ function createHistoryEntryDeleteButtonTemplate(): any {
  * @returns Update button node.
  */
 function createHistoryEntryUpdateButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageH = {
         click: "updateTemporaryHistoryEntry",
         disabled: "historyLoading",
         label: msg("form.update"),
         show: "entry.metadata.temporary",
-    });
+    };
+    const result = createButtonTemplate(messageH);
     return result;
 }
 
@@ -771,12 +841,16 @@ function createHistoryEntryUpdateButtonTemplate(): any {
  * @returns History dialog footer template node.
  */
 function createHistoryDialogFooterTemplate(): any {
+    const historyFooterActionsResult = createHistoryFooterActions();
+    const actionFooterResultA = [
+        createActionFooterTemplate(historyFooterActionsResult),
+    ];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createActionFooterTemplate(createHistoryFooterActions())],
+        actionFooterResultA,
     );
     return result;
 }
@@ -803,12 +877,13 @@ function createHistoryFooterActions(): any {
  * @returns Close button node.
  */
 function createHistoryCloseButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageG = {
         click: "closeHistoryDialog",
         disabled: "historyLoading",
         label: msg("common.close"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageG);
     return result;
 }
 
@@ -818,7 +893,7 @@ function createHistoryCloseButtonTemplate(): any {
  * @returns Clear button node.
  */
 function createHistoryClearButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const joinedText = {
         action: "destructive",
         click: "clearHistory",
         disabled:
@@ -828,7 +903,8 @@ function createHistoryClearButtonTemplate(): any {
                 "ntry.metadata.temporary)",
             ].join(""),
         label: msg("form.clear"),
-    });
+    };
+    const result = createButtonTemplate(joinedText);
     return result;
 }
 
@@ -838,12 +914,13 @@ function createHistoryClearButtonTemplate(): any {
  * @returns Import button node.
  */
 function createHistoryImportButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageF = {
         action: "progressive",
         click: "openHistoryImportDialog",
         disabled: "historyLoading",
         label: msg("form.import"),
-    });
+    };
+    const result = createButtonTemplate(messageF);
     return result;
 }
 
@@ -857,10 +934,11 @@ function createMoveDialogTemplate(): any {
         "v-model:open": "moveOpen",
         title: msg("form.moveTitle"),
     };
+    const moveDialogChildrenResult = createMoveDialogChildren();
     const dialog = createElement(
         "cdx-dialog",
         attributes,
-        createMoveDialogChildren(),
+        moveDialogChildrenResult,
     );
 
     return dialog;
@@ -898,13 +976,14 @@ function createMoveDialogChildren(): Array<any> {
  * @returns Move target field node.
  */
 function createMoveTargetFieldTemplate(): any {
-    const result = createFieldTemplate(msg("text.pageName"), [
-        createElement("cdx-text-input", {
-            placeholder: msg("text.pageNamePlaceholder"),
-            "v-bind:model-value": "moveTarget",
-            "v-on:update:model-value": "updateMoveTarget($event)",
-        }),
-    ]);
+    const messageD = msg("text.pageName");
+    const messageE = {
+        placeholder: msg("text.pageNamePlaceholder"),
+        "v-bind:model-value": "moveTarget",
+        "v-on:update:model-value": "updateMoveTarget($event)",
+    };
+    const elementResult = [createElement("cdx-text-input", messageE)];
+    const result = createFieldTemplate(messageD, elementResult);
     return result;
 }
 
@@ -914,12 +993,16 @@ function createMoveTargetFieldTemplate(): any {
  * @returns Move dialog footer template node.
  */
 function createMoveDialogFooterTemplate(): any {
+    const moveFooterActionsResult = createMoveFooterActions();
+    const actionFooterResult = [
+        createActionFooterTemplate(moveFooterActionsResult),
+    ];
     const result = createElement(
         "template",
         {
             "v-slot:footer": "",
         },
-        [createActionFooterTemplate(createMoveFooterActions())],
+        actionFooterResult,
     );
     return result;
 }
@@ -946,11 +1029,12 @@ function createMoveFooterActions(): any {
  * @returns Close button node.
  */
 function createMoveCloseButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageC = {
         click: "closeMoveDialog",
         label: msg("common.close"),
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageC);
     return result;
 }
 
@@ -960,13 +1044,14 @@ function createMoveCloseButtonTemplate(): any {
  * @returns Preview-without-moving button node.
  */
 function createMovePreviewWithoutMovingButtonTemplate(): any {
-    const result = createButtonTemplate({
+    const messageB = {
         click: "previewWithoutMoving",
         disabled: "sourceFetchState.loading || moveTargetState.loading",
         label: msg("text.previewWithoutMoving"),
         show: "movePreviewConfirmation",
         weight: "quiet",
-    });
+    };
+    const result = createButtonTemplate(messageB);
     return result;
 }
 
@@ -978,14 +1063,17 @@ function createMovePreviewWithoutMovingButtonTemplate(): any {
 function createMoveSubmitButtonTemplate(): any {
     const loading = "sourceFetchState.loading || moveTargetState.loading";
 
-    const result = createButtonTemplate({
+    const message = msg("text.opening");
+    const messageA = msg("text.openPageName");
+    const toVueStringResult = {
         action: "progressive",
         click: "submitMoveTarget",
         disabled: "sourceFetchState.loading || moveTargetState.loading",
         label: `{{ ${loading} ? ${toVueString(
-            msg("text.opening"),
-        )} : ${toVueString(msg("text.openPageName"))} }}`,
+            message,
+        )} : ${toVueString(messageA)} }}`,
         weight: "primary",
-    });
+    };
+    const result = createButtonTemplate(toVueStringResult);
     return result;
 }

@@ -208,16 +208,22 @@ export function createDialogComponent(
 function initializePrimaryState(): void {
     currentTitle = trimValue(options.currentTitle) || options.defaultName;
     activeTab = Vue.ref(ARTICLE_PARAMETER_GROUPS[0].key);
-    form = Vue.reactive(createFormValues());
-    categoryState = Vue.reactive(createLoadingState());
-    citationState = Vue.reactive(createLoadingState());
-    reviewState = Vue.reactive(createLoadingState());
+    const formValuesResultA = createFormValues();
+    form = Vue.reactive(formValuesResultA);
+    const loadingStateResultC = createLoadingState();
+    categoryState = Vue.reactive(loadingStateResultC);
+    const loadingStateResultB = createLoadingState();
+    citationState = Vue.reactive(loadingStateResultB);
+    const loadingStateResultA = createLoadingState();
+    reviewState = Vue.reactive(loadingStateResultA);
     companyCategoryOpen = Vue.ref(false);
-    companyCategoryState = Vue.reactive(createCompanyCategoryState());
+    const companyCategoryStateResult = createCompanyCategoryState();
+    companyCategoryState = Vue.reactive(companyCategoryStateResult);
     companyCategoryLookupLoading = Vue.ref(false);
     companyCategoryLookupSerial = Vue.ref(0);
     pageEditOpen = Vue.ref(false);
-    pageEditState = Vue.reactive(createPageEditState());
+    const pageEditStateResult = createPageEditState();
+    pageEditState = Vue.reactive(pageEditStateResult);
     categoryViewOpen = Vue.ref(false);
     categoryViewState = Vue.reactive({ title: "", url: "" });
 }
@@ -226,7 +232,8 @@ function initializePrimaryState(): void {
  * Initializes history, move, and pre-save state.
  */
 function initializeActionState(): void {
-    historyEntries = Vue.ref(options.getHistoryEntries());
+    const historyEntriesResult = options.getHistoryEntries();
+    historyEntries = Vue.ref(historyEntriesResult);
     historyJsonError = Vue.ref("");
     historyJsonEditable = Vue.ref(false);
     historyJsonOpen = Vue.ref(false);
@@ -235,7 +242,8 @@ function initializeActionState(): void {
     historyOpen = Vue.ref(false);
     mainActionMenuSelection = Vue.ref(null);
     moveTarget = Vue.ref(currentTitle);
-    moveTargetState = Vue.reactive(createMoveTargetState());
+    const moveTargetStateResult = createMoveTargetState();
+    moveTargetState = Vue.reactive(moveTargetStateResult);
     moveOpen = Vue.ref(false);
     movePreviewConfirmation = Vue.ref(false);
     previewWithoutMoveTitle = Vue.ref("");
@@ -260,16 +268,20 @@ function initializePreviewState(): void {
     previewSummary = Vue.ref("");
     previewHtml = Vue.ref("");
     previewLoading = Vue.ref(false);
-    previewLoadingMessage = Vue.ref(msg("preview.preparing"));
+    const messageC = msg("preview.preparing");
+    previewLoadingMessage = Vue.ref(messageC);
     previewSubmitted = Vue.ref(false);
     pageEditTextArea = Vue.ref(null);
     enwikiLookupLoading = Vue.ref(false);
     enwikiLookupSerial = Vue.ref(0);
-    enwikiMetadata = Vue.reactive(createBlankEnwikiMetadata());
+    const blankEnwikiMetadataResultB = createBlankEnwikiMetadata();
+    enwikiMetadata = Vue.reactive(blankEnwikiMetadataResultB);
     fetchedSteamNameRows = Vue.ref([]);
     steamUrl = Vue.ref("");
-    sourceFetchState = Vue.reactive(createLoadingState());
-    tableActionTooltip = Vue.reactive(createTableActionTooltip());
+    const loadingStateResult = createLoadingState();
+    sourceFetchState = Vue.reactive(loadingStateResult);
+    const tableActionTooltipResult = createTableActionTooltip();
+    tableActionTooltip = Vue.reactive(tableActionTooltipResult);
     tableActionTooltipRef = Vue.ref(null);
     open = Vue.ref(options.initialOpen === true);
 }
@@ -412,15 +424,12 @@ function getCurrentProgressGroups(): any {
  * Watches form mutations and queues dependent work.
  */
 function watchFormChanges(): void {
-    Vue.watch(
-        form,
-        function callback(currentForm: unknown) {
-            syncGeneratedNameNoteTaRow(currentForm);
-            options.onFormChange(currentForm);
-            queueCitationPrefetch(currentForm);
-        },
-        { deep: true },
-    );
+    const watchCallbackC = function callback(currentForm: unknown) {
+        syncGeneratedNameNoteTaRow(currentForm);
+        options.onFormChange(currentForm);
+        queueCitationPrefetch(currentForm);
+    };
+    Vue.watch(form, watchCallbackC, { deep: true });
     queueCitationPrefetch(form);
 }
 
@@ -428,7 +437,7 @@ function watchFormChanges(): void {
  * Watches tab changes that require refreshed data.
  */
 function watchActiveTab(): void {
-    Vue.watch(activeTab, function callback(tab: string) {
+    const watchCallbackB = function callback(tab: string) {
         if (tab === "review") {
             refreshReview();
         }
@@ -436,35 +445,38 @@ function watchActiveTab(): void {
         if (tab === "references") {
             refreshCitationRows();
         }
-    });
+    };
+    Vue.watch(activeTab, watchCallbackB);
 }
 
 /**
  * Watches the article preview editor dialog.
  */
 function watchPreviewEditor(): void {
-    Vue.watch(previewOpen, function callback(isOpen: unknown) {
+    const watchCallbackA = function callback(isOpen: unknown) {
         if (isOpen) {
             queueSourceEditor("preview", previewTextArea, previewText);
             return;
         }
 
         destroySourceEditor("preview");
-    });
+    };
+    Vue.watch(previewOpen, watchCallbackA);
 }
 
 /**
  * Watches the follow-up page editor dialog.
  */
 function watchPageEditEditor(): void {
-    Vue.watch(pageEditOpen, function callback(isOpen: unknown) {
+    const watchCallback = function callback(isOpen: unknown) {
         if (!isOpen) {
             destroySourceEditor("pageEdit");
             return;
         }
 
         queueSourceEditor("pageEdit", pageEditTextArea, pageEditTextBinding);
-    });
+    };
+    Vue.watch(pageEditOpen, watchCallback);
 }
 
 /**
@@ -475,13 +487,14 @@ function registerUnmountHandler(): void {
         return;
     }
 
-    Vue.onBeforeUnmount(function callback() {
+    const onBeforeUnmountCallback = function callback() {
         componentMounted = false;
 
         for (const key of [...sourceEditors.keys()]) {
             destroySourceEditor(key);
         }
-    });
+    };
+    Vue.onBeforeUnmount(onBeforeUnmountCallback);
 }
 
 /**
@@ -536,9 +549,10 @@ async function openPreSave() {
     preSaveOpen.value = true;
 
     try {
+        const currentTitleResultH = getCurrentTitle();
         const prepared = await options.onPreSavePrepare(
             form,
-            getCurrentTitle(),
+            currentTitleResultH,
         );
 
         preSaveActions.splice(
@@ -785,7 +799,8 @@ const methods = {
      * @returns Main dialog title.
      */
     getDialogTitle(): string {
-        return msg("form.title", { title: getCurrentTitle() });
+        const currentTitleResultG = { title: getCurrentTitle() };
+        return msg("form.title", currentTitleResultG);
     },
 
     /**
@@ -906,7 +921,8 @@ const methods = {
             previewLoadingMessage.value = msg("progress.checkingPages");
             await refreshReview();
             previewLoadingMessage.value = msg("progress.buildingPreview");
-            options.onSubmitHistory(form, getCurrentTitle());
+            const currentTitleResultF = getCurrentTitle();
+            options.onSubmitHistory(form, currentTitleResultF);
             historyEntries.value = options.getHistoryEntries();
             const preview = await options.onPreview(form, sourceFetchState);
 
@@ -1001,7 +1017,8 @@ const methods = {
      */
     async confirmSubmit(): Promise<void> {
         syncSourceEditorText("preview", previewText);
-        options.onSubmitHistory(form, getCurrentTitle());
+        const currentTitleResultE = getCurrentTitle();
+        options.onSubmitHistory(form, currentTitleResultE);
         historyEntries.value = options.getHistoryEntries();
 
         const moveTitle = trimValue(preSaveMoveTitle.value);
@@ -1011,12 +1028,14 @@ const methods = {
             return;
         }
 
+        const reviewedSubmitPendingResult = createReviewedSubmitPending();
+        const reviewedPreviewResult = getReviewedPreview();
         await options.onSubmit(
             form,
             sourceFetchState,
             this.closeDialog,
-            createReviewedSubmitPending(),
-            getReviewedPreview(),
+            reviewedSubmitPendingResult,
+            reviewedPreviewResult,
         );
 
         if (sourceFetchState.error === "") {
@@ -1152,13 +1171,15 @@ const methods = {
      * @returns Whether the row should be highlighted.
      */
     isCategoryAddReviewRow(row: any): boolean {
-        const result =
-            row?.enabled !== false &&
-            trimValue(row?.category) !== "" &&
-            (row?.pendingCreation != null ||
-                row?.status === "Not exists" ||
-                row?.status === "Pending creation");
-        return result;
+        if (row?.enabled === false || trimValue(row?.category) === "") {
+            return false;
+        }
+
+        return (
+            row?.pendingCreation != null ||
+            row?.status === "Not exists" ||
+            row?.status === "Pending creation"
+        );
     },
 
     /**
@@ -1168,14 +1189,19 @@ const methods = {
      * @returns Whether the row should be highlighted.
      */
     isNavboxAddReviewRow(row: any): boolean {
-        const result =
-            row?.enabled !== false &&
-            trimValue(row?.text) !== "" &&
-            (row?.pendingCreation != null ||
-                row?.status === "Not exists" ||
-                row?.status === "Missing" ||
-                row?.status === "Pending creation");
-        return result;
+        if (row?.enabled === false || trimValue(row?.text) === "") {
+            return false;
+        }
+
+        if (row?.pendingCreation != null) {
+            return true;
+        }
+
+        return (
+            row?.status === "Not exists" ||
+            row?.status === "Missing" ||
+            row?.status === "Pending creation"
+        );
     },
 
     /**
@@ -1188,14 +1214,19 @@ const methods = {
      * @returns Whether the row should be highlighted.
      */
     isStubTagAddReviewRow(row: any): boolean {
-        const result =
-            row?.enabled !== false &&
-            trimStubTagValue(row?.stubTag) !== "" &&
-            (row?.pendingCreation != null ||
-                row?.status === "Not exists" ||
-                row?.status === "Missing" ||
-                row?.status === "Pending creation");
-        return result;
+        if (row?.enabled === false || trimStubTagValue(row?.stubTag) === "") {
+            return false;
+        }
+
+        if (row?.pendingCreation != null) {
+            return true;
+        }
+
+        return (
+            row?.status === "Not exists" ||
+            row?.status === "Missing" ||
+            row?.status === "Pending creation"
+        );
     },
 
     /**
@@ -1235,9 +1266,10 @@ const methods = {
         const page = trimValue(entry.metadata?.page);
 
         if (entry.metadata?.temporary === true) {
-            const result = msg("history.temporaryPage", {
+            const messageB = {
                 page: page || msg("history.untitled"),
-            });
+            };
+            const result = msg("history.temporaryPage", messageB);
             return result;
         }
 
@@ -1255,7 +1287,8 @@ const methods = {
         historyLoading.value = true;
 
         try {
-            await restoreHistoryForm(getHistoryEntryForm(entry));
+            const historyEntryFormResult = getHistoryEntryForm(entry);
+            await restoreHistoryForm(historyEntryFormResult);
             await refreshCitationRows();
             await refreshReview();
             historyOpen.value = false;
@@ -1381,7 +1414,8 @@ const methods = {
         positionTableActionTooltip(rect);
 
         if (typeof Vue.nextTick === "function") {
-            Vue.nextTick(() => positionTableActionTooltip(rect));
+            const nextTickCallbackA = () => positionTableActionTooltip(rect);
+            Vue.nextTick(nextTickCallbackA);
         }
     },
 
@@ -1587,9 +1621,15 @@ const methods = {
         await refreshCategoryRows();
         form.pageName = trimValue(moveTarget.value);
         movePreviewConfirmation.value = false;
-        options.onSubmitHistory(form, getCurrentTitle());
+        const currentTitleResultD = getCurrentTitle();
+        options.onSubmitHistory(form, currentTitleResultD);
         historyEntries.value = options.getHistoryEntries();
-        await options.onMoveTarget(form, getCurrentTitle(), sourceFetchState);
+        const currentTitleResultC = getCurrentTitle();
+        await options.onMoveTarget(
+            form,
+            currentTitleResultC,
+            sourceFetchState,
+        );
     },
 
     /**
@@ -1600,11 +1640,12 @@ const methods = {
      * @returns Multiline article field values.
      */
     normalizeFieldValue(field: any): void {
+        const selectValueCallbackE = function trueBranch() {
+            return normalizeEnwikiTitleValue(form[field.key]);
+        };
         const value = selectValue(
             field.key === "enwikiTitle",
-            function trueBranch() {
-                return normalizeEnwikiTitleValue(form[field.key]);
-            },
+            selectValueCallbackE,
             function falseBranch() {
                 return form[field.key];
             },
@@ -1686,7 +1727,8 @@ const methods = {
         }
 
         if (citation.params[paramIndex] == null) {
-            citation.params.push(createCitationParamRow());
+            const citationParamRowResultA = createCitationParamRow();
+            citation.params.push(citationParamRowResultA);
         }
 
         citation.params[paramIndex][field] = trimValue(value);
@@ -1728,7 +1770,8 @@ const methods = {
             return;
         }
 
-        citation.params.push(createCitationParamRow());
+        const citationParamRowResult = createCitationParamRow();
+        citation.params.push(citationParamRowResult);
         citation.modified = true;
     },
 
@@ -1748,9 +1791,9 @@ const methods = {
         }
 
         const params: Array<{ value?: unknown }> = citation.params || [];
-        citation.params = params.filter(
-            (param) => trimValue(param?.value) !== "",
-        );
+        const filterCallbackE = (param: { value?: unknown }) =>
+            trimValue(param?.value) !== "";
+        citation.params = params.filter(filterCallbackE);
         citation.modified = true;
     },
 
@@ -1938,9 +1981,12 @@ const methods = {
 
         event.preventDefault();
         const completed = completeMetadataFieldValue(field.key, text, true);
-        form[field.key] = normalizeListFieldValue(
-            formatArticleFormField(form, field.key, completed),
+        const articleFormFieldResult = formatArticleFormField(
+            form,
+            field.key,
+            completed,
         );
+        form[field.key] = normalizeListFieldValue(articleFormFieldResult);
         markCategoryRowsUnfixed(form.categoryRows);
     },
 
@@ -2032,7 +2078,8 @@ const methods = {
      *   appends a blank localized name row.
      */
     addNameRow(key: string): void {
-        form[key].push(createNameRow());
+        const nameRowResult = createNameRow();
+        form[key].push(nameRowResult);
     },
 
     /**
@@ -2100,12 +2147,13 @@ const methods = {
         }
 
         removeSteamAppliedNameRows();
+        const forEachCallback = function callback(row: any) {
+            markSteamNameHelperRow(row);
+            form.localizedNames.push(row);
+        };
         buildSteamNameChoiceRows(fetchedSteamNameRows.value, choice)
             .map(createNameRowFromValues)
-            .forEach(function callback(row) {
-                markSteamNameHelperRow(row);
-                form.localizedNames.push(row);
-            });
+            .forEach(forEachCallback);
         ensureTrailingNameRow(form.localizedNames);
         syncGeneratedNameNoteTaRow(form);
     },
@@ -2156,7 +2204,8 @@ const methods = {
      *   adds one manual category row.
      */
     addCategoryRow(): void {
-        form.categoryRows.push(options.onCreateCategoryRow());
+        const onCreateCategoryRowResult = options.onCreateCategoryRow();
+        form.categoryRows.push(onCreateCategoryRowResult);
         ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
     },
 
@@ -2179,10 +2228,11 @@ const methods = {
      *   removes surplus blank category rows.
      */
     cleanCategoryRows(): void {
+        const cleanEditableRowsCallback = () => options.onCreateCategoryRow();
         form.categoryRows = cleanEditableRows(
             form.categoryRows,
             isBlankCategoryRow,
-            () => options.onCreateCategoryRow(),
+            cleanEditableRowsCallback,
         );
     },
 
@@ -2193,7 +2243,9 @@ const methods = {
      *   appends a blank stub-tag row.
      */
     addStubTagRow(): void {
-        ensureStubTagRows(form).push(createStubTagRow());
+        const rows = ensureStubTagRows(form);
+        const row = createStubTagRow();
+        rows.push(row);
         ensureTrailingStubTagRow(form);
     },
 
@@ -2245,8 +2297,9 @@ const methods = {
      *   removes surplus blank stub-tag rows.
      */
     cleanStubTagRows(): void {
+        const ensureStubTagRowsResult = ensureStubTagRows(form);
         form.stubTagRows = cleanEditableRows(
-            ensureStubTagRows(form),
+            ensureStubTagRowsResult,
             isBlankStubTagRow,
             createStubTagRow,
         );
@@ -2259,7 +2312,9 @@ const methods = {
      *   appends a blank redirect row.
      */
     addRedirectRow(): void {
-        ensureRedirectRows(form).push(createRedirectRow());
+        const rows = ensureRedirectRows(form);
+        const row = createRedirectRow();
+        rows.push(row);
         ensureTrailingRedirectRow(form);
     },
 
@@ -2312,8 +2367,9 @@ const methods = {
      *   removes surplus blank redirect rows.
      */
     cleanRedirectRows(): void {
+        const ensureRedirectRowsResult = ensureRedirectRows(form);
         form.redirectRows = cleanEditableRows(
-            ensureRedirectRows(form),
+            ensureRedirectRowsResult,
             isBlankRedirectRow,
             createRedirectRow,
         );
@@ -2326,7 +2382,9 @@ const methods = {
      *   appends a blank navbox row.
      */
     addNavboxRow(): void {
-        ensureNavboxRows(form).push(createNavboxRow());
+        const rows = ensureNavboxRows(form);
+        const row = createNavboxRow();
+        rows.push(row);
         ensureTrailingNavboxRow(form);
         navboxRowsPrepared = true;
     },
@@ -2338,8 +2396,9 @@ const methods = {
      *   removes surplus blank navbox rows.
      */
     cleanNavboxRows(): void {
+        const ensureNavboxRowsResult = ensureNavboxRows(form);
         form.navboxRows = cleanEditableRows(
-            ensureNavboxRows(form),
+            ensureNavboxRowsResult,
             isBlankNavboxRow,
             createNavboxRow,
         );
@@ -2353,7 +2412,9 @@ const methods = {
      *   appends a blank noteta row.
      */
     addNoteTaRow(): void {
-        ensureNoteTaRows(form).push(createNoteTaRow());
+        const rows = ensureNoteTaRows(form);
+        const row = createNoteTaRow();
+        rows.push(row);
     },
 
     /**
@@ -2383,11 +2444,12 @@ const methods = {
     cleanNoteTaRows(): void {
         const rows = ensureNoteTaRows(form);
 
-        rows.splice(
-            0,
-            rows.length,
-            ...cleanEditableRows(rows, isBlankNoteTaRow, createNoteTaRow),
+        const cleanEditableRowsResult = cleanEditableRows(
+            rows,
+            isBlankNoteTaRow,
+            createNoteTaRow,
         );
+        rows.splice(0, rows.length, ...cleanEditableRowsResult);
     },
 
     /**
@@ -2419,7 +2481,8 @@ const methods = {
     sortNoteTaRows(): void {
         const rows = ensureNoteTaRows(form);
 
-        rows.splice(0, rows.length, ...sortNoteTaEntries(rows));
+        const sortNoteTaEntriesResult = sortNoteTaEntries(rows);
+        rows.splice(0, rows.length, ...sortNoteTaEntriesResult);
     },
 
     /**
@@ -2545,12 +2608,13 @@ const methods = {
      * @returns Resolves after the editor is ready.
      */
     async openNavboxEdit(row: any): Promise<void> {
-        await openPageEdit({
+        const pageEditCreateStateResultB = {
             create: getPageEditCreateState(row, row.status !== "OK"),
             kind: "navbox",
             row,
             title: `Template:${row.title}`,
-        });
+        };
+        await openPageEdit(pageEditCreateStateResultB);
     },
 
     /**
@@ -2560,12 +2624,13 @@ const methods = {
      * @returns Resolves after the editor is ready.
      */
     async openRedirectEdit(row: any): Promise<void> {
-        await openPageEdit({
+        const pageEditCreateStateResultA = {
             create: getPageEditCreateState(row, row.exists !== true),
             kind: "redirect",
             row,
             title: trimValue(row.title),
-        });
+        };
+        await openPageEdit(pageEditCreateStateResultA);
     },
 
     /**
@@ -2575,12 +2640,13 @@ const methods = {
      * @returns Resolves after the editor is ready.
      */
     async openStubTagEdit(row: any): Promise<void> {
-        await openPageEdit({
+        const trimStubTagValueResult = {
             create: false,
             kind: "stubTag",
             row,
             title: `Template:${trimStubTagValue(row.stubTag)}`,
-        });
+        };
+        await openPageEdit(trimStubTagValueResult);
     },
 
     /**
@@ -2595,9 +2661,10 @@ const methods = {
     updateCategoryRowCategory(index: number, category: string): void {
         const current = form.categoryRows[index];
 
+        const trimmedValueB = trimValue(category);
         form.categoryRows[index] = options.onUpdateCategoryRowCategory(
             form.categoryRows[index],
-            trimValue(category),
+            trimmedValueB,
         );
         syncCategoryRowFixedState(form.categoryRows[index], current);
         ensureTrailingCategoryRow(form, options.onCreateCategoryRow);
@@ -2638,7 +2705,7 @@ const methods = {
     async openCategoryCreate(row: any): Promise<void> {
         const pendingCreation = row.pendingCreation;
 
-        Object.assign(companyCategoryState, {
+        const trimmedValueA = {
             category: trimValue(row.category),
             company: trimValue(row.company),
             englishName: trimValue(pendingCreation?.englishName),
@@ -2647,7 +2714,8 @@ const methods = {
             pending: pendingCreation != null,
             text: String(pendingCreation?.text || ""),
             wikidataId: trimValue(pendingCreation?.wikidataId),
-        });
+        };
+        Object.assign(companyCategoryState, trimmedValueA);
         companyCategoryLookupLoading.value = false;
         companyCategoryOpen.value = true;
 
@@ -2688,11 +2756,10 @@ const methods = {
      *   cancels the staged category creation.
      */
     cancelCompanyCategoryCreation(): void {
-        const row = form.categoryRows.find(function callback(item: {
-            category: unknown;
-        }) {
+        const findCallbackA = function callback(item: { category: unknown }) {
             return trimValue(item.category) === companyCategoryState.category;
-        });
+        };
+        const row = form.categoryRows.find(findCallbackA);
 
         if (row == null || row.pendingCreation == null) {
             return;
@@ -2717,7 +2784,8 @@ const methods = {
             const row = findCompanyCategoryRow();
 
             if (row == null) {
-                throw new Error(msg("errors.categoryRowUnavailable"));
+                const message = msg("errors.categoryRowUnavailable");
+                throw new Error(message);
             }
 
             row.pendingCreation = createPendingCompanyCategory(row);
@@ -2790,12 +2858,13 @@ const methods = {
     async openCategoryEdit(row: any): Promise<void> {
         const category = trimValue(row.category);
 
-        await openPageEdit({
+        const pageEditCreateStateResult = {
             create: getPageEditCreateState(row, row.status !== "OK"),
             kind: "category",
             row,
             title: `Category:${category}`,
-        });
+        };
+        await openPageEdit(pageEditCreateStateResult);
     },
 
     /**
@@ -2951,14 +3020,17 @@ const methods = {
      * @returns Compact status label.
      */
     formatStubTagStatusLabel(row: any): string {
+        const isBlankStubTagRowResult = isBlankStubTagRow(row);
+        const selectValueCallbackC = function trueBranch() {
+            return msg("review.empty");
+        };
+        const selectValueCallbackD = function falseBranch() {
+            return formatReviewRowStatusLabel(row, isBlankStubTagRow);
+        };
         const result = selectValue(
-            isBlankStubTagRow(row),
-            function trueBranch() {
-                return msg("review.empty");
-            },
-            function falseBranch() {
-                return formatReviewRowStatusLabel(row, isBlankStubTagRow);
-            },
+            isBlankStubTagRowResult,
+            selectValueCallbackC,
+            selectValueCallbackD,
         );
         return result;
     },
@@ -2982,14 +3054,15 @@ const methods = {
     getCategoryPageUrl(row: any): string {
         const category = trimValue(row?.category);
 
+        const selectValueCallbackB = function falseBranch() {
+            return options.getPageUrl(`Category:${category}`);
+        };
         const result = selectValue(
             category === "",
             function trueBranch() {
                 return "";
             },
-            function falseBranch() {
-                return options.getPageUrl(`Category:${category}`);
-            },
+            selectValueCallbackB,
         );
         return result;
     },
@@ -3027,14 +3100,15 @@ const methods = {
     getStubTagPageUrl(row: any): string {
         const stubTag = trimStubTagValue(row?.stubTag);
 
+        const selectValueCallbackA = function falseBranch() {
+            return options.getPageUrl(`Template:${stubTag}`);
+        };
         const result = selectValue(
             stubTag === "",
             function trueBranch() {
                 return "";
             },
-            function falseBranch() {
-                return options.getPageUrl(`Template:${stubTag}`);
-            },
+            selectValueCallbackA,
         );
         return result;
     },
@@ -3066,9 +3140,10 @@ const methods = {
      * @returns An accessible label for a review page action.
      */
     getReviewPageActionAriaLabel(row: any, exists: boolean): string {
-        const result = msg("review.pageAction", {
+        const reviewPageActionLabelResult = {
             action: this.getReviewPageActionLabel(row, exists),
-        });
+        };
+        const result = msg("review.pageAction", reviewPageActionLabelResult);
         return result;
     },
 
@@ -3321,9 +3396,10 @@ function updateFieldDependencies(key: string): void {
  */
 function findRefetchedCitation(rows: Array<any>, citation: any): any {
     const sourceUrl = trimValue(citation.sourceUrl);
-    const result = rows.map(createCitationRow).find(function callback(row) {
+    const findCallback = function callback(row: any) {
         return trimValue(row.sourceUrl) === sourceUrl;
-    });
+    };
+    const result = rows.map(createCitationRow).find(findCallback);
     return result;
 }
 
@@ -3334,11 +3410,12 @@ function findRefetchedCitation(rows: Array<any>, citation: any): any {
  * @param refreshed - Refreshed value.
  */
 function replaceRefetchedCitation(index: number, refreshed: any): void {
-    form.citationRows.splice(index, 1, {
+    const cloneValueResult = {
         ...refreshed,
         modified: false,
         params: cloneValue(refreshed.generatedParams || []),
-    });
+    };
+    form.citationRows.splice(index, 1, cloneValueResult);
 }
 
 /**
@@ -3511,11 +3588,13 @@ function positionTableActionTooltip(rect: DOMRect): void {
     const minLeft = margin + halfWidth;
     const maxLeft =
         viewportWidth > 0 ? viewportWidth - margin - halfWidth : centered;
+    const selectValueCallback = function trueBranch() {
+        const maximumValue = Math.max(centered, minLeft);
+        return Math.min(maximumValue, maxLeft);
+    };
     const left = selectValue(
         width > 0 && maxLeft >= minLeft,
-        function trueBranch() {
-            return Math.min(Math.max(centered, minLeft), maxLeft);
-        },
+        selectValueCallback,
         function falseBranch() {
             return centered;
         },
@@ -3540,11 +3619,12 @@ function positionTableActionTooltip(rect: DOMRect): void {
  */
 function queueSourceEditor(key: string, textareaRef: any, textRef: any): void {
     if (typeof Vue.nextTick === "function") {
-        Vue.nextTick(function callback() {
+        const nextTickCallback = function callback() {
             if (isSourceEditorOpen(key)) {
                 initializeSourceEditor(key, textareaRef, textRef);
             }
-        });
+        };
+        Vue.nextTick(nextTickCallback);
         return;
     }
 
@@ -3641,7 +3721,8 @@ function attachLoadedSourceEditor(
 
     const CodeMirror = require("ext.CodeMirror");
     const mediawiki = require("ext.CodeMirror.mode.mediawiki");
-    const editor = new CodeMirror(textarea, mediawiki());
+    const mode = mediawiki();
+    const editor = new CodeMirror(textarea, mode);
 
     if (!isSourceEditorOpen(key)) {
         destroyLoadedSourceEditor(editor);
@@ -3803,12 +3884,10 @@ function setSourceEditorText(key: string, text: string): void {
 async function refreshCategoryRows(refreshOptions = {}): Promise<void> {
     const categoryRows: unknown[] = form.categoryRows;
 
+    const filterCallbackD = (row: unknown) => !isBlankCategoryRow(row);
+    const filteredValues = categoryRows.filter(filterCallbackD);
     if (
-        shouldSkipFixedRows(
-            refreshOptions,
-            categoryRows.filter((row) => !isBlankCategoryRow(row)),
-            isCategoryRowFixed,
-        )
+        shouldSkipFixedRows(refreshOptions, filteredValues, isCategoryRowFixed)
     ) {
         syncStubTagRowsFromCategories(form);
         return;
@@ -3850,15 +3929,18 @@ async function refreshReview(refreshOptions: any = {}): Promise<void> {
     reviewState.loading = true;
 
     try {
-        await Promise.all([
-            refreshCategoryRows(getCategoryRefreshOptions(refreshOptions)),
+        const categoryRefreshOptionsResult =
+            getCategoryRefreshOptions(refreshOptions);
+        const refreshCategoryRowsResult = [
+            refreshCategoryRows(categoryRefreshOptionsResult),
             refreshRedirectRows(refreshOptions),
             refreshNavboxRows(
                 refreshOptions.recheck === true,
                 false,
                 refreshOptions,
             ),
-        ]);
+        ];
+        await Promise.all(refreshCategoryRowsResult);
     } catch (error) {
         reviewState.error = error.message || String(error);
     } finally {
@@ -3883,8 +3965,9 @@ async function refreshCitationRows(): Promise<void> {
 
     try {
         const rows = await options.onPrepareCitations(form);
+        const mappedValues = rows.map(createCitationRow);
         const patchedRows = applyCitationPatches(
-            rows.map(createCitationRow),
+            mappedValues,
             form.historyPatches?.citations,
         );
 
@@ -3909,8 +3992,9 @@ async function refreshCitationRows(): Promise<void> {
 function syncActiveCitationTab(): void {
     const names = form.citationRows.map(getCitationTabName);
 
+    const hasIncludedValue = names.includes(activeCitationTab.value);
     activeCitationTab.value = selectValue(
-        names.includes(activeCitationTab.value),
+        hasIncludedValue,
         function trueBranch() {
             return activeCitationTab.value;
         },
@@ -3986,7 +4070,8 @@ function shouldSkipNavboxRefresh(
     refreshOptions: {},
 ): boolean {
     const navboxRows: unknown[] = form.navboxRows || [];
-    const rows = navboxRows.filter((row) => !isBlankNavboxRow(row));
+    const filterCallbackC = (row: unknown) => !isBlankNavboxRow(row);
+    const rows = navboxRows.filter(filterCallbackC);
     const result =
         force &&
         !rebuild &&
@@ -4002,9 +4087,10 @@ function shouldSkipNavboxRefresh(
  */
 async function getPreparedNavboxRows(rebuild: boolean): Promise<any[]> {
     const prepared = await options.onPrepareReview(form, rebuild);
-    const rows = prepared.map(function callback(row: unknown) {
+    const mapCallbackD = function callback(row: unknown) {
         return createNavboxRow(row, true);
-    });
+    };
+    const rows = prepared.map(mapCallbackD);
     return applyNavboxPatches(rows, form.historyPatches?.navboxes);
 }
 
@@ -4037,11 +4123,13 @@ async function refreshRedirectRows(refreshOptions = {}): Promise<void> {
         return;
     }
 
+    const currentTitleResultB = getCurrentTitle();
     const preparedRows: unknown[] = await options.onPrepareRedirectRows(
         form,
-        getCurrentTitle(),
+        currentTitleResultB,
     );
-    const rows = preparedRows.map((row) => createRedirectRow(row, true));
+    const mapCallbackC = (row: unknown) => createRedirectRow(row, true);
+    const rows = preparedRows.map(mapCallbackC);
 
     form.redirectRows = rows;
     ensureTrailingRedirectRow(form);
@@ -4063,17 +4151,20 @@ async function checkRedirectRows(refreshOptions = {}): Promise<void> {
     if (Array.isArray(form.redirectRows)) {
         currentRows = form.redirectRows;
     }
-    const rowsToCheck = currentRows.filter((row) => !isBlankRedirectRow(row));
+    const filterCallbackB = (row) => !isBlankRedirectRow(row);
+    const rowsToCheck = currentRows.filter(filterCallbackB);
 
     if (shouldSkipFixedRows(refreshOptions, rowsToCheck, isRedirectRowFixed)) {
         return;
     }
 
+    const currentTitleResultA = getCurrentTitle();
     const checkedRows: unknown[] = await options.onCheckRedirectRows(
         rowsToCheck,
-        getCurrentTitle(),
+        currentTitleResultA,
     );
-    const rows = checkedRows.map((row) => createRedirectRow(row, true));
+    const mapCallbackB = (row: unknown) => createRedirectRow(row, true);
+    const rows = checkedRows.map(mapCallbackB);
 
     form.redirectRows = rows.map(mergeCheckedRedirectRow);
     ensureTrailingRedirectRow(form);
@@ -4110,7 +4201,8 @@ function mergeCheckedRedirectRow(row: any, index: number): any {
  * @returns Resolves after the editor is populated.
  */
 async function openPageEdit(params: any): Promise<void> {
-    Object.assign(pageEditState, createOpenPageEditState(params));
+    const openPageEditStateResult = createOpenPageEditState(params);
+    Object.assign(pageEditState, openPageEditStateResult);
     pageEditOpen.value = true;
     queueSourceEditor("pageEdit", pageEditTextArea, pageEditTextBinding);
 
@@ -4416,7 +4508,8 @@ function moveFieldUrlToSource(field: any, value: string): boolean {
  * @returns Preview dialog title.
  */
 function getArticlePreviewTitle(): string {
-    return msg("preview.createPageTitle", { title: getCurrentTitle() });
+    const currentTitleResult = { title: getCurrentTitle() };
+    return msg("preview.createPageTitle", currentTitleResult);
 }
 
 /**
@@ -4453,9 +4546,10 @@ function getGroupPreview(group: any): string {
  * @returns The generated prose length for the full-text preview.
  */
 function getProseReviewDescription(): string {
-    const result = msg("preview.sinographs", {
+    const proseSinographsResult = {
         count: options.getProseSinographs(form),
-    });
+    };
+    const result = msg("preview.sinographs", proseSinographsResult);
     return result;
 }
 
@@ -4480,7 +4574,8 @@ function getWikidataText(): string {
  * @returns The Wikidata lookup note beside the metadata fields.
  */
 function getWikidataStatusText(): string {
-    return msg("metadata.wikidataText", { value: getWikidataText() });
+    const wikidataTextResult = { value: getWikidataText() };
+    return msg("metadata.wikidataText", wikidataTextResult);
 }
 
 /**
@@ -4490,7 +4585,8 @@ function getWikidataStatusText(): string {
  */
 function getEnwikiTipLinks(): Array<any> {
     if (enwikiLookupLoading.value) {
-        return createEnwikiTipPlaceholders(msg("metadata.checking"));
+        const messageA = msg("metadata.checking");
+        return createEnwikiTipPlaceholders(messageA);
     }
 
     const title = getBasePageTitle(form.enwikiTitle);
@@ -4620,20 +4716,23 @@ function openEnwikiReviewLinks(): void {
         return;
     }
 
+    const filterCallbackA = function callback(link: {
+        label: string;
+        url: string;
+    }) {
+        return ["Metacritic", "OpenCritic"].includes(link.label) && link.url;
+    };
     const reviewLinks = getEnwikiTipLinks()
-        .filter(function callback(link) {
-            return (
-                ["Metacritic", "OpenCritic"].includes(link.label) && link.url
-            );
-        })
+        .filter(filterCallbackA)
         .map((link) => link.url);
 
     if (reviewLinks.length !== 2 || !claimReviewLinksOpeningForTab()) {
         return;
     }
 
+    const mapCallbackA = (url: string) => window.open(url, "_blank");
     const openedTabs = reviewLinks
-        .map((url) => window.open(url, "_blank"))
+        .map(mapCallbackA)
         .filter((tab) => tab != null);
 
     const firstTab = openedTabs[0];
@@ -4679,13 +4778,17 @@ function getNameSearchRows(): Array<any> {
         },
     ].filter((row) => row.query !== "");
 
-    const result = rows.map(function callback(row) {
+    const mapCallback = function callback(row: {
+        key: string;
+        query: string;
+    }) {
         const result = {
             ...row,
             links: buildNameSearchLinks(row.query),
         };
         return result;
-    });
+    };
+    const result = rows.map(mapCallback);
     return result;
 }
 
@@ -4696,6 +4799,7 @@ function getNameSearchRows(): Array<any> {
  * @returns Search link definitions.
  */
 function buildNameSearchLinks(query: string): Array<any> {
+    const basePageTitleResult = `"${getBasePageTitle(query)}"`;
     const result = [
         {
             label: msg("names.cnDomain"),
@@ -4709,7 +4813,7 @@ function buildNameSearchLinks(query: string): Array<any> {
             label: "zhwp",
             url:
                 "https://cse.google.com.hk/cse?cx=25f8f2342cbfa4e46&q=" +
-                encodeURIComponent(`"${getBasePageTitle(query)}"`),
+                encodeURIComponent(basePageTitleResult),
         },
     ];
     return result;
@@ -4721,7 +4825,11 @@ function buildNameSearchLinks(query: string): Array<any> {
  * @returns Search query title.
  */
 function getOriginalNameSearchQuery(): string {
-    return getBasePageTitle(parsePrefixedValue(form.originalName, "").value);
+    const parsePrefixedValueResult = parsePrefixedValue(
+        form.originalName,
+        "",
+    ).value;
+    return getBasePageTitle(parsePrefixedValueResult);
 }
 
 /**
@@ -4761,9 +4869,13 @@ async function fetchSteamNames(): Promise<void> {
     sourceFetchState.loading = true;
 
     try {
-        const rows = await options.onSteamNamesFetch(steamUrl.value, {
+        const originalNameLanguageResult = {
             includeJapanese: getOriginalNameLanguage(form) === "ja",
-        });
+        };
+        const rows = await options.onSteamNamesFetch(
+            steamUrl.value,
+            originalNameLanguageResult,
+        );
 
         fetchedSteamNameRows.value = rows;
     } catch (error) {
@@ -4816,7 +4928,8 @@ function resetEnwikiMetadataLookup(title: string, serial: number): void {
     enwikiLookupLoading.value =
         title !== "" && options.onEnwikiTitleChange != null;
     form.wikidataId = "";
-    Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
+    const blankEnwikiMetadataResultA = createBlankEnwikiMetadata();
+    Object.assign(enwikiMetadata, blankEnwikiMetadataResultA);
 }
 
 /**
@@ -4841,12 +4954,13 @@ async function fetchEnwikiMetadata(title: string): Promise<any> {
 function applyEnwikiMetadata(metadata: any): void {
     const hasPageState =
         metadata.pageExists === true || metadata.pageExists === false;
-    Object.assign(enwikiMetadata, {
+    const trimmedValue = {
         metacriticId: trimValue(metadata.metacriticId),
         openCriticId: trimValue(metadata.openCriticId),
         pageExists: hasPageState ? metadata.pageExists : null,
         steamId: trimValue(metadata.steamId),
-    });
+    };
+    Object.assign(enwikiMetadata, trimmedValue);
     form.wikidataId = trimValue(metadata.wikidataId);
 
     if (trimValue(form.englishName) === "") {
@@ -4959,17 +5073,19 @@ async function restoreHistoryForm(values: any): Promise<void> {
  *   clears form values and helper state.
  */
 function clearFormState(): void {
-    replaceFormValues(form, {
+    const formValuesResult = {
         ...createFormValues(),
         publishers: "",
-    });
+    };
+    replaceFormValues(form, formValuesResult);
     syncPageNameFields();
     syncGeneratedNameNoteTaRow(form);
     activeTab.value = ARTICLE_PARAMETER_GROUPS[0].key;
     activeCitationTab.value = "";
     fetchedSteamNameRows.value = [];
     steamUrl.value = "";
-    Object.assign(enwikiMetadata, createBlankEnwikiMetadata());
+    const blankEnwikiMetadataResult = createBlankEnwikiMetadata();
+    Object.assign(enwikiMetadata, blankEnwikiMetadataResult);
     categoryState.error = "";
     citationState.error = "";
     reviewState.error = "";
@@ -4986,11 +5102,12 @@ function clearFormState(): void {
  *   helper.
  */
 function removeSteamAppliedNameRows(): void {
-    form.localizedNames = form.localizedNames.filter(function callback(
+    const filterCallback = function callback(
         row: Record<PropertyKey, unknown>,
     ) {
         return row[STEAM_NAME_HELPER_ROW] !== true && hasAnyNameRowValue(row);
-    });
+    };
+    form.localizedNames = form.localizedNames.filter(filterCallback);
 }
 
 /**
@@ -5106,7 +5223,8 @@ function completeWikiLinkBrackets(
         return text;
     }
 
-    const insertion = getInsertedText(String(previousValue ?? ""), text);
+    const stringValue = String(previousValue ?? "");
+    const insertion = getInsertedText(stringValue, text);
 
     if (insertion == null) {
         return text;
@@ -5272,11 +5390,15 @@ function completeClosingWikiLink(text: string, markerIndex: number): string {
  */
 function findListSegmentStart(text: string, index: number): number {
     const before = text.slice(0, index);
+    const lastIndexOfResult = before.lastIndexOf(";");
+    const lastIndexOfResultA = before.lastIndexOf("；");
+    const lastIndexOfResultB = before.lastIndexOf("\n");
+    const lastIndexOfResultC = before.lastIndexOf("\r");
     const separatorIndex = Math.max(
-        before.lastIndexOf(";"),
-        before.lastIndexOf("；"),
-        before.lastIndexOf("\n"),
-        before.lastIndexOf("\r"),
+        lastIndexOfResult,
+        lastIndexOfResultA,
+        lastIndexOfResultB,
+        lastIndexOfResultC,
     );
 
     return separatorIndex < 0 ? 0 : separatorIndex + 1;

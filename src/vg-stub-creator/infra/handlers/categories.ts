@@ -78,21 +78,16 @@ export async function buildCategoryRows(
         mergedGeneratedRows,
         options,
     );
+    const manualRows = getManualCategoryRows(previousRows);
+    const resolvedManualRows = await resolveCategoryRows(manualRows, options);
     const rows = [
         ...resolvedGeneratedRows,
-        ...enrichManualCategoryRows(
-            await resolveCategoryRows(
-                getManualCategoryRows(previousRows),
-                options,
-            ),
-            resolvedGeneratedRows,
-        ),
+        ...enrichManualCategoryRows(resolvedManualRows, resolvedGeneratedRows),
     ];
 
-    const result = sortRowsByArticleProse(
-        uniqueCategoryRows(rows.map(normalizeCategoryRow)),
-        params,
-    );
+    const normalizedRows = rows.map(normalizeCategoryRow);
+    const uniqueRows = uniqueCategoryRows(normalizedRows);
+    const result = sortRowsByArticleProse(uniqueRows, params);
     return result;
 }
 
@@ -112,7 +107,8 @@ export function buildFallbackCategoryRows(params: any): Array<any> {
             stubTags: metadata.release.stubTags,
         }),
     ];
-    const normalized = uniqueCategoryRows(rows.map(normalizeCategoryRow));
+    const normalizedRows = rows.map(normalizeCategoryRow);
+    const normalized = uniqueCategoryRows(normalizedRows);
 
     return sortRowsByArticleProse(normalized, params);
 }
@@ -155,9 +151,10 @@ export async function resolveCategoryRows(
     options: any = {},
 ): Promise<Array<any>> {
     const normalizedRows = rows.map(normalizeCategoryRow);
-    const categories = uniqueValues(
-        normalizedRows.map((row) => row.category).filter(Boolean),
-    );
+    const categoryTitles = normalizedRows
+        .map((row) => row.category)
+        .filter(Boolean);
+    const categories = uniqueValues(categoryTitles);
 
     if (categories.length === 0) {
         return normalizedRows;
@@ -165,22 +162,19 @@ export async function resolveCategoryRows(
 
     const resolutions = await resolveCategories(categories, options);
 
-    const result = normalizedRows.map(function callback(row) {
-        const result = normalizeCategoryRow({
+    const resolveRow = function resolveRow(row: any) {
+        const categoryKey = normalizeCategoryKey(row.category);
+        const resolution = resolutions[categoryKey];
+        const values = {
             ...row,
-            category:
-                resolutions[normalizeCategoryKey(row.category)]?.category ||
-                row.category,
-            enabled: getResolvedCategoryEnabled(
-                row,
-                resolutions[normalizeCategoryKey(row.category)],
-            ),
-            status:
-                resolutions[normalizeCategoryKey(row.category)]?.status ||
-                CATEGORY_STATUS.unchecked,
-        });
+            category: resolution?.category || row.category,
+            enabled: getResolvedCategoryEnabled(row, resolution),
+            status: resolution?.status || CATEGORY_STATUS.unchecked,
+        };
+        const result = normalizeCategoryRow(values);
         return result;
-    });
+    };
+    const result = normalizedRows.map(resolveRow);
     return result;
 }
 
@@ -376,17 +370,19 @@ function buildSourceCategoryRows(
     categories: Array<string>,
     options: any = {},
 ): Array<any> {
-    const result = (categories || []).map(function callback(category, index) {
+    const createRow = function createRow(category: string, index: number) {
         const stubTag = options.stubTags?.[index] || "";
 
-        const result = createCategoryRow({
+        const values = {
             category,
             source,
             stubTag,
             stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
-        });
+        };
+        const result = createCategoryRow(values);
         return result;
-    });
+    };
+    const result = (categories || []).map(createRow);
     return result;
 }
 
@@ -402,7 +398,7 @@ function buildCategoryItems(
     items: Array<any> = [],
     options: any = {},
 ): Array<any> {
-    const result = items.map(function callback(item) {
+    const buildItem = function buildItem(item: any) {
         if (Array.isArray(item.candidates)) {
             return createCategoryPlan(item);
         }
@@ -412,7 +408,8 @@ function buildCategoryItems(
             ...item,
         });
         return result;
-    });
+    };
+    const result = items.map(buildItem);
     return result;
 }
 
@@ -458,15 +455,16 @@ function resolveCategoryPlans(
     items: Array<any>,
     resolutions: any,
 ): Array<any> {
-    const result = items.map(function callback(item) {
+    const resolvePlan = function resolvePlan(item: any) {
         if (!Array.isArray(item.candidates)) {
             return applyCategoryResolution(item, resolutions);
         }
 
+        const resolveCandidate = function resolveCandidate(candidate: string) {
+            return resolutions[normalizeCategoryKey(candidate)];
+        };
         const resolution = item.candidates
-            .map(function resolveCandidate(candidate: string) {
-                return resolutions[normalizeCategoryKey(candidate)];
-            })
+            .map(resolveCandidate)
             .find(function findExisting(candidateResolution: {
                 exists: boolean;
             }) {
@@ -491,7 +489,8 @@ function resolveCategoryPlans(
             status: CATEGORY_STATUS.unchecked,
         });
         return result;
-    });
+    };
+    const result = items.map(resolvePlan);
     return result;
 }
 
@@ -506,7 +505,8 @@ function applyCategoryResolutions(
     rows: Array<any>,
     resolutions: any,
 ): Array<any> {
-    return rows.map((row) => applyCategoryResolution(row, resolutions));
+    const resolveRow = (row: any) => applyCategoryResolution(row, resolutions);
+    return rows.map(resolveRow);
 }
 
 /**
@@ -522,7 +522,7 @@ function applyCategoryResolution(row: any, resolutions: any): any {
         normalizeCategoryKey(row.category) !==
         normalizeCategoryKey(row.originalCategory);
 
-    const result = normalizeCategoryRow({
+    const values = {
         ...row,
         category: resolution?.category || row.category,
         enabled: getResolvedCategoryEnabled(row, resolution),
@@ -536,7 +536,8 @@ function applyCategoryResolution(row: any, resolutions: any): any {
             },
         ),
         status: resolution?.status || CATEGORY_STATUS.unchecked,
-    });
+    };
+    const result = normalizeCategoryRow(values);
     return result;
 }
 
@@ -640,19 +641,24 @@ function normalizeSourceLabel(
     category: string,
     originalCategory: string,
 ): string {
-    const cleanSource = trimValue(source).replace(
-        new RegExp(`${escapeRegExp(MODIFIED_SOURCE_SUFFIX)}$`, "u"),
-        "",
-    );
+    const escapedSuffix = escapeRegExp(MODIFIED_SOURCE_SUFFIX);
+    const modifiedSuffixPattern = new RegExp(`${escapedSuffix}$`, "u");
+    const cleanSource = trimValue(source).replace(modifiedSuffixPattern, "");
 
     if (
         cleanSource === SOURCE_MANUAL ||
-        cleanSource === LEGACY_MANUAL_CATEGORY_SOURCE ||
-        category === "" ||
-        originalCategory === "" ||
-        normalizeCategoryKey(category) ===
-            normalizeCategoryKey(originalCategory)
+        cleanSource === LEGACY_MANUAL_CATEGORY_SOURCE
     ) {
+        return cleanSource;
+    }
+
+    if (category === "" || originalCategory === "") {
+        return cleanSource;
+    }
+
+    const categoryKey = normalizeCategoryKey(category);
+    const originalCategoryKey = normalizeCategoryKey(originalCategory);
+    if (categoryKey === originalCategoryKey) {
         return cleanSource;
     }
 
@@ -684,19 +690,25 @@ function enrichManualCategoryRows(
     manualRows: Array<any>,
     generatedRows: Array<any>,
 ): Array<any> {
-    const generatedByCategory = new Map<string, any>(
-        generatedRows
-            .filter((row) => trimValue(row.stubTag) !== "")
-            .map((row) => [normalizeCategoryKey(row.category), row]),
-    );
+    const hasStubTag = (row: any) => trimValue(row.stubTag) !== "";
+    const createCategoryEntry = function createCategoryEntry(
+        row: any,
+    ): [string, any] {
+        return [normalizeCategoryKey(row.category), row];
+    };
+    const generatedEntries = generatedRows
+        .filter(hasStubTag)
+        .map(createCategoryEntry);
+    const generatedByCategory = new Map<string, any>(generatedEntries);
 
-    const result = manualRows.map(function callback(row) {
+    const enrichRow = function enrichRow(row: any) {
         if (trimValue(row.stubTag) !== "") {
             return row;
         }
 
+        const categoryKey = normalizeCategoryKey(row.category);
         const generated =
-            generatedByCategory.get(normalizeCategoryKey(row.category)) ||
+            generatedByCategory.get(categoryKey) ||
             getConfiguredCategoryStubMetadata(row.category);
 
         if (generated == null) {
@@ -710,7 +722,8 @@ function enrichManualCategoryRows(
             stubTagEnabled: generated.stubTagEnabled,
         });
         return result;
-    });
+    };
+    const result = manualRows.map(enrichRow);
     return result;
 }
 
@@ -749,8 +762,11 @@ function findConfiguredCategoryStubMetadata(
     const categoryKey = normalizeCategoryKey(category);
 
     for (const definition of definitions) {
+        const findCategoryIndex = function findCategoryIndex(item: string) {
+            return normalizeCategoryKey(item) === categoryKey;
+        };
         const index = (definition.categories || []).findIndex(
-            (item) => normalizeCategoryKey(item) === categoryKey,
+            findCategoryIndex,
         );
         const stubTag = definition.stubTags?.[index];
 
@@ -774,8 +790,9 @@ function findConfiguredCategoryStubMetadata(
  * @returns Whether the row is manual.
  */
 function isManualCategoryRow(row: any): boolean {
+    const baseSource = getBaseSource(row.source);
     const result = [SOURCE_MANUAL, LEGACY_MANUAL_CATEGORY_SOURCE].includes(
-        getBaseSource(row.source),
+        baseSource,
     );
     return result;
 }
@@ -791,10 +808,11 @@ function mergePreviousGeneratedRows(
     generatedRows: Array<any>,
     previousRows: Array<any>,
 ): Array<any> {
-    const result = generatedRows.map(function callback(row) {
-        const previous = previousRows.find(function callback(item) {
+    const mergeRow = function mergeRow(row: any) {
+        const findPrevious = function findPrevious(item: any) {
             return hasSameGeneratedRow(row, item);
-        });
+        };
+        const previous = previousRows.find(findPrevious);
 
         if (previous == null) {
             return row;
@@ -816,7 +834,8 @@ function mergePreviousGeneratedRows(
             ),
         };
         return result;
-    });
+    };
+    const result = generatedRows.map(mergeRow);
     return result;
 }
 
@@ -837,13 +856,18 @@ async function resolveCheckableCategoryRows(
 ): Promise<Array<any>> {
     const checkableRows = rows.filter(shouldCheckCategoryRow);
     const resolvedRows = await resolveCategoryRows(checkableRows, options);
-    const resolvedByOriginal = Object.fromEntries(
-        resolvedRows.map((row) => [getCategoryRowIdentity(row), row]),
-    );
+    const createIdentityEntry = function createIdentityEntry(
+        row: any,
+    ): [string, any] {
+        return [getCategoryRowIdentity(row), row];
+    };
+    const resolvedEntries = resolvedRows.map(createIdentityEntry);
+    const resolvedByOriginal = Object.fromEntries(resolvedEntries);
 
-    const result = rows.map(
-        (row) => resolvedByOriginal[getCategoryRowIdentity(row)] || row,
-    );
+    const restoreResolvedRow = function restoreResolvedRow(row: any) {
+        return resolvedByOriginal[getCategoryRowIdentity(row)] || row;
+    };
+    const result = rows.map(restoreResolvedRow);
     return result;
 }
 
@@ -900,10 +924,9 @@ function hasSameGeneratedRow(row: any, previous: any): boolean {
  * @returns Base source label.
  */
 function getBaseSource(source: string): string {
-    const result = trimValue(source).replace(
-        new RegExp(`${escapeRegExp(MODIFIED_SOURCE_SUFFIX)}$`, "u"),
-        "",
-    );
+    const escapedSuffix = escapeRegExp(MODIFIED_SOURCE_SUFFIX);
+    const modifiedSuffixPattern = new RegExp(`${escapedSuffix}$`, "u");
+    const result = trimValue(source).replace(modifiedSuffixPattern, "");
     return result;
 }
 
@@ -920,23 +943,26 @@ async function resolveCategories(
     categories: Array<string>,
     options: any,
 ): Promise<any> {
+    const titleResolutionOptions = {
+        getRedirectTarget: getCategoryRedirectTarget,
+        namespace: CATEGORY_NAMESPACE,
+        pageProps: CATEGORY_REDIRECT_PROPS.join("|"),
+        prop: "info|pageprops",
+    };
     const values = await resolvePageTitles(
         categories,
-        {
-            getRedirectTarget: getCategoryRedirectTarget,
-            namespace: CATEGORY_NAMESPACE,
-            pageProps: CATEGORY_REDIRECT_PROPS.join("|"),
-            prop: "info|pageprops",
-        },
+        titleResolutionOptions,
         options,
     );
-    const resolutions = Object.fromEntries(
-        (Object.entries(values) as Array<[string, any]>).map(
-            function callback([key, resolution]) {
-                return [key, buildCategoryResolution(resolution)];
-            },
-        ),
-    );
+    const buildResolutionEntry = function buildResolutionEntry([
+        key,
+        resolution,
+    ]: [string, any]): [string, any] {
+        return [key, buildCategoryResolution(resolution)];
+    };
+    const entries = Object.entries(values) as Array<[string, any]>;
+    const resolutionEntries = entries.map(buildResolutionEntry);
+    const resolutions = Object.fromEntries(resolutionEntries);
 
     return resolutions;
 }
@@ -1010,7 +1036,7 @@ function normalizeCategoryKey(value: any): string {
 function uniqueCategoryRows(rows: Array<any>): Array<any> {
     const seen = new Set();
 
-    const result = rows.filter(function callback(row) {
+    const keepUniqueRow = function keepUniqueRow(row: any) {
         const key = normalizeCategoryKey(row.category);
 
         if (key === "" || seen.has(key)) {
@@ -1020,7 +1046,8 @@ function uniqueCategoryRows(rows: Array<any>): Array<any> {
         seen.add(key);
 
         return true;
-    });
+    };
+    const result = rows.filter(keepUniqueRow);
     return result;
 }
 

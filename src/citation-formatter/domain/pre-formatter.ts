@@ -20,14 +20,26 @@ const PRE_FORMAT_HANDLERS: PreFormatHandler[] = [
 export function applyPreFormatHandlers(
     params: CitationParam[],
 ): CitationParam[] {
-    const result = params.map(function applyHandlers(param) {
-        const migrated = PRE_FORMAT_HANDLERS.reduce(
-            (current, handler) => handler(current),
-            param,
-        );
+    const mapCallback = function applyHandlers(param: CitationParam) {
+        const migrated = PRE_FORMAT_HANDLERS.reduce(applyHandler, param);
         return migrated;
-    });
+    };
+    const result = params.map(mapCallback);
     return result;
+}
+
+/**
+ * Applies one pre-format handler to the current parameter value.
+ *
+ * @param current - Current citation parameter.
+ * @param handler - Next migration handler.
+ * @returns Migrated citation parameter.
+ */
+function applyHandler(
+    current: CitationParam,
+    handler: PreFormatHandler,
+): CitationParam {
+    return handler(current);
 }
 
 /**
@@ -84,10 +96,10 @@ function formatTimeParameter(param: CitationParam): CitationParam {
         return param;
     }
     const start = formatColonTime(match[1]);
-    const formatted =
-        match[3] == null
-            ? start
-            : `${start}${match[2]}${formatColonTime(match[3])}`;
+    let formatted = start;
+    if (match[3] != null) {
+        formatted = `${start}${match[2]}${formatColonTime(match[3])}`;
+    }
     return { name: param.name, value: formatted };
 }
 

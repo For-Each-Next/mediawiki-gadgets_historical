@@ -12,7 +12,7 @@ import {
 } from "citation-formatter/domain/manager.ts";
 import { manageCitations } from "citation-formatter/app/format.ts";
 
-test("finds and applies non-Latin reference-name overrides", () => {
+const testCallbackH = () => {
     const source = [
         "{{Cite web",
         "  | author = 早坂将昭",
@@ -22,27 +22,26 @@ test("finds and applies non-Latin reference-name overrides", () => {
         "}}",
     ].join("\n");
     const fields = findNameOverrideFields(source);
+    const enteredOverrides = fields.map((field) => [
+        field.displayValue,
+        field.override,
+    ]);
 
-    assert.deepEqual(
-        fields.map((field) => [field.displayValue, field.override]),
-        [
-            ["早坂将昭", ""],
-            ["スクウェア・エニックス", "Square Enix"],
-        ],
-    );
+    assert.deepEqual(enteredOverrides, [
+        ["早坂将昭", ""],
+        ["スクウェア・エニックス", "Square Enix"],
+    ]);
     const result = applyNameOverrides(source, [
         { ids: fields[0].ids, override: "Hayasaka, Masaaki" },
         { ids: fields[1].ids, override: "" },
     ]);
-    assert.match(
-        result,
-        /\| author = 早坂将昭 <!-- # Hayasaka, Masaaki -->/u,
-    );
+    assert.match(result, /\| author = 早坂将昭 <!-- # Hayasaka, Masaaki -->/u);
     assert.match(result, /\| publisher = スクウェア・エニックス\n/u);
     assert.match(result, /\| title = \{\{lang\|ja\|インタビュー\}\}/u);
-});
+};
+test("finds and applies non-Latin reference-name overrides", testCallbackH);
 
-test("edits overrides sharing a no-author directive", () => {
+const testCallbackG = () => {
     const source = [
         "{{Cite web|website=游民星空",
         "<!-- !no-author # Youmin Xingkong -->|title=X}}",
@@ -53,18 +52,16 @@ test("edits overrides sharing a no-author directive", () => {
     const updated = applyNameOverrides(source, [
         { ids: field.ids, override: "Gamersky" },
     ]);
-    assert.match(
-        updated,
-        /website=游民星空<!-- !no-author # Gamersky -->/u,
-    );
+    assert.match(updated, /website=游民星空<!-- !no-author # Gamersky -->/u);
 
     const removed = applyNameOverrides(source, [
         { ids: field.ids, override: "" },
     ]);
     assert.match(removed, /website=游民星空<!-- !no-author -->/u);
-});
+};
+test("edits overrides sharing a no-author directive", testCallbackG);
 
-test("round trips native reuse tags through temporary R calls", () => {
+const testCallbackF = () => {
     const source = [
         'Text.<ref name="First, 2020" /><ref name="Second, 2021" />',
         'More.<ref name="First, 2020" />',
@@ -77,30 +74,42 @@ test("round trips native reuse tags through temporary R calls", () => {
 
     assert.match(compact, /Text\.\{\{r\|First, 2020\|Second, 2021\}\}/u);
     assert.match(compact, /More\.\{\{r\|First, 2020\}\}/u);
-    assert.equal(hasCompactReferenceCalls(compact), true);
-    assert.equal(expandCompactReferenceCalls(compact), source);
-});
+    const hasCompact = hasCompactReferenceCalls(compact);
+    const expanded = expandCompactReferenceCalls(compact);
+    assert.equal(hasCompact, true);
+    assert.equal(expanded, source);
+};
+test("round trips native reuse tags through temporary R calls", testCallbackF);
 
-test("leaves grouped and attributed reuse tags native", () => {
+const testCallbackE = () => {
     const source = [
         '<ref name="note" group="note" />',
         '<ref name="plain" dir="ltr" />',
     ].join("\n");
-    assert.equal(compactReferenceCalls(source), source);
-});
+    const compact = compactReferenceCalls(source);
+    assert.equal(compact, source);
+};
+test("leaves grouped and attributed reuse tags native", testCallbackE);
 
-test("leaves management examples in protected wikitext unchanged", () => {
+const testCallbackD = () => {
     const source = [
         '<!-- <ref name="comment" /> {{Cite web|author=作者}} -->',
         '<nowiki><ref name="code" /> {{r|old}} ' +
             "{{Cite web|author=作者}}</nowiki>",
     ].join("\n");
-    assert.deepEqual(findNameOverrideFields(source), []);
-    assert.equal(compactReferenceCalls(source), source);
-    assert.equal(expandCompactReferenceCalls(source), source);
-});
+    const fields = findNameOverrideFields(source);
+    const compact = compactReferenceCalls(source);
+    const expanded = expandCompactReferenceCalls(source);
+    assert.deepEqual(fields, []);
+    assert.equal(compact, source);
+    assert.equal(expanded, source);
+};
+test(
+    "leaves management examples in protected wikitext unchanged",
+    testCallbackD,
+);
 
-test("regenerates reference names after override edits", () => {
+const testCallbackC = () => {
     const source = [
         'Text.<ref name="早坂将昭, 2025" />',
         "<references responsive>",
@@ -116,9 +125,10 @@ test("regenerates reference names after override edits", () => {
     );
     assert.match(result, /<ref name="Hayasaka, 2025" \/>/u);
     assert.match(result, /author = 早坂将昭 <!-- # Hayasaka -->/u);
-});
+};
+test("regenerates reference names after override edits", testCallbackC);
 
-test("groups repeated names for bulk override editing", () => {
+const testCallbackB = () => {
     const source = [
         "{{Cite web|author=早坂将昭|title=First}}",
         "{{Cite interview|author=早坂将昭|title=Second}}",
@@ -130,10 +140,12 @@ test("groups repeated names for bulk override editing", () => {
     const result = applyNameOverrides(source, [
         { ids: fields[0].ids, override: "Hayasaka" },
     ]);
-    assert.equal(result.match(/<!-- # Hayasaka -->/gu)?.length, 2);
-});
+    const matches = result.match(/<!-- # Hayasaka -->/gu);
+    assert.equal(matches?.length, 2);
+};
+test("groups repeated names for bulk override editing", testCallbackB);
 
-test("summarizes grouped name usage by parameter and template", () => {
+const testCallbackA = () => {
     const source = [
         "{{Cite web|author1=游民星空|title=First}}",
         "{{Cite web|author2=游民星空|title=Second}}",
@@ -151,14 +163,13 @@ test("summarizes grouped name usage by parameter and template", () => {
         { count: 3, label: "author#" },
         { count: 1, label: "publisher" },
     ]);
-});
+};
+test("summarizes grouped name usage by parameter and template", testCallbackA);
 
-test("describes a single name usage naturally", () => {
+const testCallback = () => {
     const [field] = findNameOverrideFields(
         "{{Cite web|website=游民星空|title=Example}}",
     );
-    assert.equal(
-        field.usage,
-        "Used once as |website= in a web citation.",
-    );
-});
+    assert.equal(field.usage, "Used once as |website= in a web citation.");
+};
+test("describes a single name usage naturally", testCallback);

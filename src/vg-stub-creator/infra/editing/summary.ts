@@ -28,17 +28,19 @@ export function buildEditSummary(metadata: any): string {
         metadata.displayName,
         metadata.year,
     );
+    const selectValueCallbackA = function falseBranch() {
+        const proseCountTextResult = buildProseCountText(
+            metadata.proseSinographs,
+        );
+        const result = buildProseDetailText(proseCountTextResult);
+        return result;
+    };
     const proseText = selectValue(
         nameText === "",
         function trueBranch() {
             return "";
         },
-        function falseBranch() {
-            const result = buildProseDetailText(
-                buildProseCountText(metadata.proseSinographs),
-            );
-            return result;
-        },
+        selectValueCallbackA,
     );
     const sourceText = nameText === "" ? "" : buildSourceDetailText(metadata);
     return addEditSummarySuffix(`${nameText}${proseText}${sourceText}`);
@@ -122,19 +124,20 @@ function buildSourceDetailText(metadata: any): string {
         buildWikidataSummaryLink(metadata.wikidataId),
     ].filter(Boolean);
 
+    const selectValueCallback = function falseBranch() {
+        const result = [
+            "; also see ",
+            links.map((link) => `"${link}"`).join(" and "),
+            "",
+        ].join("");
+        return result;
+    };
     const result = selectValue(
         links.length === 0,
         function trueBranch() {
             return "";
         },
-        function falseBranch() {
-            const result = [
-                "; also see ",
-                links.map((link) => `"${link}"`).join(" and "),
-                "",
-            ].join("");
-            return result;
-        },
+        selectValueCallback,
     );
     return result;
 }

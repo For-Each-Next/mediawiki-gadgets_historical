@@ -14,16 +14,13 @@ import { getCanonicalTemplateName } from "./templates.ts";
 export function formatBlockCitation(citation: CitationTemplate): string {
     const authorCount = countAuthors(citation.params);
     const templateName = getCanonicalTemplateName(citation.name);
+    const mapCallback = function formatParam(param: CitationParam) {
+        const name = getOutputParamName(param, citation.params, authorCount);
+        return `  | ${name} = ${param.value}`;
+    };
     const rows = citation.params
         .filter((param) => param.value !== "")
-        .map(function formatParam(param) {
-            const name = getOutputParamName(
-                param,
-                citation.params,
-                authorCount,
-            );
-            return `  | ${name} = ${param.value}`;
-        });
+        .map(mapCallback);
     if (rows.length === 0) {
         return `{{${templateName}}}`;
     }
@@ -37,9 +34,10 @@ export function formatBlockCitation(citation: CitationTemplate): string {
  * @returns Number of author slots.
  */
 function countAuthors(params: CitationParam[]): number {
-    const result = params.filter(function isPopulatedLast(param) {
+    const filterCallback = function isPopulatedLast(param: CitationParam) {
         return /^last(?:\d+)?$/u.test(param.name) && param.value !== "";
-    }).length;
+    };
+    const result = params.filter(filterCallback).length;
     return result;
 }
 
@@ -62,10 +60,9 @@ function getOutputParamName(
     }
     const index = match[2] || "1";
     const suffix = index === "1" ? "" : index;
-    const hasFirst = params.some(
-        (candidate) =>
-            candidate.name === `first${suffix}` && candidate.value !== "",
-    );
+    const hasFirst = params.some(function isPopulatedFirst(candidate) {
+        return candidate.name === `first${suffix}` && candidate.value !== "";
+    });
     if (match[1] === "last" && !hasFirst) {
         const result =
             authorCount === 1 && index === "1" ? "author" : `author${index}`;

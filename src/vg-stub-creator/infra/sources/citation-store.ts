@@ -89,7 +89,10 @@ function createCitationPrefetcher(store: CitationStore) {
         if (!isFetchableSourceUrl(url)) {
             return;
         }
-        store.fetch(url).catch(function callback() {});
+        store.fetch(url).catch(function callback() {
+            // Prefetch is opportunistic. A later explicit fetch reports
+            // failures.
+        });
     };
     return result;
 }
@@ -102,7 +105,8 @@ function createCitationPrefetcher(store: CitationStore) {
  */
 function isFetchableSourceUrl(url: string): boolean {
     try {
-        const parsed = new URL(url.trim());
+        const trimmedUrl = url.trim();
+        const parsed = new URL(trimmedUrl);
         return ["http:", "https:"].includes(parsed.protocol);
     } catch (_error) {
         return false;

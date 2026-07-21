@@ -49,7 +49,8 @@ export function completeMetadataFieldValue(
     value: any,
     completeLast: boolean = false,
 ): string {
-    const text = normalizeExplicitWikilinkSeparators(String(value ?? ""));
+    const stringValue = String(value ?? "");
+    const text = normalizeExplicitWikilinkSeparators(stringValue);
 
     if (!isCompletableMetadataField(key)) {
         return text;
@@ -159,7 +160,8 @@ function resolveMetadataItem(type: string | null, value: string): string {
         return item;
     }
 
-    return getTerminology(type, getWikilinkValue(item), "link") || item;
+    const wikilinkValueResult = getWikilinkValue(item);
+    return getTerminology(type, wikilinkValueResult, "link") || item;
 }
 
 /**
@@ -248,7 +250,8 @@ function getYearReference(value: string) {
     }
 
     if (year.startsWith("~")) {
-        return getPlannedYearReference(year.slice(1));
+        const slicedValueA = year.slice(1);
+        return getPlannedYearReference(slicedValueA);
     }
 
     const reference = {
@@ -273,11 +276,12 @@ function getYearReference(value: string) {
 function getPlannedYearReference(value: string) {
     const year = trimValue(value);
     const definition = getTerminology("year", year);
+    const textResultB = [
+        getTextTemplate("patterns.yearFuture"),
+        ...(definition?.categories || []),
+    ];
     const reference = {
-        categories: uniqueValues([
-            getTextTemplate("patterns.yearFuture"),
-            ...(definition?.categories || []),
-        ]),
+        categories: uniqueValues(textResultB),
         navboxes: definition?.navboxes || [],
         phrase: formatText("patterns.yearPlanned", {
             year: definition?.label || year,
@@ -308,12 +312,18 @@ export function buildGenreMetadata(value: string) {
             };
             return result;
         });
+    const referenceValuesResultF = getReferenceValues(
+        references,
+        "categories",
+    );
+    const referenceValuesResultG = getReferenceValues(references, "navboxes");
+    const referenceValuesResultH = getReferenceValues(references, "stubTags");
     const metadata = {
-        categories: uniqueValues(getReferenceValues(references, "categories")),
+        categories: uniqueValues(referenceValuesResultF),
         items,
         links,
-        navboxes: uniqueValues(getReferenceValues(references, "navboxes")),
-        stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
+        navboxes: uniqueValues(referenceValuesResultG),
+        stubTags: uniqueValues(referenceValuesResultH),
         text: items.map((item) => item.wikitext).join("、"),
         values: genres,
     };
@@ -384,8 +394,9 @@ function buildLinkedGenreItem(value: string): ArticleDataValue {
  *   defines the module-level get genre references.
  */
 function getGenreReferences(value: string) {
+    const mapCallbackI = (genre: string) => getTerminology("genre", genre);
     const references = splitFieldValues(value)
-        .map((genre) => getTerminology("genre", genre))
+        .map(mapCallbackI)
         .filter(Boolean);
 
     return references;
@@ -413,17 +424,27 @@ export function buildCompanyData(companies: any): any {
         publisherValue,
         references.publishers,
     );
+    const referenceValuesResultC = getReferenceValues(
+        references.all,
+        "categories",
+    );
+    const referenceValuesResultD = getReferenceValues(
+        references.all,
+        "navboxes",
+    );
+    const referenceValuesResultE = getReferenceValues(
+        references.all,
+        "stubTags",
+    );
     const data = {
         categoryItems: buildCompanyCategoryItems(companies),
-        categories: uniqueValues(
-            getReferenceValues(references.all, "categories"),
-        ),
+        categories: uniqueValues(referenceValuesResultC),
         developers: buildCompanyRoleData(developerItems, companies.developers),
         publishers: buildCompanyRoleData(publisherItems, publisherValue),
         references,
         sameCompanies: companies.publishers === "=",
-        navboxes: uniqueValues(getReferenceValues(references.all, "navboxes")),
-        stubTags: uniqueValues(getReferenceValues(references.all, "stubTags")),
+        navboxes: uniqueValues(referenceValuesResultD),
+        stubTags: uniqueValues(referenceValuesResultE),
     };
 
     return data;
@@ -440,9 +461,10 @@ function buildCompanyRoleData(
     items: Array<{ wikitext: string }>,
     value: string,
 ): Record<string, unknown> {
+    const mappedValues = items.map((item) => item.wikitext);
     const data = {
         items,
-        text: joinCompanyTextList(items.map((item) => item.wikitext)),
+        text: joinCompanyTextList(mappedValues),
         values: splitFieldValues(value),
     };
 
@@ -457,10 +479,12 @@ function buildCompanyRoleData(
  */
 function joinCompanyTextList(values: Array<string>): string {
     if (values.length === 2) {
-        return values.join(getTextTemplate("shared.conjunction"));
+        const textResultA = getTextTemplate("shared.conjunction");
+        return values.join(textResultA);
     }
 
-    return values.join(getTextTemplate("shared.enumerationSeparator"));
+    const textResult = getTextTemplate("shared.enumerationSeparator");
+    return values.join(textResult);
 }
 
 /**
@@ -471,9 +495,10 @@ function joinCompanyTextList(values: Array<string>): string {
  * @returns Company display values.
  */
 function buildCompanyItems(value: string, references: Array<any>): Array<any> {
-    const items = splitFieldValues(value).map(function callback(item) {
+    const mapCallbackH = function callback(item: string) {
         return buildCompanyItem(references, item);
-    });
+    };
+    const items = splitFieldValues(value).map(mapCallbackH);
 
     return items;
 }
@@ -558,21 +583,24 @@ function getPublisherValue(companies: any): string {
  */
 function buildCompanyCategoryItems(companies: any): Array<any> {
     const developers = buildCompanyLookupValues(companies.developers || "");
-    const publishers = buildCompanyLookupValues(
-        getPublisherValue(companies) || "",
-    );
+    const publisherValueResultA = getPublisherValue(companies) || "";
+    const publishers = buildCompanyLookupValues(publisherValueResultA);
     const sharedCompanies = getSharedValues(developers, publishers);
     const values = uniqueCompanyLookupValues([...developers, ...publishers]);
 
-    const result = values.flatMap(function callback(company) {
-        const result = buildCompanyCategoryItemsForValue(company.lookup, {
+    const flatMapCallbackA = function callback(company: any) {
+        const valueKeyResult = normalizeValueKey(company.lookup);
+        const hasIncludedValue = {
             company: company.title,
-            stubTagEnabled: sharedCompanies.includes(
-                normalizeValueKey(company.lookup),
-            ),
-        });
+            stubTagEnabled: sharedCompanies.includes(valueKeyResult),
+        };
+        const result = buildCompanyCategoryItemsForValue(
+            company.lookup,
+            hasIncludedValue,
+        );
         return result;
-    });
+    };
+    const result = values.flatMap(flatMapCallbackA);
     return result;
 }
 
@@ -583,7 +611,7 @@ function buildCompanyCategoryItems(companies: any): Array<any> {
  * @returns Company lookup values.
  */
 function buildCompanyLookupValues(value: string): Array<any> {
-    const result = splitFieldValues(value).map(function callback(company) {
+    const mapCallbackG = function callback(company: string) {
         const parts = getWikilinkParts(company);
 
         const result = {
@@ -591,7 +619,8 @@ function buildCompanyLookupValues(value: string): Array<any> {
             title: parts?.target || getWikilinkValue(company),
         };
         return result;
-    });
+    };
+    const result = splitFieldValues(value).map(mapCallbackG);
     return result;
 }
 
@@ -604,7 +633,7 @@ function buildCompanyLookupValues(value: string): Array<any> {
 function uniqueCompanyLookupValues(values: Array<any>): Array<any> {
     const seen = new Set();
 
-    const result = values.filter(function callback(value) {
+    const filterCallbackA = function callback(value: any) {
         const key = normalizeValueKey(value.lookup);
 
         if (seen.has(key)) {
@@ -613,7 +642,8 @@ function uniqueCompanyLookupValues(values: Array<any>): Array<any> {
 
         seen.add(key);
         return true;
-    });
+    };
+    const result = values.filter(filterCallbackA);
     return result;
 }
 
@@ -635,7 +665,7 @@ function buildCompanyCategoryItemsForValue(
     const companyTitle = getCompanyTitle(company, options.company);
 
     if (reference != null && (reference.categories || []).length > 0) {
-        const result = reference.categories.map(function callback(
+        const mapCallbackF = function callback(
             category: unknown,
             index: string | number,
         ) {
@@ -648,17 +678,22 @@ function buildCompanyCategoryItemsForValue(
                 stubTagEnabled: Boolean(options.stubTagEnabled && stubTag),
             };
             return result;
-        });
+        };
+        const result = reference.categories.map(mapCallbackF);
         return result;
     }
 
+    const disambiguationBaseTitleResult = {
+        title: getDisambiguationBaseTitle(company),
+    };
     const result = [
         {
             candidates: buildCompanyCategoryCandidates(company),
             company: companyTitle,
-            fallback: formatText("patterns.titleGame", {
-                title: getDisambiguationBaseTitle(company),
-            }),
+            fallback: formatText(
+                "patterns.titleGame",
+                disambiguationBaseTitleResult,
+            ),
         },
     ];
     return result;
@@ -672,13 +707,14 @@ function buildCompanyCategoryItemsForValue(
  * @returns The preferred article title for a company.
  */
 function getCompanyTitle(company: string, fallback: string): string {
-    const title =
-        getTerminology("company", company, "page") ||
-        getTerminology("company", company, "label") ||
-        fallback ||
-        company;
+    const page = getTerminology("company", company, "page");
 
-    return title;
+    if (page) {
+        return page;
+    }
+
+    const label = getTerminology("company", company, "label");
+    return label || fallback || company;
 }
 
 /**
@@ -692,13 +728,15 @@ function getSharedValues(
     values: Array<{ lookup: string }>,
     candidates: Array<{ lookup: string }>,
 ): Array<string> {
-    const candidateKeys = candidates.map(function callback(value) {
+    const mapCallbackE = function callback(value: { lookup: string }) {
         return normalizeValueKey(value.lookup);
-    });
+    };
+    const candidateKeys = candidates.map(mapCallbackE);
 
-    const result = values
-        .map((value) => normalizeValueKey(value.lookup))
-        .filter((value) => candidateKeys.includes(value));
+    const mapCallbackD = (value: { lookup: string }) =>
+        normalizeValueKey(value.lookup);
+    const filterCallback = (value: string) => candidateKeys.includes(value);
+    const result = values.map(mapCallbackD).filter(filterCallback);
     return result;
 }
 
@@ -719,11 +757,11 @@ function normalizeValueKey(value: string): string {
  * @returns Candidate category titles.
  */
 function buildCompanyCategoryCandidates(company: string): Array<string> {
-    const result = uniqueValues(
-        [company, getDisambiguationBaseTitle(company)].flatMap(
-            buildCompanyTitleCategoryCandidates,
-        ),
-    );
+    const flattenedValuesA = [
+        company,
+        getDisambiguationBaseTitle(company),
+    ].flatMap(buildCompanyTitleCategoryCandidates);
+    const result = uniqueValues(flattenedValuesA);
     return result;
 }
 
@@ -762,7 +800,8 @@ function getDisambiguationBaseTitle(title: string): string {
  */
 function getCompanyReferences(companies: any): any {
     const developers = getCompanyRoleReferences(companies.developers);
-    const publishers = getCompanyRoleReferences(getPublisherValue(companies));
+    const publisherValueResult = getPublisherValue(companies);
+    const publishers = getCompanyRoleReferences(publisherValueResult);
 
     const result = {
         all: [...developers, ...publishers],
@@ -779,13 +818,12 @@ function getCompanyReferences(companies: any): any {
  * @returns Matched company metadata.
  */
 function getCompanyRoleReferences(value: string): Array<any> {
-    const result = splitFieldValues(value)
-        .map(function callback(source) {
-            const reference = getTerminology("company", source);
+    const mapCallbackC = function callback(source: string) {
+        const reference = getTerminology("company", source);
 
-            return reference == null ? undefined : { ...reference, source };
-        })
-        .filter(Boolean);
+        return reference == null ? undefined : { ...reference, source };
+    };
+    const result = splitFieldValues(value).map(mapCallbackC).filter(Boolean);
     return result;
 }
 
@@ -798,9 +836,10 @@ function getCompanyRoleReferences(value: string): Array<any> {
 export function buildPlatformMetadata(value: any): any {
     const references = getPlatformReferences(value);
     const platformValues = splitFieldValues(value);
-    const items = platformValues.map(function callback(item) {
+    const mapCallbackB = function callback(item: string) {
         return buildPlatformItem(references, item);
-    });
+    };
+    const items = platformValues.map(mapCallbackB);
     const links = items
         .filter((item) => item.linkTarget != null)
         .map(function callback(item) {
@@ -811,13 +850,16 @@ export function buildPlatformMetadata(value: any): any {
             };
             return result;
         });
+    const referenceValuesResult = getReferenceValues(references, "categories");
+    const referenceValuesResultA = getReferenceValues(references, "navboxes");
+    const referenceValuesResultB = getReferenceValues(references, "stubTags");
     const metadata = {
-        categories: uniqueValues(getReferenceValues(references, "categories")),
+        categories: uniqueValues(referenceValuesResult),
         count: splitLookupFieldValues(value || "").length,
         items,
         links,
-        navboxes: uniqueValues(getReferenceValues(references, "navboxes")),
-        stubTags: uniqueValues(getReferenceValues(references, "stubTags")),
+        navboxes: uniqueValues(referenceValuesResultA),
+        stubTags: uniqueValues(referenceValuesResultB),
         text: items.map((item) => item.wikitext).join("、"),
         values: platformValues,
     };
@@ -894,12 +936,13 @@ function buildLinkedPlatformItem(value: string): ArticleDataValue {
 function getPlatformReferences(
     value: string,
 ): Array<Record<string, unknown> & { source: string }> {
-    const references = splitFieldValues(value)
-        .map(function callback(source) {
-            const reference = getTerminology("platform", source);
+    const mapCallbackA = function callback(source: string) {
+        const reference = getTerminology("platform", source);
 
-            return reference == null ? undefined : { ...reference, source };
-        })
+        return reference == null ? undefined : { ...reference, source };
+    };
+    const references = splitFieldValues(value)
+        .map(mapCallbackA)
         .filter(Boolean);
 
     return references;
@@ -924,13 +967,15 @@ export function buildSeriesMetadata(value: any): any {
             };
             return result;
         });
+    const seriesWikitext = items.map((item) => item.wikitext);
+    const enumerationSeparator = getTextTemplate(
+        "shared.enumerationSeparator",
+    );
     const metadata = {
         categoryPlans: buildSeriesCategoryPlans(values),
         items,
         links,
-        text: items
-            .map((item) => item.wikitext)
-            .join(getTextTemplate("shared.enumerationSeparator")),
+        text: seriesWikitext.join(enumerationSeparator),
         values,
     };
 
@@ -988,11 +1033,12 @@ function buildSeriesTitleItem(series: string): ArticleDataValue {
 function buildLinkedSeriesTitleItem(series: string): ArticleDataValue {
     const parts = getWikilinkParts(series);
     const label = parts.label || parts.target;
+    const selectValueCallback = function trueBranch() {
+        return formatText("patterns.titleSeries", { title: parts.target });
+    };
     const linkTarget = selectValue(
         parts.label === "",
-        function trueBranch() {
-            return formatText("patterns.titleSeries", { title: parts.target });
-        },
+        selectValueCallback,
         function falseBranch() {
             return parts.target;
         },
@@ -1072,7 +1118,8 @@ function normalizeSeriesValue(series: string) {
     const value = marker.value;
 
     if (!isWikilinkValue(value)) {
-        return addSeriesMarker(trimSeriesSuffix(value), marker);
+        const trimSeriesSuffixResult = trimSeriesSuffix(value);
+        return addSeriesMarker(trimSeriesSuffixResult, marker);
     }
 
     const parts = getWikilinkParts(value);
@@ -1083,7 +1130,8 @@ function normalizeSeriesValue(series: string) {
         return addSeriesMarker(`[[${target}]]`, marker);
     }
 
-    return addSeriesMarker(buildLinkText(target, label), marker);
+    const linkTextResult = buildLinkText(target, label);
+    return addSeriesMarker(linkTextResult, marker);
 }
 
 /**
@@ -1105,9 +1153,10 @@ function getSeriesMarker(series: string) {
         return result;
     }
 
+    const slicedValue = value.slice(0, -1);
     const result = {
         derivativeWork,
-        value: trimValue(value.slice(0, -1)),
+        value: trimValue(slicedValue),
     };
     return result;
 }
@@ -1151,9 +1200,11 @@ function trimSeriesSuffix(value: string) {
  *   plans.
  */
 function buildSeriesCategoryPlans(series: string[]) {
+    const mapCallback = (value: string) => getSeriesMarker(value).value;
+    const flatMapCallback = (value: string) => splitLookupFieldValues(value);
     const plans = series
-        .map((value) => getSeriesMarker(value).value)
-        .flatMap((value) => splitLookupFieldValues(value))
+        .map(mapCallback)
+        .flatMap(flatMapCallback)
         .map(buildSeriesCategoryPlan);
 
     return plans;
@@ -1185,11 +1236,11 @@ function buildSeriesCategoryPlan(series: string) {
  *   candidates.
  */
 function buildSeriesCategoryCandidates(title: string) {
-    const candidates = uniqueValues(
-        [formatText("patterns.titleSeries", { title }), title].flatMap(
-            buildSeriesTitleCandidates,
-        ),
-    );
+    const flattenedValues = [
+        formatText("patterns.titleSeries", { title }),
+        title,
+    ].flatMap(buildSeriesTitleCandidates);
+    const candidates = uniqueValues(flattenedValues);
 
     return candidates;
 }

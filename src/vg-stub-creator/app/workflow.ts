@@ -67,10 +67,13 @@ export async function buildStubFromForm(
     citationStore: any,
     options: any = {},
 ): Promise<any> {
-    const [sourceReferences, navboxText] = await Promise.all([
+    const fetchSourceReferencesResult = [
         fetchSourceReferences(form, citationStore),
         getFormNavboxText(form),
-    ]);
+    ];
+    const [sourceReferences, navboxText] = await Promise.all(
+        fetchSourceReferencesResult,
+    );
     const articleData = flushArticleData(
         {
             ...form,
@@ -117,29 +120,36 @@ export async function prepareNavboxRows(
     rebuild: boolean,
 ): Promise<Array<any>> {
     const configuredTitles = getConfiguredNavboxTitles(form);
-    const shouldGenerate =
-        rebuild ||
-        !Array.isArray(form.navboxRows) ||
-        (form.navboxRows.length === 0 &&
-            (trimValue(form.series) !== "" || configuredTitles.length > 0));
+    let shouldGenerate = rebuild;
+
+    if (!shouldGenerate) {
+        if (!Array.isArray(form.navboxRows)) {
+            shouldGenerate = true;
+        } else if (form.navboxRows.length === 0) {
+            const hasSeries = trimValue(form.series) !== "";
+            shouldGenerate = hasSeries || configuredTitles.length > 0;
+        }
+    }
+    const selectValueCallbackD = async function trueBranch() {
+        const result = await resolveGeneratedNavboxTitles(
+            form.series,
+            configuredTitles,
+        );
+        return result;
+    };
     const titles = await selectValue(
         shouldGenerate,
-        async function trueBranch() {
-            const result = await resolveGeneratedNavboxTitles(
-                form.series,
-                configuredTitles,
-            );
-            return result;
-        },
+        selectValueCallbackD,
         async function falseBranch() {
             return [];
         },
     );
+    const selectValueCallbackC = function trueBranch() {
+        return buildNavboxText(titles).split("\n").filter(Boolean);
+    };
     const values = selectValue(
         shouldGenerate,
-        function trueBranch() {
-            return buildNavboxText(titles).split("\n").filter(Boolean);
-        },
+        selectValueCallbackC,
         function falseBranch() {
             return form.navboxRows;
         },
@@ -235,14 +245,17 @@ export function getArticleFieldPlaceholder(
     }
 
     if (field.key === "wikidataId") {
+        const trimmedValue = trimValue(form.enwikiTitle) === "";
+        const selectValueCallbackA = function trueBranch() {
+            return msg("metadata.enterEnwikiTitle");
+        };
+        const selectValueCallbackB = function falseBranch() {
+            return msg("metadata.noWikidataItem");
+        };
         const result = selectValue(
-            trimValue(form.enwikiTitle) === "",
-            function trueBranch() {
-                return msg("metadata.enterEnwikiTitle");
-            },
-            function falseBranch() {
-                return msg("metadata.noWikidataItem");
-            },
+            trimmedValue,
+            selectValueCallbackA,
+            selectValueCallbackB,
         );
         return result;
     }
@@ -269,7 +282,8 @@ export function getArticleFieldPlaceholder(
  * @returns Hanzi-equivalent sinograph count.
  */
 export function getFormProseSinographs(form: any, options: any = {}): number {
-    return countGeneratedProseSinographs(flushArticleData(form, options));
+    const flushArticleDataResultA = flushArticleData(form, options);
+    return countGeneratedProseSinographs(flushArticleDataResultA);
 }
 
 /**
@@ -280,9 +294,10 @@ export function getFormProseSinographs(form: any, options: any = {}): number {
  */
 async function getFormNavboxText(form: any): Promise<string> {
     if (!Array.isArray(form.navboxRows)) {
+        const configuredNavboxTitlesResult = getConfiguredNavboxTitles(form);
         const titles = await resolveGeneratedNavboxTitles(
             form.series,
-            getConfiguredNavboxTitles(form),
+            configuredNavboxTitlesResult,
         );
         const text = buildNavboxText(titles);
 
@@ -299,7 +314,8 @@ async function getFormNavboxText(form: any): Promise<string> {
  * @returns Unique configured template titles.
  */
 export function getConfiguredNavboxTitles(form: any): Array<string> {
-    const records: Array<any> = Object.values(flushArticleData(form).records);
+    const flushArticleDataResult = flushArticleData(form).records;
+    const records: Array<any> = Object.values(flushArticleDataResult);
     const titles = records
         .filter(isTerminologyNavboxRecord)
         .flatMap(getRecordNavboxes);
@@ -350,14 +366,15 @@ async function resolveGeneratedNavboxTitles(
  * @returns Wikitext-ready article data.
  */
 function prepareWikitextData(articleData: any): any {
+    const selectValueCallback = function falseBranch() {
+        return buildFallbackCategoryRows(articleData);
+    };
     const categoryRows = selectValue(
         articleData.categoryRows.length > 0,
         function trueBranch() {
             return articleData.categoryRows;
         },
-        function falseBranch() {
-            return buildFallbackCategoryRows(articleData);
-        },
+        selectValueCallback,
     );
     const result = {
         ...articleData,

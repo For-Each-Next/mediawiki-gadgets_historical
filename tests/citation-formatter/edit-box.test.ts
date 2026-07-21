@@ -7,21 +7,24 @@ import { editBox } from "#shared";
 
 const { createEditBox, registerEditBoxHooks } = editBox;
 
-test("reads and writes a native source textarea", () => {
+const testCallbackB = () => {
     const events: string[] = [];
     let focused = false;
     function focus(): void {
         focused = true;
     }
-    const textarea = Object.assign(new EventTarget(), {
+    const eventTarget = new EventTarget();
+    const textarea = Object.assign(eventTarget, {
         focus,
         value: "before",
     }) as unknown as HTMLTextAreaElement;
-    textarea.addEventListener("input", (event) => events.push(event.type));
-    textarea.addEventListener("change", (event) => events.push(event.type));
+    const recordEvent = (event: Event) => events.push(event.type);
+    textarea.addEventListener("input", recordEvent);
+    textarea.addEventListener("change", recordEvent);
 
     const editor = createEditBox(textarea);
-    assert.equal(editor.read(), "before");
+    const initialText = editor.read();
+    assert.equal(initialText, "before");
 
     editor.write("after");
     editor.focus();
@@ -29,9 +32,10 @@ test("reads and writes a native source textarea", () => {
     assert.equal(textarea.value, "after");
     assert.deepEqual(events, ["input", "change"]);
     assert.equal(focused, true);
-});
+};
+test("reads and writes a native source textarea", testCallbackB);
 
-test("uses an active CodeMirror document", () => {
+const testCallbackA = () => {
     const hooks = installMediaWikiHookMock();
     registerEditBoxHooks();
     const textarea = { value: "stale" } as HTMLTextAreaElement;
@@ -40,18 +44,21 @@ test("uses an active CodeMirror document", () => {
     hooks.get("ext.CodeMirror.ready")?.(codeMirror);
 
     const editor = createEditBox(textarea);
-    assert.equal(editor.read(), "CodeMirror source");
+    const initialText = editor.read();
+    assert.equal(initialText, "CodeMirror source");
     editor.write("updated source");
     editor.focus();
 
-    assert.equal(editor.read(), "updated source");
+    const updatedText = editor.read();
+    assert.equal(updatedText, "updated source");
     assert.equal(textarea.value, "stale");
     assert.equal(state.focused, true);
     hooks.get("ext.CodeMirror.toggle")?.(false, codeMirror);
     delete (globalThis as { mw?: unknown }).mw;
-});
+};
+test("uses an active CodeMirror document", testCallbackA);
 
-test("uses VisualEditor's active source surface without a textarea", () => {
+const testCallback = () => {
     const fixture = createVisualEditorFixture();
     const { state, surface } = fixture;
     class Range {
@@ -70,15 +77,21 @@ test("uses VisualEditor's active source surface without a textarea", () => {
     };
 
     const editor = createEditBox(null);
-    assert.equal(editor.read(), "VisualEditor source");
+    const initialText = editor.read();
+    assert.equal(initialText, "VisualEditor source");
     editor.write("updated source");
     editor.focus();
 
-    assert.equal(editor.read(), "updated source");
+    const updatedText = editor.read();
+    assert.equal(updatedText, "updated source");
     assert.equal(state.rangeStart, 0);
     assert.equal(state.focused, true);
     delete (globalThis as { ve?: unknown }).ve;
-});
+};
+test(
+    "uses VisualEditor's active source surface without a textarea",
+    testCallback,
+);
 
 /**
  * Creates a stateful CodeMirror test wrapper.

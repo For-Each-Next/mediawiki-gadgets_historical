@@ -84,8 +84,11 @@ function readJsonStorage(storage: Storage, key: string): any | undefined {
  */
 function writeJsonStorage(storage: Storage, key: string, value: any): void {
     try {
-        storage.setItem(key, JSON.stringify(value));
-    } catch (_error) {}
+        const stringifyResult = JSON.stringify(value);
+        storage.setItem(key, stringifyResult);
+    } catch (_error) {
+        // Storage may fail. The in-memory cache remains usable.
+    }
 }
 
 /**
@@ -99,5 +102,7 @@ function writeJsonStorage(storage: Storage, key: string, value: any): void {
 function removeStorageItem(storage: Storage, key: string): void {
     try {
         storage.removeItem(key);
-    } catch (_error) {}
+    } catch (_error) {
+        // Cleanup is best effort. The in-memory cache is already clear.
+    }
 }

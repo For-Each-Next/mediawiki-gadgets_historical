@@ -69,10 +69,8 @@ export async function prepareCompanyCategoryText(
     row: any,
     api: any = new mw.Api(),
 ): Promise<string> {
-    const result = buildCompanyCategoryText(
-        row.company,
-        await categoryExists(api, row.company),
-    );
+    const categoryExistsResult = await categoryExists(api, row.company);
+    const result = buildCompanyCategoryText(row.company, categoryExistsResult);
     return result;
 }
 
@@ -155,14 +153,15 @@ async function saveCompanyCategoryPage(context: {
     text: string;
 }): Promise<void> {
     try {
+        const companyCategorySummaryResult = buildCompanyCategorySummary(
+            context.category,
+            context.englishTitle,
+            context.metadata,
+        );
         await saveCategoryPage(
             context.category,
             context.text,
-            buildCompanyCategorySummary(
-                context.category,
-                context.englishTitle,
-                context.metadata,
-            ),
+            companyCategorySummaryResult,
             context.api,
         );
         context.options.onProgress?.("create", "complete");
@@ -320,7 +319,7 @@ export async function createWikidataCategoryItem(
     englishTitle: string,
     chineseTitle: string,
 ): Promise<void> {
-    await api.postWithToken("csrf", {
+    const stringifyResult = {
         action: "wbeditentity",
         data: JSON.stringify({
             sitelinks: {
@@ -338,7 +337,8 @@ export async function createWikidataCategoryItem(
         summary: addEditSummarySuffix(
             `connect [[${englishTitle}]] and [[${chineseTitle}]]`,
         ),
-    });
+    };
+    await api.postWithToken("csrf", stringifyResult);
 }
 
 /**

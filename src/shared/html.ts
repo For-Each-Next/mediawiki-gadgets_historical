@@ -99,9 +99,11 @@ export function renderTemplate(
 export function replaceElementContent(element: Element, markup: string): void {
     const parsed = new DOMParser().parseFromString(markup, "text/html");
     const body = parsed.getElementsByTagName("body")[0];
-    const nodes = Array.from(body.childNodes).map(function callback(node) {
-        return document.importNode(node, true);
-    });
+    const nodes = [];
+    for (const node of body.childNodes) {
+        const importedNode = document.importNode(node, true);
+        nodes.push(importedNode);
+    }
 
     element.replaceChildren(...nodes);
 }
@@ -114,11 +116,12 @@ export function replaceElementContent(element: Element, markup: string): void {
  */
 export function serializeElementContent(element: Element): string {
     const serializer = new XMLSerializer();
-    const markup = Array.from(element.childNodes)
-        .map(function callback(node) {
-            return serializer.serializeToString(node);
-        })
-        .join("");
+    const parts = [];
+    for (const node of element.childNodes) {
+        const serializedNode = serializer.serializeToString(node);
+        parts.push(serializedNode);
+    }
+    const markup = parts.join("");
 
     return markup;
 }
@@ -178,7 +181,8 @@ function renderAttribute(entry: [string, any]): string {
         return ` ${name}`;
     }
 
-    return ` ${name}="${escapeAttribute(String(renderedValue))}"`;
+    const text = String(renderedValue);
+    return ` ${name}="${escapeAttribute(text)}"`;
 }
 
 /**
@@ -214,7 +218,17 @@ function renderStyleDeclaration(entry: [string, any]): string {
  * @returns CSS property name.
  */
 function toKebabCase(value: string): string {
-    return value.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
+    return value.replace(/[A-Z]/gu, prefixLowercaseLetter);
+}
+
+/**
+ * Converts one uppercase character to a prefixed lowercase character.
+ *
+ * @param letter - Uppercase character.
+ * @returns Hyphen-prefixed lowercase character.
+ */
+function prefixLowercaseLetter(letter: string): string {
+    return `-${letter.toLowerCase()}`;
 }
 
 /**

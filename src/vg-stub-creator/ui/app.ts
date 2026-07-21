@@ -136,12 +136,18 @@ function isEditAction(action: string): boolean {
  * @returns Whether the enwiki launcher should be shown.
  */
 function isEnwikiArticleView(): boolean {
-    const result =
-        mw.config.get("wgDBname") === "enwiki" &&
-        mw.config.get("wgAction") === "view" &&
+    if (mw.config.get("wgDBname") !== "enwiki") {
+        return false;
+    }
+
+    if (mw.config.get("wgAction") !== "view") {
+        return false;
+    }
+
+    return (
         mw.config.get("wgNamespaceNumber") === 0 &&
-        mw.config.get("wgArticleId") !== 0;
-    return result;
+        mw.config.get("wgArticleId") !== 0
+    );
 }
 
 /**
@@ -173,7 +179,8 @@ function createHost(): HTMLElement {
  * suffix.
  */
 function getDefaultName(): string {
-    return String(mw.config.get("wgTitle") || "").replace(/ \(.+?\)$/u, "");
+    const configValue = mw.config.get("wgTitle") || "";
+    return String(configValue).replace(/ \(.+?\)$/u, "");
 }
 
 /**
@@ -187,16 +194,18 @@ function getPageUrl(title: string): string {
 }
 
 const getFormProseSinographs = function callback(form: unknown) {
-    const result = countFormProseSinographs(form, {
+    const formDefaultNameResultE = {
         defaultName: getFormDefaultName(form),
-    });
+    };
+    const result = countFormProseSinographs(form, formDefaultNameResultE);
     return result;
 };
 
 const getFormProseWikitext = function callback(form: unknown) {
-    const result = createArticleData(form, {
+    const formDefaultNameResultD = {
         defaultName: getFormDefaultName(form),
-    }).prose.text;
+    };
+    const result = createArticleData(form, formDefaultNameResultD).prose.text;
     return result;
 };
 
@@ -209,9 +218,14 @@ const getFormProseWikitext = function callback(form: unknown) {
  * @returns Placeholder text.
  */
 function getFieldPlaceholder(form: any, field: any): string | undefined {
-    const result = getArticleFieldPlaceholder(form, field, {
+    const formDefaultNameResultC = {
         defaultName: getFormDefaultName(form),
-    });
+    };
+    const result = getArticleFieldPlaceholder(
+        form,
+        field,
+        formDefaultNameResultC,
+    );
     return result;
 }
 
@@ -223,9 +237,14 @@ function getFieldPlaceholder(form: any, field: any): string | undefined {
  * @returns Preview wikitext, or an empty string.
  */
 function getFieldPreview(form: any, previewKey: string): string {
-    const result = getArticleFieldPreview(form, previewKey, {
+    const formDefaultNameResultB = {
         defaultName: getFormDefaultName(form),
-    });
+    };
+    const result = getArticleFieldPreview(
+        form,
+        previewKey,
+        formDefaultNameResultB,
+    );
     return result;
 }
 
@@ -273,9 +292,11 @@ async function previewForm(
     try {
         const stub = await buildStubFromForm(form, citationStore);
         const text = stub.text;
-        const summary = buildEditSummary(
-            createEditSummaryMetadata(form, stub),
+        const editSummaryMetadataResultA = createEditSummaryMetadata(
+            form,
+            stub,
         );
+        const summary = buildEditSummary(editSummaryMetadataResultA);
 
         const result = {
             html: await parseArticlePreviewText(text, form),
@@ -302,7 +323,8 @@ async function parseArticlePreviewText(
     text: string,
     form: any,
 ): Promise<string> {
-    return parseNativePreviewText(buildNativePreviewText(text, form));
+    const nativePreviewTextResult = buildNativePreviewText(text, form);
+    return parseNativePreviewText(nativePreviewTextResult);
 }
 
 /**
@@ -334,24 +356,23 @@ async function parseNativePreviewText(
     text: string,
     title: string = getPageName(),
 ): Promise<string> {
-    const response = await fetch(
-        mw.util.getUrl(title, {
-            action: "submit",
-        }),
-        {
-            body: buildNativePreviewFormData(text),
-            credentials: "same-origin",
-            method: "POST",
-        },
-    );
+    const urlResult = mw.util.getUrl(title, {
+        action: "submit",
+    });
+    const request: RequestInit = {
+        body: buildNativePreviewFormData(text),
+        credentials: "same-origin",
+        method: "POST",
+    };
+    const response = await fetch(urlResult, request);
 
     if (!response.ok) {
-        throw new Error(
-            msg("errors.previewHttp", { status: response.status }),
-        );
+        const message = msg("errors.previewHttp", { status: response.status });
+        throw new Error(message);
     }
 
-    return extractNativePreviewHtml(await response.text());
+    const responseText = await response.text();
+    return extractNativePreviewHtml(responseText);
 }
 
 /**
@@ -393,17 +414,20 @@ function extractNativePreviewHtml(html: string): string {
     const preview = doc.querySelector("#wikiPreview");
 
     if (preview == null) {
-        throw new Error(msg("errors.previewMissing"));
+        const message = msg("errors.previewMissing");
+        throw new Error(message);
     }
 
+    const matchesResult = preview.matches(".mw-parser-output");
+    const selectValueCallback = function falseBranch() {
+        return preview.querySelector(".mw-parser-output");
+    };
     const parserOutput = selectValue(
-        preview.matches(".mw-parser-output"),
+        matchesResult,
         function trueBranch() {
             return preview;
         },
-        function falseBranch() {
-            return preview.querySelector(".mw-parser-output");
-        },
+        selectValueCallback,
     );
 
     return serializeElementContent(parserOutput || preview);
@@ -453,14 +477,13 @@ async function fetchPageText(title: string): Promise<string> {
     const revision = page?.revisions?.[0];
 
     if (page == null || page.missing != null || revision == null) {
-        throw new Error(msg("errors.unableRead", { title }));
+        const message = msg("errors.unableRead", { title });
+        throw new Error(message);
     }
 
-    const result =
-        revision.slots?.main?.content ??
-        revision.slots?.main?.["*"] ??
-        revision["*"] ??
-        "";
+    const mainSlot = revision.slots?.main;
+    const slotContent = mainSlot?.content ?? mainSlot?.["*"];
+    const result = slotContent ?? revision["*"] ?? "";
     return result;
 }
 
@@ -557,12 +580,13 @@ async function prepareFormSubmission(context: any): Promise<any> {
  * @returns Submission page title.
  */
 function getSubmissionTitle(context: any, shouldMove: boolean): string {
-    const result = selectArticleSubmissionTitle({
+    const pageNameResultC = {
         currentPageExists: context.currentPageExists === true,
         currentTitle: getPageName(),
         enteredTitle: trimValue(context.form?.pageName),
         shouldMove,
-    });
+    };
+    const result = selectArticleSubmissionTitle(pageNameResultC);
     return result;
 }
 
@@ -574,11 +598,12 @@ function getSubmissionTitle(context: any, shouldMove: boolean): string {
  * @returns Whether submission includes a page move.
  */
 function shouldMoveSubmission(preSave: any, moveTitle: string): boolean {
-    const result =
-        preSave?.move?.enabled === true &&
-        moveTitle !== "" &&
-        normalizePageTitle(moveTitle) !== normalizePageTitle(getPageName());
-    return result;
+    if (preSave?.move?.enabled !== true || moveTitle === "") {
+        return false;
+    }
+
+    const currentPage = getPageName();
+    return normalizePageTitle(moveTitle) !== normalizePageTitle(currentPage);
 }
 
 /**
@@ -593,7 +618,8 @@ function getGeneratedEditSummary(form: any, stub: any): string {
         return readEditSummary();
     }
 
-    return buildEditSummary(createEditSummaryMetadata(form, stub));
+    const editSummaryMetadataResult = createEditSummaryMetadata(form, stub);
+    return buildEditSummary(editSummaryMetadataResult);
 }
 
 /**
@@ -652,7 +678,12 @@ async function completeSubmittedFollowUpActions(
     );
 
     if (result.failed.length > 0) {
-        preSave.progress?.report(formatPendingActionFailures(result.failed));
+        const progress = preSave.progress;
+
+        if (progress?.report != null) {
+            const failureMessage = formatPendingActionFailures(result.failed);
+            progress.report(failureMessage);
+        }
         return;
     }
 
@@ -895,11 +926,10 @@ async function registerPendingNewPage(
     }
 
     setProgress("new-page-list", "running");
-    await registerNewPage(
-        api,
-        result.title,
-        getCompanyCategoryActions(result.completed),
+    const companyCategoryActionsResult = getCompanyCategoryActions(
+        result.completed,
     );
+    await registerNewPage(api, result.title, companyCategoryActionsResult);
     setProgress("new-page-list", "complete");
 }
 
@@ -917,7 +947,8 @@ async function refreshPreSaveCategoryWikidata(form: any): Promise<void> {
     const rows = Array.isArray(form.categoryRows) ? form.categoryRows : [];
     const pendingRows = rows.filter(shouldRefreshCategoryWikidata);
 
-    await Promise.all(pendingRows.map(refreshCategoryWikidata));
+    const mappedValues = pendingRows.map(refreshCategoryWikidata);
+    await Promise.all(mappedValues);
 }
 
 /**
@@ -927,12 +958,15 @@ async function refreshPreSaveCategoryWikidata(form: any): Promise<void> {
  * @returns Whether Wikidata should be refreshed.
  */
 function shouldRefreshCategoryWikidata(row: any): boolean {
-    const result =
-        row?.enabled !== false &&
-        row?.pendingCreation != null &&
-        trimValue(row.pendingCreation.englishName) !== "" &&
-        trimValue(row.pendingCreation.wikidataId) === "";
-    return result;
+    if (row?.enabled === false || row?.pendingCreation == null) {
+        return false;
+    }
+
+    if (trimValue(row.pendingCreation.englishName) === "") {
+        return false;
+    }
+
+    return trimValue(row.pendingCreation.wikidataId) === "";
 }
 
 /**
@@ -991,8 +1025,9 @@ function isCompanyCategoryAction(action: any): boolean {
 function normalizeEnglishCategoryTitle(title: string): string {
     const value = trimValue(title);
 
+    const matchesPattern = value === "" || /^Category:/iu.test(value);
     const result = selectValue(
-        value === "" || /^Category:/iu.test(value),
+        matchesPattern,
         function trueBranch() {
             return value;
         },
@@ -1072,9 +1107,14 @@ function invokeSubmitHandler(
  * parameters.
  */
 async function buildStubFromForm(form: any, citationStore: any): Promise<any> {
-    const result = buildArticleStubFromForm(form, citationStore, {
+    const formDefaultNameResultA = {
         defaultName: getFormDefaultName(form),
-    });
+    };
+    const result = buildArticleStubFromForm(
+        form,
+        citationStore,
+        formDefaultNameResultA,
+    );
     return result;
 }
 
@@ -1169,13 +1209,18 @@ async function buildRefreshedCategoryRows(
     store: { cache: unknown },
     options: { bypassCache: unknown },
 ): Promise<any[]> {
-    const result = await prepareCategoryRows(form, form.categoryRows, {
+    const formDefaultNameResult = {
         article: { defaultName: getFormDefaultName(form) },
         categories: {
             bypassCache: options.bypassCache,
             cache: store.cache,
         },
-    });
+    };
+    const result = await prepareCategoryRows(
+        form,
+        form.categoryRows,
+        formDefaultNameResult,
+    );
     return result;
 }
 
@@ -1189,7 +1234,7 @@ function mergeRefreshedCategoryRows(
     form: { categoryRows: unknown[] },
     rows: unknown[],
 ): void {
-    const merged = rows.map(function callback(
+    const mapCallback = function callback(
         row: unknown,
         index: string | number,
     ) {
@@ -1201,7 +1246,8 @@ function mergeRefreshedCategoryRows(
 
         Object.assign(current, row);
         return current;
-    });
+    };
+    const merged = rows.map(mapCallback);
     form.categoryRows.splice(0, form.categoryRows.length, ...merged);
 }
 
@@ -1330,8 +1376,9 @@ async function prepareMovedEdit(
     let text = stubs.target.text;
 
     if (preserveEditor) {
+        const readEditTextResult = readEditText();
         text = updateMovedTitleText(
-            readEditText(),
+            readEditTextResult,
             stubs.current.articleData,
             stubs.target.articleData,
         );
@@ -1367,10 +1414,11 @@ async function buildMovedEditStubs(
         return { current: null, target };
     }
 
-    const [current, target] = await Promise.all([
+    const stubFromFormResult = [
         buildStubFromForm(form, store),
         buildStubFromForm(targetForm, store),
-    ]);
+    ];
+    const [current, target] = await Promise.all(stubFromFormResult);
     return { current, target };
 }
 
@@ -1394,20 +1442,22 @@ function navigateToTargetEditor(title: string): void {
  *   editor.
  */
 function restoreMovedEditText(): void {
-    const pending = getMovedEdit(getPageName());
+    const pageNameResultB = getPageName();
+    const pending = getMovedEdit(pageNameResultB);
 
     if (pending == null) {
         return;
     }
 
     writeEditText(pending.text);
-    writeEditSummary(
-        pending.summary ?? buildEditSummary(pending.summaryMetadata || {}),
-    );
+    const editSummaryResult =
+        pending.summary ?? buildEditSummary(pending.summaryMetadata || {});
+    writeEditSummary(editSummaryResult);
     clearMovedEdit();
 
     if (pending.preview === true) {
-        storePreviewFormData(pending.form, getPageName());
+        const pageNameResultA = getPageName();
+        storePreviewFormData(pending.form, pageNameResultA);
         submitPreviewForm();
     }
 }
@@ -1502,7 +1552,8 @@ function init(require: (...args: any[]) => any): void {
     const app = context.Vue.createMwApp(component);
 
     registerCodexComponents(app, context.Codex);
-    app.mount(createHost());
+    const hostResult = createHost();
+    app.mount(hostResult);
     finishInitialization(context);
 }
 
@@ -1569,7 +1620,10 @@ function activateTool(): void {
         return;
     }
 
-    interceptEditSave(() => (window as any).vgStubCreatorDialog.submit());
+    const interceptEditSaveCallback = function submitDialog() {
+        return (window as any).vgStubCreatorDialog.submit();
+    };
+    interceptEditSave(interceptEditSaveCallback);
     saveInterceptorActive = true;
 }
 
@@ -1719,11 +1773,19 @@ function getInitialDialogForm(context: {
     movedEdit?: { form: unknown };
     currentPageName: string;
 }): unknown {
-    const result =
-        context.activationForm ||
-        context.previewFormData?.form ||
-        context.movedEdit?.form ||
-        readFormDraftForPage(context.currentPageName);
+    let result = context.activationForm;
+
+    if (!result) {
+        result = context.previewFormData?.form;
+    }
+
+    if (!result) {
+        result = context.movedEdit?.form;
+    }
+
+    if (!result) {
+        result = readFormDraftForPage(context.currentPageName);
+    }
     return result;
 }
 
@@ -1813,7 +1875,8 @@ function openTargetPageForDialog(
  *   conversion.
  */
 async function checkDialogPageTitle(title: string): Promise<any> {
-    const [match] = await fetchExistingPageTitles(new mw.Api(), [title]);
+    const api = new mw.Api();
+    const [match] = await fetchExistingPageTitles(api, [title]);
     const result = {
         exists: match?.exists === true,
         title: match?.title || title,
@@ -1834,9 +1897,12 @@ async function prepareDialogRedirectRows(
     title: string,
 ): Promise<unknown[]> {
     const redirectTitles = buildRedirectTitles(form, title);
+    const redirectTitleCheckTitlesResulB =
+        getRedirectTitleCheckTitles(redirectTitles);
+    const api = new mw.Api();
     const existing = await fetchExistingPageTitles(
-        new mw.Api(),
-        getRedirectTitleCheckTitles(redirectTitles),
+        api,
+        redirectTitleCheckTitlesResulB,
     );
     return buildRedirectRows(form, title, existing);
 }
@@ -1854,9 +1920,12 @@ async function checkDialogRedirectRows(
     title: string,
 ): Promise<unknown[]> {
     const redirectTitles = rows.map((row) => row.title);
+    const redirectTitleCheckTitlesResulA =
+        getRedirectTitleCheckTitles(redirectTitles);
+    const api = new mw.Api();
     const existing = await fetchExistingPageTitles(
-        new mw.Api(),
-        getRedirectTitleCheckTitles(redirectTitles),
+        api,
+        redirectTitleCheckTitlesResulA,
     );
     return buildRedirectRowsFromTitles(redirectTitles, title, existing);
 }
@@ -1913,9 +1982,12 @@ async function prepareDialogPreSave(
     if (Array.isArray(form.redirectRows)) {
         redirectTitles = form.redirectRows.map((row) => row.title);
     }
+    const redirectTitleCheckTitlesResult =
+        getRedirectTitleCheckTitles(redirectTitles);
+    const api = new mw.Api();
     const existing = await fetchExistingPageTitles(
-        new mw.Api(),
-        getRedirectTitleCheckTitles(redirectTitles),
+        api,
+        redirectTitleCheckTitlesResult,
     );
     const metadata = { finalTitle: title, form, title };
     const actions = buildPreSaveActions(metadata, existing);
@@ -2021,7 +2093,8 @@ function finishInitialization(context: {
  *   newly created article.
  */
 async function runPendingSaveActions(): Promise<void> {
-    const pending = getPendingSaveData(getPageName());
+    const pageNameResult = getPageName();
+    const pending = getPendingSaveData(pageNameResult);
 
     if (pending == null) {
         return;
@@ -2055,7 +2128,10 @@ async function runPendingSaveActions(): Promise<void> {
  */
 function completePendingSaveProgress(result: { failed: unknown[] }): void {
     if (result.failed.length > 0) {
-        reportSaveProgressError(formatPendingActionFailures(result.failed));
+        const pendingActionFailuresResult = formatPendingActionFailures(
+            result.failed,
+        );
+        reportSaveProgressError(pendingActionFailuresResult);
         return;
     }
 
@@ -2079,26 +2155,43 @@ function navigateToWhatLinksHere(title: string): void {
  * @returns Failure report.
  */
 function formatPendingActionFailures(actions: Array<any>): string {
+    const filterCallback = (label: unknown) => trimValue(label) !== "";
     const labels = actions
         .map((action) => action.label || action.id)
-        .filter((label) => trimValue(label) !== "");
+        .filter(filterCallback);
 
     if (labels.length === 0) {
         return msg("errors.followUpFailed");
     }
 
-    const result = msg("errors.followUpFailedDetails", {
+    const joinedText = {
         actions: labels.join("; "),
-    });
+    };
+    const result = msg("errors.followUpFailedDetails", joinedText);
     return result;
 }
 
 const currentAction = mw.config.get("wgAction");
-const hasPendingSave =
-    isZhwiki() &&
-    currentAction === "view" &&
-    mw.config.get("wgArticleId") !== 0 &&
-    getPendingSaveData(getPageName()) != null;
+const hasPendingSave = hasPendingSaveForCurrentPage(currentAction);
+
+/**
+ * Checks whether the current page has deferred save actions.
+ *
+ * @param action - Current MediaWiki action.
+ * @returns Whether deferred save actions should resume.
+ */
+function hasPendingSaveForCurrentPage(action: string): boolean {
+    if (!isZhwiki() || action !== "view") {
+        return false;
+    }
+
+    if (mw.config.get("wgArticleId") === 0) {
+        return false;
+    }
+
+    const pageName = getPageName();
+    return getPendingSaveData(pageName) != null;
+}
 
 if (isEnwikiArticleView()) {
     mw.loader

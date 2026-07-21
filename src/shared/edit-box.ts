@@ -136,7 +136,8 @@ class ActiveEditBox implements EditBox {
 
         const surface = getVisualEditorSurface();
         if (surface != null) {
-            return String(surface.getDom());
+            const dom = surface.getDom();
+            return String(dom);
         }
 
         return this.element?.value ?? "";
@@ -234,6 +235,14 @@ function findCodeMirror(
     return null;
 }
 
+/**
+ * Checks whether CodeMirror belongs to the active editor target.
+ *
+ * @param editor - Candidate CodeMirror wrapper.
+ * @param element - Page edit textarea.
+ * @param surface - Active VisualEditor source surface.
+ * @returns Whether the wrapper targets the current editor.
+ */
 function isCodeMirrorTarget(
     editor: CodeMirrorEditor,
     element: HTMLTextAreaElement | null,
@@ -244,6 +253,12 @@ function isCodeMirrorTarget(
     return matchesTextarea || matchesSurface;
 }
 
+/**
+ * Checks whether a CodeMirror wrapper has an active view.
+ *
+ * @param editor - Candidate CodeMirror wrapper.
+ * @returns Whether its document view can be used.
+ */
 function isCodeMirrorUsable(editor: CodeMirrorEditor): boolean {
     return (editor.isActive ?? true) && Boolean(editor.view);
 }
@@ -326,9 +341,10 @@ function writeVisualEditor(surface: VisualEditorSurface, text: string): void {
         throw new Error("The VisualEditor source range API is unavailable.");
     }
 
+    const range = new Range(0);
     surface
         .getModel()
-        .getLinearFragment(new Range(0), true)
+        .getLinearFragment(range, true)
         .expandLinearSelection("root")
         .insertContent(text);
 }
@@ -339,8 +355,10 @@ function writeVisualEditor(surface: VisualEditorSurface, text: string): void {
  * @param element - Updated textarea.
  */
 function dispatchValueEvents(element: HTMLTextAreaElement): void {
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-    element.dispatchEvent(new Event("change", { bubbles: true }));
+    const inputEvent = new Event("input", { bubbles: true });
+    element.dispatchEvent(inputEvent);
+    const changeEvent = new Event("change", { bubbles: true });
+    element.dispatchEvent(changeEvent);
 }
 
 registerEditBoxHooks();

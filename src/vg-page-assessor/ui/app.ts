@@ -42,6 +42,7 @@ const SUMMARY_LINK = ":m:User:For Each ... Next/global.js/vg page assessor.js";
 const SUMMARY_TEXT = "🍄";
 const SUMMARY_SOURCE_LINK = `[[${SUMMARY_LINK}|${SUMMARY_TEXT}]]`;
 const DEFAULT_EDIT_SUMMARY = appendSummarySourceLink("Tag project banners");
+const DIALOG_CLOSE_DELAY_MS = 600;
 const MAINTENANCE_ITEMS = [
     { id: "reassess", label: msg("maintenance.reassess") },
     { id: "needsInfobox", label: msg("maintenance.needsInfobox") },
@@ -56,15 +57,23 @@ const MAINTENANCE_ITEMS = [
  *   adds the toolbox trigger after mediawiki is ready.
  */
 function init(): void {
+    const loggedDbName = mw.config.get("wgDBname");
+    const loggedNamespace = mw.config.get("wgNamespaceNumber");
+    const loggedPageName = mw.config.get("wgPageName");
     logStep("init start", {
-        dbName: mw.config.get("wgDBname"),
-        namespaceNumber: mw.config.get("wgNamespaceNumber"),
-        pageName: mw.config.get("wgPageName"),
+        dbName: loggedDbName,
+        namespaceNumber: loggedNamespace,
+        pageName: loggedPageName,
     });
-    if (
-        mw.config.get("wgDBname") !== "zhwiki" ||
-        mw.config.get("wgNamespaceNumber") < 0
-    ) {
+    const dbName = mw.config.get("wgDBname");
+    let unsupportedPage = dbName !== "zhwiki";
+
+    if (!unsupportedPage) {
+        const namespaceNumber = mw.config.get("wgNamespaceNumber");
+        unsupportedPage = namespaceNumber < 0;
+    }
+
+    if (unsupportedPage) {
         logStep("init skipped");
         return;
     }
@@ -78,20 +87,36 @@ function init(): void {
  * Adds the localized toolbox link and click handler.
  */
 function addToolboxLink(): void {
+    const label = msg("tool.name");
     const link = mw.util.addPortletLink(
         "p-tb",
         "#",
-        msg("tool.name"),
+        label,
         "t-assess-vg-page",
     );
-    link?.addEventListener("click", function callback(event) {
-        event.preventDefault();
-        logStep("toolbox link clicked");
-        openDialog().catch(function callback(error) {
-            logStep("openDialog failed", { error });
-            mw.notify(error.message || String(error), { type: "error" });
-        });
-    });
+    link?.addEventListener("click", handleToolboxClick);
+}
+
+/**
+ * Opens the dialog from the toolbox link.
+ *
+ * @param event - Toolbox click event.
+ */
+function handleToolboxClick(event: Event): void {
+    event.preventDefault();
+    logStep("toolbox link clicked");
+    openDialog().catch(handleOpenDialogError);
+}
+
+/**
+ * Reports a dialog-opening failure.
+ *
+ * @param error - Opening failure.
+ */
+function handleOpenDialogError(error: any): void {
+    logStep("openDialog failed", { error });
+    const message = error.message || String(error);
+    mw.notify(message, { type: "error" });
 }
 
 /**
@@ -105,12 +130,23 @@ async function openDialog(): Promise<void> {
     const dialog = buildDialog(state);
 
     appendDialog(dialog);
-    loadNewPageListState(dialog, dialog.avgpState).catch(
-        function callback(error) {
-            logStep("loadNewPageListState failed", { error });
-            setStatus(dialog, error.message || String(error), true);
-        },
-    );
+    const handleError = handleNewPageListStateError.bind(null, dialog);
+    loadNewPageListState(dialog, dialog.avgpState).catch(handleError);
+}
+
+/**
+ * Reports a new-page-list loading failure.
+ *
+ * @param dialog - Dialog element.
+ * @param error - Loading failure.
+ */
+function handleNewPageListStateError(
+    dialog: HTMLDialogElement,
+    error: any,
+): void {
+    logStep("loadNewPageListState failed", { error });
+    const message = error.message || String(error);
+    setStatus(dialog, message, true);
 }
 
 /**
@@ -120,22 +156,27 @@ async function openDialog(): Promise<void> {
  */
 async function loadDialogState(): Promise<any> {
     const api = new mw.Api();
-    const currentTitle = mw.Title.newFromText(mw.config.get("wgPageName"));
+    const pageName = mw.config.get("wgPageName");
+    const currentTitle = mw.Title.newFromText(pageName);
     const talkTitle = getTalkPageTitle(currentTitle);
     const subjectTitle = getSubjectPageTitle(currentTitle);
+    const namespaceNumber = currentTitle.getNamespaceId();
     logStep("openDialog titles resolved", {
-        namespaceNumber: currentTitle.getNamespaceId(),
+        namespaceNumber,
         subjectTitle,
         talkTitle,
     });
+    const pageRequest = fetchPageText(api, talkTitle);
+    const subjectInfoRequest = fetchSubjectPageInfo(api, subjectTitle);
     const [page, subjectInfo] = await Promise.all([
-        fetchPageText(api, talkTitle),
-        fetchSubjectPageInfo(api, subjectTitle),
+        pageRequest,
+        subjectInfoRequest,
     ]);
+    const creationTimestamp = subjectInfo.creationDate.toISOString();
     logStep("openDialog initial page data fetched", {
         subjectInfo: {
             ...subjectInfo,
-            creationDate: subjectInfo.creationDate.toISOString(),
+            creationDate: creationTimestamp,
         },
         talkPageLength: page.text.length,
     });
@@ -181,16 +222,18 @@ function buildDialog(state: any): HTMLDialogElement {
 
     dialog.className = "avgp-dialog";
     dialog.avgpState = state;
-    replaceElementContent(dialog, buildDialogHtml(state, registerDefault));
+    const markup = buildDialogHtml(state, registerDefault);
+    replaceElementContent(dialog, markup);
     bindDialogEvents(dialog, state);
     updateAssessmentPreview(dialog, state);
     updateTalkDiff(dialog, state);
     updateAssessmentSummary(dialog, state);
     updateRegistrationPreview(dialog, state);
 
+    const registration = summarizeRegistration(state.registration);
     logStep("buildDialog done", {
         registerDefault,
-        registration: summarizeRegistration(state.registration),
+        registration,
     });
 
     return dialog;
@@ -240,17 +283,20 @@ function buildAssessmentFieldset(state: any): TemplateElement {
         controls,
         sources,
     ]);
+    const legendText = msg("dialog.assessment");
     const legend = buildTextElement(
         "legend",
         { class: "avgp-fieldset-title" },
-        msg("dialog.assessment"),
+        legendText,
     );
+    const summaryLabel = msg("dialog.editSummary");
+    const summaryValue = buildEditSummary(state.assessment);
     const summary = buildTextInputField({
         className: "avgp-summary cdx-field",
         id: "avgp-edit-summary",
-        label: msg("dialog.editSummary"),
+        label: summaryLabel,
         name: "summary",
-        value: buildEditSummary(state.assessment),
+        value: summaryValue,
     });
     const fieldset = createElement("fieldset", { class: "avgp-fieldset" }, [
         legend,
@@ -267,15 +313,12 @@ function buildAssessmentFieldset(state: any): TemplateElement {
  * @returns Assessment radio and checkbox controls.
  */
 function buildAssessmentControls(): TemplateElement {
+    const classLabel = msg("dialog.class");
+    const importanceLabel = msg("dialog.importance");
     const children = [
+        buildRadioSection(classLabel, "className", CLASS_VALUES, "Unassessed"),
         buildRadioSection(
-            msg("dialog.class"),
-            "className",
-            CLASS_VALUES,
-            "Unassessed",
-        ),
-        buildRadioSection(
-            msg("dialog.importance"),
+            importanceLabel,
             "importance",
             IMPORTANCE_VALUES,
             "",
@@ -284,10 +327,11 @@ function buildAssessmentControls(): TemplateElement {
         buildMaintenanceSection(),
         buildOtherProjectSection(),
     ];
+    const ariaLabel = msg("dialog.assessmentControls");
     const controls = createElement(
         "section",
         {
-            "aria-label": msg("dialog.assessmentControls"),
+            "aria-label": ariaLabel,
             class: "avgp-controls",
         },
         children,
@@ -302,23 +346,26 @@ function buildAssessmentControls(): TemplateElement {
  * @returns Current and proposed talk-source fields.
  */
 function buildAssessmentSources(): TemplateElement {
+    const previewLabel = msg("dialog.readySource");
     const preview = buildSourceField({
         id: "avgp-preview-source",
-        label: msg("dialog.readySource"),
+        label: previewLabel,
         textareaAttributes: { "data-avgp-preview": "" },
     });
+    const currentLabel = msg("dialog.currentSource");
     const current = buildSourceField({
         id: "avgp-current-source",
-        label: msg("dialog.currentSource"),
+        label: currentLabel,
         textareaAttributes: {
             "data-avgp-current-source": "",
             readonly: "",
         },
     });
+    const ariaLabel = msg("dialog.leadPreview");
     const sources = createElement(
         "section",
         {
-            "aria-label": msg("dialog.leadPreview"),
+            "aria-label": ariaLabel,
             class: "avgp-source",
         },
         [preview, current],
@@ -340,10 +387,11 @@ function buildNewPageListFieldset(
     const registration = buildRegistrationControl(state, registerDefault);
     const comparison = buildRegistrationComparison();
     const summary = buildRegistrationSummary(state);
+    const legendText = msg("dialog.newPageList");
     const legend = buildTextElement(
         "legend",
         { class: "avgp-fieldset-title" },
-        msg("dialog.newPageList"),
+        legendText,
     );
     const fieldset = createElement("fieldset", { class: "avgp-fieldset" }, [
         legend,
@@ -442,15 +490,18 @@ function buildRegistrationSummary(state: {
     subjectInfo: { listedTitle: string; creationDate: Date };
     subjectTitle: string;
 }): TemplateElement {
+    const label = msg("dialog.editSummary");
+    const title = state.subjectInfo.listedTitle || state.subjectTitle;
+    const value = buildNewPageListSummary(
+        title,
+        state.subjectInfo.creationDate,
+    );
     const summary = buildTextInputField({
         className: "avgp-list-summary cdx-field",
         id: "avgp-list-summary",
-        label: msg("dialog.editSummary"),
+        label,
         name: "listSummary",
-        value: buildNewPageListSummary(
-            state.subjectInfo.listedTitle || state.subjectTitle,
-            state.subjectInfo.creationDate,
-        ),
+        value,
     });
 
     return summary;
@@ -490,7 +541,8 @@ function buildDialogActions(): TemplateElement {
         class: "avgp-status",
         "data-avgp-status": "",
     });
-    const cancel = buildButton(msg("dialog.cancel"), {
+    const cancelLabel = msg("dialog.cancel");
+    const cancel = buildButton(cancelLabel, {
         class: "cdx-button",
         "data-avgp-cancel": "",
         type: "button",
@@ -500,7 +552,8 @@ function buildDialogActions(): TemplateElement {
         "cdx-button--action-progressive",
         "cdx-button--weight-primary",
     ].join(" ");
-    const save = buildButton(msg("dialog.save"), {
+    const saveLabel = msg("dialog.save");
+    const save = buildButton(saveLabel, {
         class: saveClass,
         "data-avgp-save": "",
         type: "button",
@@ -525,7 +578,8 @@ function buildDialogActions(): TemplateElement {
  * @returns Field template.
  */
 function buildSourceField({ id, label, textareaAttributes }): TemplateElement {
-    const labelContainer = buildLabelContainer(buildInputLabel(label, id));
+    const inputLabel = buildInputLabel(label, id);
+    const labelContainer = buildLabelContainer(inputLabel);
     const textarea = createElement("textarea", {
         class: "cdx-text-area__textarea avgp-source-textarea",
         id,
@@ -563,7 +617,8 @@ function buildComparisonField({
     textareaAttributes,
     tone,
 }): TemplateElement {
-    const labelContainer = buildLabelContainer(buildInputLabel(label, id));
+    const inputLabel = buildInputLabel(label, id);
+    const labelContainer = buildLabelContainer(inputLabel);
     const textarea = createElement("textarea", {
         class: "cdx-text-area__textarea avgp-compare-textarea",
         id,
@@ -595,7 +650,8 @@ function buildRegistrationCheckbox(
     checked: boolean,
 ): TemplateElement {
     if (state.registrationLoading) {
-        const indicator = buildProgressIndicator(msg("registration.loading"));
+        const label = msg("registration.loading");
+        const indicator = buildProgressIndicator(label);
 
         return indicator;
     }
@@ -764,8 +820,9 @@ function getRegistrationLabel(registration: any, creationDate: Date): string {
         return msg("registration.loading");
     }
 
+    const createdDate = formatInterfaceDate(creationDate);
     const created = msg("registration.createdOn", {
-        date: formatInterfaceDate(creationDate),
+        date: createdDate,
     });
 
     if (!registration.eligible) {
@@ -776,8 +833,9 @@ function getRegistrationLabel(registration: any, creationDate: Date): string {
         registration.existing?.date != null &&
         registration.existing.listedTitle
     ) {
+        const existingDate = formatInterfaceDate(registration.existing.date);
         const result = msg("registration.existing", {
-            date: formatInterfaceDate(registration.existing.date),
+            date: existingDate,
             title: registration.existing.listedTitle,
         });
         return result;
@@ -802,7 +860,8 @@ async function loadNewPageListState(
     state: any,
 ): Promise<void> {
     logStep("loadNewPageListState start");
-    setStatus(dialog, msg("registration.loadingList"), false);
+    const loadingStatus = msg("registration.loadingList");
+    setStatus(dialog, loadingStatus, false);
     const newPageList = await fetchNewPageList(state.api);
 
     logStep("loadNewPageListState fetched list", {
@@ -818,9 +877,11 @@ async function loadNewPageListState(
     prepareRegistration(state);
     refreshRegistrationControls(dialog, state);
     setStatus(dialog, "", false);
+    const loggedCreationTimes = serializeCreationTimes(creationTimes);
+    const registration = summarizeRegistration(state.registration);
     logStep("loadNewPageListState done", {
-        creationTimes: serializeCreationTimes(creationTimes),
-        registration: summarizeRegistration(state.registration),
+        creationTimes: loggedCreationTimes,
+        registration,
     });
 }
 
@@ -860,11 +921,12 @@ async function loadRegistrationCreationTimes(
 function serializeCreationTimes(
     creationTimes: Map<string, Date>,
 ): Array<[string, string]> {
-    const entries = [...creationTimes.entries()].map(
-        function callback(entry): [string, string] {
-            return [entry[0], entry[1].toISOString()];
-        },
-    );
+    const entries: Array<[string, string]> = [];
+
+    for (const [title, date] of creationTimes) {
+        const timestamp = date.toISOString();
+        entries.push([title, timestamp]);
+    }
 
     return entries;
 }
@@ -879,18 +941,15 @@ function serializeCreationTimes(
  *   background loading.
  */
 function refreshRegistrationControls(root: HTMLElement, state: any): void {
+    const namespaceNumber = mw.config.get("wgNamespaceNumber");
     const registerDefault =
-        shouldRegisterByDefault(
-            mw.config.get("wgNamespaceNumber"),
-            state.subjectTitle,
-        ) &&
+        shouldRegisterByDefault(namespaceNumber, state.subjectTitle) &&
         state.registration.eligible &&
         !state.registration.alreadyRegistered;
     const container = root.querySelector("[data-avgp-register-container]");
 
-    const markup = renderTemplate(
-        buildRegistrationCheckbox(state, registerDefault),
-    );
+    const checkbox = buildRegistrationCheckbox(state, registerDefault);
+    const markup = renderTemplate(checkbox);
     replaceElementContent(container, markup);
     updateRegistrationPreview(root, state);
 }
@@ -919,25 +978,24 @@ function formatInterfaceDate(date: Date): string {
  */
 function prepareRegistration(state: any): void {
     logStep("prepareRegistration start");
+    const currentNamespace = mw.config.get("wgNamespaceNumber");
+    let namespaceNumber;
+
+    if (currentNamespace % 2 === 0) {
+        namespaceNumber = mw.config.get("wgNamespaceNumber");
+    } else {
+        namespaceNumber = state.subjectInfo.namespaceNumber;
+    }
+
     state.registration = prepareNewPageListRegistration({
         creationDate: state.subjectInfo.creationDate,
-        namespaceNumber: selectValue(
-            mw.config.get("wgNamespaceNumber") % 2 === 0,
-            function trueBranch() {
-                return mw.config.get("wgNamespaceNumber");
-            },
-            function falseBranch() {
-                return state.subjectInfo.namespaceNumber;
-            },
-        ),
+        namespaceNumber,
         text: state.newPageList.text,
         title: state.subjectInfo.listedTitle || state.subjectTitle,
         creationTimes: state.creationTimes,
     });
-    logStep(
-        "prepareRegistration done",
-        summarizeRegistration(state.registration),
-    );
+    const registration = summarizeRegistration(state.registration);
+    logStep("prepareRegistration done", registration);
 }
 
 /**
@@ -955,7 +1013,12 @@ function buildRadioSection(
     values: Array<string>,
     selected: string,
 ): TemplateElement {
-    const radios = values.map((value) => buildRadio(name, value, selected));
+    const radios = [];
+
+    for (const value of values) {
+        const radio = buildRadio(name, value, selected);
+        radios.push(radio);
+    }
 
     return buildControlSection(label, "avgp-button-group", radios);
 }
@@ -1034,8 +1097,9 @@ function buildRadioInputAttributes(
  * @returns Section template.
  */
 function buildTaskForceSection(): TemplateElement {
+    const label = msg("dialog.taskForces");
     const result = buildCheckboxSection(
-        msg("dialog.taskForces"),
+        label,
         "taskForce",
         PROJECT_CONFIG.videoGames.taskForces,
     );
@@ -1048,8 +1112,9 @@ function buildTaskForceSection(): TemplateElement {
  * @returns Section HTML.
  */
 function buildMaintenanceSection(): TemplateElement {
+    const label = msg("dialog.maintenance");
     const result = buildCheckboxSection(
-        msg("dialog.maintenance"),
+        label,
         "maintenance",
         MAINTENANCE_ITEMS,
     );
@@ -1062,8 +1127,9 @@ function buildMaintenanceSection(): TemplateElement {
  * @returns Section HTML.
  */
 function buildOtherProjectSection(): TemplateElement {
+    const label = msg("dialog.otherProjects");
     const result = buildCheckboxSection(
-        msg("dialog.otherProjects"),
+        label,
         "otherProject",
         PROJECT_CONFIG.otherProjects,
     );
@@ -1083,7 +1149,12 @@ function buildCheckboxSection(
     name: string,
     items: Array<any>,
 ): TemplateElement {
-    const checkboxes = items.map((item) => buildCheckbox(name, item));
+    const checkboxes = [];
+
+    for (const item of items) {
+        const checkbox = buildCheckbox(name, item);
+        checkboxes.push(checkbox);
+    }
 
     return buildControlSection(label, "avgp-check-grid", checkboxes);
 }
@@ -1169,8 +1240,9 @@ function buildControlSection(
     controlClass: string,
     controls: Array<TemplateNode>,
 ): TemplateElement {
+    const plainLabel = buildPlainLabel(label);
     const legend = createElement("legend", { class: "cdx-label" }, [
-        buildPlainLabel(label),
+        plainLabel,
     ]);
     const group = createElement("div", { class: controlClass }, controls);
     const fieldControl = buildFieldControl([group]);
@@ -1232,7 +1304,8 @@ function buildTextElement(
     attributes: Record<string, any>,
     text: string,
 ): TemplateElement {
-    return createElement(tagName, attributes, [createEscapedText(text)]);
+    const textNode = createEscapedText(text);
+    return createElement(tagName, attributes, [textNode]);
 }
 
 /**
@@ -1244,16 +1317,25 @@ function buildTextElement(
  *   binds dialog input and action events.
  */
 function bindDialogEvents(dialog: HTMLDialogElement, state: any): void {
-    dialog.addEventListener("change", function callback() {
-        logStep("dialog change");
-        readAssessment(dialog, state.assessment);
-        updateAssessmentPreview(dialog, state);
-        updateTalkDiff(dialog, state);
-        updateAssessmentSummary(dialog, state);
-        updateRegistrationPreview(dialog, state);
-    });
+    const changeHandler = handleDialogChange.bind(null, dialog, state);
+    dialog.addEventListener("change", changeHandler);
     bindDialogEditEvents(dialog, state);
     bindDialogActionEvents(dialog, state);
+}
+
+/**
+ * Refreshes dialog state after an input change.
+ *
+ * @param dialog - Dialog element.
+ * @param state - Dialog state.
+ */
+function handleDialogChange(dialog: HTMLDialogElement, state: any): void {
+    logStep("dialog change");
+    readAssessment(dialog, state.assessment);
+    updateAssessmentPreview(dialog, state);
+    updateTalkDiff(dialog, state);
+    updateAssessmentSummary(dialog, state);
+    updateRegistrationPreview(dialog, state);
 }
 
 /**
@@ -1266,19 +1348,35 @@ function bindDialogEditEvents(
     dialog: HTMLElement,
     state: { previewDirty: boolean; summaryDirty: boolean },
 ): void {
-    dialog
-        .querySelector("[data-avgp-preview]")
-        .addEventListener("input", function callback() {
-            logStep("lead source edited");
-            state.previewDirty = true;
-            updateTalkDiff(dialog, state);
-        });
-    dialog
-        .querySelector("[name='summary']")
-        .addEventListener("input", function callback() {
-            logStep("assessment summary edited");
-            state.summaryDirty = true;
-        });
+    const preview = dialog.querySelector("[data-avgp-preview]");
+    const previewHandler = handlePreviewInput.bind(null, dialog, state);
+    preview.addEventListener("input", previewHandler);
+
+    const summary = dialog.querySelector("[name='summary']");
+    const summaryHandler = handleSummaryInput.bind(null, state);
+    summary.addEventListener("input", summaryHandler);
+}
+
+/**
+ * Marks the talk preview as manually edited.
+ *
+ * @param dialog - Dialog element.
+ * @param state - Dialog state.
+ */
+function handlePreviewInput(dialog: HTMLElement, state: any): void {
+    logStep("lead source edited");
+    state.previewDirty = true;
+    updateTalkDiff(dialog, state);
+}
+
+/**
+ * Marks the assessment summary as manually edited.
+ *
+ * @param state - Dialog state.
+ */
+function handleSummaryInput(state: { summaryDirty: boolean }): void {
+    logStep("assessment summary edited");
+    state.summaryDirty = true;
 }
 
 /**
@@ -1291,21 +1389,47 @@ function bindDialogActionEvents(
     dialog: HTMLDialogElement,
     state: unknown,
 ): void {
-    dialog
-        .querySelector("[data-avgp-cancel]")
-        .addEventListener("click", function callback() {
-            logStep("dialog cancelled");
-            closeDialog(dialog);
-        });
-    dialog
-        .querySelector("[data-avgp-save]")
-        .addEventListener("click", function callback() {
-            logStep("save button clicked");
-            saveDialog(dialog, state).catch(function callback(error) {
-                logStep("saveDialog failed", { error });
-                setStatus(dialog, error.message || String(error), true);
-            });
-        });
+    const cancel = dialog.querySelector("[data-avgp-cancel]");
+    const cancelHandler = handleDialogCancel.bind(null, dialog);
+    cancel.addEventListener("click", cancelHandler);
+
+    const save = dialog.querySelector("[data-avgp-save]");
+    const saveHandler = handleDialogSave.bind(null, dialog, state);
+    save.addEventListener("click", saveHandler);
+}
+
+/**
+ * Closes a cancelled dialog.
+ *
+ * @param dialog - Dialog element.
+ */
+function handleDialogCancel(dialog: HTMLDialogElement): void {
+    logStep("dialog cancelled");
+    closeDialog(dialog);
+}
+
+/**
+ * Starts a dialog save.
+ *
+ * @param dialog - Dialog element.
+ * @param state - Dialog state.
+ */
+function handleDialogSave(dialog: HTMLDialogElement, state: unknown): void {
+    logStep("save button clicked");
+    const handleError = handleDialogSaveError.bind(null, dialog);
+    saveDialog(dialog, state).catch(handleError);
+}
+
+/**
+ * Reports a dialog save failure.
+ *
+ * @param dialog - Dialog element.
+ * @param error - Save failure.
+ */
+function handleDialogSaveError(dialog: HTMLDialogElement, error: any): void {
+    logStep("saveDialog failed", { error });
+    const message = error.message || String(error);
+    setStatus(dialog, message, true);
 }
 
 /**
@@ -1336,13 +1460,12 @@ function readAssessment(root: HTMLElement, assessment: any): void {
  * @returns Checked ID map.
  */
 function readCheckedMap(root: HTMLElement, name: string): any {
-    const result = Object.fromEntries(
-        [...root.querySelectorAll<HTMLInputElement>(`[name='${name}']`)].map(
-            function callback(input) {
-                return [input.value, input.checked];
-            },
-        ),
-    );
+    const entries = [
+        ...root.querySelectorAll<HTMLInputElement>(`[name='${name}']`),
+    ].map(function callback(input) {
+        return [input.value, input.checked];
+    });
+    const result = Object.fromEntries(entries);
     return result;
 }
 
@@ -1360,15 +1483,16 @@ function updateAssessmentPreview(root: HTMLElement, state: any): void {
         return;
     }
 
-    root.querySelector<HTMLTextAreaElement>("[data-avgp-preview]").value =
-        previewTalkPageTopSection(
-            state.pageText,
-            state.assessment,
-            PROJECT_CONFIG,
-        );
+    const preview = root.querySelector<HTMLTextAreaElement>(
+        "[data-avgp-preview]",
+    );
+    preview.value = previewTalkPageTopSection(
+        state.pageText,
+        state.assessment,
+        PROJECT_CONFIG,
+    );
     logStep("updateAssessmentPreview done", {
-        length: root.querySelector<HTMLTextAreaElement>("[data-avgp-preview]")
-            .value.length,
+        length: preview.value.length,
     });
 }
 
@@ -1381,13 +1505,12 @@ function updateAssessmentPreview(root: HTMLElement, state: any): void {
  *   updates the current talk-page lead-section pane.
  */
 function updateTalkDiff(root: HTMLElement, state: any): void {
-    root.querySelector<HTMLTextAreaElement>(
+    const currentSource = root.querySelector<HTMLTextAreaElement>(
         "[data-avgp-current-source]",
-    ).value = getTalkPageTopSection(state.pageText);
+    );
+    currentSource.value = getTalkPageTopSection(state.pageText);
     logStep("updateTalkDiff done", {
-        length: root.querySelector<HTMLTextAreaElement>(
-            "[data-avgp-current-source]",
-        ).value.length,
+        length: currentSource.value.length,
     });
 }
 
@@ -1504,8 +1627,9 @@ function clearRegistrationPreview(
 ): void {
     updateComparisonTextarea(root, "[data-avgp-list-before]", "");
     updateComparisonTextarea(root, "[data-avgp-list-after]", "");
+    const registration = summarizeRegistration(state.registration);
     logStep("updateRegistrationPreview hidden", {
-        registration: summarizeRegistration(state.registration),
+        registration,
     });
 }
 
@@ -1551,11 +1675,11 @@ function updateAssessmentSummary(root: HTMLElement, state: any): void {
         return;
     }
 
-    root.querySelector<HTMLInputElement>("[name='summary']").value =
-        buildEditSummary(state.assessment);
+    const summaryInput =
+        root.querySelector<HTMLInputElement>("[name='summary']");
+    summaryInput.value = buildEditSummary(state.assessment);
     logStep("updateAssessmentSummary done", {
-        summary:
-            root.querySelector<HTMLInputElement>("[name='summary']").value,
+        summary: summaryInput.value,
     });
 }
 
@@ -1574,19 +1698,17 @@ function buildEditSummary(assessment: any): string {
         ),
     ];
     const className = `${assessment.className || "Unassessed"}-Class`;
-    const summary = selectValue(
-        banners.length === 0,
-        function trueBranch() {
-            return msg("summary.tagProjects");
-        },
-        function falseBranch() {
-            const result = msg("summary.tagProjectsWithClass", {
-                className,
-                projects: banners.join(", "),
-            });
-            return result;
-        },
-    );
+    let summary;
+
+    if (banners.length === 0) {
+        summary = msg("summary.tagProjects");
+    } else {
+        const projects = banners.join(", ");
+        summary = msg("summary.tagProjectsWithClass", {
+            className,
+            projects,
+        });
+    }
 
     return appendSummarySourceLink(summary);
 }
@@ -1599,19 +1721,17 @@ function buildEditSummary(assessment: any): string {
  */
 function buildVideoGamesSummary(assessment: any): string {
     const details = buildVideoGamesSummaryDetails(assessment);
+    let result;
 
-    const result = selectValue(
-        details.length === 0,
-        function trueBranch() {
-            return msg("summary.videoGames");
-        },
-        function falseBranch() {
-            const result = msg("summary.videoGamesWithDetails", {
-                details: details.join("; "),
-            });
-            return result;
-        },
-    );
+    if (details.length === 0) {
+        result = msg("summary.videoGames");
+    } else {
+        const joinedDetails = details.join("; ");
+        result = msg("summary.videoGamesWithDetails", {
+            details: joinedDetails,
+        });
+    }
+
     return result;
 }
 
@@ -1633,19 +1753,20 @@ function buildVideoGamesSummaryDetails(assessment: any): Array<string> {
     );
 
     if (assessment.importance) {
-        details.push(
-            msg("summary.importance", {
-                importance: assessment.importance,
-            }),
-        );
+        const importance = msg("summary.importance", {
+            importance: assessment.importance,
+        });
+        details.push(importance);
     }
 
     if (taskForces.length > 0) {
-        details.push(taskForces.join(", "));
+        const joinedTaskForces = taskForces.join(", ");
+        details.push(joinedTaskForces);
     }
 
     if (maintenance.length > 0) {
-        details.push(maintenance.join(", "));
+        const joinedMaintenance = maintenance.join(", ");
+        details.push(joinedMaintenance);
     }
 
     return details;
@@ -1683,10 +1804,11 @@ async function saveDialog(
     const options = readDialogSaveOptions(dialog);
 
     readAssessment(dialog, state.assessment);
+    const registration = summarizeRegistration(state.registration);
     logStep("saveDialog options", {
         listSummary: options.listSummary,
         previewLength: options.previewText.length,
-        registration: summarizeRegistration(state.registration),
+        registration,
         shouldRegister: options.shouldRegister,
         summary: options.summary,
     });
@@ -1781,8 +1903,9 @@ function skipUnchangedTalkSave(
     state: { pageText: string },
     previewText: string,
 ): boolean {
+    const currentTopSection = getTalkPageTopSection(state.pageText);
     const unchanged = isEmptyImportanceOnlyChange(
-        getTalkPageTopSection(state.pageText),
+        currentTopSection,
         previewText,
     );
 
@@ -1817,7 +1940,8 @@ async function saveDialogTalkPage(
         options.summary || DEFAULT_EDIT_SUMMARY,
     );
 
-    setStatus(dialog, msg("dialog.saved"), false);
+    const savedStatus = msg("dialog.saved");
+    setStatus(dialog, savedStatus, false);
     logStep("saveDialog done");
 }
 
@@ -1827,9 +1951,8 @@ async function saveDialogTalkPage(
  * @param dialog - Dialog value.
  */
 function scheduleDialogClose(dialog: HTMLDialogElement): void {
-    setTimeout(function callback() {
-        closeDialog(dialog);
-    }, 600);
+    const close = closeDialog.bind(null, dialog);
+    setTimeout(close, DIALOG_CLOSE_DELAY_MS);
 }
 
 /**
@@ -1891,16 +2014,13 @@ function buildInputId(name: string, value: string): string {
  */
 function appendSummarySourceLink(summary: string): string {
     const value = String(summary || "").trim();
+    const includesSourceLink = value.includes(SUMMARY_SOURCE_LINK);
+    let result = value;
 
-    const result = selectValue(
-        value.includes(SUMMARY_SOURCE_LINK),
-        function trueBranch() {
-            return value;
-        },
-        function falseBranch() {
-            return `${value} ${SUMMARY_SOURCE_LINK}`.trim();
-        },
-    );
+    if (!includesSourceLink) {
+        result = `${value} ${SUMMARY_SOURCE_LINK}`.trim();
+    }
+
     return result;
 }
 
@@ -1985,25 +2105,3 @@ mw.loader.using(
     ["codex-styles", "mediawiki.api", "mediawiki.Title", "mediawiki.util"],
     init,
 );
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}

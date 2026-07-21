@@ -36,20 +36,19 @@ export async function fetchSourceReferences(
     form: any,
     citationStore: CitationStore,
 ): Promise<Array<any>> {
-    const result = Promise.all(
-        getEnteredSourceReferenceFields(form).map(
-            async function callback(field) {
-                const result = {
-                    citation:
-                        getManagedCitation(form, field.sourceUrl) ||
-                        (await citationStore.fetch(field.sourceUrl)),
-                    key: field.key,
-                    sourceUrl: field.sourceUrl,
-                };
-                return result;
-            },
-        ),
-    );
+    const mapCallbackB = async function callback(field: any) {
+        const result = {
+            citation:
+                getManagedCitation(form, field.sourceUrl) ||
+                (await citationStore.fetch(field.sourceUrl)),
+            key: field.key,
+            sourceUrl: field.sourceUrl,
+        };
+        return result;
+    };
+    const mappedValuesA =
+        getEnteredSourceReferenceFields(form).map(mapCallbackB);
+    const result = Promise.all(mappedValuesA);
     return result;
 }
 
@@ -77,23 +76,25 @@ export async function prepareManagedCitationRows(
     if (hasExistingRows) {
         existingRows = form.citationRows;
     }
-    const refetchSourceUrls = new Set<string>(
-        (options.refetchSourceUrls || []).map(trimValue),
+    const normalizedRefetchUrls = (options.refetchSourceUrls || []).map(
+        trimValue,
     );
+    const refetchSourceUrls = new Set<string>(normalizedRefetchUrls);
 
     const context = { citationStore, existingRows, refetchSourceUrls };
-    const rows = await Promise.all(
-        getEnteredSourceUrls(form).map(
-            async function callback(sourceUrl, index) {
-                const result = await prepareManagedCitationRow(
-                    sourceUrl,
-                    index,
-                    context,
-                );
-                return result;
-            },
-        ),
-    );
+    const mapCallbackA = async function callback(
+        sourceUrl: string,
+        index: number,
+    ) {
+        const result = await prepareManagedCitationRow(
+            sourceUrl,
+            index,
+            context,
+        );
+        return result;
+    };
+    const mappedValues = getEnteredSourceUrls(form).map(mapCallbackA);
+    const rows = await Promise.all(mappedValues);
 
     return rows;
 }
@@ -121,9 +122,10 @@ async function prepareManagedCitationRow(
         generatedCitation = await context.citationStore.fetch(sourceUrl);
     }
     const generated = parseCiteTemplate(generatedCitation);
-    const existing = context.existingRows.find(function findExisting(row) {
+    const findCallbackA = function findExisting(row: ManagedCitationRow) {
         return trimValue(row.sourceUrl) === sourceUrl;
-    });
+    };
+    const existing = context.existingRows.find(findCallbackA);
     const generatedParams = generated.params;
     const params = selectManagedCitationParams(existing, generated);
     let template = generated.template;
@@ -168,19 +170,20 @@ function selectManagedCitationParams(
  * @returns Entered source fields.
  */
 export function getEnteredSourceReferenceFields(form: any): Array<any> {
+    const flatMapCallbackA = function callback(field: any) {
+        const result = splitSourceUrls(form[field.sourceKey]).map(
+            function callback(sourceUrl: string) {
+                const result = {
+                    ...field,
+                    sourceUrl,
+                };
+                return result;
+            },
+        );
+        return result;
+    };
     const result = [
-        ...getArticleSourceFields().flatMap(function callback(field) {
-            const result = splitSourceUrls(form[field.sourceKey]).map(
-                function callback(sourceUrl) {
-                    const result = {
-                        ...field,
-                        sourceUrl,
-                    };
-                    return result;
-                },
-            );
-            return result;
-        }),
+        ...getArticleSourceFields().flatMap(flatMapCallbackA),
         ...getEnteredNameSourceReferenceFields(form),
     ];
     return result;
@@ -193,13 +196,12 @@ export function getEnteredSourceReferenceFields(form: any): Array<any> {
  * @returns Unique source URLs.
  */
 export function getEnteredSourceUrls(form: any): Array<string> {
-    const result = [
-        ...new Set(
-            getEnteredSourceReferenceFields(form)
-                .map((field) => trimValue(field.sourceUrl))
-                .filter(Boolean),
-        ),
-    ];
+    const mapCallback = (field: any) => trimValue(field.sourceUrl);
+    const enteredUrls = getEnteredSourceReferenceFields(form)
+        .map(mapCallback)
+        .filter(Boolean);
+    const uniqueUrls = new Set(enteredUrls);
+    const result = [...uniqueUrls];
     return result;
 }
 
@@ -215,11 +217,10 @@ function getManagedCitation(form: any, sourceUrl: string): string {
         return "";
     }
 
-    const row = form.citationRows.find(function findCitation(item: {
-        sourceUrl: string;
-    }) {
+    const findCallback = function findCitation(item: { sourceUrl: string }) {
         return trimValue(item.sourceUrl) === trimValue(sourceUrl);
-    });
+    };
+    const row = form.citationRows.find(findCallback);
 
     if (row == null) {
         return "";
@@ -235,34 +236,40 @@ function getManagedCitation(form: any, sourceUrl: string): string {
  * @returns Entered localized-name source fields.
  */
 export function getEnteredNameSourceReferenceFields(form: any): Array<any> {
-    const result = NAME_GROUP_KEYS.flatMap(function callback(key) {
+    const flatMapCallback = function callback(key: string) {
+        const flatMapCallbackB = function callback(
+            row: { sourceUrl: unknown; name: unknown },
+            index: number,
+        ) {
+            const mapCallbackC = function callback(sourceUrl: string) {
+                const result = {
+                    key: buildNameSourceReferenceKey(key, index),
+                    name: row.name,
+                    sourceUrl,
+                };
+                return result;
+            };
+            const result = splitSourceUrls(row.sourceUrl).map(mapCallbackC);
+            return result;
+        };
+        const filterCallback = function callback(field: {
+            name: unknown;
+            sourceUrl: unknown;
+        }) {
+            const name = trimValue(field.name);
+
+            if (!Boolean(name)) {
+                return false;
+            }
+
+            const sourceUrl = trimValue(field.sourceUrl);
+            return Boolean(sourceUrl);
+        };
         const result = (form[key] || [])
-            .flatMap(function callback(
-                row: { sourceUrl: unknown; name: unknown },
-                index: number,
-            ) {
-                const result = splitSourceUrls(row.sourceUrl).map(
-                    function callback(sourceUrl) {
-                        const result = {
-                            key: buildNameSourceReferenceKey(key, index),
-                            name: row.name,
-                            sourceUrl,
-                        };
-                        return result;
-                    },
-                );
-                return result;
-            })
-            .filter(function callback(field: {
-                name: unknown;
-                sourceUrl: unknown;
-            }) {
-                const result =
-                    Boolean(trimValue(field.name)) &&
-                    Boolean(trimValue(field.sourceUrl));
-                return result;
-            });
+            .flatMap(flatMapCallbackB)
+            .filter(filterCallback);
         return result;
-    });
+    };
+    const result = NAME_GROUP_KEYS.flatMap(flatMapCallback);
     return result;
 }

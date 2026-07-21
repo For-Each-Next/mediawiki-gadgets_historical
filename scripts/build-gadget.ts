@@ -46,10 +46,11 @@ interface UserscriptConfig {
     sandbox?: string;
 }
 
+const USERSCRIPT_METADATA_KEY_WIDTH = 13;
+
 const packagePath = resolve("package.json");
-const packageMetadata = JSON.parse(
-    await readFile(packagePath, "utf8"),
-) as PackageMetadata;
+const packageText = await readFile(packagePath, "utf8");
+const packageMetadata = JSON.parse(packageText) as PackageMetadata;
 const config = packageMetadata.gadgetBuild;
 
 if (config == null) {
@@ -73,10 +74,12 @@ if (config.globalName == null) {
 
 await mkdir(outputDirectory, { recursive: true });
 
-const [source, minifiedSource] = await Promise.all([
-    bundleSource(entryPoint, config),
-    bundleSource(entryPoint, config, { minifyText: true }),
-]);
+const sourcePromise = bundleSource(entryPoint, config);
+const minifiedSourcePromise = bundleSource(entryPoint, config, {
+    minifyText: true,
+});
+const sources = [sourcePromise, minifiedSourcePromise];
+const [source, minifiedSource] = await Promise.all(sources);
 const minifyOptions = {
     compress: {
         passes: 2,
@@ -99,14 +102,16 @@ const userscript = await formatUserscript(
     config.userscript,
 );
 
+const minifiedPath = resolve(outputDirectory, `${outputName}.min.js`);
+const minifiedOutput = formatMinifiedOutput(code, packageMetadata);
+const userscriptPath = resolve(outputDirectory, `${outputName}.user.js`);
+const sourcePath = resolve(outputDirectory, `${outputName}.js`);
+const cssPath = resolve(outputDirectory, `${outputName}.css`);
 const outputs = [
-    writeFile(
-        resolve(outputDirectory, `${outputName}.min.js`),
-        formatMinifiedOutput(code, packageMetadata),
-    ),
-    writeFile(resolve(outputDirectory, `${outputName}.user.js`), userscript),
-    rm(resolve(outputDirectory, `${outputName}.js`), { force: true }),
-    rm(resolve(outputDirectory, `${outputName}.css`), { force: true }),
+    writeFile(minifiedPath, minifiedOutput),
+    writeFile(userscriptPath, userscript),
+    rm(sourcePath, { force: true }),
+    rm(cssPath, { force: true }),
 ];
 
 await Promise.all(outputs);
@@ -150,14 +155,37 @@ async function buildDefines(
     defineConfig: Record<string, DefineConfig> = {},
     options: BundleOptions = {},
 ): Promise<Record<string, string>> {
-    const entries = await Promise.all(
-        Object.entries(defineConfig).map(async ([placeholder, definition]) => [
+    const definitions = Object.entries(defineConfig);
+    const entryPromises = [];
+    for (const [placeholder, definition] of definitions) {
+        const entryPromise = buildDefineEntry(
             placeholder,
-            JSON.stringify(await readDefineValue(definition, options)),
-        ]),
-    );
+            definition,
+            options,
+        );
+        entryPromises.push(entryPromise);
+    }
+    const entries = await Promise.all(entryPromises);
 
     return Object.fromEntries(entries);
+}
+
+/**
+ * Builds one serialized esbuild define entry.
+ *
+ * @param placeholder - Define placeholder.
+ * @param definition - Define data configuration.
+ * @param options - Define options.
+ * @returns Serialized define entry.
+ */
+async function buildDefineEntry(
+    placeholder: string,
+    definition: DefineConfig,
+    options: BundleOptions,
+): Promise<[string, string]> {
+    const value = await readDefineValue(definition, options);
+    const serializedValue = JSON.stringify(value);
+    return [placeholder, serializedValue];
 }
 
 /**
@@ -310,7 +338,12 @@ function buildCoreUserscriptMetadata(
  * @returns Repeated userscript metadata lines.
  */
 function buildUserscriptMetadataList(key: string, values: string[]): string[] {
-    return values.map((value) => formatUserscriptMetadata(key, value));
+    const lines = [];
+    for (const value of values) {
+        const line = formatUserscriptMetadata(key, value);
+        lines.push(line);
+    }
+    return lines;
 }
 
 /**
@@ -321,7 +354,7 @@ function buildUserscriptMetadataList(key: string, values: string[]): string[] {
  * @returns Metadata line.
  */
 function formatUserscriptMetadata(key: string, value: string): string {
-    return `// @${key.padEnd(13)}${value}`;
+    return `// @${key.padEnd(USERSCRIPT_METADATA_KEY_WIDTH)}${value}`;
 }
 
 /**

@@ -44,7 +44,8 @@ export function storeMovedEdit(
     pending: any,
     storage: Storage = sessionStorage,
 ): void {
-    storage.setItem(MOVE_TEXT_STORAGE_KEY, JSON.stringify(pending));
+    const stringifyResultA = JSON.stringify(pending);
+    storage.setItem(MOVE_TEXT_STORAGE_KEY, stringifyResultA);
 }
 
 /**
@@ -87,13 +88,11 @@ export function storePreviewFormData(
     title: string,
     storage: Storage = sessionStorage,
 ): void {
-    storage.setItem(
-        PREVIEW_FORM_STORAGE_KEY,
-        JSON.stringify({
-            form,
-            title,
-        }),
-    );
+    const stringifyResult = JSON.stringify({
+        form,
+        title,
+    });
+    storage.setItem(PREVIEW_FORM_STORAGE_KEY, stringifyResult);
 }
 
 /**

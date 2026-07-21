@@ -11,13 +11,17 @@ import {
 } from "vg-stub-creator/app/workflow.ts";
 import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
-test("configured navboxes are collected from terminology-backed parts", () => {
+const testCallbackA = () => {
     const titles = getConfiguredNavboxTitles(wheelWorldEntry.data.input);
 
     assert.deepEqual(titles, ["安納布爾納互動"]);
-});
+};
+test(
+    "configured navboxes are collected from terminology-backed parts",
+    testCallbackA,
+);
 
-test("company navboxes work without a series", async () => {
+const testCallback = async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = createExistingTemplateFetcher();
 
@@ -42,7 +46,8 @@ test("company navboxes work without a series", async () => {
     } finally {
         globalThis.fetch = originalFetch;
     }
-});
+};
+test("company navboxes work without a series", testCallback);
 
 /**
  * Creates a fetch implementation reporting templates as existing.
@@ -51,7 +56,8 @@ test("company navboxes work without a series", async () => {
  */
 function createExistingTemplateFetcher(): typeof fetch {
     return async function fetcher(input) {
-        const url = new URL(String(input), "https://example.test");
+        const inputText = String(input);
+        const url = new URL(inputText, "https://example.test");
         const titles = url.searchParams.get("titles")?.split("|") || [];
 
         return {

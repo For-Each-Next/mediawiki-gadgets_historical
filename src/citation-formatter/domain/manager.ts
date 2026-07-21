@@ -8,6 +8,8 @@ import {
     findRefTags,
     findTemplateCalls,
     splitTopLevel,
+    type ParsedTemplateCall,
+    type RefTag,
 } from "./wikitext.ts";
 import type { TextReplacement } from "./types.ts";
 
@@ -113,12 +115,21 @@ export function applyNameOverrides(
     return applyReplacements(text, replacements);
 }
 
+/**
+ * Adds a citation call's non-Latin names to their display groups.
+ *
+ * @param fields - Mutable grouped override fields.
+ * @param call - Parsed citation template call.
+ */
 function addCallNameFields(
     fields: Map<string, NameOverrideField>,
     call: ReturnType<typeof findTemplateCalls>[number],
 ): void {
     const title = call.params.find((param) => param.name === "title");
-    call.params.forEach(function addField(param, index) {
+    const forEachCallback = function addField(
+        param: ParsedTemplateCall["params"][number],
+        index: number,
+    ) {
         if (!isNameParam(param.name)) {
             return;
         }
@@ -128,6 +139,9 @@ function addCallNameFields(
         if (!/[^\u0000-\u007f]/u.test(displayValue)) {
             return;
         }
+        const parameter = normalizeUsageParameter(param.name);
+        const source = removeNameOverride(title?.value || "").trim();
+        const template = normalizeUsageTemplate(call.name);
         addNameField(fields, {
             displayValue,
             id: `${call.start}:${index}`,
@@ -135,18 +149,25 @@ function addCallNameFields(
             occurrence: {
                 id: `${call.start}:${index}`,
                 override,
-                parameter: normalizeUsageParameter(param.name),
-                source: removeNameOverride(title?.value || "").trim(),
-                template: normalizeUsageTemplate(call.name),
+                parameter,
+                source,
+                template,
             },
             override,
-            source: removeNameOverride(title?.value || "").trim(),
+            source,
             usage: "",
             usageItems: [],
         });
-    });
+    };
+    call.params.forEach(forEachCallback);
 }
 
+/**
+ * Adds one name occurrence to its grouped override field.
+ *
+ * @param fields - Mutable grouped override fields.
+ * @param entered - Name occurrence and display metadata.
+ */
 function addNameField(
     fields: Map<string, NameOverrideField>,
     entered: Omit<NameOverrideField, "ids" | "occurrences"> & {
@@ -172,6 +193,12 @@ function addNameField(
     });
 }
 
+/**
+ * Builds parameter usage chips for a grouped override field.
+ *
+ * @param field - Grouped name override field.
+ * @returns Parameter usage chips.
+ */
 function buildNameOverrideUsageItems(
     field: NameOverrideField,
 ): NameOverrideUsageItem[] {
@@ -179,13 +206,25 @@ function buildNameOverrideUsageItems(
         field.occurrences,
         (occurrence) => occurrence.parameter,
     );
-    const result = Array.from(groups, ([parameter, uses]) => ({
-        count: uses.length,
-        label: formatUsageChipParameter(parameter),
-    }));
+    const fromCallbackA = function buildUsageItem([parameter, uses]: [
+        string,
+        NameOverrideOccurrence[],
+    ]) {
+        return {
+            count: uses.length,
+            label: formatUsageChipParameter(parameter),
+        };
+    };
+    const result = Array.from(groups, fromCallbackA);
     return result;
 }
 
+/**
+ * Formats a parameter name for a compact usage chip.
+ *
+ * @param parameter - Normalized citation parameter name.
+ * @returns Compact parameter label.
+ */
 function formatUsageChipParameter(parameter: string): string {
     const numbered = /^(?:author|editor|editor-last|last)$/u.test(parameter);
     return `${parameter}${numbered ? "#" : ""}`;
@@ -208,35 +247,67 @@ export function formatNameOverrideUsage(field: NameOverrideField): string {
     if (groups.size === 1) {
         return formatRepeatedUsage(field.occurrences);
     }
-    const details = Array.from(groups, ([parameter, uses]) => {
+    const fromCallback = function formatGroupedUsage([parameter, uses]: [
+        string,
+        NameOverrideOccurrence[],
+    ]) {
         return `${formatUsageParameter(parameter)} (${uses.length})`;
-    });
+    };
+    const details = Array.from(groups, fromCallback);
     const summary = joinNaturalList(details);
     return `Used ${field.occurrences.length} times across ${summary}.`;
 }
 
+/**
+ * Formats usage text for a name occurring once.
+ *
+ * @param occurrence - Single name occurrence.
+ * @returns Human-readable usage text.
+ */
 function formatSingleUsage(occurrence: NameOverrideOccurrence): string {
     const parameter = formatUsageParameter(occurrence.parameter);
     return `Used once as ${parameter} in a ${occurrence.template} citation.`;
 }
 
+/**
+ * Formats usage text for repeated uses of one parameter.
+ *
+ * @param occurrences - Repeated name occurrences.
+ * @returns Human-readable usage text.
+ */
 function formatRepeatedUsage(occurrences: NameOverrideOccurrence[]): string {
     const parameter = formatUsageParameter(occurrences[0].parameter);
     const templates = Map.groupBy(occurrences, (item) => item.template);
-    const details = Array.from(templates, ([template, items]) => {
-        return `${items.length} ${template}`;
-    });
+    const details = Array.from(
+        templates,
+        function formatTemplateUsage([template, items]) {
+            return `${items.length} ${template}`;
+        },
+    );
     const summary = joinNaturalList(details);
-    const result = `Used ${occurrences.length} times as ${parameter} across ` +
+    const result =
+        `Used ${occurrences.length} times as ${parameter} across ` +
         `${summary} citations.`;
     return result;
 }
 
+/**
+ * Formats a citation parameter for usage text.
+ *
+ * @param parameter - Normalized citation parameter name.
+ * @returns Wikitext-style parameter label.
+ */
 function formatUsageParameter(parameter: string): string {
     const numbered = /^(?:author|editor|editor-last|last)$/u.test(parameter);
     return `|${parameter}${numbered ? "#" : ""}=`;
 }
 
+/**
+ * Joins text items as a natural-language list.
+ *
+ * @param items - Text items to join.
+ * @returns Natural-language list.
+ */
 function joinNaturalList(items: string[]): string {
     if (items.length < 2) {
         return items[0] || "";
@@ -247,17 +318,36 @@ function joinNaturalList(items: string[]): string {
     return `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
 }
 
+/**
+ * Gets the override shared by every occurrence, if any.
+ *
+ * @param occurrences - Grouped name occurrences.
+ * @returns Shared override or an empty string.
+ */
 function getSharedOverride(occurrences: NameOverrideOccurrence[]): string {
-    const values = new Set(
-        occurrences.map((occurrence) => occurrence.override),
+    const overrideValues = occurrences.map(
+        (occurrence) => occurrence.override,
     );
+    const values = new Set(overrideValues);
     return values.size === 1 ? occurrences[0]?.override || "" : "";
 }
 
+/**
+ * Normalizes a citation parameter for usage grouping.
+ *
+ * @param parameter - Entered parameter name.
+ * @returns Normalized parameter family.
+ */
 function normalizeUsageParameter(parameter: string): string {
     return parameter.trim().toLocaleLowerCase("en-US").replace(/\d+$/u, "");
 }
 
+/**
+ * Normalizes a citation template for usage text.
+ *
+ * @param template - Entered citation template name.
+ * @returns Normalized template label.
+ */
 function normalizeUsageTemplate(template: string): string {
     const result = template
         .trim()
@@ -266,6 +356,12 @@ function normalizeUsageTemplate(template: string): string {
     return result;
 }
 
+/**
+ * Indexes override updates by occurrence ID.
+ *
+ * @param updates - Entered name override updates.
+ * @returns Overrides keyed by occurrence ID.
+ */
 function buildOverrideIndex(
     updates: NameOverrideUpdate[],
 ): Map<string, string> {
@@ -278,20 +374,34 @@ function buildOverrideIndex(
     return result;
 }
 
+/**
+ * Builds the replacement for one citation template call.
+ *
+ * @param call - Parsed citation template call.
+ * @param byId - Overrides keyed by occurrence ID.
+ * @returns Text replacement when the call has updates.
+ */
 function buildOverrideReplacement(
     call: ReturnType<typeof findTemplateCalls>[number],
     byId: Map<string, string>,
 ): TextReplacement | null {
-    const entries = call.params
-        .map((param, index) => ({
+    const mapCallbackA = function buildOverrideEntry(
+        param: ParsedTemplateCall["params"][number],
+        index: number,
+    ) {
+        return {
             index,
             override: byId.get(`${call.start}:${index}`),
-        }))
+        };
+    };
+    const entries = call.params
+        .map(mapCallbackA)
         .filter((entry) => entry.override != null);
     if (entries.length === 0) {
         return null;
     }
-    const parts = splitTopLevel(call.raw.slice(2, -2), "|");
+    const body = call.raw.slice(2, -2);
+    const parts = splitTopLevel(body, "|");
     for (const entry of entries) {
         parts[entry.index + 1] = updateParamPart(
             parts[entry.index + 1],
@@ -310,9 +420,11 @@ function buildOverrideReplacement(
  */
 export function compactReferenceCalls(text: string): string {
     const protectedRanges = findProtectedRanges(text);
+    const filterCallbackA = (tag: RefTag) =>
+        !isInRanges(tag.start, protectedRanges);
     const tags = findRefTags(text)
         .filter(isCompactableReuseTag)
-        .filter((tag) => !isInRanges(tag.start, protectedRanges));
+        .filter(filterCallbackA);
     const replacements: TextReplacement[] = [];
     let run: typeof tags = [];
     function flushRun(): void {
@@ -320,10 +432,11 @@ export function compactReferenceCalls(text: string): string {
             return;
         }
         const names = run.map((tag) => tag.attributes.name);
+        const nameParams = names.join("|");
         replacements.push({
             end: run[run.length - 1].end,
             start: run[0].start,
-            text: `{{r|${names.join("|")}}}`,
+            text: `{{r|${nameParams}}}`,
         });
         run = [];
     }
@@ -348,21 +461,24 @@ export function compactReferenceCalls(text: string): string {
  */
 export function expandCompactReferenceCalls(text: string): string {
     const protectedRanges = findProtectedRanges(text);
+    const filterCallback = (call: ParsedTemplateCall) =>
+        !isInRanges(call.start, protectedRanges);
+    const mapCallback = function expandCall(
+        call: ParsedTemplateCall,
+    ): TextReplacement {
+        const names = call.params.map((param) => param.value).filter(Boolean);
+        const result = {
+            end: call.end,
+            start: call.start,
+            text: names.map((name) => `<ref name="${name}" />`).join(""),
+        };
+        return result;
+    };
     const replacements = findTemplateCalls(text)
         .filter(isRCall)
         .filter(hasOnlyPositionalParams)
-        .filter((call) => !isInRanges(call.start, protectedRanges))
-        .map(function expandCall(call): TextReplacement {
-            const names = call.params
-                .map((param) => param.value)
-                .filter(Boolean);
-            const result = {
-                end: call.end,
-                start: call.start,
-                text: names.map((name) => `<ref name="${name}" />`).join(""),
-            };
-            return result;
-        });
+        .filter(filterCallback)
+        .map(mapCallback);
     return applyReplacements(text, replacements);
 }
 
@@ -374,20 +490,34 @@ export function expandCompactReferenceCalls(text: string): string {
  */
 export function hasCompactReferenceCalls(text: string): boolean {
     const protectedRanges = findProtectedRanges(text);
-    const result = findTemplateCalls(text).some(
-        (call) =>
+    const someCallback = function isCompactCall(call: ParsedTemplateCall) {
+        return (
             !isInRanges(call.start, protectedRanges) &&
             isRCall(call) &&
-            hasOnlyPositionalParams(call),
-    );
+            hasOnlyPositionalParams(call)
+        );
+    };
+    const result = findTemplateCalls(text).some(someCallback);
     return result;
 }
 
+/**
+ * Checks whether a citation parameter supports a name override.
+ *
+ * @param name - Citation parameter name.
+ * @returns Whether the parameter supports an override.
+ */
 function isNameParam(name: string): boolean {
     const normalized = name.trim().toLocaleLowerCase("en-US");
     return NAME_PARAM.test(normalized) || NAME_FALLBACK_PARAMS.has(normalized);
 }
 
+/**
+ * Extracts a name override from a citation value.
+ *
+ * @param value - Citation parameter value.
+ * @returns Entered override or an empty string.
+ */
 function getNameOverride(value: string): string {
     const comments = value.matchAll(HTML_COMMENT);
     for (const comment of comments) {
@@ -399,10 +529,23 @@ function getNameOverride(value: string): string {
     return "";
 }
 
+/**
+ * Removes a name override from a citation value.
+ *
+ * @param value - Citation parameter value.
+ * @returns Value without its name override.
+ */
 function removeNameOverride(value: string): string {
     return value.replace(HTML_COMMENT, stripOverrideFromComment);
 }
 
+/**
+ * Removes an override fragment while preserving other comment text.
+ *
+ * @param _match - Complete matched comment.
+ * @param content - Comment content.
+ * @returns Preserved comment text without the override.
+ */
 function stripOverrideFromComment(_match: string, content: string): string {
     const hashIndex = content.indexOf("#");
     if (hashIndex < 0) {
@@ -412,6 +555,12 @@ function stripOverrideFromComment(_match: string, content: string): string {
     return prefix === "" ? "" : `<!-- ${prefix} -->`;
 }
 
+/**
+ * Converts a citation name to plain display text.
+ *
+ * @param value - Wikitext citation name.
+ * @returns Plain display text.
+ */
 function cleanDisplayName(value: string): string {
     const result = value
         .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/gu, "$2")
@@ -423,6 +572,13 @@ function cleanDisplayName(value: string): string {
     return result;
 }
 
+/**
+ * Updates one serialized template parameter with an override.
+ *
+ * @param part - Serialized template parameter.
+ * @param enteredOverride - Entered override value.
+ * @returns Updated serialized parameter.
+ */
 function updateParamPart(part: string, enteredOverride: string): string {
     const separator = part.indexOf("=");
     if (separator < 0) {
@@ -438,6 +594,13 @@ function updateParamPart(part: string, enteredOverride: string): string {
     return `${before}${leading}${updatedValue}${trailing}`;
 }
 
+/**
+ * Adds a name override to a citation value.
+ *
+ * @param value - Citation parameter value.
+ * @param override - Entered name override.
+ * @returns Value with the override comment.
+ */
 function addNameOverride(value: string, override: string): string {
     if (override === "") {
         return value;
@@ -452,6 +615,12 @@ function addNameOverride(value: string, override: string): string {
     return `${value} <!-- # ${override} -->`;
 }
 
+/**
+ * Checks whether a ref tag can be represented by an R call.
+ *
+ * @param tag - Parsed ref tag.
+ * @returns Whether the tag is compactable.
+ */
 function isCompactableReuseTag(
     tag: ReturnType<typeof findRefTags>[number],
 ): boolean {
@@ -459,16 +628,34 @@ function isCompactableReuseTag(
     return tag.selfClosing && keys.length === 1 && tag.attributes.name !== "";
 }
 
+/**
+ * Checks whether a template call uses the R template.
+ *
+ * @param call - Parsed template call.
+ * @returns Whether the call uses the R template.
+ */
 function isRCall(call: ReturnType<typeof findTemplateCalls>[number]): boolean {
     return call.name.trim().toLocaleLowerCase("en-US") === "r";
 }
 
+/**
+ * Checks whether every template parameter is positional.
+ *
+ * @param call - Parsed template call.
+ * @returns Whether every parameter is positional.
+ */
 function hasOnlyPositionalParams(
     call: ReturnType<typeof findTemplateCalls>[number],
 ): boolean {
     return call.params.every((param) => param.positional);
 }
 
+/**
+ * Finds source ranges where citation transformations must not apply.
+ *
+ * @param text - Article wikitext.
+ * @returns Protected source ranges.
+ */
 function findProtectedRanges(text: string): Array<[number, number]> {
     const pattern = new RegExp(
         String.raw`<!--[\s\S]*?-->|` +
@@ -476,16 +663,23 @@ function findProtectedRanges(text: string): Array<[number, number]> {
             String.raw`[\s\S]*?<\/\1\s*>`,
         "giu",
     );
-    const result = Array.from(
-        text.matchAll(pattern),
-        (match): [number, number] => [
-            match.index,
-            match.index + match[0].length,
-        ],
-    );
+    const matches = text.matchAll(pattern);
+    const result = Array.from(matches, function buildProtectedRange(match): [
+        number,
+        number,
+    ] {
+        return [match.index, match.index + match[0].length];
+    });
     return result;
 }
 
+/**
+ * Checks whether a source offset falls within protected ranges.
+ *
+ * @param index - Source offset.
+ * @param ranges - Protected source ranges.
+ * @returns Whether the offset is protected.
+ */
 function isInRanges(index: number, ranges: Array<[number, number]>): boolean {
     return ranges.some(([start, end]) => index >= start && index < end);
 }

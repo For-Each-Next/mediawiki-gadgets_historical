@@ -123,7 +123,8 @@ const TEXT_TEMPLATES = textTemplates;
  * @returns Template string.
  */
 export function getTextTemplate(key: string): string {
-    const value = resolveTemplateValue(TEXT_TEMPLATES, key.split("."));
+    const splitResult = key.split(".");
+    const value = resolveTemplateValue(TEXT_TEMPLATES, splitResult);
 
     if (typeof value !== "string") {
         throw new Error(`Missing text template: ${key}`);
@@ -148,7 +149,8 @@ function resolveTemplateValue(data: any, parts: Array<string>): any {
         const property = parts.slice(0, length).join(".");
 
         if (Object.hasOwn(data, property)) {
-            return resolveTemplateValue(data[property], parts.slice(length));
+            const slicedValueA = parts.slice(length);
+            return resolveTemplateValue(data[property], slicedValueA);
         }
     }
 
@@ -164,15 +166,19 @@ function resolveTemplateValue(data: any, parts: Array<string>): any {
  */
 export function formatText(key: string, values: any = {}): string {
     const template = getTextTemplate(key);
+    const replaceCallbackA = function callback(
+        placeholder: string,
+        name: string,
+    ) {
+        if (!Object.hasOwn(values, name)) {
+            return placeholder;
+        }
+
+        return String(values[name] ?? "");
+    };
     const result = template.replace(
         /\{([A-Za-z][A-Za-z0-9]*)\}/gu,
-        function callback(placeholder, name) {
-            if (!Object.hasOwn(values, name)) {
-                return placeholder;
-            }
-
-            return String(values[name] ?? "");
-        },
+        replaceCallbackA,
     );
 
     return result;
@@ -239,9 +245,11 @@ export function buildAggScoresText(params: AggregateScoresParams): string {
         return "";
     }
 
-    const result = formatText("prose.sentence3", {
-        clauses: clauses.join(getTextTemplate("prose.scoreSeparator")),
-    });
+    const textResultC = getTextTemplate("prose.scoreSeparator");
+    const joinedText = {
+        clauses: clauses.join(textResultC),
+    };
+    const result = formatText("prose.sentence3", joinedText);
     return result;
 }
 
@@ -416,9 +424,11 @@ export function buildDefaultSortKey(params: any): string {
  * @returns Normalized sort key.
  */
 function normalizeSortKey(value: string): string {
-    const result = toTitleUpperCase(
-        normalizeSortPunctuation(normalizeDefaultSortValue(value) || ""),
+    const defaultSortValueResult = normalizeDefaultSortValue(value) || "";
+    const sortPunctuationResult = normalizeSortPunctuation(
+        defaultSortValueResult,
     );
+    const result = toTitleUpperCase(sortPunctuationResult);
     return result;
 }
 
@@ -463,11 +473,12 @@ function toTitleUpperCase(value: string): string {
  * @returns Title-style word.
  */
 function titleUpperWord(word: string): string {
+    const replaceCallback = function callback(character: string) {
+        return character.toLocaleUpperCase();
+    };
     const result = word
         .toLocaleLowerCase()
-        .replace(/(^|-)\p{Letter}/gu, function callback(character) {
-            return character.toLocaleUpperCase();
-        });
+        .replace(/(^|-)\p{Letter}/gu, replaceCallback);
     return result;
 }
 
@@ -583,22 +594,24 @@ export function getStubTagRows(params: any): Array<any> {
         params.categoryRows || [],
         params.prose?.text || "",
     ).filter(hasStubTag);
-    const stubTags = uniqueValues(
-        rows.map((row) => normalizeStubTag(row.stubTag)),
-    );
+    const mapCallbackJ = (row: any) => normalizeStubTag(row.stubTag);
+    const mappedValuesC = rows.map(mapCallbackJ);
+    const stubTags = uniqueValues(mappedValuesC);
 
-    const result = stubTags.map(function callback(stubTag) {
+    const mapCallbackI = function callback(stubTag: string) {
+        const someCallbackC = function callback(row: any) {
+            const result =
+                normalizeStubTag(row.stubTag) === stubTag &&
+                row.stubTagEnabled === true;
+            return result;
+        };
         const result = {
-            enabled: rows.some(function callback(row) {
-                const result =
-                    normalizeStubTag(row.stubTag) === stubTag &&
-                    row.stubTagEnabled === true;
-                return result;
-            }),
+            enabled: rows.some(someCallbackC),
             stubTag,
         };
         return result;
-    });
+    };
+    const result = stubTags.map(mapCallbackI);
     return result;
 }
 
@@ -613,25 +626,28 @@ export function getStubTagRows(params: any): Array<any> {
 function getReviewedStubTagRows(
     rows: Array<{ enabled: boolean; stubTag: string }>,
 ) {
-    const stubTags = uniqueValues(
-        rows.map((row) => normalizeStubTag(row.stubTag)),
-    );
+    const mapCallbackH = (row: { enabled: boolean; stubTag: string }) =>
+        normalizeStubTag(row.stubTag);
+    const mappedValuesB = rows.map(mapCallbackH);
+    const stubTags = uniqueValues(mappedValuesB);
 
-    const result = stubTags.filter(Boolean).map(function callback(stubTag) {
+    const mapCallbackG = function callback(stubTag: string) {
+        const someCallbackB = function callback(row: {
+            stubTag: unknown;
+            enabled: boolean;
+        }) {
+            const result =
+                normalizeStubTag(row.stubTag) === stubTag &&
+                row.enabled !== false;
+            return result;
+        };
         const result = {
-            enabled: rows.some(function callback(row: {
-                stubTag: unknown;
-                enabled: boolean;
-            }) {
-                const result =
-                    normalizeStubTag(row.stubTag) === stubTag &&
-                    row.enabled !== false;
-                return result;
-            }),
+            enabled: rows.some(someCallbackB),
             stubTag,
         };
         return result;
-    });
+    };
+    const result = stubTags.filter(Boolean).map(mapCallbackG);
     return result;
 }
 
@@ -677,21 +693,23 @@ export function sortCategoryRowsByProse(
     rows: Array<any>,
     prose: string,
 ): Array<any> {
-    const normalizedProse = normalizeRelatedText(stripLeadTitleText(prose));
+    const stripLeadTitleTextResult = stripLeadTitleText(prose);
+    const normalizedProse = normalizeRelatedText(stripLeadTitleTextResult);
 
     if (normalizedProse === "") {
         return rows;
     }
 
+    const mapCallbackF = function callback(row: any, index: number) {
+        const result = {
+            index,
+            position: getCategoryProsePosition(row, normalizedProse),
+            row,
+        };
+        return result;
+    };
     const result = rows
-        .map(function callback(row, index) {
-            const result = {
-                index,
-                position: getCategoryProsePosition(row, normalizedProse),
-                row,
-            };
-            return result;
-        })
+        .map(mapCallbackF)
         .sort(function callback(left, right) {
             if (left.position === right.position) {
                 return left.index - right.index;
@@ -716,23 +734,26 @@ function getCategoryProsePosition(
     row: { category: unknown; originalCategory: unknown },
     prose: string | string[],
 ) {
-    const titles = uniqueValues([
+    const categoryTitleResult = [
         normalizeCategoryTitle(row.category),
         normalizeCategoryTitle(row.originalCategory),
-    ]);
+    ];
+    const titles = uniqueValues(categoryTitleResult);
+    const mapCallbackE = (term: string) => prose.indexOf(term);
     const positions = titles
         .flatMap(getCategorySearchTerms)
-        .map((term) => prose.indexOf(term))
+        .map(mapCallbackE)
         .filter((position) => position >= 0);
 
+    const selectCategoryValueCallback = function falseBranch() {
+        return Math.min(...positions);
+    };
     const result = selectCategoryValue(
         positions.length === 0,
         function trueBranch() {
             return Number.POSITIVE_INFINITY;
         },
-        function falseBranch() {
-            return Math.min(...positions);
-        },
+        selectCategoryValueCallback,
     );
     return result;
 }
@@ -747,10 +768,8 @@ function getCategoryProsePosition(
  */
 function getCategorySearchTerms(category: string) {
     const normalized = normalizeRelatedText(category);
-    const gameSuffix = new RegExp(
-        ["(?:电子游戏|電子遊戲", "|游戏|遊戲)$"].join(""),
-        "u",
-    );
+    const gameSuffixSource = ["(?:电子游戏|電子遊戲", "|游戏|遊戲)$"].join("");
+    const gameSuffix = new RegExp(gameSuffixSource, "u");
     const stem = normalized.replace(gameSuffix, "");
 
     return uniqueValues([normalized, stem]).filter(Boolean);
@@ -778,12 +797,11 @@ function stripLeadTitleText(prose: string) {
  *   defines the module-level normalize related text.
  */
 function normalizeRelatedText(value: string) {
-    const result = foldChineseVariants(
-        trimCategoryValue(value)
-            .replace(/\[\[([^|\]]+\|)?([^\]]+)\]\]/gu, "$2")
-            .replace(/[\s\u200e\u200f]/gu, "")
-            .toLocaleLowerCase(),
-    );
+    const toLocaleLowerCaseResult = trimCategoryValue(value)
+        .replace(/\[\[([^|\]]+\|)?([^\]]+)\]\]/gu, "$2")
+        .replace(/[\s\u200e\u200f]/gu, "")
+        .toLocaleLowerCase();
+    const result = foldChineseVariants(toLocaleLowerCaseResult);
     return result;
 }
 
@@ -912,19 +930,16 @@ const NAME_MARKETS = ["ww", "hans", "hant", "cn", "tw", "hk"];
  * @returns Infobox template wikitext.
  */
 export function buildInfoboxText(params: any): string {
-    const result = buildTemplateText(
-        "Infobox VG",
-        [
-            ["onlysourced", "no"],
-            ["title", normalizeInfoboxValue(params.name)],
-            ["original", buildOriginalNameText(params)],
-            ["japanese", buildJapaneseNameText(params)],
-            ["english", buildEnglishNameText(params)],
-            ["official", buildVgnText(params.officialNames)],
-            ["common", buildVgnText(params.commonNames)],
-        ],
-        "block",
-    );
+    const infoboxParams: Parameters<typeof buildTemplateText>[1] = [
+        ["onlysourced", "no"],
+        ["title", normalizeInfoboxValue(params.name)],
+        ["original", buildOriginalNameText(params)],
+        ["japanese", buildJapaneseNameText(params)],
+        ["english", buildEnglishNameText(params)],
+        ["official", buildVgnText(params.officialNames)],
+        ["common", buildVgnText(params.commonNames)],
+    ];
+    const result = buildTemplateText("Infobox VG", infoboxParams, "block");
     return result;
 }
 
@@ -941,12 +956,11 @@ function buildOriginalNameText(params: any): string | undefined {
     const language = normalizeInfoboxValue(params.originalLanguage);
     const name = normalizeInfoboxValue(params.originalName);
 
-    if (
-        name == null ||
-        language == null ||
-        language === "ja" ||
-        isSameInfoboxBaseTitle(name, params.name)
-    ) {
+    if (name == null || language == null || language === "ja") {
+        return undefined;
+    }
+
+    if (isSameInfoboxBaseTitle(name, params.name)) {
         return undefined;
     }
 
@@ -980,8 +994,12 @@ function buildJapaneseNameText(params: any): string | undefined {
 
     const originalName = normalizeInfoboxValue(params.originalName);
 
+    const isSameInfoboxBaseTitleResult = isSameInfoboxBaseTitle(
+        originalName,
+        params.name,
+    );
     const result = selectInfoboxValue(
-        isSameInfoboxBaseTitle(originalName, params.name),
+        isSameInfoboxBaseTitleResult,
         function trueBranch() {
             return undefined;
         },
@@ -1023,10 +1041,10 @@ function buildVgnText(rows: Array<any>): string | undefined {
         return undefined;
     }
 
-    const result = buildTemplateText(
-        "vgn",
-        entries.map((entry) => [1, entry]),
+    const entryParams: Parameters<typeof buildTemplateText>[1] = entries.map(
+        (entry) => [1, entry],
     );
+    const result = buildTemplateText("vgn", entryParams);
     return result;
 }
 
@@ -1065,7 +1083,9 @@ function buildVgnEntries(row: any): Array<string> {
  */
 function getSelectedMarkets(row: any): Array<string> {
     if (Array.isArray(row.markets)) {
-        return NAME_MARKETS.filter((market) => row.markets.includes(market));
+        const filterCallback = (market: string) =>
+            row.markets.includes(market);
+        return NAME_MARKETS.filter(filterCallback);
     }
 
     return NAME_MARKETS.filter((market) => row[market] === true);
@@ -1234,12 +1254,13 @@ function buildVariantNameVariantText(variant: any): string {
  * @returns Langx template wikitext.
  */
 function buildLangxTemplate(language: string, text: string): string {
-    const result = buildTemplateText("langx", [
+    const langxParams: Parameters<typeof buildTemplateText>[1] = [
         [1, language],
         [2, text],
         ["italic", buildLangxItalicParam(language)],
         ["label", "none"],
-    ]);
+    ];
+    const result = buildTemplateText("langx", langxParams);
     return result;
 }
 
@@ -1299,13 +1320,15 @@ export function buildNavboxText(titles: Array<string>): string {
  * @returns Selected navbox wikitext.
  */
 export function buildReviewedNavboxText(rows: Array<any | string>): string {
+    const mapCallbackC = (row: any) => trimValue(row?.text ?? row);
+    const mapCallbackD = function callback(text: string) {
+        return text.startsWith("{{") ? text : buildTemplateCall(text);
+    };
     const result = rows
         .filter((row) => row?.enabled !== false)
-        .map((row) => trimValue(row?.text ?? row))
+        .map(mapCallbackC)
         .filter(Boolean)
-        .map(function callback(text) {
-            return text.startsWith("{{") ? text : buildTemplateCall(text);
-        })
+        .map(mapCallbackD)
         .join("\n");
 
     return result;
@@ -1333,17 +1356,14 @@ export function buildNoteTaText(params: any = {}): string {
     const entries = getNoteTaEntries(manualEntries);
     const conversionText = getNoteTaConversionText(entries, params);
 
-    const text = buildTemplateText(
-        "NoteTA-lite",
-        sortNoteTaEntries([
-            ...entries,
-            {
-                key: "1",
-                value: conversionText,
-            },
-        ]).map(formatNoteTaTemplateParam),
-        "block",
-    );
+    const mappedValues = sortNoteTaEntries([
+        ...entries,
+        {
+            key: "1",
+            value: conversionText,
+        },
+    ]).map(formatNoteTaTemplateParam);
+    const text = buildTemplateText("NoteTA-lite", mappedValues, "block");
 
     return text;
 }
@@ -1397,9 +1417,10 @@ function getNoteTaConversionText(
  * @returns Whether name conversion has an editable row.
  */
 function hasEditableNameConversionEntry(entries: Array<any>): boolean {
-    const result = entries.some(function callback(entry) {
+    const someCallbackA = function callback(entry: any) {
         return entry.source === "names" || trimNoteTaText(entry.key) === "1";
-    });
+    };
+    const result = entries.some(someCallbackA);
     return result;
 }
 
@@ -1440,16 +1461,17 @@ function normalizeNoteTaEntries(entries: Array<any>): Array<any> {
         return [];
     }
 
+    const mapCallbackB = function callback(entry: any) {
+        const result = {
+            key: trimNoteTaText(entry?.key),
+            modified: entry?.modified === true,
+            source: trimNoteTaText(entry?.source),
+            value: trimNoteTaText(entry?.value),
+        };
+        return result;
+    };
     const result = entries
-        .map(function callback(entry) {
-            const result = {
-                key: trimNoteTaText(entry?.key),
-                modified: entry?.modified === true,
-                source: trimNoteTaText(entry?.source),
-                value: trimNoteTaText(entry?.value),
-            };
-            return result;
-        })
+        .map(mapCallbackB)
         .filter((entry) => entry.key !== "" || entry.value !== "");
     return result;
 }
@@ -1508,11 +1530,13 @@ function getNoteTaEntryRank(entry: any): any {
     }
 
     if (groupMatch != null) {
-        return createNoteTaRank(1, Number(groupMatch[1]));
+        const numberResultA = Number(groupMatch[1]);
+        return createNoteTaRank(1, numberResultA);
     }
 
     if (numberMatch != null) {
-        return createNoteTaRank(2, Number(key));
+        const numberResult = Number(key);
+        return createNoteTaRank(2, numberResult);
     }
 
     if (key === "") {
@@ -1610,9 +1634,8 @@ function findOfficialName(
     rows: Array<any> = [],
     markets: Array<string>,
 ): string | undefined {
-    const result =
-        rows.find((row) => hasAnyMarket(row, markets))?.name?.trim() ||
-        undefined;
+    const findCallback = (row: any) => hasAnyMarket(row, markets);
+    const result = rows.find(findCallback)?.name?.trim() || undefined;
     return result;
 }
 
@@ -1626,7 +1649,8 @@ function findOfficialName(
  */
 function hasAnyMarket(row: any, markets: Array<string>): boolean {
     if (Array.isArray(row.markets)) {
-        return markets.some((market) => row.markets.includes(market));
+        const someCallback = (market: string) => row.markets.includes(market);
+        return markets.some(someCallback);
     }
 
     return markets.some((market) => row[market] === true);
@@ -1647,9 +1671,10 @@ export function buildReferencesText(references: Array<any>): string {
         return "";
     }
 
-    const result = buildReferencesSection(references, {
+    const textResultB = {
         heading: getTextTemplate("referencesHeading"),
-    });
+    };
+    const result = buildReferencesSection(references, textResultB);
     return result;
 }
 
@@ -1682,7 +1707,8 @@ export function countGeneratedProseSinographs(params: any): number {
         return params.prose.sinographs;
     }
 
-    return countProseSinographs(buildGeneratedProseText(params));
+    const generatedProseTextResult = buildGeneratedProseText(params);
+    return countProseSinographs(generatedProseTextResult);
 }
 
 /**
@@ -1693,13 +1719,17 @@ export function countGeneratedProseSinographs(params: any): number {
  */
 export function countProseSinographs(text: string): number {
     const plainText = stripWikitext(text);
-    const withoutLatin = plainText.replace(getLatinPhrasePattern(), "");
-    const withoutNumbers = withoutLatin.replace(getNumberPattern(), "");
+    const latinPhrasePatternResultA = getLatinPhrasePattern();
+    const withoutLatin = plainText.replace(latinPhrasePatternResultA, "");
+    const numberPatternResultA = getNumberPattern();
+    const withoutNumbers = withoutLatin.replace(numberPatternResultA, "");
 
+    const latinPhrasePatternResult = getLatinPhrasePattern();
+    const numberPatternResult = getNumberPattern();
     const result =
         countHanCharacters(withoutNumbers) +
-        countMatches(plainText, getLatinPhrasePattern()) * 2 +
-        countMatches(withoutLatin, getNumberPattern()) * 2;
+        countMatches(plainText, latinPhrasePatternResult) * 2 +
+        countMatches(withoutLatin, numberPatternResult) * 2;
     return result;
 }
 
@@ -1761,7 +1791,8 @@ function countHanCharacters(text: string): number {
  * @returns Match count.
  */
 function countMatches(text: string, pattern: RegExp): number {
-    return Array.from(String(text || "").matchAll(pattern)).length;
+    const matches = String(text || "").matchAll(pattern);
+    return Array.from(matches).length;
 }
 
 /**
@@ -1770,14 +1801,12 @@ function countMatches(text: string, pattern: RegExp): number {
  * @returns Latin phrase matcher.
  */
 function getLatinPhrasePattern(): RegExp {
-    const result = new RegExp(
-        [
-            "\\b[A-Za-z][A-Za-z0-9]*",
-            "(?:[ \\t./&",
-            "'’:-]+[A-Za-z0-9]+)*\\b",
-        ].join(""),
-        "gu",
-    );
+    const source = [
+        "\\b[A-Za-z][A-Za-z0-9]*",
+        "(?:[ \\t./&",
+        "'’:-]+[A-Za-z0-9]+)*\\b",
+    ].join("");
+    const result = new RegExp(source, "gu");
     return result;
 }
 
@@ -1860,18 +1889,26 @@ function buildOpeningProse(
     const names = records.names.metadata;
     const leadValues = buildLeadValues(names, sourceTags);
     const titles = buildLeadNameText(leadValues);
+    const joinSourceTagsResultA = joinSourceTags(sourceTags, [
+        "year",
+        "genres",
+    ]);
     const yearGenre = buildYearGenreProse(
         records.year,
         records.genre,
-        joinSourceTags(sourceTags, ["year", "genres"]),
+        joinSourceTagsResultA,
     );
     const sentence1aText = formatText("prose.sentence1a", {
         titles,
         yearGenre,
     });
-    const sentence1b = buildCompanyProse(records.companies, {
+    const joinSourceTagsResult = {
         sourceTag: joinSourceTags(sourceTags, ["developers", "publishers"]),
-    });
+    };
+    const sentence1b = buildCompanyProse(
+        records.companies,
+        joinSourceTagsResult,
+    );
     const sentence1a = {
         text: sentence1aText,
         titles,
@@ -1961,17 +1998,18 @@ export function buildYearGenreProse(
     sourceTag: string = "",
 ): string {
     const yearText = year.metadata.phrase || "";
+    const selectProseValueCallback = function falseBranch() {
+        const result = formatText("prose.genreClass", {
+            genreText: genre.wikitext.list,
+        });
+        return result;
+    };
     const genreText = selectProseValue(
         genre.wikitext.list === "",
         function trueBranch() {
             return "";
         },
-        function falseBranch() {
-            const result = formatText("prose.genreClass", {
-                genreText: genre.wikitext.list,
-            });
-            return result;
-        },
+        selectProseValueCallback,
     );
     const prefix =
         `${yearText}${genreText}` ||
@@ -2132,10 +2170,11 @@ export function buildAppendProse(
             return "prose.sentence4";
         },
     );
-    const prose = formatText(templateKey, {
+    const slicedValue = {
         sourceTag,
         text: hasPeriod ? text.slice(0, -1) : text,
-    });
+    };
+    const prose = formatText(templateKey, slicedValue);
 
     return prose;
 }
@@ -2194,18 +2233,21 @@ function buildCompanyRoleText(
  *   defines the module-level build series list text.
  */
 function buildSeriesListText(values: unknown[]) {
-    const names = values.map(function callback(value: { wikitext: unknown }) {
+    const mapCallbackA = function callback(value: { wikitext: unknown }) {
         const result = formatText("prose.seriesTitle", {
             value: value.wikitext,
         });
         return result;
-    });
+    };
+    const names = values.map(mapCallbackA);
 
     if (names.length === 2) {
-        return names.join(getTextTemplate("shared.conjunction"));
+        const textResultA = getTextTemplate("shared.conjunction");
+        return names.join(textResultA);
     }
 
-    return names.join(getTextTemplate("shared.enumerationSeparator"));
+    const textResult = getTextTemplate("shared.enumerationSeparator");
+    return names.join(textResult);
 }
 
 /**
@@ -2341,7 +2383,7 @@ function addNameReferenceTags(
     sourceTags: Record<string, string>,
     key: string,
 ) {
-    const values = (rows || []).map(function callback(
+    const mapCallback = function callback(
         row: { sourceKey: string },
         index: number,
     ) {
@@ -2353,7 +2395,8 @@ function addNameReferenceTags(
         };
 
         return value;
-    });
+    };
+    const values = (rows || []).map(mapCallback);
 
     return values;
 }

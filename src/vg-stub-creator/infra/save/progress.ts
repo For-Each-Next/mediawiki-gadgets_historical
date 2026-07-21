@@ -30,7 +30,8 @@ export function createSaveProgress(
     const steps = [buildSaveProgressStep(title)];
 
     if (move.enabled === true) {
-        steps.push(buildMoveProgressStep(title, move));
+        const moveProgressStepResult = buildMoveProgressStep(title, move);
+        steps.push(moveProgressStepResult);
     }
 
     const checklistSteps = buildChecklistProgressSteps(progressGroups);
@@ -38,8 +39,12 @@ export function createSaveProgress(
     if (checklistSteps.length > 0) {
         steps.push(...checklistSteps);
     } else {
-        steps.push(...buildSelectedActionProgressSteps(actions, title));
-        steps.push(...buildRegistrationProgressSteps(registration));
+        const selectedActionProgressStepsRes =
+            buildSelectedActionProgressSteps(actions, title);
+        steps.push(...selectedActionProgressStepsRes);
+        const registrationProgressStepsResul =
+            buildRegistrationProgressSteps(registration);
+        steps.push(...registrationProgressStepsResul);
     }
 
     const result = {
@@ -101,19 +106,23 @@ function buildSelectedActionProgressSteps(
     actions: Array<{ id: string; label: string; selected: boolean }>,
     title: string,
 ): Array<unknown> {
+    const flatMapCallbackA = function callback(action: {
+        id: unknown;
+        label: unknown;
+    }) {
+        const step = {
+            id: action.id,
+            label: action.label,
+            parts: buildActionProgressParts(action, title),
+            status: "pending",
+            targetPage: getActionTargetPage(action, title),
+        };
+
+        return [step, ...buildBundledActionProgressSteps(action)];
+    };
     const result = actions
         .filter((action) => action.selected)
-        .flatMap(function callback(action: { id: unknown; label: unknown }) {
-            const step = {
-                id: action.id,
-                label: action.label,
-                parts: buildActionProgressParts(action, title),
-                status: "pending",
-                targetPage: getActionTargetPage(action, title),
-            };
-
-            return [step, ...buildBundledActionProgressSteps(action)];
-        });
+        .flatMap(flatMapCallbackA);
     return result;
 }
 
@@ -149,20 +158,22 @@ function buildRegistrationProgressSteps(registration: {
  * @returns Target-page progress groups.
  */
 export function getSaveProgressGroups(progress: any): Array<any> {
-    const groups = (progress?.steps || []).reduce(function addStep(
-        groups: unknown[],
-        step: unknown,
-    ) {
+    const reduceCallback = function addStep(groups: unknown[], step: unknown) {
         return addStepToTargetGroup(groups, step, progress);
-    }, []);
+    };
+    const groups = (progress?.steps || []).reduce(reduceCallback, []);
 
+    const filterCallback = function isLocal(group: { targetPage: string }) {
+        return !isWikidataTargetPage(group.targetPage);
+    };
+    const filterCallbackA = function isWikidata(group: {
+        targetPage: string;
+    }) {
+        return isWikidataTargetPage(group.targetPage);
+    };
     const result = [
-        ...groups.filter(function isLocal(group: { targetPage: string }) {
-            return !isWikidataTargetPage(group.targetPage);
-        }),
-        ...groups.filter(function isWikidata(group: { targetPage: string }) {
-            return isWikidataTargetPage(group.targetPage);
-        }),
+        ...groups.filter(filterCallback),
+        ...groups.filter(filterCallbackA),
     ];
     return result;
 }
@@ -174,11 +185,10 @@ export function getSaveProgressGroups(progress: any): Array<any> {
  * @returns Whether every step has a terminal status.
  */
 export function isSaveProgressComplete(progress: any): boolean {
-    const result = (progress?.steps || []).every(function callback(step: {
-        status: string;
-    }) {
+    const everyCallback = function callback(step: { status: string }) {
         return ["complete", "failed", "skipped"].includes(step.status);
-    });
+    };
+    const result = (progress?.steps || []).every(everyCallback);
     return result;
 }
 
@@ -358,26 +368,29 @@ export function updateSaveProgress(
     id: string,
     status: string,
 ): any {
+    const mapCallback = function callback(step: { id: string }) {
+        const endsWithResult =
+            step.id === id ||
+            (id === "new-page-list" &&
+                step.id?.endsWith(":register-new-page"));
+        const result = selectValue(
+            endsWithResult,
+            function trueBranch() {
+                const result = {
+                    ...step,
+                    status,
+                };
+                return result;
+            },
+            function falseBranch() {
+                return step;
+            },
+        );
+        return result;
+    };
     const result = {
         ...progress,
-        steps: progress.steps.map(function callback(step: { id: string }) {
-            const result = selectValue(
-                step.id === id ||
-                    (id === "new-page-list" &&
-                        step.id?.endsWith(":register-new-page")),
-                function trueBranch() {
-                    const result = {
-                        ...step,
-                        status,
-                    };
-                    return result;
-                },
-                function falseBranch() {
-                    return step;
-                },
-            );
-            return result;
-        }),
+        steps: progress.steps.map(mapCallback),
     };
     return result;
 }
@@ -394,7 +407,8 @@ export function storeSaveProgress(
     progress: any,
     storage: Storage = sessionStorage,
 ): void {
-    storage.setItem(SAVE_PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+    const stringifyResult = JSON.stringify(progress);
+    storage.setItem(SAVE_PROGRESS_STORAGE_KEY, stringifyResult);
 }
 
 /**
@@ -431,16 +445,14 @@ function buildChecklistProgressSteps(groups: Array<any>): Array<any> {
         return [];
     }
 
-    const result = groups.flatMap(function callback(group) {
+    const flatMapCallback = function callback(group: any) {
         const targetPage = normalizeActionText(group?.title);
 
         if (targetPage === "" || !Array.isArray(group?.rows)) {
             return [];
         }
 
-        const result = group.rows.flatMap(function callback(row: {
-            label: unknown;
-        }) {
+        const flatMapCallbackB = function callback(row: { label: unknown }) {
             const id = getChecklistProgressStepId(row);
             const label = normalizeActionText(row?.label);
 
@@ -458,9 +470,11 @@ function buildChecklistProgressSteps(groups: Array<any>): Array<any> {
                 },
             ];
             return result;
-        });
+        };
+        const result = group.rows.flatMap(flatMapCallbackB);
         return result;
-    });
+    };
+    const result = groups.flatMap(flatMapCallback);
     return result;
 }
 
@@ -498,14 +512,13 @@ function buildBundledActionProgressSteps(action: any): Array<any> {
     const wikidataId = normalizeActionText(action.wikidataId);
     const englishName = normalizeActionText(action.englishName);
 
-    steps.push(
-        ...buildBundledWikidataProgressSteps({
-            action,
-            categoryTitle,
-            englishName,
-            wikidataId,
-        }),
-    );
+    const bundledWikidataProgressStepsRe = buildBundledWikidataProgressSteps({
+        action,
+        categoryTitle,
+        englishName,
+        wikidataId,
+    });
+    steps.push(...bundledWikidataProgressStepsRe);
 
     return steps;
 }

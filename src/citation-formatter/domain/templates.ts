@@ -35,13 +35,14 @@ export const SUPPORTED_CITATION_TEMPLATES = [
     "Cite video game",
 ] as const;
 
-const CANONICAL_TEMPLATE_NAMES = new Map(
-    SUPPORTED_CITATION_TEMPLATES.map(function indexCanonicalName(name) {
-        return [normalizeTemplateName(name), name] as const;
-    }),
-);
+const mapCallback = function indexCanonicalName(name: string) {
+    return [normalizeTemplateName(name), name] as const;
+};
+const canonicalTemplateEntries = SUPPORTED_CITATION_TEMPLATES.map(mapCallback);
+const CANONICAL_TEMPLATE_NAMES = new Map(canonicalTemplateEntries);
 
-const SUPPORTED_TEMPLATE_SET = new Set(CANONICAL_TEMPLATE_NAMES.keys());
+const supportedTemplateNames = CANONICAL_TEMPLATE_NAMES.keys();
+const SUPPORTED_TEMPLATE_SET = new Set(supportedTemplateNames);
 
 /**
  * Normalizes a template title for comparison and metadata lookup.
@@ -76,5 +77,6 @@ export function getCanonicalTemplateName(value: string): string {
  * @returns Whether the template is supported.
  */
 export function isCitationTemplate(value: string): boolean {
-    return SUPPORTED_TEMPLATE_SET.has(normalizeTemplateName(value));
+    const normalized = normalizeTemplateName(value);
+    return SUPPORTED_TEMPLATE_SET.has(normalized);
 }

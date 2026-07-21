@@ -27,13 +27,11 @@ The root `src/shared/` directory contains helpers shared by multiple gadgets.
 APIs while their implementations remain in focused modules. Citation fetching,
 template formatting, and reference wikitext live in the `shared/cite/`
 subpackage.
-`npm run architecture:check` enforces these dependency boundaries.
 
 Each gadget owns its messages in `config/locales/`. `en.ts` is the source
 catalog, `zh-Hans.ts` and `zh-Hant.ts` provide Chinese translations, and
 `index.ts` is the locale registry imported by application code. Use semantic
-message IDs and named placeholders for complete sentences. `npm run i18n:check`
-verifies catalog keys and placeholders.
+message IDs and named placeholders for complete sentences.
 
 ## Building
 

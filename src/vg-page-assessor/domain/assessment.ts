@@ -41,6 +41,16 @@ const BANNER_SHELL_ALIASES = [
  * @returns Default assessment values.
  */
 export function createDefaultAssessment(projectConfig: any): any {
+    const otherProjectEntries = projectConfig.otherProjects.map(
+        function callback(project: { id: string }) {
+            return [project.id, false];
+        },
+    );
+    const taskForceEntries = projectConfig.videoGames.taskForces.map(
+        function callback(taskForce: { id: unknown }) {
+            return [taskForce.id, false];
+        },
+    );
     const result = {
         className: "Unassessed",
         importance: "",
@@ -50,20 +60,8 @@ export function createDefaultAssessment(projectConfig: any): any {
             reassess: false,
             screenshot: false,
         },
-        otherProjects: Object.fromEntries(
-            projectConfig.otherProjects.map(function callback(project: {
-                id: string;
-            }) {
-                return [project.id, false];
-            }),
-        ),
-        taskForces: Object.fromEntries(
-            projectConfig.videoGames.taskForces.map(
-                function callback(taskForce: { id: unknown }) {
-                    return [taskForce.id, false];
-                },
-            ),
-        ),
+        otherProjects: Object.fromEntries(otherProjectEntries),
+        taskForces: Object.fromEntries(taskForceEntries),
     };
     return result;
 }
@@ -81,11 +79,8 @@ export function updateTalkPageAssessment(
     assessment: any,
     projectConfig: any,
 ): string {
-    const result = replaceManagedTopTemplates(
-        text,
-        buildAssessmentBanners(assessment, projectConfig, text),
-        projectConfig,
-    );
+    const banners = buildAssessmentBanners(assessment, projectConfig, text);
+    const result = replaceManagedTopTemplates(text, banners, projectConfig);
     return result;
 }
 
@@ -156,16 +151,43 @@ export function buildAssessmentBanners(
     text = "",
 ): string {
     const existingBanners = extractExistingShellBanners(text);
+    const preservedBanners = [];
+
+    for (const banner of existingBanners) {
+        const selected = isSelectedProjectBanner(
+            banner,
+            assessment,
+            projectConfig,
+        );
+
+        if (!selected) {
+            preservedBanners.push(banner);
+        }
+    }
+
+    const videoGamesBanner = buildVideoGamesBanner(
+        assessment,
+        projectConfig.videoGames,
+    );
+    const selectedProjects = [];
+
+    for (const project of projectConfig.otherProjects) {
+        if (assessment.otherProjects?.[project.id]) {
+            selectedProjects.push(project);
+        }
+    }
+
+    const otherProjectBanners = [];
+
+    for (const project of selectedProjects) {
+        const banner = buildSimpleProjectBanner(project);
+        otherProjectBanners.push(banner);
+    }
+
     const banners = [
-        ...existingBanners.filter(function callback(banner) {
-            return !isSelectedProjectBanner(banner, assessment, projectConfig);
-        }),
-        buildVideoGamesBanner(assessment, projectConfig.videoGames),
-        ...projectConfig.otherProjects
-            .filter(function callback(project: { id: string | number }) {
-                return assessment.otherProjects?.[project.id];
-            })
-            .map(buildSimpleProjectBanner),
+        ...preservedBanners,
+        videoGamesBanner,
+        ...otherProjectBanners,
     ];
 
     return buildBannerShell(assessment.className, banners);
@@ -184,9 +206,12 @@ export function previewTalkPageTopSection(
     assessment: any,
     projectConfig: any,
 ): string {
-    const result = getTopSection(
-        updateTalkPageAssessment(text, assessment, projectConfig),
+    const updatedText = updateTalkPageAssessment(
+        text,
+        assessment,
+        projectConfig,
     );
+    const result = getTopSection(updatedText);
     return result;
 }
 
@@ -249,10 +274,10 @@ export function getTalkPageTitle(title: mw.Title): string {
         return title.getPrefixedText();
     }
 
-    const result = new mw.Title(
-        title.getMainText(),
-        title.getNamespaceId() + 1,
-    ).getPrefixedText();
+    const mainText = title.getMainText();
+    const namespaceId = title.getNamespaceId() + 1;
+    const talkTitle = new mw.Title(mainText, namespaceId);
+    const result = talkTitle.getPrefixedText();
     return result;
 }
 
@@ -267,10 +292,10 @@ export function getSubjectPageTitle(title: mw.Title): string {
         return title.getPrefixedText();
     }
 
-    const result = new mw.Title(
-        title.getMainText(),
-        title.getNamespaceId() - 1,
-    ).getPrefixedText();
+    const mainText = title.getMainText();
+    const namespaceId = title.getNamespaceId() - 1;
+    const subjectTitle = new mw.Title(mainText, namespaceId);
+    const result = subjectTitle.getPrefixedText();
     return result;
 }
 
@@ -286,17 +311,24 @@ function removeManagedTopTemplates(text: string, projectConfig: any): string {
     let offset = 0;
     let next = readLeadingTemplate(text, offset);
 
-    while (
-        next != null &&
-        patterns.some(function callback(pattern) {
-            return pattern.test(normalizeTemplateName(next.name));
-        })
-    ) {
+    while (next != null && isManagedTemplate(next.name, patterns)) {
         offset = next.end;
         next = readLeadingTemplate(text, offset);
     }
 
     return text.slice(offset);
+}
+
+/**
+ * Checks whether a template name matches the managed patterns.
+ *
+ * @param name - Template name.
+ * @param patterns - Managed template patterns.
+ * @returns Whether the template is managed.
+ */
+function isManagedTemplate(name: string, patterns: Array<RegExp>): boolean {
+    const normalizedName = normalizeTemplateName(name);
+    return matchesAnyPattern(patterns, normalizedName);
 }
 
 /**
@@ -322,10 +354,21 @@ function buildManagedTemplatePatterns(projectConfig: any): Array<RegExp> {
  * @returns Template-name pattern.
  */
 function buildTemplatePattern(name: string): RegExp {
-    const pattern = normalizeTemplateName(name)
-        .split(/(\[[^\]]+\])/u)
-        .map((part) => (part.startsWith("[") ? part : escapeRegExp(part)))
-        .join("");
+    const normalizedName = normalizeTemplateName(name);
+    const parts = normalizedName.split(/(\[[^\]]+\])/u);
+    const patternParts = [];
+
+    for (const part of parts) {
+        let patternPart = part;
+
+        if (!part.startsWith("[")) {
+            patternPart = escapeRegExp(part);
+        }
+
+        patternParts.push(patternPart);
+    }
+
+    const pattern = patternParts.join("");
 
     return new RegExp(`^${pattern}$`, "iu");
 }
@@ -398,24 +441,32 @@ function readLeadingTemplate(text: string, start: number): any | null {
  * @returns Existing nested banner calls.
  */
 function extractExistingShellBanners(text: string): Array<string> {
-    const leading = readLeadingTemplate(String(text || ""), 0);
+    const source = String(text || "");
+    const leading = readLeadingTemplate(source, 0);
 
-    if (
-        leading == null ||
-        !buildBannerShellPatterns().some(function callback(pattern) {
-            return pattern.test(normalizeTemplateName(leading.name));
-        })
-    ) {
+    if (leading == null) {
         return [];
     }
 
-    const result = readNestedBannersFromShell(leading.source).filter(
-        function callback(banner) {
-            const name = readLeadingTemplate(banner, 0)?.name;
+    const normalizedName = normalizeTemplateName(leading.name);
+    const patterns = buildBannerShellPatterns();
+    const isBannerShell = matchesAnyPattern(patterns, normalizedName);
 
-            return name != null && !isBannerShellName(name);
-        },
-    );
+    if (!isBannerShell) {
+        return [];
+    }
+
+    const nestedBanners = readNestedBannersFromShell(leading.source);
+    const result = [];
+
+    for (const banner of nestedBanners) {
+        const name = readLeadingTemplate(banner, 0)?.name;
+
+        if (name != null && !isBannerShellName(name)) {
+            result.push(banner);
+        }
+    }
+
     return result;
 }
 
@@ -432,7 +483,8 @@ function readNestedBannersFromShell(shell: string): Array<string> {
     let next = readLeadingTemplate(inner, offset);
 
     while (next != null) {
-        banners.push(next.source.trim());
+        const banner = next.source.trim();
+        banners.push(banner);
         offset = next.end;
         next = readLeadingTemplate(inner, offset);
     }
@@ -452,7 +504,8 @@ function extractBannerShellBannerBody(shell: string): string {
     const explicitBody = parameters.find(isBannerShellBodyParameter);
 
     if (explicitBody != null) {
-        return explicitBody.slice(findTopLevelEquals(explicitBody) + 1).trim();
+        const equals = findTopLevelEquals(explicitBody);
+        return explicitBody.slice(equals + 1).trim();
     }
 
     return parameters.filter(isPositionalParameter).join("\n").trim();
@@ -502,12 +555,14 @@ function splitTemplateParts(template: string): Array<string> {
             depth -= 1;
             index += 1;
         } else if (inner[index] === "|" && depth === 0) {
-            parts.push(inner.slice(start, index));
+            const part = inner.slice(start, index);
+            parts.push(part);
             start = index + 1;
         }
     }
 
-    parts.push(inner.slice(start));
+    const lastPart = inner.slice(start);
+    parts.push(lastPart);
 
     return parts;
 }
@@ -564,14 +619,20 @@ function isSelectedProjectBanner(
         return true;
     }
 
-    const result = projectConfig.otherProjects.some(
-        function callback(project: { id: string | number }) {
-            const result =
-                assessment.otherProjects?.[project.id] &&
-                matchesProject(name, project);
-            return result;
-        },
-    );
+    let result = false;
+
+    for (
+        let index = 0;
+        index < projectConfig.otherProjects.length && !result;
+        index += 1
+    ) {
+        const project = projectConfig.otherProjects[index];
+
+        if (assessment.otherProjects?.[project.id]) {
+            result = matchesProject(name, project);
+        }
+    }
+
     return result;
 }
 
@@ -583,9 +644,11 @@ function isSelectedProjectBanner(
  * @returns Whether it matches.
  */
 function matchesProject(name: string, project: any): boolean {
-    const result = [project.template, ...(project.aliases || [])]
-        .map(buildTemplatePattern)
-        .some((pattern) => pattern.test(normalizeTemplateName(name)));
+    const normalizedName = normalizeTemplateName(name);
+    const patterns = [project.template, ...(project.aliases || [])].map(
+        buildTemplatePattern,
+    );
+    const result = matchesAnyPattern(patterns, normalizedName);
     return result;
 }
 
@@ -596,9 +659,29 @@ function matchesProject(name: string, project: any): boolean {
  * @returns Whether it is WPBS.
  */
 function isBannerShellName(name: string): boolean {
-    const result = buildBannerShellPatterns().some(function callback(pattern) {
-        return pattern.test(normalizeTemplateName(name));
-    });
+    const normalizedName = normalizeTemplateName(name);
+    const patterns = buildBannerShellPatterns();
+    const result = matchesAnyPattern(patterns, normalizedName);
+    return result;
+}
+
+/**
+ * Checks whether any pattern matches a normalized template name.
+ *
+ * @param patterns - Template-name patterns.
+ * @param normalizedName - Normalized template name.
+ * @returns Whether any pattern matches.
+ */
+function matchesAnyPattern(
+    patterns: Array<RegExp>,
+    normalizedName: string,
+): boolean {
+    let result = false;
+
+    for (let index = 0; index < patterns.length && !result; index += 1) {
+        result = patterns[index].test(normalizedName);
+    }
+
     return result;
 }
 
@@ -675,17 +758,23 @@ function buildVideoGamesBanner(assessment: any, config: any): string {
         ].join(""),
     ];
 
-    config.taskForces
-        .filter(function callback(taskForce: { id: string | number }) {
-            return assessment.taskForces?.[taskForce.id];
-        })
-        .forEach(function callback(taskForce: { parameter: string }) {
-            params.push(`|${taskForce.parameter}=yes`);
-        });
+    const selectedTaskForces = [];
 
-    getSelectedMaintenanceParams(assessment).forEach(function callback(param) {
+    for (const taskForce of config.taskForces) {
+        if (assessment.taskForces?.[taskForce.id]) {
+            selectedTaskForces.push(taskForce);
+        }
+    }
+
+    for (const taskForce of selectedTaskForces) {
+        params.push(`|${taskForce.parameter}=yes`);
+    }
+
+    const maintenanceParams = getSelectedMaintenanceParams(assessment);
+
+    for (const param of maintenanceParams) {
         params.push(`|${param}=yes`);
-    });
+    }
 
     return `{{${config.template}${params.join("")}}}`;
 }

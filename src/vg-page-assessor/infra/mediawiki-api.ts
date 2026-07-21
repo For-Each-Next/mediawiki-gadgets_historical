@@ -79,15 +79,14 @@ function parseFetchedPageText(response: any): any {
     const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
     const revision = page?.revisions?.[0];
 
+    const primaryContent =
+        revision?.slots?.main?.content ?? revision?.slots?.main?.["*"];
+    const text = primaryContent ?? revision?.["*"] ?? "";
     const result = {
         basetimestamp: revision?.timestamp,
         exists: page?.missing == null,
         starttimestamp: response.curtimestamp,
-        text:
-            revision?.slots?.main?.content ??
-            revision?.slots?.main?.["*"] ??
-            revision?.["*"] ??
-            "",
+        text,
     };
     return result;
 }
@@ -123,9 +122,10 @@ export async function fetchSubjectPageInfo(
         targetTitle,
     };
 
+    const creationTimestamp = result.creationDate.toISOString();
     logStep("fetchSubjectPageInfo done", {
         ...result,
-        creationDate: result.creationDate.toISOString(),
+        creationDate: creationTimestamp,
     });
 
     return result;
@@ -171,7 +171,9 @@ export async function fetchPageCreationTimes(
     titles: Array<string>,
 ): Promise<Map<string, Date>> {
     logStep("fetchPageCreationTimes start", { titles });
-    const uniqueTitles = [...new Set(titles.filter(Boolean))];
+    const enteredTitles = titles.filter(Boolean);
+    const titleSet = new Set(enteredTitles);
+    const uniqueTitles = [...titleSet];
     const creationTimes = new Map();
 
     if (uniqueTitles.length === 0) {
@@ -180,7 +182,9 @@ export async function fetchPageCreationTimes(
     }
 
     const resolvedTitles = await resolveRedirectTitles(api, uniqueTitles);
-    const targets = [...new Set(resolvedTitles.values())];
+    const resolvedValues = resolvedTitles.values();
+    const targetSet = new Set(resolvedValues);
+    const targets = [...targetSet];
     const targetCreationTimes = await fetchRevisionCreationTimes(api, targets);
 
     mergeResolvedCreationTimes(
@@ -189,16 +193,31 @@ export async function fetchPageCreationTimes(
         targetCreationTimes,
     );
 
+    const entries = serializeCreationTimeEntries(creationTimes);
     logStep("fetchPageCreationTimes done", {
-        entries: [...creationTimes.entries()].map(function callback([
-            title,
-            date,
-        ]) {
-            return [title, date.toISOString()];
-        }),
+        entries,
     });
 
     return creationTimes;
+}
+
+/**
+ * Serializes creation times for diagnostic logging.
+ *
+ * @param creationTimes - Creation times.
+ * @returns Serializable creation-time entries.
+ */
+function serializeCreationTimeEntries(
+    creationTimes: Map<string, Date>,
+): Array<[string, string]> {
+    const entries: Array<[string, string]> = [];
+
+    for (const [title, date] of creationTimes) {
+        const timestamp = date.toISOString();
+        entries.push([title, timestamp]);
+    }
+
+    return entries;
 }
 
 /**
@@ -210,21 +229,31 @@ export async function fetchPageCreationTimes(
  */
 async function resolveRedirectTitles(api: any, titles: Array<string>) {
     const resolvedTitles = new Map();
+    const resolveTitle = resolveRedirectTitle.bind(null, api, resolvedTitles);
+    const requests = titles.map(resolveTitle);
 
-    await Promise.all(
-        titles.map(async function callback(title) {
-            const text = await fetchCurrentPageText(api, title);
-            const target = parseRedirectTarget(text) || title;
-
-            resolvedTitles.set(title, target);
-            logStep("fetchPageCreationTimes resolved title", {
-                target,
-                title,
-            });
-        }),
-    );
+    await Promise.all(requests);
 
     return resolvedTitles;
+}
+
+/**
+ * Resolves and stores one redirect target.
+ *
+ * @param api - MediaWiki API client.
+ * @param resolvedTitles - Mutable resolved-title map.
+ * @param title - Source title.
+ */
+async function resolveRedirectTitle(
+    api: any,
+    resolvedTitles: Map<string, string>,
+    title: string,
+): Promise<void> {
+    const text = await fetchCurrentPageText(api, title);
+    const target = parseRedirectTarget(text) || title;
+
+    resolvedTitles.set(title, target);
+    logStep("fetchPageCreationTimes resolved title", { target, title });
 }
 
 /**
@@ -239,16 +268,14 @@ function mergeResolvedCreationTimes(
     resolvedTitles: Map<string, string>,
     targetTimes: Map<string, Date>,
 ): void {
-    resolvedTitles.forEach(function callback(target, title) {
+    for (const [title, target] of resolvedTitles) {
         const date = targetTimes.get(target);
 
-        if (date == null) {
-            return;
+        if (date != null) {
+            output.set(title, date);
+            output.set(target, date);
         }
-
-        output.set(title, date);
-        output.set(target, date);
-    });
+    }
 }
 
 /**
@@ -272,11 +299,9 @@ async function fetchCurrentPageText(api: any, title: string): Promise<string> {
     const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
     const revision = page?.revisions?.[0];
 
-    const text =
-        revision?.slots?.main?.content ??
-        revision?.slots?.main?.["*"] ??
-        revision?.["*"] ??
-        "";
+    const primaryContent =
+        revision?.slots?.main?.content ?? revision?.slots?.main?.["*"];
+    const text = primaryContent ?? revision?.["*"] ?? "";
 
     logStep("fetchCurrentPageText done", {
         textLength: text.length,
@@ -293,15 +318,12 @@ async function fetchCurrentPageText(api: any, title: string): Promise<string> {
  * @returns Redirect target title.
  */
 function parseRedirectTarget(text: string): string | null {
-    const match = String(text || "").match(
-        new RegExp(
-            [
-                "^\\s*#(?:REDIRECT|重定向|重新導向|重新导向)\\",
-                "s*:?\\s*\\[\\[([^#|\\]]+)",
-            ].join(""),
-            "iu",
-        ),
-    );
+    const patternSource = [
+        "^\\s*#(?:REDIRECT|重定向|重新導向|重新导向)\\",
+        "s*:?\\s*\\[\\[([^#|\\]]+)",
+    ].join("");
+    const pattern = new RegExp(patternSource, "iu");
+    const match = String(text || "").match(pattern);
 
     const target = match?.[1]?.trim() || null;
 
@@ -323,7 +345,9 @@ async function fetchRevisionCreationTimes(
 ): Promise<Map<string, Date>> {
     logStep("fetchRevisionCreationTimes start", { titles });
     const creationTimes = new Map();
-    const uniqueTitles = [...new Set(titles.filter(Boolean))];
+    const enteredTitles = titles.filter(Boolean);
+    const titleSet = new Set(enteredTitles);
+    const uniqueTitles = [...titleSet];
     const cache = readCreationDateCache();
     const uncachedTitles = readCachedCreationTimes(
         uniqueTitles,
@@ -339,14 +363,8 @@ async function fetchRevisionCreationTimes(
     );
 
     writeCreationDateCache(cache);
-    logStep("fetchRevisionCreationTimes done", {
-        entries: [...creationTimes.entries()].map(function callback([
-            title,
-            date,
-        ]) {
-            return [title, date.toISOString()];
-        }),
-    });
+    const entries = serializeCreationTimeEntries(creationTimes);
+    logStep("fetchRevisionCreationTimes done", { entries });
 
     return creationTimes;
 }
@@ -365,21 +383,24 @@ function readCachedCreationTimes(
     cache: Record<string, string>,
     creationTimes: Map<string, Date>,
 ): Array<string> {
-    const result = titles.filter(function callback(title: string) {
-        const cached = cache[normalizeCacheTitle(title)];
+    const result = [];
+
+    for (const title of titles) {
+        const cacheTitle = normalizeCacheTitle(title);
+        const cached = cache[cacheTitle];
 
         if (cached == null) {
-            return true;
+            result.push(title);
+        } else {
+            const creationDate = new Date(cached);
+            creationTimes.set(title, creationDate);
+            logStep("fetchRevisionCreationTimes cache hit", {
+                timestamp: cached,
+                title,
+            });
         }
+    }
 
-        creationTimes.set(title, new Date(cached));
-        logStep("fetchRevisionCreationTimes cache hit", {
-            timestamp: cached,
-            title,
-        });
-
-        return false;
-    });
     return result;
 }
 
@@ -425,18 +446,21 @@ function mergeCreationTimeBatch(
     titles: string[],
     times: Map<string, Date>,
 ): void {
-    times.forEach(function callback(date: Date, title: string) {
+    for (const [title, date] of times) {
         output.set(title, date);
-        cache[normalizeCacheTitle(title)] = date.toISOString();
-    });
-    titles.forEach(function callback(title: string) {
+        const cacheTitle = normalizeCacheTitle(title);
+        cache[cacheTitle] = date.toISOString();
+    }
+
+    for (const title of titles) {
         const date = getCreationTimeForTitle(times, title);
 
         if (date != null) {
             output.set(title, date);
-            cache[normalizeCacheTitle(title)] = date.toISOString();
+            const cacheTitle = normalizeCacheTitle(title);
+            cache[cacheTitle] = date.toISOString();
         }
-    });
+    }
 }
 
 /**
@@ -491,9 +515,9 @@ async function fetchIndividualCreationTimes(
             title,
         ]);
 
-        single.forEach(function callback(date, singleTitle) {
+        for (const [singleTitle, date] of single) {
             creationTimes.set(singleTitle, date);
-        });
+        }
     }
 
     return creationTimes;
@@ -510,10 +534,12 @@ async function fetchRevisionCreationTimeBatchUnsafe(
     api: any,
     titles: Array<string>,
 ): Promise<Map<string, Date>> {
+    const namespaceGroup = getNamespaceGroupKey(titles[0]);
     logStep("fetchRevisionCreationTimeBatch start", {
-        namespaceGroup: getNamespaceGroupKey(titles[0]),
+        namespaceGroup,
         titles,
     });
+    const joinedTitles = titles.join("|");
     const response = await loggedApiGet(api, "fetchRevisionCreationTimes", {
         action: "query",
         formatversion: "2",
@@ -521,17 +547,13 @@ async function fetchRevisionCreationTimeBatchUnsafe(
         rvdir: "newer",
         rvlimit: 1,
         rvprop: "timestamp",
-        titles: titles.join("|"),
+        titles: joinedTitles,
     });
     const creationTimes = parseRevisionCreationTimes(response);
+    const entries = serializeCreationTimeEntries(creationTimes);
 
     logStep("fetchRevisionCreationTimeBatch done", {
-        entries: [...creationTimes.entries()].map(function callback([
-            title,
-            date,
-        ]) {
-            return [title, date.toISOString()];
-        }),
+        entries,
         titles,
     });
 
@@ -549,13 +571,14 @@ function parseRevisionCreationTimes(response: any): Map<string, Date> {
     const creationTimes = new Map();
     const pageList = Array.isArray(pages) ? pages : Object.values(pages);
 
-    pageList.forEach(function callback(page) {
+    for (const page of pageList) {
         const timestamp = page?.revisions?.[0]?.timestamp;
 
         if (timestamp != null && page?.title != null) {
-            creationTimes.set(page.title, new Date(timestamp));
+            const creationDate = new Date(timestamp);
+            creationTimes.set(page.title, creationDate);
         }
-    });
+    }
 
     return creationTimes;
 }
@@ -574,7 +597,7 @@ function groupTitlesByNamespace(
 ): Map<string, Array<string>> {
     const groups = new Map();
 
-    titles.forEach(function callback(title) {
+    for (const title of titles) {
         const key = getNamespaceGroupKey(title);
 
         if (!groups.has(key)) {
@@ -582,9 +605,10 @@ function groupTitlesByNamespace(
         }
 
         groups.get(key).push(title);
-    });
+    }
 
-    logStep("groupTitlesByNamespace", [...groups.entries()]);
+    const entries = [...groups.entries()];
+    logStep("groupTitlesByNamespace", entries);
     return groups;
 }
 
@@ -638,12 +662,16 @@ function readCreationDateCache(): any {
  */
 function writeCreationDateCache(cache: any): void {
     try {
-        globalThis.localStorage?.setItem(
-            CREATION_CACHE_KEY,
-            JSON.stringify(cache),
-        );
+        const storage = globalThis.localStorage;
+
+        if (storage != null) {
+            const serialized = JSON.stringify(cache);
+            storage.setItem(CREATION_CACHE_KEY, serialized);
+        }
+
+        const size = Object.keys(cache).length;
         logStep("writeCreationDateCache done", {
-            size: Object.keys(cache).length,
+            size,
         });
     } catch (error) {
         logStep("writeCreationDateCache failed", { error });
@@ -679,11 +707,19 @@ function getCreationTimeForTitle(
     }
 
     const normalized = normalizeCacheTitle(title);
-    const found = [...creationTimes.entries()].find(
-        ([entryTitle]) => normalizeCacheTitle(entryTitle) === normalized,
-    );
+    let found: Date | null = null;
 
-    return found?.[1] || null;
+    for (const [entryTitle, date] of creationTimes) {
+        if (found == null) {
+            const normalizedEntryTitle = normalizeCacheTitle(entryTitle);
+
+            if (normalizedEntryTitle === normalized) {
+                found = date;
+            }
+        }
+    }
+
+    return found;
 }
 
 /**
@@ -775,20 +811,18 @@ async function saveTalkAssessmentAttempt(options: any): Promise<string> {
  */
 function buildTalkAssessmentUpdate(page: any, options: any): any {
     const isText = typeof options.assessmentText === "string";
-    const text = selectValue(
-        isText,
-        function trueBranch() {
-            return updateTalkPageTopSection(page.text, options.assessmentText);
-        },
-        function falseBranch() {
-            const result = updateTalkPageAssessment(
-                page.text,
-                options.assessmentText,
-                options.projectConfig,
-            );
-            return result;
-        },
-    );
+    let text;
+
+    if (isText) {
+        text = updateTalkPageTopSection(page.text, options.assessmentText);
+    } else {
+        text = updateTalkPageAssessment(
+            page.text,
+            options.assessmentText,
+            options.projectConfig,
+        );
+    }
+
     const newTopSection = buildNewTalkTopSection(page, options, isText);
 
     return { newTopSection, text };
@@ -807,20 +841,18 @@ function buildNewTalkTopSection(
     options: { assessmentText: string; projectConfig: unknown },
     isText: unknown,
 ): string {
-    const result = selectValue(
-        isText,
-        function trueBranch() {
-            return options.assessmentText.trimEnd();
-        },
-        function falseBranch() {
-            const result = previewTalkPageTopSection(
-                page.text,
-                options.assessmentText,
-                options.projectConfig,
-            );
-            return result;
-        },
-    );
+    let result;
+
+    if (isText) {
+        result = options.assessmentText.trimEnd();
+    } else {
+        result = previewTalkPageTopSection(
+            page.text,
+            options.assessmentText,
+            options.projectConfig,
+        );
+    }
+
     return result;
 }
 
@@ -898,26 +930,4 @@ function isEditConflict(error: any): boolean {
         error?.code === "editconflict" ||
         error?.error?.code === "editconflict";
     return result;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

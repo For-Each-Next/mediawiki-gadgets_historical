@@ -1,7 +1,7 @@
 /**
  * Generated English Wikipedia TemplateData for cite encyclopedia.
  *
- * Run the workspace update:template-data script to refresh it.
+ * Generated from English Wikipedia TemplateData.
  */
 
 import type { CitationTemplateData } from "../types.ts";

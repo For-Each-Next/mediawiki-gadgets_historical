@@ -127,6 +127,9 @@ function cloneRecordArrays(record: ArticleDataRecord): void {
 export function createDataValue(data: any = {}): ArticleDataValue {
     const normalizedText =
         data.normalizedText == null ? "" : String(data.normalizedText);
+    const selectValueCallback = function falseBranch() {
+        return String(data.displayText);
+    };
     const value: ArticleDataValue = {
         ...data,
         displayText: selectValue(
@@ -134,9 +137,7 @@ export function createDataValue(data: any = {}): ArticleDataValue {
             function trueBranch() {
                 return normalizedText;
             },
-            function falseBranch() {
-                return String(data.displayText);
-            },
+            selectValueCallback,
         ),
         linkTarget: data.linkTarget == null ? "" : String(data.linkTarget),
         metadata: data.metadata || {},
@@ -273,11 +274,11 @@ function normalizeModule(
  * @returns Owned normalized values.
  */
 function pickFields(form: any, fields: ReadonlyArray<string>): any {
-    const result = Object.fromEntries(
-        fields
-            .filter((field) => Object.hasOwn(form, field))
-            .map((field) => [field, form[field]]),
-    );
+    const filterCallback = (field: string) => Object.hasOwn(form, field);
+    const mappedValuesA = fields
+        .filter(filterCallback)
+        .map((field) => [field, form[field]]);
+    const result = Object.fromEntries(mappedValuesA);
     return result;
 }
 
@@ -314,13 +315,15 @@ export function createArticleData(form: any, options: any = {}): any {
         contextOptions,
     );
     const normalizedForm = normalizeForm(form, context);
-    const records = Object.fromEntries(
-        ARTICLE_MODULES.map(function callback(module) {
-            const record = module.flush(normalizedForm, context);
+    const mapCallback = function callback(
+        module: (typeof ARTICLE_MODULES)[number],
+    ) {
+        const record = module.flush(normalizedForm, context);
 
-            return [module.key, record];
-        }),
-    );
+        return [module.key, record];
+    };
+    const mappedValues = ARTICLE_MODULES.map(mapCallback);
+    const records = Object.fromEntries(mappedValues);
 
     const processorInput = {
         form: normalizedForm,
@@ -346,7 +349,9 @@ export function formatArticleFormField(
     key: string,
     value: any,
 ): any {
-    const module = ARTICLE_MODULES.find((item) => item.fields.includes(key));
+    const findCallback = (item: (typeof ARTICLE_MODULES)[number]) =>
+        item.fields.includes(key);
+    const module = ARTICLE_MODULES.find(findCallback);
 
     if (module == null) {
         return trimValue(value);
@@ -362,7 +367,9 @@ export function formatArticleFormField(
  * @returns Whether the field is a multi-item list.
  */
 export function isArticleListField(key: string): boolean {
-    return ARTICLE_MODULES.some((module) => module.listFields.includes(key));
+    const someCallbackA = (module: (typeof ARTICLE_MODULES)[number]) =>
+        module.listFields.includes(key);
+    return ARTICLE_MODULES.some(someCallbackA);
 }
 
 /**
@@ -382,16 +389,17 @@ export function getArticleSourceFields(): Array<any> {
  * @returns Fully normalized form.
  */
 function normalizeForm(form: any, context: any): any {
-    const result = ARTICLE_MODULES.reduce(
-        function callback(normalized, module) {
-            const result = {
-                ...normalized,
-                ...module.normalize(normalized, context),
-            };
-            return result;
-        },
-        { ...form },
-    );
+    const reduceCallbackA = function callback(
+        normalized: any,
+        module: (typeof ARTICLE_MODULES)[number],
+    ) {
+        const result = {
+            ...normalized,
+            ...module.normalize(normalized, context),
+        };
+        return result;
+    };
+    const result = ARTICLE_MODULES.reduce(reduceCallbackA, { ...form });
     return result;
 }
 
@@ -580,7 +588,8 @@ function getModuleCitations(
 ): Array<{ key: string }> {
     const keys = filters.keys || [];
     const prefixes = filters.prefixes || [];
-    return references.filter(matchesModuleCitation.bind(null, keys, prefixes));
+    const boundCallbackA = matchesModuleCitation.bind(null, keys, prefixes);
+    return references.filter(boundCallbackA);
 }
 
 /**
@@ -596,9 +605,9 @@ function matchesModuleCitation(
     prefixes: string[],
     reference: { key: string },
 ): boolean {
-    const result =
-        keys.includes(reference.key) ||
-        prefixes.some(hasCitationPrefix.bind(null, reference.key));
+    const someCallback = (prefix: string) =>
+        hasCitationPrefix(reference.key, prefix);
+    const result = keys.includes(reference.key) || prefixes.some(someCallback);
     return result;
 }
 
@@ -624,7 +633,8 @@ function joinModuleSourceTags(
     sourceTags: Record<string, string>,
     keys: Array<string>,
 ): string {
-    return keys.map(getModuleSourceTag.bind(null, sourceTags)).join("");
+    const boundCallback = getModuleSourceTag.bind(null, sourceTags);
+    return keys.map(boundCallback).join("");
 }
 
 /**
@@ -648,12 +658,19 @@ function getModuleSourceTag(
  * @returns Source tags keyed by field.
  */
 function buildSourceReferenceTags(references: Array<any>): any {
-    const result = references.reduce(function callback(tags, reference) {
+    const reduceCallback = function callback(
+        tags: Record<string, string>,
+        reference: any,
+    ) {
         const tag = buildReferenceReuseTag(reference.name);
 
         tags[reference.key] = `${tags[reference.key] || ""}${tag}`;
 
         return tags;
-    }, {});
+    };
+    const result = references.reduce(
+        reduceCallback,
+        {} as Record<string, string>,
+    );
     return result;
 }

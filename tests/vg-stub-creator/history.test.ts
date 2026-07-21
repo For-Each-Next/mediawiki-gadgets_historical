@@ -10,7 +10,7 @@ import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
 const HISTORY_STORAGE_KEY = "vg-stub-creator-form-history";
 
-test("real version 1 history remains readable without losing patches", () => {
+const testCallback = () => {
     const originalStorage = globalThis.localStorage;
     const stored = JSON.stringify([{ ...wheelWorldEntry, id: 18726 }]);
     globalThis.localStorage = createStorage(stored);
@@ -34,7 +34,11 @@ test("real version 1 history remains readable without losing patches", () => {
     } finally {
         globalThis.localStorage = originalStorage;
     }
-});
+};
+test(
+    "real version 1 history remains readable without losing patches",
+    testCallback,
+);
 
 /**
  * Creates storage containing one serialized history list.

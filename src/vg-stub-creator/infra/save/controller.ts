@@ -47,14 +47,15 @@ export function failSaveProgress(error: Error): any | undefined {
     progress.error = error instanceof Error ? error.message : String(error);
     const steps: Array<{ id: string; status: string }> = progress.steps;
     const running = steps.find((step) => step.status === "running");
+    const selectValueCallback = function falseBranch() {
+        return updateSaveProgress(progress, running.id, "failed");
+    };
     const failed = selectValue(
         running == null,
         function trueBranch() {
             return progress;
         },
-        function falseBranch() {
-            return updateSaveProgress(progress, running.id, "failed");
-        },
+        selectValueCallback,
     );
 
     storeSaveProgress(failed);

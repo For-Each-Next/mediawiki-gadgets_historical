@@ -13,15 +13,20 @@ import {
     formatCitationWikitext,
     type CitationFormatResult,
 } from "#me/domain/formatter.ts";
+import type { CitationLayout } from "#me/domain/types.ts";
 
 /**
  * Formats an article source string with generated local TemplateData.
  *
  * @param text - Article source wikitext.
+ * @param layout - Citation-template output layout.
  * @returns Formatted source and operation counts.
  */
-export function formatCitations(text: string): CitationFormatResult {
-    return formatCitationWikitext(text, templateData);
+export function formatCitations(
+    text: string,
+    layout: CitationLayout = "block",
+): CitationFormatResult {
+    return formatCitationWikitext(text, templateData, layout);
 }
 
 /**
@@ -30,15 +35,17 @@ export function formatCitations(text: string): CitationFormatResult {
  * @param text - Article source wikitext.
  * @param updates - Edited reference-name overrides.
  * @param compact - Whether reuse calls should use R.
+ * @param layout - Citation-template output layout.
  * @returns Managed source wikitext.
  */
 export function manageCitations(
     text: string,
     updates: NameOverrideUpdate[],
     compact: boolean,
+    layout: CitationLayout = "block",
 ): string {
     const overridden = applyNameOverrides(text, updates);
-    const formatted = formatCitations(overridden).text;
+    const formatted = formatCitations(overridden, layout).text;
     if (compact) {
         return compactReferenceCalls(formatted);
     }

@@ -11,7 +11,7 @@ import {
     type ParsedTemplateCall,
     type RefTag,
 } from "./wikitext.ts";
-import type { TextReplacement } from "./types.ts";
+import type { CitationLayout, TextReplacement } from "./types.ts";
 
 const HTML_COMMENT = /<!--([\s\S]*?)-->/gu;
 const NAME_PARAM = /^(?:author|last|editor|editor-last)\d*$/u;
@@ -499,6 +499,78 @@ export function hasCompactReferenceCalls(text: string): boolean {
     };
     const result = findTemplateCalls(text).some(someCallback);
     return result;
+}
+
+/**
+ * Detects the current citation-template layout for manager defaults.
+ *
+ * Mixed layouts resolve to block. Applying the manager keeps the
+ * default unless every supported citation is inline.
+ *
+ * @param text - Article wikitext.
+ * @returns Detected citation-template output layout.
+ */
+export function detectCitationLayout(text: string): CitationLayout {
+    const protectedRanges = findProtectedRanges(text);
+    const definitionTags = findRefTags(text).filter(isFullRefDefinition);
+    const filterCallback = function isActiveCitation(
+        call: ParsedTemplateCall,
+    ) {
+        return (
+            !isInRanges(call.start, protectedRanges) &&
+            isInRefDefinition(call, definitionTags) &&
+            isCitationTemplate(call.name)
+        );
+    };
+    const calls = findTemplateCalls(text).filter(filterCallback);
+    if (calls.length === 0) {
+        return "block";
+    }
+    const hasBlockCall = calls.some(isBlockCitationCall);
+    return hasBlockCall ? "block" : "inline";
+}
+
+/**
+ * Checks whether a ref tag contains a full definition.
+ *
+ * @param tag - Parsed ref tag.
+ * @returns Whether the ref has body content.
+ */
+function isFullRefDefinition(tag: RefTag): boolean {
+    return !tag.selfClosing;
+}
+
+/**
+ * Checks whether a template call belongs to a full ref definition.
+ *
+ * @param call - Parsed template call.
+ * @param tags - Full ref tags in the source.
+ * @returns Whether a full ref contains the call.
+ */
+function isInRefDefinition(call: ParsedTemplateCall, tags: RefTag[]): boolean {
+    return tags.some((tag) => call.start > tag.start && call.end < tag.end);
+}
+
+/**
+ * Checks for the formatter's block-style template opening.
+ *
+ * @param call - Parsed citation template call.
+ * @returns Whether the first parameter starts on a new line.
+ */
+function isBlockCitationCall(call: ParsedTemplateCall): boolean {
+    const inner = call.raw.slice(2, -2);
+    const parts = splitTopLevel(inner, "|");
+    return parts.some(hasBoundaryLineBreak);
+}
+
+/**
+ * Checks for a line break adjoining an outer template separator.
+ *
+ * @param part - Template name or top-level parameter segment.
+ * @returns Whether the segment starts or ends on a separate line.
+ */
+function hasBoundaryLineBreak(part: string): boolean {
+    return /^\s*\r?\n/u.test(part) || /\r?\n\s*$/u.test(part);
 }
 
 /**

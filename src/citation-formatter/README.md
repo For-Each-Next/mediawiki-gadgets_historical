@@ -3,7 +3,7 @@
 Citation Formatter is a MediaWiki source-editor gadget. Its **Format
 citations** page action:
 
-- formats supported English Wikipedia CS1 templates in block style;
+- formats supported English Wikipedia CS1 templates in inline or block style;
 - resolves parameter aliases and order from generated English Wikipedia
   TemplateData;
 - normalizes unambiguous English citation dates to ISO dates;
@@ -44,6 +44,12 @@ the reference name's date or part locator:
 Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
+
+### 0.3.5
+
+- Added explicit reference-call (`<ref>` or `{{r}}`) and citation-template
+  (inline or two-space-indented block) formatting controls to the citation
+  manager.
 
 ### 0.3.4
 

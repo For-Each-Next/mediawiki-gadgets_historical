@@ -4,10 +4,13 @@
 
 import { manageCitations } from "#me/app/format.ts";
 import {
+    detectCitationLayout,
     findNameOverrideFields,
     hasCompactReferenceCalls,
     type NameOverrideField,
+    type NameOverrideUpdate,
 } from "#me/domain/manager.ts";
+import type { CitationLayout } from "#me/domain/types.ts";
 import type { editBox } from "#shared";
 
 const HOST_ID = "citation-formatter-manager";
@@ -15,6 +18,14 @@ const FILTER_OPTIONS = [
     { label: "Unfilled", value: "unfilled" },
     { label: "Filled", value: "filled" },
     { label: "All", value: "all" },
+];
+const REFERENCE_STYLE_OPTIONS = [
+    { label: "<ref>", value: "ref" },
+    { label: "{{r}}", value: "r" },
+];
+const CITATION_LAYOUT_OPTIONS = [
+    { label: "Inline", value: "inline" },
+    { label: "Block (two-space indent)", value: "block" },
 ];
 const REVIEW_ICON = {
     path: [
@@ -24,6 +35,7 @@ const REVIEW_ICON = {
     ].join(""),
 };
 type OverrideFilter = "all" | "filled" | "unfilled";
+type ReferenceStyle = "r" | "ref";
 let removeActiveManager: (() => void) | null = null;
 
 interface VueModule {
@@ -42,7 +54,6 @@ interface VueApp {
 
 interface CodexComponents {
     CdxButton: unknown;
-    CdxCheckbox: unknown;
     CdxDialog: unknown;
     CdxField: unknown;
     CdxIcon: unknown;
@@ -58,7 +69,7 @@ interface ResourceLoaderRequire {
 }
 
 interface ManagerState {
-    compact: { value: boolean };
+    citationLayout: { value: CitationLayout };
     fields: { value: ReturnType<typeof findNameOverrideFields> };
     filter: { value: OverrideFilter };
     filteredFields: unknown;
@@ -66,6 +77,7 @@ interface ManagerState {
     open: { value: boolean };
     reviewField: { value: NameOverrideField | null };
     reviewOpen: { value: boolean };
+    referenceStyle: { value: ReferenceStyle };
     source: string;
 }
 
@@ -166,7 +178,9 @@ function createManagerSetup(
         // noinspection JSUnusedGlobalSymbols -- Vue template bindings.
         const result = {
             countFilter,
+            citationLayoutOptions: CITATION_LAYOUT_OPTIONS,
             filterOptions: FILTER_OPTIONS,
+            referenceStyleOptions: REFERENCE_STYLE_OPTIONS,
             reviewIcon: REVIEW_ICON,
             ...actions,
             ...reviewActions,
@@ -197,11 +211,12 @@ function createManagerState(
         .map(getFieldKey);
     const initiallyFilled = new Set(initiallyFilledKeys);
     const compactReferences = hasCompactReferenceCalls(source);
+    const referenceStyle: ReferenceStyle = compactReferences ? "r" : "ref";
     const computedCallback = function getFilteredFields() {
         return filterFields(fields.value, filter.value, initiallyFilled);
     };
     const result = {
-        compact: Vue.ref(compactReferences),
+        citationLayout: Vue.ref(detectCitationLayout(source)),
         fields,
         filter,
         filteredFields: Vue.computed(computedCallback),
@@ -209,6 +224,7 @@ function createManagerState(
         open: Vue.ref(true),
         reviewField: Vue.ref<NameOverrideField | null>(null),
         reviewOpen: Vue.ref(false),
+        referenceStyle: Vue.ref(referenceStyle),
         source,
     };
     return result;
@@ -258,29 +274,23 @@ function createReviewActions(state: ManagerState): Record<string, unknown> {
  */
 function createManagerActions(context: {
     cleanup: () => void;
-    compact: { value: boolean };
+    citationLayout: { value: CitationLayout };
     editor: editBox.EditBox;
     fields: { value: ReturnType<typeof findNameOverrideFields> };
     open: { value: boolean };
+    referenceStyle: { value: ReferenceStyle };
     source: string;
 }): Record<string, unknown> {
     const close = function close(): void {
         context.open.value = false;
     };
     const apply = function apply(): void {
-        const updates = [];
-        for (const field of context.fields.value) {
-            for (const occurrence of field.occurrences) {
-                updates.push({
-                    ids: [occurrence.id],
-                    override: occurrence.override,
-                });
-            }
-        }
+        const updates = buildNameOverrideUpdates(context.fields.value);
         const text = manageCitations(
             context.source,
             updates,
-            context.compact.value,
+            context.referenceStyle.value === "r",
+            context.citationLayout.value,
         );
         context.editor.write(text);
         context.editor.focus();
@@ -295,6 +305,27 @@ function createManagerActions(context: {
         }
     }
     return { apply, close, onOpenChange };
+}
+
+/**
+ * Expands grouped manager fields into occurrence-specific updates.
+ *
+ * @param fields - Editable grouped override fields.
+ * @returns Override updates for every citation occurrence.
+ */
+function buildNameOverrideUpdates(
+    fields: ReturnType<typeof findNameOverrideFields>,
+): NameOverrideUpdate[] {
+    const updates = [];
+    for (const field of fields) {
+        for (const occurrence of field.occurrences) {
+            updates.push({
+                ids: [occurrence.id],
+                override: occurrence.override,
+            });
+        }
+    }
+    return updates;
 }
 
 /**
@@ -370,7 +401,6 @@ function synchronizeFieldOverride(field: NameOverrideField | null): void {
  */
 function registerCodexComponents(app: VueApp, Codex: CodexComponents): void {
     app.component("CdxButton", Codex.CdxButton);
-    app.component("CdxCheckbox", Codex.CdxCheckbox);
     app.component("CdxDialog", Codex.CdxDialog);
     app.component("CdxField", Codex.CdxField);
     app.component("CdxIcon", Codex.CdxIcon);
@@ -446,10 +476,36 @@ const MANAGER_TEMPLATE = `
             </div>
         </div>
     </section>
+    <section>
+        <h3>Formatting style</h3>
+        <cdx-field :is-fieldset="true">
+            <template #label>Reference calls</template>
+            <cdx-radio
+                v-for="option in referenceStyleOptions"
+                :key="option.value"
+                v-model="referenceStyle"
+                name="citation-reference-style"
+                :input-value="option.value"
+                :inline="true"
+            >
+                {{ option.label }}
+            </cdx-radio>
+        </cdx-field>
+        <cdx-field :is-fieldset="true">
+            <template #label>Citation templates</template>
+            <cdx-radio
+                v-for="option in citationLayoutOptions"
+                :key="option.value"
+                v-model="citationLayout"
+                name="citation-template-layout"
+                :input-value="option.value"
+                :inline="true"
+            >
+                {{ option.label }}
+            </cdx-radio>
+        </cdx-field>
+    </section>
     <template #footer>
-        <cdx-checkbox v-model="compact">
-            Use <span v-pre>{{r}}</span> style
-        </cdx-checkbox>
         <cdx-button @click="close">Cancel</cdx-button>
         <cdx-button
             action="progressive"

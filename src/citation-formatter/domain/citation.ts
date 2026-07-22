@@ -3,18 +3,25 @@
  */
 
 import type {
+    CitationLayout,
     CitationParam,
     CitationTemplate,
     CitationTemplateData,
 } from "./types.ts";
 import citeBookTemplateData from "./data/cite-book.ts";
 import citeWebTemplateData from "./data/cite-web.ts";
-import { formatBlockCitation } from "./post-formatter.ts";
+import {
+    formatBlockCitation,
+    formatInlineCitation,
+} from "./post-formatter.ts";
 import { applyPreFormatHandlers } from "./pre-formatter.ts";
 import { normalizeTemplateName } from "./templates.ts";
 import { parseTemplateCall } from "./wikitext.ts";
 
-export { formatBlockCitation } from "./post-formatter.ts";
+export {
+    formatBlockCitation,
+    formatInlineCitation,
+} from "./post-formatter.ts";
 
 const ENGLISH_MONTHS: Record<string, string> = {
     april: "04",
@@ -162,11 +169,13 @@ interface CitationParamMetadata extends CitationParam {
  *
  * @param raw - Complete citation template text.
  * @param metadata - TemplateData metadata.
+ * @param layout - Citation-template output layout.
  * @returns Canonical citation and formatted text.
  */
 export function formatCitationTemplate(
     raw: string,
     metadata: CitationTemplateData,
+    layout: CitationLayout = "block",
 ): { citation: CitationTemplate; text: string } {
     const parsed = parseTemplateCall(raw);
     const name = normalizeTemplateName(parsed.name);
@@ -178,7 +187,11 @@ export function formatCitationTemplate(
         return result;
     });
     const citation = canonicalizeCitation({ name, params }, metadata);
-    return { citation, text: formatBlockCitation(citation) };
+    const text =
+        layout === "inline"
+            ? formatInlineCitation(citation)
+            : formatBlockCitation(citation);
+    return { citation, text };
 }
 
 /**

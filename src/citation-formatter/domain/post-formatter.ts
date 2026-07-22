@@ -12,19 +12,55 @@ import { getCanonicalTemplateName } from "./templates.ts";
  * @returns Block-style template text.
  */
 export function formatBlockCitation(citation: CitationTemplate): string {
-    const authorCount = countAuthors(citation.params);
     const templateName = getCanonicalTemplateName(citation.name);
+    const outputParams = buildOutputParams(citation);
     const mapCallback = function formatParam(param: CitationParam) {
-        const name = getOutputParamName(param, citation.params, authorCount);
-        return `  | ${name} = ${param.value}`;
+        return `  | ${param.name} = ${param.value}`;
     };
-    const rows = citation.params
-        .filter((param) => param.value !== "")
-        .map(mapCallback);
+    const rows = outputParams.map(mapCallback);
     if (rows.length === 0) {
         return `{{${templateName}}}`;
     }
     return [`{{${templateName}`, ...rows, "}}"].join("\n");
+}
+
+/**
+ * Formats a citation on one line with spaced parameter separators.
+ *
+ * @param citation - Canonical citation.
+ * @returns Inline-style template text.
+ */
+export function formatInlineCitation(citation: CitationTemplate): string {
+    const templateName = getCanonicalTemplateName(citation.name);
+    const outputParams = buildOutputParams(citation);
+    const mapCallback = function formatParam(param: CitationParam) {
+        return `${param.name} = ${param.value}`;
+    };
+    const params = outputParams.map(mapCallback);
+    if (params.length === 0) {
+        return `{{${templateName}}}`;
+    }
+    return `{{${templateName} | ${params.join(" | ")}}}`;
+}
+
+/**
+ * Removes empty parameters and applies final output labels.
+ *
+ * @param citation - Canonical citation.
+ * @returns Populated parameters with output-ready names.
+ */
+function buildOutputParams(citation: CitationTemplate): CitationParam[] {
+    const authorCount = countAuthors(citation.params);
+    const mapCallback = function buildOutputParam(
+        param: CitationParam,
+    ): CitationParam {
+        const name = getOutputParamName(param, citation.params, authorCount);
+        return { name, value: param.value };
+    };
+    const result = citation.params
+        .filter((param) => param.value !== "")
+        .map(mapCallback);
+    return result;
 }
 
 /**

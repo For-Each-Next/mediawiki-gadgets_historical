@@ -23,6 +23,9 @@ export interface CitationTemplate {
     params: CitationParam[];
 }
 
+/** Supported citation-template serialization layouts. */
+export type CitationLayout = "block" | "inline";
+
 /**
  * Template metadata keyed by normalized template name.
  */

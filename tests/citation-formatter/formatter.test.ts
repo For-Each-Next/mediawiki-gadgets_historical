@@ -46,6 +46,22 @@ test(
     testCallbackAA,
 );
 
+const testInlineCitationLayout = () => {
+    const source =
+        "Text.<ref>{{cite web|url=https://example.test|title=Example|last=Ma|date=June 1, 2006}}</ref>\n\n<references />";
+    const result = formatCitationWikitext(source, templateData, "inline");
+
+    assert.match(
+        result.text,
+        /<ref name="Ma, 2006">\{\{Cite web \| author = Ma [^\n]+\}\}<\/ref>/u,
+    );
+    assert.doesNotMatch(result.text, /\{\{Cite web\n/u);
+};
+test(
+    "formats list-defined citation templates inline",
+    testInlineCitationLayout,
+);
+
 const testCallbackZ = () => {
     const result = formatCitationWikitext("<references />", templateData);
     assert.equal(result.text, "<references responsive />");
@@ -231,6 +247,14 @@ const testCallbackQ = () => {
     );
     assert.match(result.text, /\n  \| 2 = \{\{Cite book\n/u);
     assert.match(result.text, /\n      \| last = Taylor/u);
+
+    const inline = formatCitationWikitext(source, templateData, "inline").text;
+    assert.match(
+        inline,
+        /\{\{Unbulleted list citebundle\n  \| 1 = \{\{Cite web \|/u,
+    );
+    assert.match(inline, /\n  \| 2 = \{\{Cite book \|/u);
+    assert.doesNotMatch(inline, /\{\{Cite (?:web|book)\n/u);
 };
 test(
     "bundles multiple whole-ref citations with multiline inner templates",

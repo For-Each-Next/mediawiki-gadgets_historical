@@ -77,6 +77,20 @@ const testCallbackO = () => {
 };
 test("canonicalizes aliases and applies TemplateData order", testCallbackO);
 
+const testInlineCitationLayout = () => {
+    const result = formatCitationTemplate(
+        "{{Cite web|URL=https://example.test|title=Example|author1=Ma|accessdate=June 2005}}",
+        metadata,
+        "inline",
+    );
+
+    const expected =
+        "{{Cite web | author = Ma | title = Example | " +
+        "url = https://example.test | access-date = 2005-06}}";
+    assert.equal(result.text, expected);
+};
+test("formats canonical citation parameters inline", testInlineCitationLayout);
+
 const testCallbackN = () => {
     const cases = [
         ["citation", "Citation"],

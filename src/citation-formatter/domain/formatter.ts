@@ -11,6 +11,7 @@ import {
 } from "./citation.ts";
 import { isCitationTemplate, normalizeTemplateName } from "./templates.ts";
 import type {
+    CitationLayout,
     CitationTemplate,
     CitationTemplateDataMap,
     TextReplacement,
@@ -131,12 +132,14 @@ export function findUsedCitationTemplates(text: string): string[] {
  *
  * @param source - Article source wikitext.
  * @param templateData - Metadata for used citation templates.
+ * @param layout - Citation-template output layout.
  * @returns Formatted source and operation counts.
  */
 // eslint-disable-next-line max-lines-per-function
 export function formatCitationWikitext(
     source: string,
     templateData: CitationTemplateDataMap,
+    layout: CitationLayout = "block",
 ): CitationFormatResult {
     const rTemplatesFound = countRUseTemplates(source);
     const rConverted = convertRTemplates(source);
@@ -157,6 +160,7 @@ export function formatCitationWikitext(
         containers,
         templateData,
         rConverted,
+        layout,
     );
     assignReferenceSections(definitions, tags, containers, rConverted);
     assignCitationNames(definitions);
@@ -225,6 +229,7 @@ function summarizeFormatting(
  * @param containers - Reference-list containers.
  * @param templateData - Citation metadata.
  * @param source - Source wikitext.
+ * @param layout - Citation-template output layout.
  * @returns Full reference definitions.
  */
 function buildReferenceDefinitions(
@@ -232,6 +237,7 @@ function buildReferenceDefinitions(
     containers: ReferenceContainer[],
     templateData: CitationTemplateDataMap,
     source: string,
+    layout: CitationLayout,
 ): ReferenceDefinition[] {
     const filterCallbackI = function hasContent(tag: RefTag) {
         return !tag.selfClosing && tag.content.trim() !== "";
@@ -256,6 +262,7 @@ function buildReferenceDefinitions(
             group,
             trailingText,
             shortCitationSources,
+            layout,
         );
         return result;
     };
@@ -304,6 +311,7 @@ function buildAllReplacements(
  * @param trailingText - Material following a list definition.
  * @param shortCitationSources - Citation identities keyed by
  *   CITEREF anchor.
+ * @param layout - Citation-template output layout.
  * @returns Reference definition.
  */
 // eslint-disable-next-line max-lines-per-function, max-params
@@ -314,6 +322,7 @@ function createReferenceDefinition(
     containingGroup: string,
     trailingText: string,
     shortCitationSources: Map<string, CitationIdentity>,
+    layout: CitationLayout,
 ): ReferenceDefinition {
     const group = tag.attributes.group || containingGroup;
     const trimmed = tag.content.trim();
@@ -326,7 +335,7 @@ function createReferenceDefinition(
         trailingText,
     };
     const citationCalls = findWholeCitationCalls(trimmed);
-    const citations = formatCitationCalls(citationCalls, templateData);
+    const citations = formatCitationCalls(citationCalls, templateData, layout);
     if (citations == null || citations.length === 0) {
         const identity = getShortCitationIdentity(
             trimmed,
@@ -374,11 +383,13 @@ function replaceSingleCitation(
  *
  * @param calls - Whole-body citation calls.
  * @param templateData - Citation metadata.
+ * @param layout - Citation-template output layout.
  * @returns Formatted citations, or undefined when one is unsupported.
  */
 function formatCitationCalls(
     calls: ParsedTemplateCall[],
     templateData: CitationTemplateDataMap,
+    layout: CitationLayout,
 ): FormattedCitation[] | undefined {
     const result: FormattedCitation[] = [];
     for (const call of calls) {
@@ -386,7 +397,7 @@ function formatCitationCalls(
         if (metadata == null) {
             return undefined;
         }
-        const formatted = formatCitationTemplate(call.raw, metadata);
+        const formatted = formatCitationTemplate(call.raw, metadata, layout);
         result.push(formatted);
     }
     return result;

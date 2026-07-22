@@ -6,6 +6,7 @@ import test from "node:test";
 import {
     applyNameOverrides,
     compactReferenceCalls,
+    detectCitationLayout,
     expandCompactReferenceCalls,
     findNameOverrideFields,
     hasCompactReferenceCalls,
@@ -127,6 +128,65 @@ const testCallbackC = () => {
     assert.match(result, /author = 早坂将昭 <!-- # Hayasaka -->/u);
 };
 test("regenerates reference names after override edits", testCallbackC);
+
+const testCitationManagementStyles = () => {
+    const source = [
+        "Text.<ref>{{cite web|author=Ma|date=2020|title=Example}}</ref>",
+        "<references />",
+    ].join("\n");
+
+    const compactInline = manageCitations(source, [], true, "inline");
+    assert.match(compactInline, /Text\.\{\{r\|Ma, 2020\}\}/u);
+    const inlineDefinition =
+        '<ref name="Ma, 2020">{{Cite web | author = Ma | ' +
+        "date = 2020 | title = Example}}</ref>";
+    assert.ok(compactInline.includes(inlineDefinition));
+
+    const nativeInline = manageCitations(source, [], false, "inline");
+    assert.match(nativeInline, /Text\.<ref name="Ma, 2020" \/>/u);
+    assert.doesNotMatch(nativeInline, /\{\{r\|/u);
+    assert.doesNotMatch(nativeInline, /\{\{Cite web\n/u);
+};
+test(
+    "applies reference-call and citation-layout styles independently",
+    testCitationManagementStyles,
+);
+
+const testDetectCitationLayout = () => {
+    const blockCitation = ["{{Cite web", "  | title = Block", "}}"].join("\n");
+    const block = `<ref>${blockCitation}</ref>`;
+    const inlineCitation = "{{Cite web | title = Inline}}";
+    const inline = `<ref>${inlineCitation}</ref>`;
+    const alternateBlock = [
+        "<ref>{{Cite web | title = Block",
+        " | url = https://example.test",
+        "}}</ref>",
+    ].join("\n");
+    const nestedInline = [
+        "<ref>{{Cite web | title = {{lang",
+        "| en",
+        "| Inline}}}}</ref>",
+    ].join("\n");
+
+    assert.equal(detectCitationLayout(block), "block");
+    assert.equal(detectCitationLayout(alternateBlock), "block");
+    assert.equal(detectCitationLayout(inline), "inline");
+    assert.equal(detectCitationLayout(nestedInline), "inline");
+    assert.equal(detectCitationLayout(`${inline}\n${block}`), "block");
+    assert.equal(detectCitationLayout("Plain text"), "block");
+    assert.equal(
+        detectCitationLayout(`<!-- ${block} -->\n${inline}`),
+        "inline",
+    );
+    assert.equal(
+        detectCitationLayout(`${blockCitation}\n${inline}`),
+        "inline",
+    );
+};
+test(
+    "detects the current citation layout for manager defaults",
+    testDetectCitationLayout,
+);
 
 const testCallbackB = () => {
     const source = [

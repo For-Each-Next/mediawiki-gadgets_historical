@@ -80,6 +80,11 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.20
+
+- Removed `undefined` tooltips from valid source-edit textboxes while retaining
+  Codex tooltips for validation errors and icon explanations.
+
 ### 0.3.19
 
 - Explained invalid parameter, value, and alias fields with Codex tooltips on

@@ -123,6 +123,25 @@ interface VueApp {
     unmount: () => void;
 }
 
+interface TooltipDirectiveBinding {
+    value?: unknown;
+}
+
+interface TooltipDirective {
+    beforeUnmount?: (
+        element: HTMLElement,
+        binding: TooltipDirectiveBinding,
+    ) => void;
+    mounted?: (
+        element: HTMLElement,
+        binding: TooltipDirectiveBinding,
+    ) => void;
+    updated?: (
+        element: HTMLElement,
+        binding: TooltipDirectiveBinding,
+    ) => void;
+}
+
 interface CodexComponents {
     CdxButton: unknown;
     CdxCombobox: unknown;
@@ -136,7 +155,7 @@ interface CodexComponents {
     CdxTab: unknown;
     CdxTabs: unknown;
     CdxTextInput: unknown;
-    CdxTooltip: unknown;
+    CdxTooltip: TooltipDirective;
 }
 
 interface ResourceLoaderRequire {
@@ -1313,6 +1332,64 @@ function formatError(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+function hasTooltipMessage(value: unknown): boolean {
+    return typeof value === "string" && value.trim() !== "";
+}
+
+function removeOptionalTooltip(
+    tooltip: TooltipDirective,
+    activeElements: WeakSet<HTMLElement>,
+    element: HTMLElement,
+    binding: TooltipDirectiveBinding,
+): void {
+    if (!activeElements.has(element)) {
+        return;
+    }
+    tooltip.beforeUnmount?.(element, binding);
+    activeElements.delete(element);
+}
+
+/** Applies Codex tooltips only while a dynamic message exists. */
+function createOptionalTooltipDirective(
+    tooltip: TooltipDirective,
+): TooltipDirective {
+    const activeElements = new WeakSet<HTMLElement>();
+
+    return {
+        beforeUnmount(element, binding) {
+            removeOptionalTooltip(
+                tooltip,
+                activeElements,
+                element,
+                binding,
+            );
+        },
+        mounted(element, binding) {
+            if (hasTooltipMessage(binding.value)) {
+                tooltip.mounted?.(element, binding);
+                activeElements.add(element);
+            }
+        },
+        updated(element, binding) {
+            if (!hasTooltipMessage(binding.value)) {
+                removeOptionalTooltip(
+                    tooltip,
+                    activeElements,
+                    element,
+                    binding,
+                );
+                return;
+            }
+            if (activeElements.has(element)) {
+                tooltip.updated?.(element, binding);
+            } else {
+                tooltip.mounted?.(element, binding);
+                activeElements.add(element);
+            }
+        },
+    };
+}
+
 /** Registers the Codex components used by the source manager. */
 function registerCodexComponents(app: VueApp, Codex: CodexComponents): void {
     app.component("CdxButton", Codex.CdxButton);
@@ -1327,6 +1404,10 @@ function registerCodexComponents(app: VueApp, Codex: CodexComponents): void {
     app.component("CdxTab", Codex.CdxTab);
     app.component("CdxTabs", Codex.CdxTabs);
     app.component("CdxTextInput", Codex.CdxTextInput);
+    app.directive(
+        "optional-tooltip",
+        createOptionalTooltipDirective(Codex.CdxTooltip),
+    );
     app.directive("tooltip", Codex.CdxTooltip);
 }
 
@@ -1603,9 +1684,8 @@ const SOURCE_MANAGER_TEMPLATE = `
                                     ? 'error'
                                     : 'default'
                             "
-                            v-tooltip="
-                                draftCellErrors.get( index )?.name ||
-                                undefined
+                            v-optional-tooltip="
+                                draftCellErrors.get( index )?.name
                             "
                             aria-label="Parameter name"
                             placeholder="parameter"
@@ -1626,9 +1706,8 @@ const SOURCE_MANAGER_TEMPLATE = `
                                     ? 'error'
                                     : 'default'
                             "
-                            v-tooltip="
-                                draftCellErrors.get( index )?.value ||
-                                undefined
+                            v-optional-tooltip="
+                                draftCellErrors.get( index )?.value
                             "
                             :aria-label="row.name + ' value'"
                             @update:model-value="
@@ -1651,9 +1730,8 @@ const SOURCE_MANAGER_TEMPLATE = `
                                     ? 'error'
                                     : 'default'
                             "
-                            v-tooltip="
-                                draftCellErrors.get( index )?.alias ||
-                                undefined
+                            v-optional-tooltip="
+                                draftCellErrors.get( index )?.alias
                             "
                             :aria-label="
                                 row.name === 'url'
@@ -1702,13 +1780,15 @@ const SOURCE_MANAGER_TEMPLATE = `
                         <div class="cf-source-manager__param-actions">
                             <cdx-button
                                 v-if="isAuthorDraftParameter( row.name )"
+                                v-tooltip="
+                                    'Use separate first and last name fields'
+                                "
                                 weight="quiet"
                                 :disabled="!canSplitAuthor( index )"
                                 :aria-label="
                                     'Use separate first and last fields for ' +
                                     row.name
                                 "
-                                title="Use separate first and last name fields"
                                 @click="splitAuthor( index )"
                             >
                                 <cdx-icon :icon="splitAuthorIcon" />
@@ -1717,12 +1797,12 @@ const SOURCE_MANAGER_TEMPLATE = `
                                 v-else-if="
                                     isLastAuthorDraftParameter( row.name )
                                 "
+                                v-tooltip="'Return to one full-name field'"
                                 weight="quiet"
                                 :disabled="!canJoinAuthor( index )"
                                 :aria-label="
                                     'Use one full-name field for ' + row.name
                                 "
-                                title="Return to one full-name field"
                                 @click="joinAuthor( index )"
                             >
                                 <cdx-icon :icon="joinAuthorIcon" />

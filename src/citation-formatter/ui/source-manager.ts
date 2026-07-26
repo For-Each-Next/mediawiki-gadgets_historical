@@ -46,6 +46,10 @@ import {
     type SourceDraftErrors,
 } from "#me/domain/source-validation.ts";
 import {
+    mergeSourceDraftErrors,
+    parseCs1ValidationResult,
+} from "#me/domain/cs1-validation.ts";
+import {
     getCanonicalTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
 } from "#me/domain/templates.ts";
@@ -138,6 +142,8 @@ const MANUAL_TEMPLATE_OPTIONS = [
 
 type SourceManagerMode = "draft" | "lookup";
 type SourceStatusFilter = "all" | "error" | "non-standard";
+type LiveCs1ValidationStatus =
+    "checking" | "complete" | "idle" | "unavailable";
 type DraftActions = Record<string, unknown>;
 export type ReferenceStyle = "r" | "ref";
 let removeActiveSourceManager: (() => void) | null = null;
@@ -153,6 +159,15 @@ interface VueModule {
     createMwApp: (component: unknown) => VueApp;
     defineComponent: (component: unknown) => unknown;
     ref: <T>(value: T) => { value: T };
+    watch: (
+        source: () => string,
+        callback: (
+            value: string,
+            oldValue: string | undefined,
+            onCleanup: (cleanup: () => void) => void,
+        ) => void,
+        options?: { immediate?: boolean },
+    ) => void;
 }
 
 interface VueApp {
@@ -238,6 +253,10 @@ interface SourceManagerState {
     existingSources: { value: ExistingSource[] };
     filteredExistingSources: { readonly value: ExistingSource[] };
     loading: { value: boolean };
+    liveCs1CellErrors: { value: SourceDraftErrors };
+    liveCs1IssueCount: { value: number };
+    liveCs1Messages: { value: string[] };
+    liveCs1Status: { value: LiveCs1ValidationStatus };
     manualTemplate: { value: string | null };
     mode: { value: SourceManagerMode };
     open: { value: boolean };
@@ -271,6 +290,7 @@ interface SourceManagerDerivedInputs {
     existingSourceQuery: SourceManagerState["existingSourceQuery"];
     existingSourceSections: SourceManagerState["existingSourceSections"];
     existingSources: SourceManagerState["existingSources"];
+    liveCs1CellErrors: SourceManagerState["liveCs1CellErrors"];
     referenceStyle: SourceManagerState["referenceStyle"];
     sourceSectionPath: SourceManagerState["sourceSectionPath"];
     sourceStatusFilter: SourceManagerState["sourceStatusFilter"];
@@ -312,6 +332,7 @@ export async function openSourceManager(
     const require = (await mw.loader.using([
         "vue",
         "@wikimedia/codex",
+        "mediawiki.api",
     ])) as ResourceLoaderRequire;
     if (generation !== sourceManagerGeneration) {
         return;
@@ -382,6 +403,7 @@ function createSourceManagerComponent(
             cleanup,
             toast,
         );
+        startLiveCs1Validation(Vue, state);
         return {
             citationLayoutOptions: CITATION_LAYOUT_OPTIONS,
             copySourceIcon: COPY_SOURCE_ICON,
@@ -391,6 +413,8 @@ function createSourceManagerComponent(
             gadgetVersion: GADGET_VERSION,
             joinAuthorIcon: JOIN_AUTHOR_ICON,
             linkIcon: CDX_ICON_LINK,
+            liveCs1WikiLabel:
+                getCurrentWikiId() === "zhwiki" ? "Chinese" : "English",
             manualTemplateOptions: MANUAL_TEMPLATE_OPTIONS,
             refillIcon: REFILL_ICON,
             referenceStyleOptions: REFERENCE_STYLE_OPTIONS,
@@ -412,6 +436,7 @@ function createSourceManagerComponent(
 }
 
 /** Creates initial reactive state from the current editor contents. */
+// eslint-disable-next-line max-lines-per-function
 function createSourceManagerState(
     Vue: VueModule,
     editor: editBox.EditBox,
@@ -421,11 +446,13 @@ function createSourceManagerState(
     const sourceList = createInitialSourceListState(Vue, text);
     const citationLayout = Vue.ref(options.citationLayout ?? "inline");
     const draft = Vue.ref<SourceDraft | null>(null);
+    const liveCs1CellErrors = Vue.ref<SourceDraftErrors>(new Map());
     const referenceStyle = Vue.ref(options.referenceStyle ?? "ref");
     const sourceStatusFilter = Vue.ref<SourceStatusFilter>("all");
     const derived = createSourceManagerDerivedState(Vue, {
         citationLayout,
         draft,
+        liveCs1CellErrors,
         referenceStyle,
         sourceStatusFilter,
         ...sourceList,
@@ -442,6 +469,10 @@ function createSourceManagerState(
         editingSource: Vue.ref<ExistingSource | null>(null),
         error: Vue.ref(""),
         loading: Vue.ref(false),
+        liveCs1CellErrors,
+        liveCs1IssueCount: Vue.ref(0),
+        liveCs1Messages: Vue.ref<string[]>([]),
+        liveCs1Status: Vue.ref<LiveCs1ValidationStatus>("idle"),
         manualTemplate: Vue.ref<string | null>("cite magazine"),
         mode: Vue.ref<SourceManagerMode>("lookup"),
         open: Vue.ref(true),
@@ -509,9 +540,11 @@ function createDraftDerivedState(
     }
     function getDraftCellErrors(): SourceDraftErrors {
         const draft = state.draft.value;
-        return draft == null
-            ? new Map()
-            : getSourceDraftErrors(draft, getCurrentWikiId());
+        if (draft == null) {
+            return new Map();
+        }
+        const local = getSourceDraftErrors(draft, getCurrentWikiId());
+        return mergeSourceDraftErrors(local, state.liveCs1CellErrors.value);
     }
     return {
         citationNameParts: Vue.computed(getCitationNameParts),
@@ -535,6 +568,108 @@ function createDraftDerivedState(
 function getCurrentWikiId(): string {
     const wikiId = mw.config.get("wgDBname");
     return typeof wikiId === "string" ? wikiId : "";
+}
+
+interface Cs1ParseApiResponse {
+    parse?: {
+        categories?: Array<{ category?: string }>;
+        text?: string;
+    };
+}
+
+/** Debounces full validation through enwiki or zhwiki CS1. */
+function startLiveCs1Validation(
+    Vue: VueModule,
+    state: SourceManagerState,
+): void {
+    if (!["enwiki", "zhwiki"].includes(getCurrentWikiId())) {
+        return;
+    }
+    let requestGeneration = 0;
+    Vue.watch(
+        function getDraftSource(): string {
+            const draft = state.draft.value;
+            if (draft == null) {
+                return "";
+            }
+            try {
+                return serializeSourceDraft(draft, "inline");
+            } catch {
+                return "";
+            }
+        },
+        function queueValidation(source, _oldSource, onCleanup): void {
+            const generation = ++requestGeneration;
+            resetLiveCs1Validation(state);
+            if (source === "") {
+                return;
+            }
+            state.liveCs1Status.value = "checking";
+            const timeout = window.setTimeout(function validateWhenIdle() {
+                void fetchLiveCs1Validation(state, source, generation, () => {
+                    return generation === requestGeneration;
+                });
+            }, 500);
+            onCleanup(function cancelValidation(): void {
+                window.clearTimeout(timeout);
+            });
+        },
+        { immediate: true },
+    );
+}
+
+/** Requests the active site's installed CS1 validation output. */
+// eslint-disable-next-line max-lines-per-function
+async function fetchLiveCs1Validation(
+    state: SourceManagerState,
+    source: string,
+    generation: number,
+    isCurrent: () => boolean,
+): Promise<void> {
+    try {
+        const api = new mw.Api();
+        const response = (await api.post({
+            action: "parse",
+            contentmodel: "wikitext",
+            disableeditsection: true,
+            disablelimitreport: true,
+            disabletoc: true,
+            formatversion: 2,
+            preview: true,
+            prop: "text|categories",
+            text: source,
+            title: "Citation formatter validation",
+        })) as Cs1ParseApiResponse;
+        if (!isCurrent()) {
+            return;
+        }
+        const html = response.parse?.text ?? "";
+        const categories = (response.parse?.categories ?? []).flatMap(
+            function getCategory(entry) {
+                return entry.category == null ? [] : [entry.category];
+            },
+        );
+        const draft = state.draft.value;
+        if (draft == null) {
+            return;
+        }
+        const result = parseCs1ValidationResult(draft, html, categories);
+        state.liveCs1CellErrors.value = result.cellErrors;
+        state.liveCs1IssueCount.value = result.issueCount;
+        state.liveCs1Messages.value = result.messages;
+        state.liveCs1Status.value = "complete";
+    } catch {
+        if (isCurrent() && generation > 0) {
+            state.liveCs1Status.value = "unavailable";
+        }
+    }
+}
+
+function resetLiveCs1Validation(state: SourceManagerState): void {
+    state.liveCs1CellErrors.value = new Map();
+    state.liveCs1IssueCount.value = 0;
+    state.liveCs1Messages.value = [];
+    state.liveCs1Status.value = "idle";
 }
 
 /** Builds a safely segmented preview from the current source draft. */
@@ -1999,6 +2134,43 @@ const SOURCE_MANAGER_TEMPLATE = `
         </cdx-tabs>
     </div>
     <div v-else-if="draft">
+        <cdx-message
+            v-if="liveCs1Status === 'checking'"
+            type="notice"
+            class="cf-source-manager__status"
+        >
+            Checking all live CS1 rules on
+            {{ liveCs1WikiLabel }} Wikipedia…
+        </cdx-message>
+        <cdx-message
+            v-else-if="liveCs1Status === 'unavailable'"
+            type="warning"
+            class="cf-source-manager__status"
+        >
+            Live CS1 validation is temporarily unavailable. Local checks
+            remain active.
+        </cdx-message>
+        <cdx-message
+            v-else-if="
+                liveCs1Status === 'complete' &&
+                liveCs1IssueCount > 0
+            "
+            type="warning"
+            class="cf-source-manager__status"
+        >
+            Live CS1 validation reported
+            {{ liveCs1IssueCount }}
+            issue(s) or maintenance category/categories. Hover highlighted
+            fields for details.
+            <ul v-if="liveCs1Messages.length > 0">
+                <li
+                    v-for="message in liveCs1Messages"
+                    :key="message"
+                >
+                    {{ message }}
+                </li>
+            </ul>
+        </cdx-message>
         <cdx-field
             v-if="
                 editingSource &&

@@ -29,6 +29,13 @@ for form layout and adds zhwiki-specific validation from
 snapshot: review its title, order, and alias differences before changing
 shared form metadata.
 
+On zhwiki, the source manager also submits the current draft over HTTPS to the
+read-only `action=parse` API. This runs zhwiki's complete installed CS1 suite,
+including its additional Error, Language, Links, and People child modules.
+Localized error and maintenance markup is mapped to draft fields; messages
+without a parameter are shown at citation level. Local validation remains the
+immediate and offline fallback.
+
 ## Supported title checklist
 
 Request the same 31 template names used by the formatter:

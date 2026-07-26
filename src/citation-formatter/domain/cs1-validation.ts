@@ -1,0 +1,262 @@
+/**
+ * Maps live CS1 validation output back to citation draft rows.
+ */
+
+import type { SourceDraft } from "./source-manager.ts";
+import type {
+    SourceDraftErrors,
+    SourceDraftRowErrors,
+} from "./source-validation.ts";
+
+export interface Cs1ValidationResult {
+    cellErrors: SourceDraftErrors;
+    issueCount: number;
+    messages: string[];
+}
+
+const CS1_MESSAGE_CLASS_PATTERN = new RegExp(
+    [
+        String.raw`<span\b(?=[^>]*\bclass=(?:"[^"]*`,
+        String.raw`(?:\bcs1-(?:visible-error|hidden-error|maint)\b|`,
+        String.raw`\bcitation-comment\b)[^"]*"|'[^']*`,
+        String.raw`(?:\bcs1-(?:visible-error|hidden-error|maint)\b|`,
+        String.raw`\bcitation-comment\b)[^']*'))[^>]*>`,
+        String.raw`([\s\S]*?)<\/span>`,
+    ].join(""),
+    "giu",
+);
+const PARAMETER_PATTERN = /\|([A-Za-z][A-Za-z0-9_-]*)\s*=/gu;
+const HTML_ENTITY_PATTERN = /&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/giu;
+const CS1_CATEGORY_PATTERN =
+    /^(?:CS1 (?:errors|maint):|引文格式1(?:错误|維護|维护)[：:])/u;
+const COMMON_PARAMETER_ALIASES: Record<string, string> = {
+    accessdate: "access-date",
+    archivedate: "archive-date",
+    archiveurl: "archive-url",
+    booktitle: "book-title",
+    lang: "language",
+    location: "place",
+    p: "page",
+    pp: "pages",
+    publicationdate: "publication-date",
+    publicationplace: "publication-place",
+};
+
+/** Combines local and live cell errors without dropping messages. */
+export function mergeSourceDraftErrors(
+    local: SourceDraftErrors,
+    live: SourceDraftErrors,
+): SourceDraftErrors {
+    const result: SourceDraftErrors = new Map();
+    for (const [index, errors] of local) {
+        result.set(index, { ...errors });
+    }
+    for (const [index, errors] of live) {
+        const combined = result.get(index) ?? {};
+        for (const cell of ["alias", "name", "value"] as const) {
+            appendMessage(combined, cell, errors[cell]);
+        }
+        result.set(index, combined);
+    }
+    return result;
+}
+
+/**
+ * Extracts all CS1 error and maintenance messages from parse output.
+ *
+ * This avoids an HTML-library dependency, allowing Node unit tests and
+ * browser use.
+ */
+export function parseCs1ValidationResult(
+    draft: SourceDraft,
+    html: string,
+    categories: readonly string[] = [],
+): Cs1ValidationResult {
+    const messages = extractCs1Messages(html, categories);
+    const cellErrors: SourceDraftErrors = new Map();
+    const unmapped: string[] = [];
+    for (const message of messages) {
+        const indexes = findMessageRowIndexes(draft, message);
+        if (indexes.length === 0) {
+            unmapped.push(message);
+            continue;
+        }
+        const cell = getMessageCell(message);
+        for (const index of indexes) {
+            const rowErrors = cellErrors.get(index) ?? {};
+            appendMessage(rowErrors, cell, message);
+            cellErrors.set(index, rowErrors);
+        }
+    }
+    return {
+        cellErrors,
+        issueCount: messages.length,
+        messages: unmapped,
+    };
+}
+
+function extractCs1Messages(
+    html: string,
+    categories: readonly string[],
+): string[] {
+    const messages: string[] = [];
+    for (const match of html.matchAll(CS1_MESSAGE_CLASS_PATTERN)) {
+        const message = normalizeHtmlText(match[1]);
+        if (message !== "") {
+            messages.push(message);
+        }
+    }
+    for (const category of categories) {
+        const normalized = category.trim();
+        if (CS1_CATEGORY_PATTERN.test(normalized)) {
+            messages.push(normalized);
+        }
+    }
+    return [...new Set(messages)];
+}
+
+function normalizeHtmlText(html: string): string {
+    return decodeHtmlEntities(
+        html
+            .replace(/<br\s*\/?>/giu, " ")
+            .replace(/<[^>]*>/gu, "")
+            .replace(/\s+/gu, " ")
+            .trim(),
+    );
+}
+
+function decodeHtmlEntities(value: string): string {
+    const named: Record<string, string> = {
+        amp: "&",
+        apos: "'",
+        gt: ">",
+        lt: "<",
+        nbsp: " ",
+        quot: '"',
+    };
+    return value.replace(
+        HTML_ENTITY_PATTERN,
+        function replaceEntity(_entity, decimal, hexadecimal, name) {
+            if (decimal != null) {
+                return String.fromCodePoint(Number(decimal));
+            }
+            if (hexadecimal != null) {
+                return String.fromCodePoint(Number.parseInt(hexadecimal, 16));
+            }
+            return named[String(name).toLocaleLowerCase("en-US")] ?? _entity;
+        },
+    );
+}
+
+function findMessageRowIndexes(draft: SourceDraft, message: string): number[] {
+    const referenced = new Set(
+        [...message.matchAll(PARAMETER_PATTERN)].map((match) =>
+            normalizeComparableName(match[1]),
+        ),
+    );
+    const direct = draft.rows.flatMap(function findDirect(row, index) {
+        return referenced.has(normalizeComparableName(row.name))
+            ? [index]
+            : [];
+    });
+    if (direct.length > 0) {
+        return direct;
+    }
+    const normalizedMessage = message.toLocaleLowerCase("en-US");
+    if (normalizedMessage.includes("author-name-list parameters")) {
+        return findNameListRows(draft, "author");
+    }
+    if (normalizedMessage.includes("editor-name-list parameters")) {
+        return findNameListRows(draft, "editor");
+    }
+    if (
+        normalizedMessage.includes("vancouver style error") ||
+        message.includes("温哥华格式")
+    ) {
+        return draft.rows.flatMap(function findVancouver(row, index) {
+            const name = normalizeName(row.name);
+            return ["vauthors", "veditors"].includes(name) &&
+                row.value.trim() !== ""
+                ? [index]
+                : [];
+        });
+    }
+    return [];
+}
+
+function findNameListRows(
+    draft: SourceDraft,
+    role: "author" | "editor",
+): number[] {
+    return draft.rows.flatMap(function findNameRow(row, index) {
+        if (row.value.trim() === "" || !isNameListParameter(row.name, role)) {
+            return [];
+        }
+        return [index];
+    });
+}
+
+function isNameListParameter(
+    entered: string,
+    role: "author" | "editor",
+): boolean {
+    const name = normalizeName(entered);
+    if (
+        role === "author" &&
+        ["authors", "people", "credits", "vauthors"].includes(name)
+    ) {
+        return true;
+    }
+    if (role === "editor" && ["editors", "veditors"].includes(name)) {
+        return true;
+    }
+    if (role === "author") {
+        return new RegExp(
+            "^(?:author|first|given|host|last|subject|surname)" +
+                "(?:(?:-first|-given|-last|-surname)?\\d*|" +
+                "\\d+-(?:first|given|last|surname))$",
+            "u",
+        ).test(name);
+    }
+    return new RegExp(
+        "^(?:editor)(?:(?:-first|-given|-last|-surname)?\\d*|" +
+            "\\d+-(?:first|given|last|surname))$",
+        "u",
+    ).test(name);
+}
+
+function getMessageCell(message: string): keyof SourceDraftRowErrors {
+    const ignoredParameter =
+        /(?:unknown|unsupported|deprecated) parameter|\bignored\b/iu;
+    const ignoredChineseParameter =
+        /未知参数|已忽略.*参数|参数.*(?:不支持|已弃用)/u;
+    return ignoredParameter.test(message) ||
+        ignoredChineseParameter.test(message)
+        ? "name"
+        : "value";
+}
+
+function normalizeName(name: string): string {
+    return name.trim().toLocaleLowerCase("en-US");
+}
+
+function normalizeComparableName(name: string): string {
+    const normalized = normalizeName(name);
+    return COMMON_PARAMETER_ALIASES[normalized] ?? normalized;
+}
+
+function appendMessage(
+    errors: SourceDraftRowErrors,
+    cell: keyof SourceDraftRowErrors,
+    message: string | undefined,
+): void {
+    if (message == null || message === "") {
+        return;
+    }
+    const current = errors[cell];
+    if (current == null || current === "") {
+        errors[cell] = message;
+    } else if (!current.split("\n").includes(message)) {
+        errors[cell] = `${current}\n${message}`;
+    }
+}

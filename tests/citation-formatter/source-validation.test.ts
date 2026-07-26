@@ -95,6 +95,22 @@ test("marks a missing archive pair field", () => {
     );
 });
 
+test("accepts HTTP citation URLs without a local warning", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|title=Example|url=http://example.test|" +
+            "archive-url=http://web.archive.org/example|" +
+            "archive-date=2026-07-26}}",
+    );
+
+    const errors = getSourceDraftErrors(draft, "enwiki");
+
+    assert.equal(errors.get(getRowIndex(draft, "url"))?.value, undefined);
+    assert.equal(
+        errors.get(getRowIndex(draft, "archive-url"))?.value,
+        undefined,
+    );
+});
+
 test("explains missing CS1 parameter dependencies", () => {
     const draft = parseSourceDraft(
         "{{cite journal|title=Example|access-date=2026-07-26|" +

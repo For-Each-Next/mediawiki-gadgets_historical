@@ -80,6 +80,15 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.23
+
+- Added debounced live validation through the complete CS1 module suite
+  installed on English and Chinese Wikipedia.
+- Mapped server-reported CS1 errors and maintenance messages to affected
+  parameter fields, while listing citation-level and category-only issues.
+- Kept immediate local validation active while live validation is pending or
+  temporarily unavailable.
+
 ### 0.3.22
 
 - Allowed non-standard references to be converted through the citation editor

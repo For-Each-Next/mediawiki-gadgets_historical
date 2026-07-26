@@ -50,6 +50,14 @@ import {
     parseCs1ValidationResult,
 } from "#me/domain/cs1-validation.ts";
 import {
+    analyzeCitationSources,
+    applySourceAnalysisReplacements,
+    type CitationSourceAnalysis,
+    type SourceAnalysisFinding,
+    type SourceAnalysisOccurrence,
+    type SourceAnalysisReplacement,
+} from "#me/domain/source-analysis.ts";
+import {
     getCanonicalTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
 } from "#me/domain/templates.ts";
@@ -137,11 +145,31 @@ const MANUAL_TEMPLATE_OPTIONS = [
 
 type SourceManagerMode = "draft" | "lookup";
 type Cs1ToolStatus = "checking" | "complete" | "idle" | "unavailable";
-type SourceToolPopup = "cs1" | "non-cs1" | null;
+type SourceToolPopup = "analysis" | "cs1" | "non-cs1" | null;
 type DraftActions = Record<string, unknown>;
 export type ReferenceStyle = "r" | "ref";
 let removeActiveSourceManager: (() => void) | null = null;
 let sourceManagerGeneration = 0;
+
+interface SelectableSourceAnalysisOccurrence extends SourceAnalysisOccurrence {
+    selected: boolean;
+}
+
+interface EditableSourceAnalysisFinding extends Omit<
+    SourceAnalysisFinding,
+    "occurrences"
+> {
+    occurrences: SelectableSourceAnalysisOccurrence[];
+    replacement: string;
+    replacementParameter: string;
+}
+
+interface EditableCitationSourceAnalysis extends Omit<
+    CitationSourceAnalysis,
+    "findings"
+> {
+    findings: EditableSourceAnalysisFinding[];
+}
 
 export interface SourceManagerOptions {
     citationLayout?: CitationLayout;
@@ -247,6 +275,7 @@ interface SourceManagerState {
     open: { value: boolean };
     referenceStyle: { value: ReferenceStyle };
     sourceUrl: { value: string };
+    sourceAnalysis: { value: EditableCitationSourceAnalysis };
     toolPopup: { value: SourceToolPopup };
     toolPopupOpen: { value: boolean };
     sourceSectionPath: { value: string[] };
@@ -478,6 +507,27 @@ function createInitialCs1ToolState(Vue: VueModule) {
     };
 }
 
+/** Adds mutable replacement and checkbox state to a fresh analysis. */
+function createEditableSourceAnalysis(
+    sources: ExistingSource[],
+): EditableCitationSourceAnalysis {
+    const analysis = analyzeCitationSources(sources);
+    return {
+        ...analysis,
+        findings: analysis.findings.map(function makeFindingEditable(finding) {
+            return {
+                ...finding,
+                occurrences: finding.occurrences.map((occurrence) => ({
+                    ...occurrence,
+                    selected: false,
+                })),
+                replacement: finding.suggestedValue,
+                replacementParameter: "",
+            };
+        }),
+    };
+}
+
 /** Creates reactive source-list values from the current editor text. */
 function createInitialSourceListState(Vue: VueModule, text: string) {
     const existingSources = Vue.ref(
@@ -485,6 +535,7 @@ function createInitialSourceListState(Vue: VueModule, text: string) {
     );
     return {
         existingSourceQuery: Vue.ref(""),
+        sourceAnalysis: Vue.ref(createEditableSourceAnalysis([])),
         existingSourceSections: Vue.ref(
             listExistingSourceSections(text, existingSources.value),
         ),
@@ -1065,6 +1116,47 @@ function createDraftActions(
 function createToolActions(
     context: SourceManagerActionContext,
 ): Record<string, unknown> {
+    return {
+        ...createAnalysisToolActions(context),
+        ...createCheckerToolActions(context),
+    };
+}
+
+/** Creates citation-analysis popup and replacement actions. */
+function createAnalysisToolActions(
+    context: SourceManagerActionContext,
+): Record<string, unknown> {
+    const { state } = context;
+    function openAnalysisTool(): void {
+        state.sourceAnalysis.value = createEditableSourceAnalysis(
+            state.existingSources.value,
+        );
+        state.toolPopup.value = "analysis";
+        state.toolPopupOpen.value = true;
+    }
+    function countSelectedAnalysisReplacements(): number {
+        return listSelectedAnalysisReplacements(state.sourceAnalysis.value)
+            .length;
+    }
+    function applyAnalysisReplacements(): void {
+        applySelectedAnalysisReplacements(context);
+    }
+    return {
+        applyAnalysisReplacements,
+        clearAnalysisSelection,
+        countSelectedAnalysisReplacements,
+        getAnalysisParameterOptions,
+        getAnalysisReplacementOptions,
+        isAnalysisOccurrenceUnchanged,
+        openAnalysisTool,
+        selectAnalysisDifferences,
+    };
+}
+
+/** Creates the CS1 and non-CS1 checker popup actions. */
+function createCheckerToolActions(
+    context: SourceManagerActionContext,
+): Record<string, unknown> {
     const { state } = context;
     async function openCs1Tool(): Promise<void> {
         state.toolPopup.value = "cs1";
@@ -1099,6 +1191,133 @@ function createToolActions(
         reviewCs1Source,
         reviewNonCs1Source,
     };
+}
+
+function selectAnalysisDifferences(
+    finding: EditableSourceAnalysisFinding,
+): void {
+    for (const occurrence of finding.occurrences) {
+        occurrence.selected = !isAnalysisOccurrenceUnchanged(
+            finding,
+            occurrence,
+        );
+    }
+}
+
+function clearAnalysisSelection(finding: EditableSourceAnalysisFinding): void {
+    for (const occurrence of finding.occurrences) {
+        occurrence.selected = false;
+    }
+}
+
+function getAnalysisReplacementOptions(
+    finding: EditableSourceAnalysisFinding,
+): Array<{ label: string; value: string }> {
+    return finding.options.map((option) => ({
+        label: `${option.value || "(no alias)"} (${option.count}×)`,
+        value: option.value,
+    }));
+}
+
+function getAnalysisParameterOptions(
+    finding: EditableSourceAnalysisFinding,
+): Array<{ label: string; value: string }> {
+    const parameters = new Set(
+        finding.occurrences.map((occurrence) => occurrence.parameter),
+    );
+    return [...parameters].map((parameter) => ({
+        label: parameter,
+        value: parameter,
+    }));
+}
+
+function getAnalysisReplacementParameter(
+    finding: EditableSourceAnalysisFinding,
+    occurrence: SelectableSourceAnalysisOccurrence,
+): string {
+    const entered =
+        typeof finding.replacementParameter === "string"
+            ? finding.replacementParameter.trim()
+            : "";
+    return entered === "" ? occurrence.parameter : entered;
+}
+
+function isAnalysisOccurrenceUnchanged(
+    finding: EditableSourceAnalysisFinding,
+    occurrence: SelectableSourceAnalysisOccurrence,
+): boolean {
+    return (
+        occurrence.value === finding.replacement &&
+        occurrence.parameter ===
+            getAnalysisReplacementParameter(finding, occurrence)
+    );
+}
+
+/** Writes checked analysis replacements as one editor operation. */
+function applySelectedAnalysisReplacements(
+    context: SourceManagerActionContext,
+): void {
+    const { editor, state, toast } = context;
+    const selected = listSelectedAnalysisReplacements(
+        state.sourceAnalysis.value,
+    );
+    if (selected.length === 0) {
+        toast.info("Select at least one differing citation value.", {
+            autoDismiss: true,
+        });
+        return;
+    }
+    try {
+        const text = applySourceAnalysisReplacements(
+            editor.read(),
+            state.existingSources.value,
+            selected,
+        );
+        editor.write(text);
+        refreshExistingSources(editor, state);
+        state.sourceAnalysis.value = createEditableSourceAnalysis(
+            state.existingSources.value,
+        );
+    } catch (error) {
+        toast.error(formatError(error), { autoDismiss: true });
+        return;
+    }
+    toast.success(`${selected.length} citation value(s) replaced.`, {
+        autoDismiss: true,
+    });
+}
+
+/** Expands checked occurrences into domain-layer replacements. */
+function listSelectedAnalysisReplacements(
+    analysis: EditableCitationSourceAnalysis,
+): SourceAnalysisReplacement[] {
+    return analysis.findings.flatMap((finding) =>
+        finding.occurrences.flatMap((occurrence) => {
+            if (
+                !occurrence.selected ||
+                isAnalysisOccurrenceUnchanged(finding, occurrence)
+            ) {
+                return [];
+            }
+            return [
+                {
+                    cell: occurrence.cell,
+                    oldValue: occurrence.value,
+                    parameter: occurrence.parameter,
+                    replacement:
+                        typeof finding.replacement === "string"
+                            ? finding.replacement
+                            : "",
+                    replacementParameter: getAnalysisReplacementParameter(
+                        finding,
+                        occurrence,
+                    ),
+                    rowIndex: occurrence.rowIndex,
+                    sourceId: occurrence.sourceId,
+                },
+            ];
+        }),
+    );
 }
 
 function reviewCs1CheckedSource(
@@ -2219,6 +2438,12 @@ const SOURCE_MANAGER_TEMPLATE = `
                     </template>
                     <div class="cf-source-manager__tool-launchers">
                         <cdx-button
+                            action="progressive"
+                            @click="openAnalysisTool"
+                        >
+                            Analyze citation consistency
+                        </cdx-button>
+                        <cdx-button
                             v-if="canCheckCs1Tool"
                             action="progressive"
                             @click="openCs1Tool"
@@ -2615,13 +2840,127 @@ const SOURCE_MANAGER_TEMPLATE = `
     v-model:open="toolPopupOpen"
     class="cf-source-manager__tool-dialog"
     :title="
-        toolPopup === 'cs1'
-            ? 'CS1 issue check'
-            : 'Non-CS1 source check'
+        toolPopup === 'analysis'
+            ? 'Citation consistency analysis'
+            : (
+                toolPopup === 'cs1'
+                    ? 'CS1 issue check'
+                    : 'Non-CS1 source check'
+            )
     "
     @update:open="onToolPopupOpenChange"
 >
-    <template v-if="toolPopup === 'cs1'">
+    <template v-if="toolPopup === 'analysis'">
+        <p>
+            Review possible inconsistencies, choose a target parameter and
+            value, then check only the occurrences to fix.
+        </p>
+        <cdx-message
+            v-if="sourceAnalysis.findings.length === 0"
+            type="success"
+        >
+            No likely value-format inconsistencies found.
+        </cdx-message>
+        <div
+            v-for="finding in sourceAnalysis.findings"
+            v-else
+            :key="finding.id"
+            class="cf-source-analysis__finding"
+        >
+            <h4>{{ finding.label }}</h4>
+            <p>{{ finding.reason }}</p>
+            <div class="cf-source-analysis__finding-controls">
+                <cdx-field>
+                    <template #label>Parameter name</template>
+                    <cdx-combobox
+                        v-model:selected="finding.replacementParameter"
+                        :menu-items="
+                            getAnalysisParameterOptions( finding )
+                        "
+                        placeholder="Keep as is"
+                    >
+                        <template #no-results>
+                            Use entered parameter
+                        </template>
+                    </cdx-combobox>
+                </cdx-field>
+                <cdx-field>
+                    <template #label>
+                        {{
+                            finding.category === 'alias'
+                                ? 'Alias / source key'
+                                : 'Value'
+                        }}
+                    </template>
+                    <cdx-combobox
+                        v-model:selected="finding.replacement"
+                        :menu-items="
+                            getAnalysisReplacementOptions( finding )
+                        "
+                    >
+                        <template #no-results>
+                            Use entered value
+                        </template>
+                    </cdx-combobox>
+                </cdx-field>
+                <div class="cf-source-analysis__selection-actions">
+                    <cdx-button
+                        weight="quiet"
+                        @click="selectAnalysisDifferences( finding )"
+                    >
+                        Select differing
+                    </cdx-button>
+                    <cdx-button
+                        weight="quiet"
+                        @click="clearAnalysisSelection( finding )"
+                    >
+                        Clear
+                    </cdx-button>
+                </div>
+            </div>
+            <ul class="cf-source-analysis__occurrences">
+                <li
+                    v-for="occurrence in finding.occurrences"
+                    :key="occurrence.id"
+                >
+                    <cdx-checkbox
+                        v-model="occurrence.selected"
+                        :disabled="
+                            isAnalysisOccurrenceUnchanged(
+                                finding,
+                                occurrence
+                            )
+                        "
+                    >
+                        <span class="cf-source-analysis__occurrence-heading">
+                            <strong>
+                                {{
+                                    occurrence.referenceName ||
+                                    'unnamed reference'
+                                }}
+                            </strong>
+                            <code>|{{ occurrence.parameter }}=</code>
+                            <code>{{ occurrence.displayValue }}</code>
+                            <code v-if="occurrence.cell === 'alias'">
+                                {{
+                                    occurrence.value
+                                        ? '<!-- # ' +
+                                            occurrence.value +
+                                            ' -->'
+                                        : '(no # alias)'
+                                }}
+                            </code>
+                        </span>
+                        <small>
+                            {{ occurrence.template }} ·
+                            {{ occurrence.title }}
+                        </small>
+                    </cdx-checkbox>
+                </li>
+            </ul>
+        </div>
+    </template>
+    <template v-else-if="toolPopup === 'cs1'">
         <p>
             Complete CS1 check using the installed rules on
             {{ cs1WikiLabel }} Wikipedia.
@@ -2780,8 +3119,16 @@ const SOURCE_MANAGER_TEMPLATE = `
     </template>
     <template #footer>
         <cdx-button
+            v-if="toolPopup === 'analysis'"
+            :disabled="countSelectedAnalysisReplacements() === 0"
             action="progressive"
             weight="primary"
+            @click="applyAnalysisReplacements"
+        >
+            Apply selected
+            ({{ countSelectedAnalysisReplacements() }})
+        </cdx-button>
+        <cdx-button
             @click="closeToolPopup"
         >
             Close

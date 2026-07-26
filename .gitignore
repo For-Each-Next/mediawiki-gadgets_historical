@@ -18,6 +18,7 @@ logs/
 
 # Runtime and tool caches
 .cache/
+.codex/
 .eslintcache
 .parcel-cache/
 .stylelintcache

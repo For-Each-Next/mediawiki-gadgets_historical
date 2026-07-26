@@ -244,6 +244,59 @@
     gap: 0.5em;
 }
 
+.cf-source-manager__tool-dialog.cdx-dialog {
+    max-width: min(96vw, 64em);
+    width: min(96vw, 64em);
+}
+
+.cf-source-analysis__finding {
+    border: 1px solid var(--border-color-subtle, #c8ccd1);
+    border-radius: 2px;
+    margin-block: 1em;
+    padding: 1em;
+}
+
+.cf-source-analysis__finding > h4,
+.cf-source-analysis__finding > p {
+    margin-block-start: 0;
+}
+
+.cf-source-analysis__finding-controls {
+    align-items: end;
+    display: grid;
+    gap: 0.75em;
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr) auto;
+}
+
+.cf-source-analysis__selection-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25em;
+}
+
+.cf-source-analysis__occurrences {
+    list-style: none;
+    margin: 0.75em 0 0;
+    padding: 0;
+}
+
+.cf-source-analysis__occurrences li {
+    border-top: 1px solid var(--border-color-subtle, #c8ccd1);
+    padding-block: 0.55em;
+}
+
+.cf-source-analysis__occurrence-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35em;
+}
+
+.cf-source-analysis__occurrences small {
+    color: var(--color-subtle, #54595d);
+    display: block;
+    overflow-wrap: anywhere;
+}
+
 .cf-source-manager__gadget-info {
     max-width: 32em;
 }
@@ -333,6 +386,11 @@
     }
 
     .cf-source-manager__filter-field {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+    }
+
+    .cf-source-analysis__finding-controls {
         align-items: stretch;
         grid-template-columns: 1fr;
     }

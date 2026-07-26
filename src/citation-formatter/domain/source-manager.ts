@@ -663,6 +663,25 @@ export function serializeSourceDraft(
         : formatBlockCitation(citation);
 }
 
+/**
+ * Serializes rows without canonicalizing entered parameter aliases.
+ */
+export function serializeSourceDraftPreservingNames(
+    draft: SourceDraft,
+    layout: CitationLayout = "block",
+): string {
+    const name = getDraftTemplateName(draft.template);
+    const params = draft.rows
+        .filter((row) => row.name.trim() !== "")
+        .filter(hasDraftRowContent)
+        .map(buildDraftParam);
+    assertUniqueCanonicalParams(name, params);
+    const citation = { name, params };
+    return layout === "inline"
+        ? formatInlineCitation(citation)
+        : formatBlockCitation(citation);
+}
+
 /** Builds the immediate reference-name preview for a source draft. */
 export function getSourceDraftCitationName(draft: SourceDraft): string {
     const identity = getCitationIdentity(buildDraftCitation(draft));

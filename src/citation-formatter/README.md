@@ -80,6 +80,36 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.29
+
+- Treated publication parameter names as part of consistency, so equal
+  `work` and `website` values are still offered as a fixable difference.
+- Replaced the internal keep-parameter sentinel with an empty combobox and a
+  grey `Keep as is` placeholder.
+- Removed the long count summary panels so the analysis dialog focuses on
+  checking and fixing actionable inconsistencies.
+- Kept the analysis popup open and refreshed its findings after applying
+  fixes; manually closing and reopening it also rereads the editor text.
+
+### 0.3.28
+
+- Added consistency findings for differing or missing `<!-- # ... -->`
+  aliases, including source keys attached to repeated URLs.
+- Replaced fixed analysis selectors with editable parameter-name and value
+  comboboxes, allowing a new target such as `website = [[IGN]]`.
+- Preserved a manually selected supported parameter alias during checked
+  batch replacements instead of canonicalizing it back to another name.
+
+### 0.3.27
+
+- Added a citation consistency analysis tool with template, creator,
+  publication, publisher, and URL-host summaries.
+- Flagged differing website/work and publisher values used for the same host,
+  including link-, case-, and spacing-only variants, plus repeated author
+  formatting variants.
+- Added per-occurrence checkboxes and selectable target values for opt-in
+  batch replacement while leaving intentional differences untouched.
+
 ### 0.3.26
 
 - Displayed CS1 and non-CS1 checker results with the normal source-list row

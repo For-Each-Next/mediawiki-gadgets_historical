@@ -64,7 +64,7 @@
     align-items: center;
     display: grid;
     gap: 0.75em;
-    grid-template-columns: 9em minmax(0, 38em);
+    grid-template-columns: 9em minmax(0, 1fr);
     margin: 0;
 }
 
@@ -79,7 +79,8 @@
 }
 
 .cf-source-manager__filter-controls > .cdx-combobox {
-    flex: 1 1 14em;
+    flex: 1 1 12em;
+    min-width: 0;
 }
 
 .cf-source-manager__existing-list {
@@ -241,25 +242,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5em;
-}
-
-.cf-source-manager__tool-results {
-    display: grid;
-    gap: 0.5em;
-    margin-bottom: 0;
-    padding-inline-start: 1.5em;
-}
-
-.cf-source-manager__tool-results > li {
-    align-items: center;
-    display: flex;
-    gap: 0.75em;
-    justify-content: space-between;
-}
-
-.cf-source-manager__tool-messages {
-    overflow-wrap: anywhere;
-    padding-inline-start: 1.5em;
 }
 
 .cf-source-manager__gadget-info {

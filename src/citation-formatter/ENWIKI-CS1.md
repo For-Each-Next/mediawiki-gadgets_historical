@@ -116,8 +116,10 @@ Compare them with `domain/validation/enwiki.ts` and
 When the user runs **Check CS1 issues** in Tools, the source manager submits
 the current article source over HTTPS to enwiki's read-only `action=parse`
 API. This runs the complete live CS1 module suite and displays its error and
-maintenance messages in a separate popup. Normal editing uses local static
-validation and makes no parse request.
+maintenance messages as normal source-list rows in a separate popup. Opening
+a result uses the normal citation editor and maps applicable API errors to its
+fields. Normal editing uses local static validation and makes no parse
+request.
 
 Important whitelist semantics:
 

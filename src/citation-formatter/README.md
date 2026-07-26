@@ -80,6 +80,15 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.26
+
+- Displayed CS1 and non-CS1 checker results with the normal source-list row
+  design and opened selected results in the normal citation editor.
+- Batched per-citation CS1 checks into one explicit API request and carried
+  mapped API errors into the selected citation fields.
+- Kept up to three section selectors on one row and displayed full labels such
+  as `§ 3 Development` instead of bare section IDs.
+
 ### 0.3.25
 
 - Added separate Tools popups for an explicit article-wide CS1 API check and

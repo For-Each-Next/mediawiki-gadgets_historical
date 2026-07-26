@@ -44,7 +44,11 @@ import {
     getSourceDraftErrors,
     type SourceDraftErrors,
 } from "#me/domain/source-validation.ts";
-import { extractCs1IssueMessages } from "#me/domain/cs1-validation.ts";
+import {
+    extractCs1IssueMessages,
+    mergeSourceDraftErrors,
+    parseCs1ValidationResult,
+} from "#me/domain/cs1-validation.ts";
 import {
     getCanonicalTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
@@ -62,6 +66,7 @@ import { cdxIconMagicWand } from "@wikimedia/codex-icons";
 
 const HOST_ID = "citation-formatter-source-manager";
 const BASED_ON_TEMPLATE = "__based-on__";
+const CS1_CHECK_ID_PREFIX = "citation-formatter-cs1-check-";
 const UNUSED_SOURCE_SECTION_ID = "unused";
 const GADGET_VERSION =
     typeof __GADGET_VERSION__ === "undefined"
@@ -220,7 +225,10 @@ interface SourceManagerState {
     citationNameCells: {
         readonly value: Map<number, SourceDraftCitationNameCell>;
     };
+    checkedCs1CellErrors: { value: SourceDraftErrors };
+    checkedCs1Source: { value: string };
     cs1ToolMessages: { value: string[] };
+    cs1ToolSources: { value: Cs1CheckedSource[] };
     cs1ToolStatus: { value: Cs1ToolStatus };
     dismissedAliasSuggestions: { value: Set<string> };
     draft: { value: SourceDraft | null };
@@ -260,6 +268,8 @@ interface SourceManagerActionContext {
 }
 
 interface SourceManagerDerivedInputs {
+    checkedCs1CellErrors: SourceManagerState["checkedCs1CellErrors"];
+    checkedCs1Source: SourceManagerState["checkedCs1Source"];
     citationLayout: SourceManagerState["citationLayout"];
     draft: SourceManagerState["draft"];
     existingSourceQuery: SourceManagerState["existingSourceQuery"];
@@ -272,8 +282,18 @@ interface SourceManagerDerivedInputs {
 interface SourceSectionSelector {
     label: string;
     level: number;
-    menuItems: Array<{ label: string; value: string }>;
+    menuItems: Array<{
+        label: string;
+        sectionId: string;
+        value: string;
+    }>;
     selected: string;
+}
+
+interface Cs1CheckedSource {
+    html: string;
+    messages: string[];
+    source: ExistingSource;
 }
 
 interface SourcePreviewPart {
@@ -412,12 +432,13 @@ function createSourceManagerState(
     editor: editBox.EditBox,
     options: SourceManagerOptions,
 ): SourceManagerState {
-    const text = editor.read();
-    const sourceList = createInitialSourceListState(Vue, text);
+    const sourceList = createInitialSourceListState(Vue, editor.read());
+    const cs1State = createInitialCs1ToolState(Vue);
     const citationLayout = Vue.ref(options.citationLayout ?? "inline");
     const draft = Vue.ref<SourceDraft | null>(null);
     const referenceStyle = Vue.ref(options.referenceStyle ?? "ref");
     const derived = createSourceManagerDerivedState(Vue, {
+        ...cs1State,
         citationLayout,
         draft,
         referenceStyle,
@@ -426,12 +447,11 @@ function createSourceManagerState(
     return {
         ...derived,
         ...sourceList,
+        ...cs1State,
         activeLookupTab: Vue.ref("add"),
         autoScriptTitle: Vue.ref(true),
         basedOnSourceId: Vue.ref(""),
         citationLayout,
-        cs1ToolMessages: Vue.ref<string[]>([]),
-        cs1ToolStatus: Vue.ref<Cs1ToolStatus>("idle"),
         dismissedAliasSuggestions: Vue.ref(new Set<string>()),
         draft,
         editingSource: Vue.ref<ExistingSource | null>(null),
@@ -445,6 +465,16 @@ function createSourceManagerState(
         toolPopup: Vue.ref<SourceToolPopup>(null),
         toolPopupOpen: Vue.ref(false),
         warning: Vue.ref(""),
+    };
+}
+
+function createInitialCs1ToolState(Vue: VueModule) {
+    return {
+        checkedCs1CellErrors: Vue.ref<SourceDraftErrors>(new Map()),
+        checkedCs1Source: Vue.ref(""),
+        cs1ToolMessages: Vue.ref<string[]>([]),
+        cs1ToolSources: Vue.ref<Cs1CheckedSource[]>([]),
+        cs1ToolStatus: Vue.ref<Cs1ToolStatus>("idle"),
     };
 }
 
@@ -508,7 +538,13 @@ function createDraftDerivedState(
         if (draft == null) {
             return new Map();
         }
-        return getSourceDraftErrors(draft, getCurrentWikiId());
+        const local = getSourceDraftErrors(draft, getCurrentWikiId());
+        if (
+            serializeCurrentSourceDraft(state) !== state.checkedCs1Source.value
+        ) {
+            return local;
+        }
+        return mergeSourceDraftErrors(local, state.checkedCs1CellErrors.value);
     }
     return {
         citationNameParts: Vue.computed(getCitationNameParts),
@@ -545,32 +581,24 @@ interface Cs1ParseApiResponse {
 async function fetchArticleCs1Issues(
     context: SourceManagerActionContext,
 ): Promise<void> {
-    const { editor, state } = context;
+    const { state } = context;
+    const sources = state.existingSources.value.filter(
+        (source) => source.status !== "non-standard",
+    );
     state.cs1ToolMessages.value = [];
+    state.cs1ToolSources.value = [];
     state.cs1ToolStatus.value = "checking";
+    if (sources.length === 0) {
+        state.cs1ToolStatus.value = "complete";
+        return;
+    }
     try {
-        const api = new mw.Api();
-        const response = (await api.post({
-            action: "parse",
-            contentmodel: "wikitext",
-            disableeditsection: true,
-            disablelimitreport: true,
-            disabletoc: true,
-            formatversion: 2,
-            preview: true,
-            prop: "text|categories",
-            text: editor.read(),
-            title: getCurrentPageTitle(),
-        })) as Cs1ParseApiResponse;
+        const response = await requestCs1Check(sources);
         const html = response.parse?.text ?? "";
-        const categories = (response.parse?.categories ?? []).flatMap(
-            function getCategory(entry) {
-                return entry.category == null ? [] : [entry.category];
-            },
-        );
+        state.cs1ToolSources.value = mapCs1CheckedSources(html, sources);
         state.cs1ToolMessages.value = extractCs1IssueMessages(
-            html,
-            categories,
+            "",
+            listCs1CheckCategories(response),
         );
         state.cs1ToolStatus.value = "complete";
     } catch {
@@ -578,11 +606,77 @@ async function fetchArticleCs1Issues(
     }
 }
 
+async function requestCs1Check(
+    sources: ExistingSource[],
+): Promise<Cs1ParseApiResponse> {
+    const api = new mw.Api();
+    return (await api.post({
+        action: "parse",
+        contentmodel: "wikitext",
+        disableeditsection: true,
+        disablelimitreport: true,
+        disabletoc: true,
+        formatversion: 2,
+        preview: true,
+        prop: "text|categories",
+        text: buildCs1CheckWikitext(sources),
+        title: getCurrentPageTitle(),
+    })) as Cs1ParseApiResponse;
+}
+
+function listCs1CheckCategories(response: Cs1ParseApiResponse): string[] {
+    return (response.parse?.categories ?? []).flatMap(
+        function getCategory(entry) {
+            return entry.category == null ? [] : [entry.category];
+        },
+    );
+}
+
+function mapCs1CheckedSources(
+    html: string,
+    sources: ExistingSource[],
+): Cs1CheckedSource[] {
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    return sources.flatMap(function getCheckedSource(source, index) {
+        const element = parsed.getElementById(
+            `${CS1_CHECK_ID_PREFIX}${index}`,
+        );
+        const sourceHtml = element?.innerHTML ?? "";
+        const messages = extractCs1IssueMessages(sourceHtml);
+        return messages.length === 0
+            ? []
+            : [{ html: sourceHtml, messages, source }];
+    });
+}
+
+function buildCs1CheckWikitext(sources: ExistingSource[]): string {
+    return sources
+        .map(function wrapSource(source, index) {
+            const id = `${CS1_CHECK_ID_PREFIX}${index}`;
+            return `<div id="${id}">\n${source.rawTemplate}\n</div>`;
+        })
+        .join("\n");
+}
+
 function getCurrentPageTitle(): string {
     const pageName = mw.config.get("wgPageName");
     return typeof pageName === "string"
         ? pageName.replaceAll("_", " ")
         : "Citation formatter validation";
+}
+
+function serializeCurrentSourceDraft(
+    state: Pick<SourceManagerState, "draft">,
+): string {
+    const draft = state.draft.value;
+    if (draft == null) {
+        return "";
+    }
+    try {
+        return serializeSourceDraft(draft, "inline");
+    } catch {
+        return "";
+    }
 }
 
 function formatUtcBuildTime(value: string): string {
@@ -792,13 +886,24 @@ function buildSourceSectionSelector(
 ): SourceSectionSelector {
     const allLabel = level === 0 ? "All sections" : "All subsections";
     const sectionOptions = sections.map(function toOption(section) {
-        return { label: section.label, value: section.id };
+        return {
+            label: section.label,
+            sectionId: section.id,
+            value: section.label,
+        };
     });
+    const allOption = {
+        label: allLabel,
+        sectionId: "",
+        value: allLabel,
+    };
     return {
         label: level === 0 ? "Section" : "Subsection",
         level,
-        menuItems: [{ label: allLabel, value: "" }, ...sectionOptions],
-        selected,
+        menuItems: [allOption, ...sectionOptions],
+        selected:
+            sectionOptions.find((option) => option.sectionId === selected)
+                ?.label ?? allLabel,
     };
 }
 
@@ -982,13 +1087,41 @@ function createToolActions(
         closeToolPopup();
         openExistingSourceWhenIdle(state, sourceId);
     }
+    function reviewCs1Source(sourceId: string): void {
+        closeToolPopup();
+        reviewCs1CheckedSource(state, sourceId);
+    }
     return {
         closeToolPopup,
         onToolPopupOpenChange,
         openCs1Tool,
         openNonCs1Tool,
+        reviewCs1Source,
         reviewNonCs1Source,
     };
+}
+
+function reviewCs1CheckedSource(
+    state: SourceManagerState,
+    sourceId: string,
+): void {
+    const checked = state.cs1ToolSources.value.find(
+        (result) => result.source.id === sourceId,
+    );
+    if (checked == null) {
+        return;
+    }
+    openExistingSourceWhenIdle(state, sourceId);
+    const draft = state.draft.value;
+    if (draft == null) {
+        return;
+    }
+    const result = parseCs1ValidationResult(draft, checked.html);
+    state.checkedCs1CellErrors.value = result.cellErrors;
+    state.checkedCs1Source.value = serializeCurrentSourceDraft(state);
+    if (result.messages.length > 0) {
+        state.warning.value = result.messages.join("\n");
+    }
 }
 
 /** Returns whether a row supports one-click date filling. */
@@ -1317,10 +1450,30 @@ function createLookupActions(
             handleSourcePaste(context, event);
         },
         resolveEnteredSource,
-        selectSourceSection(level: number, selected: string | number): void {
-            updateSourceSectionSelection(context.state, level, selected);
+        selectSourceSection(
+            selector: SourceSectionSelector,
+            selected: string | number,
+        ): void {
+            selectSourceSectionOption(context.state, selector, selected);
         },
     };
+}
+
+function selectSourceSectionOption(
+    state: SourceManagerState,
+    selector: SourceSectionSelector,
+    selected: string | number,
+): void {
+    const entered = String(selected);
+    const option = selector.menuItems.find(
+        (item) =>
+            item.value === entered ||
+            item.label === entered ||
+            item.sectionId === entered,
+    );
+    if (option != null) {
+        updateSourceSectionSelection(state, selector.level, option.sectionId);
+    }
 }
 
 /** Resolves a recognizable pasted source immediately. */
@@ -1495,6 +1648,7 @@ function openExistingSource(
         state.error.value = "The selected citation is unavailable.";
         return;
     }
+    clearCheckedCs1Errors(state);
     const draft = cloneDraft(source.draft);
     ensureNextAuthorDraftRows(draft);
     state.dismissedAliasSuggestions.value = new Set();
@@ -1507,6 +1661,11 @@ function openExistingSource(
               "the new citation template."
             : "";
     state.mode.value = "draft";
+}
+
+function clearCheckedCs1Errors(state: SourceManagerState): void {
+    state.checkedCs1CellErrors.value = new Map();
+    state.checkedCs1Source.value = "";
 }
 
 /** Gets one existing source by its stable list identifier. */
@@ -1609,6 +1768,7 @@ function openDraft(
     preserveWarning: boolean = false,
 ): void {
     ensureNextAuthorDraftRows(draft);
+    clearCheckedCs1Errors(state);
     state.dismissedAliasSuggestions.value = new Set();
     state.draft.value = draft;
     state.editingSource.value = null;
@@ -1923,10 +2083,7 @@ const SOURCE_MANAGER_TEMPLATE = `
                             :menu-config="{ visibleItemLimit: 8 }"
                             :aria-label="selector.label"
                             @update:selected="
-                                selectSourceSection(
-                                    selector.level,
-                                    $event
-                                )
+                                selectSourceSection( selector, $event )
                             "
                         />
                     </div>
@@ -2482,21 +2639,87 @@ const SOURCE_MANAGER_TEMPLATE = `
         <cdx-message
             v-else-if="
                 cs1ToolStatus === 'complete' &&
-                cs1ToolMessages.length === 0
+                cs1ToolMessages.length === 0 &&
+                cs1ToolSources.length === 0
             "
             type="success"
         >
             No CS1 issues found.
         </cdx-message>
+        <cdx-message
+            v-if="
+                cs1ToolStatus === 'complete' &&
+                cs1ToolMessages.length > 0
+            "
+            type="warning"
+        >
+            <ul>
+                <li
+                    v-for="message in cs1ToolMessages"
+                    :key="message"
+                >
+                    {{ message }}
+                </li>
+            </ul>
+        </cdx-message>
         <ol
-            v-else-if="cs1ToolStatus === 'complete'"
-            class="cf-source-manager__tool-messages"
+            v-if="
+                cs1ToolStatus === 'complete' &&
+                cs1ToolSources.length > 0
+            "
+            class="cf-source-manager__existing-list"
         >
             <li
-                v-for="message in cs1ToolMessages"
-                :key="message"
+                v-for="result in cs1ToolSources"
+                :key="result.source.id"
+                class="
+                    cf-source-manager__existing-row
+                    cf-source-manager__existing-row--error
+                "
             >
-                {{ message }}
+                <div class="cf-source-manager__existing-summary">
+                    <small class="cf-source-manager__existing-name">
+                        ({{
+                            result.source.referenceName || 'unnamed'
+                        }})
+                    </small>
+                    <span
+                        class="cf-source-manager__existing-title"
+                        :title="
+                            result.source.title ||
+                            result.source.url ||
+                            'Untitled source'
+                        "
+                    >
+                        {{
+                            result.source.title ||
+                            result.source.url ||
+                            'Untitled source'
+                        }}
+                    </span>
+                    <small class="cf-source-manager__existing-meta">
+                        <code>
+                            {{
+                                sourceTemplateLabel(
+                                    result.source.draft.template
+                                )
+                            }}
+                        </code>
+                        · {{ result.messages.join( ' · ' ) }}
+                    </small>
+                </div>
+                <div class="cf-source-manager__existing-actions">
+                    <cdx-button
+                        v-tooltip="'Edit source'"
+                        weight="quiet"
+                        aria-label="Edit source"
+                        @click="
+                            reviewCs1Source( result.source.id )
+                        "
+                    >
+                        <cdx-icon :icon="editSourceIcon" />
+                    </cdx-button>
+                </div>
             </li>
         </ol>
     </template>
@@ -2511,29 +2734,49 @@ const SOURCE_MANAGER_TEMPLATE = `
         >
             No non-CS1 sources found.
         </cdx-message>
-        <ul
+        <ol
             v-else
-            class="cf-source-manager__tool-results"
+            class="cf-source-manager__existing-list"
         >
             <li
                 v-for="source in nonCs1Sources"
                 :key="source.id"
+                class="
+                    cf-source-manager__existing-row
+                    cf-source-manager__existing-row--non-standard
+                "
             >
-                <span>
-                    {{
-                        source.title ||
-                        source.referenceName ||
-                        'Unnamed reference'
-                    }}
-                </span>
-                <cdx-button
-                    weight="quiet"
-                    @click="reviewNonCs1Source( source.id )"
-                >
-                    Review
-                </cdx-button>
+                <div class="cf-source-manager__existing-summary">
+                    <small class="cf-source-manager__existing-name">
+                        ({{ source.referenceName || 'unnamed' }})
+                    </small>
+                    <span
+                        class="cf-source-manager__existing-title"
+                        :title="source.rawReference"
+                    >
+                        {{
+                            source.title ||
+                            source.referenceName ||
+                            'Unnamed reference'
+                        }}
+                    </span>
+                    <small class="cf-source-manager__existing-meta">
+                        <code>Non-CS1 source</code>
+                        · {{ source.usageCount }}×
+                    </small>
+                </div>
+                <div class="cf-source-manager__existing-actions">
+                    <cdx-button
+                        v-tooltip="'Convert source'"
+                        weight="quiet"
+                        aria-label="Convert source"
+                        @click="reviewNonCs1Source( source.id )"
+                    >
+                        <cdx-icon :icon="editSourceIcon" />
+                    </cdx-button>
+                </div>
             </li>
-        </ul>
+        </ol>
     </template>
     <template #footer>
         <cdx-button

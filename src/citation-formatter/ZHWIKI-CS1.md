@@ -33,8 +33,9 @@ On zhwiki, running **Check CS1 issues** in Tools submits the current article
 source over HTTPS to the read-only `action=parse` API. This runs zhwiki's
 complete installed CS1 suite, including its additional Error, Language,
 Links, and People child modules. Localized error and maintenance messages are
-shown in a separate popup. Normal editing uses local static validation and
-makes no parse request.
+shown as normal source-list rows in a separate popup. Opening a result uses the
+normal citation editor and maps applicable API errors to its fields. Normal
+editing uses local static validation and makes no parse request.
 
 ## Supported title checklist
 

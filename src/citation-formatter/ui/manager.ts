@@ -12,6 +12,8 @@ import {
 } from "#me/domain/manager.ts";
 import type { CitationLayout } from "#me/domain/types.ts";
 import type { editBox } from "#shared";
+import { openSourceManager } from "#me/ui/source-manager.ts";
+import { addManagerStyles } from "#me/ui/styles.ts";
 
 const HOST_ID = "citation-formatter-manager";
 const FILTER_OPTIONS = [
@@ -37,6 +39,7 @@ const REVIEW_ICON = {
 type OverrideFilter = "all" | "filled" | "unfilled";
 type ReferenceStyle = "r" | "ref";
 let removeActiveManager: (() => void) | null = null;
+let managerGeneration = 0;
 
 interface VueModule {
     computed: (getter: () => unknown) => unknown;
@@ -73,10 +76,22 @@ interface ManagerState {
     fields: { value: ReturnType<typeof findNameOverrideFields> };
     filter: { value: OverrideFilter };
     filteredFields: unknown;
+    initialSnapshot: string;
     initiallyFilled: Set<string>;
     open: { value: boolean };
     reviewField: { value: NameOverrideField | null };
     reviewOpen: { value: boolean };
+    referenceStyle: { value: ReferenceStyle };
+    source: string;
+}
+
+interface ManagerActionContext {
+    cleanup: () => void;
+    citationLayout: { value: CitationLayout };
+    editor: editBox.EditBox;
+    fields: { value: ReturnType<typeof findNameOverrideFields> };
+    initialSnapshot: string;
+    open: { value: boolean };
     referenceStyle: { value: ReferenceStyle };
     source: string;
 }
@@ -89,11 +104,16 @@ interface ManagerState {
 export async function openCitationManager(
     editor: editBox.EditBox,
 ): Promise<void> {
-    removeActiveManager?.();
+    const generation = ++managerGeneration;
+    addManagerStyles();
     const require = (await mw.loader.using([
         "vue",
         "@wikimedia/codex",
     ])) as ResourceLoaderRequire;
+    if (generation !== managerGeneration) {
+        return;
+    }
+    removeActiveManager?.();
     mountCitationManager(editor, require);
 }
 
@@ -112,10 +132,17 @@ function mountCitationManager(
     const host = document.createElement("div");
     host.id = HOST_ID;
     document.documentElement.append(host);
+    let cleaned = false;
     const cleanup = function cleanup(): void {
+        if (cleaned) {
+            return;
+        }
+        cleaned = true;
         application.unmount();
         host.remove();
-        removeActiveManager = null;
+        if (removeActiveManager === cleanup) {
+            removeActiveManager = null;
+        }
     };
     const component = createManagerComponent(Vue, editor, cleanup);
     const application = Vue.createMwApp(component);
@@ -212,14 +239,20 @@ function createManagerState(
     const initiallyFilled = new Set(initiallyFilledKeys);
     const compactReferences = hasCompactReferenceCalls(source);
     const referenceStyle: ReferenceStyle = compactReferences ? "r" : "ref";
+    const citationLayout = detectCitationLayout(source);
     const computedCallback = function getFilteredFields() {
         return filterFields(fields.value, filter.value, initiallyFilled);
     };
     const result = {
-        citationLayout: Vue.ref(detectCitationLayout(source)),
+        citationLayout: Vue.ref(citationLayout),
         fields,
         filter,
         filteredFields: Vue.computed(computedCallback),
+        initialSnapshot: buildManagerSnapshot(
+            fields.value,
+            citationLayout,
+            referenceStyle,
+        ),
         initiallyFilled,
         open: Vue.ref(true),
         reviewField: Vue.ref<NameOverrideField | null>(null),
@@ -272,39 +305,115 @@ function createReviewActions(state: ManagerState): Record<string, unknown> {
  * @param context - Manager state and editor dependencies.
  * @returns Manager actions exposed to the template.
  */
-function createManagerActions(context: {
-    cleanup: () => void;
-    citationLayout: { value: CitationLayout };
-    editor: editBox.EditBox;
-    fields: { value: ReturnType<typeof findNameOverrideFields> };
-    open: { value: boolean };
-    referenceStyle: { value: ReferenceStyle };
-    source: string;
-}): Record<string, unknown> {
+function createManagerActions(
+    context: ManagerActionContext,
+): Record<string, unknown> {
     const close = function close(): void {
         context.open.value = false;
+        queueMicrotask(context.cleanup);
+    };
+    const insertSource = function insertSource(): void {
+        requestSourceManager(context, close);
     };
     const apply = function apply(): void {
-        const updates = buildNameOverrideUpdates(context.fields.value);
-        const text = manageCitations(
-            context.source,
-            updates,
-            context.referenceStyle.value === "r",
-            context.citationLayout.value,
-        );
-        context.editor.write(text);
-        context.editor.focus();
-        mw.notify("Citation management changes applied.", {
-            type: "success",
-        });
-        close();
+        applyManagerChanges(context, close);
     };
     function onOpenChange(value: boolean): void {
         if (!value) {
             queueMicrotask(context.cleanup);
         }
     }
-    return { apply, close, onOpenChange };
+    return { apply, close, insertSource, onOpenChange };
+}
+
+/** Opens source management only when no manager edits would be lost. */
+function requestSourceManager(
+    context: ManagerActionContext,
+    close: () => void,
+): void {
+    if (hasManagerChanges(context)) {
+        mw.notify(
+            "Apply or cancel citation changes before opening the " +
+                "source manager.",
+            { type: "warn" },
+        );
+        return;
+    }
+    close();
+    scheduleSourceManager(context);
+}
+
+/** Applies citation-manager changes and then restores editor focus. */
+function applyManagerChanges(
+    context: ManagerActionContext,
+    close: () => void,
+): void {
+    const updates = buildNameOverrideUpdates(context.fields.value);
+    const text = manageCitations(
+        context.source,
+        updates,
+        context.referenceStyle.value === "r",
+        context.citationLayout.value,
+    );
+    context.editor.write(text);
+    mw.notify("Citation management changes applied.", { type: "success" });
+    close();
+    queueMicrotask(function focusEditor(): void {
+        context.editor.focus();
+    });
+}
+
+/** Checks whether switching dialogs would discard manager edits. */
+function hasManagerChanges(context: {
+    citationLayout: { value: CitationLayout };
+    fields: { value: ReturnType<typeof findNameOverrideFields> };
+    initialSnapshot: string;
+    referenceStyle: { value: ReferenceStyle };
+}): boolean {
+    const current = buildManagerSnapshot(
+        context.fields.value,
+        context.citationLayout.value,
+        context.referenceStyle.value,
+    );
+    return current !== context.initialSnapshot;
+}
+
+/** Captures the settings that must not be silently discarded. */
+function buildManagerSnapshot(
+    fields: ReturnType<typeof findNameOverrideFields>,
+    citationLayout: CitationLayout,
+    referenceStyle: ReferenceStyle,
+): string {
+    const overrides: Array<[string, string]> = [];
+    for (const field of fields) {
+        for (const occurrence of field.occurrences) {
+            overrides.push([occurrence.id, occurrence.override]);
+        }
+    }
+    return JSON.stringify({ citationLayout, overrides, referenceStyle });
+}
+
+/** Opens source management after the citation dialog has closed. */
+function scheduleSourceManager(context: {
+    citationLayout: { value: CitationLayout };
+    editor: editBox.EditBox;
+    referenceStyle: { value: ReferenceStyle };
+}): void {
+    setTimeout(function openInsertionManager(): void {
+        const options = {
+            citationLayout: context.citationLayout.value,
+            referenceStyle: context.referenceStyle.value,
+        };
+        void openSourceManager(context.editor, options).catch(
+            notifySourceFailure,
+        );
+    });
+}
+
+/** Reports a source-manager startup failure. */
+function notifySourceFailure(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    mw.notify(`Source manager failed: ${message}`, { type: "error" });
 }
 
 /**
@@ -504,6 +613,14 @@ const MANAGER_TEMPLATE = `
                 {{ option.label }}
             </cdx-radio>
         </cdx-field>
+    </section>
+    <section>
+        <h3>Sources</h3>
+        <p>
+            Insert a URL at the current editor cursor or edit an existing
+            source.
+        </p>
+        <cdx-button @click="insertSource">Insert or edit source…</cdx-button>
     </section>
     <template #footer>
         <cdx-button @click="close">Cancel</cdx-button>

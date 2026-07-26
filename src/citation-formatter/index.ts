@@ -2,7 +2,11 @@
  * Browser entry point and public citation-formatter API.
  */
 
-export { formatCitations, manageCitations } from "#me/app/format.ts";
+export {
+    formatCitations,
+    manageCitations,
+    manageCitationsWithResult,
+} from "#me/app/format.ts";
 export {
     findUsedCitationTemplates,
     formatCitationWikitext,

@@ -44,10 +44,30 @@ export function manageCitations(
     compact: boolean,
     layout: CitationLayout = "block",
 ): string {
+    return manageCitationsWithResult(text, updates, compact, layout).text;
+}
+
+/**
+ * Applies manager edits while retaining citation-formatting counts.
+ *
+ * @param text - Article source wikitext.
+ * @param updates - Edited reference-name overrides.
+ * @param compact - Whether reuse calls should use R.
+ * @param layout - Citation-template output layout.
+ * @returns Managed source wikitext and formatting counts.
+ */
+export function manageCitationsWithResult(
+    text: string,
+    updates: NameOverrideUpdate[],
+    compact: boolean,
+    layout: CitationLayout = "block",
+): CitationFormatResult {
     const overridden = applyNameOverrides(text, updates);
-    const formatted = formatCitations(overridden, layout).text;
+    const formatted = formatCitations(overridden, layout);
     if (compact) {
-        return compactReferenceCalls(formatted);
+        formatted.text = compactReferenceCalls(formatted.text);
+    } else {
+        formatted.text = expandCompactReferenceCalls(formatted.text);
     }
-    return expandCompactReferenceCalls(formatted);
+    return formatted;
 }

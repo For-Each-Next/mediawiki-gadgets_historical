@@ -434,6 +434,72 @@ const testCallbackH = () => {
 };
 test("matches source identity across parts and position URLs", testCallbackH);
 
+const testManualSourceIdentity = () => {
+    const source = buildPaginatedInterviewSource();
+    const result = formatCitationWikitext(source, generatedTemplateData);
+    const rerun = formatCitationWikitext(result.text, generatedTemplateData);
+
+    assert.match(result.text, /name="Shinji & Hiroya, 2006, p\. 1"/u);
+    assert.match(result.text, /name="Shinji & Hiroya, 2006, p\. 2"/u);
+    assert.doesNotMatch(result.text, /Shinji & Hiroya, 2006[ab]/u);
+    assert.match(result.text, /751888p1\.html/u);
+    assert.match(result.text, /751888p2\.html/u);
+    assert.equal(
+        result.text.split("https://xbox360.ign.com/articles/751/751888.html")
+            .length - 1,
+        2,
+    );
+    assert.equal(rerun.text, result.text);
+};
+test(
+    "groups manually keyed page URLs as parts of one source",
+    testManualSourceIdentity,
+);
+
+test("uses an unmarked base URL for keyed continuation pages", () => {
+    const base =
+        "https://nlab.itmedia.co.jp/games/articles/0706/18/news007.html";
+    const continuation =
+        "https://nlab.itmedia.co.jp/games/articles/0706/18/news007_2.html";
+    const source = [
+        "A<ref>{{cite web|author=nlab|date=2007|title=Feature|" +
+            `url=${base}|at=Part 1}}</ref>`,
+        "B<ref>{{cite web|author=nlab|date=2007|title=Feature continued|" +
+            `url=${continuation}<!-- # ${base} -->|at=Part 2}}</ref>`,
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, generatedTemplateData);
+
+    assert.match(result.text, /name="nlab, 2007, Part 1"/u);
+    assert.match(result.text, /name="nlab, 2007, Part 2"/u);
+    assert.doesNotMatch(result.text, /nlab, 2007[ab]/u);
+    assert.match(result.text, /news007\.html/u);
+    assert.match(result.text, /news007_2\.html/u);
+});
+
+function buildPaginatedInterviewSource(): string {
+    const key = "https://xbox360.ign.com/articles/751/751888.html";
+    const first = [
+        "{{cite interview|last1=Shinji|first1=Noguchi",
+        "|author2=Hiroya|fisrt2=Hatsushiba",
+        "|title=Eternal Sonata Interview",
+        "|url=https://xbox360.ign.com/articles/751/751888p1.html",
+        `<!-- # ${key} -->|work=[[IGN]]|date=2006-12-20|page=1}}`,
+    ].join("");
+    const second = [
+        "{{cite interview|last1=Shinji|first1=Noguchi",
+        "|last2=Hiroya|first2=Hatsushiba",
+        "|title=Eternal Sonata Interview",
+        "|url=http://xbox360.ign.com/articles/751/751888p2.html",
+        `<!-- # ${key} -->|work=IGN|date=2006-12-20|page=2}}`,
+    ].join("");
+    return [
+        `A<ref>${first}</ref>`,
+        `B<ref>${second}</ref>`,
+        "<references />",
+    ].join("\n");
+}
+
 const testCallbackG = () => {
     const source = [
         "A<ref>{{cite web|last=Ma|date=2006|title=Report|url=https://one.test/report}}</ref>",

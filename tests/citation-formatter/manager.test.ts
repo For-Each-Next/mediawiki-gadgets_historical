@@ -11,7 +11,10 @@ import {
     findNameOverrideFields,
     hasCompactReferenceCalls,
 } from "citation-formatter/domain/manager.ts";
-import { manageCitations } from "citation-formatter/app/format.ts";
+import {
+    manageCitations,
+    manageCitationsWithResult,
+} from "citation-formatter/app/format.ts";
 
 const testCallbackH = () => {
     const source = [
@@ -151,6 +154,14 @@ test(
     "applies reference-call and citation-layout styles independently",
     testCitationManagementStyles,
 );
+
+test("retains formatting counts while applying manager styles", () => {
+    const source = ["Text.<ref>Plain note</ref>", "<references />"].join("\n");
+    const result = manageCitationsWithResult(source, [], true, "inline");
+
+    assert.equal(result.referencesNotFormatted, 1);
+    assert.match(result.text, /<ref name=":1">Plain note<\/ref>/u);
+});
 
 const testDetectCitationLayout = () => {
     const blockCitation = ["{{Cite web", "  | title = Block", "}}"].join("\n");

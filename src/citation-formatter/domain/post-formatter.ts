@@ -13,7 +13,7 @@ import { getCanonicalTemplateName } from "./templates.ts";
  */
 export function formatBlockCitation(citation: CitationTemplate): string {
     const templateName = getCanonicalTemplateName(citation.name);
-    const outputParams = buildOutputParams(citation);
+    const outputParams = getCitationOutputParams(citation);
     const mapCallback = function formatParam(param: CitationParam) {
         return `  | ${param.name} = ${param.value}`;
     };
@@ -32,7 +32,7 @@ export function formatBlockCitation(citation: CitationTemplate): string {
  */
 export function formatInlineCitation(citation: CitationTemplate): string {
     const templateName = getCanonicalTemplateName(citation.name);
-    const outputParams = buildOutputParams(citation);
+    const outputParams = getCitationOutputParams(citation);
     const mapCallback = function formatParam(param: CitationParam) {
         return `${param.name} = ${param.value}`;
     };
@@ -44,12 +44,16 @@ export function formatInlineCitation(citation: CitationTemplate): string {
 }
 
 /**
- * Removes empty parameters and applies final output labels.
+ * Applies final output labels and optionally retains empty parameters.
  *
  * @param citation - Canonical citation.
- * @returns Populated parameters with output-ready names.
+ * @param includeEmpty - Whether empty parameters should be retained.
+ * @returns Parameters with output-ready names.
  */
-function buildOutputParams(citation: CitationTemplate): CitationParam[] {
+export function getCitationOutputParams(
+    citation: CitationTemplate,
+    includeEmpty: boolean = false,
+): CitationParam[] {
     const authorCount = countAuthors(citation.params);
     const mapCallback = function buildOutputParam(
         param: CitationParam,
@@ -57,9 +61,10 @@ function buildOutputParams(citation: CitationTemplate): CitationParam[] {
         const name = getOutputParamName(param, citation.params, authorCount);
         return { name, value: param.value };
     };
-    const result = citation.params
-        .filter((param) => param.value !== "")
-        .map(mapCallback);
+    const params = includeEmpty
+        ? citation.params
+        : citation.params.filter((param) => param.value !== "");
+    const result = params.map(mapCallback);
     return result;
 }
 

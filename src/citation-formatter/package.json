@@ -1,7 +1,7 @@
 {
     "name": "citation-formatter",
-    "version": "0.3.5",
-    "description": "Format CS1 citations and convert inline citations to list-defined references.",
+    "version": "0.3.14",
+    "description": "Format and manage CS1 citations in MediaWiki source editors.",
     "private": true,
     "license": "CC BY-SA 4.0",
     "author": "For Each ... Next",
@@ -17,6 +17,11 @@
         "globalName": "citationFormatter",
         "outputDirectory": "../../dist/citation-formatter",
         "outputName": "citation_formatter",
+        "defines": {
+            "__CITATION_FORMATTER_MANAGER_CSS__": {
+                "textFile": "ui/manager.css"
+            }
+        },
         "userscript": {
             "match": [
                 "https://*.wikipedia.org/*",

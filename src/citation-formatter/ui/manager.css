@@ -1,0 +1,265 @@
+.cf-quick-launch {
+    background-color: var(--background-color-progressive, #36c);
+    border: 1px solid var(--border-color-progressive, #36c);
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+    color: var(--color-inverted-fixed, #fff);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    inset-block-end: max(1rem, env(safe-area-inset-bottom));
+    inset-inline-end: max(1rem, env(safe-area-inset-right));
+    padding: 0.65em 1em;
+    position: fixed;
+    z-index: 90;
+}
+
+.cf-quick-launch:hover {
+    background-color: var(--background-color-progressive--hover, #2a4b8d);
+    border-color: var(--border-color-progressive--hover, #2a4b8d);
+}
+
+.cf-quick-launch:focus-visible {
+    outline: 2px solid var(--border-color-progressive, #36c);
+    outline-offset: 2px;
+}
+
+.cf-source-manager.cdx-dialog {
+    max-width: min(96vw, 72em);
+    width: min(96vw, 72em);
+}
+
+.cf-source-manager__status {
+    margin-bottom: 1em;
+}
+
+.cf-source-manager__loading {
+    display: grid;
+    gap: 0.35em;
+    margin: 0.75em 0;
+}
+
+.cf-source-manager__lookup,
+.cf-source-manager__manual {
+    align-items: end;
+    display: grid;
+    gap: 0.75em;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-top: 1em;
+}
+
+.cf-source-manager__manual {
+    border-top: 1px solid var(--border-color-subtle, #c8ccd1);
+    margin-top: 1.25em;
+}
+
+.cf-source-manager__source-search {
+    max-width: 32em;
+    padding-top: 1em;
+}
+
+.cf-source-manager__existing-list {
+    counter-reset: source;
+    list-style: none;
+    margin: 0;
+    padding: 0.5em 0 0;
+}
+
+.cf-source-manager__existing-row {
+    align-items: center;
+    border-bottom: 1px solid var(--border-color-subtle, #c8ccd1);
+    counter-increment: source;
+    display: grid;
+    gap: 0.5em;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 0.4em 0;
+}
+
+.cf-source-manager__existing-row::before {
+    content: counter(source) ".";
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+}
+
+.cf-source-manager__existing-summary {
+    align-items: baseline;
+    display: grid;
+    gap: 0.4em;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-width: 0;
+}
+
+.cf-source-manager__existing-name,
+.cf-source-manager__existing-title,
+.cf-source-manager__existing-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cf-source-manager__existing-name {
+    font-size: 0.875em;
+    max-width: 16em;
+}
+
+.cf-source-manager__existing-title {
+    min-width: 0;
+}
+
+.cf-source-manager__existing-meta {
+    color: var(--color-subtle, #54595d);
+    max-width: 18em;
+}
+
+.cf-source-manager__existing-meta code {
+    cursor: help;
+}
+
+.cf-source-manager__draft-header {
+    margin-bottom: 1em;
+    max-width: 32em;
+}
+
+.cf-source-manager__params {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.cf-source-manager__params th,
+.cf-source-manager__params td {
+    padding: 0.35em;
+    text-align: start;
+    vertical-align: top;
+}
+
+.cf-source-manager__params th:first-child,
+.cf-source-manager__params td:first-child {
+    width: 8em;
+}
+
+.cf-source-manager__param-name {
+    width: 8em;
+}
+
+.cf-source-manager__param-name .cdx-text-input__input {
+    font-weight: 700;
+}
+
+.cf-source-manager__params th:last-child,
+.cf-source-manager__params td:last-child {
+    width: 9em;
+}
+
+.cf-source-manager__param-row--citation-name > td {
+    background-color: var(--background-color-progressive-subtle, #eaf3ff);
+}
+
+.cf-source-manager__param-row--citation-name > td:first-child {
+    border-inline-start: 3px solid var(--border-color-progressive, #36c);
+}
+
+.cf-source-manager__actions {
+    margin-top: 0.75em;
+}
+
+.cf-source-manager__alias-suggestion {
+    align-items: center;
+    color: var(--color-subtle, #54595d);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15em 0.4em;
+    margin-top: 0.25em;
+}
+
+.cf-source-manager__alias-suggestion-actions {
+    display: flex;
+}
+
+.cf-source-manager__alias-suggestion-actions .cdx-button {
+    min-height: 0;
+    padding-block: 0;
+}
+
+.cf-source-manager__param-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25em;
+}
+
+.cf-source-manager__existing-actions {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.cf-source-manager__footer-actions {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    justify-content: flex-end;
+}
+
+.cf-source-manager__footer-actions--mobile {
+    display: none;
+}
+
+@media (max-width: 42em) {
+    .cf-quick-launch {
+        inset-block-end: max(0.75rem, env(safe-area-inset-bottom));
+        inset-inline-end: max(0.75rem, env(safe-area-inset-right));
+    }
+
+    .cf-source-manager__lookup,
+    .cf-source-manager__manual {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+    }
+
+    .cf-source-manager__existing-name {
+        max-width: 8em;
+    }
+
+    .cf-source-manager__existing-meta {
+        max-width: 9em;
+    }
+
+    .cf-source-manager__params,
+    .cf-source-manager__params tbody,
+    .cf-source-manager__params tr,
+    .cf-source-manager__params td {
+        display: block;
+        width: 100%;
+    }
+
+    .cf-source-manager__params thead {
+        display: none;
+    }
+
+    .cf-source-manager__params tr {
+        border-bottom: 1px solid var(--border-color-subtle, #c8ccd1);
+        padding: 0.5em 0;
+    }
+
+    .cf-source-manager__params td:last-child {
+        width: 100%;
+    }
+
+    .cf-source-manager__param-name {
+        width: 100%;
+    }
+
+    .cf-source-manager__footer-actions--desktop {
+        display: none;
+    }
+
+    .cf-source-manager__footer-actions--mobile {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .cf-source-manager__footer-actions--mobile > .cdx-button {
+        max-width: none;
+        width: 100%;
+    }
+}

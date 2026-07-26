@@ -125,6 +125,32 @@ const RESPONSIBLE_ORGANIZATION_PARAMS = [
     "work",
     "publisher",
 ];
+const CITATION_DATE_KEYS = ["date", "year", "publication-date"];
+const CITATION_CREATOR_FALLBACK_KEYS = [
+    "interviewer-last",
+    "host",
+    "cartography",
+    "translator-last",
+    "contributor-last",
+    "developer",
+    "user",
+    ...RESPONSIBLE_ORGANIZATION_PARAMS,
+];
+const SOURCE_LOCATOR_ENTRIES: Array<[string, string]> = [
+    ["page", "p."],
+    ["pages", "pp."],
+    ["quote-page", "p."],
+    ["quote-pages", "pp."],
+    ["chapter", "chapter"],
+    ["section", "section"],
+    ["at", ""],
+    ["time", "at time"],
+    ["timestamp", "at time"],
+    ["minutes", "min."],
+    ["duration", "at time"],
+    ["level", "level"],
+    ["scene", "scene"],
+];
 
 const FALLBACK_PARAM_ORDER_OFFSET = 1_000;
 const MAX_NUMBERED_CREATORS = 50;
@@ -162,6 +188,16 @@ export interface CitationIdentity {
 
 interface CitationParamMetadata extends CitationParam {
     order: number;
+}
+
+interface CitationAuthorSelection {
+    keys: string[];
+    value: string;
+}
+
+interface CitationValueSelection {
+    key: string;
+    value: string;
 }
 
 /**
@@ -458,8 +494,36 @@ export function getCitationIdentity(
     };
     const signatureParams = citation.params.filter(filterCallback);
     const signatureValues = signatureParams.map(mapSourceIdentityParam);
-    const sourceSignature = JSON.stringify([citation.name, signatureValues]);
+    const sourceKey = getSourceIdentityKey(citation.params);
+    const sourceSignature =
+        sourceKey === ""
+            ? JSON.stringify([citation.name, signatureValues])
+            : JSON.stringify(["source-url", sourceKey]);
     return { author, baseName, locator, sourceSignature, year };
+}
+
+/**
+ * Gets the active citation fields that form the visible reference name.
+ *
+ * @param citation - Canonical citation.
+ * @returns Canonical parameter names contributing the author, year, or
+ * locator.
+ */
+export function getCitationNameContributors(
+    citation: CitationTemplate,
+): Set<string> {
+    const entries = citation.params.map(
+        (param) => [param.name, param.value] as const,
+    );
+    const values = Object.fromEntries(entries);
+    const author = selectCitationAuthor(values);
+    const year = selectCitationYear(values);
+    const locator = selectSourceLocator(values);
+    return new Set([
+        ...author.keys,
+        ...(year == null ? [] : [year.key]),
+        ...(locator == null ? [] : [locator.key]),
+    ]);
 }
 
 /**
@@ -488,6 +552,21 @@ function mapSourceIdentityParam(param: CitationParam): [string, string] {
         return [param.name, canonicalizeSourceUrl(param.value)];
     }
     return [param.name, cleanValue(param.value)];
+}
+
+/**
+ * Resolves a shared source key from a citation URL.
+ *
+ * @param params - Canonical citation parameters.
+ * @returns Normalized comment override or actual URL fallback.
+ */
+function getSourceIdentityKey(params: CitationParam[]): string {
+    const url = params.find((param) => param.name === "url");
+    if (url == null) {
+        return "";
+    }
+    const override = extractNameOverride(url.value);
+    return canonicalizeSourceUrl(override || url.value);
 }
 
 /**
@@ -530,38 +609,42 @@ export function appendCitationLocator(name: string, locator: string): string {
  * @returns Author component for the reference name.
  */
 function getCitationAuthor(values: Record<string, string>): string {
+    return selectCitationAuthor(values).value;
+}
+
+/**
+ * Selects the author text together with the fields that supplied it.
+ */
+function selectCitationAuthor(
+    values: Record<string, string>,
+): CitationAuthorSelection {
     const authors = collectNumberedValues(values, ["last", "author"]);
     if (authors.length > 0) {
-        return formatAuthorList(authors);
+        return {
+            keys: authors.map((author) => author.key),
+            value: formatAuthorList(
+                authors.map((author) => authorNameValue(author.value)),
+            ),
+        };
     }
-    const creatorFallbacks = [
-        "interviewer-last",
-        "host",
-        "cartography",
-        "translator-last",
-        "contributor-last",
-        "developer",
-        "user",
-    ];
-    const fallbackKeys = [
-        ...creatorFallbacks,
-        ...RESPONSIBLE_ORGANIZATION_PARAMS,
-    ];
-    for (const key of fallbackKeys) {
+    for (const key of CITATION_CREATOR_FALLBACK_KEYS) {
         if (
             values[key]?.trim() &&
             !hasFieldDirective(values[key], "no-author")
         ) {
-            return nameValue(values[key]);
+            return { keys: [key], value: nameValue(values[key]) };
         }
     }
     if (
         values.title?.trim() &&
         !hasFieldDirective(values.title, "no-author")
     ) {
-        return formatTitleFallback(values.title);
+        return {
+            keys: ["title"],
+            value: formatTitleFallback(values.title),
+        };
     }
-    return "Untitled source";
+    return { keys: [], value: "Untitled source" };
 }
 
 /**
@@ -587,8 +670,8 @@ function formatTitleFallback(title: string): string {
 function collectNumberedValues(
     values: Record<string, string>,
     bases: string[],
-): string[] {
-    const result: string[] = [];
+): CitationValueSelection[] {
+    const result: CitationValueSelection[] = [];
     for (let index = 1; index <= MAX_NUMBERED_CREATORS; index += 1) {
         const suffix = index === 1 ? "" : String(index);
         const candidates = bases.map((base) => `${base}${suffix}`);
@@ -609,8 +692,7 @@ function collectNumberedValues(
             }
             continue;
         }
-        const author = authorNameValue(values[key]);
-        result.push(author);
+        result.push({ key, value: values[key] });
     }
     return result;
 }
@@ -650,17 +732,23 @@ function formatAuthorList(authors: string[]): string {
  * @returns Four-digit year or n.d.
  */
 function getCitationYear(values: Record<string, string>): string {
-    const dateKeys = ["date", "year", "publication-date"];
-    const findCallback = function identifiesDate(candidate: string) {
-        return (
-            values[candidate]?.trim() &&
-            !hasFieldDirective(values[candidate], "no-date")
-        );
-    };
-    const key = dateKeys.find(findCallback);
-    const entered = key == null ? "" : values[key];
+    const selected = selectCitationYear(values);
+    const entered = selected?.value ?? "";
     const clean = cleanValue(entered);
     return clean.match(/\b(\d{4})\b/u)?.[1] || "n.d.";
+}
+
+/** Selects the first eligible date field. */
+function selectCitationYear(
+    values: Record<string, string>,
+): CitationValueSelection | null {
+    for (const key of CITATION_DATE_KEYS) {
+        const value = values[key];
+        if (value?.trim() && !hasFieldDirective(value, "no-date")) {
+            return { key, value };
+        }
+    }
+    return null;
 }
 
 /**
@@ -670,22 +758,14 @@ function getCitationYear(values: Record<string, string>): string {
  * @returns Part-of-source locator.
  */
 function getSourceLocator(values: Record<string, string>): string {
-    const locatorEntries: Array<[string, string]> = [
-        ["page", "p."],
-        ["pages", "pp."],
-        ["quote-page", "p."],
-        ["quote-pages", "pp."],
-        ["chapter", "chapter"],
-        ["section", "section"],
-        ["at", ""],
-        ["time", "at time"],
-        ["timestamp", "at time"],
-        ["minutes", "min."],
-        ["duration", "at time"],
-        ["level", "level"],
-        ["scene", "scene"],
-    ];
-    for (const [key, prefix] of locatorEntries) {
+    return selectSourceLocator(values)?.value ?? "";
+}
+
+/** Selects and formats the first eligible source locator. */
+function selectSourceLocator(
+    values: Record<string, string>,
+): CitationValueSelection | null {
+    for (const [key, prefix] of SOURCE_LOCATOR_ENTRIES) {
         if (hasFieldDirective(values[key] || "", "no-part")) {
             continue;
         }
@@ -694,10 +774,11 @@ function getSourceLocator(values: Record<string, string>): string {
             value = normalizeLocatorTime(value);
         }
         if (value !== "") {
-            return prefix === "" ? value : `${prefix} ${value}`;
+            const formatted = prefix === "" ? value : `${prefix} ${value}`;
+            return { key, value: formatted };
         }
     }
-    return "";
+    return null;
 }
 
 /**

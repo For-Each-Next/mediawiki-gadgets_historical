@@ -15,31 +15,35 @@ const HTTP_NOT_FOUND = 404;
 const UNKNOWN_PARAM_ORDER_OFFSET = 10000;
 
 /**
- * Builds a cite template from the first Citoid result for a URL.
+ * Builds a cite template from the first Citoid result for a source
+ * lookup.
  *
- * @param url - Source URL to resolve through Citoid.
+ * @param search - URL, identifier, or citation text to resolve through
+ *   Citoid.
  * @param options - Fetch and formatting options.
  * @param options.fetcher - Fetch implementation.
  * @param options.now - Date used for access-date.
- * @param options.cache - Citation cache keyed by source URL.
+ * @param options.cache - Citation cache keyed by lookup text.
+ * @param options.sourceUrl - HTTP(S) source URL to preserve, or null
+ *   when the lookup is not a URL.
  * @returns Generated citation template wikitext.
  */
 export async function fetchCiteTemplate(
-    url: string,
+    search: string,
     options: any = {},
 ): Promise<string> {
-    const cachedTemplate = getCachedCiteTemplate(url, options);
+    const cachedTemplate = getCachedCiteTemplate(search, options);
 
     if (cachedTemplate != null) {
         return cachedTemplate;
     }
 
     const fetcher = options.fetcher || fetch;
-    const response = await fetchCitoidResponse(url, fetcher);
+    const response = await fetchCitoidResponse(search, fetcher);
 
     if (!response.ok) {
         const fallback = await handleFailedCitoidResponse(
-            url,
+            search,
             response,
             fetcher,
             options,
@@ -49,12 +53,12 @@ export async function fetchCiteTemplate(
     }
 
     const citeTemplate = await buildCitoidResponseTemplate(
-        url,
+        search,
         response,
         options,
     );
 
-    setCachedCiteTemplate(url, citeTemplate, options);
+    setCachedCiteTemplate(search, citeTemplate, options);
 
     return citeTemplate;
 }
@@ -88,16 +92,23 @@ async function fetchCitoidResponse(
  * @returns Citation wikitext from a successful Citoid response.
  */
 async function buildCitoidResponseTemplate(
-    url: string,
+    search: string,
     response: Response,
-    options: { now: unknown; rules: unknown },
+    options: {
+        bibliographic?: boolean;
+        now: unknown;
+        rules: unknown;
+        sourceUrl?: string | null;
+    },
 ) {
     const data = await response.json();
     const citation = getFirstCitation(data);
+    const sourceUrl = getSourceUrlOption(search, options);
     const template = buildCiteTemplate(citation, {
+        bibliographic: options.bibliographic,
         now: options.now,
         rules: options.rules,
-        url,
+        url: sourceUrl,
     });
 
     return template;
@@ -115,40 +126,58 @@ async function buildCitoidResponseTemplate(
  *   fallback.
  */
 async function handleFailedCitoidResponse(
-    url: string,
+    search: string,
     response: Response,
     fetcher: typeof fetch,
-    options: { now: unknown; rules: unknown },
+    options: {
+        now: unknown;
+        rules: unknown;
+        sourceUrl?: string | null;
+    },
 ) {
     if (response.status !== HTTP_NOT_FOUND) {
         throw new Error(`Citoid request failed: HTTP ${response.status}`);
     }
 
-    const citeTemplate = await buildFallbackCiteWebTemplate(url, {
+    const sourceUrl = getSourceUrlOption(search, options);
+    if (sourceUrl == null) {
+        throw new Error("Citoid could not resolve the entered source.");
+    }
+    const citeTemplate = await buildFallbackCiteWebTemplate(sourceUrl, {
         fetcher,
         now: options.now,
         rules: options.rules,
     });
 
-    setCachedCiteTemplate(url, citeTemplate, options);
+    setCachedCiteTemplate(search, citeTemplate, options);
 
     return citeTemplate;
 }
 
 /**
- * Builds the Citoid REST URL for a source URL.
+ * Builds the Citoid REST URL for source lookup text.
  *
- * @param url - Source URL to resolve through Citoid.
+ * @param url - Source lookup text to resolve through Citoid.
  * @returns Citoid request URL.
  */
 export function buildCitoidUrl(url: string): string {
     const trimmedUrl = url.trim();
 
     if (trimmedUrl === "") {
-        throw new Error("Enter a URL before fetching a citation.");
+        throw new Error("Enter a source before fetching a citation.");
     }
 
     return `${CITOID_ENDPOINT}${encodeURIComponent(trimmedUrl)}`;
+}
+
+/**
+ * Resolves the URL for URL-specific formatting and fallback behavior.
+ */
+function getSourceUrlOption(
+    search: string,
+    options: { sourceUrl?: string | null },
+): string | null {
+    return options.sourceUrl === undefined ? search : options.sourceUrl;
 }
 
 /**
@@ -480,7 +509,65 @@ function buildCitationValues(citation: any, options: any): any {
         via: citation.via,
         website: citation.websiteTitle || citation.publicationTitle,
     };
-    return result;
+    if (options.bibliographic !== true) {
+        return result;
+    }
+    return addBibliographicCitationValues(result, citation, options);
+}
+
+/**
+ * Adds fields needed for a bibliographic Citoid query.
+ */
+function addBibliographicCitationValues(
+    values: Record<string, unknown>,
+    citation: any,
+    options: any,
+): Record<string, unknown> {
+    const bookSection = citation.itemType === "bookSection";
+    const journalArticle = citation.itemType === "journalArticle";
+    return {
+        ...values,
+        accessDate:
+            citation.url || options.url ? formatAccessDate(options.now) : "",
+        chapter: bookSection ? citation.title : "",
+        doi: formatIdentifierValue(citation.DOI),
+        edition: citation.edition,
+        isbn: formatIdentifierValue(citation.ISBN),
+        issn: formatIdentifierValue(citation.ISSN),
+        issue: citation.issue,
+        journal: journalArticle ? citation.publicationTitle : "",
+        location: citation.place,
+        oclc: citation.oclc || getExtraIdentifier(citation.extra, "OCLC"),
+        pages: citation.pages,
+        pmc:
+            citation.PMCID ||
+            getExtraIdentifier(citation.extra, "PMCID")?.replace(/^PMC/iu, ""),
+        pmid: citation.PMID || getExtraIdentifier(citation.extra, "PMID"),
+        series: citation.series,
+        title: normalizeCitationTitle(
+            bookSection ? citation.bookTitle : citation.title,
+        ),
+        volume: citation.volume,
+        website: journalArticle
+            ? citation.websiteTitle
+            : citation.websiteTitle || citation.publicationTitle,
+    };
+}
+
+/** Formats the first usable scalar value returned for an identifier. */
+function formatIdentifierValue(value: unknown): string {
+    if (Array.isArray(value)) {
+        return trimFieldText(value.find((candidate) => candidate != null));
+    }
+    return trimFieldText(value);
+}
+
+/**
+ * Reads an identifier stored in Zotero's newline-delimited extra field.
+ */
+function getExtraIdentifier(extra: unknown, name: string): string | undefined {
+    const pattern = new RegExp(`(?:^|\\n)${name}:\\s*(\\S+)`, "iu");
+    return trimFieldText(extra).match(pattern)?.[1];
 }
 
 /**

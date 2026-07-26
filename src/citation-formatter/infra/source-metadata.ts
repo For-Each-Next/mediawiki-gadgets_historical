@@ -1,0 +1,232 @@
+/** Resolves citation metadata and existing Wayback snapshots. */
+
+import { cite } from "#shared";
+import { sanitizeSourceUrl } from "#me/domain/source-manager.ts";
+
+const WAYBACK_AVAILABILITY_ENDPOINT = "https://archive.org/wayback/available";
+const ARCHIVE_DATE_LENGTH = 8;
+
+export interface SourceArchiveMetadata {
+    archiveDate: string;
+    archiveUrl: string;
+}
+
+export interface ResolvedSourceMetadata extends SourceArchiveMetadata {
+    archiveError: string;
+    citeTemplate: string;
+    metadataError: string;
+    originalUrl: string;
+}
+
+export interface SourceMetadataOptions {
+    fetcher?: typeof fetch;
+    now?: Date;
+}
+
+interface WaybackAvailabilityResponse {
+    archived_snapshots?: {
+        closest?: {
+            available?: boolean;
+            timestamp?: string;
+            url?: string;
+        };
+    };
+}
+
+/**
+ * Finds the closest existing Wayback snapshot for one source URL.
+ *
+ * Network, HTTP, and malformed-response failures mean no snapshot.
+ *
+ * @param originalUrl - Original source URL.
+ * @param options - Fetch options.
+ * @returns Existing snapshot metadata, or null when none is available.
+ */
+export async function fetchAvailableArchive(
+    originalUrl: string,
+    options: SourceMetadataOptions = {},
+): Promise<SourceArchiveMetadata | null> {
+    try {
+        return await requestAvailableArchive(originalUrl, options);
+    } catch (_error) {
+        return null;
+    }
+}
+
+/**
+ * Resolves a cite template and archive metadata for one source.
+ *
+ * A supplied archive seed comes from a pasted archive URL. It takes
+ * priority over an Availability API lookup.
+ *
+ * @param sourceInput - Source URL, identifier, or citation text.
+ * @param archiveSeed - Archive values parsed from the entered URL.
+ * @param options - Fetch and access-date options.
+ * @returns Citation template and archive values.
+ */
+export async function resolveSourceMetadata(
+    sourceInput: string,
+    archiveSeed: SourceArchiveMetadata | null = null,
+    options: SourceMetadataOptions = {},
+): Promise<ResolvedSourceMetadata> {
+    const search = sourceInput.trim();
+    const originalUrl = getHttpSourceUrl(search);
+    const citeTemplatePromise = cite.fetchCiteTemplate(search, {
+        ...options,
+        bibliographic: originalUrl === "",
+        sourceUrl: originalUrl || null,
+    });
+    const archivePromise =
+        originalUrl === ""
+            ? Promise.resolve(null)
+            : archiveSeed
+              ? Promise.resolve(archiveSeed)
+              : requestAvailableArchive(originalUrl, options);
+    const [citationResult, archiveResult] = await Promise.allSettled([
+        citeTemplatePromise,
+        archivePromise,
+    ]);
+    const metadataError = getRejectedMessage(citationResult);
+    const archiveError = getRejectedMessage(archiveResult);
+    const citeTemplate =
+        citationResult.status === "fulfilled"
+            ? citationResult.value
+            : buildFallbackTemplate(search, originalUrl, options);
+    const availableArchive =
+        archiveResult.status === "fulfilled" ? archiveResult.value : null;
+    const archive = availableArchive ?? { archiveDate: "", archiveUrl: "" };
+
+    return {
+        archiveError,
+        citeTemplate,
+        metadataError,
+        originalUrl,
+        ...archive,
+    };
+}
+
+/** Requests Wayback Availability data, rejecting on failure. */
+async function requestAvailableArchive(
+    originalUrl: string,
+    options: SourceMetadataOptions,
+): Promise<SourceArchiveMetadata | null> {
+    const requestUrl = buildAvailabilityUrl(originalUrl);
+    const fetcher = options.fetcher ?? fetch;
+    const response = await fetcher(requestUrl, {
+        headers: { accept: "application/json" },
+    });
+    if (!response.ok) {
+        throw new Error(`Wayback request failed: HTTP ${response.status}`);
+    }
+    const data = (await response.json()) as WaybackAvailabilityResponse;
+    return parseAvailableArchive(data);
+}
+
+/** Builds a manual-editing draft when Citoid is unavailable. */
+function buildFallbackTemplate(
+    sourceInput: string,
+    originalUrl: string,
+    options: SourceMetadataOptions,
+): string {
+    const citation = buildFallbackCitation(sourceInput, originalUrl);
+    return cite.buildCiteTemplate(citation, {
+        bibliographic: originalUrl === "",
+        now: options.now,
+        url: originalUrl || undefined,
+    });
+}
+
+/** Builds a minimal editable citation for a failed lookup. */
+function buildFallbackCitation(
+    sourceInput: string,
+    originalUrl: string,
+): Record<string, string> {
+    if (originalUrl !== "") {
+        return { itemType: "webpage", url: originalUrl };
+    }
+    const identifier = sourceInput.replace(
+        /^(?:urn:)?(doi|isbn|issn)\s*:?\s*/iu,
+        "",
+    );
+    if (/^10\.\d{4,9}\/\S+$/u.test(identifier)) {
+        return { DOI: identifier, itemType: "journalArticle" };
+    }
+    if (/^\d{4}-?\d{3}[\dX]$/iu.test(identifier)) {
+        return { ISSN: identifier, itemType: "journalArticle" };
+    }
+    if (/^(?:97[89][\d -]{10,}|[\dX][\dX -]{8,})$/iu.test(identifier)) {
+        return { ISBN: identifier, itemType: "book" };
+    }
+    return { itemType: "webpage" };
+}
+
+/** Returns a sanitized HTTP(S) source URL, or an empty string. */
+function getHttpSourceUrl(value: string): string {
+    try {
+        const parsed = new URL(value);
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+            return "";
+        }
+        return sanitizeSourceUrl(value);
+    } catch {
+        return "";
+    }
+}
+
+/** Gets a readable failure from one settled operation. */
+function getRejectedMessage(result: PromiseSettledResult<unknown>): string {
+    if (result.status === "fulfilled") {
+        return "";
+    }
+    return result.reason instanceof Error
+        ? result.reason.message
+        : String(result.reason);
+}
+
+/** Builds a Wayback Availability API request URL. */
+function buildAvailabilityUrl(originalUrl: string): string {
+    const params = new URLSearchParams({ url: originalUrl.trim() });
+    return `${WAYBACK_AVAILABILITY_ENDPOINT}?${params.toString()}`;
+}
+
+/** Parses one successful Wayback Availability API response. */
+function parseAvailableArchive(
+    data: WaybackAvailabilityResponse,
+): SourceArchiveMetadata | null {
+    const closest = data?.archived_snapshots?.closest;
+    if (closest?.available !== true || !closest.url) {
+        return null;
+    }
+
+    const archiveDate = formatArchiveDate(closest.timestamp);
+    if (archiveDate === "") {
+        return null;
+    }
+
+    return {
+        archiveDate,
+        archiveUrl: sanitizeSourceUrl(closest.url),
+    };
+}
+
+/** Converts a Wayback timestamp to an ISO calendar date. */
+function formatArchiveDate(timestamp: string | undefined): string {
+    const date = timestamp?.slice(0, ARCHIVE_DATE_LENGTH) ?? "";
+    const match = date.match(/^(\d{4})(\d{2})(\d{2})$/u);
+    if (match == null || !isCalendarDate(match[1], match[2], match[3])) {
+        return "";
+    }
+    return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+/** Checks whether three numeric components form a calendar date. */
+function isCalendarDate(year: string, month: string, day: string): boolean {
+    const date = new Date(
+        Date.UTC(Number(year), Number(month) - 1, Number(day)),
+    );
+    return (
+        date.getUTCFullYear() === Number(year) &&
+        date.getUTCMonth() === Number(month) - 1 &&
+        date.getUTCDate() === Number(day)
+    );
+}

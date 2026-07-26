@@ -1,51 +1,82 @@
 /**
- * Source-editor command for the citation formatter.
+ * Source-editor command for citation formatting and source management.
  */
 
-import { formatCitations } from "#me/app/format.ts";
 import { editBox } from "#shared";
-import { openCitationManager } from "#me/ui/manager.ts";
+import { openSourceManager } from "#me/ui/source-manager.ts";
+import { addManagerStyles } from "#me/ui/styles.ts";
 
 const LINK_ID = "ca-citation-formatter";
+const FLOATING_BUTTON_ID = "citation-formatter-quick-launch";
 
 /**
- * Adds a citation-format command on MediaWiki edit pages.
+ * Adds the unified citation command on MediaWiki edit pages.
  */
 export function mountCitationFormatter(): void {
     if (typeof mw === "undefined") {
         return;
     }
     const editor = editBox.getEditBox();
-    if (editor == null || document.getElementById(LINK_ID) != null) {
+    if (editor == null) {
         return;
     }
-    const link = addFormatterLink("p-cactions") || addFormatterLink("p-tb");
-    const state = { formatted: false };
-    const enableManager = function enableManager(success: boolean) {
-        state.formatted = success;
-        if (success) {
-            setLinkLabel(link, "Manage citations");
-        }
-    };
-    const addEventListenerCallback = function formatOnClick(event: Event) {
+    addManagerStyles();
+    mountCitationToolLink(editor);
+    mountFloatingCitationButton(editor);
+}
+
+/** Adds the citation formatter and source-manager command once. */
+function mountCitationToolLink(editor: editBox.EditBox): void {
+    if (document.getElementById(LINK_ID) != null) {
+        return;
+    }
+    const label = "Citation formatter";
+    const tooltip = "Format citations and insert or edit citation sources";
+    const link =
+        addCitationLink("p-cactions", label, LINK_ID, tooltip) ||
+        addCitationLink("p-tb", label, LINK_ID, tooltip);
+    addToolClickHandler(link, editor);
+}
+
+/** Adds a persistent bottom-right launcher once. */
+function mountFloatingCitationButton(editor: editBox.EditBox): void {
+    if (document.getElementById(FLOATING_BUTTON_ID) != null) {
+        return;
+    }
+    const button = document.createElement("button");
+    button.id = FLOATING_BUTTON_ID;
+    button.className = "cf-quick-launch";
+    button.type = "button";
+    button.textContent = "Cite";
+    button.title = "Open Citation formatter";
+    button.setAttribute("aria-label", "Open Citation formatter");
+    addToolClickHandler(button, editor);
+    (document.body || document.documentElement).append(button);
+}
+
+/** Opens the unified citation dialog from one launcher. */
+function addToolClickHandler(
+    launcher: HTMLElement | null,
+    editor: editBox.EditBox,
+): void {
+    const openOnClick = function openOnClick(event: Event): void {
         event.preventDefault();
-        if (state.formatted) {
-            void openCitationManager(editor).catch(notifyManagerFailure);
-            return;
+        if (event.currentTarget instanceof HTMLElement) {
+            event.currentTarget.focus({ preventScroll: true });
         }
-        void runFormatter(editor, link).then(enableManager);
+        void openSourceManager(editor).catch(notifyToolFailure);
     };
-    link?.addEventListener("click", addEventListenerCallback);
+    launcher?.addEventListener("click", openOnClick);
 }
 
 /**
- * Reports a citation-manager startup failure.
+ * Reports a unified citation-tool startup failure.
  *
  * @param error - Rejected startup value.
  */
-function notifyManagerFailure(error: unknown): void {
+function notifyToolFailure(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
-    mw.notify(`Citation manager failed: ${message}`, { type: "error" });
+    mw.notify(`Citation formatter failed: ${message}`, { type: "error" });
 }
 
 /**
@@ -54,62 +85,12 @@ function notifyManagerFailure(error: unknown): void {
  * @param portlet - Portlet identifier.
  * @returns Added command link.
  */
-function addFormatterLink(portlet: string): HTMLElement | null {
-    const result = mw.util.addPortletLink(
-        portlet,
-        "#",
-        "Format citations",
-        LINK_ID,
-        "Format citations and create list-defined references",
-    );
+function addCitationLink(
+    portlet: string,
+    label: string,
+    id: string,
+    tooltip: string,
+): HTMLElement | null {
+    const result = mw.util.addPortletLink(portlet, "#", label, id, tooltip);
     return result;
-}
-
-/**
- * Formats the current source editor value.
- *
- * @param editor - Active MediaWiki source editor.
- * @param link - Command link.
- * @returns Whether formatting completed successfully.
- */
-async function runFormatter(
-    editor: editBox.EditBox,
-    link: HTMLElement,
-): Promise<boolean> {
-    if (link.getAttribute("aria-disabled") === "true") {
-        return false;
-    }
-    link.setAttribute("aria-disabled", "true");
-    try {
-        const source = editor.read();
-        const result = await formatCitations(source);
-        editor.write(result.text);
-        const notFormatted = result.referencesNotFormatted;
-        let message = "Citation formatting complete.";
-        if (notFormatted !== 0) {
-            message =
-                `Citation formatting complete; ${notFormatted} ` +
-                "reference(s) not formatted.";
-        }
-        mw.notify(message, { type: notFormatted === 0 ? "success" : "warn" });
-        return true;
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        mw.notify(`Citation formatting failed: ${message}`, { type: "error" });
-        return false;
-    } finally {
-        link.removeAttribute("aria-disabled");
-    }
-}
-
-/**
- * Updates the formatter command label and tooltip.
- *
- * @param link - Portlet command wrapper or anchor.
- * @param label - New command label.
- */
-function setLinkLabel(link: HTMLElement, label: string): void {
-    const target = link.querySelector("a") || link;
-    target.textContent = label;
-    target.title = label;
 }

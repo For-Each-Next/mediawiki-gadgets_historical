@@ -1,7 +1,6 @@
 # Citation Formatter
 
-Citation Formatter is a MediaWiki source-editor gadget. Its **Format
-citations** page action:
+Citation Formatter is a MediaWiki source-editor gadget. Its editor actions:
 
 - formats supported English Wikipedia CS1 templates in inline or block style;
 - resolves parameter aliases and order from generated English Wikipedia
@@ -10,13 +9,22 @@ citations** page action:
 - names references with an APA-style author/date key, including `n.d.`,
   same-year letter suffixes, and page or time locators;
 - names plain-text and mixed-content notes sequentially as `:1`, `:2`, etc.;
-- converts `{{r}}` calls to native ref tags; and
-- moves full refs into matching grouped `<references>` containers.
+- converts `{{r}}` calls to native ref tags;
+- moves full refs into matching grouped `<references>` containers;
+- inserts a source at the current source-editor cursor, accepting URLs,
+  identifiers, and citation text while reusing an existing named URL reference
+  when possible;
+- builds editable citation drafts from Wikimedia Citoid metadata and existing
+  Internet Archive snapshots, including pasted Wayback URLs; and
+- creates manual citations for offline sources, with concise template-specific
+  fields while preserving populated and custom fields during citation-template
+  changes.
 
 The supported set is the CS1 list at
 `Template:Citation Style documentation/cs1`, the general CS2 `Citation`
-template, and `Cite video game`. The built gadget makes no metadata request at
-runtime. Its TemplateData is committed under `domain/data/`.
+template, and `Cite video game`. Its TemplateData is committed under
+`domain/data/`; source insertion optionally requests citation metadata and
+archive availability at runtime.
 
 For a non-Latin author or organization name, an HTML comment beginning with
 `#` supplies its reference-name form without changing the citation display:
@@ -25,6 +33,28 @@ For a non-Latin author or organization name, an HTML comment beginning with
 | author = 宵崎奏<!-- # Yoisaki, Kanade -->
 | publisher = セガ<!--# Sega -->
 ```
+
+When a new source repeats a creator name with an alias used elsewhere in the
+article, the source manager offers it as an `Auto-suggested value`. **Use**
+copies it into the alias field; **Dismiss** hides it for the current draft.
+Ignoring the suggestion also leaves the citation unchanged.
+
+On a `url` field, the same comment supplies an explicit source-identity key.
+The actual URL is the fallback key, so only continuation pages need to point
+back to an unmarked base page:
+
+```wikitext
+| url = https://example.test/interview.html
+| page = 1
+```
+
+```wikitext
+| url = https://example.test/interview_2.html<!-- # https://example.test/interview.html -->
+| page = 2
+```
+
+The real links remain unchanged. Matching source keys suppress same-year letter
+suffixes and allow the page values to distinguish the reference names.
 
 Add `!no-author` to a field's comment to exclude that field from the
 author-fallback chain. It can share a comment with a reference-name override:
@@ -44,6 +74,75 @@ the reference name's date or part locator:
 Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
+
+### 0.3.14
+
+- Expanded automatic source lookup beyond URLs to accept DOI, ISBN, ISSN,
+  PMID/PMCID, QID, and citation-text input.
+
+### 0.3.13
+
+- Narrowed the editable parameter-name column and displayed parameter names
+  in bold.
+
+### 0.3.12
+
+- Made every source parameter name directly editable and removed per-row
+  Remove actions.
+- Added reversible, blank-safe author controls for switching between one full
+  name and separate first/last fields.
+- Highlighted draft fields that actively form the generated reference name.
+- Added opt-in creator-alias suggestions with explicit **Use** and **Dismiss**
+  actions.
+- Limited blank draft rows to common fields supported by each template,
+  including tweet-specific defaults.
+- Replaced source-list text actions with Codex icons and added full-template
+  tooltips to citation-type badges.
+- Added immediate Source URL focus, an indeterminate Codex progress bar during
+  lookup, and compact MenuButton formatter settings.
+
+### 0.3.11
+
+- Displayed source-manager reference names in small parentheses instead of
+  square brackets.
+
+### 0.3.10
+
+- Made an unmarked citation URL the fallback source key, so continuation URLs
+  can join it by placing the base URL in their `<!-- # ... -->` comments.
+
+### 0.3.9
+
+- Condensed existing sources into numbered one-line rows with canonical
+  citation-template labels and direct **Use** and **Edit** actions.
+- Added keyword filtering across source names, citation details, and URLs.
+- Moved reference-call and citation-layout controls into a dedicated
+  formatter-preferences dialog.
+
+### 0.3.8
+
+- Unified citation formatting and source insertion under one editor action.
+- Added a bottom-right quick launcher for opening the citation tool.
+- Added `Add source` and `View sources` tabs, combining URL and manual
+  insertion while listing existing citations directly for reuse or editing.
+- Added a footer formatting action with per-run `<ref>`/`{{r}}` and
+  inline/block settings, defaulting to `<ref>` and inline.
+- Added explicit URL source keys for grouping separately paginated links as
+  parts of one work.
+- Added structured author-name splitting for `Last, First` and `First Last`
+  input, with automatic next-author rows.
+- Simplified source-field rows and removed repeated alias syntax tips.
+
+### 0.3.7
+
+- Added manual/offline source insertion with print-specific fields and
+  value-preserving citation-template switching.
+
+### 0.3.6
+
+- Added a cursor-aware source manager with existing-reference reuse, editable
+  Citoid metadata, Wayback URL handling, archive lookup, common empty fields,
+  and reference-name aliases.
 
 ### 0.3.5
 

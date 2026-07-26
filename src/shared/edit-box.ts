@@ -14,21 +14,29 @@ export interface CodeMirrorEditor {
     view?: {
         dispatch?: (transaction: {
             changes: { from: number; insert: string; to: number };
+            scrollIntoView?: boolean;
+            selection?: { anchor: number };
         }) => void;
         focus?: () => void;
-        state?: { doc?: { length: number; toString(): string } };
+        state?: {
+            doc?: { length: number; toString(): string };
+            selection?: { main?: { from: number; to: number } };
+        };
     };
 }
 
 export interface VisualEditorFragment {
+    collapseToEnd(): VisualEditorFragment;
     expandLinearSelection(scope: "root"): VisualEditorFragment;
-    insertContent(text: string): unknown;
+    insertContent(text: string): VisualEditorFragment;
+    select(): VisualEditorFragment;
 }
 
 export interface VisualEditorSurface {
     getDom(): string | Document;
     getMode(): string;
     getModel(): {
+        getFragment(): VisualEditorFragment;
         getLinearFragment(
             range: unknown,
             noAutoSelect?: boolean,
@@ -54,6 +62,7 @@ export interface EditBox {
     readonly element: HTMLTextAreaElement | null;
     focus(): void;
     read(): string;
+    replaceSelection(text: string): void;
     write(text: string): void;
 }
 
@@ -141,6 +150,29 @@ class ActiveEditBox implements EditBox {
         }
 
         return this.element?.value ?? "";
+    }
+
+    public replaceSelection(text: string): void {
+        const codeMirror = findCodeMirror(this.element);
+        if (codeMirror != null) {
+            replaceCodeMirrorSelection(codeMirror, text);
+            return;
+        }
+
+        const surface = getVisualEditorSurface();
+        if (surface != null) {
+            surface
+                .getModel()
+                .getFragment()
+                .insertContent(text)
+                .collapseToEnd()
+                .select();
+            return;
+        }
+
+        if (this.element != null) {
+            replaceNativeSelection(this.element, text);
+        }
     }
 
     public write(text: string): void {
@@ -293,6 +325,33 @@ function writeCodeMirror(editor: CodeMirrorEditor, text: string): void {
 }
 
 /**
+ * Replaces the active CodeMirror 6 selection in one transaction.
+ *
+ * @param editor - Active CodeMirror wrapper.
+ * @param text - Replacement text.
+ */
+function replaceCodeMirrorSelection(
+    editor: CodeMirrorEditor,
+    text: string,
+): void {
+    const view = editor.view;
+    const doc = view?.state?.doc;
+
+    if (typeof view?.dispatch !== "function" || doc == null) {
+        throw new Error("The active CodeMirror document is unavailable.");
+    }
+
+    const selection = view.state?.selection?.main;
+    const from = selection?.from ?? doc.length;
+    const to = selection?.to ?? from;
+    view.dispatch({
+        changes: { from, insert: text, to },
+        scrollIntoView: true,
+        selection: { anchor: from + text.length },
+    });
+}
+
+/**
  * Focuses an active CodeMirror editor.
  *
  * @param editor - Active CodeMirror wrapper.
@@ -347,6 +406,26 @@ function writeVisualEditor(surface: VisualEditorSurface, text: string): void {
         .getLinearFragment(range, true)
         .expandLinearSelection("root")
         .insertContent(text);
+}
+
+/**
+ * Replaces the native textarea selection and leaves the caret after the
+ * inserted text.
+ *
+ * @param element - Updated textarea.
+ * @param text - Replacement text.
+ */
+function replaceNativeSelection(
+    element: HTMLTextAreaElement,
+    text: string,
+): void {
+    const from = element.selectionStart ?? element.value.length;
+    const to = element.selectionEnd ?? from;
+    const caret = from + text.length;
+    element.value =
+        element.value.slice(0, from) + text + element.value.slice(to);
+    element.setSelectionRange(caret, caret);
+    dispatchValueEvents(element);
 }
 
 /**

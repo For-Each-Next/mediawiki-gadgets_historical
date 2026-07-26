@@ -80,6 +80,17 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.24
+
+- Changed complete server-side CS1 validation to an explicit draft tool, so
+  normal editing uses static checks without background API requests.
+- Moved non-CS1 source results from the View filter into the Tools tab.
+- Replaced the source suggestion combobox with inline keyword and section
+  filter fields.
+- Used the Codex magic-wand icon and parameter-specific tooltips for access
+  and archive date filling.
+- Kept `script-title` immediately after `title` when formatting parameters.
+
 ### 0.3.23
 
 - Added debounced live validation through the complete CS1 module suite

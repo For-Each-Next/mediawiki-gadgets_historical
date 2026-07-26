@@ -113,11 +113,11 @@ curl --fail --location --silent --show-error \
 Compare them with `domain/validation/enwiki.ts` and
 `domain/source-validation.ts`.
 
-The source manager also submits the current draft over HTTPS to enwiki's
-read-only `action=parse` API. This runs the complete live CS1 module suite.
-Returned CS1 error and maintenance markup is mapped to draft fields; messages
-without a parameter are shown at citation level. Local validation remains the
-immediate and offline fallback.
+When the user runs **Check CS1 errors**, the source manager submits the current
+draft over HTTPS to enwiki's read-only `action=parse` API. This runs the
+complete live CS1 module suite. Returned CS1 error and maintenance markup is
+mapped to draft fields; messages without a parameter are shown at citation
+level. Normal editing uses local static validation and makes no parse request.
 
 Important whitelist semantics:
 

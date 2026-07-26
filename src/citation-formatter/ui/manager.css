@@ -54,36 +54,32 @@
     margin-top: 1.25em;
 }
 
-.cf-source-manager__source-toolbar {
-    align-items: end;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75em 1.25em;
+.cf-source-manager__source-filters {
+    display: grid;
+    gap: 0.75em;
     padding-top: 1em;
 }
 
-.cf-source-manager__source-search {
-    flex: 1 1 24em;
-    max-width: 38em;
-}
-
-.cf-source-manager__source-status-filter {
-    flex: 0 1 auto;
-    margin: 0;
-}
-
-.cf-source-manager__section-filters {
-    align-items: start;
+.cf-source-manager__filter-field {
+    align-items: center;
     display: grid;
-    gap: 0.5em;
-    grid-template-columns: repeat(auto-fit, minmax(14em, 18em));
-    padding-top: 0.75em;
+    gap: 0.75em;
+    grid-template-columns: 9em minmax(0, 38em);
+    margin: 0;
 }
 
-.cf-source-manager__section-filters .cdx-field {
-    align-self: start;
+.cf-source-manager__filter-field > .cdx-label {
     margin: 0;
-    min-width: 0;
+}
+
+.cf-source-manager__filter-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+.cf-source-manager__filter-controls > .cdx-combobox {
+    flex: 1 1 14em;
 }
 
 .cf-source-manager__existing-list {
@@ -241,6 +237,20 @@
     justify-self: start;
 }
 
+.cf-source-manager__tool-results {
+    display: grid;
+    gap: 0.5em;
+    margin-bottom: 0;
+    padding-inline-start: 1.5em;
+}
+
+.cf-source-manager__tool-results > li {
+    align-items: center;
+    display: flex;
+    gap: 0.75em;
+    justify-content: space-between;
+}
+
 .cf-source-manager__version {
     border-top: 1px solid var(--border-color-subtle, #c8ccd1);
     display: grid;
@@ -347,19 +357,9 @@
         grid-template-columns: 1fr;
     }
 
-    .cf-source-manager__section-filters {
-        display: grid;
-        grid-template-columns: 1fr;
-    }
-
-    .cf-source-manager__source-toolbar {
+    .cf-source-manager__filter-field {
         align-items: stretch;
-        display: grid;
         grid-template-columns: 1fr;
-    }
-
-    .cf-source-manager__source-search {
-        max-width: none;
     }
 
     .cf-source-manager__existing-name {

@@ -1390,8 +1390,10 @@ function sortSourceDraftRows(
         const name = canonical.params[0]?.name ?? row.name;
         const authorOrder = getDraftAuthorParamOrder(name);
         const standardOrder = order.get(name);
+        const relatedTitleOrder = getRelatedTitleParamOrder(name, order);
         const rank =
             authorOrder ??
+            relatedTitleOrder ??
             (standardOrder == null
                 ? Number.MAX_SAFE_INTEGER
                 : 1_000 + standardOrder);
@@ -1401,6 +1403,17 @@ function sortSourceDraftRows(
         (left, right) => left.rank - right.rank || left.index - right.index,
     );
     return ranked.map((entry) => entry.row);
+}
+
+/** Keeps script-title beside title despite TemplateData order. */
+function getRelatedTitleParamOrder(
+    name: string,
+    order: Map<string, number>,
+): number | null {
+    const titleOrder = order.get("title");
+    return name === "script-title" && titleOrder != null
+        ? 1_000 + titleOrder + 0.5
+        : null;
 }
 
 /** Orders canonical author slots before other standard parameters. */

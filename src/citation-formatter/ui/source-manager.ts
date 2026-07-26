@@ -21,7 +21,6 @@ import {
     isLastAuthorDraftParameter,
     joinAuthorDraftRow,
     listExistingSourceSections,
-    listExistingSourceSearchSuggestions,
     listExistingSources,
     listSourceDraftParameterNames,
     moveSourceDraftTitleToScriptTitle,
@@ -62,6 +61,7 @@ import {
 import { resolveCitationWikiLink } from "#me/infra/wiki-link.ts";
 import { addManagerStyles } from "#me/ui/styles.ts";
 import type { editBox } from "#shared";
+import { cdxIconMagicWand } from "@wikimedia/codex-icons";
 
 const HOST_ID = "citation-formatter-source-manager";
 const BASED_ON_TEMPLATE = "__based-on__";
@@ -81,11 +81,6 @@ const REFERENCE_STYLE_OPTIONS = [
 const CITATION_LAYOUT_OPTIONS = [
     { label: "Inline", value: "inline" },
     { label: "Block (two-space indent)", value: "block" },
-];
-const SOURCE_STATUS_FILTER_OPTIONS = [
-    { label: "All", value: "all" },
-    { label: "Error", value: "error" },
-    { label: "Non-standard", value: "non-standard" },
 ];
 const URL_STATUSES = ["live", "dead", "unfit"] as const;
 const USE_SOURCE_ICON = {
@@ -113,8 +108,6 @@ const JOIN_AUTHOR_ICON =
 const FORMAT_ROWS_ICON =
     '<path d="M10 1a8.98 8.98 0 016.999 3.343L17 2h2v5l-1 1h-5' +
     'l-.001-2h2.746a7 7 0 101.184 5h2.016A9 9 0 1110 1"/>';
-const REFILL_ICON =
-    '<path d="M17 2v3.22A8 8 0 1020 11h-2a6 6 0 11-2.57-4.92L12 9.5V2z"/>';
 const SWITCH_STATUS_ICON =
     '<path d="M3 6h11.2l-2.6-2.6L13 2l5 5-5 5-1.4-1.4L14.2 8H3zm14 ' +
     '8H5.8l2.6 2.6L7 18l-5-5 5-5 1.4 1.4L5.8 12H17z"/>';
@@ -141,7 +134,6 @@ const MANUAL_TEMPLATE_OPTIONS = [
 ];
 
 type SourceManagerMode = "draft" | "lookup";
-type SourceStatusFilter = "all" | "error" | "non-standard";
 type LiveCs1ValidationStatus =
     "checking" | "complete" | "idle" | "unavailable";
 type DraftActions = Record<string, unknown>;
@@ -246,12 +238,10 @@ interface SourceManagerState {
     editingSource: { value: ExistingSource | null };
     error: { value: string };
     existingSourceQuery: { value: string };
-    existingSourceSearchOptions: {
-        readonly value: Array<{ label: string; value: string }>;
-    };
     existingSourceSections: { value: SourceSection[] };
     existingSources: { value: ExistingSource[] };
     filteredExistingSources: { readonly value: ExistingSource[] };
+    nonCs1Sources: { readonly value: ExistingSource[] };
     loading: { value: boolean };
     liveCs1CellErrors: { value: SourceDraftErrors };
     liveCs1IssueCount: { value: number };
@@ -265,10 +255,6 @@ interface SourceManagerState {
     sourceSectionPath: { value: string[] };
     sourceSectionSelectors: {
         readonly value: SourceSectionSelector[];
-    };
-    sourceStatusFilter: { value: SourceStatusFilter };
-    sourceStatusCounts: {
-        readonly value: Record<SourceStatusFilter, number>;
     };
     parameterNameOptions: {
         readonly value: Array<{ label: string; value: string }>;
@@ -293,7 +279,6 @@ interface SourceManagerDerivedInputs {
     liveCs1CellErrors: SourceManagerState["liveCs1CellErrors"];
     referenceStyle: SourceManagerState["referenceStyle"];
     sourceSectionPath: SourceManagerState["sourceSectionPath"];
-    sourceStatusFilter: SourceManagerState["sourceStatusFilter"];
 }
 
 interface SourceSectionSelector {
@@ -315,11 +300,10 @@ type SourceManagerDerivedState = Pick<
     | "citationNameCells"
     | "draftSourcePreview"
     | "draftCellErrors"
-    | "existingSourceSearchOptions"
     | "filteredExistingSources"
+    | "nonCs1Sources"
     | "parameterNameOptions"
     | "sourceSectionSelectors"
-    | "sourceStatusCounts"
 >;
 
 /** Opens the source manager for the active MediaWiki source editor. */
@@ -403,8 +387,9 @@ function createSourceManagerComponent(
             cleanup,
             toast,
         );
-        startLiveCs1Validation(Vue, state);
+        startLiveCs1ResultInvalidation(Vue, state);
         return {
+            canCheckLiveCs1: ["enwiki", "zhwiki"].includes(getCurrentWikiId()),
             citationLayoutOptions: CITATION_LAYOUT_OPTIONS,
             copySourceIcon: COPY_SOURCE_ICON,
             editSourceIcon: EDIT_SOURCE_ICON,
@@ -416,9 +401,8 @@ function createSourceManagerComponent(
             liveCs1WikiLabel:
                 getCurrentWikiId() === "zhwiki" ? "Chinese" : "English",
             manualTemplateOptions: MANUAL_TEMPLATE_OPTIONS,
-            refillIcon: REFILL_ICON,
+            magicWandIcon: cdxIconMagicWand,
             referenceStyleOptions: REFERENCE_STYLE_OPTIONS,
-            sourceStatusFilterOptions: SOURCE_STATUS_FILTER_OPTIONS,
             sourceTemplateLabel: getCanonicalTemplateName,
             templateOptions: TEMPLATE_OPTIONS,
             splitAuthorIcon: SPLIT_AUTHOR_ICON,
@@ -448,13 +432,11 @@ function createSourceManagerState(
     const draft = Vue.ref<SourceDraft | null>(null);
     const liveCs1CellErrors = Vue.ref<SourceDraftErrors>(new Map());
     const referenceStyle = Vue.ref(options.referenceStyle ?? "ref");
-    const sourceStatusFilter = Vue.ref<SourceStatusFilter>("all");
     const derived = createSourceManagerDerivedState(Vue, {
         citationLayout,
         draft,
         liveCs1CellErrors,
         referenceStyle,
-        sourceStatusFilter,
         ...sourceList,
     });
     return {
@@ -478,7 +460,6 @@ function createSourceManagerState(
         open: Vue.ref(true),
         referenceStyle,
         sourceUrl: Vue.ref(""),
-        sourceStatusFilter,
         warning: Vue.ref(""),
     };
 }
@@ -577,44 +558,20 @@ interface Cs1ParseApiResponse {
     };
 }
 
-/** Debounces full validation through enwiki or zhwiki CS1. */
-function startLiveCs1Validation(
+/** Discards manual CS1 results after the draft changes. */
+function startLiveCs1ResultInvalidation(
     Vue: VueModule,
     state: SourceManagerState,
 ): void {
-    if (!["enwiki", "zhwiki"].includes(getCurrentWikiId())) {
-        return;
-    }
-    let requestGeneration = 0;
     Vue.watch(
         function getDraftSource(): string {
-            const draft = state.draft.value;
-            if (draft == null) {
-                return "";
-            }
-            try {
-                return serializeSourceDraft(draft, "inline");
-            } catch {
-                return "";
+            return serializeCurrentSourceDraft(state);
+        },
+        function clearPreviousResult(source, oldSource): void {
+            if (oldSource != null && source !== oldSource) {
+                resetLiveCs1Validation(state);
             }
         },
-        function queueValidation(source, _oldSource, onCleanup): void {
-            const generation = ++requestGeneration;
-            resetLiveCs1Validation(state);
-            if (source === "") {
-                return;
-            }
-            state.liveCs1Status.value = "checking";
-            const timeout = window.setTimeout(function validateWhenIdle() {
-                void fetchLiveCs1Validation(state, source, generation, () => {
-                    return generation === requestGeneration;
-                });
-            }, 500);
-            onCleanup(function cancelValidation(): void {
-                window.clearTimeout(timeout);
-            });
-        },
-        { immediate: true },
     );
 }
 
@@ -623,9 +580,7 @@ function startLiveCs1Validation(
 async function fetchLiveCs1Validation(
     state: SourceManagerState,
     source: string,
-    generation: number,
-    isCurrent: () => boolean,
-): Promise<void> {
+): Promise<"complete" | "stale" | "unavailable"> {
     try {
         const api = new mw.Api();
         const response = (await api.post({
@@ -640,8 +595,8 @@ async function fetchLiveCs1Validation(
             text: source,
             title: "Citation formatter validation",
         })) as Cs1ParseApiResponse;
-        if (!isCurrent()) {
-            return;
+        if (serializeCurrentSourceDraft(state) !== source) {
+            return "stale";
         }
         const html = response.parse?.text ?? "";
         const categories = (response.parse?.categories ?? []).flatMap(
@@ -651,17 +606,31 @@ async function fetchLiveCs1Validation(
         );
         const draft = state.draft.value;
         if (draft == null) {
-            return;
+            return "stale";
         }
         const result = parseCs1ValidationResult(draft, html, categories);
         state.liveCs1CellErrors.value = result.cellErrors;
         state.liveCs1IssueCount.value = result.issueCount;
         state.liveCs1Messages.value = result.messages;
         state.liveCs1Status.value = "complete";
+        return "complete";
     } catch {
-        if (isCurrent() && generation > 0) {
+        if (serializeCurrentSourceDraft(state) === source) {
             state.liveCs1Status.value = "unavailable";
         }
+        return "unavailable";
+    }
+}
+
+function serializeCurrentSourceDraft(state: SourceManagerState): string {
+    const draft = state.draft.value;
+    if (draft == null) {
+        return "";
+    }
+    try {
+        return serializeSourceDraft(draft, "inline");
+    } catch {
+        return "";
     }
 }
 
@@ -765,7 +734,7 @@ function createSourceListDerivedState(
             state.existingSources.value,
             state.existingSourceQuery.value,
             selectedSection,
-            state.sourceStatusFilter.value,
+            "all",
         );
     }
     function getBasedOnSourceOptions(): Array<{
@@ -782,22 +751,11 @@ function createSourceListDerivedState(
     }
     return {
         basedOnSourceOptions: Vue.computed(getBasedOnSourceOptions),
-        existingSourceSearchOptions: Vue.computed(function getOptions() {
-            return listExistingSourceSearchSuggestions(
-                state.existingSources.value,
-            ).map((value) => ({ label: value, value }));
-        }),
         filteredExistingSources: Vue.computed(getFilteredExistingSources),
-        sourceStatusCounts: Vue.computed(function getCounts() {
-            const sources = state.existingSources.value;
-            return {
-                all: sources.length,
-                error: sources.filter((source) => source.status === "error")
-                    .length,
-                "non-standard": sources.filter(
-                    (source) => source.status === "non-standard",
-                ).length,
-            };
+        nonCs1Sources: Vue.computed(function getNonCs1Sources() {
+            return state.existingSources.value.filter(
+                (source) => source.status === "non-standard",
+            );
         }),
         sourceSectionSelectors: Vue.computed(function getSelectors() {
             return buildSourceSectionSelectors(
@@ -984,6 +942,34 @@ function createDraftActions(
     function changeDraftTemplate(template: string | null): void {
         updateDraftTemplate(state, template);
     }
+    async function checkLiveCs1(): Promise<void> {
+        const source = serializeCurrentSourceDraft(state);
+        if (source === "") {
+            context.toast.warning(
+                "Enter citation fields before checking CS1.",
+                {
+                    autoDismiss: true,
+                },
+            );
+            return;
+        }
+        resetLiveCs1Validation(state);
+        state.liveCs1Status.value = "checking";
+        const outcome = await fetchLiveCs1Validation(state, source);
+        if (outcome !== "complete") {
+            return;
+        }
+        const issueCount = state.liveCs1IssueCount.value;
+        const message =
+            issueCount === 0
+                ? "No live CS1 issues found."
+                : `Live CS1 check found ${issueCount} issue(s).`;
+        if (issueCount === 0) {
+            context.toast.success(message, { autoDismiss: true });
+        } else {
+            context.toast.warning(message, { autoDismiss: true });
+        }
+    }
     function formatParameters(): void {
         const draft = state.draft.value;
         if (draft != null) {
@@ -1025,7 +1011,9 @@ function createDraftActions(
         addParameter,
         autofillDate,
         changeDraftTemplate,
+        checkLiveCs1,
         formatParameters,
+        getDateAutofillTooltip,
         isDateAutofillParameter,
         isLinkableDraftParameter,
         linkOrganization,
@@ -1037,7 +1025,21 @@ function createDraftActions(
 
 /** Returns whether a row supports one-click date filling. */
 function isDateAutofillParameter(name: string): boolean {
-    return ["access-date", "archive-date"].includes(normalizeDraftName(name));
+    return isAccessDateParameter(name) || isArchiveDateParameter(name);
+}
+
+function isAccessDateParameter(name: string): boolean {
+    return ["access-date", "accessdate"].includes(normalizeDraftName(name));
+}
+
+function isArchiveDateParameter(name: string): boolean {
+    return ["archive-date", "archivedate"].includes(normalizeDraftName(name));
+}
+
+function getDateAutofillTooltip(name: string): string {
+    return isAccessDateParameter(name)
+        ? "Fill today"
+        : "Fill from archive-url";
 }
 
 /** Checks whether an organization field can become a local link. */
@@ -1068,7 +1070,7 @@ async function autofillDraftDate(
     if (draft == null || row == null || state.loading.value) {
         return;
     }
-    if (normalizeDraftName(row.name) === "access-date") {
+    if (isAccessDateParameter(row.name)) {
         row.value = formatLocalIsoDate(new Date());
         toast.success("Access date filled.", { autoDismiss: true });
         return;
@@ -1927,65 +1929,38 @@ const SOURCE_MANAGER_TEMPLATE = `
         >
             <div
                 v-if="existingSources.length > 0"
-                class="cf-source-manager__source-toolbar"
+                class="cf-source-manager__source-filters"
             >
                 <cdx-field
-                    class="cf-source-manager__source-search"
-                    :hide-label="true"
+                    class="cf-source-manager__filter-field"
                 >
-                    <template #label>Search sources</template>
-                    <cdx-combobox
-                        v-model:selected="existingSourceQuery"
-                        :menu-items="existingSourceSearchOptions"
-                        :menu-config="{ visibleItemLimit: 8 }"
+                    <template #label>Filter by Keyword</template>
+                    <cdx-text-input
+                        v-model="existingSourceQuery"
                         placeholder="Search authors, websites, or keywords"
-                    >
-                        <template #no-results>
-                            Search using entered text
-                        </template>
-                    </cdx-combobox>
-                </cdx-field>
-                <cdx-field
-                    class="cf-source-manager__source-status-filter"
-                    :is-fieldset="true"
-                    :hide-label="true"
-                >
-                    <template #label>Filter source status</template>
-                    <cdx-radio
-                        v-for="option in sourceStatusFilterOptions"
-                        :key="option.value"
-                        v-model="sourceStatusFilter"
-                        name="citation-source-status"
-                        :input-value="option.value"
-                        :inline="true"
-                    >
-                        {{ option.label }}
-                        ({{ sourceStatusCounts[ option.value ] }})
-                    </cdx-radio>
-                </cdx-field>
-            </div>
-            <div
-                v-if="existingSources.length > 0"
-                class="cf-source-manager__section-filters"
-            >
-                <cdx-field
-                    v-for="selector in sourceSectionSelectors"
-                    :key="selector.level"
-                    :hide-label="true"
-                >
-                    <template #label>{{ selector.label }}</template>
-                    <cdx-combobox
-                        :selected="selector.selected"
-                        :menu-items="selector.menuItems"
-                        :menu-config="{ visibleItemLimit: 8 }"
-                        :aria-label="selector.label"
-                        @update:selected="
-                            selectSourceSection(
-                                selector.level,
-                                $event
-                            )
-                        "
                     />
+                </cdx-field>
+                <cdx-field
+                    class="cf-source-manager__filter-field"
+                    :is-fieldset="true"
+                >
+                    <template #label>Filter by Section</template>
+                    <div class="cf-source-manager__filter-controls">
+                        <cdx-combobox
+                            v-for="selector in sourceSectionSelectors"
+                            :key="selector.level"
+                            :selected="selector.selected"
+                            :menu-items="selector.menuItems"
+                            :menu-config="{ visibleItemLimit: 8 }"
+                            :aria-label="selector.label"
+                            @update:selected="
+                                selectSourceSection(
+                                    selector.level,
+                                    $event
+                                )
+                            "
+                        />
+                    </div>
                 </cdx-field>
             </div>
             <p v-if="existingSources.length === 0">
@@ -2111,6 +2086,39 @@ const SOURCE_MANAGER_TEMPLATE = `
                     Move a foreign-language title to script-title when
                     language contains one language code
                 </cdx-checkbox>
+                <cdx-field>
+                    <template #label>Non-CS1 source check</template>
+                    <template #description>
+                        Static scan for references that do not contain a
+                        supported CS1 citation template.
+                    </template>
+                    <p v-if="nonCs1Sources.length === 0">
+                        No non-CS1 sources found.
+                    </p>
+                    <ul
+                        v-else
+                        class="cf-source-manager__tool-results"
+                    >
+                        <li
+                            v-for="source in nonCs1Sources"
+                            :key="source.id"
+                        >
+                            <span>
+                                {{
+                                    source.title ||
+                                    source.referenceName ||
+                                    'Unnamed reference'
+                                }}
+                            </span>
+                            <cdx-button
+                                weight="quiet"
+                                @click="editListedSource( source.id )"
+                            >
+                                Review
+                            </cdx-button>
+                        </li>
+                    </ul>
+                </cdx-field>
                 <cdx-button
                     action="progressive"
                     weight="primary"
@@ -2375,13 +2383,17 @@ const SOURCE_MANAGER_TEMPLATE = `
                             </cdx-button>
                             <cdx-button
                                 v-if="isDateAutofillParameter( row.name )"
-                                v-tooltip="'Auto-fill this date'"
+                                v-tooltip="
+                                    getDateAutofillTooltip( row.name )
+                                "
                                 weight="quiet"
                                 :disabled="loading"
-                                :aria-label="'Auto-fill ' + row.name"
+                                :aria-label="
+                                    getDateAutofillTooltip( row.name )
+                                "
                                 @click="autofillDate( index )"
                             >
-                                <cdx-icon :icon="refillIcon" />
+                                <cdx-icon :icon="magicWandIcon" />
                             </cdx-button>
                             <cdx-button
                                 v-if="isLinkableDraftParameter( row.name )"
@@ -2436,6 +2448,17 @@ const SOURCE_MANAGER_TEMPLATE = `
             <cdx-button @click="formatParameters">
                 <cdx-icon :icon="formatRowsIcon" />
                 Format
+            </cdx-button>
+            <cdx-button
+                v-if="canCheckLiveCs1"
+                :disabled="liveCs1Status === 'checking'"
+                @click="checkLiveCs1"
+            >
+                {{
+                    liveCs1Status === 'checking'
+                        ? 'Checking CS1…'
+                        : 'Check CS1 errors'
+                }}
             </cdx-button>
         </div>
         <cdx-field class="cf-source-manager__source-preview">

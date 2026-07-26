@@ -49,6 +49,18 @@ test("formats added rows into standard template order", () => {
     assert.ok(getRowIndex(draft, "format") < getRowIndex(draft, "quote"));
 });
 
+test("formats script-title immediately after title", () => {
+    const draft = parseSourceDraft(
+        "{{cite interview|type=Interview|title=Example|" +
+            "script-title=ja:例}}",
+    );
+
+    formatSourceDraftRows(draft);
+
+    const titleIndex = getRowIndex(draft, "title");
+    assert.equal(getRowIndex(draft, "script-title"), titleIndex + 1);
+});
+
 test("marks unsupported parameters and malformed dates", () => {
     const draft = parseSourceDraft(
         "{{cite web|title=Example|date=2026-13-40}}",

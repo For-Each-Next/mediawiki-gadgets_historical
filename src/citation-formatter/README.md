@@ -82,6 +82,40 @@ API with `npm run update:template-data -w citation-formatter`.
 
 ## Version history
 
+### 0.3.48
+
+- Used the X logo for the Cite tweet template icon.
+
+### 0.3.47
+
+- Used music and article icons for AV media and AV media notes respectively.
+
+### 0.3.46
+
+- Added distinct Codex icons to the prioritized citation-template options.
+
+### 0.3.45
+
+- Kept the manual Create source action at its normal button width.
+
+### 0.3.44
+
+- Prioritized common web, magazine, book, interview, social, game, press, and
+  audiovisual templates in citation-template selectors.
+
+### 0.3.43
+
+- Kept status-message top spacing from being reset by the dialog's first-child
+  rule.
+
+### 0.3.42
+
+- Balanced the vertical spacing around source-manager status messages.
+
+### 0.3.41
+
+- Widened the source-list Actions column to four ems.
+
 ### 0.3.40
 
 - Moved source duplication from the source-list icons to a text action after

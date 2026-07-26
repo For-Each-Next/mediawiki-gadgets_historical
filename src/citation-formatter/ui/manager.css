@@ -29,8 +29,8 @@
     width: min(96vw, 72em);
 }
 
-.cf-source-manager__status {
-    margin-bottom: 1em;
+.cf-source-manager.cdx-dialog .cf-source-manager__status {
+    margin: 0.75em 0;
 }
 
 .cf-source-manager__loading {
@@ -52,6 +52,10 @@
     border-top: 1px solid var(--border-color-subtle, #c8ccd1);
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     margin-top: 1.25em;
+}
+
+.cf-source-manager__create-source {
+    justify-self: start;
 }
 
 .cf-source-manager__source-filters {

@@ -68,7 +68,18 @@ import {
 import { resolveCitationWikiLink } from "#me/infra/wiki-link.ts";
 import { addManagerStyles } from "#me/ui/styles.ts";
 import type { editBox } from "#shared";
-import { cdxIconMagicWand } from "@wikimedia/codex-icons";
+import {
+    cdxIconArticle,
+    cdxIconBook,
+    cdxIconBrowser,
+    cdxIconDie,
+    cdxIconMagicWand,
+    cdxIconMusicalScore,
+    cdxIconNewspaper,
+    cdxIconNotice,
+    cdxIconUserTalk,
+    type Icon,
+} from "@wikimedia/codex-icons";
 
 const HOST_ID = "citation-formatter-source-manager";
 const BASED_ON_TEMPLATE = "__based-on__";
@@ -116,9 +127,49 @@ const CDX_ICON_LINK =
     "2.947a4.354 4.354 0 01-6.167.01l-.707-.707 1.414-1.415.707.707c" +
     ".921.921 2.416.92 3.334-.004l2.928-2.948a2.727 2.727 0 00-" +
     '3.843-3.868l-.761.746-1.4-1.428.713-.7z"/>';
-const TEMPLATE_OPTIONS = SUPPORTED_CITATION_TEMPLATES.map(
+const CITE_TWEET_ICON =
+    '<g transform="scale(.833333)"><path d="m21.742 21.75-7.563-' +
+    "11.179 7.056-8.321h-2.456l-5.691 6.714-4.54-6.714h-6.189l" +
+    "7.29 10.776-7.399 8.724h2.456l6.035-7.118 4.818 7.118h6.191" +
+    "zm-14.003-17.932 11.071 16.364h-2.447l-11.073-16.364h2.447z" +
+    '"/></g>';
+const PRIORITIZED_TEMPLATE_NAMES = [
+    "Cite web",
+    "Cite magazine",
+    "Cite book",
+    "Cite interview",
+    "Cite tweet",
+    "Cite video game",
+    "Cite press release",
+    "Cite AV media",
+    "Cite AV media notes",
+] as const;
+const prioritizedTemplateIcons = new Map<string, Icon>([
+    ["Cite web", cdxIconBrowser],
+    ["Cite magazine", cdxIconNewspaper],
+    ["Cite book", cdxIconBook],
+    ["Cite interview", cdxIconUserTalk],
+    ["Cite tweet", CITE_TWEET_ICON],
+    ["Cite video game", cdxIconDie],
+    ["Cite press release", cdxIconNotice],
+    ["Cite AV media", cdxIconMusicalScore],
+    ["Cite AV media notes", cdxIconArticle],
+]);
+const prioritizedTemplateNameSet = new Set<string>(
+    PRIORITIZED_TEMPLATE_NAMES,
+);
+const remainingTemplateNames = SUPPORTED_CITATION_TEMPLATES.filter(
+    function isRemainingTemplate(name) {
+        return !prioritizedTemplateNameSet.has(name);
+    },
+);
+const TEMPLATE_OPTIONS = [
+    ...PRIORITIZED_TEMPLATE_NAMES,
+    ...remainingTemplateNames,
+].map(
     function toOption(name) {
         return {
+            icon: prioritizedTemplateIcons.get(name),
             label: name,
             value: name.toLocaleLowerCase("en-US"),
         };
@@ -131,7 +182,7 @@ const MANUAL_TEMPLATE_OPTIONS = [
 const SOURCE_TABLE_COLUMNS = [
     { id: "reference", label: "Reference", width: "28%" },
     { id: "source", label: "Source" },
-    { id: "actions", label: "Actions", width: "3em" },
+    { id: "actions", label: "Actions", width: "4em" },
 ];
 
 type SourceManagerMode = "draft" | "lookup";
@@ -2454,6 +2505,7 @@ const SOURCE_MANAGER_TEMPLATE = `
                     </cdx-combobox>
                 </cdx-field>
                 <cdx-button
+                    class="cf-source-manager__create-source"
                     action="progressive"
                     :disabled="
                         loading ||

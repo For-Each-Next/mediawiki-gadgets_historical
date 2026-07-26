@@ -80,6 +80,15 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.25
+
+- Added separate Tools popups for an explicit article-wide CS1 API check and
+  the local non-CS1 source scan.
+- Kept section controls horizontal and hid the section field when no section
+  selector is available.
+- Replaced the version definition list with a Codex gadget-info card using a
+  UTC build timestamp.
+
 ### 0.3.24
 
 - Changed complete server-side CS1 validation to an explicit draft tool, so

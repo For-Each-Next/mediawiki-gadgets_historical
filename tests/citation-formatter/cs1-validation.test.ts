@@ -3,7 +3,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseCs1ValidationResult } from "citation-formatter/domain/cs1-validation.ts";
+import {
+    extractCs1IssueMessages,
+    parseCs1ValidationResult,
+} from "citation-formatter/domain/cs1-validation.ts";
 import {
     parseSourceDraft,
     type SourceDraft,
@@ -83,4 +86,17 @@ test("maps zhwiki citation-comment errors through local aliases", () => {
     );
     assert.deepEqual(result.messages, ["引文格式1维护：日期与年"]);
     assert.equal(result.issueCount, 4);
+});
+
+test("extracts article-wide CS1 messages for the checker popup", () => {
+    const messages = extractCs1IssueMessages(
+        '<span class="cs1-visible-error citation-comment">' +
+            "Unknown parameter <code>&#124;bad=</code> ignored</span>",
+        ["CS1 maint: date and year"],
+    );
+
+    assert.deepEqual(messages, [
+        "Unknown parameter |bad= ignored",
+        "CS1 maint: date and year",
+    ]);
 });

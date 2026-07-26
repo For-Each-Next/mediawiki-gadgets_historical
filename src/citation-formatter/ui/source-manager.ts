@@ -44,10 +44,7 @@ import {
     getSourceDraftErrors,
     type SourceDraftErrors,
 } from "#me/domain/source-validation.ts";
-import {
-    mergeSourceDraftErrors,
-    parseCs1ValidationResult,
-} from "#me/domain/cs1-validation.ts";
+import { extractCs1IssueMessages } from "#me/domain/cs1-validation.ts";
 import {
     getCanonicalTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
@@ -73,7 +70,7 @@ const GADGET_VERSION =
 const GADGET_BUILD_TIME =
     typeof __GADGET_BUILD_TIME__ === "undefined"
         ? "development build"
-        : new Date(__GADGET_BUILD_TIME__).toLocaleString();
+        : formatUtcBuildTime(__GADGET_BUILD_TIME__);
 const REFERENCE_STYLE_OPTIONS = [
     { label: "<ref>", value: "ref" },
     { label: "{{r}}", value: "r" },
@@ -134,8 +131,8 @@ const MANUAL_TEMPLATE_OPTIONS = [
 ];
 
 type SourceManagerMode = "draft" | "lookup";
-type LiveCs1ValidationStatus =
-    "checking" | "complete" | "idle" | "unavailable";
+type Cs1ToolStatus = "checking" | "complete" | "idle" | "unavailable";
+type SourceToolPopup = "cs1" | "non-cs1" | null;
 type DraftActions = Record<string, unknown>;
 export type ReferenceStyle = "r" | "ref";
 let removeActiveSourceManager: (() => void) | null = null;
@@ -151,15 +148,6 @@ interface VueModule {
     createMwApp: (component: unknown) => VueApp;
     defineComponent: (component: unknown) => unknown;
     ref: <T>(value: T) => { value: T };
-    watch: (
-        source: () => string,
-        callback: (
-            value: string,
-            oldValue: string | undefined,
-            onCleanup: (cleanup: () => void) => void,
-        ) => void,
-        options?: { immediate?: boolean },
-    ) => void;
 }
 
 interface VueApp {
@@ -184,6 +172,7 @@ interface TooltipDirective {
 
 interface CodexComponents {
     CdxButton: unknown;
+    CdxCard: unknown;
     CdxCheckbox: unknown;
     CdxCombobox: unknown;
     CdxDialog: unknown;
@@ -231,6 +220,8 @@ interface SourceManagerState {
     citationNameCells: {
         readonly value: Map<number, SourceDraftCitationNameCell>;
     };
+    cs1ToolMessages: { value: string[] };
+    cs1ToolStatus: { value: Cs1ToolStatus };
     dismissedAliasSuggestions: { value: Set<string> };
     draft: { value: SourceDraft | null };
     draftCellErrors: { readonly value: SourceDraftErrors };
@@ -243,15 +234,13 @@ interface SourceManagerState {
     filteredExistingSources: { readonly value: ExistingSource[] };
     nonCs1Sources: { readonly value: ExistingSource[] };
     loading: { value: boolean };
-    liveCs1CellErrors: { value: SourceDraftErrors };
-    liveCs1IssueCount: { value: number };
-    liveCs1Messages: { value: string[] };
-    liveCs1Status: { value: LiveCs1ValidationStatus };
     manualTemplate: { value: string | null };
     mode: { value: SourceManagerMode };
     open: { value: boolean };
     referenceStyle: { value: ReferenceStyle };
     sourceUrl: { value: string };
+    toolPopup: { value: SourceToolPopup };
+    toolPopupOpen: { value: boolean };
     sourceSectionPath: { value: string[] };
     sourceSectionSelectors: {
         readonly value: SourceSectionSelector[];
@@ -276,7 +265,6 @@ interface SourceManagerDerivedInputs {
     existingSourceQuery: SourceManagerState["existingSourceQuery"];
     existingSourceSections: SourceManagerState["existingSourceSections"];
     existingSources: SourceManagerState["existingSources"];
-    liveCs1CellErrors: SourceManagerState["liveCs1CellErrors"];
     referenceStyle: SourceManagerState["referenceStyle"];
     sourceSectionPath: SourceManagerState["sourceSectionPath"];
 }
@@ -387,9 +375,8 @@ function createSourceManagerComponent(
             cleanup,
             toast,
         );
-        startLiveCs1ResultInvalidation(Vue, state);
         return {
-            canCheckLiveCs1: ["enwiki", "zhwiki"].includes(getCurrentWikiId()),
+            canCheckCs1Tool: ["enwiki", "zhwiki"].includes(getCurrentWikiId()),
             citationLayoutOptions: CITATION_LAYOUT_OPTIONS,
             copySourceIcon: COPY_SOURCE_ICON,
             editSourceIcon: EDIT_SOURCE_ICON,
@@ -398,7 +385,7 @@ function createSourceManagerComponent(
             gadgetVersion: GADGET_VERSION,
             joinAuthorIcon: JOIN_AUTHOR_ICON,
             linkIcon: CDX_ICON_LINK,
-            liveCs1WikiLabel:
+            cs1WikiLabel:
                 getCurrentWikiId() === "zhwiki" ? "Chinese" : "English",
             manualTemplateOptions: MANUAL_TEMPLATE_OPTIONS,
             magicWandIcon: cdxIconMagicWand,
@@ -420,7 +407,6 @@ function createSourceManagerComponent(
 }
 
 /** Creates initial reactive state from the current editor contents. */
-// eslint-disable-next-line max-lines-per-function
 function createSourceManagerState(
     Vue: VueModule,
     editor: editBox.EditBox,
@@ -430,12 +416,10 @@ function createSourceManagerState(
     const sourceList = createInitialSourceListState(Vue, text);
     const citationLayout = Vue.ref(options.citationLayout ?? "inline");
     const draft = Vue.ref<SourceDraft | null>(null);
-    const liveCs1CellErrors = Vue.ref<SourceDraftErrors>(new Map());
     const referenceStyle = Vue.ref(options.referenceStyle ?? "ref");
     const derived = createSourceManagerDerivedState(Vue, {
         citationLayout,
         draft,
-        liveCs1CellErrors,
         referenceStyle,
         ...sourceList,
     });
@@ -446,20 +430,20 @@ function createSourceManagerState(
         autoScriptTitle: Vue.ref(true),
         basedOnSourceId: Vue.ref(""),
         citationLayout,
+        cs1ToolMessages: Vue.ref<string[]>([]),
+        cs1ToolStatus: Vue.ref<Cs1ToolStatus>("idle"),
         dismissedAliasSuggestions: Vue.ref(new Set<string>()),
         draft,
         editingSource: Vue.ref<ExistingSource | null>(null),
         error: Vue.ref(""),
         loading: Vue.ref(false),
-        liveCs1CellErrors,
-        liveCs1IssueCount: Vue.ref(0),
-        liveCs1Messages: Vue.ref<string[]>([]),
-        liveCs1Status: Vue.ref<LiveCs1ValidationStatus>("idle"),
         manualTemplate: Vue.ref<string | null>("cite magazine"),
         mode: Vue.ref<SourceManagerMode>("lookup"),
         open: Vue.ref(true),
         referenceStyle,
         sourceUrl: Vue.ref(""),
+        toolPopup: Vue.ref<SourceToolPopup>(null),
+        toolPopupOpen: Vue.ref(false),
         warning: Vue.ref(""),
     };
 }
@@ -524,8 +508,7 @@ function createDraftDerivedState(
         if (draft == null) {
             return new Map();
         }
-        const local = getSourceDraftErrors(draft, getCurrentWikiId());
-        return mergeSourceDraftErrors(local, state.liveCs1CellErrors.value);
+        return getSourceDraftErrors(draft, getCurrentWikiId());
     }
     return {
         citationNameParts: Vue.computed(getCitationNameParts),
@@ -558,29 +541,13 @@ interface Cs1ParseApiResponse {
     };
 }
 
-/** Discards manual CS1 results after the draft changes. */
-function startLiveCs1ResultInvalidation(
-    Vue: VueModule,
-    state: SourceManagerState,
-): void {
-    Vue.watch(
-        function getDraftSource(): string {
-            return serializeCurrentSourceDraft(state);
-        },
-        function clearPreviousResult(source, oldSource): void {
-            if (oldSource != null && source !== oldSource) {
-                resetLiveCs1Validation(state);
-            }
-        },
-    );
-}
-
-/** Requests the active site's installed CS1 validation output. */
-// eslint-disable-next-line max-lines-per-function
-async function fetchLiveCs1Validation(
-    state: SourceManagerState,
-    source: string,
-): Promise<"complete" | "stale" | "unavailable"> {
+/** Runs one explicit, article-wide CS1 parse check. */
+async function fetchArticleCs1Issues(
+    context: SourceManagerActionContext,
+): Promise<void> {
+    const { editor, state } = context;
+    state.cs1ToolMessages.value = [];
+    state.cs1ToolStatus.value = "checking";
     try {
         const api = new mw.Api();
         const response = (await api.post({
@@ -592,53 +559,47 @@ async function fetchLiveCs1Validation(
             formatversion: 2,
             preview: true,
             prop: "text|categories",
-            text: source,
-            title: "Citation formatter validation",
+            text: editor.read(),
+            title: getCurrentPageTitle(),
         })) as Cs1ParseApiResponse;
-        if (serializeCurrentSourceDraft(state) !== source) {
-            return "stale";
-        }
         const html = response.parse?.text ?? "";
         const categories = (response.parse?.categories ?? []).flatMap(
             function getCategory(entry) {
                 return entry.category == null ? [] : [entry.category];
             },
         );
-        const draft = state.draft.value;
-        if (draft == null) {
-            return "stale";
-        }
-        const result = parseCs1ValidationResult(draft, html, categories);
-        state.liveCs1CellErrors.value = result.cellErrors;
-        state.liveCs1IssueCount.value = result.issueCount;
-        state.liveCs1Messages.value = result.messages;
-        state.liveCs1Status.value = "complete";
-        return "complete";
+        state.cs1ToolMessages.value = extractCs1IssueMessages(
+            html,
+            categories,
+        );
+        state.cs1ToolStatus.value = "complete";
     } catch {
-        if (serializeCurrentSourceDraft(state) === source) {
-            state.liveCs1Status.value = "unavailable";
-        }
-        return "unavailable";
+        state.cs1ToolStatus.value = "unavailable";
     }
 }
 
-function serializeCurrentSourceDraft(state: SourceManagerState): string {
-    const draft = state.draft.value;
-    if (draft == null) {
-        return "";
-    }
-    try {
-        return serializeSourceDraft(draft, "inline");
-    } catch {
-        return "";
-    }
+function getCurrentPageTitle(): string {
+    const pageName = mw.config.get("wgPageName");
+    return typeof pageName === "string"
+        ? pageName.replaceAll("_", " ")
+        : "Citation formatter validation";
 }
 
-function resetLiveCs1Validation(state: SourceManagerState): void {
-    state.liveCs1CellErrors.value = new Map();
-    state.liveCs1IssueCount.value = 0;
-    state.liveCs1Messages.value = [];
-    state.liveCs1Status.value = "idle";
+function formatUtcBuildTime(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "unknown UTC";
+    }
+    const month = String(date.getUTCMonth() + 1);
+    const day = String(date.getUTCDate());
+    const time = [
+        date.getUTCHours(),
+        date.getUTCMinutes(),
+        date.getUTCSeconds(),
+    ]
+        .map((part) => String(part).padStart(2, "0"))
+        .join(":");
+    return `${date.getUTCFullYear()}/${month}/${day} ${time} UTC`;
 }
 
 /** Builds a safely segmented preview from the current source draft. */
@@ -858,6 +819,7 @@ function createSourceManagerActions(
         ...createNavigationActions(context),
         ...createLookupActions(context),
         ...createDraftActions(context),
+        ...createToolActions(context),
     };
 }
 
@@ -942,34 +904,6 @@ function createDraftActions(
     function changeDraftTemplate(template: string | null): void {
         updateDraftTemplate(state, template);
     }
-    async function checkLiveCs1(): Promise<void> {
-        const source = serializeCurrentSourceDraft(state);
-        if (source === "") {
-            context.toast.warning(
-                "Enter citation fields before checking CS1.",
-                {
-                    autoDismiss: true,
-                },
-            );
-            return;
-        }
-        resetLiveCs1Validation(state);
-        state.liveCs1Status.value = "checking";
-        const outcome = await fetchLiveCs1Validation(state, source);
-        if (outcome !== "complete") {
-            return;
-        }
-        const issueCount = state.liveCs1IssueCount.value;
-        const message =
-            issueCount === 0
-                ? "No live CS1 issues found."
-                : `Live CS1 check found ${issueCount} issue(s).`;
-        if (issueCount === 0) {
-            context.toast.success(message, { autoDismiss: true });
-        } else {
-            context.toast.warning(message, { autoDismiss: true });
-        }
-    }
     function formatParameters(): void {
         const draft = state.draft.value;
         if (draft != null) {
@@ -1011,7 +945,6 @@ function createDraftActions(
         addParameter,
         autofillDate,
         changeDraftTemplate,
-        checkLiveCs1,
         formatParameters,
         getDateAutofillTooltip,
         isDateAutofillParameter,
@@ -1020,6 +953,41 @@ function createDraftActions(
         saveDraft,
         saveDraftAndClose,
         switchUrlStatus,
+    };
+}
+
+/** Creates explicit checker-popup actions for the Tools tab. */
+function createToolActions(
+    context: SourceManagerActionContext,
+): Record<string, unknown> {
+    const { state } = context;
+    async function openCs1Tool(): Promise<void> {
+        state.toolPopup.value = "cs1";
+        state.toolPopupOpen.value = true;
+        await fetchArticleCs1Issues(context);
+    }
+    function openNonCs1Tool(): void {
+        state.toolPopup.value = "non-cs1";
+        state.toolPopupOpen.value = true;
+    }
+    function closeToolPopup(): void {
+        state.toolPopupOpen.value = false;
+    }
+    function onToolPopupOpenChange(open: boolean): void {
+        if (!open) {
+            state.toolPopupOpen.value = false;
+        }
+    }
+    function reviewNonCs1Source(sourceId: string): void {
+        closeToolPopup();
+        openExistingSourceWhenIdle(state, sourceId);
+    }
+    return {
+        closeToolPopup,
+        onToolPopupOpenChange,
+        openCs1Tool,
+        openNonCs1Tool,
+        reviewNonCs1Source,
     };
 }
 
@@ -1800,6 +1768,7 @@ function createOptionalTooltipDirective(
 /** Registers the Codex components used by the source manager. */
 function registerCodexComponents(app: VueApp, Codex: CodexComponents): void {
     app.component("CdxButton", Codex.CdxButton);
+    app.component("CdxCard", Codex.CdxCard);
     app.component("CdxCheckbox", Codex.CdxCheckbox);
     app.component("CdxCombobox", Codex.CdxCombobox);
     app.component("CdxDialog", Codex.CdxDialog);
@@ -1941,8 +1910,8 @@ const SOURCE_MANAGER_TEMPLATE = `
                     />
                 </cdx-field>
                 <cdx-field
+                    v-if="sourceSectionSelectors.length > 0"
                     class="cf-source-manager__filter-field"
-                    :is-fieldset="true"
                 >
                     <template #label>Filter by Section</template>
                     <div class="cf-source-manager__filter-controls">
@@ -2087,37 +2056,22 @@ const SOURCE_MANAGER_TEMPLATE = `
                     language contains one language code
                 </cdx-checkbox>
                 <cdx-field>
-                    <template #label>Non-CS1 source check</template>
+                    <template #label>Citation checks</template>
                     <template #description>
-                        Static scan for references that do not contain a
-                        supported CS1 citation template.
+                        Open checker results in a separate popup.
                     </template>
-                    <p v-if="nonCs1Sources.length === 0">
-                        No non-CS1 sources found.
-                    </p>
-                    <ul
-                        v-else
-                        class="cf-source-manager__tool-results"
-                    >
-                        <li
-                            v-for="source in nonCs1Sources"
-                            :key="source.id"
+                    <div class="cf-source-manager__tool-launchers">
+                        <cdx-button
+                            v-if="canCheckCs1Tool"
+                            action="progressive"
+                            @click="openCs1Tool"
                         >
-                            <span>
-                                {{
-                                    source.title ||
-                                    source.referenceName ||
-                                    'Unnamed reference'
-                                }}
-                            </span>
-                            <cdx-button
-                                weight="quiet"
-                                @click="editListedSource( source.id )"
-                            >
-                                Review
-                            </cdx-button>
-                        </li>
-                    </ul>
+                            Check CS1 issues
+                        </cdx-button>
+                        <cdx-button @click="openNonCs1Tool">
+                            Check non-CS1 sources
+                        </cdx-button>
+                    </div>
                 </cdx-field>
                 <cdx-button
                     action="progressive"
@@ -2127,58 +2081,18 @@ const SOURCE_MANAGER_TEMPLATE = `
                 >
                     Format citations
                 </cdx-button>
-                <dl class="cf-source-manager__version">
-                    <div>
-                        <dt>Version</dt>
-                        <dd>{{ gadgetVersion }}</dd>
-                    </div>
-                    <div>
-                        <dt>Build time</dt>
-                        <dd>{{ gadgetBuildTime }}</dd>
-                    </div>
-                </dl>
+                <cdx-card class="cf-source-manager__gadget-info">
+                    <template #title>Gadget info</template>
+                    <template #supporting-text>
+                        Version {{ gadgetVersion }}
+                        (build at: {{ gadgetBuildTime }})
+                    </template>
+                </cdx-card>
             </div>
         </cdx-tab>
         </cdx-tabs>
     </div>
     <div v-else-if="draft">
-        <cdx-message
-            v-if="liveCs1Status === 'checking'"
-            type="notice"
-            class="cf-source-manager__status"
-        >
-            Checking all live CS1 rules on
-            {{ liveCs1WikiLabel }} Wikipedia…
-        </cdx-message>
-        <cdx-message
-            v-else-if="liveCs1Status === 'unavailable'"
-            type="warning"
-            class="cf-source-manager__status"
-        >
-            Live CS1 validation is temporarily unavailable. Local checks
-            remain active.
-        </cdx-message>
-        <cdx-message
-            v-else-if="
-                liveCs1Status === 'complete' &&
-                liveCs1IssueCount > 0
-            "
-            type="warning"
-            class="cf-source-manager__status"
-        >
-            Live CS1 validation reported
-            {{ liveCs1IssueCount }}
-            issue(s) or maintenance category/categories. Hover highlighted
-            fields for details.
-            <ul v-if="liveCs1Messages.length > 0">
-                <li
-                    v-for="message in liveCs1Messages"
-                    :key="message"
-                >
-                    {{ message }}
-                </li>
-            </ul>
-        </cdx-message>
         <cdx-field
             v-if="
                 editingSource &&
@@ -2449,17 +2363,6 @@ const SOURCE_MANAGER_TEMPLATE = `
                 <cdx-icon :icon="formatRowsIcon" />
                 Format
             </cdx-button>
-            <cdx-button
-                v-if="canCheckLiveCs1"
-                :disabled="liveCs1Status === 'checking'"
-                @click="checkLiveCs1"
-            >
-                {{
-                    liveCs1Status === 'checking'
-                        ? 'Checking CS1…'
-                        : 'Check CS1 errors'
-                }}
-            </cdx-button>
         </div>
         <cdx-field class="cf-source-manager__source-preview">
             <template #label>Source code</template>
@@ -2549,6 +2452,97 @@ const SOURCE_MANAGER_TEMPLATE = `
                 Back
             </cdx-button>
         </div>
+    </template>
+</cdx-dialog>
+<cdx-dialog
+    v-model:open="toolPopupOpen"
+    class="cf-source-manager__tool-dialog"
+    :title="
+        toolPopup === 'cs1'
+            ? 'CS1 issue check'
+            : 'Non-CS1 source check'
+    "
+    @update:open="onToolPopupOpenChange"
+>
+    <template v-if="toolPopup === 'cs1'">
+        <p>
+            Complete CS1 check using the installed rules on
+            {{ cs1WikiLabel }} Wikipedia.
+        </p>
+        <cdx-progress-bar
+            v-if="cs1ToolStatus === 'checking'"
+            aria-label="Checking CS1 issues"
+        />
+        <cdx-message
+            v-else-if="cs1ToolStatus === 'unavailable'"
+            type="error"
+        >
+            The CS1 API check is temporarily unavailable.
+        </cdx-message>
+        <cdx-message
+            v-else-if="
+                cs1ToolStatus === 'complete' &&
+                cs1ToolMessages.length === 0
+            "
+            type="success"
+        >
+            No CS1 issues found.
+        </cdx-message>
+        <ol
+            v-else-if="cs1ToolStatus === 'complete'"
+            class="cf-source-manager__tool-messages"
+        >
+            <li
+                v-for="message in cs1ToolMessages"
+                :key="message"
+            >
+                {{ message }}
+            </li>
+        </ol>
+    </template>
+    <template v-else-if="toolPopup === 'non-cs1'">
+        <p>
+            Static scan for references that do not contain a supported
+            CS1 citation template.
+        </p>
+        <cdx-message
+            v-if="nonCs1Sources.length === 0"
+            type="success"
+        >
+            No non-CS1 sources found.
+        </cdx-message>
+        <ul
+            v-else
+            class="cf-source-manager__tool-results"
+        >
+            <li
+                v-for="source in nonCs1Sources"
+                :key="source.id"
+            >
+                <span>
+                    {{
+                        source.title ||
+                        source.referenceName ||
+                        'Unnamed reference'
+                    }}
+                </span>
+                <cdx-button
+                    weight="quiet"
+                    @click="reviewNonCs1Source( source.id )"
+                >
+                    Review
+                </cdx-button>
+            </li>
+        </ul>
+    </template>
+    <template #footer>
+        <cdx-button
+            action="progressive"
+            weight="primary"
+            @click="closeToolPopup"
+        >
+            Close
+        </cdx-button>
     </template>
 </cdx-dialog>
 `;

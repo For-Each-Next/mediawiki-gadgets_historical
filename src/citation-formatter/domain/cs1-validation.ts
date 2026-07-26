@@ -72,7 +72,7 @@ export function parseCs1ValidationResult(
     html: string,
     categories: readonly string[] = [],
 ): Cs1ValidationResult {
-    const messages = extractCs1Messages(html, categories);
+    const messages = extractCs1IssueMessages(html, categories);
     const cellErrors: SourceDraftErrors = new Map();
     const unmapped: string[] = [];
     for (const message of messages) {
@@ -95,9 +95,10 @@ export function parseCs1ValidationResult(
     };
 }
 
-function extractCs1Messages(
+/** Extracts unique CS1 messages from parse output. */
+export function extractCs1IssueMessages(
     html: string,
-    categories: readonly string[],
+    categories: readonly string[] = [],
 ): string[] {
     const messages: string[] = [];
     for (const match of html.matchAll(CS1_MESSAGE_CLASS_PATTERN)) {

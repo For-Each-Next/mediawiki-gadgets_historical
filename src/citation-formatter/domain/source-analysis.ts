@@ -82,7 +82,6 @@ export interface SourceAnalysisReplacement {
     oldValue: string;
     parameter: string;
     replacement: string;
-    replacementParameter: string;
     rowIndex: number;
     sourceId: string;
 }
@@ -179,10 +178,7 @@ function buildDomainFieldFinding(
     occurrences: FieldOccurrence[],
 ): SourceAnalysisFinding[] {
     const options = countOccurrenceValues(occurrences);
-    const parameters = new Set(
-        occurrences.map((occurrence) => occurrence.parameter),
-    );
-    if (options.length < 2 && parameters.size < 2) {
+    if (options.length < 2) {
         return [];
     }
     const { category, domain } = occurrences[0];
@@ -199,27 +195,13 @@ function buildDomainFieldFinding(
             label: `${domain} · ${fieldLabel}`,
             occurrences,
             options,
-            reason: getDomainFindingReason(
-                parameters.size,
-                options.length,
-                displayValues.size,
-            ),
+            reason: getDomainFindingReason(displayValues.size),
             suggestedValue: options[0].value,
         },
     ];
 }
 
-function getDomainFindingReason(
-    parameterCount: number,
-    valueCount: number,
-    displayValueCount: number,
-): string {
-    if (parameterCount > 1 && valueCount === 1) {
-        return "Different parameter names are used for the same URL host.";
-    }
-    if (parameterCount > 1) {
-        return "Different parameter names or values use the same URL host.";
-    }
+function getDomainFindingReason(displayValueCount: number): string {
     return displayValueCount === 1
         ? "Only link, case, spacing, or wikitext style differs."
         : "Different values are used for the same URL host.";
@@ -515,14 +497,12 @@ function groupSourceAnalysisReplacements(
 ): Map<string, SourceAnalysisReplacement[]> {
     const result = new Map<string, SourceAnalysisReplacement[]>();
     const enteredCells = new Map<string, SourceAnalysisReplacement>();
-    const enteredParameters = new Map<string, string>();
     for (const replacement of replacements) {
         if (isEmptySourceAnalysisReplacement(replacement)) {
             continue;
         }
         const added = registerSourceAnalysisReplacement(
             enteredCells,
-            enteredParameters,
             replacement,
         );
         if (!added) {
@@ -540,15 +520,12 @@ function isEmptySourceAnalysisReplacement(
 ): boolean {
     const emptyValue =
         replacement.cell === "value" && replacement.replacement.trim() === "";
-    const unchanged =
-        replacement.replacement === replacement.oldValue &&
-        replacement.replacementParameter === replacement.parameter;
+    const unchanged = replacement.replacement === replacement.oldValue;
     return emptyValue || unchanged;
 }
 
 function registerSourceAnalysisReplacement(
     enteredCells: Map<string, SourceAnalysisReplacement>,
-    enteredParameters: Map<string, string>,
     replacement: SourceAnalysisReplacement,
 ): boolean {
     const rowKey = `${replacement.sourceId}\u0000${replacement.rowIndex}`;
@@ -559,18 +536,10 @@ function registerSourceAnalysisReplacement(
             "One citation field has conflicting replacement values.",
         );
     }
-    const enteredParameter = enteredParameters.get(rowKey);
-    if (
-        enteredParameter != null &&
-        enteredParameter !== replacement.replacementParameter
-    ) {
-        throw new Error("One citation field has conflicting parameter names.");
-    }
     if (existing != null) {
         return false;
     }
     enteredCells.set(cellKey, replacement);
-    enteredParameters.set(rowKey, replacement.replacementParameter);
     return true;
 }
 
@@ -610,7 +579,6 @@ function applyDraftReplacements(
     }
     for (const replacement of replacements) {
         const row = draft.rows[replacement.rowIndex];
-        row.name = replacement.replacementParameter;
         if (replacement.cell === "alias") {
             row.alias = replacement.replacement;
         } else {

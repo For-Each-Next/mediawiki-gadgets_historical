@@ -89,14 +89,18 @@ test("maps zhwiki citation-comment errors through local aliases", () => {
 });
 
 test("extracts article-wide CS1 messages for the checker popup", () => {
-    const messages = extractCs1IssueMessages(
-        '<span class="cs1-visible-error citation-comment">' +
-            "Unknown parameter <code>&#124;bad=</code> ignored</span>",
-        ["CS1 maint: date and year"],
-    );
+    for (const whitespace of ["", " ", "\n\t"]) {
+        const messages = extractCs1IssueMessages(
+            '<span class="cs1-visible-error citation-comment">' +
+                "Unknown parameter <code>&#124;bad=</code> ignored" +
+                `<a href="/wiki/Help:CS1_errors">${whitespace}` +
+                "(帮助)</a></span>",
+            ["CS1 maint: date and year"],
+        );
 
-    assert.deepEqual(messages, [
-        "Unknown parameter |bad= ignored",
-        "CS1 maint: date and year",
-    ]);
+        assert.deepEqual(messages, [
+            "Unknown parameter |bad= ignored",
+            "CS1 maint: date and year",
+        ]);
+    }
 });

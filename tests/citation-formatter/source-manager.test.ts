@@ -17,7 +17,6 @@ import {
     findExistingSource,
     getSourceDraftCitationName,
     getSourceDraftCitationNameCells,
-    getSourceDraftCitationNameParts,
     getSourceDraftCitationNameRows,
     joinAuthorDraftRow,
     listExistingSourceSections,
@@ -40,6 +39,10 @@ import {
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
 } from "citation-formatter/domain/templates.ts";
+import {
+    buildCs1CheckWikitext,
+    buildSourceSectionSelectors,
+} from "citation-formatter/ui/source-manager.ts";
 
 function getRow(draft: SourceDraft, name: string) {
     const row = draft.rows.find((candidate) => candidate.name === name);
@@ -547,18 +550,6 @@ test("identifies fields actively forming a generated reference name", () => {
     assert.equal(getSourceDraftCitationName(draft), "Noguchi, 2007, p. 2");
 });
 
-test("returns separate author, year, and part name fields", () => {
-    const draft = parseSourceDraft(
-        "{{cite web|author=Jane Doe|date=2024|title=Report|page=7}}",
-    );
-
-    assert.deepEqual(getSourceDraftCitationNameParts(draft), {
-        author: "Jane Doe",
-        part: "p. 7",
-        year: "2024",
-    });
-});
-
 test("lists canonical parameter names for combobox hints", () => {
     const draft = createManualSourceDraft("cite web");
     const names = listSourceDraftParameterNames(draft);
@@ -720,6 +711,18 @@ test("filters existing sources by all entered keywords", () => {
     assert.equal(filterExistingSources(sources, "   "), sources);
 });
 
+test("finds a creator by an exact or slightly misspelled alias key", () => {
+    const [source] = listExistingSources(
+        "<ref>{{cite magazine|" +
+            "author1=初芝弘也<!-- # Hatsushiba, Horiya -->|" +
+            "title=Interview}}</ref>",
+    );
+
+    assert.deepEqual(filterExistingSources([source], "Hatsushiba"), [source]);
+    assert.deepEqual(filterExistingSources([source], "Hiroya"), [source]);
+    assert.deepEqual(filterExistingSources([source], "unrelated"), []);
+});
+
 function buildSectionFilterText(): string {
     return [
         'Lead.<ref name="Alpha" />',
@@ -791,6 +794,48 @@ test("filters section and subsection leads with trailing zeroes", () => {
     );
 });
 
+test("only offers section lead filters that contain source uses", () => {
+    const populatedText = buildSectionFilterText();
+    const populatedSources = listExistingSources(populatedText);
+    const populatedSections = listExistingSourceSections(
+        populatedText,
+        populatedSources,
+    );
+    const populatedLead = buildSourceSectionSelectors(
+        populatedSections,
+        ["1"],
+        populatedSources,
+    )[1];
+
+    assert.ok(
+        populatedLead.menuItems.some((option) => option.sectionId === "1.0"),
+    );
+
+    const emptyLeadText = [
+        "== First ==",
+        "=== Child ===",
+        'Child.<ref name="Child" />',
+        "<references>",
+        '<ref name="Child">{{cite web|title=Child}}</ref>',
+        "</references>",
+    ].join("\n");
+    const emptyLeadSources = listExistingSources(emptyLeadText);
+    const emptyLeadSections = listExistingSourceSections(
+        emptyLeadText,
+        emptyLeadSources,
+    );
+    const emptyLead = buildSourceSectionSelectors(
+        emptyLeadSections,
+        ["1"],
+        emptyLeadSources,
+    )[1];
+
+    assert.deepEqual(
+        emptyLead.menuItems.map((option) => option.sectionId),
+        ["", "1.1"],
+    );
+});
+
 test("marks and filters invalid and non-standard references", () => {
     const sources = listExistingSources(
         [
@@ -817,6 +862,22 @@ test("marks and filters invalid and non-standard references", () => {
         ),
         ["Plain"],
     );
+});
+
+test("batches every standard source into one CS1 check payload", () => {
+    const sources = listExistingSources(
+        [
+            '<ref name="A">{{cite web|title=First|url=https://a.test}}</ref>',
+            '<ref name="B">{{cite book|title=Second|date=2025}}</ref>',
+        ].join(""),
+    );
+
+    const payload = buildCs1CheckWikitext(sources);
+
+    assert.match(payload, /id="citation-formatter-cs1-check-0"/u);
+    assert.match(payload, /id="citation-formatter-cs1-check-1"/u);
+    assert.match(payload, /\{\{cite web\|title=First/u);
+    assert.match(payload, /\{\{cite book\|title=Second/u);
 });
 
 test("lists recurring authors and websites as source search suggestions", () => {
@@ -849,11 +910,6 @@ test("moves single foreign-language titles to script-title", () => {
         serializeSourceDraft(draft, "inline"),
         /script-title = ja:記事 <!-- # Kiji -->/u,
     );
-    assert.deepEqual(getSourceDraftCitationNameParts(draft), {
-        author: "Kiji",
-        part: "",
-        year: "n.d.",
-    });
 
     const multiple = parseSourceDraft(
         "{{cite web|title=Статья|language=ru,uk}}",

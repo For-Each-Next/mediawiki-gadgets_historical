@@ -215,12 +215,6 @@ export interface SourceDraft {
 export type SourceDraftCitationNameCell = "alias" | "value";
 export type ExistingSourceStatus = "error" | "non-standard" | "standard";
 
-export interface SourceDraftCitationNameParts {
-    author: string;
-    part: string;
-    year: string;
-}
-
 interface DraftAuthorParameter {
     index: number;
     suffix: string;
@@ -688,18 +682,6 @@ export function getSourceDraftCitationName(draft: SourceDraft): string {
     return appendCitationLocator(identity.baseName, identity.locator);
 }
 
-/** Builds separate author, year, and optional part fields. */
-export function getSourceDraftCitationNameParts(
-    draft: SourceDraft,
-): SourceDraftCitationNameParts {
-    const identity = getCitationIdentity(buildDraftCitation(draft));
-    return {
-        author: identity.author,
-        part: identity.locator,
-        year: identity.year,
-    };
-}
-
 /** Lists canonical names offered by the parameter combobox. */
 export function listSourceDraftParameterNames(draft: SourceDraft): string[] {
     return [...getTemplateMetadata(draft.template).paramOrder];
@@ -927,9 +909,75 @@ export function filterExistingSources(
     return inSection.filter(function matchesKeywords(source) {
         const searchText = buildExistingSourceSearchText(source);
         return keywords.every(function includesKeyword(keyword) {
-            return searchText.includes(keyword);
+            return (
+                searchText.includes(keyword) ||
+                matchesCreatorAliasKeyword(source, keyword)
+            );
         });
     });
+}
+
+/**
+ * Tolerates a small spelling error when searching creator aliases.
+ *
+ * Alias comments are often the field being corrected, so an entered
+ * correction such as `Hiroya` should still find a stored `Horiya`.
+ */
+function matchesCreatorAliasKeyword(
+    source: ExistingSource,
+    keyword: string,
+): boolean {
+    if (keyword.length < 5) {
+        return false;
+    }
+    return source.draft.rows.some(function hasNearbyAlias(row) {
+        if (!isCreatorAliasDraftParameter(row.name)) {
+            return false;
+        }
+        const normalized = row.alias.toLocaleLowerCase("en-US");
+        const tokens = normalized.match(/[\p{L}\p{N}]+/gu) ?? [];
+        return tokens.some((token) => isNearbySearchToken(keyword, token));
+    });
+}
+
+/** Checks an alias token against a bounded edit distance. */
+function isNearbySearchToken(keyword: string, token: string): boolean {
+    const shortest = Math.min(keyword.length, token.length);
+    if (shortest < 5) {
+        return false;
+    }
+    const limit = Math.min(2, Math.floor(shortest / 3));
+    if (Math.abs(keyword.length - token.length) > limit) {
+        return false;
+    }
+    return getEditDistance(keyword, token, limit) <= limit;
+}
+
+/** Computes edit distance, stopping after the limit. */
+function getEditDistance(left: string, right: string, limit: number): number {
+    let previous = Array.from(
+        { length: right.length + 1 },
+        (_, index) => index,
+    );
+    for (const [leftIndex, leftCharacter] of [...left].entries()) {
+        const current = [leftIndex + 1];
+        let rowMinimum = current[0];
+        for (const [rightIndex, rightCharacter] of [...right].entries()) {
+            const insertion = current[rightIndex] + 1;
+            const deletion = previous[rightIndex + 1] + 1;
+            const substitution =
+                previous[rightIndex] +
+                (leftCharacter === rightCharacter ? 0 : 1);
+            const distance = Math.min(insertion, deletion, substitution);
+            current.push(distance);
+            rowMinimum = Math.min(rowMinimum, distance);
+        }
+        if (rowMinimum > limit) {
+            return limit + 1;
+        }
+        previous = current;
+    }
+    return previous.at(-1) ?? limit + 1;
 }
 
 /** Lists author and publication names for source searching. */

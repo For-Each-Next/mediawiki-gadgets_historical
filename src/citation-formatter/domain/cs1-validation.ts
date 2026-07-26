@@ -117,13 +117,14 @@ export function extractCs1IssueMessages(
 }
 
 function normalizeHtmlText(html: string): string {
-    return decodeHtmlEntities(
+    const text = decodeHtmlEntities(
         html
             .replace(/<br\s*\/?>/giu, " ")
             .replace(/<[^>]*>/gu, "")
             .replace(/\s+/gu, " ")
             .trim(),
     );
+    return text.replace(/\s*\(帮助\)$/u, "");
 }
 
 function decodeHtmlEntities(value: string): string {

@@ -15,7 +15,6 @@ import {
     findCreatorAliasSuggestions,
     findExistingSources,
     formatSourceDraftRows,
-    getSourceDraftCitationNameParts,
     getSourceDraftCitationNameCells,
     isAuthorDraftParameter,
     isLastAuthorDraftParameter,
@@ -37,7 +36,6 @@ import {
     type SourceSection,
     type SourceDraft,
     type SourceDraftCitationNameCell,
-    type SourceDraftCitationNameParts,
     type SourceDraftRow,
 } from "#me/domain/source-manager.ts";
 import {
@@ -84,14 +82,6 @@ const GADGET_BUILD_TIME =
     typeof __GADGET_BUILD_TIME__ === "undefined"
         ? "development build"
         : formatUtcBuildTime(__GADGET_BUILD_TIME__);
-const REFERENCE_STYLE_OPTIONS = [
-    { label: "<ref>", value: "ref" },
-    { label: "{{r}}", value: "r" },
-];
-const CITATION_LAYOUT_OPTIONS = [
-    { label: "Inline", value: "inline" },
-    { label: "Block (two-space indent)", value: "block" },
-];
 const URL_STATUSES = ["live", "dead", "unfit"] as const;
 const USE_SOURCE_ICON = {
     ltr:
@@ -146,6 +136,7 @@ const MANUAL_TEMPLATE_OPTIONS = [
 type SourceManagerMode = "draft" | "lookup";
 type Cs1ToolStatus = "checking" | "complete" | "idle" | "unavailable";
 type SourceToolPopup = "analysis" | "cs1" | "non-cs1" | null;
+type SourceCheckerTool = Extract<SourceToolPopup, "cs1" | "non-cs1">;
 type DraftActions = Record<string, unknown>;
 export type ReferenceStyle = "r" | "ref";
 let removeActiveSourceManager: (() => void) | null = null;
@@ -161,7 +152,6 @@ interface EditableSourceAnalysisFinding extends Omit<
 > {
     occurrences: SelectableSourceAnalysisOccurrence[];
     replacement: string;
-    replacementParameter: string;
 }
 
 interface EditableCitationSourceAnalysis extends Omit<
@@ -213,7 +203,6 @@ interface CodexComponents {
     CdxIcon: unknown;
     CdxMessage: unknown;
     CdxProgressBar: unknown;
-    CdxRadio: unknown;
     CdxSelect: unknown;
     CdxTab: unknown;
     CdxTabs: unknown;
@@ -247,9 +236,6 @@ interface SourceManagerState {
         readonly value: Array<{ label: string; value: string }>;
     };
     citationLayout: { value: CitationLayout };
-    citationNameParts: {
-        readonly value: SourceDraftCitationNameParts;
-    };
     citationNameCells: {
         readonly value: Map<number, SourceDraftCitationNameCell>;
     };
@@ -260,6 +246,8 @@ interface SourceManagerState {
     cs1ToolStatus: { value: Cs1ToolStatus };
     dismissedAliasSuggestions: { value: Set<string> };
     draft: { value: SourceDraft | null };
+    draftReviewQueue: { value: PreloadedCheckerSource[] };
+    draftReviewTool: { value: SourceCheckerTool | null };
     draftCellErrors: { readonly value: SourceDraftErrors };
     draftSourcePreview: { readonly value: SourcePreviewPart[] };
     editingSource: { value: ExistingSource | null };
@@ -325,6 +313,11 @@ interface Cs1CheckedSource {
     source: ExistingSource;
 }
 
+interface PreloadedCheckerSource {
+    checkedHtml: string;
+    sourceIndex: number;
+}
+
 interface SourcePreviewPart {
     kind: "alias" | "parameter" | "text";
     text: string;
@@ -333,7 +326,6 @@ interface SourcePreviewPart {
 type SourceManagerDerivedState = Pick<
     SourceManagerState,
     | "basedOnSourceOptions"
-    | "citationNameParts"
     | "citationNameCells"
     | "draftSourcePreview"
     | "draftCellErrors"
@@ -426,7 +418,6 @@ function createSourceManagerComponent(
         );
         return {
             canCheckCs1Tool: ["enwiki", "zhwiki"].includes(getCurrentWikiId()),
-            citationLayoutOptions: CITATION_LAYOUT_OPTIONS,
             copySourceIcon: COPY_SOURCE_ICON,
             editSourceIcon: EDIT_SOURCE_ICON,
             formatRowsIcon: FORMAT_ROWS_ICON,
@@ -438,7 +429,6 @@ function createSourceManagerComponent(
                 getCurrentWikiId() === "zhwiki" ? "Chinese" : "English",
             manualTemplateOptions: MANUAL_TEMPLATE_OPTIONS,
             magicWandIcon: cdxIconMagicWand,
-            referenceStyleOptions: REFERENCE_STYLE_OPTIONS,
             sourceTemplateLabel: getCanonicalTemplateName,
             templateOptions: TEMPLATE_OPTIONS,
             splitAuthorIcon: SPLIT_AUTHOR_ICON,
@@ -504,6 +494,8 @@ function createInitialCs1ToolState(Vue: VueModule) {
         cs1ToolMessages: Vue.ref<string[]>([]),
         cs1ToolSources: Vue.ref<Cs1CheckedSource[]>([]),
         cs1ToolStatus: Vue.ref<Cs1ToolStatus>("idle"),
+        draftReviewQueue: Vue.ref<PreloadedCheckerSource[]>([]),
+        draftReviewTool: Vue.ref<SourceCheckerTool | null>(null),
     };
 }
 
@@ -522,7 +514,6 @@ function createEditableSourceAnalysis(
                     selected: false,
                 })),
                 replacement: finding.suggestedValue,
-                replacementParameter: "",
             };
         }),
     };
@@ -561,17 +552,6 @@ function createDraftDerivedState(
     Vue: VueModule,
     state: SourceManagerDerivedInputs,
 ) {
-    function getCitationNameParts(): SourceDraftCitationNameParts {
-        const draft = state.draft.value;
-        if (draft == null) {
-            return { author: "", part: "", year: "" };
-        }
-        try {
-            return getSourceDraftCitationNameParts(draft);
-        } catch {
-            return { author: "", part: "", year: "" };
-        }
-    }
     function getCitationNameCells(): Map<number, SourceDraftCitationNameCell> {
         const draft = state.draft.value;
         return draft == null
@@ -598,7 +578,6 @@ function createDraftDerivedState(
         return mergeSourceDraftErrors(local, state.checkedCs1CellErrors.value);
     }
     return {
-        citationNameParts: Vue.computed(getCitationNameParts),
         citationNameCells: Vue.computed(getCitationNameCells),
         draftCellErrors: Vue.computed(getDraftCellErrors),
         draftSourcePreview: Vue.computed(getDraftSourcePreview),
@@ -700,7 +679,7 @@ function mapCs1CheckedSources(
     });
 }
 
-function buildCs1CheckWikitext(sources: ExistingSource[]): string {
+export function buildCs1CheckWikitext(sources: ExistingSource[]): string {
     return sources
         .map(function wrapSource(source, index) {
             const id = `${CS1_CHECK_ID_PREFIX}${index}`;
@@ -867,15 +846,17 @@ function createSourceListDerivedState(
             return buildSourceSectionSelectors(
                 state.existingSourceSections.value,
                 state.sourceSectionPath.value,
+                state.existingSources.value,
             );
         }),
     };
 }
 
 /** Builds one combobox for each selected section hierarchy level. */
-function buildSourceSectionSelectors(
+export function buildSourceSectionSelectors(
     sections: SourceSection[],
     path: string[],
+    sources: ExistingSource[],
 ): SourceSectionSelector[] {
     const selectors: SourceSectionSelector[] = [];
     let parentId = "";
@@ -886,7 +867,8 @@ function buildSourceSectionSelectors(
         if (
             parentId !== "" &&
             parentId !== "0" &&
-            parentId !== UNUSED_SOURCE_SECTION_ID
+            parentId !== UNUSED_SOURCE_SECTION_ID &&
+            sources.some((source) => source.sectionIds.includes(parentId))
         ) {
             children = [
                 buildLeadingSourceSection(parentId, level),
@@ -1020,7 +1002,13 @@ function createFormatterActions(
         refreshExistingSources(editor, state);
         state.activeLookupTab.value = "view";
     }
-    return { formatArticle };
+    function setBlockCitations(enabled: boolean): void {
+        context.state.citationLayout.value = enabled ? "block" : "inline";
+    }
+    function setCompactReferences(enabled: boolean): void {
+        context.state.referenceStyle.value = enabled ? "r" : "ref";
+    }
+    return { formatArticle, setBlockCitations, setCompactReferences };
 }
 
 /** Creates dialog navigation actions. */
@@ -1034,12 +1022,11 @@ function createNavigationActions(
     }
     function backToLookup(): void {
         const { state } = context;
-        state.draft.value = null;
-        state.dismissedAliasSuggestions.value = new Set();
-        state.editingSource.value = null;
-        state.error.value = "";
-        state.warning.value = "";
-        state.mode.value = "lookup";
+        const reviewTool = state.draftReviewTool.value;
+        resetSourceDraft(state);
+        if (reviewTool != null) {
+            showCheckerResults(state, reviewTool);
+        }
     }
     return {
         backToLookup,
@@ -1084,6 +1071,12 @@ function createDraftActions(
     function saveDraftAndClose(): void {
         saveSourceDraft(context, true);
     }
+    function applyReviewedDraft(): void {
+        saveReviewedDraft(context, false);
+    }
+    function saveDraftAndEditNext(): void {
+        saveReviewedDraft(context, true);
+    }
     function switchUrlStatus(index: number): void {
         const row = state.draft.value?.rows[index];
         if (row == null) {
@@ -1099,6 +1092,7 @@ function createDraftActions(
         ...createAuthorDraftActions(state),
         ...createAliasDraftActions(state),
         addParameter,
+        applyReviewedDraft,
         autofillDate,
         changeDraftTemplate,
         getDateAutofillTooltip,
@@ -1107,6 +1101,7 @@ function createDraftActions(
         linkOrganization,
         saveDraft,
         saveDraftAndClose,
+        saveDraftAndEditNext,
         sortParameters,
         switchUrlStatus,
     };
@@ -1145,7 +1140,6 @@ function createAnalysisToolActions(
         applyAnalysisReplacements,
         clearAnalysisSelection,
         countSelectedAnalysisReplacements,
-        getAnalysisParameterOptions,
         getAnalysisReplacementOptions,
         isAnalysisOccurrenceUnchanged,
         openAnalysisTool,
@@ -1177,7 +1171,7 @@ function createCheckerToolActions(
     }
     function reviewNonCs1Source(sourceId: string): void {
         closeToolPopup();
-        openExistingSourceWhenIdle(state, sourceId);
+        reviewNonCs1CheckedSource(state, sourceId);
     }
     function reviewCs1Source(sourceId: string): void {
         closeToolPopup();
@@ -1219,38 +1213,11 @@ function getAnalysisReplacementOptions(
     }));
 }
 
-function getAnalysisParameterOptions(
-    finding: EditableSourceAnalysisFinding,
-): Array<{ label: string; value: string }> {
-    const parameters = new Set(
-        finding.occurrences.map((occurrence) => occurrence.parameter),
-    );
-    return [...parameters].map((parameter) => ({
-        label: parameter,
-        value: parameter,
-    }));
-}
-
-function getAnalysisReplacementParameter(
-    finding: EditableSourceAnalysisFinding,
-    occurrence: SelectableSourceAnalysisOccurrence,
-): string {
-    const entered =
-        typeof finding.replacementParameter === "string"
-            ? finding.replacementParameter.trim()
-            : "";
-    return entered === "" ? occurrence.parameter : entered;
-}
-
 function isAnalysisOccurrenceUnchanged(
     finding: EditableSourceAnalysisFinding,
     occurrence: SelectableSourceAnalysisOccurrence,
 ): boolean {
-    return (
-        occurrence.value === finding.replacement &&
-        occurrence.parameter ===
-            getAnalysisReplacementParameter(finding, occurrence)
-    );
+    return occurrence.value === finding.replacement;
 }
 
 /** Writes checked analysis replacements as one editor operation. */
@@ -1308,10 +1275,6 @@ function listSelectedAnalysisReplacements(
                         typeof finding.replacement === "string"
                             ? finding.replacement
                             : "",
-                    replacementParameter: getAnalysisReplacementParameter(
-                        finding,
-                        occurrence,
-                    ),
                     rowIndex: occurrence.rowIndex,
                     sourceId: occurrence.sourceId,
                 },
@@ -1330,17 +1293,111 @@ function reviewCs1CheckedSource(
     if (checked == null) {
         return;
     }
+    const queue = preloadCs1ReviewQueue(state, sourceId);
+    openCs1ReviewSource(state, sourceId, checked.html, queue);
+}
+
+/** Opens a prechecked CS1 draft without another API request. */
+function openCs1ReviewSource(
+    state: SourceManagerState,
+    sourceId: string,
+    checkedHtml: string,
+    queue: PreloadedCheckerSource[],
+): boolean {
     openExistingSourceWhenIdle(state, sourceId);
     const draft = state.draft.value;
     if (draft == null) {
-        return;
+        return false;
     }
-    const result = parseCs1ValidationResult(draft, checked.html);
+    state.draftReviewQueue.value = queue;
+    state.draftReviewTool.value = "cs1";
+    const result = parseCs1ValidationResult(draft, checkedHtml);
     state.checkedCs1CellErrors.value = result.cellErrors;
     state.checkedCs1Source.value = serializeCurrentSourceDraft(state);
     if (result.messages.length > 0) {
         state.warning.value = result.messages.join("\n");
     }
+    return true;
+}
+
+/** Opens one non-CS1 result in the sequential checker-edit workflow. */
+function reviewNonCs1CheckedSource(
+    state: SourceManagerState,
+    sourceId: string,
+): void {
+    const source = findExistingSourceById(state, sourceId);
+    if (source == null) {
+        return;
+    }
+    const queue = preloadNonCs1ReviewQueue(state, sourceId);
+    openNonCs1ReviewSource(state, sourceId, queue);
+}
+
+/** Opens a preloaded non-CS1 draft in the checker workflow. */
+function openNonCs1ReviewSource(
+    state: SourceManagerState,
+    sourceId: string,
+    queue: PreloadedCheckerSource[],
+): boolean {
+    openExistingSourceWhenIdle(state, sourceId);
+    if (state.draft.value == null) {
+        return false;
+    }
+    state.draftReviewQueue.value = queue;
+    state.draftReviewTool.value = "non-cs1";
+    return true;
+}
+
+/** Preloads other CS1 results, wrapping after the final item. */
+function preloadCs1ReviewQueue(
+    state: SourceManagerState,
+    sourceId: string,
+): PreloadedCheckerSource[] {
+    const results = state.cs1ToolSources.value;
+    const currentIndex = results.findIndex(
+        (result) => result.source.id === sourceId,
+    );
+    if (currentIndex < 0) {
+        return [];
+    }
+    const ordered = [
+        ...results.slice(currentIndex + 1),
+        ...results.slice(0, currentIndex),
+    ];
+    return ordered.flatMap(function preload(result) {
+        return preloadCheckerSource(state, result.source, result.html);
+    });
+}
+
+/** Preloads other non-CS1 results, wrapping after the final item. */
+function preloadNonCs1ReviewQueue(
+    state: SourceManagerState,
+    sourceId: string,
+): PreloadedCheckerSource[] {
+    const sources = state.nonCs1Sources.value;
+    const currentIndex = sources.findIndex((source) => source.id === sourceId);
+    if (currentIndex < 0) {
+        return [];
+    }
+    const ordered = [
+        ...sources.slice(currentIndex + 1),
+        ...sources.slice(0, currentIndex),
+    ];
+    return ordered.flatMap(function preload(source) {
+        return preloadCheckerSource(state, source);
+    });
+}
+
+/** Captures one check result by stable source-list position. */
+function preloadCheckerSource(
+    state: SourceManagerState,
+    source: ExistingSource,
+    checkedHtml: string = "",
+): PreloadedCheckerSource[] {
+    const sourceIndex = state.existingSources.value.findIndex(
+        (candidate) => candidate.id === source.id,
+    );
+    return sourceIndex < 0 ? [] : [{ checkedHtml, sourceIndex }];
 }
 
 /** Returns whether a row supports one-click date filling. */
@@ -1466,10 +1523,115 @@ function saveSourceDraft(
     context: SourceManagerActionContext,
     closeAfterSave: boolean,
 ): void {
+    const { editor, state, toast } = context;
+    if (!writeSourceDraft(context)) {
+        return;
+    }
+    toast.success("Citation source saved.", { autoDismiss: true });
+    if (closeAfterSave) {
+        finishSourceManager(context);
+        return;
+    }
+    refreshExistingSources(editor, state);
+    resetSourceDraft(state);
+    state.activeLookupTab.value = "view";
+}
+
+/** Saves a checker result and returns or opens the next issue. */
+function saveReviewedDraft(
+    context: SourceManagerActionContext,
+    editNext: boolean,
+): void {
+    const { editor, state, toast } = context;
+    const reviewTool = state.draftReviewTool.value;
+    const reviewQueue = state.draftReviewQueue.value;
+    const nextSource = editNext ? reviewQueue[0] : null;
+    const remainingQueue = editNext ? reviewQueue.slice(1) : [];
+    if (reviewTool == null || !writeSourceDraft(context)) {
+        return;
+    }
+    refreshExistingSources(editor, state);
+    if (reviewTool === "cs1") {
+        syncCs1BatchResults(state, reviewQueue);
+    }
+    resetSourceDraft(state);
+    toast.success("Citation source saved.", { autoDismiss: true });
+    if (
+        nextSource != null &&
+        openPreloadedCheckerSource(
+            state,
+            reviewTool,
+            nextSource,
+            remainingQueue,
+        )
+    ) {
+        return;
+    }
+    showCheckerResults(state, reviewTool);
+}
+
+/** Keeps unreviewed CS1 results from the original batch request. */
+function syncCs1BatchResults(
+    state: SourceManagerState,
+    queue: PreloadedCheckerSource[],
+): void {
+    state.cs1ToolSources.value = queue
+        .toSorted((left, right) => left.sourceIndex - right.sourceIndex)
+        .flatMap(function restoreResult(preloaded) {
+            const source = state.existingSources.value[preloaded.sourceIndex];
+            const messages = extractCs1IssueMessages(preloaded.checkedHtml);
+            return source == null ||
+                source.status === "non-standard" ||
+                messages.length === 0
+                ? []
+                : [{ html: preloaded.checkedHtml, messages, source }];
+        });
+    if (state.cs1ToolSources.value.length === 0) {
+        state.cs1ToolMessages.value = [];
+    }
+}
+
+/** Opens a preloaded next item against the refreshed source ranges. */
+function openPreloadedCheckerSource(
+    state: SourceManagerState,
+    reviewTool: SourceCheckerTool,
+    preloaded: PreloadedCheckerSource,
+    remainingQueue: PreloadedCheckerSource[],
+): boolean {
+    const source = state.existingSources.value[preloaded.sourceIndex];
+    if (source == null) {
+        return false;
+    }
+    if (reviewTool === "cs1") {
+        return openCs1ReviewSource(
+            state,
+            source.id,
+            preloaded.checkedHtml,
+            remainingQueue,
+        );
+    }
+    if (source.status !== "non-standard") {
+        return false;
+    }
+    return openNonCs1ReviewSource(state, source.id, remainingQueue);
+}
+
+/** Opens refreshed checker results over the manager lookup view. */
+function showCheckerResults(
+    state: SourceManagerState,
+    reviewTool: SourceCheckerTool,
+): void {
+    state.activeLookupTab.value = "tools";
+    state.toolPopup.value = reviewTool;
+    state.toolPopupOpen.value = true;
+}
+
+/** Validates and writes the current source draft. */
+function writeSourceDraft(context: SourceManagerActionContext): boolean {
     const { editor, state } = context;
     const draft = state.draft.value;
     if (draft == null) {
-        return;
+        return false;
     }
     try {
         if (state.autoScriptTitle.value) {
@@ -1483,24 +1645,21 @@ function saveSourceDraft(
         }
     } catch (error) {
         state.error.value = formatError(error);
-        return;
+        return false;
     }
-    if (closeAfterSave) {
-        context.toast.success("Citation source saved.", {
-            autoDismiss: true,
-        });
-        finishSourceManager(context);
-        return;
-    }
-    refreshExistingSources(editor, state);
-    state.activeLookupTab.value = "view";
+    return true;
+}
+
+/** Clears the draft view without changing the source-list state. */
+function resetSourceDraft(state: SourceManagerState): void {
     state.dismissedAliasSuggestions.value = new Set();
     state.draft.value = null;
+    state.draftReviewQueue.value = [];
+    state.draftReviewTool.value = null;
     state.editingSource.value = null;
     state.error.value = "";
     state.mode.value = "lookup";
     state.warning.value = "";
-    context.toast.success("Citation source saved.", { autoDismiss: true });
 }
 
 /** Creates author-row splitting and automatic next-slot actions. */
@@ -1868,6 +2027,7 @@ function openExistingSource(
         return;
     }
     clearCheckedCs1Errors(state);
+    state.draftReviewTool.value = null;
     const draft = cloneDraft(source.draft);
     ensureNextAuthorDraftRows(draft);
     state.dismissedAliasSuggestions.value = new Set();
@@ -1990,6 +2150,7 @@ function openDraft(
     clearCheckedCs1Errors(state);
     state.dismissedAliasSuggestions.value = new Set();
     state.draft.value = draft;
+    state.draftReviewTool.value = null;
     state.editingSource.value = null;
     state.error.value = "";
     if (!preserveWarning) {
@@ -2155,7 +2316,6 @@ function registerCodexComponents(app: VueApp, Codex: CodexComponents): void {
     app.component("CdxIcon", Codex.CdxIcon);
     app.component("CdxMessage", Codex.CdxMessage);
     app.component("CdxProgressBar", Codex.CdxProgressBar);
-    app.component("CdxRadio", Codex.CdxRadio);
     app.component("CdxSelect", Codex.CdxSelect);
     app.component("CdxTab", Codex.CdxTab);
     app.component("CdxTabs", Codex.CdxTabs);
@@ -2318,10 +2478,7 @@ const SOURCE_MANAGER_TEMPLATE = `
                 <li
                     v-for="source in filteredExistingSources"
                     :key="source.id"
-                    :class="[
-                        'cf-source-manager__existing-row',
-                        'cf-source-manager__existing-row--' + source.status
-                    ]"
+                    class="cf-source-manager__existing-row"
                 >
                     <div class="cf-source-manager__existing-summary">
                         <small
@@ -2401,36 +2558,45 @@ const SOURCE_MANAGER_TEMPLATE = `
         </cdx-tab>
         <cdx-tab name="tools" label="Tools">
             <div class="cf-source-manager__tools">
-                <cdx-field :is-fieldset="true">
-                    <template #label>Reference calls</template>
-                    <cdx-radio
-                        v-for="option in referenceStyleOptions"
-                        :key="option.value"
-                        v-model="referenceStyle"
-                        name="citation-reference-style"
-                        :input-value="option.value"
-                        :inline="true"
+                <cdx-field
+                    class="cf-source-manager__advanced-formatting"
+                    :is-fieldset="true"
+                >
+                    <template #label>
+                        Advanced formatting preferences
+                    </template>
+                    <template #description>
+                        Choose article-wide citation transformations, then
+                        apply them together.
+                    </template>
+                    <cdx-checkbox
+                        :model-value="referenceStyle === 'r'"
+                        @update:model-value="setCompactReferences"
                     >
-                        {{ option.label }}
-                    </cdx-radio>
-                </cdx-field>
-                <cdx-field :is-fieldset="true">
-                    <template #label>Citation templates</template>
-                    <cdx-radio
-                        v-for="option in citationLayoutOptions"
-                        :key="option.value"
-                        v-model="citationLayout"
-                        name="citation-template-layout"
-                        :input-value="option.value"
-                        :inline="true"
+                        Use <code>&#123;&#123;r&#125;&#125;</code> instead of
+                        <code>&lt;ref&gt;</code> where possible
+                    </cdx-checkbox>
+                    <cdx-checkbox
+                        :model-value="citationLayout === 'block'"
+                        @update:model-value="setBlockCitations"
                     >
-                        {{ option.label }}
-                    </cdx-radio>
+                        Use block citations (two-space indent) instead of
+                        inline citations
+                    </cdx-checkbox>
+                    <cdx-checkbox v-model="autoScriptTitle">
+                        Move a foreign-language <code>title</code> to
+                        <code>script-title</code> when its language code is
+                        available
+                    </cdx-checkbox>
+                    <cdx-button
+                        action="progressive"
+                        weight="primary"
+                        :disabled="loading"
+                        @click="formatArticle"
+                    >
+                        Apply advanced formatting
+                    </cdx-button>
                 </cdx-field>
-                <cdx-checkbox v-model="autoScriptTitle">
-                    Move a foreign-language title to script-title when
-                    language contains one language code
-                </cdx-checkbox>
                 <cdx-field>
                     <template #label>Citation checks</template>
                     <template #description>
@@ -2455,14 +2621,6 @@ const SOURCE_MANAGER_TEMPLATE = `
                         </cdx-button>
                     </div>
                 </cdx-field>
-                <cdx-button
-                    action="progressive"
-                    weight="primary"
-                    :disabled="loading"
-                    @click="formatArticle"
-                >
-                    Format citations
-                </cdx-button>
                 <cdx-card class="cf-source-manager__gadget-info">
                     <template #title>Gadget info</template>
                     <template #supporting-text>
@@ -2498,24 +2656,6 @@ const SOURCE_MANAGER_TEMPLATE = `
                     @update:selected="changeDraftTemplate"
                 />
             </cdx-field>
-            <div class="cf-source-manager__citation-name">
-                <div>
-                    <strong>Author</strong>
-                    <code>
-                        {{ citationNameParts.author || 'Unavailable' }}
-                    </code>
-                </div>
-                <div>
-                    <strong>Year</strong>
-                    <code>
-                        {{ citationNameParts.year || 'Unavailable' }}
-                    </code>
-                </div>
-                <div v-if="citationNameParts.part">
-                    <strong>Part</strong>
-                    <code>{{ citationNameParts.part }}</code>
-                </div>
-            </div>
         </div>
         <table class="cf-source-manager__params">
             <colgroup>
@@ -2758,19 +2898,23 @@ const SOURCE_MANAGER_TEMPLATE = `
         </cdx-field>
     </div>
     <template #footer>
-        <div
-            class="
-                cf-source-manager__footer-actions
-                cf-source-manager__footer-actions--desktop
-            "
-        >
+        <div class="cf-source-manager__footer-actions">
             <cdx-button
-                v-if="mode === 'draft'"
-                @click="backToLookup"
+                v-if="mode === 'draft' && !draftReviewTool"
+                action="progressive"
+                weight="primary"
+                @click="saveDraftAndClose"
             >
-                Back
+                Save and close
             </cdx-button>
-            <cdx-button @click="close">Cancel</cdx-button>
+            <cdx-button
+                v-if="mode === 'draft' && draftReviewTool"
+                action="progressive"
+                weight="primary"
+                @click="saveDraftAndEditNext"
+            >
+                Save and edit next
+            </cdx-button>
             <cdx-button
                 v-if="mode === 'lookup'"
                 action="progressive"
@@ -2781,58 +2925,26 @@ const SOURCE_MANAGER_TEMPLATE = `
                 Format citations
             </cdx-button>
             <cdx-button
-                v-if="mode === 'draft'"
+                v-if="mode === 'draft' && draftReviewTool"
+                action="progressive"
+                @click="applyReviewedDraft"
+            >
+                Apply
+            </cdx-button>
+            <cdx-button
+                v-if="mode === 'draft' && !draftReviewTool"
                 action="progressive"
                 @click="saveDraft"
             >
                 Save
             </cdx-button>
-            <cdx-button
-                v-if="mode === 'draft'"
-                action="progressive"
-                weight="primary"
-                @click="saveDraftAndClose"
-            >
-                Save and close
-            </cdx-button>
-        </div>
-        <div
-            class="
-                cf-source-manager__footer-actions
-                cf-source-manager__footer-actions--mobile
-            "
-        >
-            <cdx-button
-                v-if="mode === 'lookup'"
-                action="progressive"
-                weight="primary"
-                :disabled="loading"
-                @click="formatArticle"
-            >
-                Format citations
-            </cdx-button>
-            <cdx-button
-                v-if="mode === 'draft'"
-                action="progressive"
-                weight="primary"
-                @click="saveDraftAndClose"
-            >
-                Save and close
-            </cdx-button>
-            <cdx-button
-                v-if="mode === 'draft'"
-                action="progressive"
-                @click="saveDraft"
-            >
-                Save
-            </cdx-button>
-            <cdx-button @click="close">Cancel</cdx-button>
             <cdx-button
                 v-if="mode === 'draft'"
                 @click="backToLookup"
             >
-                Back
+                {{ draftReviewTool ? 'Back to results' : 'Back' }}
             </cdx-button>
+            <cdx-button @click="close">Close</cdx-button>
         </div>
     </template>
 </cdx-dialog>
@@ -2852,8 +2964,8 @@ const SOURCE_MANAGER_TEMPLATE = `
 >
     <template v-if="toolPopup === 'analysis'">
         <p>
-            Review possible inconsistencies, choose a target parameter and
-            value, then check only the occurrences to fix.
+            Review possible inconsistencies, choose a target value, then
+            check only the occurrences to fix. Parameter names stay as is.
         </p>
         <cdx-message
             v-if="sourceAnalysis.findings.length === 0"
@@ -2870,20 +2982,6 @@ const SOURCE_MANAGER_TEMPLATE = `
             <h4>{{ finding.label }}</h4>
             <p>{{ finding.reason }}</p>
             <div class="cf-source-analysis__finding-controls">
-                <cdx-field>
-                    <template #label>Parameter name</template>
-                    <cdx-combobox
-                        v-model:selected="finding.replacementParameter"
-                        :menu-items="
-                            getAnalysisParameterOptions( finding )
-                        "
-                        placeholder="Keep as is"
-                    >
-                        <template #no-results>
-                            Use entered parameter
-                        </template>
-                    </cdx-combobox>
-                </cdx-field>
                 <cdx-field>
                     <template #label>
                         {{
@@ -3118,21 +3216,23 @@ const SOURCE_MANAGER_TEMPLATE = `
         </ol>
     </template>
     <template #footer>
-        <cdx-button
-            v-if="toolPopup === 'analysis'"
-            :disabled="countSelectedAnalysisReplacements() === 0"
-            action="progressive"
-            weight="primary"
-            @click="applyAnalysisReplacements"
-        >
-            Apply selected
-            ({{ countSelectedAnalysisReplacements() }})
-        </cdx-button>
-        <cdx-button
-            @click="closeToolPopup"
-        >
-            Close
-        </cdx-button>
+        <div class="cf-source-manager__footer-actions">
+            <cdx-button
+                v-if="toolPopup === 'analysis'"
+                :disabled="countSelectedAnalysisReplacements() === 0"
+                action="progressive"
+                weight="primary"
+                @click="applyAnalysisReplacements"
+            >
+                Apply selected
+                ({{ countSelectedAnalysisReplacements() }})
+            </cdx-button>
+            <cdx-button
+                @click="closeToolPopup"
+            >
+                Close
+            </cdx-button>
+        </div>
     </template>
 </cdx-dialog>
 `;

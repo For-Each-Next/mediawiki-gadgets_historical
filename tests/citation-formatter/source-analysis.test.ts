@@ -48,7 +48,7 @@ function assertAnalysisFindings(analysis: CitationSourceAnalysis): void {
         { count: 1, value: "GAME Watch" },
     ]);
     assert.equal(publication.occurrences[2].parameter, "work");
-    assert.match(publication.reason, /parameter names or values/u);
+    assert.match(publication.reason, /wikitext style differs/u);
 
     const publisher = analysis.findings.find(
         (finding) => finding.category === "publisher",
@@ -111,7 +111,6 @@ function applyLinkedReplacements(
             oldValue: linkedWebsite.value,
             parameter: linkedWebsite.parameter,
             replacement: "GAME WATCH",
-            replacementParameter: linkedWebsite.parameter,
             rowIndex: linkedWebsite.rowIndex,
             sourceId: linkedWebsite.sourceId,
         },
@@ -120,7 +119,6 @@ function applyLinkedReplacements(
             oldValue: linkedPublisher.value,
             parameter: linkedPublisher.parameter,
             replacement: "Impress",
-            replacementParameter: linkedPublisher.parameter,
             rowIndex: linkedPublisher.rowIndex,
             sourceId: linkedPublisher.sourceId,
         },
@@ -162,7 +160,6 @@ test("rejects stale selected analysis fields", () => {
                     oldValue: "Changed after opening",
                     parameter: occurrence.parameter,
                     replacement: "Replacement",
-                    replacementParameter: occurrence.parameter,
                     rowIndex: occurrence.rowIndex,
                     sourceId: occurrence.sourceId,
                 },
@@ -229,7 +226,6 @@ test("fills a selected missing hashtag alias", () => {
             oldValue: "",
             parameter: missing.parameter,
             replacement: "Noguchi, Shinji",
-            replacementParameter: missing.parameter,
             rowIndex: missing.rowIndex,
             sourceId: missing.sourceId,
         },
@@ -238,12 +234,12 @@ test("fills a selected missing hashtag alias", () => {
     assert.match(updated, /<!-- # Shinji Noguchi -->/u);
 });
 
-test("batch changes a parameter alias and manually entered value", () => {
+test("batch changes values while preserving parameter names", () => {
     const text = [
         '<ref name="I1">{{cite interview|title=One|',
         "url=https://xbox360.ign.com/one|work=IGN}}</ref>",
-        '<ref name="I2">{{cite interview|title=Two|',
-        "url=https://xbox360.ign.com/two|work=[[IGN]]}}</ref>",
+        '<ref name="I2">{{cite web|title=Two|',
+        "url=https://xbox360.ign.com/two|website=[[IGN]]}}</ref>",
     ].join("\n");
     const sources = listExistingSources(text);
     const finding = analyzeCitationSources(sources).findings.find(
@@ -255,7 +251,6 @@ test("batch changes a parameter alias and manually entered value", () => {
         oldValue: occurrence.value,
         parameter: occurrence.parameter,
         replacement: "[[IGN|IGN.com]]",
-        replacementParameter: "website",
         rowIndex: occurrence.rowIndex,
         sourceId: occurrence.sourceId,
     }));
@@ -265,29 +260,20 @@ test("batch changes a parameter alias and manually entered value", () => {
         replacements,
     );
 
-    assert.equal(
-        updated.match(/\| website = \[\[IGN\|IGN\.com\]\]/gu)?.length,
-        2,
-    );
-    assert.doesNotMatch(updated, /\| work =/u);
+    assert.match(updated, /\| work = \[\[IGN\|IGN\.com\]\]/u);
+    assert.match(updated, /\| website = \[\[IGN\|IGN\.com\]\]/u);
 });
 
-test("treats work and website as inconsistent despite equal values", () => {
+test("ignores parameter-name differences when values are equal", () => {
     const text = [
         '<ref name="Work">{{cite interview|title=One|',
         "url=https://itmedia.test/one|work=ITMedia}}</ref>",
         '<ref name="Website">{{cite web|title=Two|',
         "url=https://itmedia.test/two|website=ITMedia}}</ref>",
     ].join("\n");
-    const finding = analyzeCitationSources(
+    const findings = analyzeCitationSources(
         listExistingSources(text),
-    ).findings.find((candidate) => candidate.category === "publication");
+    ).findings.filter((candidate) => candidate.category === "publication");
 
-    assert.ok(finding);
-    assert.deepEqual(
-        finding.occurrences.map((occurrence) => occurrence.parameter),
-        ["work", "website"],
-    );
-    assert.deepEqual(finding.options, [{ count: 2, value: "ITMedia" }]);
-    assert.match(finding.reason, /Different parameter names/u);
+    assert.deepEqual(findings, []);
 });

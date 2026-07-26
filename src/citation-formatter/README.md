@@ -82,6 +82,34 @@ API with `npm run update:template-data -w citation-formatter`.
 
 ## Version history
 
+### 0.3.33
+
+- Restored the main source-manager Format citations footer action and made
+  custom dialog footers follow one responsive action layout.
+- Kept citation consistency fixes focused on values and aliases without
+  changing parameter names.
+
+### 0.3.32
+
+- Kept CS1 checker reviews on one article-wide batch response instead of
+  requesting another API parse after each edited source.
+- Removed red and yellow status highlighting from the general source list.
+- Removed the author, year, and part summary from the source edit panel.
+- Renamed Cancel to Close and made it the leftmost source-editor action.
+
+### 0.3.31
+
+- Consolidated article-wide formatting into three advanced preference
+  checkboxes and one explicit apply action.
+- Added Apply and preloaded Save and edit next actions when fixing CS1 issues
+  or converting non-CS1 sources, without waiting for a CS1 recheck between
+  drafts; the queue wraps from the final result to the first.
+- Made creator alias comments searchable with limited typo tolerance, so a
+  correction such as `Hiroya` can find a stored `Horiya`.
+- Hid section-lead filters when no sources are used directly in that lead.
+- Removed terminal whitespace and the `(帮助)` link label from live Chinese
+  CS1 API messages.
+
 ### 0.3.30
 
 - Restored an automatic live TemplateData updater covering every supported

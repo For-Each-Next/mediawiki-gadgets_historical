@@ -637,16 +637,42 @@ function selectCitationAuthor(
             return { keys: [key], value: nameValue(values[key]) };
         }
     }
-    if (
-        values.title?.trim() &&
-        !hasFieldDirective(values.title, "no-author")
-    ) {
-        return {
-            keys: ["title"],
-            value: formatTitleFallback(values.title),
-        };
-    }
-    return { keys: [], value: "Untitled source" };
+    return selectCitationTitleAuthor(values);
+}
+
+/** Selects a normal or script title as the final fallback. */
+function selectCitationTitleAuthor(
+    values: Record<string, string>,
+): CitationAuthorSelection {
+    const candidates = [
+        { key: "title", value: values.title },
+        {
+            key: "script-title",
+            value: stripScriptTitleLanguage(values["script-title"] || ""),
+        },
+    ];
+    const selected = candidates.find(
+        (candidate) =>
+            candidate.value?.trim() &&
+            !hasFieldDirective(candidate.value, "no-author"),
+    );
+    return selected == null
+        ? { keys: [], value: "Untitled source" }
+        : {
+              keys: [selected.key],
+              value: formatTitleNameFallback(selected.value),
+          };
+}
+
+/** Applies a title alias before using the shortened quoted fallback. */
+function formatTitleNameFallback(title: string): string {
+    const override = extractNameOverride(title);
+    return override === "" ? formatTitleFallback(title) : cleanValue(override);
+}
+
+/** Removes the required language-code prefix from a script title. */
+function stripScriptTitleLanguage(value: string): string {
+    return value.replace(/^[a-z]{2,3}(?:-[a-z0-9]+)*:/iu, "");
 }
 
 /**

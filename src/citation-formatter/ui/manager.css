@@ -54,9 +54,22 @@
     margin-top: 1.25em;
 }
 
-.cf-source-manager__source-search {
-    max-width: 32em;
+.cf-source-manager__source-toolbar {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75em 1.25em;
     padding-top: 1em;
+}
+
+.cf-source-manager__source-search {
+    flex: 1 1 24em;
+    max-width: 38em;
+}
+
+.cf-source-manager__source-status-filter {
+    flex: 0 1 auto;
+    margin: 0;
 }
 
 .cf-source-manager__section-filters {
@@ -87,7 +100,17 @@
     display: grid;
     gap: 0.5em;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    padding: 0.4em 0;
+    padding: 0.4em 0.5em;
+}
+
+.cf-source-manager__existing-row--error {
+    background-color: var(--background-color-error-subtle, #fee7e6);
+    border-inline-start: 4px solid var(--border-color-error, #b32424);
+}
+
+.cf-source-manager__existing-row--non-standard {
+    background-color: var(--background-color-warning-subtle, #fef6e7);
+    border-inline-start: 4px solid var(--border-color-warning, #ac6600);
 }
 
 .cf-source-manager__existing-row::before {
@@ -140,10 +163,16 @@
 }
 
 .cf-source-manager__citation-name {
-    display: grid;
-    gap: 0.25em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em 1.25em;
     min-width: 16em;
     padding-bottom: 0.35em;
+}
+
+.cf-source-manager__citation-name > div {
+    display: grid;
+    gap: 0.15em;
 }
 
 .cf-source-manager__citation-name code {
@@ -173,7 +202,7 @@
 }
 
 .cf-source-manager__params-controls {
-    width: 4em;
+    width: 6em;
 }
 
 .cf-source-manager__param-name {
@@ -201,10 +230,48 @@
     margin-top: 0.75em;
 }
 
+.cf-source-manager__tools {
+    display: grid;
+    gap: 1em;
+    max-width: 42em;
+    padding-top: 1em;
+}
+
+.cf-source-manager__tools > .cdx-button {
+    justify-self: start;
+}
+
+.cf-source-manager__version {
+    border-top: 1px solid var(--border-color-subtle, #c8ccd1);
+    display: grid;
+    gap: 0.5em;
+    margin: 0;
+    padding-top: 1em;
+}
+
+.cf-source-manager__version > div {
+    display: grid;
+    gap: 1em;
+    grid-template-columns: 6em minmax(0, 1fr);
+}
+
+.cf-source-manager__version dt {
+    font-weight: 700;
+}
+
+.cf-source-manager__version dd {
+    margin: 0;
+}
+
 .cf-source-manager__source-preview {
     margin-top: 1em;
 }
 
+.cf-source-manager__original-source {
+    margin-bottom: 1em;
+}
+
+.cf-source-manager__original-source pre,
 .cf-source-manager__source-preview pre {
     background-color: var(--background-color-neutral-subtle, #f8f9fa);
     border: 1px solid var(--border-color-subtle, #c8ccd1);
@@ -283,6 +350,16 @@
     .cf-source-manager__section-filters {
         display: grid;
         grid-template-columns: 1fr;
+    }
+
+    .cf-source-manager__source-toolbar {
+        align-items: stretch;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .cf-source-manager__source-search {
+        max-width: none;
     }
 
     .cf-source-manager__existing-name {

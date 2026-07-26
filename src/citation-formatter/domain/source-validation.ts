@@ -61,6 +61,14 @@ const ENGLISH_MONTHS = new Map(
 const SEASONS = /^(?:spring|summer|autumn|fall|winter)\s+[1-9]\d{3}$/iu;
 const GLOBAL_CANONICAL_NAMES = buildGlobalCanonicalNames();
 const GLOBAL_SUPPORTED_NAMES = buildGlobalSupportedNames();
+const PARAMETER_DEPENDENCIES = [
+    { source: "access-date", targets: ["url"] },
+    { source: "archive-url", targets: ["url"] },
+    { source: "asin-tld", targets: ["asin"] },
+    { source: "doi-broken-date", targets: ["doi"] },
+    { source: "format", targets: ["url"] },
+    { source: "pmc-embargo-date", targets: ["pmc"] },
+] as const;
 
 /** Returns cell-level errors for an editable source draft. */
 export function getSourceDraftErrors(
@@ -90,6 +98,7 @@ export function getSourceDraftErrors(
         });
     }
     validateArchivePair(draft.rows, canonicalNames, errors);
+    validateParameterDependencies(draft.rows, canonicalNames, errors);
     return errors;
 }
 
@@ -243,6 +252,84 @@ function addMissingArchiveError(
             `${message} Add the ${missingName} parameter.`,
         );
     }
+}
+
+/** Validates CS1 parameters that depend on another parameter. */
+function validateParameterDependencies(
+    rows: SourceDraftRowLike[],
+    canonicalNames: Map<string, string>,
+    errors: SourceDraftErrors,
+): void {
+    const byName = buildDraftRowIndex(rows, canonicalNames);
+    for (const dependency of PARAMETER_DEPENDENCIES) {
+        validateDependency(rows, byName, errors, dependency.source, [
+            ...dependency.targets,
+        ]);
+    }
+    for (const [name, index] of byName) {
+        if (getTrimmedValue(rows, index) === "") {
+            continue;
+        }
+        if (name.endsWith("-access")) {
+            validateDependency(rows, byName, errors, name, [
+                name.slice(0, -"-access".length),
+            ]);
+        }
+        if (name.endsWith("-format")) {
+            const base = name.slice(0, -"-format".length);
+            validateDependency(rows, byName, errors, name, [`${base}-url`]);
+        }
+        if (name.startsWith("trans-")) {
+            const base = name.slice("trans-".length);
+            validateDependency(rows, byName, errors, name, [
+                base,
+                `script-${base}`,
+            ]);
+        }
+    }
+}
+
+function buildDraftRowIndex(
+    rows: SourceDraftRowLike[],
+    canonicalNames: Map<string, string>,
+): Map<string, number> {
+    const byName = new Map<string, number>();
+    for (const [index, row] of rows.entries()) {
+        const name = normalizeParameterName(row.name);
+        byName.set(canonicalNames.get(name) ?? name, index);
+    }
+    return byName;
+}
+
+function validateDependency(
+    rows: SourceDraftRowLike[],
+    byName: Map<string, number>,
+    errors: SourceDraftErrors,
+    sourceName: string,
+    targetNames: string[],
+): void {
+    const sourceIndex = byName.get(sourceName);
+    if (
+        getTrimmedValue(rows, sourceIndex) === "" ||
+        targetNames.some(
+            (name) => getTrimmedValue(rows, byName.get(name)) !== "",
+        )
+    ) {
+        return;
+    }
+    const targetIndex = targetNames
+        .map((name) => byName.get(name))
+        .find((index) => index != null);
+    const alternatives = targetNames.map((name) => `|${name}=`).join(" or ");
+    const message = `|${sourceName}= requires ${alternatives}.`;
+    addCellError(
+        errors,
+        targetIndex ?? sourceIndex ?? 0,
+        "value",
+        targetIndex == null
+            ? `${message} Add the ${targetNames[0]} parameter.`
+            : message,
+    );
 }
 
 /** Recognizes unambiguous date forms accepted by the two CS1 sites. */

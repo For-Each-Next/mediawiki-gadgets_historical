@@ -80,6 +80,28 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.22
+
+- Allowed non-standard references to be converted through the citation editor
+  while showing the original source code before replacement.
+- Added an editable author and publication search combobox beside the source
+  status filter on wide screens.
+- Kept `url-status` free-form while adding a live, dead, and unfit cycle
+  action, and switched organization linking to the Codex link icon.
+- Added CS1 dependency hints and explanatory tooltips for values used in
+  generated reference names.
+
+### 0.3.21
+
+- Split draft reference-name previews into author, year, and optional part
+  fields.
+- Added source-status highlighting and filters for invalid and non-standard
+  references, including section- and subsection-lead filters.
+- Added parameter and URL-status comboboxes plus one-click access-date,
+  archive, and redirect-aware organization-link actions.
+- Moved formatter preferences into a Tools tab with automatic foreign-language
+  script titles, version and build information, and Codex toast feedback.
+
 ### 0.3.20
 
 - Removed `undefined` tooltips from valid source-edit textboxes while retaining

@@ -52,6 +52,7 @@ const packagePath = resolve("package.json");
 const packageText = await readFile(packagePath, "utf8");
 const packageMetadata = JSON.parse(packageText) as PackageMetadata;
 const config = packageMetadata.gadgetBuild;
+const buildTime = new Date().toISOString();
 
 if (config == null) {
     throw new Error("package.json must define gadgetBuild configuration.");
@@ -131,7 +132,11 @@ async function bundleSource(
 ): Promise<string> {
     const buildOptions: BuildOptions = {
         bundle: true,
-        define: await buildDefines(buildConfig.defines, options),
+        define: {
+            __GADGET_BUILD_TIME__: JSON.stringify(buildTime),
+            __GADGET_VERSION__: JSON.stringify(packageMetadata.version),
+            ...(await buildDefines(buildConfig.defines, options)),
+        },
         entryPoints: [entryPoint],
         format: "iife",
         globalName: buildConfig.globalName,

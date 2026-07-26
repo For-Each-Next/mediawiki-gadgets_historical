@@ -17,10 +17,15 @@ import {
     findExistingSource,
     getSourceDraftCitationName,
     getSourceDraftCitationNameCells,
+    getSourceDraftCitationNameParts,
     getSourceDraftCitationNameRows,
     joinAuthorDraftRow,
     listExistingSourceSections,
+    listExistingSourceSearchSuggestions,
     listExistingSources,
+    listSourceDraftParameterNames,
+    moveSourceDraftTitleToScriptTitle,
+    moveSourceTitlesToScriptTitle,
     normalizeSourceUrl,
     parseSourceDraft,
     parseSourceInput,
@@ -542,6 +547,27 @@ test("identifies fields actively forming a generated reference name", () => {
     assert.equal(getSourceDraftCitationName(draft), "Noguchi, 2007, p. 2");
 });
 
+test("returns separate author, year, and part name fields", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|author=Jane Doe|date=2024|title=Report|page=7}}",
+    );
+
+    assert.deepEqual(getSourceDraftCitationNameParts(draft), {
+        author: "Jane Doe",
+        part: "p. 7",
+        year: "2024",
+    });
+});
+
+test("lists canonical parameter names for combobox hints", () => {
+    const draft = createManualSourceDraft("cite web");
+    const names = listSourceDraftParameterNames(draft);
+
+    assert.ok(names.includes("title"));
+    assert.ok(names.includes("url-status"));
+    assert.equal(new Set(names).size, names.length);
+});
+
 test("highlights eligible fallback name fields after directives", () => {
     const draft = parseSourceDraft(
         "{{cite web|author=Author<!-- !no-author -->|" +
@@ -748,6 +774,121 @@ test("counts source uses and filters through section hierarchies", () => {
     );
 });
 
+test("filters section and subsection leads with trailing zeroes", () => {
+    const sources = listExistingSources(buildSectionFilterText());
+
+    assert.deepEqual(
+        filterExistingSources(sources, "", "1.0").map(
+            (source) => source.referenceName,
+        ),
+        ["Beta"],
+    );
+    assert.deepEqual(
+        filterExistingSources(sources, "", "1.1.0").map(
+            (source) => source.referenceName,
+        ),
+        ["Alpha", "Child"],
+    );
+});
+
+test("marks and filters invalid and non-standard references", () => {
+    const sources = listExistingSources(
+        [
+            '<ref name="Good">{{cite web|title=Good}}</ref>',
+            '<ref name="Error">{{cite web|title=Bad|date=2026-02-30}}</ref>',
+            '<ref name="Plain">A plain source note.</ref>',
+        ].join("\n"),
+        "enwiki",
+    );
+
+    assert.deepEqual(
+        sources.map((source) => source.status),
+        ["standard", "error", "non-standard"],
+    );
+    assert.deepEqual(
+        filterExistingSources(sources, "", "", "error").map(
+            (source) => source.referenceName,
+        ),
+        ["Error"],
+    );
+    assert.deepEqual(
+        filterExistingSources(sources, "", "", "non-standard").map(
+            (source) => source.referenceName,
+        ),
+        ["Plain"],
+    );
+});
+
+test("lists recurring authors and websites as source search suggestions", () => {
+    const sources = listExistingSources(
+        [
+            '<ref name="A">{{cite web|author=Alice|website=Example|' +
+                "title=A}}</ref>",
+            '<ref name="B">{{cite web|author=Alice|publisher=Press|' +
+                "title=B}}</ref>",
+            '<ref name="C">{{cite web|author=Bob|website=Example|' +
+                "title=C}}</ref>",
+        ].join(""),
+    );
+
+    assert.deepEqual(listExistingSourceSearchSuggestions(sources), [
+        "Alice",
+        "Example",
+        "Bob",
+        "Press",
+    ]);
+});
+
+test("moves single foreign-language titles to script-title", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|title=記事<!-- # Kiji -->|language=ja}}",
+    );
+
+    assert.equal(moveSourceDraftTitleToScriptTitle(draft, "enwiki"), true);
+    assert.match(
+        serializeSourceDraft(draft, "inline"),
+        /script-title = ja:記事 <!-- # Kiji -->/u,
+    );
+    assert.deepEqual(getSourceDraftCitationNameParts(draft), {
+        author: "Kiji",
+        part: "",
+        year: "n.d.",
+    });
+
+    const multiple = parseSourceDraft(
+        "{{cite web|title=Статья|language=ru,uk}}",
+    );
+    assert.equal(moveSourceDraftTitleToScriptTitle(multiple, "enwiki"), false);
+
+    const chinese = parseSourceDraft(
+        "{{cite web|title=中文標題|language=zh-Hant}}",
+    );
+    assert.equal(moveSourceDraftTitleToScriptTitle(chinese, "zhwiki"), false);
+
+    const english = parseSourceDraft(
+        "{{cite web|title=English title|language=en}}",
+    );
+    assert.equal(moveSourceDraftTitleToScriptTitle(english, "enwiki"), false);
+});
+
+test("moves eligible article titles before formatting", () => {
+    const result = moveSourceTitlesToScriptTitle(
+        "Text<ref>{{cite web|title=記事|language=ja}}</ref>",
+        "enwiki",
+    );
+
+    assert.equal(result.moved, 1);
+    assert.match(result.text, /script-title = ja:記事/u);
+    assert.doesNotMatch(result.text, /\| title = 記事/u);
+
+    const protectedText =
+        "<nowiki>{{cite web|title=記事|language=ja}}</nowiki>";
+    assert.deepEqual(moveSourceTitlesToScriptTitle(protectedText, "enwiki"), {
+        moved: 0,
+        text: protectedText,
+    });
+});
+
 test("uses a language-prefixed script title as the list title", () => {
     const [source] = listExistingSources(
         '<ref name="Japanese">{{cite web|' +
@@ -943,3 +1084,20 @@ test(
     "replaces only the selected citation template",
     testExistingSourceReplacement,
 );
+
+test("converts non-standard reference content into a citation template", () => {
+    const text = '<ref name="Plain" group="note">Original plain source.</ref>';
+    const [source] = listExistingSources(text);
+    const draft = createManualSourceDraft("cite web");
+    getRow(draft, "title").value = "Replacement";
+    getRow(draft, "url").value = "https://example.test/replacement";
+
+    assert.equal(source.status, "non-standard");
+    assert.equal(source.rawTemplate, text);
+    assert.equal(
+        replaceExistingSource(text, source, draft, "inline"),
+        '<ref name="Plain" group="note">{{Cite web | ' +
+            "title = Replacement | " +
+            "url = https://example.test/replacement}}</ref>",
+    );
+});

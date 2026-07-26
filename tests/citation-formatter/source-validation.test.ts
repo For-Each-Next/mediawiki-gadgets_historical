@@ -95,6 +95,35 @@ test("marks a missing archive pair field", () => {
     );
 });
 
+test("explains missing CS1 parameter dependencies", () => {
+    const draft = parseSourceDraft(
+        "{{cite journal|title=Example|access-date=2026-07-26|" +
+            "doi-broken-date=2026-07-20|chapter-format=PDF}}",
+    );
+    draft.rows.push({
+        alias: "",
+        directive: "",
+        main: false,
+        name: "chapter-url",
+        value: "",
+    });
+
+    const errors = getSourceDraftErrors(draft, "enwiki");
+
+    assert.equal(
+        errors.get(getRowIndex(draft, "url"))?.value,
+        "|access-date= requires |url=.",
+    );
+    assert.equal(
+        errors.get(getRowIndex(draft, "doi"))?.value,
+        "|doi-broken-date= requires |doi=.",
+    );
+    assert.equal(
+        errors.get(getRowIndex(draft, "chapter-url"))?.value,
+        "|chapter-format= requires |chapter-url=.",
+    );
+});
+
 test("validates archive dates for every citation class", () => {
     const draft = parseSourceDraft(
         "{{cite book|title=Example|" +

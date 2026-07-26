@@ -1,6 +1,6 @@
 {
     "name": "citation-formatter",
-    "version": "0.3.33",
+    "version": "0.3.40",
     "description": "Format and manage CS1 citations in MediaWiki source editors.",
     "private": true,
     "license": "CC BY-SA 4.0",

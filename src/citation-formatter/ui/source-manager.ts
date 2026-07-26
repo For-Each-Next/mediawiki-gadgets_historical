@@ -93,10 +93,6 @@ const EDIT_SOURCE_ICON =
     '<path d="m15.765 7.875-8.483 8.484a1 1 0 01-.253.184l-4.214 ' +
     "2.15-1.357-1.33L3.58 13.12q.073-.145.188-.26l8.48-8.48zm3.534-" +
     '3.532-2.12 2.118-3.517-3.496 2.13-2.13z"/>';
-const COPY_SOURCE_ICON = {
-    ltr: '<path d="M13 19H1V7h6V1h12v12h-6zm-6-6V9H3v8h8v-4zm2-2h8V3H9z"/>',
-    shouldFlip: true,
-};
 const SPLIT_AUTHOR_ICON =
     '<path d="M7 10c.91 0 1.764.244 2.5.67A5 5 0 0112 10h3a5 5 ' +
     "0 015 5v2H0v-2a5 5 0 015-5zm5 2q-.473.002-.901.138c.567.81.901 " +
@@ -131,6 +127,11 @@ const TEMPLATE_OPTIONS = SUPPORTED_CITATION_TEMPLATES.map(
 const MANUAL_TEMPLATE_OPTIONS = [
     { label: "Based on existing source", value: BASED_ON_TEMPLATE },
     ...TEMPLATE_OPTIONS,
+];
+const SOURCE_TABLE_COLUMNS = [
+    { id: "reference", label: "Reference", width: "28%" },
+    { id: "source", label: "Source" },
+    { id: "actions", label: "Actions", width: "3em" },
 ];
 
 type SourceManagerMode = "draft" | "lookup";
@@ -205,6 +206,7 @@ interface CodexComponents {
     CdxProgressBar: unknown;
     CdxSelect: unknown;
     CdxTab: unknown;
+    CdxTable: unknown;
     CdxTabs: unknown;
     CdxTextInput: unknown;
     CdxToastContainer: unknown;
@@ -267,6 +269,7 @@ interface SourceManagerState {
     toolPopup: { value: SourceToolPopup };
     toolPopupOpen: { value: boolean };
     sourceSectionPath: { value: string[] };
+    sourceTableRows: { readonly value: SourceTableRow[] };
     sourceSectionSelectors: {
         readonly value: SourceSectionSelector[];
     };
@@ -307,6 +310,17 @@ interface SourceSectionSelector {
     selected: string;
 }
 
+interface SourceTableRow {
+    actions: string;
+    details: string;
+    group: string;
+    id: string;
+    reference: string;
+    source: string;
+    titleLanguage: string;
+    usageCount: number;
+}
+
 interface Cs1CheckedSource {
     html: string;
     messages: string[];
@@ -333,6 +347,7 @@ type SourceManagerDerivedState = Pick<
     | "nonCs1Sources"
     | "parameterNameOptions"
     | "sourceSectionSelectors"
+    | "sourceTableRows"
 >;
 
 /** Opens the source manager for the active MediaWiki source editor. */
@@ -418,7 +433,6 @@ function createSourceManagerComponent(
         );
         return {
             canCheckCs1Tool: ["enwiki", "zhwiki"].includes(getCurrentWikiId()),
-            copySourceIcon: COPY_SOURCE_ICON,
             editSourceIcon: EDIT_SOURCE_ICON,
             formatRowsIcon: FORMAT_ROWS_ICON,
             gadgetBuildTime: GADGET_BUILD_TIME,
@@ -429,6 +443,7 @@ function createSourceManagerComponent(
                 getCurrentWikiId() === "zhwiki" ? "Chinese" : "English",
             manualTemplateOptions: MANUAL_TEMPLATE_OPTIONS,
             magicWandIcon: cdxIconMagicWand,
+            sourceTableColumns: SOURCE_TABLE_COLUMNS,
             sourceTemplateLabel: getCanonicalTemplateName,
             templateOptions: TEMPLATE_OPTIONS,
             splitAuthorIcon: SPLIT_AUTHOR_ICON,
@@ -822,6 +837,7 @@ function createSourceListDerivedState(
             "all",
         );
     }
+    const filteredExistingSources = Vue.computed(getFilteredExistingSources);
     function getBasedOnSourceOptions(): Array<{
         label: string;
         value: string;
@@ -836,7 +852,7 @@ function createSourceListDerivedState(
     }
     return {
         basedOnSourceOptions: Vue.computed(getBasedOnSourceOptions),
-        filteredExistingSources: Vue.computed(getFilteredExistingSources),
+        filteredExistingSources,
         nonCs1Sources: Vue.computed(function getNonCs1Sources() {
             return state.existingSources.value.filter(
                 (source) => source.status === "non-standard",
@@ -849,6 +865,26 @@ function createSourceListDerivedState(
                 state.existingSources.value,
             );
         }),
+        sourceTableRows: Vue.computed(function getSourceTableRows() {
+            return filteredExistingSources.value.map(toSourceTableRow);
+        }),
+    };
+}
+
+/** Projects citation definitions into the Codex Table columns. */
+function toSourceTableRow(source: ExistingSource): SourceTableRow {
+    return {
+        actions: "",
+        details:
+            source.status === "non-standard"
+                ? "Non-standard"
+                : getCanonicalTemplateName(source.draft.template),
+        group: source.group,
+        id: source.id,
+        reference: source.referenceName || "unnamed",
+        source: source.title || source.url || "Untitled source",
+        titleLanguage: source.titleLanguage,
+        usageCount: source.usageCount,
     };
 }
 
@@ -1065,6 +1101,19 @@ function createDraftActions(
     async function linkOrganization(index: number): Promise<void> {
         await linkDraftOrganization(context, index);
     }
+    function duplicateDraft(): void {
+        if (
+            state.draft.value == null ||
+            state.editingSource.value == null ||
+            state.editingSource.value.status === "non-standard"
+        ) {
+            return;
+        }
+        state.editingSource.value = null;
+        state.error.value = "";
+        state.warning.value =
+            "Saving will create a new source without changing the original.";
+    }
     function saveDraft(): void {
         saveSourceDraft(context, false);
     }
@@ -1095,6 +1144,7 @@ function createDraftActions(
         applyReviewedDraft,
         autofillDate,
         changeDraftTemplate,
+        duplicateDraft,
         getDateAutofillTooltip,
         isDateAutofillParameter,
         isLinkableDraftParameter,
@@ -1810,9 +1860,6 @@ function createLookupActions(
     function editListedSource(sourceId: string): void {
         openExistingSourceWhenIdle(context.state, sourceId);
     }
-    function cloneListedSource(sourceId: string): void {
-        openBasedOnSourceWhenIdle(context.state, sourceId);
-    }
     function createManualSource(): void {
         openManualSourceWhenIdle(context.state);
     }
@@ -1821,7 +1868,6 @@ function createLookupActions(
     }
     return {
         createManualSource,
-        cloneListedSource,
         editListedSource,
         insertListedSource,
         onSourcePaste(event: ClipboardEvent): void {
@@ -1882,16 +1928,6 @@ function openManualSourceWhenIdle(state: SourceManagerState): void {
         return;
     }
     openDraft(state, createManualSourceDraft(template));
-}
-
-/** Opens an existing source as a new draft rather than an edit. */
-function openBasedOnSourceWhenIdle(
-    state: SourceManagerState,
-    sourceId: string,
-): void {
-    if (!state.loading.value) {
-        openBasedOnSource(state, sourceId);
-    }
 }
 
 /** Clones one selected citation into a new source draft. */
@@ -2318,6 +2354,7 @@ function registerCodexComponents(app: VueApp, Codex: CodexComponents): void {
     app.component("CdxProgressBar", Codex.CdxProgressBar);
     app.component("CdxSelect", Codex.CdxSelect);
     app.component("CdxTab", Codex.CdxTab);
+    app.component("CdxTable", Codex.CdxTable);
     app.component("CdxTabs", Codex.CdxTabs);
     app.component("CdxTextInput", Codex.CdxTextInput);
     app.component("CdxToastContainer", Codex.CdxToastContainer);
@@ -2474,54 +2511,48 @@ const SOURCE_MANAGER_TEMPLATE = `
             <p v-else-if="filteredExistingSources.length === 0">
                 No sources match these keywords.
             </p>
-            <ol v-else class="cf-source-manager__existing-list">
-                <li
-                    v-for="source in filteredExistingSources"
-                    :key="source.id"
-                    class="cf-source-manager__existing-row"
-                >
-                    <div class="cf-source-manager__existing-summary">
-                        <small
-                            class="cf-source-manager__existing-name"
-                            :title="
-                                source.referenceName ||
-                                'Unnamed reference'
-                            "
-                        >
-                            ({{
-                                source.referenceName || 'unnamed'
-                            }} · {{ source.usageCount }}×)
-                        </small>
+            <cdx-table
+                v-else
+                class="cf-source-manager__source-table"
+                caption="Existing citation sources"
+                :hide-caption="true"
+                :use-row-headers="true"
+                :columns="sourceTableColumns"
+                :data="sourceTableRows"
+            >
+                <template #item-reference="{ item, row }">
+                    <div class="cf-source-manager__source-reference">
                         <span
-                            class="cf-source-manager__existing-title"
-                            :lang="source.titleLanguage || undefined"
+                            class="
+                                cf-source-manager__source-reference-name
+                            "
                             :title="
-                                source.title ||
-                                source.url ||
-                                'Untitled source'
+                                item === 'unnamed'
+                                    ? 'Unnamed reference'
+                                    : item
                             "
                         >
-                            {{
-                                source.title ||
-                                source.url ||
-                                'Untitled source'
-                            }}
+                            {{ item }}
                         </span>
-                        <small class="cf-source-manager__existing-meta">
-                            <code>
-                                {{
-                                    source.status === 'non-standard'
-                                        ? 'Non-standard'
-                                        : sourceTemplateLabel(
-                                            source.draft.template
-                                        )
-                                }}
-                            </code>
-                            <template v-if="source.group">
-                                · group {{ source.group }}
+                        <small class="cf-source-manager__source-details">
+                            <code>{{ row.details }}</code>
+                            <template v-if="row.group">
+                                · group {{ row.group }}
                             </template>
+                            · {{ row.usageCount }}×
                         </small>
                     </div>
+                </template>
+                <template #item-source="{ item, row }">
+                    <span
+                        class="cf-source-manager__source-title"
+                        :lang="row.titleLanguage || undefined"
+                        :title="item"
+                    >
+                        {{ item }}
+                    </span>
+                </template>
+                <template #item-actions="{ row }">
                     <div class="cf-source-manager__existing-actions">
                         <cdx-button
                             v-tooltip="'Use source'"
@@ -2529,7 +2560,7 @@ const SOURCE_MANAGER_TEMPLATE = `
                             weight="quiet"
                             :disabled="loading"
                             aria-label="Use source"
-                            @click="insertListedSource( source.id )"
+                            @click="insertListedSource( row.id )"
                         >
                             <cdx-icon :icon="useSourceIcon" />
                         </cdx-button>
@@ -2538,23 +2569,13 @@ const SOURCE_MANAGER_TEMPLATE = `
                             weight="quiet"
                             :disabled="loading"
                             aria-label="Edit source"
-                            @click="editListedSource( source.id )"
+                            @click="editListedSource( row.id )"
                         >
                             <cdx-icon :icon="editSourceIcon" />
                         </cdx-button>
-                        <cdx-button
-                            v-if="source.status !== 'non-standard'"
-                            v-tooltip="'Create source based on this'"
-                            weight="quiet"
-                            :disabled="loading"
-                            aria-label="Create source based on this"
-                            @click="cloneListedSource( source.id )"
-                        >
-                            <cdx-icon :icon="copySourceIcon" />
-                        </cdx-button>
                     </div>
-                </li>
-            </ol>
+                </template>
+            </cdx-table>
         </cdx-tab>
         <cdx-tab name="tools" label="Tools">
             <div class="cf-source-manager__tools">
@@ -2648,7 +2669,7 @@ const SOURCE_MANAGER_TEMPLATE = `
             <pre>{{ editingSource.rawReference }}</pre>
         </cdx-field>
         <div class="cf-source-manager__draft-header">
-            <cdx-field>
+            <cdx-field class="cf-source-manager__template-field">
                 <template #label>Citation template</template>
                 <cdx-select
                     :selected="draft.template"
@@ -2884,6 +2905,16 @@ const SOURCE_MANAGER_TEMPLATE = `
             <cdx-button @click="sortParameters">
                 <cdx-icon :icon="formatRowsIcon" />
                 Sort parameters
+            </cdx-button>
+            <cdx-button
+                v-if="
+                    editingSource &&
+                    editingSource.status !== 'non-standard' &&
+                    !draftReviewTool
+                "
+                @click="duplicateDraft"
+            >
+                Duplicate
             </cdx-button>
         </div>
         <cdx-field class="cf-source-manager__source-preview">

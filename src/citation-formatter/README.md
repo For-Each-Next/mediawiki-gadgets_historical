@@ -82,6 +82,41 @@ API with `npm run update:template-data -w citation-formatter`.
 
 ## Version history
 
+### 0.3.40
+
+- Moved source duplication from the source-list icons to a text action after
+  Sort parameters, narrowed the list Actions column, and kept the citation
+  template label and select on one line.
+
+### 0.3.39
+
+- Used a table-compatible fixed six-em width for the source-list Actions
+  column.
+
+### 0.3.38
+
+- Moved each source's usage count beside its citation type and group details.
+
+### 0.3.37
+
+- Capped the source-list Actions column at six ems or 20 percent and let the
+  Source column use the remaining width.
+
+### 0.3.36
+
+- Reduced the source-list reference-name size and allowed citation titles to
+  wrap across two lines.
+
+### 0.3.35
+
+- Combined each source's reference and citation type into a two-line table
+  cell, and kept the three-column table within the dialog width.
+
+### 0.3.34
+
+- Rebuilt the filterable source list as an accessible Codex table with custom
+  reference, source, type, and action cells.
+
 ### 0.3.33
 
 - Restored the main source-manager Format citations footer action and made

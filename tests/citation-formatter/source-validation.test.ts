@@ -112,11 +112,36 @@ test("validates archive dates for every citation class", () => {
 
 test("uses Chinese Wikipedia aliases and date syntax on zhwiki", () => {
     const draft = parseSourceDraft(
-        "{{cite web|title_zh=示例|date=2026年7月26日}}",
+        "{{cite web|title_zh=示例|unified=yes|date=2026年7月26日}}",
     );
 
     const errors = getSourceDraftErrors(draft, "zhwiki");
 
     assert.equal(errors.get(getRowIndex(draft, "title_zh"))?.name, undefined);
+    assert.equal(errors.get(getRowIndex(draft, "unified"))?.name, undefined);
     assert.equal(errors.get(getRowIndex(draft, "date"))?.value, undefined);
+});
+
+test("accepts numbered CS1 parameters beyond TemplateData slots", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|title=Example|author25=Twenty-five}}",
+    );
+
+    const errors = getSourceDraftErrors(draft, "enwiki");
+
+    assert.equal(errors.get(getRowIndex(draft, "author25"))?.name, undefined);
+});
+
+test("accepts no-date only in the general date parameter", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|title=Example|date=n.d.|archive-date=n.d.}}",
+    );
+
+    const errors = getSourceDraftErrors(draft, "enwiki");
+
+    assert.equal(errors.get(getRowIndex(draft, "date"))?.value, undefined);
+    assert.match(
+        errors.get(getRowIndex(draft, "archive-date"))?.value ?? "",
+        /Invalid archive-date/u,
+    );
 });

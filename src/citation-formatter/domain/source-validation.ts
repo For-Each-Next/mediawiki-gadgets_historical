@@ -78,12 +78,14 @@ export function getSourceDraftErrors(
         ...CS1_DATE_PARAMETERS,
         ...(metadata.dateParams ?? []),
     ]);
+    const numberedNames = new Set(config.numberedParameters);
     const errors: SourceDraftErrors = new Map();
     for (const [index, row] of draft.rows.entries()) {
         validateDraftRow(row, index, errors, {
             canonicalNames,
             dateNames,
             dateStyle: config.dateStyle,
+            numberedNames,
             supportedNames,
         });
     }
@@ -95,6 +97,7 @@ interface DraftRowValidationContext {
     canonicalNames: Map<string, string>;
     dateNames: Set<string>;
     dateStyle: "english" | "chinese";
+    numberedNames: Set<string>;
     supportedNames: Set<string>;
 }
 
@@ -111,7 +114,11 @@ function validateDraftRow(
         addCellError(errors, index, "name", "Enter a parameter name.");
         return;
     }
-    if (name !== "" && !context.supportedNames.has(name)) {
+    const numberedName = name.replace(/\d+/gu, "#");
+    const supported =
+        context.supportedNames.has(name) ||
+        context.numberedNames.has(numberedName);
+    if (name !== "" && !supported) {
         const message = `Unsupported CS1 parameter: ${row.name.trim()}`;
         addCellError(errors, index, "name", message);
     }
@@ -123,7 +130,7 @@ function validateDraftRow(
     const invalidDate =
         row.value.trim() !== "" &&
         context.dateNames.has(canonical) &&
-        !isValidCitationDate(row.value, context.dateStyle);
+        !isValidCitationDate(row.value, context.dateStyle, canonical);
     if (invalidDate) {
         addCellError(errors, index, "value", `Invalid ${canonical} value.`);
     }
@@ -242,6 +249,7 @@ function addMissingArchiveError(
 function isValidCitationDate(
     entered: string,
     style: "english" | "chinese",
+    canonicalName: string,
 ): boolean {
     const value = entered
         .replace(/<!--[\s\S]*?-->/gu, "")
@@ -251,6 +259,9 @@ function isValidCitationDate(
         return true;
     }
     if (/[{}[\]<>]/u.test(value)) {
+        return true;
+    }
+    if (canonicalName === "date" && /^(?:n\.d\.|nd)$/iu.test(value)) {
         return true;
     }
     if (/^[1-9]\d{3}$/u.test(value) || SEASONS.test(value)) {

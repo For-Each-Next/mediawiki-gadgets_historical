@@ -26,6 +26,11 @@ template, and `Cite video game`. Its TemplateData is committed under
 `domain/data/`; source insertion optionally requests citation metadata and
 archive availability at runtime.
 
+TemplateData and site-rule refresh procedures are documented separately for
+[English Wikipedia](ENWIKI-CS1.md) and
+[Chinese Wikipedia](ZHWIKI-CS1.md). Both procedures require HTTPS and include
+title, parameter-order, alias, numbered-parameter, and date-rule checks.
+
 For a non-Latin author or organization name, an HTML comment beginning with
 `#` supplies its reference-name form without changing the citation display:
 
@@ -74,6 +79,15 @@ the reference name's date or part locator:
 Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
+
+### 0.3.19
+
+- Explained invalid parameter, value, and alias fields with Codex tooltips on
+  hover and keyboard focus.
+- Refreshed separate enwiki and zhwiki CS1 validation rules for numbered
+  creator fields, local aliases, and no-date values.
+- Documented independent HTTPS metadata and Lua-rule refresh procedures for
+  English and Chinese Wikipedia.
 
 ### 0.3.18
 

@@ -1603,8 +1603,9 @@ const SOURCE_MANAGER_TEMPLATE = `
                                     ? 'error'
                                     : 'default'
                             "
-                            :title="
-                                draftCellErrors.get( index )?.name
+                            v-tooltip="
+                                draftCellErrors.get( index )?.name ||
+                                undefined
                             "
                             aria-label="Parameter name"
                             placeholder="parameter"
@@ -1625,8 +1626,9 @@ const SOURCE_MANAGER_TEMPLATE = `
                                     ? 'error'
                                     : 'default'
                             "
-                            :title="
-                                draftCellErrors.get( index )?.value
+                            v-tooltip="
+                                draftCellErrors.get( index )?.value ||
+                                undefined
                             "
                             :aria-label="row.name + ' value'"
                             @update:model-value="
@@ -1649,8 +1651,9 @@ const SOURCE_MANAGER_TEMPLATE = `
                                     ? 'error'
                                     : 'default'
                             "
-                            :title="
-                                draftCellErrors.get( index )?.alias
+                            v-tooltip="
+                                draftCellErrors.get( index )?.alias ||
+                                undefined
                             "
                             :aria-label="
                                 row.name === 'url'

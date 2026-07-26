@@ -2,5 +2,6 @@
 export interface CitationValidationConfig {
     additionalParameters: readonly string[];
     dateStyle: "english" | "chinese";
+    numberedParameters: readonly string[];
     wikiIds: readonly string[];
 }

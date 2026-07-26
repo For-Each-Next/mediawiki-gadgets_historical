@@ -15,8 +15,11 @@ import {
     filterExistingSources,
     findCreatorAliasSuggestions,
     findExistingSource,
+    getSourceDraftCitationName,
+    getSourceDraftCitationNameCells,
     getSourceDraftCitationNameRows,
     joinAuthorDraftRow,
+    listExistingSourceSections,
     listExistingSources,
     normalizeSourceUrl,
     parseSourceDraft,
@@ -176,15 +179,15 @@ const testDraftParsing = () => {
         .map((row) => row.name);
     assert.deepEqual(mainNames, [
         "author",
+        "date",
         "title",
         "url",
-        "website",
-        "publisher",
-        "date",
-        "access-date",
+        "url-status",
         "archive-url",
         "archive-date",
-        "url-status",
+        "access-date",
+        "website",
+        "publisher",
         "language",
     ]);
     assert.equal(getRow(draft, "website").value, "");
@@ -345,22 +348,22 @@ test("creates an offline magazine draft without requiring a URL", () => {
     assert.equal(draft.template, "cite magazine");
     assert.deepEqual(mainNames, [
         "author",
-        "title",
-        "magazine",
-        "publisher",
         "date",
-        "volume",
-        "issue",
-        "page",
-        "pages",
-        "location",
-        "issn",
-        "language",
+        "title",
         "url",
-        "access-date",
+        "url-status",
         "archive-url",
         "archive-date",
-        "url-status",
+        "access-date",
+        "magazine",
+        "publisher",
+        "location",
+        "page",
+        "pages",
+        "language",
+        "volume",
+        "issue",
+        "issn",
     ]);
     assert.ok(draft.rows.every((row) => row.value === ""));
 
@@ -536,6 +539,7 @@ test("identifies fields actively forming a generated reference name", () => {
         .map((row) => row.name);
 
     assert.deepEqual(names, ["author", "date", "page"]);
+    assert.equal(getSourceDraftCitationName(draft), "Noguchi, 2007, p. 2");
 });
 
 test("highlights eligible fallback name fields after directives", () => {
@@ -549,7 +553,28 @@ test("highlights eligible fallback name fields after directives", () => {
         .filter((_row, index) => indexes.has(index))
         .map((row) => row.name);
 
-    assert.deepEqual(names, ["website", "year", "pages"]);
+    assert.deepEqual(names, ["year", "website", "pages"]);
+});
+
+test("identifies only the exact value or alias cells visible in a name", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|author1=One<!-- # Uno -->|author2=Two|" +
+            "author3=Three|author4=Four|date=2025|title=Example}}",
+    );
+    ensureNextAuthorDraftRows(draft);
+    const cells = [...getSourceDraftCitationNameCells(draft)].map(
+        ([index, cell]) => [draft.rows[index].name, cell],
+    );
+
+    assert.deepEqual(
+        draft.rows.slice(0, 6).map((row) => row.name),
+        ["author1", "author2", "author3", "author4", "author5", "date"],
+    );
+    assert.equal(getSourceDraftCitationName(draft), "Uno et al., 2025");
+    assert.deepEqual(cells, [
+        ["author1", "alias"],
+        ["date", "value"],
+    ]);
 });
 
 test("suggests creator aliases previously used in other source roles", () => {
@@ -667,6 +692,72 @@ test("filters existing sources by all entered keywords", () => {
     assert.deepEqual(filterExistingSources(sources, "report"), sources);
     assert.deepEqual(filterExistingSources(sources, "missing"), []);
     assert.equal(filterExistingSources(sources, "   "), sources);
+});
+
+function buildSectionFilterText(): string {
+    return [
+        'Lead.<ref name="Alpha" />',
+        "== First ==",
+        'First.<ref name="Beta" />',
+        "=== Child ===",
+        'Child.<ref name="Alpha" /><ref name="Child" />',
+        "== Second ==",
+        'Second.<ref name="Second" />',
+        "<references>",
+        '<ref name="Alpha">{{cite web|title=Alpha}}</ref>',
+        '<ref name="Beta">{{cite web|title=Beta}}</ref>',
+        '<ref name="Child">{{cite web|title=Child}}</ref>',
+        '<ref name="Second">{{cite web|title=Second}}</ref>',
+        '<ref name="Unused">{{cite web|title=Unused}}</ref>',
+        "</references>",
+    ].join("\n");
+}
+
+test("counts source uses and filters through section hierarchies", () => {
+    const text = buildSectionFilterText();
+    const sources = listExistingSources(text);
+    const byName = Object.fromEntries(
+        sources.map((source) => [source.referenceName, source]),
+    );
+
+    assert.equal(byName.Alpha.usageCount, 2);
+    assert.equal(byName.Unused.usageCount, 0);
+    assert.deepEqual(
+        listExistingSourceSections(text, sources).map(
+            (section) => section.label,
+        ),
+        [
+            "§ 0 Lead",
+            "§ 1 First",
+            "§ 1.1 Child",
+            "§ 2 Second",
+            "Unused references",
+        ],
+    );
+    assert.deepEqual(
+        filterExistingSources(sources, "", "1").map(
+            (source) => source.referenceName,
+        ),
+        ["Alpha", "Beta", "Child"],
+    );
+    assert.deepEqual(
+        filterExistingSources(sources, "", "1.1").map(
+            (source) => source.referenceName,
+        ),
+        ["Alpha", "Child"],
+    );
+});
+
+test("uses a language-prefixed script title as the list title", () => {
+    const [source] = listExistingSources(
+        '<ref name="Japanese">{{cite web|' +
+            "script-title=ja:マイクロソフト、完成記念パーティーを開催|" +
+            "url=https://example.test}}</ref>",
+    );
+
+    assert.equal(source.title, "マイクロソフト、完成記念パーティーを開催");
+    assert.equal(source.titleLanguage, "ja");
+    assert.deepEqual(filterExistingSources([source], "完成記念"), [source]);
 });
 
 test("inherits groups from references containers", () => {

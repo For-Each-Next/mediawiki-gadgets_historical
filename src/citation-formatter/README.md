@@ -75,6 +75,44 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 
 ## Version history
 
+### 0.3.18
+
+- Added site-aware CS1 validation for English and Chinese Wikipedia, including
+  red parameter, date, alias, and incomplete archive-pair cells.
+- Added a Format action that restores standard TemplateData parameter order.
+- Made citation draft fields use a 1:2:2 width ratio on wide screens and equal
+  full widths in the narrow stacked layout.
+- Replaced the author full-name structure controls with compact icons and
+  removed empty alias placeholders.
+
+### 0.3.17
+
+- Ordered editable parameter rows by each citation template's standard
+  TemplateData order, keeping numbered authors together.
+- Changed the source preview to a plain monospace block with styled parameter
+  names and reference-name alias comments.
+- Displayed full `§ number title` labels in section comboboxes instead of raw
+  numeric values.
+- Replaced the row-level **Based on** text action with a copy icon after Edit.
+
+### 0.3.16
+
+- Highlighted only the exact value or alias textbox that contributes visible
+  text to the generated reference name.
+- Top-aligned the hierarchical section-filter comboboxes at their normal
+  control height.
+
+### 0.3.15
+
+- Added live reference-name and source-code previews to source drafts, with
+  stronger highlighting for fields that form the name.
+- Added new-source drafts based on existing citations and separate save or
+  save-and-close actions.
+- Added source usage counts and hierarchical section/subsection filters to the
+  existing-source list.
+- Used language-aware `script-title` values when citations have no `title`,
+  and removed long citation-template tooltips from the source list.
+
 ### 0.3.14
 
 - Expanded automatic source lookup beyond URLs to accept DOI, ISBN, ISSN,

@@ -3,16 +3,22 @@
  */
 
 import {
+    appendCitationLocator,
     canonicalizeCitation,
     cleanValue,
     formatBlockCitation,
     formatInlineCitation,
+    getCitationIdentity,
     getCitationNameContributors,
 } from "./citation.ts";
 import templateData from "./data/index.ts";
 import { getCitationOutputParams } from "./post-formatter.ts";
 import { isCitationTemplate, normalizeTemplateName } from "./templates.ts";
-import type { CitationLayout, CitationParam } from "./types.ts";
+import type {
+    CitationLayout,
+    CitationParam,
+    CitationTemplate,
+} from "./types.ts";
 import {
     applyReplacements,
     findRefTags,
@@ -190,6 +196,8 @@ export interface SourceDraft {
     template: string;
 }
 
+export type SourceDraftCitationNameCell = "alias" | "value";
+
 interface DraftAuthorParameter {
     index: number;
     suffix: string;
@@ -216,7 +224,9 @@ export interface ExistingSource {
     templateEnd: number;
     templateStart: number;
     title: string;
+    titleLanguage: string;
     url: string;
+    usageCount: number;
 }
 
 export interface SourceSection {
@@ -289,6 +299,14 @@ export function ensureNextAuthorDraftRows(draft: SourceDraft): void {
     for (const row of populated) {
         ensureNextAuthorDraftRow(draft, row);
     }
+    formatSourceDraftRows(draft);
+}
+
+/**
+ * Reorders all rows into the standard order for the selected template.
+ */
+export function formatSourceDraftRows(draft: SourceDraft): void {
+    draft.rows = sortSourceDraftRows(draft.rows, draft.template);
 }
 
 /**
@@ -615,19 +633,27 @@ export function serializeSourceDraft(
     draft: SourceDraft,
     layout: CitationLayout = "block",
 ): string {
+    const citation = buildDraftCitation(draft);
+    return layout === "inline"
+        ? formatInlineCitation(citation)
+        : formatBlockCitation(citation);
+}
+
+/** Builds the immediate reference-name preview for a source draft. */
+export function getSourceDraftCitationName(draft: SourceDraft): string {
+    const identity = getCitationIdentity(buildDraftCitation(draft));
+    return appendCitationLocator(identity.baseName, identity.locator);
+}
+
+/** Canonicalizes the populated rows of one editable source draft. */
+function buildDraftCitation(draft: SourceDraft): CitationTemplate {
     const name = getDraftTemplateName(draft.template);
     const params = draft.rows
         .filter((row) => row.name.trim() !== "")
         .filter(hasDraftRowContent)
         .map(buildDraftParam);
     assertUniqueCanonicalParams(name, params);
-    const citation = canonicalizeCitation(
-        { name, params },
-        getTemplateMetadata(name),
-    );
-    return layout === "inline"
-        ? formatInlineCitation(citation)
-        : formatBlockCitation(citation);
+    return canonicalizeCitation({ name, params }, getTemplateMetadata(name));
 }
 
 /**
@@ -636,6 +662,15 @@ export function serializeSourceDraft(
 export function getSourceDraftCitationNameRows(
     draft: SourceDraft,
 ): Set<number> {
+    return new Set(getSourceDraftCitationNameCells(draft).keys());
+}
+
+/**
+ * Finds the exact value or alias cells supplying the visible ref name.
+ */
+export function getSourceDraftCitationNameCells(
+    draft: SourceDraft,
+): Map<number, SourceDraftCitationNameCell> {
     const name = getDraftTemplateName(draft.template);
     const metadata = getTemplateMetadata(name);
     const rowByCanonicalName = new Map<string, number>();
@@ -654,11 +689,12 @@ export function getSourceDraftCitationNameRows(
     }
     const citation = canonicalizeCitation({ name, params }, metadata);
     const contributors = getCitationNameContributors(citation);
-    const result = new Set<number>();
+    const result = new Map<number, SourceDraftCitationNameCell>();
     for (const contributor of contributors) {
         const rowIndex = rowByCanonicalName.get(contributor);
         if (rowIndex != null) {
-            result.add(rowIndex);
+            const row = draft.rows[rowIndex];
+            result.set(rowIndex, row.alias.trim() === "" ? "value" : "alias");
         }
     }
     return result;
@@ -869,6 +905,7 @@ function assignExistingSourceSections(
         );
         source.sectionIds =
             ids.length === 0 ? [UNUSED_SOURCE_SECTION_ID] : [...new Set(ids)];
+        source.usageCount = positions.length;
     }
 }
 
@@ -965,7 +1002,7 @@ function findSourceSections(masked: string): SourceSection[] {
         {
             depth: 0,
             id: "0",
-            label: "0. Lead",
+            label: "§ 0 Lead",
             parentId: "",
             start: -1,
             title: "Lead",
@@ -1007,8 +1044,7 @@ function findActiveParentId(activeIds: string[], depth: number): string {
 
 /** Formats the compact label shown in the section selectors. */
 function formatSourceSectionLabel(id: string, title: string): string {
-    const separator = id.includes(".") ? " " : ". ";
-    return `${id}${separator}${title}`.trim();
+    return `§ ${id} ${title}`.trim();
 }
 
 /** Resolves a source offset to its nearest preceding heading. */
@@ -1141,7 +1177,51 @@ function seedMainRows(
     const extras = entered.filter(function isRemainingRow(row) {
         return !used.has(row);
     });
-    return [...main, ...extras];
+    return sortSourceDraftRows([...main, ...extras], template);
+}
+
+/** Sorts rows by canonical TemplateData parameter order. */
+function sortSourceDraftRows(
+    rows: SourceDraftRow[],
+    template: string,
+): SourceDraftRow[] {
+    const metadata = getTemplateMetadata(template);
+    const order = new Map(
+        metadata.paramOrder.map((name, index) => [name, index] as const),
+    );
+    const ranked = rows.map(function addRank(row, index) {
+        const canonical = canonicalizeCitation(
+            {
+                name: template,
+                params: [{ name: row.name, value: "__draft_order__" }],
+            },
+            metadata,
+        );
+        const name = canonical.params[0]?.name ?? row.name;
+        const authorOrder = getDraftAuthorParamOrder(name);
+        const standardOrder = order.get(name);
+        const rank =
+            authorOrder ??
+            (standardOrder == null
+                ? Number.MAX_SAFE_INTEGER
+                : 1_000 + standardOrder);
+        return { index, rank, row };
+    });
+    ranked.sort(
+        (left, right) => left.rank - right.rank || left.index - right.index,
+    );
+    return ranked.map((entry) => entry.row);
+}
+
+/** Orders canonical author slots before other standard parameters. */
+function getDraftAuthorParamOrder(name: string): number | null {
+    const match = name.match(/^(last|first|author-link)(\d*)$/u);
+    if (match == null) {
+        return null;
+    }
+    const authorIndex = Number(match[2] || "1");
+    const fieldIndex = ["last", "first", "author-link"].indexOf(match[1]);
+    return (authorIndex - 1) * 3 + fieldIndex;
 }
 
 /**
@@ -1474,6 +1554,7 @@ function buildExistingSource(
     call: ReturnType<typeof findTemplateCalls>[number],
 ): ExistingSource {
     const draft = parseSourceDraft(call.raw);
+    const title = getExistingSourceTitle(draft);
     const partial = {
         archiveUrl: getDraftValue(draft, "archive-url"),
         draft,
@@ -1487,10 +1568,31 @@ function buildExistingSource(
         sectionIds: [],
         templateEnd: call.end,
         templateStart: call.start,
-        title: getDraftValue(draft, "title"),
+        title: title.text,
+        titleLanguage: title.language,
         url: getDraftValue(draft, "url"),
+        usageCount: 0,
     };
     return { ...partial, reuseText: buildExistingSourceReference(partial) };
+}
+
+/**
+ * Gets a normal title or a language-aware script-title fallback.
+ */
+function getExistingSourceTitle(draft: SourceDraft): {
+    language: string;
+    text: string;
+} {
+    const title = getDraftValue(draft, "title");
+    if (title !== "") {
+        return { language: "", text: title };
+    }
+    const scriptTitle = getDraftValue(draft, "script-title");
+    const pattern = /^([a-z]{2,3}(?:-[a-z0-9]+)*):(.*)$/isu;
+    const prefixed = scriptTitle.match(pattern);
+    return prefixed == null
+        ? { language: "", text: scriptTitle }
+        : { language: prefixed[1], text: prefixed[2].trimStart() };
 }
 
 /** Finds native references-list container ranges and their groups. */

@@ -14,10 +14,13 @@ import {
     filterExistingSources,
     findCreatorAliasSuggestions,
     findExistingSources,
-    getSourceDraftCitationNameRows,
+    formatSourceDraftRows,
+    getSourceDraftCitationName,
+    getSourceDraftCitationNameCells,
     isAuthorDraftParameter,
     isLastAuthorDraftParameter,
     joinAuthorDraftRow,
+    listExistingSourceSections,
     listExistingSources,
     parseSourceDraft,
     parseSourceInput,
@@ -27,19 +30,27 @@ import {
     type ExistingSource,
     type CreatorAliasSuggestion,
     type ParsedSourceInput,
+    type SourceSection,
     type SourceDraft,
+    type SourceDraftCitationNameCell,
     type SourceDraftRow,
 } from "#me/domain/source-manager.ts";
+import {
+    getSourceDraftErrors,
+    type SourceDraftErrors,
+} from "#me/domain/source-validation.ts";
 import {
     getCanonicalTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
 } from "#me/domain/templates.ts";
 import type { CitationLayout } from "#me/domain/types.ts";
+import { splitTopLevel } from "#me/domain/wikitext.ts";
 import { resolveSourceMetadata } from "#me/infra/source-metadata.ts";
 import { addManagerStyles } from "#me/ui/styles.ts";
 import type { editBox } from "#shared";
 
 const HOST_ID = "citation-formatter-source-manager";
+const BASED_ON_TEMPLATE = "__based-on__";
 const FORMATTER_MENU_ITEMS = [
     { label: "Reference calls: <ref>", value: "reference:ref" },
     { label: "Reference calls: {{r}}", value: "reference:r" },
@@ -59,6 +70,21 @@ const EDIT_SOURCE_ICON =
     '<path d="m15.765 7.875-8.483 8.484a1 1 0 01-.253.184l-4.214 ' +
     "2.15-1.357-1.33L3.58 13.12q.073-.145.188-.26l8.48-8.48zm3.534-" +
     '3.532-2.12 2.118-3.517-3.496 2.13-2.13z"/>';
+const COPY_SOURCE_ICON = {
+    ltr: '<path d="M13 19H1V7h6V1h12v12h-6zm-6-6V9H3v8h8v-4zm2-2h8V3H9z"/>',
+    shouldFlip: true,
+};
+const SPLIT_AUTHOR_ICON =
+    '<path d="M7 10c.91 0 1.764.244 2.5.67A5 5 0 0112 10h3a5 5 ' +
+    "0 015 5v2H0v-2a5 5 0 015-5zm5 2q-.473.002-.901.138c.567.81.901 " +
+    "1.797.901 2.862h6a3 3 0 00-3-3zM6 3a3 3 0 110 6 3 3 0 010-6M13.5 " +
+    '3a3 3 0 110 6 3 3 0 010-6m0 2a1 1 0 100 2 1 1 0 000-2"/>';
+const JOIN_AUTHOR_ICON =
+    '<path d="M12 11a6 6 0 016 6v2H2v-2a6 6 0 016-6zM10 1a4 4 0 ' +
+    '110 8 4 4 0 010-8"/>';
+const FORMAT_ROWS_ICON =
+    '<path d="M10 1a8.98 8.98 0 016.999 3.343L17 2h2v5l-1 1h-5' +
+    'l-.001-2h2.746a7 7 0 101.184 5h2.016A9 9 0 1110 1"/>';
 const TEMPLATE_OPTIONS = SUPPORTED_CITATION_TEMPLATES.map(
     function toOption(name) {
         return {
@@ -67,6 +93,10 @@ const TEMPLATE_OPTIONS = SUPPORTED_CITATION_TEMPLATES.map(
         };
     },
 );
+const MANUAL_TEMPLATE_OPTIONS = [
+    { label: "Based on existing source", value: BASED_ON_TEMPLATE },
+    ...TEMPLATE_OPTIONS,
+];
 
 type SourceManagerMode = "draft" | "lookup";
 type DraftActions = Record<string, unknown>;
@@ -95,6 +125,7 @@ interface VueApp {
 
 interface CodexComponents {
     CdxButton: unknown;
+    CdxCombobox: unknown;
     CdxDialog: unknown;
     CdxField: unknown;
     CdxIcon: unknown;
@@ -115,13 +146,23 @@ interface ResourceLoaderRequire {
 
 interface SourceManagerState {
     activeLookupTab: { value: string };
+    basedOnSourceId: { value: string };
+    basedOnSourceOptions: {
+        readonly value: Array<{ label: string; value: string }>;
+    };
     citationLayout: { value: CitationLayout };
-    citationNameRows: { readonly value: Set<number> };
+    citationName: { readonly value: string };
+    citationNameCells: {
+        readonly value: Map<number, SourceDraftCitationNameCell>;
+    };
     dismissedAliasSuggestions: { value: Set<string> };
     draft: { value: SourceDraft | null };
+    draftCellErrors: { readonly value: SourceDraftErrors };
+    draftSourcePreview: { readonly value: SourcePreviewPart[] };
     editingSource: { value: ExistingSource | null };
     error: { value: string };
     existingSourceQuery: { value: string };
+    existingSourceSections: { value: SourceSection[] };
     existingSources: { value: ExistingSource[] };
     filteredExistingSources: { readonly value: ExistingSource[] };
     formatterMenuSelection: { value: string | null };
@@ -132,6 +173,10 @@ interface SourceManagerState {
     open: { value: boolean };
     referenceStyle: { value: ReferenceStyle };
     sourceUrl: { value: string };
+    sourceSectionPath: { value: string[] };
+    sourceSectionSelectors: {
+        readonly value: SourceSectionSelector[];
+    };
     warning: { value: string };
 }
 
@@ -146,9 +191,35 @@ interface SourceManagerDerivedInputs {
     citationLayout: SourceManagerState["citationLayout"];
     draft: SourceManagerState["draft"];
     existingSourceQuery: SourceManagerState["existingSourceQuery"];
+    existingSourceSections: SourceManagerState["existingSourceSections"];
     existingSources: SourceManagerState["existingSources"];
     referenceStyle: SourceManagerState["referenceStyle"];
+    sourceSectionPath: SourceManagerState["sourceSectionPath"];
 }
+
+interface SourceSectionSelector {
+    label: string;
+    level: number;
+    menuItems: Array<{ label: string; value: string }>;
+    selected: string;
+}
+
+interface SourcePreviewPart {
+    kind: "alias" | "parameter" | "text";
+    text: string;
+}
+
+type SourceManagerDerivedState = Pick<
+    SourceManagerState,
+    | "basedOnSourceOptions"
+    | "citationName"
+    | "citationNameCells"
+    | "draftSourcePreview"
+    | "draftCellErrors"
+    | "filteredExistingSources"
+    | "formatterSettingsLabel"
+    | "sourceSectionSelectors"
+>;
 
 /** Opens the source manager for the active MediaWiki source editor. */
 export async function openSourceManager(
@@ -221,10 +292,15 @@ function createSourceManagerComponent(
         const state = createSourceManagerState(Vue, editor, options);
         const actions = createSourceManagerActions(editor, state, cleanup);
         return {
+            copySourceIcon: COPY_SOURCE_ICON,
             editSourceIcon: EDIT_SOURCE_ICON,
+            formatRowsIcon: FORMAT_ROWS_ICON,
             formatterMenuItems: FORMATTER_MENU_ITEMS,
+            joinAuthorIcon: JOIN_AUTHOR_ICON,
+            manualTemplateOptions: MANUAL_TEMPLATE_OPTIONS,
             sourceTemplateLabel: getCanonicalTemplateName,
             templateOptions: TEMPLATE_OPTIONS,
+            splitAuthorIcon: SPLIT_AUTHOR_ICON,
             useSourceIcon: USE_SOURCE_ICON,
             ...actions,
             ...state,
@@ -244,28 +320,26 @@ function createSourceManagerState(
     options: SourceManagerOptions,
 ): SourceManagerState {
     const text = editor.read();
-    const existingSources = Vue.ref(listExistingSources(text));
-    const existingSourceQuery = Vue.ref("");
+    const sourceList = createInitialSourceListState(Vue, text);
     const citationLayout = Vue.ref(options.citationLayout ?? "inline");
     const draft = Vue.ref<SourceDraft | null>(null);
     const referenceStyle = Vue.ref(options.referenceStyle ?? "ref");
     const derived = createSourceManagerDerivedState(Vue, {
         citationLayout,
         draft,
-        existingSourceQuery,
-        existingSources,
         referenceStyle,
+        ...sourceList,
     });
     return {
         ...derived,
+        ...sourceList,
         activeLookupTab: Vue.ref("add"),
+        basedOnSourceId: Vue.ref(""),
         citationLayout,
         dismissedAliasSuggestions: Vue.ref(new Set<string>()),
         draft,
         editingSource: Vue.ref<ExistingSource | null>(null),
         error: Vue.ref(""),
-        existingSourceQuery,
-        existingSources,
         formatterMenuSelection: Vue.ref<string | null>(null),
         loading: Vue.ref(false),
         manualTemplate: Vue.ref<string | null>("cite magazine"),
@@ -277,37 +351,245 @@ function createSourceManagerState(
     };
 }
 
+/** Creates reactive source-list values from the current editor text. */
+function createInitialSourceListState(Vue: VueModule, text: string) {
+    const existingSources = Vue.ref(listExistingSources(text));
+    return {
+        existingSourceQuery: Vue.ref(""),
+        existingSourceSections: Vue.ref(
+            listExistingSourceSections(text, existingSources.value),
+        ),
+        existingSources,
+        sourceSectionPath: Vue.ref<string[]>([]),
+    };
+}
+
 /** Builds reactive values derived from source-manager inputs. */
 function createSourceManagerDerivedState(
     Vue: VueModule,
     state: SourceManagerDerivedInputs,
-): Pick<
-    SourceManagerState,
-    "citationNameRows" | "filteredExistingSources" | "formatterSettingsLabel"
-> {
+): SourceManagerDerivedState {
+    return {
+        ...createDraftDerivedState(Vue, state),
+        ...createSourceListDerivedState(Vue, state),
+        formatterSettingsLabel: Vue.computed(function getLabel() {
+            const references =
+                state.referenceStyle.value === "r" ? "{{r}}" : "<ref>";
+            const layout =
+                state.citationLayout.value === "block" ? "Block" : "Inline";
+            return `Formatter: ${references} · ${layout}`;
+        }),
+    };
+}
+
+/** Builds live name and source-code values for the current draft. */
+function createDraftDerivedState(
+    Vue: VueModule,
+    state: SourceManagerDerivedInputs,
+) {
+    function getCitationName(): string {
+        const draft = state.draft.value;
+        if (draft == null) {
+            return "";
+        }
+        try {
+            return getSourceDraftCitationName(draft);
+        } catch {
+            return "";
+        }
+    }
+    function getCitationNameCells(): Map<number, SourceDraftCitationNameCell> {
+        const draft = state.draft.value;
+        return draft == null
+            ? new Map<number, SourceDraftCitationNameCell>()
+            : getSourceDraftCitationNameCells(draft);
+    }
+    function getDraftSourcePreview(): SourcePreviewPart[] {
+        return buildDraftSourcePreview(
+            state.draft.value,
+            state.citationLayout.value,
+        );
+    }
+    function getDraftCellErrors(): SourceDraftErrors {
+        const draft = state.draft.value;
+        return draft == null
+            ? new Map()
+            : getSourceDraftErrors(draft, getCurrentWikiId());
+    }
+    return {
+        citationName: Vue.computed(getCitationName),
+        citationNameCells: Vue.computed(getCitationNameCells),
+        draftCellErrors: Vue.computed(getDraftCellErrors),
+        draftSourcePreview: Vue.computed(getDraftSourcePreview),
+    };
+}
+
+/** Gets the active MediaWiki database for site-specific CS1 rules. */
+function getCurrentWikiId(): string {
+    const wikiId = mw.config.get("wgDBname");
+    return typeof wikiId === "string" ? wikiId : "";
+}
+
+/** Builds a safely segmented preview from the current source draft. */
+function buildDraftSourcePreview(
+    draft: SourceDraft | null,
+    layout: CitationLayout,
+): SourcePreviewPart[] {
+    if (draft == null) {
+        return [];
+    }
+    try {
+        return buildSourcePreview(serializeSourceDraft(draft, layout));
+    } catch (error) {
+        const message = `Source preview unavailable: ${formatError(error)}`;
+        return [{ kind: "text", text: message }];
+    }
+}
+
+/** Marks parameter names and alias comments for preview styling. */
+function buildSourcePreview(source: string): SourcePreviewPart[] {
+    const ranges = [
+        ...findSourceParameterNameRanges(source),
+        ...findSourceAliasCommentRanges(source),
+    ].sort((left, right) => left.start - right.start);
+    const result: SourcePreviewPart[] = [];
+    let cursor = 0;
+    for (const range of ranges) {
+        if (range.start > cursor) {
+            result.push({
+                kind: "text",
+                text: source.slice(cursor, range.start),
+            });
+        }
+        result.push({
+            kind: range.kind,
+            text: source.slice(range.start, range.end),
+        });
+        cursor = range.end;
+    }
+    if (cursor < source.length) {
+        result.push({ kind: "text", text: source.slice(cursor) });
+    }
+    return result;
+}
+
+interface SourcePreviewRange {
+    end: number;
+    kind: "alias" | "parameter";
+    start: number;
+}
+
+/** Locates top-level parameter labels in formatted citation source. */
+function findSourceParameterNameRanges(source: string): SourcePreviewRange[] {
+    if (!source.startsWith("{{") || !source.endsWith("}}")) {
+        return [];
+    }
+    const parts = splitTopLevel(source.slice(2, -2), "|");
+    let cursor = 2 + (parts.shift()?.length ?? 0);
+    return parts.flatMap(function findName(part) {
+        cursor += 1;
+        const start = cursor + (part.match(/^\s*/u)?.[0].length ?? 0);
+        const separator = part.indexOf("=");
+        const end =
+            separator < 0
+                ? start
+                : cursor + part.slice(0, separator).trimEnd().length;
+        cursor += part.length;
+        return end > start ? [{ end, kind: "parameter" as const, start }] : [];
+    });
+}
+
+/** Locates hashtag alias comments in formatted citation source. */
+function findSourceAliasCommentRanges(source: string): SourcePreviewRange[] {
+    const pattern = /<!--(?:(?!-->)[\s\S])*?#(?:(?!-->)[\s\S])*?-->/gu;
+    return [...source.matchAll(pattern)].map(function toRange(match) {
+        return {
+            end: match.index + match[0].length,
+            kind: "alias" as const,
+            start: match.index,
+        };
+    });
+}
+
+/** Builds filtering and choice values for the existing-source list. */
+function createSourceListDerivedState(
+    Vue: VueModule,
+    state: SourceManagerDerivedInputs,
+) {
     function getFilteredExistingSources(): ExistingSource[] {
+        const selectedSection = state.sourceSectionPath.value.at(-1) ?? "";
         return filterExistingSources(
             state.existingSources.value,
             state.existingSourceQuery.value,
+            selectedSection,
         );
     }
-    function getCitationNameRows(): Set<number> {
-        const draft = state.draft.value;
-        return draft == null
-            ? new Set<number>()
-            : getSourceDraftCitationNameRows(draft);
-    }
-    function getFormatterSettingsLabel(): string {
-        const references =
-            state.referenceStyle.value === "r" ? "{{r}}" : "<ref>";
-        const layout =
-            state.citationLayout.value === "block" ? "Block" : "Inline";
-        return `Formatter: ${references} · ${layout}`;
+    function getBasedOnSourceOptions(): Array<{
+        label: string;
+        value: string;
+    }> {
+        return state.existingSources.value.map(function toOption(source) {
+            const name = source.referenceName || "unnamed";
+            const title = source.title || source.url || "Untitled source";
+            return { label: `${name} — ${title}`, value: source.id };
+        });
     }
     return {
-        citationNameRows: Vue.computed(getCitationNameRows),
+        basedOnSourceOptions: Vue.computed(getBasedOnSourceOptions),
         filteredExistingSources: Vue.computed(getFilteredExistingSources),
-        formatterSettingsLabel: Vue.computed(getFormatterSettingsLabel),
+        sourceSectionSelectors: Vue.computed(function getSelectors() {
+            return buildSourceSectionSelectors(
+                state.existingSourceSections.value,
+                state.sourceSectionPath.value,
+            );
+        }),
+    };
+}
+
+/** Builds one combobox for each selected section hierarchy level. */
+function buildSourceSectionSelectors(
+    sections: SourceSection[],
+    path: string[],
+): SourceSectionSelector[] {
+    const selectors: SourceSectionSelector[] = [];
+    let parentId = "";
+    for (let level = 0; level <= path.length; level += 1) {
+        const children = sections.filter(
+            (section) => section.parentId === parentId,
+        );
+        if (children.length === 0) {
+            break;
+        }
+        const selected = path[level] ?? "";
+        selectors.push(buildSourceSectionSelector(children, level, selected));
+        if (
+            selected === "" ||
+            !children.some((section) => section.id === selected)
+        ) {
+            break;
+        }
+        parentId = selected;
+    }
+    return selectors;
+}
+
+/** Builds the choices for one section-filter hierarchy level. */
+function buildSourceSectionSelector(
+    sections: SourceSection[],
+    level: number,
+    selected: string,
+): SourceSectionSelector {
+    const allLabel = level === 0 ? "All sections" : "All subsections";
+    const sectionOptions = sections.map(function toOption(section) {
+        return { label: section.label, value: section.label };
+    });
+    const selectedLabel =
+        sections.find((section) => section.id === selected)?.label ?? "";
+    return {
+        label: level === 0 ? "Section" : "Subsection",
+        level,
+        menuItems: [{ label: allLabel, value: "" }, ...sectionOptions],
+        selected: selectedLabel,
     };
 }
 
@@ -413,20 +695,34 @@ function createDraftActions(
     function changeDraftTemplate(template: string | null): void {
         updateDraftTemplate(state, template);
     }
+    function formatParameters(): void {
+        const draft = state.draft.value;
+        if (draft != null) {
+            formatSourceDraftRows(draft);
+        }
+    }
     function saveDraft(): void {
-        saveSourceDraft(context);
+        saveSourceDraft(context, false);
+    }
+    function saveDraftAndClose(): void {
+        saveSourceDraft(context, true);
     }
     return {
         ...createAuthorDraftActions(state),
         ...createAliasDraftActions(state),
         addParameter,
         changeDraftTemplate,
+        formatParameters,
         saveDraft,
+        saveDraftAndClose,
     };
 }
 
 /** Validates and saves the current source draft. */
-function saveSourceDraft(context: SourceManagerActionContext): void {
+function saveSourceDraft(
+    context: SourceManagerActionContext,
+    closeAfterSave: boolean,
+): void {
     const { editor, state } = context;
     const draft = state.draft.value;
     if (draft == null) {
@@ -443,7 +739,18 @@ function saveSourceDraft(context: SourceManagerActionContext): void {
         state.error.value = formatError(error);
         return;
     }
-    finishSourceManager(context);
+    if (closeAfterSave) {
+        finishSourceManager(context);
+        return;
+    }
+    refreshExistingSources(editor, state);
+    state.activeLookupTab.value = "view";
+    state.dismissedAliasSuggestions.value = new Set();
+    state.draft.value = null;
+    state.editingSource.value = null;
+    state.error.value = "";
+    state.mode.value = "lookup";
+    state.warning.value = "";
 }
 
 /** Creates author-row splitting and automatic next-slot actions. */
@@ -591,21 +898,11 @@ function createLookupActions(
     async function resolveEnteredSource(entered?: string): Promise<void> {
         await resolveSourceInput(context, entered);
     }
-    function onSourcePaste(event: ClipboardEvent): void {
-        if (context.state.loading.value) {
-            return;
-        }
-        const entered =
-            event.clipboardData?.getData("text/plain").trim() || "";
-        if (parseSourceInput(entered) == null) {
-            return;
-        }
-        event.preventDefault();
-        context.state.sourceUrl.value = entered;
-        void resolveEnteredSource(entered);
-    }
     function editListedSource(sourceId: string): void {
         openExistingSourceWhenIdle(context.state, sourceId);
+    }
+    function cloneListedSource(sourceId: string): void {
+        openBasedOnSourceWhenIdle(context.state, sourceId);
     }
     function createManualSource(): void {
         openManualSourceWhenIdle(context.state);
@@ -615,11 +912,34 @@ function createLookupActions(
     }
     return {
         createManualSource,
+        cloneListedSource,
         editListedSource,
         insertListedSource,
-        onSourcePaste,
+        onSourcePaste(event: ClipboardEvent): void {
+            handleSourcePaste(context, event);
+        },
         resolveEnteredSource,
+        selectSourceSection(level: number, selected: string | number): void {
+            updateSourceSectionSelection(context.state, level, selected);
+        },
     };
+}
+
+/** Resolves a recognizable pasted source immediately. */
+function handleSourcePaste(
+    context: SourceManagerActionContext,
+    event: ClipboardEvent,
+): void {
+    if (context.state.loading.value) {
+        return;
+    }
+    const entered = event.clipboardData?.getData("text/plain").trim() || "";
+    if (parseSourceInput(entered) == null) {
+        return;
+    }
+    event.preventDefault();
+    context.state.sourceUrl.value = entered;
+    void resolveSourceInput(context, entered);
 }
 
 /** Opens a manual draft only when no URL request can replace it. */
@@ -628,7 +948,57 @@ function openManualSourceWhenIdle(state: SourceManagerState): void {
         return;
     }
     const template = state.manualTemplate.value ?? "cite magazine";
+    if (template === BASED_ON_TEMPLATE) {
+        openBasedOnSource(state, state.basedOnSourceId.value);
+        return;
+    }
     openDraft(state, createManualSourceDraft(template));
+}
+
+/** Opens an existing source as a new draft rather than an edit. */
+function openBasedOnSourceWhenIdle(
+    state: SourceManagerState,
+    sourceId: string,
+): void {
+    if (!state.loading.value) {
+        openBasedOnSource(state, sourceId);
+    }
+}
+
+/** Clones one selected citation into a new source draft. */
+function openBasedOnSource(state: SourceManagerState, sourceId: string): void {
+    const source = findExistingSourceById(state, sourceId);
+    if (source == null) {
+        state.error.value = "Choose an existing citation to base this on.";
+        return;
+    }
+    openDraft(state, cloneDraft(source.draft));
+}
+
+/** Updates one level of the hierarchical source-section filter. */
+function updateSourceSectionSelection(
+    state: SourceManagerState,
+    level: number,
+    selected: string | number,
+): void {
+    const value = String(selected);
+    if (value === "") {
+        state.sourceSectionPath.value =
+            level === 0 ? [] : state.sourceSectionPath.value.slice(0, level);
+        return;
+    }
+    const parentId =
+        level === 0 ? "" : state.sourceSectionPath.value[level - 1];
+    const section = state.existingSourceSections.value.find(
+        (candidate) =>
+            candidate.label === value && candidate.parentId === parentId,
+    );
+    if (section != null) {
+        state.sourceSectionPath.value = [
+            ...state.sourceSectionPath.value.slice(0, level),
+            section.id,
+        ];
+    }
 }
 
 /** Opens an existing draft only when no URL request can replace it. */
@@ -849,6 +1219,21 @@ function openDraft(
     state.mode.value = "draft";
 }
 
+/** Re-reads source definitions and filters after an in-dialog save. */
+function refreshExistingSources(
+    editor: editBox.EditBox,
+    state: SourceManagerState,
+): void {
+    const text = editor.read();
+    const sources = listExistingSources(text);
+    state.existingSources.value = sources;
+    state.existingSourceSections.value = listExistingSourceSections(
+        text,
+        sources,
+    );
+    state.sourceSectionPath.value = [];
+}
+
 /** Inserts a reuse or anonymous full ref at the active selection. */
 function insertExistingSource(
     editor: editBox.EditBox,
@@ -931,6 +1316,7 @@ function formatError(error: unknown): string {
 /** Registers the Codex components used by the source manager. */
 function registerCodexComponents(app: VueApp, Codex: CodexComponents): void {
     app.component("CdxButton", Codex.CdxButton);
+    app.component("CdxCombobox", Codex.CdxCombobox);
     app.component("CdxDialog", Codex.CdxDialog);
     app.component("CdxField", Codex.CdxField);
     app.component("CdxIcon", Codex.CdxIcon);
@@ -1008,17 +1394,38 @@ const SOURCE_MANAGER_TEMPLATE = `
                 <cdx-field>
                     <template #label>Citation type</template>
                     <template #description>
-                        Create an offline source without entering a URL.
+                        Create a source manually or base it on an existing
+                        citation.
                     </template>
                     <cdx-select
                         v-model:selected="manualTemplate"
-                        :menu-items="templateOptions"
+                        :menu-items="manualTemplateOptions"
                         :disabled="loading"
                     />
                 </cdx-field>
+                <cdx-field v-if="manualTemplate === '__based-on__'">
+                    <template #label>Based on</template>
+                    <cdx-combobox
+                        v-model:selected="basedOnSourceId"
+                        :menu-items="basedOnSourceOptions"
+                        :menu-config="{ visibleItemLimit: 6 }"
+                        :disabled="loading"
+                        placeholder="Choose an existing source"
+                    >
+                        <template #no-results>
+                            No existing sources found.
+                        </template>
+                    </cdx-combobox>
+                </cdx-field>
                 <cdx-button
                     action="progressive"
-                    :disabled="loading"
+                    :disabled="
+                        loading ||
+                        (
+                            manualTemplate === '__based-on__' &&
+                            basedOnSourceId === ''
+                        )
+                    "
                     @click="createManualSource"
                 >
                     Create source
@@ -1041,6 +1448,30 @@ const SOURCE_MANAGER_TEMPLATE = `
                     placeholder="Search sources by keywords"
                 />
             </cdx-field>
+            <div
+                v-if="existingSources.length > 0"
+                class="cf-source-manager__section-filters"
+            >
+                <cdx-field
+                    v-for="selector in sourceSectionSelectors"
+                    :key="selector.level"
+                    :hide-label="true"
+                >
+                    <template #label>{{ selector.label }}</template>
+                    <cdx-combobox
+                        :selected="selector.selected"
+                        :menu-items="selector.menuItems"
+                        :menu-config="{ visibleItemLimit: 8 }"
+                        :aria-label="selector.label"
+                        @update:selected="
+                            selectSourceSection(
+                                selector.level,
+                                $event
+                            )
+                        "
+                    />
+                </cdx-field>
+            </div>
             <p v-if="existingSources.length === 0">
                 No existing citation definitions found.
             </p>
@@ -1061,10 +1492,13 @@ const SOURCE_MANAGER_TEMPLATE = `
                                 'Unnamed reference'
                             "
                         >
-                            ({{ source.referenceName || 'unnamed' }})
+                            ({{
+                                source.referenceName || 'unnamed'
+                            }} · {{ source.usageCount }}×)
                         </small>
                         <span
                             class="cf-source-manager__existing-title"
+                            :lang="source.titleLanguage || undefined"
                             :title="
                                 source.title ||
                                 source.url ||
@@ -1078,10 +1512,7 @@ const SOURCE_MANAGER_TEMPLATE = `
                             }}
                         </span>
                         <small class="cf-source-manager__existing-meta">
-                            <code
-                                v-tooltip="source.rawTemplate"
-                                tabindex="0"
-                            >
+                            <code>
                                 {{
                                     sourceTemplateLabel(
                                         source.draft.template
@@ -1113,6 +1544,15 @@ const SOURCE_MANAGER_TEMPLATE = `
                         >
                             <cdx-icon :icon="editSourceIcon" />
                         </cdx-button>
+                        <cdx-button
+                            v-tooltip="'Create source based on this'"
+                            weight="quiet"
+                            :disabled="loading"
+                            aria-label="Create source based on this"
+                            @click="cloneListedSource( source.id )"
+                        >
+                            <cdx-icon :icon="copySourceIcon" />
+                        </cdx-button>
                     </div>
                 </li>
             </ol>
@@ -1129,8 +1569,18 @@ const SOURCE_MANAGER_TEMPLATE = `
                     @update:selected="changeDraftTemplate"
                 />
             </cdx-field>
+            <div class="cf-source-manager__citation-name">
+                <strong>Reference name</strong>
+                <code>{{ citationName || 'Unavailable' }}</code>
+            </div>
         </div>
         <table class="cf-source-manager__params">
+            <colgroup>
+                <col class="cf-source-manager__params-parameter">
+                <col class="cf-source-manager__params-value">
+                <col class="cf-source-manager__params-alias">
+                <col class="cf-source-manager__params-controls">
+            </colgroup>
             <thead>
                 <tr>
                     <th>Parameter</th>
@@ -1143,20 +1593,19 @@ const SOURCE_MANAGER_TEMPLATE = `
                 <tr
                     v-for="( row, index ) in draft.rows"
                     :key="index"
-                    :class="{
-                        'cf-source-manager__param-row--citation-name':
-                            citationNameRows.has( index )
-                    }"
-                    :title="
-                        citationNameRows.has( index )
-                            ? 'Used to generate the reference name'
-                            : undefined
-                    "
                 >
                     <td>
                         <cdx-text-input
                             v-model="row.name"
                             class="cf-source-manager__param-name"
+                            :status="
+                                draftCellErrors.get( index )?.name
+                                    ? 'error'
+                                    : 'default'
+                            "
+                            :title="
+                                draftCellErrors.get( index )?.name
+                            "
                             aria-label="Parameter name"
                             placeholder="parameter"
                         />
@@ -1164,6 +1613,21 @@ const SOURCE_MANAGER_TEMPLATE = `
                     <td>
                         <cdx-text-input
                             :model-value="row.value"
+                            :class="{
+                                'cf-source-manager__name-cell':
+                                    citationNameCells.get( index ) ===
+                                    'value',
+                                'cf-source-manager__error-cell':
+                                    draftCellErrors.get( index )?.value
+                            }"
+                            :status="
+                                draftCellErrors.get( index )?.value
+                                    ? 'error'
+                                    : 'default'
+                            "
+                            :title="
+                                draftCellErrors.get( index )?.value
+                            "
                             :aria-label="row.name + ' value'"
                             @update:model-value="
                                 updateParameterValue( index, $event )
@@ -1173,6 +1637,21 @@ const SOURCE_MANAGER_TEMPLATE = `
                     <td>
                         <cdx-text-input
                             v-model="row.alias"
+                            :class="{
+                                'cf-source-manager__name-cell':
+                                    citationNameCells.get( index ) ===
+                                    'alias',
+                                'cf-source-manager__error-cell':
+                                    draftCellErrors.get( index )?.alias
+                            }"
+                            :status="
+                                draftCellErrors.get( index )?.alias
+                                    ? 'error'
+                                    : 'default'
+                            "
+                            :title="
+                                draftCellErrors.get( index )?.alias
+                            "
                             :aria-label="
                                 row.name === 'url'
                                     ? 'url shared source key'
@@ -1185,7 +1664,7 @@ const SOURCE_MANAGER_TEMPLATE = `
                             :placeholder="
                                 row.name === 'url'
                                     ? 'Optional shared source URL'
-                                    : 'Optional alias'
+                                    : undefined
                             "
                         />
                         <div
@@ -1229,7 +1708,7 @@ const SOURCE_MANAGER_TEMPLATE = `
                                 title="Use separate first and last name fields"
                                 @click="splitAuthor( index )"
                             >
-                                First / last
+                                <cdx-icon :icon="splitAuthorIcon" />
                             </cdx-button>
                             <cdx-button
                                 v-else-if="
@@ -1243,7 +1722,7 @@ const SOURCE_MANAGER_TEMPLATE = `
                                 title="Return to one full-name field"
                                 @click="joinAuthor( index )"
                             >
-                                Full name
+                                <cdx-icon :icon="joinAuthorIcon" />
                             </cdx-button>
                         </div>
                     </td>
@@ -1252,7 +1731,21 @@ const SOURCE_MANAGER_TEMPLATE = `
         </table>
         <div class="cf-source-manager__actions">
             <cdx-button @click="addParameter">Add parameter</cdx-button>
+            <cdx-button @click="formatParameters">
+                <cdx-icon :icon="formatRowsIcon" />
+                Format
+            </cdx-button>
         </div>
+        <cdx-field class="cf-source-manager__source-preview">
+            <template #label>Source code</template>
+            <pre><span
+                v-for="( part, index ) in draftSourcePreview"
+                :key="index"
+                :class="
+                    'cf-source-manager__source-preview--' + part.kind
+                "
+            >{{ part.text }}</span></pre>
+        </cdx-field>
     </div>
     <template #footer>
         <div
@@ -1287,10 +1780,17 @@ const SOURCE_MANAGER_TEMPLATE = `
             <cdx-button
                 v-if="mode === 'draft'"
                 action="progressive"
-                weight="primary"
                 @click="saveDraft"
             >
-                {{ editingSource ? 'Save source' : 'Insert source' }}
+                Save
+            </cdx-button>
+            <cdx-button
+                v-if="mode === 'draft'"
+                action="progressive"
+                weight="primary"
+                @click="saveDraftAndClose"
+            >
+                Save and close
             </cdx-button>
         </div>
         <div
@@ -1312,9 +1812,16 @@ const SOURCE_MANAGER_TEMPLATE = `
                 v-if="mode === 'draft'"
                 action="progressive"
                 weight="primary"
+                @click="saveDraftAndClose"
+            >
+                Save and close
+            </cdx-button>
+            <cdx-button
+                v-if="mode === 'draft'"
+                action="progressive"
                 @click="saveDraft"
             >
-                {{ editingSource ? 'Save source' : 'Insert source' }}
+                Save
             </cdx-button>
             <cdx-menu-button
                 v-model:selected="formatterMenuSelection"

@@ -517,10 +517,12 @@ export function getCitationNameContributors(
     );
     const values = Object.fromEntries(entries);
     const author = selectCitationAuthor(values);
+    const authorKeys =
+        author.keys.length > 2 ? author.keys.slice(0, 1) : author.keys;
     const year = selectCitationYear(values);
     const locator = selectSourceLocator(values);
     return new Set([
-        ...author.keys,
+        ...authorKeys,
         ...(year == null ? [] : [year.key]),
         ...(locator == null ? [] : [locator.key]),
     ]);

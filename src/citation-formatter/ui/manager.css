@@ -50,12 +50,27 @@
 
 .cf-source-manager__manual {
     border-top: 1px solid var(--border-color-subtle, #c8ccd1);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     margin-top: 1.25em;
 }
 
 .cf-source-manager__source-search {
     max-width: 32em;
     padding-top: 1em;
+}
+
+.cf-source-manager__section-filters {
+    align-items: start;
+    display: grid;
+    gap: 0.5em;
+    grid-template-columns: repeat(auto-fit, minmax(14em, 18em));
+    padding-top: 0.75em;
+}
+
+.cf-source-manager__section-filters .cdx-field {
+    align-self: start;
+    margin: 0;
+    min-width: 0;
 }
 
 .cf-source-manager__existing-list {
@@ -111,17 +126,33 @@
     max-width: 18em;
 }
 
-.cf-source-manager__existing-meta code {
-    cursor: help;
+.cf-source-manager__draft-header {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+    margin-bottom: 1em;
 }
 
-.cf-source-manager__draft-header {
-    margin-bottom: 1em;
+.cf-source-manager__draft-header .cdx-field {
     max-width: 32em;
+    width: min(100%, 32em);
+}
+
+.cf-source-manager__citation-name {
+    display: grid;
+    gap: 0.25em;
+    min-width: 16em;
+    padding-bottom: 0.35em;
+}
+
+.cf-source-manager__citation-name code {
+    overflow-wrap: anywhere;
 }
 
 .cf-source-manager__params {
     border-collapse: collapse;
+    table-layout: fixed;
     width: 100%;
 }
 
@@ -132,34 +163,68 @@
     vertical-align: top;
 }
 
-.cf-source-manager__params th:first-child,
-.cf-source-manager__params td:first-child {
-    width: 8em;
+.cf-source-manager__params-parameter {
+    width: calc(20% - 0.8em);
+}
+
+.cf-source-manager__params-value,
+.cf-source-manager__params-alias {
+    width: calc(40% - 1.6em);
+}
+
+.cf-source-manager__params-controls {
+    width: 4em;
 }
 
 .cf-source-manager__param-name {
-    width: 8em;
+    width: 100%;
+}
+
+.cf-source-manager__params .cdx-text-input {
+    max-width: none;
+    width: 100%;
 }
 
 .cf-source-manager__param-name .cdx-text-input__input {
     font-weight: 700;
 }
 
-.cf-source-manager__params th:last-child,
-.cf-source-manager__params td:last-child {
-    width: 9em;
-}
-
-.cf-source-manager__param-row--citation-name > td {
+.cf-source-manager__name-cell .cdx-text-input__input {
     background-color: var(--background-color-progressive-subtle, #eaf3ff);
-}
-
-.cf-source-manager__param-row--citation-name > td:first-child {
-    border-inline-start: 3px solid var(--border-color-progressive, #36c);
+    border-color: var(--border-color-progressive, #36c);
 }
 
 .cf-source-manager__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
     margin-top: 0.75em;
+}
+
+.cf-source-manager__source-preview {
+    margin-top: 1em;
+}
+
+.cf-source-manager__source-preview pre {
+    background-color: var(--background-color-neutral-subtle, #f8f9fa);
+    border: 1px solid var(--border-color-subtle, #c8ccd1);
+    border-radius: 2px;
+    font-family: var(--font-family-monospace, monospace);
+    margin: 0;
+    max-height: 16em;
+    overflow: auto;
+    padding: 0.75em;
+    white-space: pre-wrap;
+}
+
+.cf-source-manager__source-preview--parameter {
+    color: var(--color-progressive, #36c);
+    font-weight: 700;
+}
+
+.cf-source-manager__source-preview--alias {
+    color: var(--color-success, #14866d);
+    font-weight: 700;
 }
 
 .cf-source-manager__alias-suggestion {
@@ -215,6 +280,11 @@
         grid-template-columns: 1fr;
     }
 
+    .cf-source-manager__section-filters {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
     .cf-source-manager__existing-name {
         max-width: 8em;
     }
@@ -227,8 +297,13 @@
     .cf-source-manager__params tbody,
     .cf-source-manager__params tr,
     .cf-source-manager__params td {
+        box-sizing: border-box;
         display: block;
         width: 100%;
+    }
+
+    .cf-source-manager__params colgroup {
+        display: none;
     }
 
     .cf-source-manager__params thead {
@@ -240,6 +315,9 @@
         padding: 0.5em 0;
     }
 
+    .cf-source-manager__params td:first-child,
+    .cf-source-manager__params td:nth-child(2),
+    .cf-source-manager__params td:nth-child(3),
     .cf-source-manager__params td:last-child {
         width: 100%;
     }

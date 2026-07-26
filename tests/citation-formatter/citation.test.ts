@@ -199,9 +199,41 @@ const testCallbackI = () => {
     );
     const archiveIndex = result.text.indexOf("| archive-format =");
     const styleIndex = result.text.indexOf("| name-list-style =");
-    assert.ok(archiveIndex < styleIndex);
+    assert.ok(styleIndex < archiveIndex);
 };
-test("uses cite book ordering as the print-template fallback", testCallbackI);
+test(
+    "keeps template-defined order ahead of print fallback fields",
+    testCallbackI,
+);
+
+test("keeps Cite interview TemplateData order with extra fields", () => {
+    const result = formatCitationTemplate(
+        [
+            "{{Cite interview",
+            "|last1=Noguchi|first1=Shinji",
+            "|last2=Hatsushiba|first2=Hiroya",
+            "|date=2006-12-20",
+            "|script-title=en:Eternal Sonata Interview",
+            "|url=http://xbox360.ign.com/articles/751/751888p1.html",
+            "|interviewer=Brudvig, Erik|work=[[IGN]]}}",
+        ].join(""),
+        generatedTemplateData["cite interview"],
+        "inline",
+    );
+    const names = result.citation.params.map((param) => param.name);
+
+    assert.deepEqual(names, [
+        "last",
+        "first",
+        "last2",
+        "first2",
+        "interviewer",
+        "script-title",
+        "url",
+        "work",
+        "date",
+    ]);
+});
 
 const testCallbackH = () => {
     const commented = formatCitationTemplate(

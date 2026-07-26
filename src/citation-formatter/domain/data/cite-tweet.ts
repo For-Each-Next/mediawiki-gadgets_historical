@@ -1,7 +1,7 @@
 /**
  * Generated English Wikipedia TemplateData for cite tweet.
  *
- * Generated from English Wikipedia TemplateData.
+ * Run the workspace update:template-data script to refresh it.
  */
 
 import type { CitationTemplateData } from "../types.ts";
@@ -11,8 +11,6 @@ const templateData: CitationTemplateData = {
         number: [],
         user: [],
         title: [],
-        first: ["first1"],
-        last: [],
         author: [],
         "author-link": ["authorlink"],
         retweet: [],
@@ -27,32 +25,34 @@ const templateData: CitationTemplateData = {
         "trans-title": [],
         link: [],
         df: [],
-        quote: [],
         ref: [],
+        quote: [],
+        first: ["first1"],
+        last: [],
     },
     dateParams: ["date", "access-date", "archive-date"],
     paramOrder: [
-        "last",
+        "number",
+        "user",
+        "title",
         "first",
+        "last",
         "author",
         "author-link",
-        "user",
-        "number",
-        "date",
-        "title",
-        "script-title",
-        "trans-title",
-        "language",
         "retweet",
-        "location",
+        "date",
         "access-date",
-        "link",
-        "url-status",
+        "language",
+        "location",
         "archive-url",
         "archive-date",
+        "url-status",
+        "script-title",
+        "trans-title",
+        "link",
+        "df",
         "quote",
         "ref",
-        "df",
     ],
 };
 

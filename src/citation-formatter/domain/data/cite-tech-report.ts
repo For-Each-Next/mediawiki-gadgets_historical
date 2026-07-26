@@ -1,7 +1,7 @@
 /**
  * Generated English Wikipedia TemplateData for cite tech report.
  *
- * Generated from English Wikipedia TemplateData.
+ * Run the workspace update:template-data script to refresh it.
  */
 
 import type { CitationTemplateData } from "../types.ts";

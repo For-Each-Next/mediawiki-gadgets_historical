@@ -1060,14 +1060,14 @@ function createDraftActions(
     function changeDraftTemplate(template: string | null): void {
         updateDraftTemplate(state, template);
     }
-    function formatParameters(): void {
+    function sortParameters(): void {
         const draft = state.draft.value;
         if (draft != null) {
             if (state.autoScriptTitle.value) {
                 moveSourceDraftTitleToScriptTitle(draft, getCurrentWikiId());
             }
             formatSourceDraftRows(draft);
-            context.toast.success("Citation parameters formatted.", {
+            context.toast.success("Citation parameters sorted.", {
                 autoDismiss: true,
             });
         }
@@ -1101,13 +1101,13 @@ function createDraftActions(
         addParameter,
         autofillDate,
         changeDraftTemplate,
-        formatParameters,
         getDateAutofillTooltip,
         isDateAutofillParameter,
         isLinkableDraftParameter,
         linkOrganization,
         saveDraft,
         saveDraftAndClose,
+        sortParameters,
         switchUrlStatus,
     };
 }
@@ -2741,9 +2741,9 @@ const SOURCE_MANAGER_TEMPLATE = `
         </table>
         <div class="cf-source-manager__actions">
             <cdx-button @click="addParameter">Add parameter</cdx-button>
-            <cdx-button @click="formatParameters">
+            <cdx-button @click="sortParameters">
                 <cdx-icon :icon="formatRowsIcon" />
-                Format
+                Sort parameters
             </cdx-button>
         </div>
         <cdx-field class="cf-source-manager__source-preview">

@@ -335,14 +335,21 @@ const testCallbackM = () => {
     const result = formatCitationWikitext(source, generatedTemplateData);
 
     const author1 = result.text.indexOf("| author1 =");
+    const interviewer = result.text.indexOf("| interviewer =");
+    const title = result.text.indexOf("| title =");
     const author2 = result.text.indexOf("| author2 =");
     assert.ok(author1 < author2);
+    assert.ok(author2 < interviewer);
+    assert.ok(interviewer < title);
     const authorMatches = result.text.match(/\| author\d =/gu);
     const firstAuthors = authorMatches?.slice(0, 2);
     assert.deepEqual(firstAuthors, ["| author1 =", "| author2 ="]);
     assert.match(result.text, /<ref name="Horii & Hayasaka, 2025"/u);
 };
-test("keeps all interview authors before the title", testCallbackM);
+test(
+    "keeps Cite interview subjects together before its other fields",
+    testCallbackM,
+);
 
 const testCallbackL = () => {
     const source = [
@@ -363,10 +370,13 @@ const testCallbackL = () => {
     const editorFirst = result.text.indexOf("| editor-first =");
     const title = result.text.indexOf("| title =");
     assert.ok(editorLast < editorFirst);
-    assert.ok(editorFirst < title);
+    assert.ok(title < editorLast);
     assert.match(result.text, /<ref name="Hayasaka, 2025"/u);
 };
-test("places cite interview editors before the title", testCallbackL);
+test(
+    "places Cite interview fallback editors after defined fields",
+    testCallbackL,
+);
 
 const testCallbackK = () => {
     const source = [
@@ -521,7 +531,13 @@ const testCallbackF = () => {
     const result = formatCitationWikitext(source, generatedTemplateData);
 
     assert.match(result.text, /<ref name="Andy Mabbett, 2015" \/>/u);
-    assert.match(result.text, /\{\{Cite tweet\n  \| author = Andy Mabbett/u);
+    const number = result.text.indexOf("| number =");
+    const user = result.text.indexOf("| user =");
+    const title = result.text.indexOf("| title =");
+    const author = result.text.indexOf("| author =");
+    assert.ok(number < user);
+    assert.ok(user < title);
+    assert.ok(title < author);
     assert.match(result.text, /\| date = 2015-02-07/u);
     assert.match(result.text, /<\/ref>\n\n<\/references>/u);
 };

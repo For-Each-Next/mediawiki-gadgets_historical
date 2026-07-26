@@ -77,8 +77,21 @@ the reference name's date or part locator:
 ```
 
 Build from the workspace root with `npm run build -w citation-formatter`.
+Refresh every supported template from English Wikipedia's live TemplateData
+API with `npm run update:template-data -w citation-formatter`.
 
 ## Version history
+
+### 0.3.30
+
+- Restored an automatic live TemplateData updater covering every supported
+  citation template and refreshed all 31 generated snapshots.
+- Kept numbered author/interviewee fields together, then followed each
+  template's own order even when a citation also contains fallback fields, so
+  `Cite interview` no longer sends `interviewer` to the end.
+- Renamed the draft-only Format action to Sort parameters; Save continues to
+  write a canonically sorted citation, while Format citations processes the
+  complete current article.
 
 ### 0.3.29
 

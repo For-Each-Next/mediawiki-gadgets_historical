@@ -61,6 +61,30 @@ test("formats script-title immediately after title", () => {
     assert.equal(getRowIndex(draft, "script-title"), titleIndex + 1);
 });
 
+test("sorts Cite interview rows by its own TemplateData", () => {
+    const draft = parseSourceDraft(
+        "{{cite interview|last1=Noguchi|first1=Shinji|" +
+            "last2=Hatsushiba|first2=Hiroya|" +
+            "script-title=en:Eternal Sonata Interview|" +
+            "interviewer=Brudvig, Erik|work=IGN}}",
+    );
+
+    formatSourceDraftRows(draft);
+    const populated = draft.rows
+        .filter((row) => row.value !== "")
+        .map((row) => row.name);
+
+    assert.deepEqual(populated, [
+        "last1",
+        "first1",
+        "last2",
+        "first2",
+        "interviewer",
+        "script-title",
+        "work",
+    ]);
+});
+
 test("marks unsupported parameters and malformed dates", () => {
     const draft = parseSourceDraft(
         "{{cite web|title=Example|date=2026-13-40}}",

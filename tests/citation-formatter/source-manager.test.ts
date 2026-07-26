@@ -391,13 +391,13 @@ test("seeds only common parameters supported by cite tweet", () => {
         .map((row) => row.name);
 
     assert.deepEqual(mainNames, [
-        "author",
-        "user",
         "number",
-        "date",
+        "user",
         "title",
-        "language",
+        "author",
+        "date",
         "access-date",
+        "language",
         "link",
     ]);
     assert.doesNotMatch(mainNames.join(" "), /\b(?:url|website|publisher)\b/u);

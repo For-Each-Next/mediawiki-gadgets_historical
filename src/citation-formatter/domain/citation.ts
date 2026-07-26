@@ -152,7 +152,7 @@ const SOURCE_LOCATOR_ENTRIES: Array<[string, string]> = [
     ["scene", "scene"],
 ];
 
-const FALLBACK_PARAM_ORDER_OFFSET = 1_000;
+const PARAM_ORDER_SCALE = 1_000;
 const MAX_NUMBERED_CREATORS = 50;
 
 const citeWebParamOrderEntries = citeWebTemplateData.paramOrder.map(
@@ -297,7 +297,7 @@ function formatNameOverrideComment(_match: string, content: string): string {
 }
 
 /**
- * Groups author slots, then applies TemplateData parameter order.
+ * Applies the template's TemplateData order, then a generic fallback.
  *
  * @param template - Normalized citation template name.
  * @param params - Canonical citation parameters.
@@ -317,20 +317,17 @@ function sortCitationParams(
     if (PRINT_CITATION_TEMPLATES.has(template)) {
         fallbackOrder = CITE_BOOK_PARAM_ORDER;
     }
-    const someCallback = function isFallbackParam(param: CitationParam) {
-        return !order.has(param.name) && fallbackOrder.has(param.name);
-    };
-    const hasFallbackParam = params.some(someCallback);
-    let activeOrder = order;
-    if (hasFallbackParam) {
-        activeOrder = fallbackOrder;
-    }
     const mapCallbackA = function addOrder(
         param: CitationParam,
     ): CitationParamMetadata {
         const orderedParam = {
             ...param,
-            order: getCitationParamSortOrder(param.name, activeOrder),
+            order: getCitationParamSortOrder(
+                param.name,
+                order,
+                fallbackOrder,
+                metadata.paramOrder.length,
+            ),
         };
         return orderedParam;
     };
@@ -347,28 +344,37 @@ function sortCitationParams(
  * Gets the effective sort order for one citation parameter.
  *
  * @param name - Canonical citation parameter name.
- * @param activeOrder - Active TemplateData or fallback order.
+ * @param templateOrder - Active template's exact TemplateData order.
+ * @param fallbackOrder - Web or print order for additional fields.
+ * @param templateSize - Number of template-defined parameters.
  * @returns Parameter sort order.
  */
 function getCitationParamSortOrder(
     name: string,
-    activeOrder: Map<string, number>,
+    templateOrder: Map<string, number>,
+    fallbackOrder: Map<string, number>,
+    templateSize: number,
 ): number {
-    let result = getAuthorParamOrder(name);
-    if (result == null) {
-        result = activeOrder.get(name) ?? Number.MAX_SAFE_INTEGER;
-        if (result !== Number.MAX_SAFE_INTEGER) {
-            result += FALLBACK_PARAM_ORDER_OFFSET;
-        }
+    const authorOrder = getAuthorParamOrder(name);
+    if (authorOrder != null) {
+        return authorOrder;
     }
-    return result;
+    const templateIndex = templateOrder.get(name);
+    if (templateIndex != null) {
+        return templateIndex * PARAM_ORDER_SCALE;
+    }
+    const titleIndex = templateOrder.get("title");
+    if (titleIndex != null && name === "script-title") {
+        return titleIndex * PARAM_ORDER_SCALE + 1;
+    }
+    const fallbackIndex = fallbackOrder.get(name);
+    return fallbackIndex == null
+        ? Number.MAX_SAFE_INTEGER
+        : (templateSize + 1) * PARAM_ORDER_SCALE + fallbackIndex;
 }
 
 /**
- * Orders all author-name slots before non-author citation fields.
- *
- * @param name - Canonical parameter name.
- * @returns Author-field order, or null for another parameter family.
+ * Keeps every numbered author/interviewee slot in one leading group.
  */
 function getAuthorParamOrder(name: string): number | null {
     const match = name.match(/^(last|first|author-link)(\d*)$/u);

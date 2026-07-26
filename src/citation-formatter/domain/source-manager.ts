@@ -1412,9 +1412,8 @@ function sortSourceDraftRows(
         const relatedTitleOrder = getRelatedTitleParamOrder(name, order);
         const rank =
             authorOrder ??
-            relatedTitleOrder ??
             (standardOrder == null
-                ? Number.MAX_SAFE_INTEGER
+                ? (relatedTitleOrder ?? Number.MAX_SAFE_INTEGER)
                 : 1_000 + standardOrder);
         return { index, rank, row };
     });
@@ -1435,7 +1434,7 @@ function getRelatedTitleParamOrder(
         : null;
 }
 
-/** Orders canonical author slots before other standard parameters. */
+/** Keeps author/interviewee slots together before other rows. */
 function getDraftAuthorParamOrder(name: string): number | null {
     const match = name.match(/^(last|first|author-link)(\d*)$/u);
     if (match == null) {

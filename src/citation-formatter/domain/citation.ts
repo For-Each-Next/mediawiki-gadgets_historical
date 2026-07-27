@@ -317,7 +317,7 @@ function sortCitationParams(
     if (PRINT_CITATION_TEMPLATES.has(template)) {
         fallbackOrder = CITE_BOOK_PARAM_ORDER;
     }
-    const mapCallbackA = function addOrder(
+    const addSortOrder = function addSortOrder(
         param: CitationParam,
     ): CitationParamMetadata {
         const orderedParam = {
@@ -332,7 +332,7 @@ function sortCitationParams(
         return orderedParam;
     };
     const result = params
-        .map(mapCallbackA)
+        .map(addSortOrder)
         .sort((left, right) => left.order - right.order)
         .map(function removeOrder(param): CitationParam {
             return { name: param.name, value: param.value };
@@ -492,13 +492,13 @@ export function getCitationIdentity(
     const year = getCitationYear(values);
     const locator = getSourceLocator(values);
     const baseName = `${author}, ${year}`;
-    const filterCallback = function isSourceIdentity(param: CitationParam) {
+    const isSourceIdentity = function isSourceIdentity(param: CitationParam) {
         const result =
             SOURCE_IDENTITY_PARAMS.has(param.name) ||
             isCreatorParam(param.name);
         return result;
     };
-    const signatureParams = citation.params.filter(filterCallback);
+    const signatureParams = citation.params.filter(isSourceIdentity);
     const signatureValues = signatureParams.map(mapSourceIdentityParam);
     const sourceKey = getSourceIdentityKey(citation.params);
     const sourceSignature =
@@ -589,10 +589,10 @@ function addFirstAuthorInitials(
     values: Record<string, string>,
 ): string {
     const first = cleanValue(values.first || "");
-    const mapCallback = (part: string) => part.match(/\p{L}/u)?.[0];
+    const extractInitial = (part: string) => part.match(/\p{L}/u)?.[0];
     const initials = first
         .split(/[\s-]+/u)
-        .map(mapCallback)
+        .map(extractInitial)
         .filter((letter) => letter != null)
         .map((letter) => `${letter}.`)
         .join(" ");
@@ -713,13 +713,13 @@ function collectNumberedValues(
             const explicitFirstCandidates = bases.map((base) => `${base}1`);
             candidates.push(...explicitFirstCandidates);
         }
-        const findCallbackA = function identifiesAuthor(candidate: string) {
+        const identifiesAuthor = function identifiesAuthor(candidate: string) {
             return (
                 values[candidate]?.trim() &&
                 !hasFieldDirective(values[candidate], "no-author")
             );
         };
-        const key = candidates.find(findCallbackA);
+        const key = candidates.find(identifiesAuthor);
         if (key == null) {
             if (index > 1) {
                 break;

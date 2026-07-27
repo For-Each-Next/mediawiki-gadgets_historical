@@ -3,7 +3,6 @@
  */
 
 import {
-    appendCitationLocator,
     canonicalizeCitation,
     cleanValue,
     formatBlockCitation,
@@ -13,7 +12,6 @@ import {
 } from "./citation.ts";
 import templateData from "./data/index.ts";
 import { getCitationOutputParams } from "./post-formatter.ts";
-import { getSourceDraftErrors } from "./source-validation.ts";
 import { isCitationTemplate, normalizeTemplateName } from "./templates.ts";
 import type {
     CitationLayout,
@@ -172,21 +170,6 @@ const CREATOR_ALIAS_PARAMETER_PATTERNS = [
     /^(?:editor|interviewer|contributor|translator)(?:-last\d*|\d+-last)$/u,
     /^(?:developer|user)$/u,
 ];
-const SOURCE_SEARCH_ORGANIZATION_PARAMETERS = new Set([
-    "agency",
-    "broadcaster",
-    "department",
-    "institution",
-    "journal",
-    "magazine",
-    "network",
-    "newspaper",
-    "periodical",
-    "platform",
-    "publisher",
-    "website",
-    "work",
-]);
 const UNUSED_SOURCE_SECTION_ID = "unused";
 
 export interface ParsedSourceUrl {
@@ -212,8 +195,47 @@ export interface SourceDraft {
     template: string;
 }
 
+export interface SourceDraftCitationNameParts {
+    author: string;
+    part: string;
+    year: string;
+}
+
+export interface SourceDraftParameterAliasInfo {
+    aliases: string[];
+    canonical: string;
+    isAlias: boolean;
+}
+
+/** Signals that a citation changed after its snapshot was taken. */
+export class StaleSourceError extends Error {
+    override name = "StaleSourceError";
+}
+
+/** Describes aliases that resolve to one canonical parameter. */
+export class SourceParameterCollisionError extends Error {
+    override name = "SourceParameterCollisionError";
+    readonly canonicalParameter: string;
+    readonly firstParameter: string;
+    readonly secondParameter: string;
+
+    constructor(
+        firstParameter: string,
+        secondParameter: string,
+        canonicalParameter: string,
+    ) {
+        super(
+            `${firstParameter} and ${secondParameter} both map to ` +
+                `${canonicalParameter}. Remove or rename one parameter.`,
+        );
+        this.canonicalParameter = canonicalParameter;
+        this.firstParameter = firstParameter;
+        this.secondParameter = secondParameter;
+    }
+}
+
 export type SourceDraftCitationNameCell = "alias" | "value";
-export type ExistingSourceStatus = "error" | "non-standard" | "standard";
+export type ExistingSourceStatus = "non-standard" | "standard";
 
 interface DraftAuthorParameter {
     index: number;
@@ -250,7 +272,6 @@ export interface ExistingSource {
 export interface SourceSection {
     depth: number;
     id: string;
-    label: string;
     parentId: string;
     start: number;
     title: string;
@@ -317,7 +338,6 @@ export function ensureNextAuthorDraftRows(draft: SourceDraft): void {
     for (const row of populated) {
         ensureNextAuthorDraftRow(draft, row);
     }
-    formatSourceDraftRows(draft);
 }
 
 /**
@@ -676,15 +696,38 @@ export function serializeSourceDraftPreservingNames(
         : formatBlockCitation(citation);
 }
 
-/** Builds the immediate reference-name preview for a source draft. */
-export function getSourceDraftCitationName(draft: SourceDraft): string {
-    const identity = getCitationIdentity(buildDraftCitation(draft));
-    return appendCitationLocator(identity.baseName, identity.locator);
-}
-
 /** Lists canonical names offered by the parameter combobox. */
 export function listSourceDraftParameterNames(draft: SourceDraft): string[] {
     return [...getTemplateMetadata(draft.template).paramOrder];
+}
+
+/** Resolves a parameter to its template-specific alias group. */
+export function getSourceDraftParameterAliasInfo(
+    draft: SourceDraft,
+    enteredName: string,
+): SourceDraftParameterAliasInfo | null {
+    const enteredValue = enteredName.trim();
+    const entered = enteredValue.toLocaleLowerCase("en-US");
+    if (entered === "") {
+        return null;
+    }
+    const metadata = getTemplateMetadata(draft.template);
+    for (const [canonical, aliases] of Object.entries(metadata.aliases)) {
+        const normalizedCanonical = canonical.toLocaleLowerCase("en-US");
+        const normalizedAliases = aliases.map((alias) =>
+            alias.toLocaleLowerCase("en-US"),
+        );
+        const matchesAlias = normalizedAliases.includes(entered);
+        if (entered !== normalizedCanonical && !matchesAlias) {
+            continue;
+        }
+        return {
+            aliases: aliases.filter((alias) => alias !== canonical),
+            canonical,
+            isAlias: matchesAlias && enteredValue !== canonical,
+        };
+    }
+    return null;
 }
 
 /**
@@ -785,15 +828,6 @@ function buildDraftCitation(draft: SourceDraft): CitationTemplate {
 }
 
 /**
- * Finds draft rows that actively supply the visible generated ref name.
- */
-export function getSourceDraftCitationNameRows(
-    draft: SourceDraft,
-): Set<number> {
-    return new Set(getSourceDraftCitationNameCells(draft).keys());
-}
-
-/**
  * Finds the exact value or alias cells supplying the visible ref name.
  */
 export function getSourceDraftCitationNameCells(
@@ -828,18 +862,29 @@ export function getSourceDraftCitationNameCells(
     return result;
 }
 
+/**
+ * Gets a draft's generated author, year, and part name components.
+ */
+export function getSourceDraftCitationNameParts(
+    draft: SourceDraft,
+): SourceDraftCitationNameParts {
+    const identity = getCitationIdentity(buildDraftCitation(draft));
+    return {
+        author: identity.author,
+        part: identity.locator,
+        year: identity.year,
+    };
+}
+
 /** Lists citation definitions contained in active full ref tags. */
-export function listExistingSources(
-    text: string,
-    wikiId: string = "",
-): ExistingSource[] {
+export function listExistingSources(text: string): ExistingSource[] {
     const protectedRanges = findProtectedRanges(text);
     const masked = maskProtectedRanges(text, protectedRanges);
     const calls = findRestoredTemplateCalls(text, masked);
     const containers = findReferenceContainers(masked, calls);
     const sources = new Map<number, ExistingSource>();
-    addNativeRefSources(sources, text, masked, calls, containers, wikiId);
-    addCompactDefinitionSources(sources, calls, containers, wikiId);
+    addNativeRefSources(sources, text, masked, calls, containers);
+    addCompactDefinitionSources(sources, calls, containers);
     const result = [...sources.values()];
     assignExistingSourceSections(result, masked, calls, containers);
     return result.sort(
@@ -868,10 +913,9 @@ export function listExistingSourceSections(
         available.push({
             depth: 0,
             id: UNUSED_SOURCE_SECTION_ID,
-            label: "Unused references",
             parentId: "",
             start: Number.MAX_SAFE_INTEGER,
-            title: "Unused references",
+            title: "",
         });
     }
     return available;
@@ -889,16 +933,11 @@ export function filterExistingSources(
     sources: ExistingSource[],
     query: string,
     sectionId: string = "",
-    status: ExistingSourceStatus | "all" = "all",
 ): ExistingSource[] {
-    const matchingStatus =
-        status === "all"
-            ? sources
-            : sources.filter((source) => source.status === status);
     const inSection =
         sectionId === ""
-            ? matchingStatus
-            : matchingStatus.filter(function matchesSection(source) {
+            ? sources
+            : sources.filter(function matchesSection(source) {
                   return matchesSourceSection(source, sectionId);
               });
     const normalizedQuery = query.trim().toLocaleLowerCase("en-US");
@@ -980,40 +1019,6 @@ function getEditDistance(left: string, right: string, limit: number): number {
     return previous.at(-1) ?? limit + 1;
 }
 
-/** Lists author and publication names for source searching. */
-export function listExistingSourceSearchSuggestions(
-    sources: ExistingSource[],
-): string[] {
-    const counts = new Map<string, number>();
-    for (const source of sources) {
-        const sourceValues = new Set<string>();
-        for (const row of source.draft.rows) {
-            const name = row.name.trim().toLocaleLowerCase("en-US");
-            if (
-                !isCreatorAliasDraftParameter(name) &&
-                !SOURCE_SEARCH_ORGANIZATION_PARAMETERS.has(name)
-            ) {
-                continue;
-            }
-            const display = cleanValue(row.alias || row.value);
-            if (display !== "") {
-                sourceValues.add(display);
-            }
-        }
-        for (const display of sourceValues) {
-            counts.set(display, (counts.get(display) ?? 0) + 1);
-        }
-    }
-    return [...counts.keys()].sort(function sortSuggestions(left, right) {
-        const countDifference =
-            (counts.get(right) ?? 0) - (counts.get(left) ?? 0);
-        return (
-            countDifference ||
-            left.localeCompare(right, undefined, { sensitivity: "base" })
-        );
-    });
-}
-
 /** Checks source use in a selected section or descendant. */
 function matchesSourceSection(
     source: ExistingSource,
@@ -1045,21 +1050,6 @@ export function findExistingSources(
     });
 }
 
-/**
- * Finds the most reusable citation matching an original or archive URL.
- */
-export function findExistingSource(
-    text: string,
-    enteredUrl: string,
-): ExistingSource | null {
-    const matches = findExistingSources(text, enteredUrl);
-    const ungrouped = matches.find(
-        (source) => source.referenceName !== "" && source.group === "",
-    );
-    const named = matches.find((source) => source.referenceName !== "");
-    return ungrouped ?? named ?? matches[0] ?? null;
-}
-
 /** Builds a reuse tag when named, otherwise returns the full ref. */
 export function buildExistingSourceReference(
     source: Pick<ExistingSource, "group" | "rawReference" | "referenceName">,
@@ -1089,7 +1079,7 @@ export function replaceExistingSource(
 ): string {
     const current = text.slice(source.templateStart, source.templateEnd);
     if (current !== source.rawTemplate) {
-        throw new Error("The source changed after it was opened.");
+        throw new StaleSourceError("The source changed after it was opened.");
     }
     const citation = serializeSourceDraft(draft, layout);
     const replacementText =
@@ -1259,10 +1249,9 @@ function findSourceSections(masked: string): SourceSection[] {
         {
             depth: 0,
             id: "0",
-            label: "§ 0 Lead",
             parentId: "",
             start: -1,
-            title: "Lead",
+            title: "",
         },
     ];
     const counters = [0, 0, 0, 0, 0];
@@ -1280,7 +1269,6 @@ function findSourceSections(masked: string): SourceSection[] {
         result.push({
             depth,
             id,
-            label: formatSourceSectionLabel(id, title),
             parentId,
             start: match.index,
             title,
@@ -1297,11 +1285,6 @@ function findActiveParentId(activeIds: string[], depth: number): string {
         }
     }
     return "";
-}
-
-/** Formats the compact label shown in the section selectors. */
-function formatSourceSectionLabel(id: string, title: string): string {
-    return `§ ${id} ${title}`.trim();
 }
 
 /** Resolves a source offset to its nearest preceding heading. */
@@ -1606,9 +1589,10 @@ function assertUniqueCanonicalParams(
         const name = canonical.params[0]?.name ?? param.name;
         const existing = byName.get(name);
         if (existing != null) {
-            throw new Error(
-                `${existing} and ${param.name} both map to ${name}. ` +
-                    "Remove or rename one parameter.",
+            throw new SourceParameterCollisionError(
+                existing,
+                param.name,
+                name,
             );
         }
         byName.set(name, param.name);
@@ -1715,14 +1699,12 @@ function findRestoredTemplateCalls(text: string, masked: string) {
 }
 
 /** Adds citation definitions written as native full ref tags. */
-// eslint-disable-next-line max-lines-per-function, max-params
 function addNativeRefSources(
     sources: Map<number, ExistingSource>,
     text: string,
     masked: string,
     calls: ReturnType<typeof findTemplateCalls>,
     containers: ReferenceContainer[],
-    wikiId: string,
 ): void {
     const tags = findRefTags(masked).filter((tag) => !tag.selfClosing);
     for (const tag of tags) {
@@ -1744,12 +1726,7 @@ function addNativeRefSources(
         const nested = calls.filter(
             (call) => call.start >= openingEnd && call.end <= contentEnd,
         );
-        const added = addReferenceCitationSources(
-            sources,
-            reference,
-            nested,
-            wikiId,
-        );
+        const added = addReferenceCitationSources(sources, reference, nested);
         if (!added) {
             sources.set(
                 reference.start,
@@ -1764,7 +1741,6 @@ function addCompactDefinitionSources(
     sources: Map<number, ExistingSource>,
     calls: ReturnType<typeof findTemplateCalls>,
     containers: ReferenceContainer[],
-    wikiId: string,
 ): void {
     for (const call of calls) {
         const definition = parseCompactDefinition(call, containers);
@@ -1781,7 +1757,6 @@ function addCompactDefinitionSources(
             sources,
             definition.reference,
             nested,
-            wikiId,
         );
         if (!added) {
             sources.set(
@@ -1837,15 +1812,11 @@ function addReferenceCitationSources(
     sources: Map<number, ExistingSource>,
     reference: SourceReference,
     calls: ReturnType<typeof findTemplateCalls>,
-    wikiId: string,
 ): boolean {
     let added = false;
     for (const call of calls) {
         if (isCitationTemplate(call.name) && !sources.has(call.start)) {
-            sources.set(
-                call.start,
-                buildExistingSource(reference, call, wikiId),
-            );
+            sources.set(call.start, buildExistingSource(reference, call));
             added = true;
         }
     }
@@ -1856,12 +1827,9 @@ function addReferenceCitationSources(
 function buildExistingSource(
     reference: SourceReference,
     call: ReturnType<typeof findTemplateCalls>[number],
-    wikiId: string,
 ): ExistingSource {
     const draft = parseSourceDraft(call.raw);
     const title = getExistingSourceTitle(draft);
-    const status: ExistingSourceStatus =
-        getSourceDraftErrors(draft, wikiId).size === 0 ? "standard" : "error";
     const partial = {
         archiveUrl: getDraftValue(draft, "archive-url"),
         draft,
@@ -1873,7 +1841,7 @@ function buildExistingSource(
         referenceName: reference.name,
         referenceStart: reference.start,
         sectionIds: [],
-        status,
+        status: "standard" as const,
         templateEnd: call.end,
         templateStart: call.start,
         title: title.text,

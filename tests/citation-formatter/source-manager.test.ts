@@ -14,13 +14,12 @@ import {
     ensureNextAuthorDraftRows,
     filterExistingSources,
     findCreatorAliasSuggestions,
-    findExistingSource,
-    getSourceDraftCitationName,
     getSourceDraftCitationNameCells,
-    getSourceDraftCitationNameRows,
+    getSourceDraftCitationNameParts,
+    getSourceDraftParameterAliasInfo,
+    findExistingSources,
     joinAuthorDraftRow,
     listExistingSourceSections,
-    listExistingSourceSearchSuggestions,
     listExistingSources,
     listSourceDraftParameterNames,
     moveSourceDraftTitleToScriptTitle,
@@ -298,6 +297,23 @@ test("adds numbered author slots without duplicating them", () => {
     assert.equal(getRow(draft, "author1").value, "Shinji, Noguchi");
 });
 
+test("adds author slots without reordering rows during editing", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|author=Author|title=Example|url=https://example.test}}",
+    );
+    const author = getRow(draft, "author");
+    const title = getRow(draft, "title");
+    const url = getRow(draft, "url");
+    draft.rows = [url, author, title];
+
+    ensureNextAuthorDraftRows(draft);
+
+    assert.deepEqual(
+        draft.rows.map((row) => row.name),
+        ["url", "author", "author2", "title"],
+    );
+});
+
 test("retains structured author fields across template changes", () => {
     const draft = parseSourceDraft(
         "{{cite web|author=Tom G. Goodman|title=Example}}",
@@ -541,13 +557,12 @@ test("identifies fields actively forming a generated reference name", () => {
         "{{cite web|author=Noguchi, Shinji|date=2007-06-18|" +
             "page=2|title=Long interview|website=Example}}",
     );
-    const indexes = getSourceDraftCitationNameRows(draft);
+    const indexes = new Set(getSourceDraftCitationNameCells(draft).keys());
     const names = draft.rows
         .filter((_row, index) => indexes.has(index))
         .map((row) => row.name);
 
     assert.deepEqual(names, ["author", "date", "page"]);
-    assert.equal(getSourceDraftCitationName(draft), "Noguchi, 2007, p. 2");
 });
 
 test("lists canonical parameter names for combobox hints", () => {
@@ -559,13 +574,29 @@ test("lists canonical parameter names for combobox hints", () => {
     assert.equal(new Set(names).size, names.length);
 });
 
+test("describes canonical and alternative parameter names", () => {
+    const draft = createManualSourceDraft("cite web");
+
+    assert.deepEqual(getSourceDraftParameterAliasInfo(draft, "accessdate"), {
+        aliases: ["accessdate"],
+        canonical: "access-date",
+        isAlias: true,
+    });
+    assert.deepEqual(getSourceDraftParameterAliasInfo(draft, "URL"), {
+        aliases: ["URL"],
+        canonical: "url",
+        isAlias: true,
+    });
+    assert.equal(getSourceDraftParameterAliasInfo(draft, "custom"), null);
+});
+
 test("highlights eligible fallback name fields after directives", () => {
     const draft = parseSourceDraft(
         "{{cite web|author=Author<!-- !no-author -->|" +
             "website=Example Site|date=2025<!-- !no-date -->|year=2007|" +
             "page=1<!-- !no-part -->|pages=2–3|title=Example}}",
     );
-    const indexes = getSourceDraftCitationNameRows(draft);
+    const indexes = new Set(getSourceDraftCitationNameCells(draft).keys());
     const names = draft.rows
         .filter((_row, index) => indexes.has(index))
         .map((row) => row.name);
@@ -587,11 +618,23 @@ test("identifies only the exact value or alias cells visible in a name", () => {
         draft.rows.slice(0, 6).map((row) => row.name),
         ["author1", "author2", "author3", "author4", "author5", "date"],
     );
-    assert.equal(getSourceDraftCitationName(draft), "Uno et al., 2025");
     assert.deepEqual(cells, [
         ["author1", "alias"],
         ["date", "value"],
     ]);
+});
+
+test("builds author, year, and part reference-name components", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|author=作者<!-- # Shizi -->|date=2025-07-27|" +
+            "page=4|title=Example}}",
+    );
+
+    assert.deepEqual(getSourceDraftCitationNameParts(draft), {
+        author: "Shizi",
+        part: "p. 4",
+        year: "2025",
+    });
 });
 
 test("suggests creator aliases previously used in other source roles", () => {
@@ -752,15 +795,16 @@ test("counts source uses and filters through section hierarchies", () => {
     assert.equal(byName.Alpha.usageCount, 2);
     assert.equal(byName.Unused.usageCount, 0);
     assert.deepEqual(
-        listExistingSourceSections(text, sources).map(
-            (section) => section.label,
-        ),
+        listExistingSourceSections(text, sources).map(({ id, title }) => ({
+            id,
+            title,
+        })),
         [
-            "§ 0 Lead",
-            "§ 1 First",
-            "§ 1.1 Child",
-            "§ 2 Second",
-            "Unused references",
+            { id: "0", title: "" },
+            { id: "1", title: "First" },
+            { id: "1.1", title: "Child" },
+            { id: "2", title: "Second" },
+            { id: "unused", title: "" },
         ],
     );
     assert.deepEqual(
@@ -836,31 +880,31 @@ test("only offers section lead filters that contain source uses", () => {
     );
 });
 
-test("marks and filters invalid and non-standard references", () => {
+test("does not offer an otherwise empty subsection lead level", () => {
+    const text = buildSectionFilterText();
+    const sources = listExistingSources(text);
+    const sections = listExistingSourceSections(text, sources);
+    const selectors = buildSourceSectionSelectors(
+        sections,
+        ["1", "1.1"],
+        sources,
+    );
+
+    assert.equal(selectors.length, 2);
+});
+
+test("classifies citation templates and non-standard references", () => {
     const sources = listExistingSources(
         [
             '<ref name="Good">{{cite web|title=Good}}</ref>',
             '<ref name="Error">{{cite web|title=Bad|date=2026-02-30}}</ref>',
             '<ref name="Plain">A plain source note.</ref>',
         ].join("\n"),
-        "enwiki",
     );
 
     assert.deepEqual(
         sources.map((source) => source.status),
-        ["standard", "error", "non-standard"],
-    );
-    assert.deepEqual(
-        filterExistingSources(sources, "", "", "error").map(
-            (source) => source.referenceName,
-        ),
-        ["Error"],
-    );
-    assert.deepEqual(
-        filterExistingSources(sources, "", "", "non-standard").map(
-            (source) => source.referenceName,
-        ),
-        ["Plain"],
+        ["standard", "standard", "non-standard"],
     );
 });
 
@@ -878,26 +922,6 @@ test("batches every standard source into one CS1 check payload", () => {
     assert.match(payload, /id="citation-formatter-cs1-check-1"/u);
     assert.match(payload, /\{\{cite web\|title=First/u);
     assert.match(payload, /\{\{cite book\|title=Second/u);
-});
-
-test("lists recurring authors and websites as source search suggestions", () => {
-    const sources = listExistingSources(
-        [
-            '<ref name="A">{{cite web|author=Alice|website=Example|' +
-                "title=A}}</ref>",
-            '<ref name="B">{{cite web|author=Alice|publisher=Press|' +
-                "title=B}}</ref>",
-            '<ref name="C">{{cite web|author=Bob|website=Example|' +
-                "title=C}}</ref>",
-        ].join(""),
-    );
-
-    assert.deepEqual(listExistingSourceSearchSuggestions(sources), [
-        "Alice",
-        "Example",
-        "Bob",
-        "Press",
-    ]);
 });
 
 test("moves single foreign-language titles to script-title", () => {
@@ -1071,35 +1095,35 @@ const testExistingSourceMatching = () => {
         '<ref name="Story">{{cite web|title=Story|' +
         "url=https://example.test/story?edition=one&b=2&a=1|" +
         `archive-url=${archive}}}</ref>`;
-    const original = findExistingSource(
+    const [original] = findExistingSources(
         text,
         "https://example.test/story?edition=one&b=2&a=1#part",
     );
-    const archived = findExistingSource(text, archive);
-    const reordered = findExistingSource(
+    const [archived] = findExistingSources(text, archive);
+    const reordered = findExistingSources(
         text,
         "https://example.test/story?b=2&a=1&edition=one",
     );
-    const different = findExistingSource(
+    const different = findExistingSources(
         text,
         "https://example.test/story?edition=two&b=2&a=1",
     );
-    const differentPage = findExistingSource(
+    const differentPage = findExistingSources(
         text,
         "https://example.test/story?edition=one&b=2&a=1&page=7",
     );
     assert.equal(original?.referenceName, "Story");
     assert.equal(archived?.referenceName, "Story");
-    assert.equal(reordered, null);
-    assert.equal(different, null);
-    assert.equal(differentPage, null);
+    assert.deepEqual(reordered, []);
+    assert.deepEqual(different, []);
+    assert.deepEqual(differentPage, []);
 };
 test(
     "matches original and Wayback URLs without false query matches",
     testExistingSourceMatching,
 );
 
-test("prefers a later reusable match over an earlier anonymous ref", () => {
+test("returns every original-URL match in source order", () => {
     const url = "https://example.test/reused";
     const text = [
         `<ref>{{cite web|title=Anonymous|url=${url}}}</ref>`,
@@ -1108,9 +1132,12 @@ test("prefers a later reusable match over an earlier anonymous ref", () => {
         "</ref>",
     ].join("");
 
-    const source = findExistingSource(text, url);
-    assert.equal(source?.referenceName, "Reusable");
-    assert.equal(source?.reuseText, '<ref name="Reusable" />');
+    const sources = findExistingSources(text, url);
+    assert.deepEqual(
+        sources.map((source) => source.referenceName),
+        ["", "Reusable"],
+    );
+    assert.equal(sources[1]?.reuseText, '<ref name="Reusable" />');
 });
 
 const testExistingSourceReplacement = () => {

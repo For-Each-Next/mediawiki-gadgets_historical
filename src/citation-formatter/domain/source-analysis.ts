@@ -70,11 +70,29 @@ export interface SourceAnalysisFinding {
     occurrences: SourceAnalysisOccurrence[];
     options: SourceAnalysisValue[];
     reason: string;
+    subject: string;
     suggestedValue: string;
 }
 
 export interface CitationSourceAnalysis {
     findings: SourceAnalysisFinding[];
+}
+
+/**
+ * Supplies locale-specific analysis labels, explanations, and errors.
+ */
+export interface SourceAnalysisMessages {
+    aliasLabel(sourceKey: boolean, value: string): string;
+    aliasReason(sourceKey: boolean, hasMissing: boolean): string;
+    authorLabel(author: string): string;
+    authorReason(): string;
+    domainLabel(category: "publication" | "publisher", domain: string): string;
+    domainReason(sameDisplayValue: boolean): string;
+    fieldChanged(): string;
+    replacementConflict(): string;
+    sourceChanged(): string;
+    sourceMissing(): string;
+    untitledSource(): string;
 }
 
 export interface SourceAnalysisReplacement {
@@ -91,18 +109,82 @@ interface FieldOccurrence extends SourceAnalysisOccurrence {
     domain: string;
 }
 
+const ENGLISH_ANALYSIS_MESSAGES: SourceAnalysisMessages = {
+    aliasLabel(sourceKey, value) {
+        const label = sourceKey ? "Source key" : "Reference-name text";
+        return `${label} · ${value}`;
+    },
+    aliasReason(sourceKey, hasMissing) {
+        if (sourceKey) {
+            return hasMissing
+                ? "Some repeated uses have a source key and others do not."
+                : "Repeated uses have different source-key comments.";
+        }
+        return hasMissing
+            ? "Some repeated uses have reference-name text and others do not."
+            : "Repeated uses have different reference-name text.";
+    },
+    authorLabel(author) {
+        return `Author formatting · ${author}`;
+    },
+    authorReason() {
+        return (
+            "The same author name uses different wikitext, link, case, or " +
+            "spacing style."
+        );
+    },
+    domainLabel(category, domain) {
+        const field =
+            category === "publication" ? "Website or work" : "Publisher";
+        return `${domain} · ${field}`;
+    },
+    domainReason(sameDisplayValue) {
+        return sameDisplayValue
+            ? "Only link, case, spacing, or wikitext style differs."
+            : "Citations for the same website use different names.";
+    },
+    fieldChanged() {
+        return (
+            "A selected citation field changed after the check opened. " +
+            "Run the check again."
+        );
+    },
+    replacementConflict() {
+        return (
+            "One citation field has more than one replacement. Review the " +
+            "selections and apply them again."
+        );
+    },
+    sourceChanged() {
+        return (
+            "A citation source changed after the check opened. Run the " +
+            "check again."
+        );
+    },
+    sourceMissing() {
+        return (
+            "A selected citation source is no longer present. Run the " +
+            "check again."
+        );
+    },
+    untitledSource() {
+        return "Untitled source";
+    },
+};
+
 /** Builds summary counts and likely formatting inconsistencies. */
 export function analyzeCitationSources(
     enteredSources: ExistingSource[],
+    messages: SourceAnalysisMessages = ENGLISH_ANALYSIS_MESSAGES,
 ): CitationSourceAnalysis {
     const sources = enteredSources.filter(
         (source) => source.status !== "non-standard",
     );
     return {
         findings: [
-            ...findDomainFieldInconsistencies(sources),
-            ...findAuthorFormattingInconsistencies(sources),
-            ...findAliasInconsistencies(sources),
+            ...findDomainFieldInconsistencies(sources, messages),
+            ...findAuthorFormattingInconsistencies(sources, messages),
+            ...findAliasInconsistencies(sources, messages),
         ],
     };
 }
@@ -112,20 +194,22 @@ export function applySourceAnalysisReplacements(
     text: string,
     sources: ExistingSource[],
     replacements: SourceAnalysisReplacement[],
+    messages: SourceAnalysisMessages = ENGLISH_ANALYSIS_MESSAGES,
 ): string {
     const sourcesById = new Map(sources.map((source) => [source.id, source]));
-    const replacementsBySource = groupSourceAnalysisReplacements(replacements);
+    const replacementsBySource = groupSourceAnalysisReplacements(
+        replacements,
+        messages,
+    );
     const textReplacements = [];
     for (const [sourceId, selected] of replacementsBySource) {
         const source = sourcesById.get(sourceId);
         if (source == null) {
-            throw new Error(
-                "A selected citation source is no longer present.",
-            );
+            throw new Error(messages.sourceMissing());
         }
-        assertCurrentSource(text, source);
+        assertCurrentSource(text, source, messages);
         const draft = cloneSourceDraft(source.draft);
-        applyDraftReplacements(draft, selected);
+        applyDraftReplacements(draft, selected, messages);
         const layout = source.rawTemplate.includes("\n") ? "block" : "inline";
         textReplacements.push({
             end: source.templateEnd,
@@ -139,13 +223,17 @@ export function applySourceAnalysisReplacements(
 /** Finds publication and publisher variants for each exact URL host. */
 function findDomainFieldInconsistencies(
     sources: ExistingSource[],
+    messages: SourceAnalysisMessages,
 ): SourceAnalysisFinding[] {
-    const grouped = groupDomainFieldOccurrences(sources);
-    return [...grouped.values()].flatMap(buildDomainFieldFinding);
+    const grouped = groupDomainFieldOccurrences(sources, messages);
+    return [...grouped.values()].flatMap((occurrences) =>
+        buildDomainFieldFinding(occurrences, messages),
+    );
 }
 
 function groupDomainFieldOccurrences(
     sources: ExistingSource[],
+    messages: SourceAnalysisMessages,
 ): Map<string, FieldOccurrence[]> {
     const grouped = new Map<string, FieldOccurrence[]>();
     for (const source of sources) {
@@ -164,6 +252,7 @@ function groupDomainFieldOccurrences(
                 rowIndex,
                 parameter,
                 row.value.trim(),
+                messages,
             );
             const key = `${category}\u0000${domain}`;
             const matches = grouped.get(key) ?? [];
@@ -176,6 +265,7 @@ function groupDomainFieldOccurrences(
 
 function buildDomainFieldFinding(
     occurrences: FieldOccurrence[],
+    messages: SourceAnalysisMessages,
 ): SourceAnalysisFinding[] {
     const options = countOccurrenceValues(occurrences);
     if (options.length < 2) {
@@ -185,26 +275,19 @@ function buildDomainFieldFinding(
     const displayValues = new Set(
         options.map((option) => normalizeDisplayValue(option.value)),
     );
-    const fieldLabel =
-        category === "publication" ? "Website/work" : "Publisher";
     return [
         {
             category,
             domain,
             id: `${category}:${domain}`,
-            label: `${domain} · ${fieldLabel}`,
+            label: messages.domainLabel(category, domain),
             occurrences,
             options,
-            reason: getDomainFindingReason(displayValues.size),
+            reason: messages.domainReason(displayValues.size === 1),
+            subject: domain,
             suggestedValue: options[0].value,
         },
     ];
-}
-
-function getDomainFindingReason(displayValueCount: number): string {
-    return displayValueCount === 1
-        ? "Only link, case, spacing, or wikitext style differs."
-        : "Different values are used for the same URL host.";
 }
 
 function getDomainFieldCategory(
@@ -219,13 +302,17 @@ function getDomainFieldCategory(
 /** Finds repeated author text with differing presentation markup. */
 function findAuthorFormattingInconsistencies(
     sources: ExistingSource[],
+    messages: SourceAnalysisMessages,
 ): SourceAnalysisFinding[] {
-    const grouped = groupAuthorOccurrences(sources);
-    return [...grouped.entries()].flatMap(buildAuthorFinding);
+    const grouped = groupAuthorOccurrences(sources, messages);
+    return [...grouped.entries()].flatMap((entry) =>
+        buildAuthorFinding(entry, messages),
+    );
 }
 
 function groupAuthorOccurrences(
     sources: ExistingSource[],
+    messages: SourceAnalysisMessages,
 ): Map<string, SourceAnalysisOccurrence[]> {
     const grouped = new Map<string, SourceAnalysisOccurrence[]>();
     for (const source of sources) {
@@ -241,7 +328,13 @@ function groupAuthorOccurrences(
             const identity = normalizeDisplayValue(value);
             const occurrences = grouped.get(identity) ?? [];
             occurrences.push(
-                buildAnalysisOccurrence(source, rowIndex, parameter, value),
+                buildAnalysisOccurrence(
+                    source,
+                    rowIndex,
+                    parameter,
+                    value,
+                    messages,
+                ),
             );
             grouped.set(identity, occurrences);
         }
@@ -249,10 +342,10 @@ function groupAuthorOccurrences(
     return grouped;
 }
 
-function buildAuthorFinding([identity, occurrences]: [
-    string,
-    SourceAnalysisOccurrence[],
-]): SourceAnalysisFinding[] {
+function buildAuthorFinding(
+    [identity, occurrences]: [string, SourceAnalysisOccurrence[]],
+    messages: SourceAnalysisMessages,
+): SourceAnalysisFinding[] {
     const options = countOccurrenceValues(occurrences);
     if (identity === "" || options.length < 2) {
         return [];
@@ -263,12 +356,11 @@ function buildAuthorFinding([identity, occurrences]: [
             category: "author",
             domain: "",
             id: `author:${identity}`,
-            label: `Author formatting · ${display}`,
+            label: messages.authorLabel(display),
             occurrences,
             options,
-            reason:
-                "The same displayed creator uses different wikitext, " +
-                "link, case, or spacing style.",
+            reason: messages.authorReason(),
+            subject: display,
             suggestedValue: options[0].value,
         },
     ];
@@ -277,13 +369,17 @@ function buildAuthorFinding([identity, occurrences]: [
 /** Finds inconsistent hashtag aliases for repeated displayed values. */
 function findAliasInconsistencies(
     sources: ExistingSource[],
+    messages: SourceAnalysisMessages,
 ): SourceAnalysisFinding[] {
-    const grouped = groupAliasOccurrences(sources);
-    return [...grouped.entries()].flatMap(buildAliasFinding);
+    const grouped = groupAliasOccurrences(sources, messages);
+    return [...grouped.entries()].flatMap((entry) =>
+        buildAliasFinding(entry, messages),
+    );
 }
 
 function groupAliasOccurrences(
     sources: ExistingSource[],
+    messages: SourceAnalysisMessages,
 ): Map<string, SourceAnalysisOccurrence[]> {
     const grouped = new Map<string, SourceAnalysisOccurrence[]>();
     for (const source of sources) {
@@ -301,7 +397,7 @@ function groupAliasOccurrences(
             const key = `${family}\u0000${identity}`;
             const occurrences = grouped.get(key) ?? [];
             occurrences.push(
-                buildAliasOccurrence(source, rowIndex, parameter),
+                buildAliasOccurrence(source, rowIndex, parameter, messages),
             );
             grouped.set(key, occurrences);
         }
@@ -338,6 +434,7 @@ function buildAliasOccurrence(
     source: ExistingSource,
     rowIndex: number,
     parameter: string,
+    messages: SourceAnalysisMessages,
 ): SourceAnalysisOccurrence {
     const row = source.draft.rows[rowIndex];
     const occurrence = buildAnalysisOccurrence(
@@ -345,6 +442,7 @@ function buildAliasOccurrence(
         rowIndex,
         parameter,
         row.value.trim(),
+        messages,
     );
     return {
         ...occurrence,
@@ -354,10 +452,10 @@ function buildAliasOccurrence(
     };
 }
 
-function buildAliasFinding([key, occurrences]: [
-    string,
-    SourceAnalysisOccurrence[],
-]): SourceAnalysisFinding[] {
+function buildAliasFinding(
+    [key, occurrences]: [string, SourceAnalysisOccurrence[]],
+    messages: SourceAnalysisMessages,
+): SourceAnalysisFinding[] {
     const options = countAliasValues(occurrences);
     const populated = options.filter((option) => option.value !== "");
     if (
@@ -375,23 +473,14 @@ function buildAliasFinding([key, occurrences]: [
             category: "alias",
             domain: "",
             id: `alias:${key}`,
-            label: `${sourceKey ? "Source key" : "# alias"} · ${display}`,
+            label: messages.aliasLabel(sourceKey, display),
             occurrences,
             options,
-            reason: getAliasFindingReason(sourceKey, hasMissing),
+            reason: messages.aliasReason(sourceKey, hasMissing),
+            subject: display,
             suggestedValue: populated[0].value,
         },
     ];
-}
-
-function getAliasFindingReason(
-    sourceKey: boolean,
-    hasMissing: boolean,
-): string {
-    const kind = sourceKey ? "source key" : "# alias";
-    return hasMissing
-        ? `Some repeated uses have a ${kind} and others do not.`
-        : `The repeated value uses different ${kind} comments.`;
 }
 
 function countAliasValues(
@@ -422,6 +511,7 @@ function buildAnalysisOccurrence(
     rowIndex: number,
     parameter: string,
     value: string,
+    messages: SourceAnalysisMessages,
 ): SourceAnalysisOccurrence {
     return {
         cell: "value",
@@ -432,7 +522,7 @@ function buildAnalysisOccurrence(
         rowIndex,
         sourceId: source.id,
         template: getCanonicalTemplateName(source.draft.template),
-        title: source.title || source.url || "Untitled source",
+        title: source.title || source.url || messages.untitledSource(),
         value,
     };
 }
@@ -494,6 +584,7 @@ function normalizeParameterName(name: string): string {
 
 function groupSourceAnalysisReplacements(
     replacements: SourceAnalysisReplacement[],
+    messages: SourceAnalysisMessages,
 ): Map<string, SourceAnalysisReplacement[]> {
     const result = new Map<string, SourceAnalysisReplacement[]>();
     const enteredCells = new Map<string, SourceAnalysisReplacement>();
@@ -504,6 +595,7 @@ function groupSourceAnalysisReplacements(
         const added = registerSourceAnalysisReplacement(
             enteredCells,
             replacement,
+            messages,
         );
         if (!added) {
             continue;
@@ -527,14 +619,13 @@ function isEmptySourceAnalysisReplacement(
 function registerSourceAnalysisReplacement(
     enteredCells: Map<string, SourceAnalysisReplacement>,
     replacement: SourceAnalysisReplacement,
+    messages: SourceAnalysisMessages,
 ): boolean {
     const rowKey = `${replacement.sourceId}\u0000${replacement.rowIndex}`;
     const cellKey = `${rowKey}\u0000${replacement.cell}`;
     const existing = enteredCells.get(cellKey);
     if (existing != null && existing.replacement !== replacement.replacement) {
-        throw new Error(
-            "One citation field has conflicting replacement values.",
-        );
+        throw new Error(messages.replacementConflict());
     }
     if (existing != null) {
         return false;
@@ -543,10 +634,14 @@ function registerSourceAnalysisReplacement(
     return true;
 }
 
-function assertCurrentSource(text: string, source: ExistingSource): void {
+function assertCurrentSource(
+    text: string,
+    source: ExistingSource,
+    messages: SourceAnalysisMessages,
+): void {
     const current = text.slice(source.templateStart, source.templateEnd);
     if (current !== source.rawTemplate) {
-        throw new Error("A citation source changed after analysis opened.");
+        throw new Error(messages.sourceChanged());
     }
 }
 
@@ -560,6 +655,7 @@ function cloneSourceDraft(draft: SourceDraft): SourceDraft {
 function applyDraftReplacements(
     draft: SourceDraft,
     replacements: SourceAnalysisReplacement[],
+    messages: SourceAnalysisMessages,
 ): void {
     for (const replacement of replacements) {
         const row = draft.rows[replacement.rowIndex];
@@ -572,9 +668,7 @@ function applyDraftReplacements(
             normalizeParameterName(row.name) !== replacement.parameter ||
             currentValue !== replacement.oldValue
         ) {
-            throw new Error(
-                "A selected citation field changed after analysis opened.",
-            );
+            throw new Error(messages.fieldChanged());
         }
     }
     for (const replacement of replacements) {

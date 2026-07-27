@@ -206,7 +206,7 @@ function buildNameOverrideUsageItems(
         field.occurrences,
         (occurrence) => occurrence.parameter,
     );
-    const fromCallbackA = function buildUsageItem([parameter, uses]: [
+    const buildUsageItem = function buildUsageItem([parameter, uses]: [
         string,
         NameOverrideOccurrence[],
     ]) {
@@ -215,7 +215,7 @@ function buildNameOverrideUsageItems(
             label: formatUsageChipParameter(parameter),
         };
     };
-    const result = Array.from(groups, fromCallbackA);
+    const result = Array.from(groups, buildUsageItem);
     return result;
 }
 
@@ -247,13 +247,13 @@ export function formatNameOverrideUsage(field: NameOverrideField): string {
     if (groups.size === 1) {
         return formatRepeatedUsage(field.occurrences);
     }
-    const fromCallback = function formatGroupedUsage([parameter, uses]: [
+    const formatGroupedUsage = function formatGroupedUsage([parameter, uses]: [
         string,
         NameOverrideOccurrence[],
     ]) {
         return `${formatUsageParameter(parameter)} (${uses.length})`;
     };
-    const details = Array.from(groups, fromCallback);
+    const details = Array.from(groups, formatGroupedUsage);
     const summary = joinNaturalList(details);
     return `Used ${field.occurrences.length} times across ${summary}.`;
 }
@@ -385,8 +385,8 @@ function buildOverrideReplacement(
     call: ReturnType<typeof findTemplateCalls>[number],
     byId: Map<string, string>,
 ): TextReplacement | null {
-    const mapCallbackA = function buildOverrideEntry(
-        param: ParsedTemplateCall["params"][number],
+    const buildOverrideEntry = function buildOverrideEntry(
+        _parameter: ParsedTemplateCall["params"][number],
         index: number,
     ) {
         return {
@@ -395,7 +395,7 @@ function buildOverrideReplacement(
         };
     };
     const entries = call.params
-        .map(mapCallbackA)
+        .map(buildOverrideEntry)
         .filter((entry) => entry.override != null);
     if (entries.length === 0) {
         return null;
@@ -420,11 +420,11 @@ function buildOverrideReplacement(
  */
 export function compactReferenceCalls(text: string): string {
     const protectedRanges = findProtectedRanges(text);
-    const filterCallbackA = (tag: RefTag) =>
+    const isActiveTag = (tag: RefTag) =>
         !isInRanges(tag.start, protectedRanges);
     const tags = findRefTags(text)
         .filter(isCompactableReuseTag)
-        .filter(filterCallbackA);
+        .filter(isActiveTag);
     const replacements: TextReplacement[] = [];
     let run: typeof tags = [];
     function flushRun(): void {
@@ -461,9 +461,9 @@ export function compactReferenceCalls(text: string): string {
  */
 export function expandCompactReferenceCalls(text: string): string {
     const protectedRanges = findProtectedRanges(text);
-    const filterCallback = (call: ParsedTemplateCall) =>
+    const isActiveCall = (call: ParsedTemplateCall) =>
         !isInRanges(call.start, protectedRanges);
-    const mapCallback = function expandCall(
+    const expandCall = function expandCall(
         call: ParsedTemplateCall,
     ): TextReplacement {
         const names = call.params.map((param) => param.value).filter(Boolean);
@@ -477,28 +477,9 @@ export function expandCompactReferenceCalls(text: string): string {
     const replacements = findTemplateCalls(text)
         .filter(isRCall)
         .filter(hasOnlyPositionalParams)
-        .filter(filterCallback)
-        .map(mapCallback);
+        .filter(isActiveCall)
+        .map(expandCall);
     return applyReplacements(text, replacements);
-}
-
-/**
- * Returns whether simple temporary R calls are present.
- *
- * @param text - Article wikitext.
- * @returns Whether compact calls exist.
- */
-export function hasCompactReferenceCalls(text: string): boolean {
-    const protectedRanges = findProtectedRanges(text);
-    const someCallback = function isCompactCall(call: ParsedTemplateCall) {
-        return (
-            !isInRanges(call.start, protectedRanges) &&
-            isRCall(call) &&
-            hasOnlyPositionalParams(call)
-        );
-    };
-    const result = findTemplateCalls(text).some(someCallback);
-    return result;
 }
 
 /**
@@ -513,7 +494,7 @@ export function hasCompactReferenceCalls(text: string): boolean {
 export function detectCitationLayout(text: string): CitationLayout {
     const protectedRanges = findProtectedRanges(text);
     const definitionTags = findRefTags(text).filter(isFullRefDefinition);
-    const filterCallback = function isActiveCitation(
+    const isActiveCitation = function isActiveCitation(
         call: ParsedTemplateCall,
     ) {
         return (
@@ -522,7 +503,7 @@ export function detectCitationLayout(text: string): CitationLayout {
             isCitationTemplate(call.name)
         );
     };
-    const calls = findTemplateCalls(text).filter(filterCallback);
+    const calls = findTemplateCalls(text).filter(isActiveCitation);
     if (calls.length === 0) {
         return "block";
     }

@@ -12,10 +12,13 @@ import {
 test("covers every supported citation template title exactly once", () => {
     const expected = SUPPORTED_CITATION_TEMPLATES.map(normalizeTemplateName);
 
-    assert.deepEqual(Object.keys(templateData).toSorted(), expected.toSorted());
+    assert.deepEqual(
+        Object.keys(templateData).toSorted(),
+        expected.toSorted(),
+    );
 });
 
-test("keeps parameter order, aliases, and dates structurally consistent", () => {
+test("keeps template metadata structurally consistent", () => {
     for (const [template, metadata] of Object.entries(templateData)) {
         const ordered = new Set(metadata.paramOrder);
         assert.equal(

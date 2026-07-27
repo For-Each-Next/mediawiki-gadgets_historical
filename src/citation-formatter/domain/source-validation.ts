@@ -1,5 +1,5 @@
 /**
- * Reactive validation for editable CS1 citation parameters.
+ * Validation for editable CS1 citation parameters.
  */
 
 import templateData from "./data/index.ts";
@@ -23,6 +23,56 @@ export interface SourceDraftRowErrors {
 }
 
 export type SourceDraftErrors = Map<number, SourceDraftRowErrors>;
+
+/**
+ * Defines validation messages without coupling the domain to a locale.
+ */
+export interface SourceValidationMessages {
+    addParameter(message: string, parameter: string): string;
+    aliasRequiresValue(): string;
+    archiveDateRequiresUrl(): string;
+    archiveUrlRequiresDate(): string;
+    dependency(source: string, targets: string[]): string;
+    dependencyWithParameter(
+        source: string,
+        targets: string[],
+        parameter: string,
+    ): string;
+    invalidDate(parameter: string): string;
+    parameterRequired(): string;
+    unsupportedParameter(parameter: string): string;
+}
+
+const ENGLISH_VALIDATION_MESSAGES: SourceValidationMessages = {
+    addParameter(message, parameter) {
+        return `${message} Add the ${parameter} parameter.`;
+    },
+    aliasRequiresValue() {
+        return "Enter the original text before setting reference-name text.";
+    },
+    archiveDateRequiresUrl() {
+        return "Add an archive URL for the archive date.";
+    },
+    archiveUrlRequiresDate() {
+        return "Add a date for the archive URL.";
+    },
+    dependency(source, targets) {
+        return `${source} requires ${targets.join(" or ")}.`;
+    },
+    dependencyWithParameter(source, targets, parameter) {
+        const message = `${source} requires ${targets.join(" or ")}.`;
+        return `${message} Add the ${parameter} parameter.`;
+    },
+    invalidDate(parameter) {
+        return `Enter a correct date for ${parameter}.`;
+    },
+    parameterRequired() {
+        return "Enter a parameter name.";
+    },
+    unsupportedParameter(parameter) {
+        return `CS1 does not support the ${parameter} parameter.`;
+    },
+};
 
 const CS1_DATE_PARAMETERS = [
     "access-date",
@@ -74,6 +124,7 @@ const PARAMETER_DEPENDENCIES = [
 export function getSourceDraftErrors(
     draft: SourceDraftLike,
     wikiId: string,
+    messages: SourceValidationMessages = ENGLISH_VALIDATION_MESSAGES,
 ): SourceDraftErrors {
     const config = getCitationValidationConfig(wikiId);
     const metadata = templateData[draft.template] ?? templateData["cite web"];
@@ -93,12 +144,18 @@ export function getSourceDraftErrors(
             canonicalNames,
             dateNames,
             dateStyle: config.dateStyle,
+            messages,
             numberedNames,
             supportedNames,
         });
     }
-    validateArchivePair(draft.rows, canonicalNames, errors);
-    validateParameterDependencies(draft.rows, canonicalNames, errors);
+    validateArchivePair(draft.rows, { canonicalNames, errors, messages });
+    validateParameterDependencies(
+        draft.rows,
+        canonicalNames,
+        errors,
+        messages,
+    );
     return errors;
 }
 
@@ -106,6 +163,7 @@ interface DraftRowValidationContext {
     canonicalNames: Map<string, string>;
     dateNames: Set<string>;
     dateStyle: "english" | "chinese";
+    messages: SourceValidationMessages;
     numberedNames: Set<string>;
     supportedNames: Set<string>;
 }
@@ -120,28 +178,67 @@ function validateDraftRow(
     const name = normalizeParameterName(row.name);
     const hasContent = row.value.trim() !== "" || row.alias.trim() !== "";
     if (name === "" && hasContent) {
-        addCellError(errors, index, "name", "Enter a parameter name.");
+        addCellError(
+            errors,
+            index,
+            "name",
+            context.messages.parameterRequired(),
+        );
         return;
     }
+    validateDraftRowName(row, index, errors, context);
+    validateDraftRowAlias(row, index, errors, context.messages);
+    validateDraftRowValue(row, index, errors, context);
+}
+
+function validateDraftRowName(
+    row: SourceDraftRowLike,
+    index: number,
+    errors: SourceDraftErrors,
+    context: DraftRowValidationContext,
+): void {
+    const name = normalizeParameterName(row.name);
     const numberedName = name.replace(/\d+/gu, "#");
     const supported =
         context.supportedNames.has(name) ||
         context.numberedNames.has(numberedName);
     if (name !== "" && !supported) {
-        const message = `Unsupported CS1 parameter: ${row.name.trim()}`;
+        const message = context.messages.unsupportedParameter(row.name.trim());
         addCellError(errors, index, "name", message);
     }
+}
+
+function validateDraftRowAlias(
+    row: SourceDraftRowLike,
+    index: number,
+    errors: SourceDraftErrors,
+    messages: SourceValidationMessages,
+): void {
     if (row.alias.trim() !== "" && row.value.trim() === "") {
-        const message = "Enter a value before adding a reference-name alias.";
+        const message = messages.aliasRequiresValue();
         addCellError(errors, index, "alias", message);
     }
+}
+
+function validateDraftRowValue(
+    row: SourceDraftRowLike,
+    index: number,
+    errors: SourceDraftErrors,
+    context: DraftRowValidationContext,
+): void {
+    const name = normalizeParameterName(row.name);
     const canonical = context.canonicalNames.get(name) ?? name;
     const invalidDate =
         row.value.trim() !== "" &&
         context.dateNames.has(canonical) &&
         !isValidCitationDate(row.value, context.dateStyle, canonical);
     if (invalidDate) {
-        addCellError(errors, index, "value", `Invalid ${canonical} value.`);
+        addCellError(
+            errors,
+            index,
+            "value",
+            context.messages.invalidDate(canonical),
+        );
     }
 }
 
@@ -194,37 +291,40 @@ function normalizeParameterName(name: string): string {
 }
 
 /** Validates the paired archive fields and marks the missing field. */
+interface ArchiveValidationContext {
+    canonicalNames: Map<string, string>;
+    errors: SourceDraftErrors;
+    messages: SourceValidationMessages;
+}
+
 function validateArchivePair(
     rows: SourceDraftRowLike[],
-    canonicalNames: Map<string, string>,
-    errors: SourceDraftErrors,
+    context: ArchiveValidationContext,
 ): void {
     const byName = new Map<string, number>();
     for (const [index, row] of rows.entries()) {
         const name = normalizeParameterName(row.name);
-        byName.set(canonicalNames.get(name) ?? name, index);
+        byName.set(context.canonicalNames.get(name) ?? name, index);
     }
     const archiveUrlIndex = byName.get("archive-url");
     const archiveDateIndex = byName.get("archive-date");
     const archiveUrl = getTrimmedValue(rows, archiveUrlIndex);
     const archiveDate = getTrimmedValue(rows, archiveDateIndex);
     if (archiveUrl !== "" && archiveDate === "") {
-        addMissingArchiveError(
-            errors,
-            archiveDateIndex,
-            archiveUrlIndex,
-            "archive-date",
-            "Archive URL requires an archive date.",
-        );
+        addMissingArchiveError(context, {
+            fallbackIndex: archiveUrlIndex,
+            message: context.messages.archiveUrlRequiresDate(),
+            missingName: "archive-date",
+            preferredIndex: archiveDateIndex,
+        });
     }
     if (archiveDate !== "" && archiveUrl === "") {
-        addMissingArchiveError(
-            errors,
-            archiveUrlIndex,
-            archiveDateIndex,
-            "archive-url",
-            "Archive date requires an archive URL.",
-        );
+        addMissingArchiveError(context, {
+            fallbackIndex: archiveDateIndex,
+            message: context.messages.archiveDateRequiresUrl(),
+            missingName: "archive-url",
+            preferredIndex: archiveUrlIndex,
+        });
     }
 }
 
@@ -235,21 +335,30 @@ function getTrimmedValue(
     return index == null ? "" : (rows[index]?.value.trim() ?? "");
 }
 
+interface MissingArchiveField {
+    fallbackIndex: number | undefined;
+    message: string;
+    missingName: string;
+    preferredIndex: number | undefined;
+}
+
 function addMissingArchiveError(
-    errors: SourceDraftErrors,
-    preferredIndex: number | undefined,
-    fallbackIndex: number | undefined,
-    missingName: string,
-    message: string,
+    context: ArchiveValidationContext,
+    field: MissingArchiveField,
 ): void {
-    if (preferredIndex != null) {
-        addCellError(errors, preferredIndex, "value", message);
-    } else if (fallbackIndex != null) {
+    if (field.preferredIndex != null) {
         addCellError(
-            errors,
-            fallbackIndex,
+            context.errors,
+            field.preferredIndex,
             "value",
-            `${message} Add the ${missingName} parameter.`,
+            field.message,
+        );
+    } else if (field.fallbackIndex != null) {
+        addCellError(
+            context.errors,
+            field.fallbackIndex,
+            "value",
+            context.messages.addParameter(field.message, field.missingName),
         );
     }
 }
@@ -259,10 +368,12 @@ function validateParameterDependencies(
     rows: SourceDraftRowLike[],
     canonicalNames: Map<string, string>,
     errors: SourceDraftErrors,
+    messages: SourceValidationMessages,
 ): void {
     const byName = buildDraftRowIndex(rows, canonicalNames);
+    const context = { byName, errors, messages, rows };
     for (const dependency of PARAMETER_DEPENDENCIES) {
-        validateDependency(rows, byName, errors, dependency.source, [
+        validateDependency(context, dependency.source, [
             ...dependency.targets,
         ]);
     }
@@ -270,22 +381,25 @@ function validateParameterDependencies(
         if (getTrimmedValue(rows, index) === "") {
             continue;
         }
-        if (name.endsWith("-access")) {
-            validateDependency(rows, byName, errors, name, [
-                name.slice(0, -"-access".length),
-            ]);
-        }
-        if (name.endsWith("-format")) {
-            const base = name.slice(0, -"-format".length);
-            validateDependency(rows, byName, errors, name, [`${base}-url`]);
-        }
-        if (name.startsWith("trans-")) {
-            const base = name.slice("trans-".length);
-            validateDependency(rows, byName, errors, name, [
-                base,
-                `script-${base}`,
-            ]);
-        }
+        validateDynamicDependency(context, name);
+    }
+}
+
+/** Validates dependencies encoded in a parameter name. */
+function validateDynamicDependency(
+    context: DependencyValidationContext,
+    name: string,
+): void {
+    if (name.endsWith("-access")) {
+        validateDependency(context, name, [name.slice(0, -"-access".length)]);
+    }
+    if (name.endsWith("-format")) {
+        const base = name.slice(0, -"-format".length);
+        validateDependency(context, name, [`${base}-url`]);
+    }
+    if (name.startsWith("trans-")) {
+        const base = name.slice("trans-".length);
+        validateDependency(context, name, [base, `script-${base}`]);
     }
 }
 
@@ -301,33 +415,44 @@ function buildDraftRowIndex(
     return byName;
 }
 
+interface DependencyValidationContext {
+    byName: Map<string, number>;
+    errors: SourceDraftErrors;
+    messages: SourceValidationMessages;
+    rows: SourceDraftRowLike[];
+}
+
 function validateDependency(
-    rows: SourceDraftRowLike[],
-    byName: Map<string, number>,
-    errors: SourceDraftErrors,
+    context: DependencyValidationContext,
     sourceName: string,
     targetNames: string[],
 ): void {
-    const sourceIndex = byName.get(sourceName);
+    const sourceIndex = context.byName.get(sourceName);
     if (
-        getTrimmedValue(rows, sourceIndex) === "" ||
+        getTrimmedValue(context.rows, sourceIndex) === "" ||
         targetNames.some(
-            (name) => getTrimmedValue(rows, byName.get(name)) !== "",
+            (name) =>
+                getTrimmedValue(context.rows, context.byName.get(name)) !== "",
         )
     ) {
         return;
     }
     const targetIndex = targetNames
-        .map((name) => byName.get(name))
+        .map((name) => context.byName.get(name))
         .find((index) => index != null);
-    const alternatives = targetNames.map((name) => `|${name}=`).join(" or ");
-    const message = `|${sourceName}= requires ${alternatives}.`;
+    const source = `|${sourceName}=`;
+    const targets = targetNames.map((name) => `|${name}=`);
+    const message = context.messages.dependency(source, targets);
     addCellError(
-        errors,
+        context.errors,
         targetIndex ?? sourceIndex ?? 0,
         "value",
         targetIndex == null
-            ? `${message} Add the ${targetNames[0]} parameter.`
+            ? context.messages.dependencyWithParameter(
+                  source,
+                  targets,
+                  targetNames[0],
+              )
             : message,
     );
 }

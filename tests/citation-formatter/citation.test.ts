@@ -39,7 +39,7 @@ const metadata: CitationTemplateData = {
     ],
 };
 
-const testCallbackP = () => {
+const testNormalizeEnglishDates = () => {
     const month = normalizeEnglishDate("June 2005");
     const monthFirst = normalizeEnglishDate("June 7, 2005");
     const dayFirst = normalizeEnglishDate("7 June 2005");
@@ -56,10 +56,10 @@ const testCallbackP = () => {
 };
 test(
     "normalizes English dates at year, month, and day precision",
-    testCallbackP,
+    testNormalizeEnglishDates,
 );
 
-const testCallbackO = () => {
+const testCanonicalParameterFormatting = () => {
     const result = formatCitationTemplate(
         "{{Cite web|URL=https://example.test|title=Example|author1=Ma|accessdate=June 2005}}",
         metadata,
@@ -75,7 +75,10 @@ const testCallbackO = () => {
     ].join("\n");
     assert.equal(result.text, expected);
 };
-test("canonicalizes aliases and applies TemplateData order", testCallbackO);
+test(
+    "canonicalizes aliases and applies TemplateData order",
+    testCanonicalParameterFormatting,
+);
 
 const testInlineCitationLayout = () => {
     const result = formatCitationTemplate(
@@ -91,7 +94,7 @@ const testInlineCitationLayout = () => {
 };
 test("formats canonical citation parameters inline", testInlineCitationLayout);
 
-const testCallbackN = () => {
+const testCanonicalTemplateCasing = () => {
     const cases = [
         ["citation", "Citation"],
         ["cite arxiv", "Cite arXiv"],
@@ -114,9 +117,9 @@ const testCallbackN = () => {
         assert.match(result.text, pattern);
     }
 };
-test("uses canonical citation template casing", testCallbackN);
+test("uses canonical citation template casing", testCanonicalTemplateCasing);
 
-const testCallbackM = () => {
+const testDisplayedTimeFormatting = () => {
     const single = formatCitationTemplate(
         "{{Cite AV media|last=Ma|time=1:15:41|title=Video}}",
         generatedTemplateData["cite av media"],
@@ -133,9 +136,12 @@ const testCallbackM = () => {
     const rangeIdentity = getCitationIdentity(range.citation);
     assert.equal(rangeIdentity.locator, "at time 0:00–5:00");
 };
-test("formats displayed times while keeping colon locators", testCallbackM);
+test(
+    "formats displayed times while keeping colon locators",
+    testDisplayedTimeFormatting,
+);
 
-const testCallbackL = () => {
+const testNumberedAuthorLabels = () => {
     const unstructured = formatCitationTemplate(
         "{{cite web|author1=Ma|author2=Li|title=Example}}",
         metadata,
@@ -154,10 +160,10 @@ const testCallbackL = () => {
 };
 test(
     "uses numbered author labels only when multiple authors are present",
-    testCallbackL,
+    testNumberedAuthorLabels,
 );
 
-const testCallbackK = () => {
+const testHighNumberedAuthorAliases = () => {
     const result = formatCitationTemplate(
         "{{cite web|author100=Ma|title=Example}}",
         metadata,
@@ -170,10 +176,10 @@ const testCallbackK = () => {
 };
 test(
     "canonicalizes high numbered author aliases without a fixed cap",
-    testCallbackK,
+    testHighNumberedAuthorAliases,
 );
 
-const testCallbackJ = () => {
+const testRemovedDeadUrlParameters = () => {
     const live = formatCitationTemplate(
         "{{cite web|title=Example|url=https://example.test|archive-url=https://archive.test|dead-url=no}}",
         metadata,
@@ -189,10 +195,10 @@ const testCallbackJ = () => {
 };
 test(
     "replaces removed dead-url parameters and converts boolean values",
-    testCallbackJ,
+    testRemovedDeadUrlParameters,
 );
 
-const testCallbackI = () => {
+const testTemplateDefinedParameterOrder = () => {
     const result = formatCitationTemplate(
         "{{cite journal|title=Example|name-list-style=amp|archive-format=PDF}}",
         generatedTemplateData["cite journal"],
@@ -203,7 +209,7 @@ const testCallbackI = () => {
 };
 test(
     "keeps template-defined order ahead of print fallback fields",
-    testCallbackI,
+    testTemplateDefinedParameterOrder,
 );
 
 test("keeps Cite interview TemplateData order with extra fields", () => {
@@ -235,7 +241,7 @@ test("keeps Cite interview TemplateData order with extra fields", () => {
     ]);
 });
 
-const testCallbackH = () => {
+const testReferenceNameIdentityFallbacks = () => {
     const commented = formatCitationTemplate(
         "{{cite web|author=宵崎奏<!-- # Yoisaki -->|publisher=セガ|title=X}}",
         metadata,
@@ -260,10 +266,10 @@ const testCallbackH = () => {
 };
 test(
     "uses hashtag comments, multiple authors, and n.d. in names",
-    testCallbackH,
+    testReferenceNameIdentityFallbacks,
 );
 
-const testCallbackG = () => {
+const testPublisherIdentityFallback = () => {
     const publisher = formatCitationTemplate(
         "{{cite web|publisher=セガ<!--#Sega-->|date=2020|title=X}}",
         metadata,
@@ -278,9 +284,12 @@ const testCallbackG = () => {
     const titleIdentity = getCitationIdentity(title.citation);
     assert.equal(titleIdentity.baseName, "“Example work”, 2020");
 };
-test("uses publisher after credited authors and organizations", testCallbackG);
+test(
+    "uses publisher after credited authors and organizations",
+    testPublisherIdentityFallback,
+);
 
-const testCallbackF = () => {
+const testContainingWorkIdentityFallback = () => {
     const work = formatCitationTemplate(
         "{{cite web|website=Example Site|publisher=Publisher|title=Page}}",
         metadata,
@@ -288,9 +297,12 @@ const testCallbackF = () => {
     const identity = getCitationIdentity(work.citation);
     assert.equal(identity.baseName, "Example Site, n.d.");
 };
-test("uses containing works before publishers", testCallbackF);
+test(
+    "uses containing works before publishers",
+    testContainingWorkIdentityFallback,
+);
 
-const testCallbackE = () => {
+const testPublisherBeforeDepartmentOrMagazine = () => {
     const result = formatCitationTemplate(
         "{{Cite magazine|title=星之海|department=黄金眼 " +
             "<!-- # Huangjin Yan -->|magazine=游戏机实用技术|" +
@@ -300,9 +312,12 @@ const testCallbackE = () => {
     const identity = getCitationIdentity(result.citation);
     assert.equal(identity.baseName, "UCG Media, 2023");
 };
-test("uses publisher instead of department or magazine", testCallbackE);
+test(
+    "uses publisher instead of department or magazine",
+    testPublisherBeforeDepartmentOrMagazine,
+);
 
-const testCallbackD = () => {
+const testEditorExcludedFromIdentity = () => {
     const result = formatCitationTemplate(
         "{{Cite web|editor=Editor|publisher=Publisher<!-- !no-author -->|title=Example}}",
         metadata,
@@ -310,9 +325,12 @@ const testCallbackD = () => {
     const identity = getCitationIdentity(result.citation);
     assert.equal(identity.baseName, "“Example”, n.d.");
 };
-test("does not use editors as the citation author fallback", testCallbackD);
+test(
+    "does not use editors as the citation author fallback",
+    testEditorExcludedFromIdentity,
+);
 
-const testCallbackC = () => {
+const testNoAuthorFallbackDirectives = () => {
     const result = formatCitationTemplate(
         "{{Cite web|website=网站<!-- !no-author # Website -->|" +
             "work=Work<!-- !no-author -->|publisher=Publisher|title=Example}}",
@@ -337,9 +355,9 @@ const testCallbackC = () => {
     const titleIdentity = getCitationIdentity(title.citation);
     assert.equal(titleIdentity.baseName, "Untitled source, n.d.");
 };
-test("skips fallback fields marked no-author", testCallbackC);
+test("skips fallback fields marked no-author", testNoAuthorFallbackDirectives);
 
-const testCallbackB = () => {
+const testDateAndLocatorExclusionDirectives = () => {
     const result = formatCitationTemplate(
         "{{Cite web|author=Author|date=2025<!-- !no-date -->|year=2024|" +
             "page=8<!-- !no-part -->|time=1:15:41|title=Example}}",
@@ -358,9 +376,12 @@ const testCallbackB = () => {
     assert.equal(excludedIdentity.baseName, "Author, n.d.");
     assert.equal(excludedIdentity.locator, "");
 };
-test("skips date and locator fields with exclusion directives", testCallbackB);
+test(
+    "skips date and locator fields with exclusion directives",
+    testDateAndLocatorExclusionDirectives,
+);
 
-const testCallbackA = () => {
+const testCreditedOrganizationIdentity = () => {
     const result = formatCitationTemplate(
         "{{Cite web|organization=National Geographic Society|" +
             "publisher=Publisher|title=Example}}",
@@ -369,9 +390,12 @@ const testCallbackA = () => {
     const identity = getCitationIdentity(result.citation);
     assert.equal(identity.baseName, "National Geographic Society, n.d.");
 };
-test("uses a credited organization before the title", testCallbackA);
+test(
+    "uses a credited organization before the title",
+    testCreditedOrganizationIdentity,
+);
 
-const testCallback = () => {
+const testTerminalTitleFallback = () => {
     const result = formatCitationTemplate(
         "{{Cite web|title=Using citations in research papers}}",
         metadata,
@@ -379,4 +403,7 @@ const testCallback = () => {
     const identity = getCitationIdentity(result.citation);
     assert.equal(identity.baseName, "“Using citations”, n.d.");
 };
-test("shortens and quotes the terminal title fallback", testCallback);
+test(
+    "shortens and quotes the terminal title fallback",
+    testTerminalTitleFallback,
+);

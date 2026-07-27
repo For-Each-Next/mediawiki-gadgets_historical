@@ -8,6 +8,7 @@ import {
     parseSourceDraft,
     type SourceDraft,
 } from "citation-formatter/domain/source-manager.ts";
+// eslint-disable-next-line max-len
 import { getSourceDraftErrors } from "citation-formatter/domain/source-validation.ts";
 
 function getRowIndex(draft: SourceDraft, name: string): number {
@@ -101,11 +102,11 @@ test("marks unsupported parameters and malformed dates", () => {
 
     assert.match(
         errors.get(getRowIndex(draft, "titel"))?.name ?? "",
-        /Unsupported/u,
+        /does not support the titel parameter/u,
     );
     assert.match(
         errors.get(getRowIndex(draft, "date"))?.value ?? "",
-        /Invalid date/u,
+        /correct date for date/u,
     );
 });
 
@@ -127,7 +128,7 @@ test("marks a missing archive pair field", () => {
 
     assert.match(
         errors.get(getRowIndex(draft, "archive-date"))?.value ?? "",
-        /requires an archive date/u,
+        /Add a date for the archive URL/u,
     );
 });
 
@@ -187,7 +188,7 @@ test("validates archive dates for every citation class", () => {
 
     assert.match(
         errors.get(getRowIndex(draft, "archive-date"))?.value ?? "",
-        /Invalid archive-date/u,
+        /correct date for archive-date/u,
     );
 });
 
@@ -223,6 +224,6 @@ test("accepts no-date only in the general date parameter", () => {
     assert.equal(errors.get(getRowIndex(draft, "date"))?.value, undefined);
     assert.match(
         errors.get(getRowIndex(draft, "archive-date"))?.value ?? "",
-        /Invalid archive-date/u,
+        /correct date for archive-date/u,
     );
 });

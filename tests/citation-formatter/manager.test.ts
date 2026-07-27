@@ -9,14 +9,13 @@ import {
     detectCitationLayout,
     expandCompactReferenceCalls,
     findNameOverrideFields,
-    hasCompactReferenceCalls,
 } from "citation-formatter/domain/manager.ts";
 import {
     manageCitations,
     manageCitationsWithResult,
 } from "citation-formatter/app/format.ts";
 
-const testCallbackH = () => {
+const testNonLatinNameOverrides = () => {
     const source = [
         "{{Cite web",
         "  | author = 早坂将昭",
@@ -43,9 +42,12 @@ const testCallbackH = () => {
     assert.match(result, /\| publisher = スクウェア・エニックス\n/u);
     assert.match(result, /\| title = \{\{lang\|ja\|インタビュー\}\}/u);
 };
-test("finds and applies non-Latin reference-name overrides", testCallbackH);
+test(
+    "finds and applies non-Latin reference-name overrides",
+    testNonLatinNameOverrides,
+);
 
-const testCallbackG = () => {
+const testNoAuthorOverrideEdits = () => {
     const source = [
         "{{Cite web|website=游民星空",
         "<!-- !no-author # Youmin Xingkong -->|title=X}}",
@@ -63,9 +65,12 @@ const testCallbackG = () => {
     ]);
     assert.match(removed, /website=游民星空<!-- !no-author -->/u);
 };
-test("edits overrides sharing a no-author directive", testCallbackG);
+test(
+    "edits overrides sharing a no-author directive",
+    testNoAuthorOverrideEdits,
+);
 
-const testCallbackF = () => {
+const testNativeReuseRoundTrip = () => {
     const source = [
         'Text.<ref name="First, 2020" /><ref name="Second, 2021" />',
         'More.<ref name="First, 2020" />',
@@ -78,14 +83,15 @@ const testCallbackF = () => {
 
     assert.match(compact, /Text\.\{\{r\|First, 2020\|Second, 2021\}\}/u);
     assert.match(compact, /More\.\{\{r\|First, 2020\}\}/u);
-    const hasCompact = hasCompactReferenceCalls(compact);
     const expanded = expandCompactReferenceCalls(compact);
-    assert.equal(hasCompact, true);
     assert.equal(expanded, source);
 };
-test("round trips native reuse tags through temporary R calls", testCallbackF);
+test(
+    "round trips native reuse tags through temporary R calls",
+    testNativeReuseRoundTrip,
+);
 
-const testCallbackE = () => {
+const testAttributedReusePreservation = () => {
     const source = [
         '<ref name="note" group="note" />',
         '<ref name="plain" dir="ltr" />',
@@ -93,9 +99,12 @@ const testCallbackE = () => {
     const compact = compactReferenceCalls(source);
     assert.equal(compact, source);
 };
-test("leaves grouped and attributed reuse tags native", testCallbackE);
+test(
+    "leaves grouped and attributed reuse tags native",
+    testAttributedReusePreservation,
+);
 
-const testCallbackD = () => {
+const testProtectedManagementExamples = () => {
     const source = [
         '<!-- <ref name="comment" /> {{Cite web|author=作者}} -->',
         '<nowiki><ref name="code" /> {{r|old}} ' +
@@ -110,10 +119,10 @@ const testCallbackD = () => {
 };
 test(
     "leaves management examples in protected wikitext unchanged",
-    testCallbackD,
+    testProtectedManagementExamples,
 );
 
-const testCallbackC = () => {
+const testReferenceNameRegeneration = () => {
     const source = [
         'Text.<ref name="早坂将昭, 2025" />',
         "<references responsive>",
@@ -130,7 +139,10 @@ const testCallbackC = () => {
     assert.match(result, /<ref name="Hayasaka, 2025" \/>/u);
     assert.match(result, /author = 早坂将昭 <!-- # Hayasaka -->/u);
 };
-test("regenerates reference names after override edits", testCallbackC);
+test(
+    "regenerates reference names after override edits",
+    testReferenceNameRegeneration,
+);
 
 const testCitationManagementStyles = () => {
     const source = [
@@ -199,7 +211,7 @@ test(
     testDetectCitationLayout,
 );
 
-const testCallbackB = () => {
+const testGroupedOverrideEditing = () => {
     const source = [
         "{{Cite web|author=早坂将昭|title=First}}",
         "{{Cite interview|author=早坂将昭|title=Second}}",
@@ -214,9 +226,12 @@ const testCallbackB = () => {
     const matches = result.match(/<!-- # Hayasaka -->/gu);
     assert.equal(matches?.length, 2);
 };
-test("groups repeated names for bulk override editing", testCallbackB);
+test(
+    "groups repeated names for bulk override editing",
+    testGroupedOverrideEditing,
+);
 
-const testCallbackA = () => {
+const testGroupedNameUsageSummary = () => {
     const source = [
         "{{Cite web|author1=游民星空|title=First}}",
         "{{Cite web|author2=游民星空|title=Second}}",
@@ -235,12 +250,18 @@ const testCallbackA = () => {
         { count: 1, label: "publisher" },
     ]);
 };
-test("summarizes grouped name usage by parameter and template", testCallbackA);
+test(
+    "summarizes grouped name usage by parameter and template",
+    testGroupedNameUsageSummary,
+);
 
-const testCallback = () => {
+const testSingleNameUsageDescription = () => {
     const [field] = findNameOverrideFields(
         "{{Cite web|website=游民星空|title=Example}}",
     );
     assert.equal(field.usage, "Used once as |website= in a web citation.");
 };
-test("describes a single name usage naturally", testCallback);
+test(
+    "describes a single name usage naturally",
+    testSingleNameUsageDescription,
+);

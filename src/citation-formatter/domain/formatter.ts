@@ -112,16 +112,16 @@ export interface CitationFormatResult {
 export function findUsedCitationTemplates(text: string): string[] {
     const protectedRanges = findProtectedRanges(text);
     const calls = findTemplateCalls(text);
-    const filterCallbackN = function isUsedCitation(call: ParsedTemplateCall) {
+    const isUsedCitation = function isUsedCitation(call: ParsedTemplateCall) {
         const result =
             isCitationTemplate(call.name) &&
             !isInRanges(call.start, protectedRanges);
         return result;
     };
-    const usedCalls = calls.filter(filterCallbackN);
-    const mapCallbackL = (call: ParsedTemplateCall) =>
+    const usedCalls = calls.filter(isUsedCitation);
+    const normalizeUsedTemplateName = (call: ParsedTemplateCall) =>
         normalizeTemplateName(call.name);
-    const names = usedCalls.map(mapCallbackL);
+    const names = usedCalls.map(normalizeUsedTemplateName);
     const uniqueNames = new Set(names);
     const result = Array.from(uniqueNames);
     return result;
@@ -133,6 +133,7 @@ export function findUsedCitationTemplates(text: string): string[] {
  * @param source - Article source wikitext.
  * @param templateData - Metadata for used citation templates.
  * @param layout - Citation-template output layout.
+ * @param leadSectionLabel - Localized article-lead label.
  * @returns Formatted source and operation counts.
  */
 // eslint-disable-next-line max-lines-per-function
@@ -140,20 +141,22 @@ export function formatCitationWikitext(
     source: string,
     templateData: CitationTemplateDataMap,
     layout: CitationLayout = "block",
+    leadSectionLabel: string = "Lead",
 ): CitationFormatResult {
     const rTemplatesFound = countRUseTemplates(source);
     const rConverted = convertRTemplates(source);
     const protectedRanges = findProtectedRanges(rConverted);
-    const filterCallbackM = function isUnprotectedContainer(
+    const isUnprotectedContainer = function isUnprotectedContainer(
         container: ReferenceContainer,
     ) {
         return !isInRanges(container.start, protectedRanges);
     };
-    const containers =
-        findReferenceContainers(rConverted).filter(filterCallbackM);
-    const filterCallbackL = (tag: RefTag) =>
+    const containers = findReferenceContainers(rConverted).filter(
+        isUnprotectedContainer,
+    );
+    const isUnprotectedRefTag = (tag: RefTag) =>
         !isInRanges(tag.start, protectedRanges);
-    const tags = findRefTags(rConverted).filter(filterCallbackL);
+    const tags = findRefTags(rConverted).filter(isUnprotectedRefTag);
     captureContainerPrefixes(containers, tags, rConverted);
     const definitions = buildReferenceDefinitions(
         tags,
@@ -162,7 +165,13 @@ export function formatCitationWikitext(
         rConverted,
         layout,
     );
-    assignReferenceSections(definitions, tags, containers, rConverted);
+    assignReferenceSections(
+        definitions,
+        tags,
+        containers,
+        rConverted,
+        leadSectionLabel,
+    );
     assignCitationNames(definitions);
     assignLinkedCitationNames(definitions, rConverted, templateData);
     assignFallbackNames(definitions);
@@ -199,23 +208,25 @@ function summarizeFormatting(
     rTemplatesFound: number,
 ): CitationFormatResult {
     const individual = uniqueDefinitions(definitions);
-    const filterCallbackJ = (tag: RefTag) =>
+    const isTagOutsideContainers = (tag: RefTag) =>
         !isTagInContainers(tag, containers);
-    const filterCallbackK = function isDefinitionOutsideContainers(
-        definition: ReferenceDefinition,
-    ) {
-        return !isTagInContainers(definition.tag, containers);
-    };
+    const isDefinitionOutsideContainers =
+        function isDefinitionOutsideContainers(
+            definition: ReferenceDefinition,
+        ) {
+            return !isTagInContainers(definition.tag, containers);
+        };
     const result: CitationFormatResult = {
         citationsFormatted: individual.filter(
             (definition) => definition.identity != null,
         ).length,
         individualReferencesFound: individual.length,
-        referenceCallsFound: tags.filter(filterCallbackJ).length,
+        referenceCallsFound: tags.filter(isTagOutsideContainers).length,
         referencesNotFormatted: individual.filter(
             (definition) => definition.identity == null,
         ).length,
-        referencesMoved: definitions.filter(filterCallbackK).length,
+        referencesMoved: definitions.filter(isDefinitionOutsideContainers)
+            .length,
         rTemplatesFound,
         text,
     };
@@ -239,15 +250,18 @@ function buildReferenceDefinitions(
     source: string,
     layout: CitationLayout,
 ): ReferenceDefinition[] {
-    const filterCallbackI = function hasContent(tag: RefTag) {
+    const hasContent = function hasContent(tag: RefTag) {
         return !tag.selfClosing && tag.content.trim() !== "";
     };
-    const fullTags = tags.filter(filterCallbackI);
+    const fullTags = tags.filter(hasContent);
     const shortCitationSources = buildShortCitationSourceMap(
         source,
         templateData,
     );
-    const mapCallbackK = function buildDefinition(tag: RefTag, order: number) {
+    const buildDefinition = function buildDefinition(
+        tag: RefTag,
+        order: number,
+    ) {
         const group = getContainingGroup(tag, containers);
         const trailingText = getTrailingContainerText(
             tag,
@@ -266,7 +280,7 @@ function buildReferenceDefinitions(
         );
         return result;
     };
-    const result = fullTags.map(mapCallbackK);
+    const result = fullTags.map(buildDefinition);
     return result;
 }
 
@@ -495,12 +509,12 @@ function buildBundledDefinition(
     citations: FormattedCitation[],
 ): ReferenceDefinition {
     const identities = getBundledIdentities(citations);
-    const mapCallbackJ = function formatIdentityName(
+    const formatIdentityName = function formatIdentityName(
         identity: CitationIdentity,
     ) {
         return appendCitationLocator(identity.baseName, identity.locator);
     };
-    const names = identities.map(mapCallbackJ);
+    const names = identities.map(formatIdentityName);
     const signatures = identities.map((item) => item.sourceSignature);
     const identity: CitationIdentity = {
         author: identities.map((item) => item.author).join("; "),
@@ -523,17 +537,17 @@ function buildBundledDefinition(
 function getBundledIdentities(
     citations: FormattedCitation[],
 ): CitationIdentity[] {
-    const mapCallbackI = function getIdentity(item: FormattedCitation) {
+    const getIdentity = function getIdentity(item: FormattedCitation) {
         return getCitationIdentity(item.citation);
     };
-    const identities = citations.map(mapCallbackI);
-    const groupByCallback = function groupByFirstAuthor(
+    const identities = citations.map(getIdentity);
+    const groupByFirstAuthor = function groupByFirstAuthor(
         identity: CitationIdentity,
     ) {
         return getFirstAuthorKey(identity.author);
     };
-    const counts = Map.groupBy(identities, groupByCallback);
-    const mapCallbackH = function disambiguate(
+    const counts = Map.groupBy(identities, groupByFirstAuthor);
+    const disambiguateIdentity = function disambiguateIdentity(
         item: FormattedCitation,
         index: number,
     ) {
@@ -545,7 +559,7 @@ function getBundledIdentities(
         }
         return disambiguated;
     };
-    const result = citations.map(mapCallbackH);
+    const result = citations.map(disambiguateIdentity);
     return result;
 }
 
@@ -566,14 +580,14 @@ function getFirstAuthorKey(author: string): string {
  * @returns Cite-bundle wikitext.
  */
 function formatCitationBundle(citations: FormattedCitation[]): string {
-    const mapCallbackG = function formatItem(
+    const formatItem = function formatItem(
         item: FormattedCitation,
         index: number,
     ) {
         const indented = item.text.replace(/\n/gu, "\n    ");
         return `  | ${index + 1} = ${indented}`;
     };
-    const items = citations.map(mapCallbackG);
+    const items = citations.map(formatItem);
     return ["{{Unbulleted list citebundle", ...items, "}}"].join("\n");
 }
 
@@ -636,12 +650,14 @@ function buildPlainDefinition(
  * @param tags - Parsed reference tags.
  * @param containers - Reference-list containers.
  * @param source - Article source wikitext.
+ * @param leadSectionLabel - Localized article-lead label.
  */
 function assignReferenceSections(
     definitions: ReferenceDefinition[],
     tags: RefTag[],
     containers: ReferenceContainer[],
     source: string,
+    leadSectionLabel: string,
 ): void {
     const headings = findSectionHeadings(source);
     for (const definition of definitions) {
@@ -654,7 +670,11 @@ function assignReferenceSections(
         if (position === Number.MAX_SAFE_INTEGER) {
             definition.section = "§ A Unused references";
         } else {
-            definition.section = getSectionAtPosition(position, headings);
+            definition.section = getSectionAtPosition(
+                position,
+                headings,
+                leadSectionLabel,
+            );
         }
     }
 }
@@ -709,7 +729,7 @@ function getDefinitionUsePosition(
     if (definition.oldName === "") {
         return Number.MAX_SAFE_INTEGER;
     }
-    const findCallback = function isMatchingReuse(tag: RefTag) {
+    const isMatchingReuse = function isMatchingReuse(tag: RefTag) {
         const group = tag.attributes.group || "";
         const result =
             !isTagInContainers(tag, containers) &&
@@ -717,7 +737,7 @@ function getDefinitionUsePosition(
             group === definition.group;
         return result;
     };
-    const reuse = tags.find(findCallback);
+    const reuse = tags.find(isMatchingReuse);
     return reuse?.start ?? Number.MAX_SAFE_INTEGER;
 }
 
@@ -726,16 +746,18 @@ function getDefinitionUsePosition(
  *
  * @param position - Source offset.
  * @param headings - Article section headings.
+ * @param leadSectionLabel - Localized article-lead label.
  * @returns Numbered section label or lead section.
  */
 function getSectionAtPosition(
     position: number,
     headings: SectionHeading[],
+    leadSectionLabel: string,
 ): string {
     const heading = headings.findLast(
         (candidate) => candidate.start < position,
     );
-    return heading?.label || "§ 0 Lead";
+    return heading?.label || `§ 0 ${leadSectionLabel}`;
 }
 
 /**
@@ -894,17 +916,15 @@ function assignFallbackNames(definitions: ReferenceDefinition[]): void {
  * @returns Whole citation call when present.
  */
 function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
-    const filterCallbackH = function isCitationCall(call: ParsedTemplateCall) {
+    const isCitationCall = function isCitationCall(call: ParsedTemplateCall) {
         return isCitationTemplate(call.name);
     };
-    const candidates = findTemplateCalls(text).filter(filterCallbackH);
-    const filterCallbackG = function isTopLevel(
-        candidate: ParsedTemplateCall,
-    ) {
+    const candidates = findTemplateCalls(text).filter(isCitationCall);
+    const isTopLevel = function isTopLevel(candidate: ParsedTemplateCall) {
         const result = !isNestedTemplateCall(candidate, candidates);
         return result;
     };
-    const calls = candidates.filter(filterCallbackG);
+    const calls = candidates.filter(isTopLevel);
     let cursor = 0;
     const gaps: string[] = [];
     for (const call of calls) {
@@ -914,8 +934,8 @@ function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
     }
     const trailing = text.slice(cursor);
     gaps.push(trailing);
-    const everyCallback = (gap: string) => gap.trim() === "";
-    const onlyWhitespace = gaps.every(everyCallback);
+    const isWhitespace = (gap: string) => gap.trim() === "";
+    const onlyWhitespace = gaps.every(isWhitespace);
     const onlyMaintenance =
         calls.length === 1 && gaps.every(isCitationMaintenanceText);
     const result = onlyWhitespace || onlyMaintenance ? calls : [];
@@ -930,11 +950,11 @@ function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
  */
 function isCitationMaintenanceText(text: string): boolean {
     const allCalls = findTemplateCalls(text);
-    const filterCallbackF = function isTopLevel(call: ParsedTemplateCall) {
+    const isTopLevel = function isTopLevel(call: ParsedTemplateCall) {
         const nested = isNestedTemplateCall(call, allCalls);
         return !nested;
     };
-    const calls = allCalls.filter(filterCallbackF);
+    const calls = allCalls.filter(isTopLevel);
     let cursor = 0;
     for (const call of calls) {
         const normalizedName = normalizeTemplateName(call.name);
@@ -1148,10 +1168,10 @@ function buildTagReplacements(
         },
     );
     const definitionsByStart = new Map(definitionEntries);
-    const filterCallbackE = function isBodyTag(tag: RefTag) {
+    const isBodyTag = function isBodyTag(tag: RefTag) {
         return !isTagInContainers(tag, containers);
     };
-    const mapCallbackF = function replaceTag(tag: RefTag) {
+    const buildTagReplacement = function buildTagReplacement(tag: RefTag) {
         const group = tag.attributes.group || "";
         const definition = definitionsByStart.get(tag.start);
         if (definition != null) {
@@ -1171,7 +1191,7 @@ function buildTagReplacements(
         };
         return result;
     };
-    const result = tags.filter(filterCallbackE).map(mapCallbackF);
+    const result = tags.filter(isBodyTag).map(buildTagReplacement);
     return result;
 }
 
@@ -1187,7 +1207,7 @@ function buildContainerReplacements(
     definitions: ReferenceDefinition[],
 ): TextReplacement[] {
     const firstByGroup = new Set<string>();
-    const mapCallbackE = function replaceContainer(
+    const buildContainerReplacement = function buildContainerReplacement(
         container: ReferenceContainer,
     ) {
         const isFirst = !firstByGroup.has(container.group);
@@ -1202,7 +1222,7 @@ function buildContainerReplacements(
         }
         return { end: container.end, start: container.start, text };
     };
-    const result = containers.map(mapCallbackE);
+    const result = containers.map(buildContainerReplacement);
     return result;
 }
 
@@ -1216,7 +1236,7 @@ function uniqueDefinitions(
     definitions: ReferenceDefinition[],
 ): ReferenceDefinition[] {
     const seen = new Set<string>();
-    const filterCallbackD = function isFirstDefinition(
+    const isFirstDefinition = function isFirstDefinition(
         definition: ReferenceDefinition,
     ) {
         const key = [definition.finalName, definition.formattedContent].join(
@@ -1228,7 +1248,7 @@ function uniqueDefinitions(
         seen.add(key);
         return true;
     };
-    const result = definitions.filter(filterCallbackD);
+    const result = definitions.filter(isFirstDefinition);
     return result;
 }
 
@@ -1277,13 +1297,13 @@ function getContainerGeneralComments(
         container.prefixText,
         ...definitions.map((definition) => definition.trailingText),
     ];
-    const flatMapCallback = function findGeneralComments(value: string) {
+    const findGeneralComments = function findGeneralComments(value: string) {
         const matches = value.matchAll(HTML_COMMENT);
         const comments = Array.from(matches, ([comment]) => comment);
         const general = comments.filter(isGeneralReferenceComment);
         return general;
     };
-    const result = values.flatMap(flatMapCallback);
+    const result = values.flatMap(findGeneralComments);
     return result;
 }
 
@@ -1311,14 +1331,14 @@ function buildSectionedDefinitionRows(
     const prefix = stripReferenceSectionComments(container.prefixText).trim();
     const sorted = [...definitions].sort(compareReferenceOrder);
     const groups = Map.groupBy(sorted, (definition) => definition.section);
-    const fromCallback = function buildSection([name, items]: [
+    const buildSection = function buildSection([name, items]: [
         string,
         ReferenceDefinition[],
     ]) {
         const rows = items.map(buildDefinitionTag).join("\n");
         return `${formatReferenceSectionBanner(name)}\n\n${rows}`;
     };
-    const sections = Array.from(groups, fromCallback);
+    const sections = Array.from(groups, buildSection);
     return [prefix, ...sections].filter(Boolean).join("\n\n");
 }
 
@@ -1389,10 +1409,10 @@ function isReferenceSectionComment(comment: string): boolean {
         REFERENCE_SECTION_COMMENT,
         LEGACY_REFERENCE_SECTION_COMMENT,
     ];
-    const someCallback = function matchesPattern(pattern: RegExp) {
+    const matchesPattern = function matchesPattern(pattern: RegExp) {
         return pattern.test(comment);
     };
-    const result = patterns.some(someCallback);
+    const result = patterns.some(matchesPattern);
     return result;
 }
 
@@ -1448,14 +1468,14 @@ function appendMissingReferenceContainers(
     );
     const uniqueDefinitionGroups = new Set(definitionGroups);
     const allDefinitionGroups = Array.from(uniqueDefinitionGroups);
-    const filterCallbackC = function isMissingGroup(group: string) {
+    const isMissingGroup = function isMissingGroup(group: string) {
         return !existingGroups.has(group);
     };
-    const missingGroups = allDefinitionGroups.filter(filterCallbackC);
+    const missingGroups = allDefinitionGroups.filter(isMissingGroup);
     if (missingGroups.length === 0) {
         return text;
     }
-    const mapCallbackD = function buildMissingList(group: string) {
+    const buildMissingList = function buildMissingList(group: string) {
         const grouped = definitions.filter(function hasGroup(definition) {
             return definition.group === group;
         });
@@ -1464,7 +1484,7 @@ function appendMissingReferenceContainers(
         const result = buildReferenceContainer(container, unique);
         return result;
     };
-    const additions = missingGroups.map(mapCallbackD);
+    const additions = missingGroups.map(buildMissingList);
     return `${text.trimEnd()}\n\n${additions.join("\n\n")}\n`;
 }
 
@@ -1530,7 +1550,7 @@ function findReferenceContainers(text: string): ReferenceContainer[] {
  * @returns Reflist reference container.
  */
 function buildReflistContainer(call: ParsedTemplateCall): ReferenceContainer {
-    const mapCallbackC = function normalizeParam(
+    const normalizeNamedParam = function normalizeNamedParam(
         param: ParsedTemplateCall["params"][number],
     ) {
         return [param.name.toLocaleLowerCase("en-US"), param.value];
@@ -1539,7 +1559,7 @@ function buildReflistContainer(call: ParsedTemplateCall): ReferenceContainer {
         .filter(function isNamedParam(param) {
             return !param.positional;
         })
-        .map(mapCallbackC) as Array<[string, string]>;
+        .map(normalizeNamedParam) as Array<[string, string]>;
     const values = Object.fromEntries(namedParams);
     const listValue = values.list || values.refs || "";
     const valueOffset = listValue === "" ? 0 : call.raw.indexOf(listValue);
@@ -1682,7 +1702,9 @@ function getContainingGroup(
  * @returns Source with native ref tags.
  */
 function convertRTemplates(text: string): string {
-    const mapCallbackB = function replaceR(call: ParsedTemplateCall) {
+    const buildRTemplateReplacement = function buildRTemplateReplacement(
+        call: ParsedTemplateCall,
+    ) {
         const result = {
             end: call.end,
             start: call.start,
@@ -1690,7 +1712,9 @@ function convertRTemplates(text: string): string {
         };
         return result;
     };
-    const replacements = findActiveRTemplates(text).map(mapCallbackB);
+    const replacements = findActiveRTemplates(text).map(
+        buildRTemplateReplacement,
+    );
     const outerReplacements = removeNestedReplacements(replacements);
     return applyReplacements(text, outerReplacements);
 }
@@ -1703,13 +1727,13 @@ function convertRTemplates(text: string): string {
  */
 function findActiveRTemplates(text: string): ParsedTemplateCall[] {
     const protectedRanges = findProtectedRanges(text);
-    const filterCallbackB = function isActiveR(call: ParsedTemplateCall) {
+    const isActiveR = function isActiveR(call: ParsedTemplateCall) {
         const active =
             normalizeTemplateName(call.name) === "r" &&
             !isInRanges(call.start, protectedRanges);
         return active;
     };
-    const result = findTemplateCalls(text).filter(filterCallbackB);
+    const result = findTemplateCalls(text).filter(isActiveR);
     return result;
 }
 
@@ -1721,13 +1745,17 @@ function findActiveRTemplates(text: string): ParsedTemplateCall[] {
  */
 function countRUseTemplates(source: string): number {
     const containers = findReferenceContainers(source);
-    const filterCallbackA = function isUse(call: ParsedTemplateCall) {
+    const isOutsideReferenceContainer = function isOutsideReferenceContainer(
+        call: ParsedTemplateCall,
+    ) {
         const contained = containers.some(function containsCall(container) {
             return call.start >= container.start && call.end <= container.end;
         });
         return !contained;
     };
-    const result = findActiveRTemplates(source).filter(filterCallbackA).length;
+    const result = findActiveRTemplates(source).filter(
+        isOutsideReferenceContainer,
+    ).length;
     return result;
 }
 
@@ -1738,7 +1766,7 @@ function countRUseTemplates(source: string): number {
  * @returns Native ref tags.
  */
 function convertRTemplate(call: ParsedTemplateCall): string {
-    const mapCallbackA = function normalizeParam(
+    const normalizeNamedParam = function normalizeNamedParam(
         param: ParsedTemplateCall["params"][number],
     ) {
         return [param.name.toLocaleLowerCase("en-US"), param.value];
@@ -1747,7 +1775,7 @@ function convertRTemplate(call: ParsedTemplateCall): string {
         .filter(function isNamedParam(param) {
             return !param.positional;
         })
-        .map(mapCallbackA);
+        .map(normalizeNamedParam);
     const named = Object.fromEntries(namedEntries);
     const positional = call.params
         .filter((param) => param.positional)
@@ -1764,11 +1792,11 @@ function convertRTemplate(call: ParsedTemplateCall): string {
         const name = escapeRefName(definitionName);
         return `<ref name="${name}"${groupAttribute}>${content}</ref>`;
     }
-    const mapCallback = function buildPositionalReuse(name: string) {
+    const buildPositionalReuse = function buildPositionalReuse(name: string) {
         const normalizedName = stripRNameQuotes(name);
         return buildReuseTag(normalizedName, group);
     };
-    const result = positional.map(mapCallback).join("");
+    const result = positional.map(buildPositionalReuse).join("");
     return result;
 }
 
@@ -1821,7 +1849,7 @@ function isInRanges(index: number, ranges: Array<[number, number]>): boolean {
 function removeNestedReplacements(
     replacements: TextReplacement[],
 ): TextReplacement[] {
-    const filterCallback = function isOuterReplacement(
+    const isOuterReplacement = function isOuterReplacement(
         candidate: TextReplacement,
         index: number,
     ) {
@@ -1839,7 +1867,7 @@ function removeNestedReplacements(
         );
         return result;
     };
-    const result = replacements.filter(filterCallback);
+    const result = replacements.filter(isOuterReplacement);
     return result;
 }
 

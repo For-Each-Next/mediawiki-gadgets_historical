@@ -20,6 +20,13 @@ Citation Formatter is a MediaWiki source-editor gadget. Its editor actions:
   fields while preserving populated and custom fields during citation-template
   changes.
 
+The interface follows Wikimedia Codex form, dialog, table, tabs, feedback,
+icon, and responsive-layout conventions. It uses the MediaWiki interface
+language (`wgUserLanguage`) and currently includes English, Simplified Chinese,
+and Traditional Chinese. Common MediaWiki variants such as `zh`, `zh-CN`,
+`zh-SG`, `zh-HK`, and `zh-TW` resolve to the appropriate Chinese catalog;
+other languages fall back to English.
+
 The supported set is the CS1 list at
 `Template:Citation Style documentation/cs1`, the general CS2 `Citation`
 template, and `Cite video game`. Its TemplateData is committed under
@@ -80,7 +87,88 @@ Build from the workspace root with `npm run build -w citation-formatter`.
 Refresh every supported template from English Wikipedia's live TemplateData
 API with `npm run update:template-data -w citation-formatter`.
 
+## Public functions
+
+The package entry point (`index.ts`) is side-effect free. The gadget build uses
+`browser.ts`, which exports the same API and mounts the MediaWiki editor action.
+The transformation functions operate on supplied text without mutating it.
+
+| Function                                                                 | Introduction                                                                                                                                                   |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `formatCitations(text, layout?)`                                         | Formats complete article wikitext with the bundled TemplateData. It returns a `CitationFormatResult` containing the formatted text and operation counts.       |
+| `formatCitationWikitext(text, templateData, layout?)`                    | Runs the formatter with a caller-provided `CitationTemplateDataMap`. Use this when TemplateData is supplied outside the gadget package.                        |
+| `findUsedCitationTemplates(text)`                                        | Returns the supported citation-template names found in active article wikitext.                                                                                |
+| `normalizeEnglishDate(value)`                                            | Converts an unambiguous English citation date to ISO form and leaves unsupported or ambiguous input unchanged.                                                 |
+| `findNameOverrideFields(text)`                                           | Finds non-Latin citation-name contributors and their existing `<!-- # … -->` overrides. The returned field IDs can be edited and passed to a manager function. |
+| `manageCitations(text, updates, compact, layout?, leadLabel?)`           | Applies `NameOverrideUpdate` values, formats citations, and chooses native `<ref>` reuse calls or compact `{{r}}` calls. It returns only the updated wikitext. |
+| `manageCitationsWithResult(text, updates, compact, layout?, leadLabel?)` | Performs the same manager workflow while retaining the formatter's operation counts.                                                                           |
+
+`layout` is `"block"` by default and may be set to `"inline"`. A name-override
+update has the shape `{ ids: string[], override: string }`; use the `ids`
+returned by `findNameOverrideFields` so every occurrence in one shared field is
+updated together.
+
+```ts
+import {
+    findNameOverrideFields,
+    manageCitationsWithResult,
+} from "citation-formatter";
+
+const fields = findNameOverrideFields(articleWikitext);
+const updates = fields.map(({ ids, override }) => ({ ids, override }));
+const result = manageCitationsWithResult(
+    articleWikitext,
+    updates,
+    false,
+    "block",
+);
+```
+
+## Architecture
+
+- `api.ts` owns the public, browser-independent exports; `browser.ts` contains
+  the MediaWiki mounting side effect.
+- `domain/` contains citation parsing, validation, analysis, and deterministic
+  wikitext transformations.
+- `infra/` contains the Citoid, archive, and wiki-link integrations.
+- `ui/` contains the editor launcher, Codex controller, standalone Vue
+  template, and bundled semantic styles.
+- `i18n/` contains type-checked catalogs and small adapters that supply
+  localized text to otherwise locale-independent domain services.
+
 ## Version history
+
+### 0.4.0
+
+- Added complete English, Simplified Chinese, and Traditional Chinese
+  interface catalogs with MediaWiki language-variant resolution, localized
+  launchers and lead markers, and copy aligned with the Codex voice and tone.
+- Rebuilt the source manager with responsive Codex dialogs, tabs, fields,
+  comboboxes, semantic source and parameter tables, validation states,
+  official icons, and logical CSS.
+- Separated the pure API, browser bootstrap, Vue template, localization
+  adapters, domain logic, and infrastructure boundaries.
+- Moved version and UTC build information from the Tools tab into the main
+  dialog subtitle.
+- Added CS1 validation before saving new sources, article-wide CS1 and non-CS1
+  checks, rechecking after edits, and clear progress and result feedback.
+- Added citation name consistency checks for website, publisher, author,
+  reference-name, and source-key text, with inline replacement choices,
+  selected occurrences, per-change reversion, and session-safe undo.
+- Added a compact reference-name and shared-source-key editor with autosizing
+  text areas, template-specific alternative parameter names, and author, date,
+  and part exclusions.
+- Kept the source list mounted while editing in a separate dialog, preserved
+  source and parameter positions during edits, and retained explicit sorting.
+- Added detailed Apply feedback and a safe whole-tool Cancel changes action
+  that restores Citation Formatter editor changes.
+- Added result counts and responsive keyword and section filters.
+- Aligned button labels, actions, and weights with the Codex button hierarchy.
+- Removed the unreachable legacy manager, custom icon definitions, unused
+  source-status path, test-only helpers, stale package configuration, and
+  unused UI messages.
+- Documented the public functions, update workflow, supported languages, and
+  module architecture.
 
 ### 0.3.48
 

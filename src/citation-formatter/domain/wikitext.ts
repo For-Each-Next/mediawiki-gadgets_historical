@@ -32,7 +32,7 @@ export function applyReplacements(
     text: string,
     replacements: TextReplacement[],
 ): string {
-    const reduceCallback = function replaceText(
+    const replaceText = function replaceText(
         result: string,
         replacement: TextReplacement,
     ) {
@@ -42,7 +42,7 @@ export function applyReplacements(
     };
     const result = [...replacements]
         .sort((left, right) => right.start - left.start)
-        .reduce(reduceCallback, text);
+        .reduce(replaceText, text);
     return result;
 }
 
@@ -105,7 +105,7 @@ export function parseTemplateCall(
     const parts = splitTopLevel(inner, "|");
     const name = parts.shift()?.trim() || "";
     let positionalIndex = 0;
-    const mapCallback = function parsePart(part: string) {
+    const parsePart = function parsePart(part: string) {
         const separator = findTopLevelCharacter(part, "=");
         if (separator < 0) {
             positionalIndex += 1;
@@ -123,7 +123,7 @@ export function parseTemplateCall(
         };
         return result;
     };
-    const params = parts.map(mapCallback);
+    const params = parts.map(parsePart);
     return { end: start + raw.length, name, params, raw, start };
 }
 

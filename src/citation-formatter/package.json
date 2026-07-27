@@ -1,6 +1,6 @@
 {
     "name": "citation-formatter",
-    "version": "0.3.48",
+    "version": "0.4.0",
     "description": "Format and manage CS1 citations in MediaWiki source editors.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -12,14 +12,14 @@
         "#shared": "@mediawiki-gadgets/shared"
     },
     "main": "./index.ts",
-    "browser": "./index.ts",
+    "browser": "./browser.ts",
     "gadgetBuild": {
         "globalName": "citationFormatter",
         "outputDirectory": "../../dist/citation-formatter",
         "outputName": "citation_formatter",
         "defines": {
-            "__CITATION_FORMATTER_MANAGER_CSS__": {
-                "textFile": "ui/manager.css"
+            "__CITATION_FORMATTER_STYLES__": {
+                "textFile": "ui/styles.css"
             }
         },
         "userscript": {
@@ -29,13 +29,6 @@
             ]
         }
     },
-    "files": [
-        "README.md",
-        "*.ts",
-        "domain",
-        "infra",
-        "ui"
-    ],
     "keywords": [
         "citation",
         "mediawiki",
@@ -48,8 +41,10 @@
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "test": "node --test ../../tests/citation-formatter/*.test.ts",
-        "update:template-data": "node ../../scripts/update-citation-template-data.ts",
-        "prepublishOnly": "npm run check"
+        "update:template-data": "node ../../scripts/update-citation-template-data.ts"
+    },
+    "devDependencies": {
+        "@wikimedia/codex-icons": "^2.6.0"
     },
     "engines": {
         "node": ">=22.18"

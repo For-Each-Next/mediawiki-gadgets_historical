@@ -164,7 +164,7 @@ test("rejects stale selected analysis fields", () => {
                     sourceId: occurrence.sourceId,
                 },
             ]),
-        /changed after analysis opened/u,
+        /changed after the check opened/u,
     );
 });
 

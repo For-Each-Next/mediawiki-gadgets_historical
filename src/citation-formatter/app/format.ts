@@ -20,13 +20,20 @@ import type { CitationLayout } from "#me/domain/types.ts";
  *
  * @param text - Article source wikitext.
  * @param layout - Citation-template output layout.
+ * @param leadSectionLabel - Localized article-lead label.
  * @returns Formatted source and operation counts.
  */
 export function formatCitations(
     text: string,
     layout: CitationLayout = "block",
+    leadSectionLabel: string = "Lead",
 ): CitationFormatResult {
-    return formatCitationWikitext(text, templateData, layout);
+    return formatCitationWikitext(
+        text,
+        templateData,
+        layout,
+        leadSectionLabel,
+    );
 }
 
 /**
@@ -34,17 +41,25 @@ export function formatCitations(
  *
  * @param text - Article source wikitext.
  * @param updates - Edited reference-name overrides.
- * @param compact - Whether reuse calls should use R.
+ * @param useCompactReferences - Whether reuse calls should use `{{r}}`.
  * @param layout - Citation-template output layout.
+ * @param leadSectionLabel - Localized article-lead label.
  * @returns Managed source wikitext.
  */
 export function manageCitations(
     text: string,
     updates: NameOverrideUpdate[],
-    compact: boolean,
+    useCompactReferences: boolean,
     layout: CitationLayout = "block",
+    leadSectionLabel: string = "Lead",
 ): string {
-    return manageCitationsWithResult(text, updates, compact, layout).text;
+    return manageCitationsWithResult(
+        text,
+        updates,
+        useCompactReferences,
+        layout,
+        leadSectionLabel,
+    ).text;
 }
 
 /**
@@ -52,19 +67,21 @@ export function manageCitations(
  *
  * @param text - Article source wikitext.
  * @param updates - Edited reference-name overrides.
- * @param compact - Whether reuse calls should use R.
+ * @param useCompactReferences - Whether reuse calls should use `{{r}}`.
  * @param layout - Citation-template output layout.
+ * @param leadSectionLabel - Localized article-lead label.
  * @returns Managed source wikitext and formatting counts.
  */
 export function manageCitationsWithResult(
     text: string,
     updates: NameOverrideUpdate[],
-    compact: boolean,
+    useCompactReferences: boolean,
     layout: CitationLayout = "block",
+    leadSectionLabel: string = "Lead",
 ): CitationFormatResult {
     const overridden = applyNameOverrides(text, updates);
-    const formatted = formatCitations(overridden, layout);
-    if (compact) {
+    const formatted = formatCitations(overridden, layout, leadSectionLabel);
+    if (useCompactReferences) {
         formatted.text = compactReferenceCalls(formatted.text);
     } else {
         formatted.text = expandCompactReferenceCalls(formatted.text);

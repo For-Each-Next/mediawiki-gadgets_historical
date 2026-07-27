@@ -20,11 +20,11 @@ const PRE_FORMAT_HANDLERS: PreFormatHandler[] = [
 export function applyPreFormatHandlers(
     params: CitationParam[],
 ): CitationParam[] {
-    const mapCallback = function applyHandlers(param: CitationParam) {
+    const applyHandlers = function applyHandlers(param: CitationParam) {
         const migrated = PRE_FORMAT_HANDLERS.reduce(applyHandler, param);
         return migrated;
     };
-    const result = params.map(mapCallback);
+    const result = params.map(applyHandlers);
     return result;
 }
 

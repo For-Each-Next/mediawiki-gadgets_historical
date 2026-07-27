@@ -35,10 +35,11 @@ export const SUPPORTED_CITATION_TEMPLATES = [
     "Cite video game",
 ] as const;
 
-const mapCallback = function indexCanonicalName(name: string) {
+const indexCanonicalName = function indexCanonicalName(name: string) {
     return [normalizeTemplateName(name), name] as const;
 };
-const canonicalTemplateEntries = SUPPORTED_CITATION_TEMPLATES.map(mapCallback);
+const canonicalTemplateEntries =
+    SUPPORTED_CITATION_TEMPLATES.map(indexCanonicalName);
 const CANONICAL_TEMPLATE_NAMES = new Map(canonicalTemplateEntries);
 
 const supportedTemplateNames = CANONICAL_TEMPLATE_NAMES.keys();

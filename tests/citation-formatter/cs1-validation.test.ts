@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {
     extractCs1IssueMessages,
+    getCs1DraftFingerprint,
     parseCs1ValidationResult,
 } from "citation-formatter/domain/cs1-validation.ts";
 import {
@@ -48,6 +49,21 @@ test("maps enwiki name-list and ignored-parameter errors", () => {
     );
     assert.equal(result.issueCount, 2);
     assert.deepEqual(result.messages, []);
+});
+
+test("keeps CS1 issues active after reference-name-only edits", () => {
+    const draft = parseSourceDraft(
+        "{{cite web|title=Example|book-title=Ignored value}}",
+    );
+    const checked = getCs1DraftFingerprint(draft);
+    const row = draft.rows[getRowIndex(draft, "book-title")];
+
+    row.alias = "Reference name";
+    row.directive = "!keep";
+    assert.equal(getCs1DraftFingerprint(draft), checked);
+
+    row.value = "Corrected value";
+    assert.notEqual(getCs1DraftFingerprint(draft), checked);
 });
 
 test("maps zhwiki citation-comment errors through local aliases", () => {

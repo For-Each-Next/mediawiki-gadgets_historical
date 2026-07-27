@@ -7,7 +7,7 @@ import { editBox } from "#shared";
 
 const { createEditBox, registerEditBoxHooks } = editBox;
 
-const testCallbackB = () => {
+const testNativeTextareaBackend = () => {
     const events: string[] = [];
     let focused = false;
     function focus(): void {
@@ -33,7 +33,7 @@ const testCallbackB = () => {
     assert.deepEqual(events, ["input", "change"]);
     assert.equal(focused, true);
 };
-test("reads and writes a native source textarea", testCallbackB);
+test("reads and writes a native source textarea", testNativeTextareaBackend);
 
 test("replaces selected and collapsed native textarea ranges", () => {
     const events: string[] = [];
@@ -63,7 +63,7 @@ test("replaces selected and collapsed native textarea ranges", () => {
     assert.deepEqual(events, ["input", "change", "input", "change"]);
 });
 
-const testCallbackA = () => {
+const testCodeMirrorBackend = () => {
     const hooks = installMediaWikiHookMock();
     registerEditBoxHooks();
     const textarea = { value: "stale" } as HTMLTextAreaElement;
@@ -94,9 +94,9 @@ const testCallbackA = () => {
     hooks.get("ext.CodeMirror.toggle")?.(false, codeMirror);
     delete (globalThis as { mw?: unknown }).mw;
 };
-test("uses an active CodeMirror document", testCallbackA);
+test("uses an active CodeMirror document", testCodeMirrorBackend);
 
-const testCallback = () => {
+const testVisualEditorBackend = () => {
     const fixture = createVisualEditorFixture();
     const { state, surface } = fixture;
     class Range {
@@ -137,7 +137,7 @@ const testCallback = () => {
 };
 test(
     "uses VisualEditor's active source surface without a textarea",
-    testCallback,
+    testVisualEditorBackend,
 );
 
 interface CodeMirrorTransaction {

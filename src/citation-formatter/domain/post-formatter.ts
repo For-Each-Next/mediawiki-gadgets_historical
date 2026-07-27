@@ -14,10 +14,10 @@ import { getCanonicalTemplateName } from "./templates.ts";
 export function formatBlockCitation(citation: CitationTemplate): string {
     const templateName = getCanonicalTemplateName(citation.name);
     const outputParams = getCitationOutputParams(citation);
-    const mapCallback = function formatParam(param: CitationParam) {
+    const formatParam = function formatParam(param: CitationParam) {
         return `  | ${param.name} = ${param.value}`;
     };
-    const rows = outputParams.map(mapCallback);
+    const rows = outputParams.map(formatParam);
     if (rows.length === 0) {
         return `{{${templateName}}}`;
     }
@@ -33,10 +33,10 @@ export function formatBlockCitation(citation: CitationTemplate): string {
 export function formatInlineCitation(citation: CitationTemplate): string {
     const templateName = getCanonicalTemplateName(citation.name);
     const outputParams = getCitationOutputParams(citation);
-    const mapCallback = function formatParam(param: CitationParam) {
+    const formatParam = function formatParam(param: CitationParam) {
         return `${param.name} = ${param.value}`;
     };
-    const params = outputParams.map(mapCallback);
+    const params = outputParams.map(formatParam);
     if (params.length === 0) {
         return `{{${templateName}}}`;
     }
@@ -55,7 +55,7 @@ export function getCitationOutputParams(
     includeEmpty: boolean = false,
 ): CitationParam[] {
     const authorCount = countAuthors(citation.params);
-    const mapCallback = function buildOutputParam(
+    const buildOutputParam = function buildOutputParam(
         param: CitationParam,
     ): CitationParam {
         const name = getOutputParamName(param, citation.params, authorCount);
@@ -64,7 +64,7 @@ export function getCitationOutputParams(
     const params = includeEmpty
         ? citation.params
         : citation.params.filter((param) => param.value !== "");
-    const result = params.map(mapCallback);
+    const result = params.map(buildOutputParam);
     return result;
 }
 
@@ -75,10 +75,10 @@ export function getCitationOutputParams(
  * @returns Number of author slots.
  */
 function countAuthors(params: CitationParam[]): number {
-    const filterCallback = function isPopulatedLast(param: CitationParam) {
+    const isPopulatedLast = function isPopulatedLast(param: CitationParam) {
         return /^last(?:\d+)?$/u.test(param.name) && param.value !== "";
     };
-    const result = params.filter(filterCallback).length;
+    const result = params.filter(isPopulatedLast).length;
     return result;
 }
 

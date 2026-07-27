@@ -2,7 +2,7 @@
  * Maps live CS1 validation output back to citation draft rows.
  */
 
-import type { SourceDraft } from "./source-manager.ts";
+import { serializeSourceDraft, type SourceDraft } from "./source-manager.ts";
 import type {
     SourceDraftErrors,
     SourceDraftRowErrors,
@@ -41,6 +41,24 @@ const COMMON_PARAMETER_ALIASES: Record<string, string> = {
     publicationdate: "publication-date",
     publicationplace: "publication-place",
 };
+
+/**
+ * Serializes only draft content that can affect live CS1 validation.
+ *
+ * Reference-name aliases and formatter directives are HTML comments, so
+ * changing them must not hide issues returned for the citation fields.
+ */
+export function getCs1DraftFingerprint(draft: SourceDraft): string {
+    return serializeSourceDraft(
+        {
+            rows: draft.rows.map(function omitReferenceNaming(row) {
+                return { ...row, alias: "", directive: "" };
+            }),
+            template: draft.template,
+        },
+        "inline",
+    );
+}
 
 /** Combines local and live cell errors without dropping messages. */
 export function mergeSourceDraftErrors(

@@ -1,0 +1,22 @@
+/**
+ * Browser entry point for the MediaWiki gadget bundle.
+ */
+
+export * from "#me/api.ts";
+
+import { mountCitationFormatter } from "#me/ui/editor.ts";
+
+if (typeof mw !== "undefined" && typeof mw.loader?.using === "function") {
+    mountWhenMediaWikiIsReady();
+    mw.hook("ve.wikitextInteractive").add(mountWhenMediaWikiIsReady);
+}
+
+/** Loads the portlet API before mounting the editor command. */
+function mountWhenMediaWikiIsReady(): void {
+    void mw.loader
+        .using("mediawiki.util")
+        .then(mountCitationFormatter)
+        .catch(function reportStartupFailure(error: unknown): void {
+            console.error("Citation Formatter failed to start.", error);
+        });
+}

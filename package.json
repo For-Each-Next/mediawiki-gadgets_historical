@@ -22,10 +22,12 @@
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
+        "@types/html-minifier-terser": "^7.0.2",
         "@types/node": "^26.1.1",
         "@typescript-eslint/parser": "^8.64.0",
         "esbuild": "^0.28.0",
         "eslint": "^9.0.0",
+        "html-minifier-terser": "^7.2.0",
         "jiti": "^2.7.0",
         "prettier": "^3.0.0",
         "stylelint": "^17.14.0",

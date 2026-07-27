@@ -8,6 +8,7 @@ import { build, transform, type BuildOptions } from "esbuild";
 import { format } from "prettier";
 import { minify } from "terser";
 import { formatMinifiedOutput } from "../build.config.ts";
+import { createHtmlTemplateMinifier } from "./minify-html-templates.ts";
 
 interface BundleOptions {
     minifyText?: boolean;
@@ -130,6 +131,9 @@ async function bundleSource(
     buildConfig: GadgetBuildConfig,
     options: BundleOptions = {},
 ): Promise<string> {
+    const htmlTemplateMinifier = options.minifyText
+        ? createHtmlTemplateMinifier()
+        : undefined;
     const buildOptions: BuildOptions = {
         bundle: true,
         define: {
@@ -141,6 +145,8 @@ async function bundleSource(
         format: "iife",
         globalName: buildConfig.globalName,
         logLevel: "silent",
+        plugins:
+            htmlTemplateMinifier == null ? undefined : [htmlTemplateMinifier],
         target: buildConfig.target || "es2025",
         write: false,
     };

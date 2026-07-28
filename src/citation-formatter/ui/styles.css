@@ -641,6 +641,10 @@ html[dir="rtl"] .cf-citation-launcher {
     width: 24px;
 }
 
+.cf-source-manager__split-author-icon {
+    transform: scaleX(-1);
+}
+
 .cf-source-manager__source-actions {
     display: flex;
     flex-wrap: nowrap;

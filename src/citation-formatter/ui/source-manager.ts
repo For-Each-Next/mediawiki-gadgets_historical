@@ -58,6 +58,7 @@ import {
     analyzeCitationSources,
     applySourceAnalysisReplacements,
     type CitationSourceAnalysis,
+    type SourceAnalysisCell,
     type SourceAnalysisFinding,
     type SourceAnalysisOccurrence,
     type SourceAnalysisReplacement,
@@ -107,14 +108,14 @@ import {
     cdxIconKey,
     cdxIconLink,
     cdxIconMagicWand,
+    cdxIconMerge,
     cdxIconMessage,
     cdxIconMusicalScore,
+    cdxIconNewWindow,
     cdxIconNewspaper,
     cdxIconNotice,
     cdxIconReferenceExisting,
     cdxIconUpdate,
-    cdxIconUserAvatar,
-    cdxIconUserGroup,
     cdxIconUserTalk,
     type Icon,
 } from "@wikimedia/codex-icons";
@@ -141,6 +142,24 @@ const TOOL_BUILD_LABEL = msg("tool.buildLabel", {
     version: GADGET_VERSION,
 });
 const URL_STATUSES = ["live", "dead", "unfit"] as const;
+const URL_DRAFT_PARAMETERS = new Set([
+    "url",
+    "archive-url",
+    "archiveurl",
+    "chapter-url",
+    "conference-url",
+    "conferenceurl",
+    "contribution-url",
+    "contributionurl",
+    "eventurl",
+    "layurl",
+    "link",
+    "mapurl",
+    "section-url",
+    "sectionurl",
+    "transcript-url",
+    "transcripturl",
+]);
 const REFERENCE_NAME_DIRECTIVES = [
     "!no-author",
     "!no-date",
@@ -254,12 +273,20 @@ interface SelectedAnalysisFinding {
     replacements: SourceAnalysisReplacement[];
 }
 
+interface AnalysisTab {
+    appliedFindings: AppliedAnalysisFinding[];
+    findings: EditableSourceAnalysisFinding[];
+    label: string;
+    name: SourceAnalysisCell;
+}
+
 export interface SourceManagerOptions {
     citationLayout?: CitationLayout;
     referenceStyle?: ReferenceStyle;
 }
 
 interface SourceManagerState {
+    activeAnalysisTab: { value: SourceAnalysisCell };
     activeLookupTab: { value: string };
     appliedAnalysisFindings: { value: AppliedAnalysisFinding[] };
     analysisFindingOrder: { value: string[] };
@@ -501,11 +528,12 @@ function createSourceManagerComponent(
         );
         const draftRowKey = createDraftRowKey();
         return {
+            analysisTabs: Vue.computed(() => buildAnalysisTabs(state)),
             canCheckCs1Tool: ["enwiki", "zhwiki"].includes(getCurrentWikiId()),
             draftRowKey,
             editSourceIcon: cdxIconEdit,
             interfaceLocale,
-            joinAuthorIcon: cdxIconUserAvatar,
+            joinAuthorIcon: cdxIconMerge,
             linkIcon: cdxIconLink,
             parameterAliasIcon: cdxIconKey,
             cs1WikiLabel:
@@ -515,11 +543,12 @@ function createSourceManagerComponent(
             magicWandIcon: cdxIconMagicWand,
             manualTemplateOptions: MANUAL_TEMPLATE_OPTIONS,
             msg,
+            openUrlIcon: cdxIconNewWindow,
             customAnalysisReplacement: CUSTOM_ANALYSIS_REPLACEMENT,
             parameterTableColumns: PARAMETER_TABLE_COLUMNS,
             sourceTableColumns: SOURCE_TABLE_COLUMNS,
             sourceTemplateLabel: getCanonicalTemplateName,
-            splitAuthorIcon: cdxIconUserGroup,
+            splitAuthorIcon: cdxIconMerge,
             switchStatusIcon: cdxIconUpdate,
             templateOptions: TEMPLATE_OPTIONS,
             toolBuildLabel: TOOL_BUILD_LABEL,
@@ -602,6 +631,7 @@ function createSourceManagerState(
 
 function createInitialInterfaceState(Vue: VueModule, initialText: string) {
     return {
+        activeAnalysisTab: Vue.ref<SourceAnalysisCell>("value"),
         activeLookupTab: Vue.ref("add"),
         appliedAnalysisFindings: Vue.ref<AppliedAnalysisFinding[]>([]),
         analysisFindingOrder: Vue.ref<string[]>([]),
@@ -676,6 +706,38 @@ function refreshSourceAnalysis(state: SourceManagerState): void {
         );
     }
     state.sourceAnalysis.value = analysis;
+}
+
+/** Groups pending and applied consistency findings into UI tabs. */
+function buildAnalysisTabs(state: SourceManagerState): AnalysisTab[] {
+    return [
+        buildAnalysisTab(state, "value", msg("analysis.parameterValuesTab")),
+        buildAnalysisTab(state, "alias", msg("analysis.referenceNamesTab")),
+    ];
+}
+
+function buildAnalysisTab(
+    state: SourceManagerState,
+    name: SourceAnalysisCell,
+    label: string,
+): AnalysisTab {
+    return {
+        appliedFindings: state.appliedAnalysisFindings.value.filter((entry) =>
+            isAnalysisFindingInTab(entry.finding, name),
+        ),
+        findings: state.sourceAnalysis.value.findings.filter((finding) =>
+            isAnalysisFindingInTab(finding, name),
+        ),
+        label,
+        name,
+    };
+}
+
+function isAnalysisFindingInTab(
+    finding: EditableSourceAnalysisFinding,
+    tab: SourceAnalysisCell,
+): boolean {
+    return (finding.category === "alias" ? "alias" : "value") === tab;
 }
 
 /** Gets the category text displayed below an analysis-case title. */
@@ -803,7 +865,11 @@ interface Cs1ParseApiResponse {
 async function fetchArticleCs1Issues(
     context: SourceManagerActionContext,
 ): Promise<void> {
-    const { state } = context;
+    const { editor, state } = context;
+    if (state.cs1ToolStatus.value === "checking") {
+        return;
+    }
+    refreshExistingSources(editor, state);
     const sources = state.existingSources.value.filter(
         (source) => source.status !== "non-standard",
     );
@@ -1439,15 +1505,28 @@ function createDraftActions(
         clearDraftValidationError,
         duplicateDraft,
         getDraftFieldLabel,
+        getOpenableDraftUrl,
         getParameterNameTooltip,
         getDateAutofillTooltip,
         isDateAutofillParameter,
         isLinkableDraftParameter,
+        isUrlDraftParameter,
         linkOrganization,
         saveDraft,
         sortParameters,
         switchUrlStatus,
     };
+}
+
+/** Whether a citation parameter contains a URL. */
+function isUrlDraftParameter(parameter: string): boolean {
+    return URL_DRAFT_PARAMETERS.has(normalizeDraftName(parameter));
+}
+
+/** Gets a safe HTTP(S) href that preserves entered archive links. */
+function getOpenableDraftUrl(value: string): string {
+    const parsed = parseSourceUrl(value);
+    return parsed?.archiveUrl || parsed?.originalUrl || "";
 }
 
 /** Builds an accessible draft-field label with help or an error. */
@@ -1505,9 +1584,7 @@ function createAnalysisToolActions(
     context: SourceManagerActionContext,
 ): Record<string, unknown> {
     function openAnalysisTool(): void {
-        refreshSourceAnalysis(context.state);
-        context.state.toolPopup.value = "analysis";
-        context.state.toolPopupOpen.value = true;
+        refreshAndOpenAnalysisTool(context.state);
     }
     return {
         ...createAnalysisReplacementActions(context),
@@ -1519,12 +1596,31 @@ function createAnalysisToolActions(
     };
 }
 
+function refreshAndOpenAnalysisTool(state: SourceManagerState): void {
+    refreshSourceAnalysis(state);
+    state.activeAnalysisTab.value = getInitialAnalysisTab(state);
+    state.toolPopup.value = "analysis";
+    state.toolPopupOpen.value = true;
+}
+
+function getInitialAnalysisTab(state: SourceManagerState): SourceAnalysisCell {
+    const findings = [
+        ...state.sourceAnalysis.value.findings,
+        ...state.appliedAnalysisFindings.value.map((entry) => entry.finding),
+    ];
+    const hasValueFinding = findings.some((finding) =>
+        isAnalysisFindingInTab(finding, "value"),
+    );
+    return hasValueFinding || findings.length === 0 ? "value" : "alias";
+}
+
 function createAnalysisReplacementActions(
     context: SourceManagerActionContext,
 ): Record<string, unknown> {
     function countSelectedAnalysisReplacements(): number {
         return listSelectedAnalysisReplacements(
             context.state.sourceAnalysis.value,
+            context.state.activeAnalysisTab.value,
         ).length;
     }
     function countSelectedFindingReplacements(
@@ -1557,6 +1653,7 @@ function applyAllSelectedAnalysisFindings(
 ): void {
     const selected = listSelectedAnalysisFindings(
         context.state.sourceAnalysis.value,
+        context.state.activeAnalysisTab.value,
     );
     applySelectedAnalysisFindings(context, selected);
 }
@@ -1578,10 +1675,11 @@ function createCheckerToolActions(
     context: SourceManagerActionContext,
 ): Record<string, unknown> {
     const { state } = context;
+    const recheckCs1Tool = () => fetchArticleCs1Issues(context);
     async function openCs1Tool(): Promise<void> {
         state.toolPopup.value = "cs1";
         state.toolPopupOpen.value = true;
-        await fetchArticleCs1Issues(context);
+        await recheckCs1Tool();
     }
     function openNonCs1Tool(): void {
         state.toolPopup.value = "non-cs1";
@@ -1608,6 +1706,7 @@ function createCheckerToolActions(
         onToolPopupOpenChange,
         openCs1Tool,
         openNonCs1Tool,
+        recheckCs1Tool,
         reviewCs1Source,
         reviewNonCs1Source,
     };
@@ -1920,17 +2019,23 @@ function restoreAnalysisSession(context: SourceManagerActionContext): boolean {
 /** Expands checked occurrences into domain-layer replacements. */
 function listSelectedAnalysisReplacements(
     analysis: EditableCitationSourceAnalysis,
+    tab: SourceAnalysisCell,
 ): SourceAnalysisReplacement[] {
-    return analysis.findings.flatMap(listSelectedFindingReplacements);
+    return analysis.findings
+        .filter((finding) => isAnalysisFindingInTab(finding, tab))
+        .flatMap(listSelectedFindingReplacements);
 }
 
 function listSelectedAnalysisFindings(
     analysis: EditableCitationSourceAnalysis,
+    tab: SourceAnalysisCell,
 ): SelectedAnalysisFinding[] {
-    return analysis.findings.map((finding) => ({
-        finding,
-        replacements: listSelectedFindingReplacements(finding),
-    }));
+    return analysis.findings
+        .filter((finding) => isAnalysisFindingInTab(finding, tab))
+        .map((finding) => ({
+            finding,
+            replacements: listSelectedFindingReplacements(finding),
+        }));
 }
 
 /** Expands checked occurrences from one finding into replacements. */
@@ -2270,10 +2375,8 @@ async function saveNewSourceDraft(
     if (!saveSourceDraft(context, true)) {
         return;
     }
-    refreshSourceAnalysis(context.state);
     context.state.activeLookupTab.value = "tools";
-    context.state.toolPopup.value = "analysis";
-    context.state.toolPopupOpen.value = true;
+    refreshAndOpenAnalysisTool(context.state);
 }
 
 /** Uses installed CS1 modules as a new-source save gate. */

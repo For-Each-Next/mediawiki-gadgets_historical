@@ -4,6 +4,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type {
+    SourceAnalysisCell,
+    SourceAnalysisFindingCategory,
+} from "citation-formatter/domain/source-analysis.ts";
+import type {
     ExistingSource,
     SourceDraft,
 } from "citation-formatter/domain/source-manager.ts";
@@ -18,17 +22,41 @@ import type {
     VueModule,
 } from "citation-formatter/ui/codex.ts";
 import type { editBox } from "@mediawiki-gadgets/shared";
+import { cdxIconMerge, type Icon } from "@wikimedia/codex-icons";
+
+interface MountedAnalysisFinding {
+    category: SourceAnalysisFindingCategory;
+    occurrences: Array<{ selected: boolean }>;
+}
+
+interface MountedAnalysisTab {
+    appliedFindings: Array<{ finding: MountedAnalysisFinding }>;
+    findings: MountedAnalysisFinding[];
+    label: string;
+    name: SourceAnalysisCell;
+}
 
 interface MountedManager extends Record<string, unknown> {
+    activeAnalysisTab: { value: SourceAnalysisCell };
+    analysisTabs: { readonly value: MountedAnalysisTab[] };
+    countSelectedAnalysisReplacements: () => number;
+    cs1ToolSources: {
+        value: Array<{ source: ExistingSource }>;
+    };
+    cs1ToolStatus: {
+        value: "checking" | "complete" | "idle" | "unavailable";
+    };
     draft: { value: SourceDraft | null };
     draftCs1Checking: { value: boolean };
     existingSources: { value: ExistingSource[] };
+    getOpenableDraftUrl: (value: string) => string | null | undefined;
+    isUrlDraftParameter: (name: string) => boolean;
+    joinAuthorIcon: Icon;
     parameterAliasDialogDirectives: { value: string[] };
+    splitAuthorIcon: Icon;
     sourceAnalysis: {
         value: {
-            findings: Array<{
-                occurrences: Array<{ selected: boolean }>;
-            }>;
+            findings: MountedAnalysisFinding[];
         };
     };
     toolPopup: { value: string | null };
@@ -41,6 +69,20 @@ const CS1_ERROR_HTML = [
     "</span></div>",
 ].join("");
 const CS1_OK_HTML = '<div id="citation-formatter-cs1-check-0">No issues</div>';
+const CONSISTENCY_TEXT = [
+    '<ref name="A">{{cite web|author=Jane Doe',
+    "<!-- # Doe, Jane -->|title=A|url=https://example.test/a|",
+    "website=Example}}</ref>",
+    '<ref name="B">{{cite web|author=[[Jane Doe]]',
+    "<!-- # Jane Doe -->|title=B|url=https://example.test/b|",
+    "website=[[Example]]}}</ref>",
+].join("\n");
+const ALIAS_ONLY_CONSISTENCY_TEXT = [
+    '<ref name="A">{{cite web|author=Jane Doe',
+    "<!-- # Doe, Jane -->|title=A|url=https://one.test/a}}</ref>",
+    '<ref name="B">{{cite web|author=Jane Doe',
+    "<!-- # Jane Doe -->|title=B|url=https://two.test/b}}</ref>",
+].join("\n");
 
 // eslint-disable-next-line max-lines-per-function
 test("toasts on duplicate and rechecks only CS1 Apply", async () => {
@@ -97,6 +139,41 @@ test("toasts on duplicate and rechecks only CS1 Apply", async () => {
         assert.equal(harness.apiCallCount(), 2);
         callAction(manager, "cancelAllChanges");
         assert.equal(editor.read(), initialText);
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("rechecks the current article with checking progress", async () => {
+    const recheck = createDeferred<unknown>();
+    const harness = installSourceManagerHarness([
+        { parse: { categories: [], text: CS1_ERROR_HTML } },
+        recheck.promise,
+    ]);
+    try {
+        const editor = createMemoryEditor(
+            "<ref>{{cite web|title=Before|bad=value}}</ref>",
+        );
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        await callAsyncAction(manager, "openCs1Tool");
+        assert.equal(manager.cs1ToolSources.value[0]?.source.title, "Before");
+
+        editor.write("<ref>{{cite web|title=After}}</ref>");
+        const recheckPromise = callAsyncAction(manager, "recheckCs1Tool");
+        assert.equal(manager.cs1ToolStatus.value, "checking");
+        assert.equal(manager.existingSources.value[0]?.title, "After");
+        assert.equal(harness.apiCallCount(), 2);
+        await callAsyncAction(manager, "recheckCs1Tool");
+        assert.equal(harness.apiCallCount(), 2);
+
+        recheck.resolve({ parse: { categories: [], text: CS1_OK_HTML } });
+        await recheckPromise;
+        assert.equal(manager.cs1ToolStatus.value, "complete");
+        assert.deepEqual(manager.cs1ToolSources.value, []);
+
+        callAction(manager, "close");
         await Promise.resolve();
     } finally {
         harness.restore();
@@ -215,6 +292,180 @@ test("selects all consistency occurrences by default", async () => {
         harness.restore();
     }
 });
+
+test(
+    "groups consistency changes into scoped value and alias tabs",
+    testScopedConsistencyTabs,
+);
+
+test("opens alias-only results on their populated tab", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor(ALIAS_ONLY_CONSISTENCY_TEXT);
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        callAction(manager, "openAnalysisTool");
+
+        assert.equal(manager.activeAnalysisTab.value, "alias");
+        assert.deepEqual(manager.analysisTabs.value[0]?.findings, []);
+        assert.ok((manager.analysisTabs.value[1]?.findings.length ?? 0) > 0);
+
+        callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+async function testScopedConsistencyTabs(): Promise<void> {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor(CONSISTENCY_TEXT);
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        callAction(manager, "openAnalysisTool");
+        assertAnalysisTabGroups(manager);
+
+        assert.equal(manager.countSelectedAnalysisReplacements(), 2);
+        manager.activeAnalysisTab.value = "alias";
+        assert.equal(manager.countSelectedAnalysisReplacements(), 1);
+        callAction(manager, "applyAnalysisReplacements");
+        assertScopedAliasApplication(manager, editor);
+
+        callAction(manager, "cancelAllChanges");
+        assert.equal(editor.read(), CONSISTENCY_TEXT);
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+}
+
+test("exposes safe openable links for URL draft parameters", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor("");
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        assertUrlDraftParameterRecognition(manager);
+        assertOpenableDraftUrlSafety(manager);
+
+        callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("uses the merge glyph for author join and split actions", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor("");
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+
+        assert.equal(manager.joinAuthorIcon, cdxIconMerge);
+        assert.equal(manager.splitAuthorIcon, cdxIconMerge);
+
+        callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+function assertAnalysisTabGroups(manager: MountedManager): void {
+    assert.equal(manager.activeAnalysisTab.value, "value");
+    const [valueTab, aliasTab] = manager.analysisTabs.value;
+    assert.ok(valueTab);
+    assert.ok(aliasTab);
+    assert.deepEqual(
+        manager.analysisTabs.value.map((tab) => tab.name),
+        ["value", "alias"],
+    );
+    assert.ok(valueTab.label.length > 0);
+    assert.ok(aliasTab.label.length > 0);
+    assert.notEqual(valueTab.label, aliasTab.label);
+    assert.ok(valueTab.findings.length > 0);
+    assert.ok(
+        valueTab.findings.every((finding) => finding.category !== "alias"),
+    );
+    assert.ok(aliasTab.findings.length > 0);
+    assert.ok(
+        aliasTab.findings.every((finding) => finding.category === "alias"),
+    );
+    assert.deepEqual(valueTab.appliedFindings, []);
+    assert.deepEqual(aliasTab.appliedFindings, []);
+}
+
+function assertScopedAliasApplication(
+    manager: MountedManager,
+    editor: editBox.EditBox,
+): void {
+    assert.match(editor.read(), /website\s*=\s*\[\[Example\]\]/u);
+    assert.match(editor.read(), /author\s*=\s*\[\[Jane Doe\]\]/u);
+    assert.match(
+        editor.read(),
+        /author\s*=\s*\[\[Jane Doe\]\]\s*<!-- # Doe, Jane -->/u,
+    );
+    const refreshedTabs = manager.analysisTabs.value;
+    assert.equal(refreshedTabs[0]?.appliedFindings.length, 0);
+    assert.equal(refreshedTabs[1]?.appliedFindings.length, 1);
+    assert.ok((refreshedTabs[0]?.findings.length ?? 0) > 0);
+}
+
+function assertUrlDraftParameterRecognition(manager: MountedManager): void {
+    for (const parameter of [
+        "url",
+        " URL ",
+        "archive-url",
+        "archiveurl",
+        "chapter-url",
+        "conference-url",
+        "conferenceurl",
+        "contribution-url",
+        "contributionurl",
+        "eventurl",
+        "layurl",
+        "link",
+        "mapurl",
+        "section-url",
+        "sectionurl",
+        "transcript-url",
+        "transcripturl",
+    ]) {
+        assert.equal(manager.isUrlDraftParameter(parameter), true);
+    }
+    for (const parameter of [
+        "dead-url",
+        "deadurl",
+        "title",
+        "url-access",
+        "url-status",
+        "urlaccess",
+        "urlstatus",
+        "website",
+    ]) {
+        assert.equal(manager.isUrlDraftParameter(parameter), false);
+    }
+}
+
+function assertOpenableDraftUrlSafety(manager: MountedManager): void {
+    const url = "https://example.test/path?q=value#section";
+    assert.equal(manager.getOpenableDraftUrl(` ${url} `), url);
+    const archiveUrl =
+        "https://web.archive.org/web/20240203040506/" +
+        "https://example.test/path";
+    assert.equal(manager.getOpenableDraftUrl(archiveUrl), archiveUrl);
+    for (const value of [
+        "",
+        "/relative",
+        "not a URL",
+        "data:text/html,unsafe",
+        "javascript:alert(1)",
+    ]) {
+        assert.ok(!manager.getOpenableDraftUrl(value));
+    }
+}
 
 function callAction(
     manager: MountedManager,

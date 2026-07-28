@@ -89,6 +89,89 @@ test("interpolates UI and domain messages in the selected locale", () => {
     assert.equal(analysis.untitledSource(), "無標題來源");
 });
 
+test("renders safe new-tab links for openable URL fields", () => {
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /isUrlDraftParameter\(\s*row\.name\s*\)/u,
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /getOpenableDraftUrl\(\s*row\.value\s*\)/u,
+    );
+    const openUrlLink = SOURCE_MANAGER_TEMPLATE.match(
+        /<a\b[^>]*>[\s\S]*?<cdx-icon\b[^>]*:icon="openUrlIcon"[^>]*\/>[\s\S]*?<\/a>/u,
+    )?.[0];
+    assert.ok(openUrlLink);
+    const openingTag = openUrlLink.match(/^<a\b[^>]*>/u)?.[0];
+    assert.ok(openingTag);
+    assert.match(
+        openingTag,
+        /:href="\s*getOpenableDraftUrl\(\s*row\.value\s*\)\s*"/u,
+    );
+    assert.match(openingTag, /\btarget="_blank"/u);
+    assert.match(openingTag, /\brel="noopener noreferrer"/u);
+    assert.match(openingTag, /v-tooltip="msg\( 'draft\.openUrl' \)"/u);
+    assert.match(openingTag, /draft\.openUrlLabel/u);
+    for (const className of [
+        "cdx-button--fake-button",
+        "cdx-button--fake-button--enabled",
+        "cdx-button--weight-quiet",
+        "cdx-button--icon-only",
+    ]) {
+        assert.match(openingTag, new RegExp(`\\b${className}\\b`, "u"));
+    }
+});
+
+test("renders consistency values and aliases as computed tabs", () => {
+    assert.equal(
+        [
+            ...SOURCE_MANAGER_TEMPLATE.matchAll(
+                /v-model:active="activeAnalysisTab"/gu,
+            ),
+        ].length,
+        1,
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /v-for="\s*[A-Za-z_$][\w$]*\s+in\s+analysisTabs\s*"/u,
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /:name="\s*[A-Za-z_$][\w$]*\.name\s*"/u,
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /:label="\s*[A-Za-z_$][\w$]*\.label\s*"/u,
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /v-for="\s*finding\s+in\s+[A-Za-z_$][\w$]*\.findings\s*"/u,
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /v-for="\s*applied\s+in\s+[A-Za-z_$][\w$]*\.appliedFindings\s*"/u,
+    );
+});
+
+test("renders progress and a whole-article CS1 recheck action", () => {
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /<cdx-progress-bar\s+v-if="cs1ToolStatus === 'checking'"/u,
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /v-if="toolPopup === 'cs1'"[\s\S]*?:disabled="cs1ToolStatus === 'checking'"[\s\S]*?@click="recheckCs1Tool"[\s\S]*?checker\.recheckArticle/u,
+    );
+});
+
+test("renders the split author glyph in the reverse merge direction", () => {
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /class="\s*cf-source-manager__split-author-icon\s*"[\s\S]*?:icon="splitAuthorIcon"/u,
+    );
+    assert.match(SOURCE_MANAGER_TEMPLATE, /:icon="joinAuthorIcon"/u);
+});
+
 test("references only defined messages from the Vue template", () => {
     const referencedIds = [
         ...SOURCE_MANAGER_TEMPLATE.matchAll(/msg\(\s*'([^']+)'/gu),

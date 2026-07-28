@@ -1,6 +1,6 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.4.33",
+    "version": "0.4.33-post.1",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -33,7 +33,9 @@
     },
     "files": [
         "README.md",
-        "DEVELOPMENT.md",
+        "AGENTS.md",
+        "HISTORY.md",
+        "docs",
         "*.ts",
         "app",
         "domain",

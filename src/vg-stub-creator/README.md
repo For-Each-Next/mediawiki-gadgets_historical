@@ -1,33 +1,64 @@
 # VG Stub Creator
 
-VG Stub Creator is a Chinese Wikipedia helper for creating video-game stub articles. It adds page actions on English Wikipedia and Chinese Wikipedia, builds article wikitext, and can run the related follow-up edits before saving.
+VG Stub Creator helps editors create video-game stub articles on Chinese
+Wikipedia. It adds page actions on English and Chinese Wikipedia, imports and
+normalizes source metadata, builds article wikitext, and coordinates related
+follow-up edits.
 
-## Features
+> **Status:** VG Stub Creator is under active development. This private
+> workspace package produces browser-ready MediaWiki gadget and userscript
+> artifacts rather than a published npm library.
 
-- Builds Chinese Wikipedia video-game stub article source.
-- Imports and normalizes metadata from English Wikipedia, Wikidata, Steam, and source URLs.
-- Reviews generated categories, redirects, navboxes, localized names, citations, and stub tags before saving.
-- Can create related category pages, navbox pages, redirects, talk-page banners, Wikidata sitelinks, and new-page-list entries.
+## Use
 
-## Build
+A local build writes these files to `dist/vg-stub-creator/`:
 
-Run `npm run check`, `npm test`, and `npm run build` from this directory.
+- `vg_stub_creator.min.js` for deployment as MediaWiki gadget or personal
+  JavaScript.
+- `vg_stub_creator.user.js` for installation with a userscript manager. The
+  userscript matches English and Chinese Wikipedia.
 
-Generated files are written to `dist/vg-stub-creator/` as `vg_stub_creator.min.js` and `vg_stub_creator.user.js`.
+A deployed compressed copy is available from
+[Meta-Wiki][1], although it may lag behind this repository.
 
-You can get compressed code from <https://meta.wikimedia.org/wiki/User:For_Each_..._Next/global.js/vg_stub_creator.js>, but it may not update on time.
+The interface can import metadata from English Wikipedia, Wikidata, Steam, and
+source URLs. Before saving, editors can review generated categories, redirects,
+navboxes, localized names, citations, and stub tags. The workflow can also
+create related category and navbox pages, redirects, talk-page banners,
+Wikidata sitelinks, and new-page-list entries.
 
-## Source
+## Development
 
-- `index.ts`: minimal browser bundle entry point.
-- `domain/article/`: normalized article records and processing contracts.
-- `domain/data.ts`: pure field parsing and metadata extraction.
-- `domain/modules.ts`: field ownership and normalized record adapters.
-- `domain/wiki.ts`: pure wikitext rendering and language templates.
-- `config/terminologies/`: configured video-game terminology data.
-- `app/workflow.ts`: article creation use cases.
-- `infra/`: MediaWiki, source, editing, and persistence adapters.
-- `ui/`: Codex UI, previews, review state, and browser activation.
-- `shared/`: package-local form primitives; generic helpers live in
-  `../shared/`.
-- `DEVELOPMENT.md`: source architecture and editing guidance.
+The workspace requires Node.js 22.18 or later. From the repository root, run:
+
+```sh
+npm run check
+npm test -w vg-stub-creator
+npm run build -w vg-stub-creator
+```
+
+## Architecture
+
+- `index.ts` is the browser bundle entry point.
+- `config/` and `domain/` define terminology data, normalized article records,
+  processing contracts, and wikitext rendering.
+- `app/` coordinates the article-creation workflow.
+- `infra/` contains MediaWiki, source, editing, save, and persistence adapters.
+- `i18n/` contains the English, Simplified Chinese, and Traditional Chinese
+  interface catalogs.
+- `ui/` contains the Codex interface, previews, review state, and browser
+  activation.
+- `../shared/` provides workspace-wide citation and wikitext utilities.
+
+See the [development guide][2] for detailed source and data guidance, the
+[release history][3] for completed changes, and the [package instructions][4]
+for contribution and release rules.
+
+## License
+
+VG Stub Creator is licensed under CC BY-SA 4.0.
+
+[1]: https://meta.wikimedia.org/wiki/User:For_Each_..._Next/global.js/vg_stub_creator.js
+[2]: docs/DEVELOPMENT.md
+[3]: HISTORY.md
+[4]: AGENTS.md

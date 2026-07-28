@@ -628,6 +628,32 @@ const PARAMETER_ACTIONS_CELL_TEMPLATE = `
                 :icon="parameterAliasIcon"
             />
         </cdx-button>
+        <a
+            v-if="
+                isUrlDraftParameter( row.name ) &&
+                getOpenableDraftUrl( row.value )
+            "
+            v-tooltip="msg( 'draft.openUrl' )"
+            class="
+                cdx-button
+                cdx-button--fake-button
+                cdx-button--fake-button--enabled
+                cdx-button--weight-quiet
+                cdx-button--action-default
+                cdx-button--icon-only
+            "
+            :href="getOpenableDraftUrl( row.value )"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="
+                msg(
+                    'draft.openUrlLabel',
+                    { parameter: row.name }
+                )
+            "
+        >
+            <cdx-icon :icon="openUrlIcon" />
+        </a>
         <cdx-button
             v-if="
                 row.name.trim().toLowerCase() ===
@@ -701,7 +727,12 @@ const PARAMETER_ACTIONS_CELL_TEMPLATE = `
             "
             @click="splitAuthor( index )"
         >
-            <cdx-icon :icon="splitAuthorIcon" />
+            <cdx-icon
+                class="
+                    cf-source-manager__split-author-icon
+                "
+                :icon="splitAuthorIcon"
+            />
         </cdx-button>
         <cdx-button
             v-else-if="
@@ -1054,15 +1085,28 @@ const ANALYSIS_TOOL_BODY_TEMPLATE = `
     <p class="cf-source-analysis__intro" tabindex="0">
         {{ msg( 'analysis.intro' ) }}
     </p>
-    <cdx-message
-        v-if="sourceAnalysis.findings.length === 0"
-        type="success"
+    <cdx-tabs
+        v-model:active="activeAnalysisTab"
+        class="cf-source-analysis__tabs"
     >
-        {{ msg( 'analysis.none' ) }}
-    </cdx-message>
-    <div class="cf-source-analysis__findings">
+        <cdx-tab
+            v-for="tab in analysisTabs"
+            :key="tab.name"
+            :name="tab.name"
+            :label="tab.label"
+        >
+            <cdx-message
+                v-if="
+                    tab.findings.length === 0 &&
+                    tab.appliedFindings.length === 0
+                "
+                type="success"
+            >
+                {{ msg( 'analysis.none' ) }}
+            </cdx-message>
+            <div v-else class="cf-source-analysis__findings">
         <div
-            v-for="finding in sourceAnalysis.findings"
+            v-for="finding in tab.findings"
             :key="finding.id"
             class="cf-source-analysis__finding"
             :style="{ order: finding.displayOrder }"
@@ -1190,7 +1234,7 @@ const ANALYSIS_TOOL_BODY_TEMPLATE = `
             </div>
         </div>
         <div
-            v-for="applied in appliedAnalysisFindings"
+            v-for="applied in tab.appliedFindings"
             :key="applied.changeId"
             class="
                 cf-source-analysis__finding
@@ -1244,7 +1288,9 @@ const ANALYSIS_TOOL_BODY_TEMPLATE = `
                 </li>
             </ul>
         </div>
-    </div>
+            </div>
+        </cdx-tab>
+    </cdx-tabs>
 </template>
 `;
 
@@ -1446,6 +1492,15 @@ const TOOL_DIALOG_FOOTER_TEMPLATE = `
             @click="applyAnalysisReplacements"
         >
             {{ msg( 'analysis.applySelected' ) }}
+        </cdx-button>
+        <cdx-button
+            v-if="toolPopup === 'cs1'"
+            :disabled="cs1ToolStatus === 'checking'"
+            action="progressive"
+            weight="primary"
+            @click="recheckCs1Tool"
+        >
+            {{ msg( 'checker.recheckArticle' ) }}
         </cdx-button>
         <cdx-button
             @click="closeToolPopup"

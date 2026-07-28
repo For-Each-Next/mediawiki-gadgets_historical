@@ -104,6 +104,11 @@ const CREATOR_PARAM_PATTERNS = [
     /^(?:contributor|interviewer)(?:-first|-last)?\d*$/u,
     /^(?:cartography|translator)(?:-first|-last)?\d*$/u,
 ];
+const CITATION_AUTHOR_INDEX_PATTERNS = [
+    /^author-(?:last|surname)(\d*)$/u,
+    /^author(\d+)-(?:last|surname)$/u,
+    /^(?:last|surname|author|subject|host)(\d*)$/u,
+];
 
 const POSITION_QUERY_PARAMS = new Set([
     "begin",
@@ -117,24 +122,30 @@ const POSITION_QUERY_PARAMS = new Set([
     "timestamp",
 ]);
 
-const RESPONSIBLE_ORGANIZATION_PARAMS = [
-    "agency",
-    "institution",
-    "organization",
-    "website",
+const CREDITED_ORGANIZATION_PARAMS = ["agency", "organization"];
+const PUBLISHER_PARAMS = ["publisher", "institution"];
+const PERIODICAL_PARAMS = [
+    "periodical",
+    "journal",
+    "newspaper",
+    "magazine",
     "work",
-    "publisher",
+    "website",
+    "encyclopedia",
+    "encyclopaedia",
+    "dictionary",
 ];
 const CITATION_DATE_KEYS = ["date", "year", "publication-date"];
 const CITATION_CREATOR_FALLBACK_KEYS = [
     "interviewer-last",
-    "host",
     "cartography",
     "translator-last",
     "contributor-last",
     "developer",
     "user",
-    ...RESPONSIBLE_ORGANIZATION_PARAMS,
+    ...CREDITED_ORGANIZATION_PARAMS,
+    ...PUBLISHER_PARAMS,
+    ...PERIODICAL_PARAMS,
 ];
 const SOURCE_LOCATOR_ENTRIES: Array<[string, string]> = [
     ["page", "p."],
@@ -153,8 +164,6 @@ const SOURCE_LOCATOR_ENTRIES: Array<[string, string]> = [
 ];
 
 const PARAM_ORDER_SCALE = 1_000;
-const MAX_NUMBERED_CREATORS = 50;
-
 const citeWebParamOrderEntries = citeWebTemplateData.paramOrder.map(
     (name, index) => [name, index] as const,
 );
@@ -541,6 +550,9 @@ export function getCitationNameContributors(
  * @returns Whether the parameter contributes to source identity.
  */
 function isCreatorParam(name: string): boolean {
+    if (getCitationAuthorIndex(name) != null) {
+        return true;
+    }
     for (const pattern of CREATOR_PARAM_PATTERNS) {
         if (pattern.test(name)) {
             return true;
@@ -626,7 +638,7 @@ function getCitationAuthor(values: Record<string, string>): string {
 function selectCitationAuthor(
     values: Record<string, string>,
 ): CitationAuthorSelection {
-    const authors = collectNumberedValues(values, ["last", "author"]);
+    const authors = collectCitationAuthors(values);
     if (authors.length > 0) {
         return {
             keys: authors.map((author) => author.key),
@@ -695,24 +707,25 @@ function formatTitleFallback(title: string): string {
 }
 
 /**
- * Collects sequential creator values.
+ * Collects sequential author, subject, and host values.
  *
  * @param values - Citation values.
- * @param bases - Candidate parameter bases.
  * @returns Creator names in entered order.
  */
-function collectNumberedValues(
+function collectCitationAuthors(
     values: Record<string, string>,
-    bases: string[],
 ): CitationValueSelection[] {
     const result: CitationValueSelection[] = [];
-    for (let index = 1; index <= MAX_NUMBERED_CREATORS; index += 1) {
-        const suffix = index === 1 ? "" : String(index);
-        const candidates = bases.map((base) => `${base}${suffix}`);
-        if (index === 1) {
-            const explicitFirstCandidates = bases.map((base) => `${base}1`);
-            candidates.push(...explicitFirstCandidates);
+    const indexes = new Set<number>();
+    for (const name of Object.keys(values)) {
+        const index = getCitationAuthorIndex(name);
+        if (index != null) {
+            indexes.add(index);
         }
+    }
+    const sortedIndexes = [...indexes].sort((left, right) => left - right);
+    for (const index of sortedIndexes) {
+        const candidates = getCitationAuthorCandidates(index);
         const identifiesAuthor = function identifiesAuthor(candidate: string) {
             return (
                 values[candidate]?.trim() &&
@@ -721,14 +734,66 @@ function collectNumberedValues(
         };
         const key = candidates.find(identifiesAuthor);
         if (key == null) {
-            if (index > 1) {
-                break;
-            }
             continue;
         }
         result.push({ key, value: values[key] });
     }
     return result;
+}
+
+/**
+ * Gets the positive creator position encoded by an author-family field.
+ */
+function getCitationAuthorIndex(name: string): number | null {
+    for (const pattern of CITATION_AUTHOR_INDEX_PATTERNS) {
+        const match = name.match(pattern);
+        if (match == null) {
+            continue;
+        }
+        const index = Number(match[1] || "1");
+        return Number.isSafeInteger(index) && index > 0 ? index : null;
+    }
+    return null;
+}
+
+/**
+ * Lists accepted author-family parameter spellings for one creator
+ * position.
+ */
+function getCitationAuthorCandidates(index: number): string[] {
+    const number = String(index);
+    const numbered = [
+        `author-last${number}`,
+        `author${number}-last`,
+        `author-surname${number}`,
+        `author${number}-surname`,
+        `last${number}`,
+        `surname${number}`,
+        `author${number}`,
+        `subject${number}`,
+        `host${number}`,
+    ];
+    if (index > 1) {
+        return numbered;
+    }
+    return [
+        "author-last",
+        numbered[0],
+        numbered[1],
+        "author-surname",
+        numbered[2],
+        numbered[3],
+        "last",
+        numbered[4],
+        "surname",
+        numbered[5],
+        "author",
+        numbered[6],
+        "subject",
+        numbered[7],
+        "host",
+        numbered[8],
+    ];
 }
 
 /**

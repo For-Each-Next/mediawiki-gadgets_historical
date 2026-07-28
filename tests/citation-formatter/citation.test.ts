@@ -289,17 +289,110 @@ test(
     testPublisherIdentityFallback,
 );
 
-const testContainingWorkIdentityFallback = () => {
+const testPublisherBeforeContainingWork = () => {
     const work = formatCitationTemplate(
         "{{cite web|website=Example Site|publisher=Publisher|title=Page}}",
         metadata,
     );
     const identity = getCitationIdentity(work.citation);
-    assert.equal(identity.baseName, "Example Site, n.d.");
+    assert.equal(identity.baseName, "Publisher, n.d.");
 };
 test(
-    "uses containing works before publishers",
-    testContainingWorkIdentityFallback,
+    "uses publishers before containing works",
+    testPublisherBeforeContainingWork,
+);
+
+const testReferenceNameAuthorFamilyPriority = () => {
+    const authorParams = [
+        "author-last",
+        "author-last3",
+        "author3-last",
+        "author-surname",
+        "author-surname3",
+        "author3-surname",
+        "last",
+        "last3",
+        "surname",
+        "surname3",
+        "author",
+        "author3",
+        "author100",
+        "subject",
+        "subject3",
+        "host",
+        "host3",
+    ];
+    for (const parameter of authorParams) {
+        const result = formatCitationTemplate(
+            `{{cite web|${parameter}=Credited|publisher=Publisher|` +
+                "website=Periodical|title=Page}}",
+            generatedTemplateData["cite web"],
+        );
+        const identity = getCitationIdentity(result.citation);
+        assert.equal(identity.baseName, "Credited, n.d.", parameter);
+    }
+};
+test(
+    "uses every author-family spelling before publisher and periodical fields",
+    testReferenceNameAuthorFamilyPriority,
+);
+
+const testPublisherAndPeriodicalFamilyPriority = () => {
+    const periodicalParams = [
+        "periodical",
+        "journal",
+        "newspaper",
+        "magazine",
+        "work",
+        "website",
+        "encyclopedia",
+        "encyclopaedia",
+        "dictionary",
+    ];
+    for (const periodical of periodicalParams) {
+        for (const publisher of ["publisher", "institution"]) {
+            const result = formatCitationTemplate(
+                `{{cite web|${publisher}=Publisher|${periodical}=Periodical|` +
+                    "title=Page}}",
+                generatedTemplateData["cite web"],
+            );
+            const identity = getCitationIdentity(result.citation);
+            assert.equal(
+                identity.baseName,
+                "Publisher, n.d.",
+                `${publisher} over ${periodical}`,
+            );
+        }
+        const result = formatCitationTemplate(
+            `{{cite web|${periodical}=Periodical|title=Page}}`,
+            generatedTemplateData["cite web"],
+        );
+        assert.equal(
+            getCitationIdentity(result.citation).baseName,
+            "Periodical, n.d.",
+            periodical,
+        );
+    }
+};
+test(
+    "falls back from publishers to every periodical-family field",
+    testPublisherAndPeriodicalFamilyPriority,
+);
+
+const testExcludedPublisherFallsBackToPeriodical = () => {
+    const result = formatCitationTemplate(
+        "{{cite web|publisher=Publisher<!-- !no-author -->|" +
+            "website=Periodical|title=Page}}",
+        generatedTemplateData["cite web"],
+    );
+    assert.equal(
+        getCitationIdentity(result.citation).baseName,
+        "Periodical, n.d.",
+    );
+};
+test(
+    "falls back to a periodical when the publisher is excluded",
+    testExcludedPublisherFallsBackToPeriodical,
 );
 
 const testPublisherBeforeDepartmentOrMagazine = () => {

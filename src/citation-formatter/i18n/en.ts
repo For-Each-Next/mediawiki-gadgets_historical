@@ -156,6 +156,8 @@ export default i18n.defineMessages({
         "aliasSuggestion": "Suggested reference-name text: {alias}",
         "switchStatus": "Change status: live, dead, or unfit",
         "switchStatusLabel": "Change URL status: live, dead, or unfit",
+        "openUrl": "Open URL in a new tab",
+        "openUrlLabel": "Open {parameter} in a new tab",
         "fillToday": "Use today's date",
         "fillArchiveDate": "Use date from archive URL",
         "checkLink": "Check and update article link",
@@ -219,6 +221,8 @@ export default i18n.defineMessages({
             "reference-name, and source-key text. Choose the text to keep " +
             "and the citations to update. Parameter names will not change.",
         "none": "No likely name-format differences found.",
+        "parameterValuesTab": "Parameter values",
+        "referenceNamesTab": "Reference names and source keys",
         "aliasField": "Reference name or source key",
         "valueField": "Text to use",
         "applyCase": "Apply change",
@@ -293,6 +297,7 @@ export default i18n.defineMessages({
         "unavailable":
             "The CS1 check is temporarily unavailable. Run it again later.",
         "noIssues": "No CS1 issues found.",
+        "recheckArticle": "Recheck article",
         "nonCs1Description":
             "Finds references that do not use a supported CS1 citation " +
             "template.",

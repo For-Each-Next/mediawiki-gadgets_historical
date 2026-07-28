@@ -593,7 +593,8 @@ test("describes canonical and alternative parameter names", () => {
 test("highlights eligible fallback name fields after directives", () => {
     const draft = parseSourceDraft(
         "{{cite web|author=Author<!-- !no-author -->|" +
-            "website=Example Site|date=2025<!-- !no-date -->|year=2007|" +
+            "website=Example Site|publisher=Publisher|" +
+            "date=2025<!-- !no-date -->|year=2007|" +
             "page=1<!-- !no-part -->|pages=2–3|title=Example}}",
     );
     const indexes = new Set(getSourceDraftCitationNameCells(draft).keys());
@@ -601,7 +602,17 @@ test("highlights eligible fallback name fields after directives", () => {
         .filter((_row, index) => indexes.has(index))
         .map((row) => row.name);
 
-    assert.deepEqual(names, ["year", "website", "pages"]);
+    assert.deepEqual(names, ["year", "publisher", "pages"]);
+
+    getRow(draft, "publisher").directive = "!no-author";
+    const fallbackIndexes = new Set(
+        getSourceDraftCitationNameCells(draft).keys(),
+    );
+    const fallbackNames = draft.rows
+        .filter((_row, index) => fallbackIndexes.has(index))
+        .map((row) => row.name);
+
+    assert.deepEqual(fallbackNames, ["year", "website", "pages"]);
 });
 
 test("identifies only the exact value or alias cells visible in a name", () => {

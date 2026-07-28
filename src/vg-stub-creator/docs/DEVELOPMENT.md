@@ -1,4 +1,4 @@
-# VG Stub Creator source layout
+# VG Stub Creator development guide
 
 The gadget passes named data records through the article workflow. Every
 raw article module emits the `ArticleDataRecord` shape from

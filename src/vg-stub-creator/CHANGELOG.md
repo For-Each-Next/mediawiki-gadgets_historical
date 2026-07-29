@@ -2,7 +2,7 @@
 
 ## Until 0.6
 
-### 0.5.0-dev.4 (2026-07-29 15:34 UTC)
+### 0.5.0 (2026-07-29 18:02 UTC)
 
 Overview: VG Stub Creator now has typed workflows, JSON localization, nine
 Codex dialogs, shared Citoid transport, and safer review saves.
@@ -38,8 +38,7 @@ Codex dialogs, shared Citoid transport, and safer review saves.
   fallback in source infrastructure.
 - Adopted `#gadget` imports, standardized package documentation, and the shared
   typed ES2024 builder with clean, dedicated output directories.
-- Renamed the durable release record to `CHANGELOG.md` and advanced the
-  user-selected next minor line to its first development build.
+- Renamed the durable release record to `CHANGELOG.md`.
 - Moved browser startup from the package entry point into `browser.ts`, keeping
   imports side-effect free.
 - Replaced generated-looking terminology and test names with

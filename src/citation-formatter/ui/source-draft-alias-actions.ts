@@ -15,6 +15,10 @@ import {
     type SourceDraftRow,
 } from "#gadget/domain/source-manager.ts";
 import { msg } from "#gadget/i18n/index.ts";
+import type {
+    DraftDialogActions,
+    ParameterAliasActions,
+} from "#gadget/ui/dialogs/index.ts";
 import {
     clearDraftValidationSummary,
     type SourceManagerState,
@@ -26,13 +30,50 @@ const REFERENCE_NAME_DIRECTIVES = [
     "!no-part",
 ] as const;
 
-type DraftActions = Record<string, unknown>;
+type AuthorDraftActions = Pick<
+    DraftDialogActions,
+    | "canJoinAuthor"
+    | "canSplitAuthor"
+    | "isAuthorDraftParameter"
+    | "isLastAuthorDraftParameter"
+    | "joinAuthor"
+    | "splitAuthor"
+    | "updateParameterValue"
+>;
+type ParameterAliasMutationActions = Pick<
+    ParameterAliasActions,
+    | "applyParameterAlias"
+    | "closeParameterAliasDialog"
+    | "onParameterAliasDialogOpenChange"
+> & {
+    openParameterAliasDialog(index: number): void;
+};
+type ParameterAliasPresentationActions = Pick<
+    ParameterAliasActions,
+    | "canApplyParameterAlias"
+    | "getParameterAliasDialogError"
+    | "getParameterAliasDialogLabel"
+    | "getParameterAliasOriginalValueLabel"
+> & {
+    getParameterAliasActionLabel(row: SourceDraftRow): string;
+    getParameterAliasCaption(parameter: string, alias: string): string;
+    hasReferenceNameExclusion(row: SourceDraftRow): boolean;
+};
+
+type AliasSuggestionDraftActions = Pick<
+    DraftDialogActions,
+    "dismissAliasSuggestion" | "getAliasSuggestion" | "useAliasSuggestion"
+>;
+
+type AliasDraftActions = AliasSuggestionDraftActions &
+    ParameterAliasMutationActions &
+    ParameterAliasPresentationActions;
 
 /** Creates author-row splitting and automatic next-slot actions. */
 // eslint-disable-next-line max-lines-per-function
 export function createAuthorDraftActions(
     state: SourceManagerState,
-): DraftActions {
+): AuthorDraftActions {
     function canJoinAuthor(index: number): boolean {
         const draft = state.draft.value;
         return draft != null && canJoinAuthorDraftRow(draft, index);
@@ -77,7 +118,7 @@ export function createAuthorDraftActions(
 export function createAliasDraftActions(
     state: SourceManagerState,
     scheduleTextAreaAutosize: () => void,
-): DraftActions {
+): AliasDraftActions {
     return {
         ...createParameterAliasDialogActions(state, scheduleTextAreaAutosize),
         ...createParameterAliasPresentationActions(state),
@@ -90,7 +131,7 @@ export function createAliasDraftActions(
 function createParameterAliasDialogActions(
     state: SourceManagerState,
     scheduleTextAreaAutosize: () => void,
-): DraftActions {
+): ParameterAliasMutationActions {
     function closeParameterAliasDialog(): void {
         state.parameterAliasDialogOpen.value = false;
         state.parameterAliasDialogDirectives.value = [];
@@ -171,7 +212,7 @@ function mergeReferenceNameDirectives(
 /** Creates labels and validation for the parameter-alias dialog. */
 function createParameterAliasPresentationActions(
     state: SourceManagerState,
-): DraftActions {
+): ParameterAliasPresentationActions {
     function canApply(): boolean {
         return canApplyParameterAlias(state);
     }
@@ -204,7 +245,7 @@ function createParameterAliasPresentationActions(
 /** Creates opt-in actions for previously used creator aliases. */
 function createAliasSuggestionDraftActions(
     state: SourceManagerState,
-): DraftActions {
+): AliasSuggestionDraftActions {
     function getAliasSuggestion(index: number): CreatorAliasSuggestion | null {
         return findAvailableAliasSuggestion(state, index);
     }

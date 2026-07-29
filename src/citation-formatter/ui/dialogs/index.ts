@@ -14,6 +14,27 @@ export type {
     CloseDialogActions,
     CloseDialogContext,
 } from "./close-confirmation-dialog.ts";
+export type {
+    DraftDialogActions,
+    DraftDialogContext,
+} from "./draft-dialog.ts";
+export type {
+    MainDialogActions,
+    MainDialogContext,
+    MainDialogTableSlotScope,
+} from "./main-dialog.ts";
+export type {
+    ParameterAliasActions,
+    ParameterAliasContext,
+} from "./parameter-alias-dialog.ts";
+export type {
+    AnalysisReplacementActions,
+    AnalysisToolActions,
+    CheckerToolActions,
+    ToolActions,
+    ToolDialogActions,
+    ToolDialogContext,
+} from "./tool-dialog.ts";
 
 const dialogs: readonly CitationDialogBundle[] = [
     mainDialog,

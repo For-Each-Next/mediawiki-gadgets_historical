@@ -106,8 +106,15 @@ import {
     type SourceManagerState,
 } from "#gadget/ui/source-manager-state.ts";
 import {
+    type AnalysisReplacementActions,
+    type AnalysisToolActions,
+    type CheckerToolActions,
     type CloseDialogActions,
+    type DraftDialogActions,
+    type MainDialogActions,
+    type ParameterAliasActions,
     SOURCE_MANAGER_TEMPLATE,
+    type ToolActions,
 } from "#gadget/ui/dialogs/index.ts";
 import { installCitationFormatterStyles } from "#gadget/ui/styles.ts";
 import * as editBox from "#shared/edit-box";
@@ -452,7 +459,7 @@ function createSourceManagerActions(
     editor: editBox.EditBox,
     state: SourceManagerState,
     services: SourceManagerActionServices,
-): Record<string, unknown> {
+) {
     const { cleanup } = services;
     const close = function close(): void {
         state.open.value = false;
@@ -472,7 +479,10 @@ function createSourceManagerActions(
 // eslint-disable-next-line max-lines-per-function
 function createFormatterActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): Pick<
+    MainDialogActions,
+    "formatArticle" | "setBlockCitations" | "setCompactReferences"
+> {
     // eslint-disable-next-line max-lines-per-function
     function formatArticle(): void {
         const { editor, state } = context;
@@ -528,9 +538,7 @@ function createFormatterActions(
 }
 
 /** Creates dialog navigation actions. */
-function createNavigationActions(
-    context: SourceManagerActionContext,
-): Record<string, unknown> {
+function createNavigationActions(context: SourceManagerActionContext) {
     return {
         ...createManagerCloseActions(context),
         ...createDraftPopupNavigationActions(context),
@@ -540,7 +548,7 @@ function createNavigationActions(
 
 function createManagerCloseActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): Pick<MainDialogActions, "cancelAllChanges" | "close" | "onOpenChange"> {
     function cancelAllChanges(): void {
         cancelAllSourceManagerChanges(context);
     }
@@ -592,7 +600,7 @@ function cancelAllSourceManagerChanges(
 
 function createDraftPopupNavigationActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): Pick<DraftDialogActions, "closeDraftPopup" | "onDraftPopupOpenChange"> {
     function closeDraftPopup(): void {
         const { state } = context;
         const reviewTool = state.draftReviewTool.value;
@@ -643,7 +651,8 @@ function createCloseConfirmationActions(
 // eslint-disable-next-line max-lines-per-function
 function createDraftActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): Omit<DraftDialogActions, "closeDraftPopup" | "onDraftPopupOpenChange"> &
+    ParameterAliasActions {
     const { state } = context;
     function addParameter(): void {
         state.draft.value?.rows.push(createBlankDraftRow());
@@ -821,9 +830,7 @@ function getDraftFieldLabelText(
 }
 
 /** Creates explicit checker-popup actions for the Tools tab. */
-function createToolActions(
-    context: SourceManagerActionContext,
-): Record<string, unknown> {
+function createToolActions(context: SourceManagerActionContext): ToolActions {
     return {
         ...createAnalysisToolActions(context),
         ...createCheckerToolActions(context),
@@ -833,7 +840,7 @@ function createToolActions(
 /** Creates citation-analysis popup and replacement actions. */
 function createAnalysisToolActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): AnalysisToolActions {
     function openAnalysisTool(): void {
         refreshAndOpenAnalysisTool(context.state);
     }
@@ -867,7 +874,7 @@ function getInitialAnalysisTab(state: SourceManagerState): SourceAnalysisCell {
 
 function createAnalysisReplacementActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): AnalysisReplacementActions {
     function countSelectedAnalysisReplacements(): number {
         return listSelectedAnalysisReplacements(
             context.state.sourceAnalysis.value,
@@ -924,7 +931,7 @@ function applyOneSelectedAnalysisFinding(
 /** Creates the CS1 and non-CS1 checker popup actions. */
 function createCheckerToolActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): CheckerToolActions {
     const { state } = context;
     const recheckCs1Tool = () => fetchArticleCs1Issues(context);
     async function openCs1Tool(): Promise<void> {
@@ -2163,7 +2170,15 @@ function hasDraftAliasWithoutValue(row: SourceDraftRow): boolean {
 /** Creates URL, manual-source, and existing-source tab actions. */
 function createLookupActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): Pick<
+    MainDialogActions,
+    | "createManualSource"
+    | "editListedSource"
+    | "insertListedSource"
+    | "onSourcePaste"
+    | "resolveEnteredSource"
+    | "selectSourceSection"
+> {
     async function resolveEnteredSource(entered?: string): Promise<void> {
         await resolveSourceInput(context, entered);
     }

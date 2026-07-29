@@ -1,6 +1,31 @@
 /** Build-injected reference-name alias dialog bundle. */
 
+import type { CitationFormatterI18n } from "#gadget/i18n/index.ts";
+
 import type { CitationDialogBundle } from "./dialog-bundle.ts";
+
+export interface ParameterAliasActions {
+    applyParameterAlias(): void;
+    canApplyParameterAlias(): boolean;
+    closeParameterAliasDialog(): void;
+    getParameterAliasDialogError(): string;
+    getParameterAliasDialogLabel(): string;
+    getParameterAliasOriginalValueLabel(): string;
+    onParameterAliasDialogOpenChange(open: boolean): void;
+}
+
+/**
+ * Bindings exposed to the build-injected parameter-alias template.
+ */
+export type ParameterAliasContext = ParameterAliasActions & {
+    interfaceLocale: string;
+    loading: boolean;
+    msg: CitationFormatterI18n["msg"];
+    parameterAliasDialogDirectives: string[];
+    parameterAliasDialogOpen: boolean;
+    parameterAliasDialogOriginalValue: string;
+    parameterAliasDialogValue: string;
+};
 
 const parameterAliasDialog: CitationDialogBundle = {
     styles:

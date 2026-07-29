@@ -2,7 +2,7 @@
 
 ## Until 0.3
 
-### 0.2.0-dev.5 (2026-07-29 15:34 UTC)
+### 0.2.0 (2026-07-29 18:02 UTC)
 
 Overview: VG Page Assessor now has typed workflows, JSON localization, a Codex
 assessment dialog, and stronger conflict-safe saving.
@@ -30,8 +30,7 @@ assessment dialog, and stronger conflict-safe saving.
   TypeScript checking.
 - Adopted `#gadget` imports, standardized package documentation, and the shared
   typed ES2024 builder with clean, dedicated output directories.
-- Renamed the durable release record to `CHANGELOG.md` and advanced the
-  user-selected next minor line to its first development build.
+- Renamed the durable release record to `CHANGELOG.md`.
 - Moved browser startup from the package entry point into `browser.ts`, keeping
   imports side-effect free.
 - Added a root license notice and linked it from the package entry

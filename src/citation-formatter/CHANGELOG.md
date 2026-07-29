@@ -2,7 +2,7 @@
 
 ## Until 0.6
 
-### 0.5.0-dev.9 (2026-07-29 16:03 UTC)
+### 0.5.0 (2026-07-29 18:02 UTC)
 
 Overview: Citation Formatter now has typed workflows, JSON localization, Codex
 dialogs, modular citation services, and safer, quieter editing.
@@ -14,9 +14,9 @@ dialogs, modular citation services, and safer, quieter editing.
   normalization into responsibility-named modules.
 - Split source-manager contracts, reactive state, list presentation, analysis
   state, alias actions, and metadata-draft handling from the UI coordinator.
-- Split all five Codex dialogs into co-located `.vue`, `.ts`, and `.css`
-  groups, with template-only Vue extraction and package-scoped stylesheet
-  checks in the shared build and test workflow.
+- Split all five Codex dialogs into co-located `.vue`, `.ts`, and `.css` groups
+  with template-only extraction, exact setup and Codex surface types, null-safe
+  draft expressions, and package-scoped checks.
 - Moved English and Chinese interface catalogs from TypeScript objects to flat
   JSON data while retaining typed message IDs and placeholder validation.
 - Defined each citation-template choice with its name, importance, type, and
@@ -35,8 +35,6 @@ dialogs, modular citation services, and safer, quieter editing.
   styles.
 - Sourced custom properties from the official Codex design-token CSS, preserved
   MediaWiki runtime theming, and aligned fallback colors.
-- Typed build-time dialog templates against the globally registered Codex
-  surface while retaining MediaWiki ResourceLoader as the userscript runtime.
 - Kept source-entry descriptions concise while retaining detailed accepted
   input and existing-source insertion guidance below the field.
 - Preserved the edit-box selection and viewport when formatting all citations
@@ -47,12 +45,10 @@ dialogs, modular citation services, and safer, quieter editing.
 - Fetched raw Citoid metadata through a shared URL-or-identifier client and
   mapped it through Citation Formatter's own TemplateData and serializers,
   keeping VG Stub Creator's site cleanup rules out of editable source drafts.
-- Adopted `#gadget` imports, standardized package documentation, and the shared
-  typed ES2024 builder with clean, dedicated output directories.
-- Renamed the durable release record to `CHANGELOG.md` and advanced the
-  user-selected next minor line to its first development build.
-- Moved detailed reference-name directives into a focused guide, added a root
-  license notice, and made both documents part of the package entry path.
+- Adopted `#gadget` imports and the shared typed ES2024 builder with clean,
+  dedicated output directories.
+- Standardized package entry documents, moved detailed reference-name
+  directives into a focused guide, and linked the root license.
 
 ## Until 0.5
 

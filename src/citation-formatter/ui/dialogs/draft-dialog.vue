@@ -167,7 +167,7 @@
                                         "
                                         class="cf-source-manager__field-error"
                                     >
-                                        {{ draftCellErrors.get(index).name }}
+                                        {{ draftCellErrors.get(index)?.name }}
                                     </small>
                                 </th>
                                 <td
@@ -215,7 +215,7 @@
                                         "
                                         class="cf-source-manager__field-error"
                                     >
-                                        {{ draftCellErrors.get(index).value }}
+                                        {{ draftCellErrors.get(index)?.value }}
                                     </small>
                                     <small
                                         v-if="
@@ -226,7 +226,7 @@
                                         "
                                         class="cf-source-manager__field-error"
                                     >
-                                        {{ draftCellErrors.get(index).alias }}
+                                        {{ draftCellErrors.get(index)?.alias }}
                                     </small>
                                     <div
                                         v-if="getAliasSuggestion(index)"
@@ -235,9 +235,10 @@
                                         <small>
                                             {{
                                                 msg("draft.aliasSuggestion", {
-                                                    alias: getAliasSuggestion(
-                                                        index,
-                                                    ).alias,
+                                                    alias:
+                                                        getAliasSuggestion(
+                                                            index,
+                                                        )?.alias ?? "",
                                                 })
                                             }}
                                         </small>

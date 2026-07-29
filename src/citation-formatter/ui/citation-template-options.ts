@@ -21,13 +21,17 @@ export const CITATION_TEMPLATE_TIERS = {
     importantSpecial: [
         "Cite news",
         "Cite interview",
-        "Cite tweet",
         "Cite video game",
         "Cite press release",
+    ],
+    importantGeneral: [
+        "Cite web",
+        "Cite magazine",
+        "Cite book",
+        "Cite tweet",
         "Cite AV media",
         "Cite AV media notes",
     ],
-    importantGeneral: ["Cite web", "Cite magazine", "Cite book"],
     normalSpecial: [
         "Cite arXiv",
         "Cite bioRxiv",

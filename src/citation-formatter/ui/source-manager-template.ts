@@ -1308,38 +1308,44 @@ const CS1_TOOL_BODY_TEMPLATE = `
         v-if="cs1ToolStatus === 'checking'"
         :aria-label="msg( 'checker.checking' )"
     />
-    <cdx-message
+    <div
         v-else-if="cs1ToolStatus === 'unavailable'"
-        type="error"
+        class="cf-source-manager__cs1-message-frame"
     >
-        {{ msg( 'checker.unavailable' ) }}
-    </cdx-message>
-    <cdx-message
+        <cdx-message type="error">
+            {{ msg( 'checker.unavailable' ) }}
+        </cdx-message>
+    </div>
+    <div
         v-else-if="
             cs1ToolStatus === 'complete' &&
             cs1ToolMessages.length === 0 &&
             cs1ToolSources.length === 0
         "
-        type="success"
+        class="cf-source-manager__cs1-message-frame"
     >
-        {{ msg( 'checker.noIssues' ) }}
-    </cdx-message>
-    <cdx-message
+        <cdx-message type="success">
+            {{ msg( 'checker.noIssues' ) }}
+        </cdx-message>
+    </div>
+    <div
         v-if="
             cs1ToolStatus === 'complete' &&
             cs1ToolMessages.length > 0
         "
-        type="warning"
+        class="cf-source-manager__cs1-message-frame"
     >
-        <ul>
-            <li
-                v-for="message in cs1ToolMessages"
-                :key="message"
-            >
-                {{ message }}
-            </li>
-        </ul>
-    </cdx-message>
+        <cdx-message type="warning">
+            <ul>
+                <li
+                    v-for="message in cs1ToolMessages"
+                    :key="message"
+                >
+                    {{ message }}
+                </li>
+            </ul>
+        </cdx-message>
+    </div>
     <ol
         v-if="
             cs1ToolStatus === 'complete' &&

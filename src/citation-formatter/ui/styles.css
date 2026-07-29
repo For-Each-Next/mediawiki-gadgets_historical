@@ -463,6 +463,10 @@ html[dir="rtl"] .cf-citation-launcher {
     width: min(96vw, 64em);
 }
 
+.cf-source-manager__cs1-message-frame {
+    display: flow-root;
+}
+
 .cf-source-analysis__findings {
     display: flex;
     flex-direction: column;

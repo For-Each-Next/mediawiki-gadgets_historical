@@ -2,6 +2,7 @@
 /* eslint-disable max-len, max-lines-per-function */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import english from "citation-formatter/i18n/en.ts";
@@ -15,6 +16,10 @@ import traditionalChinese from "citation-formatter/i18n/zh-Hant.ts";
 import { SOURCE_MANAGER_TEMPLATE } from "citation-formatter/ui/source-manager-template.ts";
 
 const catalogs = [simplifiedChinese, traditionalChinese];
+const sourceManagerStyles = readFileSync(
+    new URL("../../src/citation-formatter/ui/styles.css", import.meta.url),
+    "utf8",
+);
 const parameterTableCardPattern = new RegExp(
     "<template #header>[\\s\\S]*reference-name-preview[\\s\\S]*" +
         "</template>[\\s\\S]*</cdx-table>\\s*<cdx-card[\\s\\S]*" +
@@ -163,6 +168,24 @@ test("renders progress and a whole-article CS1 recheck action", () => {
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
         /v-if="toolPopup === 'cs1'"[\s\S]*?:disabled="cs1ToolStatus === 'checking'"[\s\S]*?@click="recheckCs1Tool"[\s\S]*?checker\.recheckArticle/u,
+    );
+});
+
+test("keeps CS1 messages outside the dialog child margin reset", () => {
+    const messageFrames = [
+        ...SOURCE_MANAGER_TEMPLATE.matchAll(
+            /class="cf-source-manager__cs1-message-frame"/gu,
+        ),
+    ];
+
+    assert.equal(messageFrames.length, 3);
+    assert.doesNotMatch(
+        SOURCE_MANAGER_TEMPLATE,
+        /<cdx-message[^>]*cf-source-manager__cs1-message-frame/gu,
+    );
+    assert.match(
+        sourceManagerStyles,
+        /\.cf-source-manager__cs1-message-frame\s*\{\s*display:\s*flow-root;/u,
     );
 });
 

@@ -30,6 +30,25 @@ test("orders citation templates by importance and specificity", () => {
     );
 });
 
+test("classifies tweet and AV media templates as important general", () => {
+    const normalImportantNames = [
+        "Cite tweet",
+        "Cite AV media",
+        "Cite AV media notes",
+    ];
+    const importantGeneralNames = new Set<string>(
+        CITATION_TEMPLATE_TIERS.importantGeneral,
+    );
+    const importantSpecialNames = new Set<string>(
+        CITATION_TEMPLATE_TIERS.importantSpecial,
+    );
+
+    for (const name of normalImportantNames) {
+        assert.ok(importantGeneralNames.has(name));
+        assert.ok(!importantSpecialNames.has(name));
+    }
+});
+
 test("shows icons only for important templates", () => {
     const importantNames = new Set<string>([
         ...CITATION_TEMPLATE_TIERS.importantSpecial,

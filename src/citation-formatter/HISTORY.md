@@ -2,7 +2,7 @@
 
 ## Until 0.5
 
-### 0.4.3-post.2 (2026-07-29 08:17 UTC)
+### 0.4.3-post.4 (2026-07-29 08:39 UTC)
 
 Overview: Citation Formatter now uses a side-effect-free composition root,
 typed workflow and adapter boundaries, smaller citation primitives, and the
@@ -16,14 +16,16 @@ workspace's strict reusable gadget build and package contracts.
 - Split source-manager contracts, reactive state, list presentation, analysis
   state, alias actions, and metadata-draft handling from the UI coordinator.
 - Ordered citation-template choices into important-special, important-general,
-  normal-special, and normal-general tiers, and gave `Cite news` a newspaper
-  icon.
+  normal-special, and normal-general tiers; classified `Cite tweet` and both AV
+  media choices as important-general; and gave `Cite news` a newspaper icon.
 - Kept the private TypeScript operations available for composition and tests
   without exporting them from the generated browser gadget.
 - Added focused CS1-adapter and domain-primitive regression coverage and
   enabled strict TypeScript checking.
 - Added a localized Recheck article action that re-read the current editor,
   displayed progress, and prevented duplicate requests.
+- Kept CS1 result messages outside Codex's direct-dialog-child margin reset so
+  their standard spacing remained intact.
 - Adopted `#gadget` imports, standardized package documentation, and the shared
   typed ES2024 builder with clean, dedicated output directories.
 

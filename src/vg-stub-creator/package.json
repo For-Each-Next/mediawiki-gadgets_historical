@@ -1,6 +1,6 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -14,9 +14,16 @@
     },
     "main": "./index.ts",
     "browser": "./browser.ts",
+    "vue": {
+        "outputDir": "../../dist",
+        "assetsDir": "",
+        "filenameHashing": false,
+        "css": {
+            "extract": false
+        }
+    },
     "gadgetBuild": {
         "globalName": "vgStubCreator",
-        "outputDirectory": "../../dist/vg-stub-creator",
         "outputName": "vg_stub_creator",
         "defines": {
             "__VG_STUB_CREATOR_SHARED_DIALOG_STYLES__": {
@@ -107,7 +114,7 @@
         "video-games"
     ],
     "scripts": {
-        "build": "node ../../scripts/build-gadget.ts",
+        "build": "node ../../scripts/gadget-build/cli.ts",
         "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",

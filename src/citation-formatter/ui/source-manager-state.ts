@@ -52,6 +52,14 @@ export type Cs1ToolStatus = "checking" | "complete" | "idle" | "unavailable";
 export type SourceToolPopup = "analysis" | "cs1" | "non-cs1" | null;
 export type SourceCheckerTool = Extract<SourceToolPopup, "cs1" | "non-cs1">;
 
+export interface ArticleFormatAttempt {
+    autoScriptTitle: boolean;
+    citationLayout: CitationLayout;
+    referenceStyle: ReferenceStyle;
+    sourceRevision: number;
+    text: string;
+}
+
 export interface PreloadedCheckerSource {
     checkedHtml: string;
     sourceIndex: number;
@@ -91,6 +99,7 @@ export interface SourceManagerState extends SourceListDerivedState {
     existingSourceQuery: { value: string };
     existingSourceSections: { value: SourceSection[] };
     existingSources: { value: ExistingSource[] };
+    formatArticleAttempt: { value: ArticleFormatAttempt | null };
     loading: { value: boolean };
     manualTemplate: { value: string | null };
     open: { value: boolean };
@@ -106,6 +115,7 @@ export interface SourceManagerState extends SourceListDerivedState {
     sessionUndo: { value: AnalysisUndoSnapshot | null };
     sourceAnalysis: { value: EditableCitationSourceAnalysis };
     sourceInput: { value: string };
+    sourceRevision: { value: number };
     sourceSectionPath: { value: string[] };
     toolPopup: { value: SourceToolPopup };
     toolPopupOpen: { value: boolean };
@@ -137,15 +147,21 @@ interface InitialSourceListState {
 
 type FormatError = (error: unknown) => string;
 
+interface SourceManagerStateConfiguration {
+    options: SourceManagerOptions;
+    sourceRevision: { value: number };
+}
+
 /** Creates initial reactive state from the current editor contents. */
 // eslint-disable-next-line max-lines-per-function
 export function createSourceManagerState(
     Vue: VueModule,
     editor: editBox.EditBox,
-    options: SourceManagerOptions,
+    configuration: SourceManagerStateConfiguration,
     wikiId: string,
     formatError: FormatError,
 ): SourceManagerState {
+    const { options, sourceRevision } = configuration;
     const initialText = editor.read();
     const sourceList = createInitialSourceListState(Vue, initialText);
     const cs1State = createInitialCs1ToolState(Vue);
@@ -176,9 +192,11 @@ export function createSourceManagerState(
         draft,
         editingSource: Vue.ref<ExistingSource | null>(null),
         error: Vue.ref(""),
+        formatArticleAttempt: Vue.ref<ArticleFormatAttempt | null>(null),
         loading: Vue.ref(false),
         referenceStyle,
         sourceInput: Vue.ref(""),
+        sourceRevision,
         warning: Vue.ref(""),
     };
 }

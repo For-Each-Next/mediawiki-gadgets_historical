@@ -29,6 +29,24 @@ test("a future gadget is discovered automatically", async (context) => {
     assert.deepEqual(result.problems, []);
 });
 
+test("flat gadget artifact names cannot collide", async (context) => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-collision-"));
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await Promise.all([
+        writeFutureGadget(workspaceRoot, "first-gadget", "shared"),
+        writeFutureGadget(workspaceRoot, "second-gadget", "shared.min"),
+    ]);
+
+    const result = await checkGadgetPackages(workspaceRoot);
+
+    assert.equal(result.gadgetCount, 2);
+    assert.ok(
+        result.problems.some((problem) =>
+            problem.includes("shared.min.js collides"),
+        ),
+    );
+});
+
 test("architecture layer imports point downward", async () => {
     const result = await layerCheck.checkLayerDependencies(process.cwd());
 
@@ -44,17 +62,23 @@ test("authored Markdown lines fit the repository width", async () => {
 });
 
 /** Writes the smallest complete future gadget package contract. */
-async function writeFutureGadget(workspaceRoot: string): Promise<void> {
-    const packageRoot = join(workspaceRoot, "src", "future-gadget");
+async function writeFutureGadget(
+    workspaceRoot: string,
+    packageName: string = "future-gadget",
+    outputName: string = "future_gadget",
+): Promise<void> {
+    const packageRoot = join(workspaceRoot, "src", packageName);
     await mkdir(packageRoot, { recursive: true });
     const files = {
         "AGENTS.md": "# Fixture rules\n",
         "CHANGELOG.md": createFutureChangelog(),
-        "README.md": createFutureReadme(),
+        "README.md": createFutureReadme(packageName),
         "browser.ts": 'import { start } from "#gadget/main.ts";\nstart();\n',
         "index.ts": "export {};\n",
         "main.ts": "export function start(): void {}\n",
-        "package.json": JSON.stringify(createFutureMetadata()),
+        "package.json": JSON.stringify(
+            createFutureMetadata(packageName, outputName),
+        ),
     };
     await Promise.all(
         Object.entries(files).map(([path, content]) =>
@@ -64,41 +88,49 @@ async function writeFutureGadget(workspaceRoot: string): Promise<void> {
 }
 
 /** Creates the future gadget's package metadata. */
-function createFutureMetadata(): Record<string, unknown> {
+function createFutureMetadata(
+    packageName: string,
+    outputName: string,
+): Record<string, unknown> {
     return {
         author: "Test",
         browser: "./browser.ts",
         description: "Future package fixture.",
         gadgetBuild: {
             globalName: "futureGadget",
-            outputDirectory: "../../dist/future-gadget",
-            outputName: "future_gadget",
+            outputName,
         },
         imports: {
             "#gadget": "./index.ts",
             "#gadget/*": "./*",
         },
         main: "./index.ts",
-        name: "future-gadget",
+        name: packageName,
         private: true,
         scripts: {
-            build: "node ../../scripts/build-gadget.ts",
+            build: "node ../../scripts/gadget-build/cli.ts",
             check: "tsc --noEmit",
             test: "node --test",
         },
         type: "module",
         version: "1.3.0-dev.1",
+        vue: {
+            assetsDir: "",
+            css: { extract: false },
+            filenameHashing: false,
+            outputDir: "../../dist",
+        },
     };
 }
 
 /** Creates the future gadget's README contract. */
-function createFutureReadme(): string {
+function createFutureReadme(packageName: string): string {
     return [
         "# Future Gadget",
         "",
         "## Run",
         "",
-        "`npm run build -w future-gadget`",
+        `\`npm run build -w ${packageName}\``,
         "",
         "## Features",
         "",

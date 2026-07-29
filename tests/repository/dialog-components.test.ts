@@ -88,6 +88,16 @@ test("keeps dialog roots out of authored TypeScript", () => {
     assert.deepEqual(findings, []);
 });
 
+test("uses browser-native titles instead of scripted tooltips", () => {
+    const files = [
+        ...listFiles(sourceRoot, ".ts"),
+        ...listFiles(sourceRoot, ".vue"),
+    ];
+    const findings = files.flatMap(findScriptedTooltips);
+
+    assert.deepEqual(findings, []);
+});
+
 function countDialogs(total: number, packageConfig: DialogPackage): number {
     return total + packageConfig.dialogs.length;
 }
@@ -296,6 +306,23 @@ function findLegacyMarkupInFile(file: string): string[] {
         /createElement\(\s*["'](?:cdx-)?dialog["']/u,
         /<\s*(?:cdx-)?dialog\b/iu,
         /template\s*:\s*createDialogTemplate\(/u,
+    ];
+
+    return patterns
+        .filter(function matchesSource(pattern) {
+            return pattern.test(source);
+        })
+        .map(function describePattern(pattern) {
+            return `${file}: ${pattern.source}`;
+        });
+}
+
+function findScriptedTooltips(file: string): string[] {
+    const source = readFileSync(file, "utf8");
+    const patterns = [
+        /\bv-tooltip\b/u,
+        /\bCdxTooltip\b/u,
+        /\brole\s*=\s*["']tooltip["']/u,
     ];
 
     return patterns

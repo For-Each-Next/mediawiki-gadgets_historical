@@ -76,14 +76,34 @@ function resolveBuildConfig(
     }
     const entryPoint = requireEntryPoint(config, metadata);
     const globalName = requireGlobalName(config);
-    const outputName = requireOutputName(config, metadata);
+    const outputName = requireOutputName(config);
+    const outputDirectory = requireOutputDirectory(metadata);
     return {
         ...config,
         entryPoint,
         globalName,
-        outputDirectory: config.outputDirectory ?? "dist",
+        outputDirectory,
         outputName,
     };
+}
+
+/** Resolves the Vue-compatible shared distribution path. */
+function requireOutputDirectory(metadata: PackageMetadata): string {
+    const vue = metadata.vue;
+    if (
+        vue?.assetsDir !== "" ||
+        vue.filenameHashing !== false ||
+        vue.css?.extract !== false
+    ) {
+        throw new Error(
+            "package.json vue settings must keep flat, embedded assets.",
+        );
+    }
+    const outputDirectory = vue.outputDir;
+    if (!hasText(outputDirectory)) {
+        throw new Error("package.json vue.outputDir must be defined.");
+    }
+    return outputDirectory;
 }
 
 /** Resolves the required browser entry point. */
@@ -115,11 +135,11 @@ function requireGlobalName(config: GadgetBuildConfig): string {
 }
 
 /** Validates the generated JavaScript file basename. */
-function requireOutputName(
-    config: GadgetBuildConfig,
-    metadata: PackageMetadata,
-): string {
-    const outputName = config.outputName ?? metadata.name;
+function requireOutputName(config: GadgetBuildConfig): string {
+    const { outputName } = config;
+    if (!hasText(outputName)) {
+        throw new Error("gadgetBuild.outputName must be defined.");
+    }
     if (!OUTPUT_NAME_PATTERN.test(outputName)) {
         throw new Error(
             "gadgetBuild.outputName must be a safe file basename.",

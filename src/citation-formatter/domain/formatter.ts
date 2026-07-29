@@ -113,6 +113,7 @@ export interface CitationFormatResult {
     citationsFormatted: number;
     individualReferencesFound: number;
     referenceCallsFound: number;
+    referenceTagsRenamed: number;
     referencesNotFormatted: number;
     referencesMoved: number;
     rTemplatesFound: number;
@@ -238,6 +239,11 @@ function summarizeFormatting(
         ).length,
         individualReferencesFound: individual.length,
         referenceCallsFound: tags.filter(isTagOutsideContainers).length,
+        referenceTagsRenamed: countRenamedReferenceTags(
+            tags,
+            definitions,
+            containers,
+        ),
         referencesNotFormatted: individual.filter(
             (definition) => definition.identity == null,
         ).length,
@@ -247,6 +253,37 @@ function summarizeFormatting(
         text,
     };
     return result;
+}
+
+/**
+ * Counts source ref tags whose names change in the formatted output.
+ *
+ * Full definitions remain represented after moving to a reference list.
+ * Reuse tags inside a rebuilt list do not, so they are excluded.
+ */
+function countRenamedReferenceTags(
+    tags: RefTag[],
+    definitions: ReferenceDefinition[],
+    containers: ReferenceContainer[],
+): number {
+    const definitionsByStart = new Map(
+        definitions.map((definition) => [definition.tag.start, definition]),
+    );
+    const oldNameMap = buildOldNameMap(definitions);
+    return tags.filter(function isRenamed(tag) {
+        const oldName = tag.attributes.name || "";
+        const definition = definitionsByStart.get(tag.start);
+        if (definition != null) {
+            return definition.finalName !== oldName;
+        }
+        if (isTagInContainers(tag, containers)) {
+            return false;
+        }
+        const group = tag.attributes.group || "";
+        const finalName =
+            oldNameMap.get(`${group}\u0000${oldName}`) ?? oldName;
+        return finalName !== oldName;
+    }).length;
 }
 
 /**

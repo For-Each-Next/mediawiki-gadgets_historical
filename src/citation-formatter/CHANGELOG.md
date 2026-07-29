@@ -2,6 +2,51 @@
 
 ## Until 0.6
 
+### 0.5.1 (2026-07-29 21:25 UTC)
+
+Overview: Citation Formatter improves feedback, navigation, localization,
+dialog lifecycle safety, and all three browser artifact forms.
+
+- Reported formatted citations, skipped references outside the supported
+  standard `{{Cite …}}` form, and renamed `<ref>` tags as separate,
+  interpolated counts.
+- Kept formatting checkboxes as settings, removed the duplicate Tools-tab
+  action, disabled the footer action after one attempt against the same source
+  and settings, re-enabled it after a source or setting change, and used
+  neutral feedback when an initial pass made no changes.
+- Clarified the Simplified Chinese descriptions for tool scope, source
+  creation, formatting choices, original text, reference-name contributors, and
+  outcome feedback, and made the active contributor explanation reachable.
+- Paginated existing-source rows before rendering them and reset pagination
+  when the active query, section path, or result count changed.
+- Showed 100 existing sources on each list page by default while retaining the
+  smaller 10-, 20-, and 50-row choices.
+- Added localized native titles to source usage counts that list every exact
+  article section containing the citation; a bare `§1` denotes section 1's own
+  lead (`1.0`), not its subsections.
+- Replaced every Codex tooltip with a browser-native localized title and
+  removed the tooltip directive registration and declarations.
+- Auto-dismissed every toast after four seconds and removed pending formatter
+  toasts during dialog cleanup so old feedback could not return when reopened.
+- Kept generated CS1 checker wrapper markup readable across formatted and
+  userscript builds, aligned it with repository JavaScript indentation, and
+  preserved submitted wikitext whitespace in every artifact form.
+- Retained userscript metadata comments while removing comments from the
+  executable code section without altering comment-like runtime strings.
+- Added isolated project-wide Vue template validation, made `tsconfig.json` its
+  root entry point, and centralized Prettier, Stylelint, and JSON-compatible
+  Vue settings in package manifests.
+- Added formatter, UI-state, pagination, native-title, and repository-wide
+  scripted-tooltip and toast-lifecycle regression coverage.
+- Added a formatted, human-readable build with documentation comments and wrote
+  all three uniquely named artifacts directly under `dist/`, with rebuild
+  cleanup limited to this gadget's outputs.
+- Consolidated the shared build CLI and HTML-template processing under
+  package-style `gadget-build` entry points enforced by package validation.
+- Expanded user-facing feature documentation, normalized support-guide names,
+  centralized release and commit workflows, and retained only package-specific
+  scoped instructions.
+
 ### 0.5.0 (2026-07-29 18:02 UTC)
 
 Overview: Citation Formatter now has typed workflows, JSON localization, Codex

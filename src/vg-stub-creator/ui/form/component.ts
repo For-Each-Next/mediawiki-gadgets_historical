@@ -2,6 +2,7 @@
  * Builds the vg-stub-creator dialog form component.
  */
 
+import type { StatusType } from "@wikimedia/codex";
 import {
     completeMetadataFieldValue,
     formatArticleFormField,
@@ -186,8 +187,6 @@ let enwikiMetadata: any;
 let fetchedSteamNameRows: any;
 let steamUrl: any;
 let sourceFetchState: any;
-let tableActionTooltip: any;
-let tableActionTooltipRef: any;
 let open: any;
 let sourceEditors: Map<any, any>;
 let sourceEditorLoads: Set<any>;
@@ -321,9 +320,6 @@ function initializePreviewState(): void {
     steamUrl = Vue.ref("");
     const loadingStateResult = createLoadingState();
     sourceFetchState = Vue.reactive(loadingStateResult);
-    const tableActionTooltipResult = createTableActionTooltip();
-    tableActionTooltip = Vue.reactive(tableActionTooltipResult);
-    tableActionTooltipRef = Vue.ref(null);
     open = Vue.ref(options.initialOpen === true);
 }
 
@@ -427,20 +423,6 @@ function createPageEditState(): any {
  */
 function createMoveTargetState(): any {
     return { checkedTitle: "", exists: false, loading: false };
-}
-
-/**
- * Creates table-action tooltip state.
- *
- * @returns Table-action tooltip state.
- */
-function createTableActionTooltip(): any {
-    const result = {
-        label: "",
-        style: { left: "0", top: "0" },
-        visible: false,
-    };
-    return result;
 }
 
 /**
@@ -1428,51 +1410,6 @@ const methods = {
     deleteHistoryEntry(id: string): void {
         options.onDeleteHistoryEntry(id);
         historyEntries.value = options.getHistoryEntries();
-    },
-
-    /**
-     * Shows the shared table-action tooltip near one icon button.
-     *
-     * @param event - Focus or mouse event from the action
-     * button.
-     * @returns Result when the function
-     *   shows the shared table-action tooltip near one
-     *   icon button.
-     */
-    showTableActionTooltip(event: Event): void {
-        const target = event.currentTarget as HTMLElement | null;
-        const label =
-            target?.getAttribute("aria-label") ||
-            target?.getAttribute("title") ||
-            "";
-
-        if (
-            target == null ||
-            label === "" ||
-            typeof target.getBoundingClientRect !== "function"
-        ) {
-            return;
-        }
-
-        const rect = target.getBoundingClientRect();
-        tableActionTooltip.label = label;
-        tableActionTooltip.visible = true;
-        positionTableActionTooltip(rect);
-
-        if (typeof Vue.nextTick === "function") {
-            const nextTickCallbackA = () => positionTableActionTooltip(rect);
-            Vue.nextTick(nextTickCallbackA);
-        }
-    },
-
-    /**
-     * Hides the shared table-action tooltip.
-     *
-     * @returns Result when the function
-     *   hides the shared table-action tooltip.
-     */
-    hideTableActionTooltip(): void {
-        tableActionTooltip.visible = false;
     },
 
     /**
@@ -2612,8 +2549,9 @@ const methods = {
      * @param event - Text input blur event.
      * @returns Resolves after the row is fixed.
      */
-    async checkRedirectRow(index: number, event: Event): Promise<void> {
-        const value = (event.target as HTMLInputElement | null)?.value;
+    async checkRedirectRow(index: number, event?: Event): Promise<void> {
+        const value = (event?.target as HTMLInputElement | null | undefined)
+            ?.value;
 
         if (value != null && form.redirectRows?.[index] != null) {
             setRedirectRowTitle(form.redirectRows[index], value);
@@ -2631,8 +2569,9 @@ const methods = {
      * @returns Resolves after the textbox is
      * updated.
      */
-    async checkNavboxRow(index: number, event: Event): Promise<void> {
-        const value = (event.target as HTMLInputElement | null)?.value;
+    async checkNavboxRow(index: number, event?: Event): Promise<void> {
+        const value = (event?.target as HTMLInputElement | null | undefined)
+            ?.value;
 
         if (value != null) {
             this.updateNavboxRow(index, value);
@@ -2718,8 +2657,9 @@ const methods = {
      * @returns Resolves after the textbox is
      * updated.
      */
-    async checkCategoryRow(index: number, event: Event): Promise<void> {
-        const value = (event.target as HTMLInputElement | null)?.value;
+    async checkCategoryRow(index: number, event?: Event): Promise<void> {
+        const value = (event?.target as HTMLInputElement | null | undefined)
+            ?.value;
 
         if (value != null) {
             this.updateCategoryRowCategory(index, value);
@@ -3041,7 +2981,7 @@ const methods = {
      * @param row - Category review row.
      * @returns Codex InfoChip status.
      */
-    getCategoryStatusChipStatus(row: any): string {
+    getCategoryStatusChipStatus(row: any): StatusType {
         return getReviewRowStatusChipStatus(row, isBlankCategoryRow);
     },
 
@@ -3073,7 +3013,7 @@ const methods = {
      * @param row - Stub-tag review row.
      * @returns Codex InfoChip status.
      */
-    getStubTagStatusChipStatus(row: any): string {
+    getStubTagStatusChipStatus(row: any): StatusType {
         return getReviewRowStatusChipStatus(row, isBlankStubTagRow);
     },
 
@@ -3179,7 +3119,7 @@ const methods = {
      * status.
      * @returns Codex InfoChip status.
      */
-    getNavboxStatusChipStatus(row: any | string): string {
+    getNavboxStatusChipStatus(row: any | string): StatusType {
         return getReviewRowStatusChipStatus(row, isBlankNavboxRow);
     },
 
@@ -3225,7 +3165,7 @@ const methods = {
      * status.
      * @returns Codex InfoChip status.
      */
-    getRedirectStatusChipStatus(row: any | string): string {
+    getRedirectStatusChipStatus(row: any | string): StatusType {
         if (
             typeof row === "object" &&
             row != null &&
@@ -3437,6 +3377,13 @@ function replaceRefetchedCitation(index: number, refreshed: any): void {
  *
  * @returns Vue component options from initialized dialog state.
  */
+type VgStubCreatorSetupBindings = ReturnType<typeof getCoreSetupState> &
+    ReturnType<typeof getFieldSetupState> &
+    ReturnType<typeof getHistorySetupState> &
+    ReturnType<typeof getPreviewSetupState>;
+export type VgStubCreatorTemplateBindings = typeof methods &
+    VgStubCreatorSetupBindings;
+
 function createComponentDefinition(): any {
     const result = {
         methods,
@@ -3445,7 +3392,7 @@ function createComponentDefinition(): any {
          *
          * @returns Component state consumed by the template.
          */
-        setup(): any {
+        setup(): VgStubCreatorSetupBindings {
             const state = {
                 ...getCoreSetupState(),
                 ...getFieldSetupState(),
@@ -3464,7 +3411,7 @@ function createComponentDefinition(): any {
  *
  * @returns Core dialog setup bindings.
  */
-function getCoreSetupState(): any {
+function getCoreSetupState() {
     const state = {
         activeCitationTab,
         activeTab,
@@ -3494,7 +3441,7 @@ function getCoreSetupState(): any {
  *
  * @returns Form field helper setup bindings.
  */
-function getFieldSetupState(): any {
+function getFieldSetupState() {
     const state = {
         getSteamNameSuggestions,
         getCitationParamRows,
@@ -3523,7 +3470,7 @@ function getFieldSetupState(): any {
  *
  * @returns History and navigation setup bindings.
  */
-function getHistorySetupState(): any {
+function getHistorySetupState() {
     const state = {
         historyEntries,
         historyJsonEditable,
@@ -3554,7 +3501,7 @@ function getHistorySetupState(): any {
  *
  * @returns Save and preview setup bindings.
  */
-function getPreviewSetupState(): any {
+function getPreviewSetupState() {
     const state = {
         preSaveMoveEnabled,
         preSaveMoveTitle,
@@ -3574,45 +3521,11 @@ function getPreviewSetupState(): any {
         sourceFetchState,
         steamNameButtons: STEAM_NAME_BUTTONS,
         steamUrl,
-        tableActionTooltip,
-        tableActionTooltipRef,
         tableActionIcons: TABLE_ACTION_ICONS,
         stubTagTableColumns: STUB_TAG_TABLE_COLUMNS,
         stubTagRows,
     };
     return state;
-}
-
-/**
- * Positions the shared table-action tooltip inside the viewport.
- *
- * @param rect - Trigger button bounds.
- * @returns Result when the function
- *   positions the shared table-action tooltip inside
- *   the viewport.
- */
-function positionTableActionTooltip(rect: DOMRect): void {
-    const tooltip = tableActionTooltipRef.value;
-    const margin = 8;
-    const viewportWidth =
-        globalThis.innerWidth ||
-        globalThis.document?.documentElement?.clientWidth ||
-        0;
-    const width = tooltip?.offsetWidth || 0;
-    const halfWidth = width / 2;
-    const centered = rect.left + rect.width / 2;
-    const minLeft = margin + halfWidth;
-    const maxLeft =
-        viewportWidth > 0 ? viewportWidth - margin - halfWidth : centered;
-    const left =
-        width > 0 && maxLeft >= minLeft
-            ? Math.min(Math.max(centered, minLeft), maxLeft)
-            : centered;
-
-    tableActionTooltip.style = {
-        left: `${left}px`,
-        top: `${rect.bottom + 6}px`,
-    };
 }
 
 /**
@@ -5127,7 +5040,7 @@ function formatReviewRowStatusLabel(
 function getReviewRowStatusChipStatus(
     row: any | string,
     isBlank: (...args: any[]) => any,
-): string {
+): StatusType {
     if (typeof row === "object" && row != null && isBlank(row)) {
         return "notice";
     }

@@ -4,9 +4,9 @@ VG Page Assessor is a Chinese Wikipedia helper for assessing video-game
 articles. It adds a localized toolbox action that updates talk-page assessment
 banners and can register eligible articles on the WikiProject new-page list.
 
-> **Status:** The 0.2 development line has known bugs. The tool writes to live
-> wiki pages, so review every wikitext and change preview carefully before
-> saving.
+> **Status:** VG Page Assessor is early-development software with known bugs.
+> It writes to live wiki pages, so review every wikitext and change preview
+> carefully before saving.
 
 ## Run
 
@@ -16,25 +16,25 @@ Build the package from the repository root:
 npm run build -w vg-page-assessor
 ```
 
-This writes two ignored artifacts to `dist/vg-page-assessor/`:
+This writes three ignored artifacts directly to `dist/`:
 
-- `vg_page_assessor.min.js` for a MediaWiki personal JavaScript page.
-- `vg_page_assessor.user.js` for a userscript manager. Its generated metadata
-  matches Chinese Wikipedia.
+- `vg_page_assessor.js` is the formatted, human-readable version.
+- `vg_page_assessor.min.js` is the minified version.
+- `vg_page_assessor.user.js` is the Greasemonkey-compatible version.
 
 ### MediaWiki user page
 
 Open `Special:MyPage/common.js` on Chinese Wikipedia, paste the complete
-contents of `dist/vg-page-assessor/vg_page_assessor.min.js`, and publish the
-page. Personal JavaScript pages must be enabled by the wiki; see MediaWiki's
-[personal-script documentation][1].
+contents of `dist/vg_page_assessor.min.js`, and publish the page. Personal
+JavaScript pages must be enabled by the wiki; see MediaWiki's [personal-script
+documentation][1].
 
 After publishing, bypass the browser cache or perform a hard refresh.
 
 ### Userscript manager
 
-Create a script in a userscript manager, replace its editor contents with
-`dist/vg-page-assessor/vg_page_assessor.user.js`, and save it. Keep the
+Create a script in a Greasemonkey-compatible userscript manager, replace its
+editor contents with `dist/vg_page_assessor.user.js`, and save it. Keep the
 generated metadata header intact.
 
 After either installation, open an eligible article on Chinese Wikipedia and
@@ -46,15 +46,22 @@ confirming the proposed changes.
 
 VG Page Assessor:
 
-- reads the subject page and its associated talk page;
-- preserves unmanaged talk-page lead content and project templates;
-- prepares WikiProject Video games class, importance, task-force, and
-  maintenance parameters;
-- includes configured related-project banners;
-- previews the exact talk-page wikitext before an explicit save;
-- detects eligible new pages and their creation timestamps;
-- prepares a date-ordered WikiProject new-page-list registration; and
-- previews the list change before an explicit save.
+- reads the subject page, resolves redirects and creation dates, and loads its
+  associated talk page;
+- manages nine assessment classes, five importance levels, six task forces,
+  four maintenance flags, and six related-project banners;
+- recognizes configured banner aliases while preserving unmanaged lead content
+  and unrelated projects inside a banner shell;
+- presents editable, exact talk-page lead wikitext and edit summaries beside
+  the current source before saving;
+- uses timestamp-protected writes, skips no-op changes, and refetches and
+  reapplies reviewed changes only for confirmed edit conflicts;
+- detects pages that are already registered or outside the eligible age range;
+- creates missing year and date groups, handles namespace subgroups, and orders
+  same-day registrations by creation time;
+- previews focused before-and-after new-page-list snippets with an editable
+  edit summary; and
+- reports visible progress and failures for each requested save.
 
 The interface uses English, Simplified Chinese, or Traditional Chinese
 according to the MediaWiki interface language.
@@ -70,8 +77,7 @@ npm test -w vg-page-assessor
 npm run build -w vg-page-assessor
 ```
 
-Tests use local fixtures and mocked MediaWiki clients. Do not verify save
-behavior against a production wiki.
+Tests use local fixtures and mocked MediaWiki clients for all save behavior.
 
 ## Architecture
 
@@ -81,26 +87,22 @@ point remains side-effect free:
 ```text
 browser.ts
 └── main.ts
-    ├── ui
-    ├── workflows
-    ├── domain
-    ├── infra
-    └── shared
+    ├── ui/ -> contracts/, domain/, config/, i18n/
+    ├── workflows/ -> contracts/, domain/
+    ├── infra/ -> domain/
+    └── config/ -> domain/
 
-index.ts
+contracts/ -> domain/
+i18n/ -> #shared/i18n
+index.ts (side-effect-free package entry)
 ```
 
-- `index.ts` is the side-effect-free package entry point.
-- `browser.ts` invokes the browser composition root.
-- `main.ts` wires UI, workflows, MediaWiki adapters, and logging.
-- `ui/dialogs/` keeps the Vue template, reactive TypeScript state, and scoped
-  CSS for the Codex assessment dialog together.
-- `ui/` mounts the dialog and owns previews, summaries, and user interactions.
-- `workflows/` coordinates loading, preview preparation, and confirmed saves.
-- `domain/` contains deterministic assessment and new-page-list rules.
-- `infra/` isolates MediaWiki requests, response decoding, caching, and logs.
-- `config/` contains project-specific titles and assessment options.
-- `i18n/` stores flat JSON locale catalogs behind a typed registry.
+- `main.ts` composes UI, workflows, project configuration, and MediaWiki
+  adapters. Only `browser.ts` invokes it; `index.ts` remains side-effect free.
+- `ui/` presents Codex interactions, `workflows/` coordinates use cases,
+  `infra/` accesses MediaWiki, and `domain/` holds deterministic rules.
+  `contracts/`, `config/`, and `i18n/` provide their shared types, project
+  settings, and localized text.
 
 See the package [changelog][2], its scoped [AGENTS.md][3], and the repository
 [AGENTS.md][4] for architecture, safety, versioning, and verification rules.

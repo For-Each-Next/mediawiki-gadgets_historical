@@ -25,7 +25,9 @@ export function buildCs1CheckWikitext(
     return sources
         .map(function wrapSource(source, index) {
             const id = `${CS1_CHECK_ID_PREFIX}${index}`;
-            return `<div id="${id}">\n${source.rawTemplate}\n</div>`;
+            return `<div id="${id}">
+${source.rawTemplate}
+</div>`;
         })
         .join("\n");
 }

@@ -65,6 +65,7 @@ export type ToolDialogContext = ToolDialogActions & {
     cs1WikiLabel: string;
     customAnalysisReplacement: string;
     editSourceIcon: CodexIcons["cdxIconEdit"];
+    formatSourceUsageTitle: (source: ExistingSource) => string;
     interfaceLocale: string;
     loading: boolean;
     msg: CitationFormatterI18n["msg"];

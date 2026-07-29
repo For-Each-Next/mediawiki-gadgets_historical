@@ -27,7 +27,7 @@ const parameterTableCardPattern = new RegExp(
 );
 
 function listPlaceholders(message: string): string[] {
-    return [...message.matchAll(/\{([A-Za-z][A-Za-z0-9]*)\}/gu)]
+    return [...message.matchAll(/(?<!\{)\{([A-Za-z][A-Za-z0-9]*)\}(?!\})/gu)]
         .map((match) => match[1])
         .toSorted();
 }
@@ -70,13 +70,54 @@ test("separates concise source guidance from detailed help text", () => {
     );
     assert.equal(
         simplifiedChinese["lookup.sourceHelpText"],
-        "输入网址、存档链接、标识符（DOI、ISBN、ISSN、PMID、PMCID 或 " +
+        "输入网址、存档链接、标识符（DOI、ISBN、ISSN、PMID、PMCID、" +
             "QID）或引文文本。若已有该资源，则直接在条目源代码中插入脚注。",
     );
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
         /<template #description>\s*\{\{\s*msg\(\s*["']lookup\.sourceDescription["']\s*\)\s*\}\}\s*<\/template>[\s\S]*?<template #help-text>\s*\{\{\s*msg\(\s*["']lookup\.sourceHelpText["']\s*\)\s*\}\}\s*<\/template>/u,
     );
+});
+
+test("uses concise Simplified Chinese formatting guidance", () => {
+    assert.equal(
+        simplifiedChinese["tool.description"],
+        "格式化<ref>和{{cite}}，兼增改来源",
+    );
+    assert.equal(
+        simplifiedChinese["lookup.manualDescription"],
+        "新增来源，或以现有副本为基础修改。",
+    );
+    assert.equal(
+        simplifiedChinese["tools.compactReferences"],
+        '以{{r|source}}取代<ref name="source">',
+    );
+    assert.equal(
+        simplifiedChinese["tools.blockCitations"],
+        "将 {{cite}} 按块状格式排版",
+    );
+    assert.equal(
+        simplifiedChinese["tools.scriptTitle"],
+        "外文文献填写语言代码时，将|title=改为|script-title 参数",
+    );
+    assert.equal(simplifiedChinese["draft.originalDescription"], "原始文本");
+    assert.equal(
+        simplifiedChinese["draft.nameValueHelp"],
+        "此参数值用于生成参考名。",
+    );
+    assert.equal(
+        simplifiedChinese["draft.nameAliasHelp"],
+        "生成参考名时，此注释会取代参数值。",
+    );
+});
+
+test("keeps formatting options separate from the footer action", () => {
+    const formatActions = [
+        ...SOURCE_MANAGER_TEMPLATE.matchAll(/@click="formatArticle"/gu),
+    ];
+
+    assert.equal(formatActions.length, 1);
+    assert.doesNotMatch(SOURCE_MANAGER_TEMPLATE, /tools\.applyFormatting/u);
 });
 
 test("resolves MediaWiki Chinese variants and English fallback", () => {
@@ -132,10 +173,7 @@ test("renders safe new-tab links for openable URL fields", () => {
     );
     assert.match(openingTag, /\btarget="_blank"/u);
     assert.match(openingTag, /\brel="noopener noreferrer"/u);
-    assert.match(
-        openingTag,
-        /v-tooltip="msg\(\s*["']draft\.openUrl["']\s*\)"/u,
-    );
+    assert.match(openingTag, /:title="msg\(\s*["']draft\.openUrl["']\s*\)"/u);
     assert.match(openingTag, /draft\.openUrlLabel/u);
     for (const className of [
         "cdx-button--fake-button",
@@ -243,7 +281,7 @@ test("references only defined messages from the Vue template", () => {
     for (const messageId of referencedIds) {
         assert.ok(messageId in english, messageId);
     }
-    assert.doesNotMatch(SOURCE_MANAGER_TEMPLATE, /v-tooltip="'/u);
+    assert.doesNotMatch(SOURCE_MANAGER_TEMPLATE, /\bv-tooltip\b/u);
     assert.doesNotMatch(
         SOURCE_MANAGER_TEMPLATE,
         /(?<!:)aria-label="[A-Za-z]/u,
@@ -321,7 +359,7 @@ test("references only defined messages from the Vue template", () => {
     );
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /v-tooltip="\s*getParameterNameTooltip\(\s*row\.name\s*\)\s*"/u,
+        /:title="\s*getParameterNameTooltip\(\s*row\.name\s*\)\s*"/u,
     );
     assert.match(SOURCE_MANAGER_TEMPLATE, /:icon="parameterAliasIcon"/u);
     assert.doesNotMatch(

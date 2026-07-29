@@ -11,7 +11,6 @@ export interface VueModule {
 
 interface VueApp {
     component: (name: string, component: unknown) => void;
-    directive: (name: string, directive: unknown) => void;
     mount: (host: HTMLElement) => void;
     unmount: () => void;
 }
@@ -34,19 +33,80 @@ export interface CodexComponents {
     CdxTextArea: unknown;
     CdxTextInput: unknown;
     CdxToastContainer: unknown;
-    CdxTooltip: unknown;
     useToast: () => ToastController;
 }
 
-interface ToastOptions {
+export interface ToastOptions {
     autoDismiss?: boolean | number;
 }
 
 export interface ToastController {
-    error: (message: string, options?: ToastOptions) => void;
-    info: (message: string, options?: ToastOptions) => void;
-    success: (message: string, options?: ToastOptions) => void;
-    warning: (message: string, options?: ToastOptions) => void;
+    clear: () => void;
+    dismiss: (id: string) => void;
+    error: (message: string, options?: ToastOptions) => string;
+    info: (message: string, options?: ToastOptions) => string;
+    success: (message: string, options?: ToastOptions) => string;
+    warning: (message: string, options?: ToastOptions) => string;
+}
+
+export const TOAST_AUTO_DISMISS_MS = 4_000;
+
+type ToastMethod = "error" | "info" | "success" | "warning";
+
+function withToastAutoDismiss(
+    options: ToastOptions | undefined,
+): ToastOptions {
+    return { ...options, autoDismiss: TOAST_AUTO_DISMISS_MS };
+}
+
+function createTrackedToastMethod(
+    controller: ToastController,
+    method: ToastMethod,
+    track: (id: string) => string,
+): ToastController[ToastMethod] {
+    return function showToast(message, options): string {
+        return track(
+            controller[method](message, withToastAutoDismiss(options)),
+        );
+    };
+}
+
+/**
+ * Scopes formatter toasts and gives each an exact lifetime.
+ *
+ * @param controller - Shared Codex toast controller.
+ * @returns Dialog-scoped toast controller.
+ */
+export function createCitationFormatterToastController(
+    controller: ToastController,
+): ToastController {
+    let active = true;
+    const toastIds = new Set<string>();
+    const track = function track(id: string): string {
+        if (!active) {
+            controller.dismiss(id);
+            return id;
+        }
+        toastIds.add(id);
+        return id;
+    };
+    return {
+        clear() {
+            active = false;
+            for (const id of toastIds) {
+                controller.dismiss(id);
+            }
+            toastIds.clear();
+        },
+        dismiss(id) {
+            toastIds.delete(id);
+            controller.dismiss(id);
+        },
+        error: createTrackedToastMethod(controller, "error", track),
+        info: createTrackedToastMethod(controller, "info", track),
+        success: createTrackedToastMethod(controller, "success", track),
+        warning: createTrackedToastMethod(controller, "warning", track),
+    };
 }
 
 export interface ResourceLoaderRequire {
@@ -76,5 +136,4 @@ export function registerCitationFormatterComponents(
     app.component("CdxTextArea", Codex.CdxTextArea);
     app.component("CdxTextInput", Codex.CdxTextInput);
     app.component("CdxToastContainer", Codex.CdxToastContainer);
-    app.directive("tooltip", Codex.CdxTooltip);
 }

@@ -2,6 +2,27 @@
 
 ## Until 0.3
 
+### 0.2.1 (2026-07-29 21:25 UTC)
+
+Overview: VG Page Assessor now emits three consistent artifacts through shared
+build and validation tooling, including comment-free userscript code.
+
+- Added a formatted, human-readable build with documentation comments and wrote
+  all three uniquely named artifacts directly under `dist/`, with rebuild
+  cleanup limited to this gadget's outputs.
+- Added isolated project-wide Vue template validation, made `tsconfig.json` its
+  root entry point, and centralized Prettier, Stylelint, and JSON-compatible
+  Vue settings in package manifests.
+- Aligned readable gadget and userscript JavaScript with the repository's
+  four-space indentation while preserving ordinary multiline template values.
+- Retained userscript metadata comments while removing comments from the
+  executable code section without altering comment-like runtime strings.
+- Consolidated the shared build CLI and HTML-template processing under
+  package-style `gadget-build` entry points enforced by package validation.
+- Expanded user-facing assessment and registration features, corrected the
+  dependency map, centralized release and commit workflows, and retained only
+  package-specific scoped instructions.
+
 ### 0.2.0 (2026-07-29 18:02 UTC)
 
 Overview: VG Page Assessor now has typed workflows, JSON localization, a Codex

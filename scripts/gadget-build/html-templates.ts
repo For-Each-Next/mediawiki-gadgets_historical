@@ -1,3 +1,7 @@
+/**
+ * Extracts and minifies HTML templates for gadget bundles.
+ */
+
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";

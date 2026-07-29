@@ -5,6 +5,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+    findArtifactCollisions,
+    type ArtifactClaim,
+} from "./gadget-build/index.ts";
 
 const REQUIRED_FILES = [
     "AGENTS.md",
@@ -21,6 +25,7 @@ const REQUIRED_README_SECTIONS = [
     "License",
 ];
 const REQUIRED_SCRIPTS = ["build", "check", "test"];
+const GADGET_BUILD_SCRIPT = "node ../../scripts/gadget-build/cli.ts";
 const FORBIDDEN_TOP_LEVEL_DIRECTORIES = new Map([
     ["app", "use main.ts and responsibility-named modules"],
 ]);
@@ -41,9 +46,18 @@ const START_IMPORT_PATTERN =
 interface GadgetBuildMetadata {
     entryPoint?: string;
     globalName?: string;
-    outputDirectory?: string;
+    outputDirectory?: unknown;
     outputName?: string;
     target?: unknown;
+}
+
+interface VueMetadata {
+    assetsDir?: unknown;
+    css?: {
+        extract?: unknown;
+    };
+    filenameHashing?: unknown;
+    outputDir?: unknown;
 }
 
 interface PackageMetadata {
@@ -58,6 +72,7 @@ interface PackageMetadata {
     scripts?: Record<string, string>;
     type?: string;
     version?: string;
+    vue?: VueMetadata;
 }
 
 export interface PackageContractResult {
@@ -91,8 +106,38 @@ export async function checkGadgetPackages(
 
     return {
         gadgetCount: gadgets.length,
-        problems: results.flat(),
+        problems: [
+            ...results.flat(),
+            ...checkGeneratedFilenameCollisions(gadgets),
+        ],
     };
+}
+
+/** Rejects artifact names that collide in the shared dist directory. */
+function checkGeneratedFilenameCollisions(
+    gadgets: Array<{ directory: string; metadata: PackageMetadata }>,
+): string[] {
+    const claims = gadgets.flatMap(createArtifactClaim);
+    return findArtifactCollisions(claims).map(
+        ({ filename, owners }) =>
+            `${owners.join(", ")}: generated artifact ${filename} ` +
+            "collides in the shared dist directory.",
+    );
+}
+
+/** Creates one package's effective artifact claim when possible. */
+function createArtifactClaim({
+    directory,
+    metadata,
+}: {
+    directory: string;
+    metadata: PackageMetadata;
+}): ArtifactClaim[] {
+    const outputName = metadata.gadgetBuild?.outputName;
+    if (!hasText(outputName)) {
+        return [];
+    }
+    return [{ outputName, owner: basename(directory) }];
 }
 
 /**
@@ -391,13 +436,54 @@ function checkBuildOutputMetadata(
     metadata: PackageMetadata,
     problems: string[],
 ): void {
-    const expectedOutput = `../../dist/${packageName}`;
+    checkVueOutputMetadata(packageName, metadata, problems);
+    checkArtifactOutputMetadata(packageName, metadata, problems);
+}
+
+/** Validates Vue-compatible settings consumed by the native builder. */
+function checkVueOutputMetadata(
+    packageName: string,
+    metadata: PackageMetadata,
+    problems: string[],
+): void {
     check(
-        metadata.gadgetBuild?.outputDirectory === expectedOutput,
+        metadata.gadgetBuild?.outputDirectory == null,
         problems,
         packageName,
-        "gadgetBuild.outputDirectory must use the package-named dist path.",
+        "gadgetBuild.outputDirectory must be consolidated into vue.outputDir.",
     );
+    check(
+        metadata.vue?.outputDir === "../../dist",
+        problems,
+        packageName,
+        'vue.outputDir must be "../../dist".',
+    );
+    check(
+        metadata.vue?.assetsDir === "",
+        problems,
+        packageName,
+        "vue.assetsDir must keep generated assets flat.",
+    );
+    check(
+        metadata.vue?.filenameHashing === false,
+        problems,
+        packageName,
+        "vue.filenameHashing must keep stable artifact names.",
+    );
+    check(
+        metadata.vue?.css?.extract === false,
+        problems,
+        packageName,
+        "vue.css.extract must keep gadget styles embedded.",
+    );
+}
+
+/** Validates artifact basenames, globals, and JavaScript targets. */
+function checkArtifactOutputMetadata(
+    packageName: string,
+    metadata: PackageMetadata,
+    problems: string[],
+): void {
     check(
         hasText(metadata.gadgetBuild?.globalName) &&
             JAVASCRIPT_IDENTIFIER_PATTERN.test(
@@ -457,6 +543,12 @@ function checkPackageScripts(
     metadata: PackageMetadata,
     problems: string[],
 ): void {
+    check(
+        metadata.scripts?.build === GADGET_BUILD_SCRIPT,
+        problems,
+        packageName,
+        `package.json scripts.build must be "${GADGET_BUILD_SCRIPT}".`,
+    );
     for (const script of REQUIRED_SCRIPTS) {
         check(
             hasText(metadata.scripts?.[script]),

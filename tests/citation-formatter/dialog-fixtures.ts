@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { extractVueTemplate } from "../../scripts/minify-html-templates.ts";
+import { extractVueTemplate } from "../../scripts/gadget-build/index.ts";
 
 export const DIALOG_NAMES = [
     "main",

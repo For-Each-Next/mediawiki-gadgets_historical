@@ -146,10 +146,6 @@
     padding-top: 1em;
 }
 
-.cf-source-manager__advanced-formatting .cdx-button {
-    justify-self: start;
-}
-
 .cf-source-manager__tool-launchers {
     display: flex;
     flex-wrap: wrap;

@@ -995,21 +995,11 @@
                                             type="button"
                                             weight="quiet"
                                             v-if="row.name.trim()"
-                                            v-on:blur="hideTableActionTooltip"
                                             v-on:click="
                                                 applyNameAsPageTitle(
                                                     group.nameGroupKey,
                                                     index,
                                                 )
-                                            "
-                                            v-on:focus="
-                                                showTableActionTooltip($event)
-                                            "
-                                            v-on:mouseleave="
-                                                hideTableActionTooltip
-                                            "
-                                            v-on:mouseenter="
-                                                showTableActionTooltip($event)
                                             "
                                         >
                                             <cdx-icon
@@ -1025,21 +1015,11 @@
                                             :title="msg('names.remove')"
                                             type="button"
                                             weight="quiet"
-                                            v-on:blur="hideTableActionTooltip"
                                             v-on:click="
                                                 removeNameRow(
                                                     group.nameGroupKey,
                                                     index,
                                                 )
-                                            "
-                                            v-on:focus="
-                                                showTableActionTooltip($event)
-                                            "
-                                            v-on:mouseleave="
-                                                hideTableActionTooltip
-                                            "
-                                            v-on:mouseenter="
-                                                showTableActionTooltip($event)
                                             "
                                         >
                                             <cdx-icon
@@ -1067,13 +1047,7 @@
                                     :title="msg('noteta.sort')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:blur="hideTableActionTooltip"
                                     v-on:click="sortNoteTaRows"
-                                    v-on:focus="showTableActionTooltip($event)"
-                                    v-on:mouseleave="hideTableActionTooltip"
-                                    v-on:mouseenter="
-                                        showTableActionTooltip($event)
-                                    "
                                 >
                                     <cdx-icon
                                         v-bind:icon="tableActionIcons.sort"
@@ -1086,13 +1060,7 @@
                                     :title="msg('common.reset')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:blur="hideTableActionTooltip"
                                     v-on:click="regenerateNoteTaRows"
-                                    v-on:focus="showTableActionTooltip($event)"
-                                    v-on:mouseleave="hideTableActionTooltip"
-                                    v-on:mouseenter="
-                                        showTableActionTooltip($event)
-                                    "
                                 >
                                     <cdx-icon
                                         v-bind:icon="
@@ -1107,13 +1075,7 @@
                                     :title="msg('common.clean')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:blur="hideTableActionTooltip"
                                     v-on:click="cleanNoteTaRows"
-                                    v-on:focus="showTableActionTooltip($event)"
-                                    v-on:mouseleave="hideTableActionTooltip"
-                                    v-on:mouseenter="
-                                        showTableActionTooltip($event)
-                                    "
                                 >
                                     <cdx-icon
                                         v-bind:icon="tableActionIcons.clean"
@@ -1126,13 +1088,7 @@
                                     :title="msg('common.add')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:blur="hideTableActionTooltip"
                                     v-on:click="addNoteTaRow"
-                                    v-on:focus="showTableActionTooltip($event)"
-                                    v-on:mouseleave="hideTableActionTooltip"
-                                    v-on:mouseenter="
-                                        showTableActionTooltip($event)
-                                    "
                                 >
                                     <cdx-icon
                                         v-bind:icon="
@@ -1177,16 +1133,10 @@
                                     :title="msg('common.remove')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:blur="hideTableActionTooltip"
                                     v-on:click="
                                         removeNoteTaRow(
                                             form.noteTaRows.indexOf(row),
                                         )
-                                    "
-                                    v-on:focus="showTableActionTooltip($event)"
-                                    v-on:mouseleave="hideTableActionTooltip"
-                                    v-on:mouseenter="
-                                        showTableActionTooltip($event)
                                     "
                                 >
                                     <cdx-icon
@@ -1235,18 +1185,8 @@
                                             :title="msg('references.refetch')"
                                             type="button"
                                             weight="quiet"
-                                            v-on:blur="hideTableActionTooltip"
                                             v-on:click="
                                                 refetchCitation(citationIndex)
-                                            "
-                                            v-on:focus="
-                                                showTableActionTooltip($event)
-                                            "
-                                            v-on:mouseleave="
-                                                hideTableActionTooltip
-                                            "
-                                            v-on:mouseenter="
-                                                showTableActionTooltip($event)
                                             "
                                         >
                                             <cdx-icon
@@ -1262,20 +1202,10 @@
                                             :title="msg('common.clean')"
                                             type="button"
                                             weight="quiet"
-                                            v-on:blur="hideTableActionTooltip"
                                             v-on:click="
                                                 cleanCitationParams(
                                                     citationIndex,
                                                 )
-                                            "
-                                            v-on:focus="
-                                                showTableActionTooltip($event)
-                                            "
-                                            v-on:mouseleave="
-                                                hideTableActionTooltip
-                                            "
-                                            v-on:mouseenter="
-                                                showTableActionTooltip($event)
                                             "
                                         >
                                             <cdx-icon
@@ -1295,18 +1225,8 @@
                                             "
                                             type="button"
                                             weight="quiet"
-                                            v-on:blur="hideTableActionTooltip"
                                             v-on:click="
                                                 addCitationParam(citationIndex)
-                                            "
-                                            v-on:focus="
-                                                showTableActionTooltip($event)
-                                            "
-                                            v-on:mouseleave="
-                                                hideTableActionTooltip
-                                            "
-                                            v-on:mouseenter="
-                                                showTableActionTooltip($event)
                                             "
                                         >
                                             <cdx-icon
@@ -1363,21 +1283,11 @@
                                             type="button"
                                             weight="quiet"
                                             v-if="row.index &lt; citation.params.length"
-                                            v-on:blur="hideTableActionTooltip"
                                             v-on:click="
                                                 resetCitationParam(
                                                     citationIndex,
                                                     row.index,
                                                 )
-                                            "
-                                            v-on:focus="
-                                                showTableActionTooltip($event)
-                                            "
-                                            v-on:mouseleave="
-                                                hideTableActionTooltip
-                                            "
-                                            v-on:mouseenter="
-                                                showTableActionTooltip($event)
                                             "
                                         >
                                             <cdx-icon
@@ -1394,21 +1304,11 @@
                                             type="button"
                                             weight="quiet"
                                             v-if="row.index &lt; citation.params.length"
-                                            v-on:blur="hideTableActionTooltip"
                                             v-on:click="
                                                 removeCitationParam(
                                                     citationIndex,
                                                     row.index,
                                                 )
-                                            "
-                                            v-on:focus="
-                                                showTableActionTooltip($event)
-                                            "
-                                            v-on:mouseleave="
-                                                hideTableActionTooltip
-                                            "
-                                            v-on:mouseenter="
-                                                showTableActionTooltip($event)
                                             "
                                         >
                                             <cdx-icon
@@ -1454,17 +1354,7 @@
                                         :title="msg('review.resetRedirects')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="rebuildRedirectRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                         v-bind:disabled="reviewState.loading"
                                     >
                                         <cdx-icon
@@ -1480,17 +1370,7 @@
                                         :title="msg('common.clean')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="cleanRedirectRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1505,17 +1385,7 @@
                                         :title="msg('common.add')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="addRedirectRow"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1530,17 +1400,7 @@
                                         :title="msg('review.refreshRedirects')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="checkRedirectRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                         v-bind:disabled="reviewState.loading"
                                     >
                                         <cdx-icon
@@ -1626,22 +1486,12 @@
                                         type="button"
                                         weight="quiet"
                                         v-if="row.title"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="
                                             checkRedirectRow(
                                                 (
                                                     form.redirectRows || []
                                                 ).indexOf(row),
                                             )
-                                        "
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
                                         "
                                     >
                                         <cdx-icon
@@ -1657,22 +1507,12 @@
                                         :title="msg('common.remove')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="
                                             removeRedirectRow(
                                                 (
                                                     form.redirectRows || []
                                                 ).indexOf(row),
                                             )
-                                        "
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
                                         "
                                     >
                                         <cdx-icon
@@ -1699,17 +1539,7 @@
                                         :title="msg('common.reset')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="rebuildCategoryRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                         v-bind:disabled="categoryState.loading"
                                     >
                                         <cdx-icon
@@ -1725,17 +1555,7 @@
                                         :title="msg('common.clean')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="cleanCategoryRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1750,17 +1570,7 @@
                                         :title="msg('common.add')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="addCategoryRow"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1843,20 +1653,10 @@
                                         type="button"
                                         weight="quiet"
                                         v-if="row.category"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="
                                             checkCategoryRow(
                                                 form.categoryRows.indexOf(row),
                                             )
-                                        "
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
                                         "
                                     >
                                         <cdx-icon
@@ -1872,20 +1672,10 @@
                                         :title="msg('common.remove')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="
                                             removeCategoryRow(
                                                 form.categoryRows.indexOf(row),
                                             )
-                                        "
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
                                         "
                                     >
                                         <cdx-icon
@@ -1919,17 +1709,7 @@
                                         :title="msg('common.reset')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="resetStubTagRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1944,17 +1724,7 @@
                                         :title="msg('common.clean')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="cleanStubTagRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1969,17 +1739,7 @@
                                         :title="msg('common.add')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="addStubTagRow"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -2052,20 +1812,10 @@
                                         :title="msg('common.remove')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="
                                             removeStubTagRow(
                                                 stubTagRows.indexOf(row),
                                             )
-                                        "
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
                                         "
                                     >
                                         <cdx-icon
@@ -2092,17 +1842,7 @@
                                         :title="msg('common.reset')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="rebuildNavboxRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                         v-bind:disabled="reviewState.loading"
                                     >
                                         <cdx-icon
@@ -2118,17 +1858,7 @@
                                         :title="msg('common.clean')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="cleanNavboxRows"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -2143,17 +1873,7 @@
                                         :title="msg('common.add')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="addNavboxRow"
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
-                                        "
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -2238,22 +1958,12 @@
                                         type="button"
                                         weight="quiet"
                                         v-if="row.title"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="
                                             checkNavboxRow(
                                                 (
                                                     form.navboxRows || []
                                                 ).indexOf(row),
                                             )
-                                        "
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
                                         "
                                     >
                                         <cdx-icon
@@ -2269,22 +1979,12 @@
                                         :title="msg('common.remove')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:blur="hideTableActionTooltip"
                                         v-on:click="
                                             removeNavboxRow(
                                                 (
                                                     form.navboxRows || []
                                                 ).indexOf(row),
                                             )
-                                        "
-                                        v-on:focus="
-                                            showTableActionTooltip($event)
-                                        "
-                                        v-on:mouseleave="
-                                            hideTableActionTooltip
-                                        "
-                                        v-on:mouseenter="
-                                            showTableActionTooltip($event)
                                         "
                                     >
                                         <cdx-icon
@@ -2325,15 +2025,6 @@
         >
             {{ sourceFetchState.error }}
         </cdx-message>
-        <span
-            class="vg-stub-creator-icon-tooltip"
-            ref="tableActionTooltipRef"
-            role="tooltip"
-            v-bind:style="tableActionTooltip.style"
-            v-if="tableActionTooltip.visible"
-        >
-            {{ tableActionTooltip.label }}
-        </span>
         <template v-slot:footer>
             <div class="vg-stub-creator-dialog-footer">
                 <div class="vg-stub-creator-dialog-footer-group">

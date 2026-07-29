@@ -68,10 +68,23 @@ test("keeps static presentation in CSS sidecars", () => {
     for (const name of dialogNames) {
         assert.doesNotMatch(readDialog(name), /(?:^|\s)style=/mu, name);
     }
-    assert.match(
-        readDialog("main"),
-        /v-bind:style="tableActionTooltip\.style"/u,
-    );
+});
+
+test("uses native titles for every icon-only table action", () => {
+    const source = readDialog("main");
+    const buttons = [
+        ...source.matchAll(
+            /<cdx-button\b(?=[^>]*\bvg-stub-creator-icon-button\b)[^>]*>/gu,
+        ),
+    ].map((match) => match[0]);
+
+    assert.equal(buttons.length, 32);
+    for (const button of buttons) {
+        assert.match(button, /\s(?::|v-bind:)title=/u);
+        assert.match(button, /\s(?::|v-bind:)aria-label=/u);
+    }
+    assert.doesNotMatch(source, /tableActionTooltip/iu);
+    assert.doesNotMatch(source, /role="tooltip"/u);
 });
 
 function readDialog(name: string): string {

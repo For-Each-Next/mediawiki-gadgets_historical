@@ -1,0 +1,19 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "composite": true,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "noEmit": false,
+        "outDir": "../../node_modules/.cache/vue-tsc/vg-page-assessor",
+        "rootDir": "../../",
+        "tsBuildInfoFile": "../../node_modules/.cache/vue-tsc/vg-page-assessor.tsbuildinfo",
+        "types": ["node", "types-mediawiki"]
+    },
+    "include": [
+        "codex-components.d.ts",
+        "../../src/shared/**/*.ts",
+        "../../src/vg-page-assessor/**/*",
+        "../../src/vg-page-assessor/**/*.json"
+    ]
+}

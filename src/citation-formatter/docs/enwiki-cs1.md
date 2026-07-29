@@ -1,15 +1,14 @@
 # English Wikipedia CS1 Maintenance
 
-Use the shared [CS1 data maintenance guide][1] for the title checklist, safe
-download commands, Lua review, live-validation behavior, and verification
-procedure. This file records the English Wikipedia sources and interpretation
-rules.
+Use the shared [CS1 data maintenance guide][1] for the automated TemplateData
+refresh, comparison requests, Lua review, and diff checks. This file records
+the English Wikipedia sources and interpretation rules.
 
 Last live HTTPS review: 2026-07-26.
 
 ## Authoritative sources
 
-- [TemplateData API][2]
+- [TemplateData API help][2]
 - [Supported templates][3]
 - [CS1 implementation][4]
 - [Parameter whitelist][5]
@@ -20,9 +19,9 @@ Use `CS1_LANGUAGE=en` with the shared download commands.
 ## TemplateData destination
 
 English TemplateData is the formatter's committed source for shared form
-layout. After applying the shared preservation checks, regenerate the matching
-module under `domain/data/`. Update its index only when the supported title set
-changes.
+layout. Run the updater from the shared guide; it writes the modules under
+`domain/data/` and their index as one generated set. Do not edit either by
+hand.
 
 Review generated diffs especially carefully for title casing, deleted or moved
 parameters, and alias changes.
@@ -47,8 +46,8 @@ for immediate editor feedback. It permits `n.d.` and `nd` only for `date`. Live
 template and module validation remains authoritative for complex ranges and
 unusual date syntax.
 
-[1]: CS1-MAINTENANCE.md
-[2]: https://en.wikipedia.org/w/api.php?action=templatedata
+[1]: cs1-maintenance.md
+[2]: https://en.wikipedia.org/w/api.php?action=help&modules=templatedata
 [3]: https://en.wikipedia.org/wiki/Template:Citation_Style_documentation/cs1
 [4]: https://en.wikipedia.org/wiki/Module:Citation/CS1
 [5]: https://en.wikipedia.org/wiki/Module:Citation/CS1/Whitelist

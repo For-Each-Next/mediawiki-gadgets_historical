@@ -312,7 +312,7 @@ export const TABLE_ACTION_ICONS = {
                 "4.165 1.434-1.394z",
             ].join(""),
         },
-        shouldFlip: true,
+        shouldFlip: true as const,
     },
     cdxIconArticleAdd: {
         path: [

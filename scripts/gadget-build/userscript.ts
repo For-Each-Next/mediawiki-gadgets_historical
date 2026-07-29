@@ -2,8 +2,11 @@
  * Formats installable userscript metadata and bootstrap source.
  */
 
-import { format } from "prettier";
 import { formatMetadata } from "./metadata.ts";
+import {
+    formatReadableJavaScript,
+    stripJavaScriptComments,
+} from "./readable-javascript.ts";
 import type { PackageMetadata, UserscriptConfig } from "./types.ts";
 
 /**
@@ -20,8 +23,10 @@ export async function formatUserscript(
     config: UserscriptConfig = {},
 ): Promise<string> {
     const header = buildUserscriptHeader(metadata, config);
-    const bootstrap = formatUserscriptBootstrap(source);
-    return format(`${header}\n\n${bootstrap}`, { parser: "babel" });
+    const bootstrap = formatUserscriptBootstrap(
+        stripJavaScriptComments(source),
+    );
+    return formatReadableJavaScript(`${header}\n\n${bootstrap}`);
 }
 
 /**

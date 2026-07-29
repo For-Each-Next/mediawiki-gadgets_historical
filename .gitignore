@@ -24,6 +24,7 @@ logs/
 .stylelintcache
 .turbo/
 .vite/
+tsconfig.tsbuildinfo
 
 # Environment files
 .env
@@ -36,4 +37,3 @@ logs/
 
 # OS files
 .DS_Store
-Thumbs.db

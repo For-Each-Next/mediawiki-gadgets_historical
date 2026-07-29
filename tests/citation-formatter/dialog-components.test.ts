@@ -56,6 +56,51 @@ test("keeps every Citation Formatter selector package-scoped", () => {
     assert.deepEqual(unscoped, []);
 });
 
+test("shows 100 source rows by default before paginating", () => {
+    const source = readFileSync(
+        join(dialogDirectory, "main-dialog.vue"),
+        "utf8",
+    );
+
+    assert.match(source, /:key="sourceTablePaginationKey"/u);
+    assert.match(source, /:paginate="sourceTableRows\.length > 100"/u);
+    assert.match(source, /:pagination-size-default="100"/u);
+    assert.match(
+        source,
+        /:pagination-size-options="\[[\s\S]*\{ value: 100 \},[\s\S]*\]"/u,
+    );
+    assert.match(source, /:title="msg\('lookup\.useSource'\)"/u);
+    assert.match(source, /:title="msg\('lookup\.editSource'\)"/u);
+});
+
+test("gives both source usage counts native titles", () => {
+    const mainSource = readFileSync(
+        join(dialogDirectory, "main-dialog.vue"),
+        "utf8",
+    );
+    const toolSource = readFileSync(
+        join(dialogDirectory, "tool-dialog.vue"),
+        "utf8",
+    );
+
+    assertNativeUsageCountTitle(mainSource, "row");
+    assertNativeUsageCountTitle(toolSource, "source");
+});
+
+function assertNativeUsageCountTitle(source: string, owner: string): void {
+    const openingTag = String.raw`<(small|span)\b[^>]*:title="[^"]+"[^>]*>`;
+    const elementContent = String.raw`(?:(?!<\/\1>)[\s\S])*?`;
+    const usageCount =
+        String.raw`\{\{\s*` + `${owner}` + String.raw`\.usageCount\s*\}\}×`;
+    const closingTag = String.raw`<\/\1>`;
+    const pattern = new RegExp(
+        openingTag + elementContent + usageCount + elementContent + closingTag,
+        "u",
+    );
+
+    assert.match(source, pattern);
+}
+
 function assertDialogTemplate(name: (typeof DIALOG_NAMES)[number]): void {
     const filename = join(dialogDirectory, `${name}-dialog.vue`);
     const source = readFileSync(filename, "utf8");

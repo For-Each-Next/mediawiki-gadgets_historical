@@ -50,7 +50,12 @@ export default [
         ignores: ["**/node_modules/**", "**/dist/**", "**/.cache/**"],
     },
     {
-        files: ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
+        files: [
+            "config/**/*.ts",
+            "src/**/*.ts",
+            "scripts/**/*.ts",
+            "tests/**/*.ts",
+        ],
         languageOptions: {
             ecmaVersion: "latest",
             globals: {
@@ -77,7 +82,7 @@ export default [
         },
     },
     {
-        files: ["src/**/*.ts", "scripts/**/*.ts"],
+        files: ["config/**/*.ts", "src/**/*.ts", "scripts/**/*.ts"],
         ignores: ["src/**/tests/**/*.ts"],
         languageOptions: {
             parser: tsParser,
@@ -96,7 +101,12 @@ export default [
         },
     },
     {
-        files: ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
+        files: [
+            "config/**/*.ts",
+            "src/**/*.ts",
+            "scripts/**/*.ts",
+            "tests/**/*.ts",
+        ],
         rules: {
             "max-depth": ["error", 4],
             "max-len": [

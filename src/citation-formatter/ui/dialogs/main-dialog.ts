@@ -29,6 +29,7 @@ type MainDialogStateKey =
     | "sectionFilterLabel"
     | "sourceInput"
     | "sourceSectionSelectors"
+    | "sourceTablePaginationKey"
     | "sourceTableRows"
     | "warning";
 
@@ -69,6 +70,7 @@ export type MainDialogContext = MainDialogActions &
     Pick<CitationFormatterI18n, "interfaceLocale" | "msg"> & {
         canCheckCs1Tool: boolean;
         editSourceIcon: CodexIcons["cdxIconEdit"];
+        formatArticleDisabled: boolean;
         manualTemplateOptions: MenuItemData[];
         sourceTableColumns: TableColumn[];
         toolBuildLabel: string;

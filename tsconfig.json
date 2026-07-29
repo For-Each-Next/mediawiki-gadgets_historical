@@ -11,11 +11,8 @@
         "skipLibCheck": true,
         "strict": true,
         "target": "ES2024",
-        "types": [
-            "node",
-            "types-mediawiki",
-            "./src/citation-formatter/ui/mediawiki-vue.d.ts"
-        ],
+        "tsBuildInfoFile": "./node_modules/.cache/vue-tsc/root.tsbuildinfo",
+        "types": ["node", "types-mediawiki"],
         "paths": {
             "#shared": ["./src/shared/index.ts"],
             "#shared/citoid": ["./src/shared/citoid.ts"],
@@ -29,7 +26,11 @@
         "*.config.ts",
         "scripts/**/*.ts",
         "src/**/*.ts",
-        "src/**/*.vue",
         "tests/**/*.ts"
+    ],
+    "references": [
+        { "path": "./config/vue/tsconfig.citation-formatter.json" },
+        { "path": "./config/vue/tsconfig.vg-page-assessor.json" },
+        { "path": "./config/vue/tsconfig.vg-stub-creator.json" }
     ]
 }

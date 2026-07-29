@@ -1,6 +1,6 @@
 {
     "name": "vg-page-assessor",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "Assess Chinese Wikipedia video game talk pages and register pages on the WikiProject new-page list.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -14,9 +14,16 @@
     },
     "main": "./index.ts",
     "browser": "./browser.ts",
+    "vue": {
+        "outputDir": "../../dist",
+        "assetsDir": "",
+        "filenameHashing": false,
+        "css": {
+            "extract": false
+        }
+    },
     "gadgetBuild": {
         "globalName": "vgPageAssessor",
-        "outputDirectory": "../../dist/vg-page-assessor",
         "outputName": "vg_page_assessor",
         "defines": {
             "__VG_PAGE_ASSESSOR_DIALOG_TEMPLATE__": {
@@ -53,7 +60,7 @@
         "assessment"
     ],
     "scripts": {
-        "build": "node ../../scripts/build-gadget.ts",
+        "build": "node ../../scripts/gadget-build/cli.ts",
         "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",

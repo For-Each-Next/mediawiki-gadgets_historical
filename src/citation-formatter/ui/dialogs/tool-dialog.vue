@@ -388,7 +388,7 @@
                         </div>
                         <div class="cf-source-manager__source-actions">
                             <cdx-button
-                                v-tooltip="msg('lookup.editSource')"
+                                :title="msg('lookup.editSource')"
                                 weight="quiet"
                                 :aria-label="msg('lookup.editSource')"
                                 @click="reviewCs1Source(result.source.id)"
@@ -439,12 +439,15 @@
                             </span>
                             <small class="cf-source-manager__existing-meta">
                                 <code>{{ msg("checker.nonCs1Source") }}</code>
-                                · {{ source.usageCount }}×
+                                ·
+                                <span :title="formatSourceUsageTitle(source)">
+                                    {{ source.usageCount }}×
+                                </span>
                             </small>
                         </div>
                         <div class="cf-source-manager__source-actions">
                             <cdx-button
-                                v-tooltip="msg('checker.convertSource')"
+                                :title="msg('checker.convertSource')"
                                 weight="quiet"
                                 :aria-label="msg('checker.convertSource')"
                                 @click="reviewNonCs1Source(source.id)"

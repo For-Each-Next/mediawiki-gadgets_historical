@@ -38,6 +38,7 @@ import {
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
 } from "citation-formatter/domain/templates.ts";
+import { formatSourceUsageTitle } from "citation-formatter/ui/source-list-presentation.ts";
 import { buildSourceSectionSelectors } from "citation-formatter/ui/source-manager.ts";
 import { buildCs1CheckWikitext } from "citation-formatter/infra/cs1-check.ts";
 
@@ -827,6 +828,44 @@ test("counts source uses and filters through section hierarchies", () => {
             (source) => source.referenceName,
         ),
         ["Alpha", "Child"],
+    );
+});
+
+test("formats source usage titles with exact article sections", () => {
+    const text = [
+        'Lead.<ref name="Everywhere" />',
+        "== First ==",
+        'First.<ref name="Everywhere" /><ref name="First only" />',
+        "=== Child ===",
+        'Child.<ref name="Everywhere" />',
+        "== Second ==",
+        "=== Child A ===",
+        "No source use.",
+        "=== Child B ===",
+        'Child B.<ref name="Everywhere" />',
+        "<references>",
+        '<ref name="Everywhere">{{cite web|title=Everywhere}}</ref>',
+        '<ref name="First only">{{cite web|title=First only}}</ref>',
+        '<ref name="Unused">{{cite web|title=Unused}}</ref>',
+        "</references>",
+    ].join("\n");
+    const sources = listExistingSources(text);
+    const sections = listExistingSourceSections(text, sources);
+    const byName = Object.fromEntries(
+        sources.map((source) => [source.referenceName, source]),
+    );
+
+    assert.equal(
+        formatSourceUsageTitle(byName.Everywhere, sections),
+        "Used in §0 Lead; §1 First; §1.1 Child; §2.2 Child B",
+    );
+    assert.equal(
+        formatSourceUsageTitle(byName["First only"], sections),
+        "Used in §1 First",
+    );
+    assert.equal(
+        formatSourceUsageTitle(byName.Unused, sections),
+        "Not used in the article.",
     );
 });
 

@@ -16,9 +16,9 @@ supplies its reference-name form without changing the citation display:
 ```
 
 When a new source repeats a creator name with an alias used elsewhere in the
-article, the source manager offers it as an `Auto-suggested value`. **Use**
-copies it into the alias field; **Dismiss** hides it for the current draft.
-Ignoring the suggestion also leaves the citation unchanged.
+article, the source manager shows that alias as a suggestion. **Use** copies it
+into the alias field; **Dismiss** hides it for the current draft. Ignoring the
+suggestion also leaves the citation unchanged.
 
 ## Source identities
 

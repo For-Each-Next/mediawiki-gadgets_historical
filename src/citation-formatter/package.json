@@ -1,6 +1,6 @@
 {
     "name": "citation-formatter",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "description": "Format and manage CS1 citations in MediaWiki source editors.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -14,9 +14,16 @@
     },
     "main": "./index.ts",
     "browser": "./browser.ts",
+    "vue": {
+        "outputDir": "../../dist",
+        "assetsDir": "",
+        "filenameHashing": false,
+        "css": {
+            "extract": false
+        }
+    },
     "gadgetBuild": {
         "globalName": "citationFormatter",
-        "outputDirectory": "../../dist/citation-formatter",
         "outputName": "citation_formatter",
         "defines": {
             "__CITATION_FORMATTER_STYLES__": {
@@ -67,7 +74,7 @@
         "wikitext"
     ],
     "scripts": {
-        "build": "node ../../scripts/build-gadget.ts",
+        "build": "node ../../scripts/gadget-build/cli.ts",
         "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",

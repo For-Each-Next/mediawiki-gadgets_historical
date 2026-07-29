@@ -179,12 +179,21 @@
                         </p>
                         <cdx-table
                             v-else
+                            :key="sourceTablePaginationKey"
                             class="cf-source-manager__source-table"
                             :caption="msg('lookup.tableCaption')"
                             :hide-caption="true"
                             :use-row-headers="true"
                             :columns="sourceTableColumns"
                             :data="sourceTableRows"
+                            :paginate="sourceTableRows.length > 100"
+                            :pagination-size-default="100"
+                            :pagination-size-options="[
+                                { value: 10 },
+                                { value: 20 },
+                                { value: 50 },
+                                { value: 100 },
+                            ]"
                         >
                             <template #item-reference="{ item, row }">
                                 <div
@@ -208,7 +217,10 @@
                                                 })
                                             }}
                                         </template>
-                                        · {{ row.usageCount }}×
+                                        ·
+                                        <span :title="row.usageTitle">
+                                            {{ row.usageCount }}×
+                                        </span>
                                     </small>
                                 </div>
                             </template>
@@ -224,20 +236,20 @@
                             <template #item-actions="{ row }">
                                 <div class="cf-source-manager__source-actions">
                                     <cdx-button
-                                        v-tooltip="msg('lookup.useSource')"
                                         action="progressive"
                                         weight="quiet"
                                         :disabled="loading"
                                         :aria-label="msg('lookup.useSource')"
+                                        :title="msg('lookup.useSource')"
                                         @click="insertListedSource(row.id)"
                                     >
                                         <cdx-icon :icon="useSourceIcon" />
                                     </cdx-button>
                                     <cdx-button
-                                        v-tooltip="msg('lookup.editSource')"
                                         weight="quiet"
                                         :disabled="loading"
                                         :aria-label="msg('lookup.editSource')"
+                                        :title="msg('lookup.editSource')"
                                         @click="editListedSource(row.id)"
                                     >
                                         <cdx-icon :icon="editSourceIcon" />
@@ -273,14 +285,6 @@
                                 <cdx-checkbox v-model="autoScriptTitle">
                                     {{ msg("tools.scriptTitle") }}
                                 </cdx-checkbox>
-                                <cdx-button
-                                    action="progressive"
-                                    weight="primary"
-                                    :disabled="loading"
-                                    @click="formatArticle"
-                                >
-                                    {{ msg("tools.applyFormatting") }}
-                                </cdx-button>
                             </cdx-field>
                             <section class="cf-source-manager__tool-section">
                                 <h3>{{ msg("tools.checks") }}</h3>
@@ -320,7 +324,7 @@
                 <cdx-button
                     action="progressive"
                     weight="primary"
-                    :disabled="loading"
+                    :disabled="loading || formatArticleDisabled"
                     @click="formatArticle"
                 >
                     {{ msg("tool.formatCitations") }}

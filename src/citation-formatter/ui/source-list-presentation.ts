@@ -33,6 +33,7 @@ export interface SourceTableRow {
     source: string;
     titleLanguage: string;
     usageCount: number;
+    usageTitle: string;
 }
 
 interface SourceListDerivedInputs {
@@ -51,12 +52,14 @@ export interface SourceListDerivedState {
         }>;
     };
     filteredExistingSources: { readonly value: ExistingSource[] };
+    formatSourceUsageTitle(source: ExistingSource): string;
     keywordFilterLabel: { readonly value: string };
     nonCs1Sources: { readonly value: ExistingSource[] };
     sectionFilterLabel: { readonly value: string };
     sourceSectionSelectors: {
         readonly value: SourceSectionSelector[];
     };
+    sourceTablePaginationKey: { readonly value: string };
     sourceTableRows: { readonly value: SourceTableRow[] };
 }
 
@@ -130,22 +133,42 @@ export function createSourceListDerivedState(
             state.sourceSectionPath.value.length > 0,
         );
     }
+    function getSourceUsageTitle(source: ExistingSource): string {
+        return formatSourceUsageTitle(
+            source,
+            state.existingSourceSections.value,
+        );
+    }
     function getSourceTableRows(): SourceTableRow[] {
-        return filteredExistingSources.value.map(toSourceTableRow);
+        return filteredExistingSources.value.map((source) =>
+            toSourceTableRow(source, state.existingSourceSections.value),
+        );
+    }
+    function getSourceTablePaginationKey(): string {
+        return [
+            state.existingSourceQuery.value,
+            ...state.sourceSectionPath.value,
+            String(filteredExistingSources.value.length),
+        ].join("\u0000");
     }
     return {
         basedOnSourceOptions: Vue.computed(getBasedOnSourceOptions),
         filteredExistingSources,
+        formatSourceUsageTitle: getSourceUsageTitle,
         keywordFilterLabel: Vue.computed(getKeywordFilterLabel),
         nonCs1Sources: Vue.computed(getNonCs1Sources),
         sectionFilterLabel: Vue.computed(getSectionFilterLabel),
         sourceSectionSelectors: Vue.computed(getSelectors),
+        sourceTablePaginationKey: Vue.computed(getSourceTablePaginationKey),
         sourceTableRows: Vue.computed(getSourceTableRows),
     };
 }
 
 /** Projects citation definitions into the Codex Table columns. */
-function toSourceTableRow(source: ExistingSource): SourceTableRow {
+function toSourceTableRow(
+    source: ExistingSource,
+    sections: SourceSection[],
+): SourceTableRow {
     return {
         actions: "",
         details:
@@ -158,7 +181,29 @@ function toSourceTableRow(source: ExistingSource): SourceTableRow {
         source: source.title || source.url || msg("common.untitledSource"),
         titleLanguage: source.titleLanguage,
         usageCount: source.usageCount,
+        usageTitle: formatSourceUsageTitle(source, sections),
     };
+}
+
+/** Formats exact sections shown for a source usage count. */
+export function formatSourceUsageTitle(
+    source: Pick<ExistingSource, "sectionIds" | "usageCount">,
+    sections: SourceSection[],
+): string {
+    if (source.usageCount === 0) {
+        return msg("lookup.sourceNotUsed");
+    }
+    const usedIds = new Set(source.sectionIds);
+    const labels = sections
+        .filter((section) => usedIds.has(section.id))
+        .map(formatSourceUsageSection);
+    return msg("lookup.sourceUsedIn", { sections: labels.join("; ") });
+}
+
+/** Formats one exact source-use section for a compact native title. */
+function formatSourceUsageSection(section: SourceSection): string {
+    const title = section.id === "0" ? msg("sections.lead") : section.title;
+    return `§${section.id} ${title}`.trim();
 }
 
 /** Builds one combobox for each selected section hierarchy level. */

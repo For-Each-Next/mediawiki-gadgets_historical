@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { minifyHtmlTemplate } from "../../scripts/minify-html-templates.ts";
+import { minifyHtmlTemplate } from "../../scripts/gadget-build/index.ts";
 
 import { SOURCE_MANAGER_TEMPLATE_FIXTURE as SOURCE_MANAGER_TEMPLATE } from "./dialog-fixtures.ts";
 

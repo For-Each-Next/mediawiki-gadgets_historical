@@ -88,7 +88,7 @@ function assertCatalogsAlign(
 }
 
 function listPlaceholders(message: string): string[] {
-    return [...message.matchAll(/\{([A-Za-z][A-Za-z0-9]*)\}/gu)]
+    return [...message.matchAll(/(?<!\{)\{([A-Za-z][A-Za-z0-9]*)\}(?!\})/gu)]
         .map((match) => match[1])
         .toSorted();
 }

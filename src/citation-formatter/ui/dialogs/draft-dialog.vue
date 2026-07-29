@@ -129,7 +129,7 @@
                                     class="cf-source-manager__parameter-cell cf-source-manager__parameter-cell--name"
                                 >
                                     <cdx-combobox
-                                        v-tooltip="
+                                        :title="
                                             getParameterNameTooltip(row.name)
                                         "
                                         v-model:selected="row.name"
@@ -276,7 +276,7 @@
                                         class="cf-source-manager__parameter-actions"
                                     >
                                         <cdx-button
-                                            v-tooltip="
+                                            :title="
                                                 getParameterAliasActionLabel(
                                                     row,
                                                 )
@@ -310,7 +310,7 @@
                                                 ) &&
                                                 getOpenableDraftUrl(row.value)
                                             "
-                                            v-tooltip="msg('draft.openUrl')"
+                                            :title="msg('draft.openUrl')"
                                             class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--action-default cdx-button--icon-only"
                                             :href="
                                                 getOpenableDraftUrl(row.value)
@@ -332,9 +332,7 @@
                                                     .toLowerCase() ===
                                                 'url-status'
                                             "
-                                            v-tooltip="
-                                                msg('draft.switchStatus')
-                                            "
+                                            :title="msg('draft.switchStatus')"
                                             weight="quiet"
                                             :disabled="loading"
                                             :aria-label="
@@ -352,7 +350,7 @@
                                                     row.name,
                                                 )
                                             "
-                                            v-tooltip="
+                                            :title="
                                                 getDateAutofillTooltip(
                                                     row.name,
                                                 )
@@ -374,7 +372,7 @@
                                                     row.name,
                                                 )
                                             "
-                                            v-tooltip="msg('draft.checkLink')"
+                                            :title="msg('draft.checkLink')"
                                             weight="quiet"
                                             :disabled="
                                                 loading ||
@@ -395,9 +393,7 @@
                                                     row.name,
                                                 )
                                             "
-                                            v-tooltip="
-                                                msg('draft.splitAuthor')
-                                            "
+                                            :title="msg('draft.splitAuthor')"
                                             weight="quiet"
                                             :disabled="
                                                 loading ||
@@ -421,7 +417,7 @@
                                                     row.name,
                                                 )
                                             "
-                                            v-tooltip="msg('draft.joinAuthor')"
+                                            :title="msg('draft.joinAuthor')"
                                             weight="quiet"
                                             :disabled="
                                                 loading ||

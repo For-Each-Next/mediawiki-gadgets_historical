@@ -2,7 +2,10 @@
  * Cursor-aware source insertion and citation-field management dialog.
  */
 
-import { manageCitationsWithResult } from "#gadget/api.ts";
+import {
+    manageCitationsWithResult,
+    type CitationFormatResult,
+} from "#gadget/api.ts";
 import { detectCitationLayout } from "#gadget/domain/manager.ts";
 import {
     buildExistingSourceReference,
@@ -53,6 +56,7 @@ import {
     type Cs1ReviewWorkflow,
 } from "#gadget/contracts/cs1-review.ts";
 import {
+    createCitationFormatterToastController,
     registerCitationFormatterComponents,
     type CodexComponents,
     type ResourceLoaderRequire,
@@ -101,6 +105,7 @@ import {
     clearDraftValidationSummary,
     createSourceManagerState,
     getCurrentCs1DraftFingerprint,
+    type ArticleFormatAttempt,
     type PreloadedCheckerSource,
     type SourceCheckerTool,
     type SourceManagerState,
@@ -210,6 +215,8 @@ interface SourceManagerActionServices extends SourceManagerDependencies {
 
 interface SourceManagerConfiguration extends SourceManagerDependencies {
     options: SourceManagerOptions;
+    registerToastCleanup: (cleanup: () => void) => void;
+    sourceRevision: { value: number };
 }
 
 interface SourceDraftWriteResult {
@@ -269,12 +276,20 @@ function mountSourceManager(
     const host = document.createElement("div");
     host.id = HOST_ID;
     document.documentElement.append(host);
+    const sourceRevision = Vue.ref(0);
+    const recordSourceChange = function recordSourceChange(): void {
+        sourceRevision.value += 1;
+    };
+    editor.element?.addEventListener("input", recordSourceChange);
+    let clearToasts = function clearToasts(): void {};
     let cleaned = false;
     const cleanup = function cleanup(): void {
         if (cleaned) {
             return;
         }
         cleaned = true;
+        editor.element?.removeEventListener("input", recordSourceChange);
+        clearToasts();
         application.unmount();
         host.remove();
         if (removeActiveSourceManager === cleanup) {
@@ -286,7 +301,14 @@ function mountSourceManager(
         Codex,
         editor,
         cleanup,
-        { ...dependencies, options },
+        {
+            ...dependencies,
+            options,
+            registerToastCleanup(cleanupToasts) {
+                clearToasts = cleanupToasts;
+            },
+            sourceRevision,
+        },
     );
     const application = Vue.createMwApp(component);
     registerCitationFormatterComponents(application, Codex);
@@ -316,11 +338,15 @@ function createSourceManagerComponent(
         const state = createSourceManagerState(
             Vue,
             editor,
-            options,
+            {
+                options,
+                sourceRevision: configuration.sourceRevision,
+            },
             getCurrentWikiId(),
             formatError,
         );
-        const toast = Codex.useToast();
+        const toast = createCitationFormatterToastController(Codex.useToast());
+        configuration.registerToastCleanup(toast.clear);
         const actions = createSourceManagerActions(editor, state, {
             ...configuration,
             cleanup,
@@ -332,6 +358,9 @@ function createSourceManagerComponent(
             canCheckCs1Tool: ["enwiki", "zhwiki"].includes(getCurrentWikiId()),
             draftRowKey,
             editSourceIcon: cdxIconEdit,
+            formatArticleDisabled: Vue.computed(() =>
+                isCurrentArticleFormatAttempt(editor, state),
+            ),
             interfaceLocale,
             joinAuthorIcon: cdxIconMerge,
             linkIcon: cdxIconLink,
@@ -486,8 +515,11 @@ function createFormatterActions(
     // eslint-disable-next-line max-lines-per-function
     function formatArticle(): void {
         const { editor, state } = context;
+        if (isCurrentArticleFormatAttempt(editor, state)) {
+            return;
+        }
         const beforeText = editor.read();
-        let referencesNotFormatted = 0;
+        let result: CitationFormatResult;
         let textChanged = false;
         try {
             const compact = state.referenceStyle.value === "r";
@@ -495,14 +527,13 @@ function createFormatterActions(
                 ? moveSourceTitlesToScriptTitle(beforeText, getCurrentWikiId())
                       .text
                 : beforeText;
-            const result = manageCitationsWithResult(
+            result = manageCitationsWithResult(
                 source,
                 [],
                 compact,
                 state.citationLayout.value,
                 msg("sections.lead"),
             );
-            referencesNotFormatted = result.referencesNotFormatted;
             textChanged = result.text !== beforeText;
             if (textChanged) {
                 editBox.writePreservingPosition(editor, result.text);
@@ -513,15 +544,20 @@ function createFormatterActions(
             state.error.value = formatError(error);
             return;
         }
-        if (textChanged && referencesNotFormatted > 0) {
-            const message = formatPluralMessage(
-                referencesNotFormatted,
-                "feedback.formatIncompleteOne",
-                "feedback.formatIncompleteMany",
-            );
-            context.toast.warning(message, { autoDismiss: true });
-        } else if (textChanged) {
-            context.toast.success(msg("feedback.formatComplete"), {
+        state.formatArticleAttempt.value = buildArticleFormatAttempt(
+            result.text,
+            state,
+        );
+        if (!textChanged) {
+            context.toast.info(msg("feedback.formatNoChanges"), {
+                autoDismiss: true,
+            });
+        } else if (result.referencesNotFormatted > 0) {
+            context.toast.warning(formatArticleSummary(result), {
+                autoDismiss: true,
+            });
+        } else {
+            context.toast.success(formatArticleSummary(result), {
                 autoDismiss: true,
             });
         }
@@ -535,6 +571,53 @@ function createFormatterActions(
         context.state.referenceStyle.value = enabled ? "r" : "ref";
     }
     return { formatArticle, setBlockCitations, setCompactReferences };
+}
+
+function buildArticleFormatAttempt(
+    text: string,
+    state: SourceManagerState,
+): ArticleFormatAttempt {
+    return {
+        autoScriptTitle: state.autoScriptTitle.value,
+        citationLayout: state.citationLayout.value,
+        referenceStyle: state.referenceStyle.value,
+        sourceRevision: state.sourceRevision.value,
+        text,
+    };
+}
+
+function isCurrentArticleFormatAttempt(
+    editor: editBox.EditBox,
+    state: SourceManagerState,
+): boolean {
+    const attempt = state.formatArticleAttempt.value;
+    return (
+        attempt != null &&
+        attempt.sourceRevision === state.sourceRevision.value &&
+        attempt.text === editor.read() &&
+        attempt.autoScriptTitle === state.autoScriptTitle.value &&
+        attempt.citationLayout === state.citationLayout.value &&
+        attempt.referenceStyle === state.referenceStyle.value
+    );
+}
+
+function formatArticleSummary(result: CitationFormatResult): string {
+    const formatted = formatPluralMessage(
+        result.citationsFormatted,
+        "feedback.citationsFormattedOne",
+        "feedback.citationsFormattedMany",
+    );
+    const skipped = formatPluralMessage(
+        result.referencesNotFormatted,
+        "feedback.referencesSkippedOne",
+        "feedback.referencesSkippedMany",
+    );
+    const renamed = formatPluralMessage(
+        result.referenceTagsRenamed,
+        "feedback.refTagsRenamedOne",
+        "feedback.refTagsRenamedMany",
+    );
+    return msg("feedback.formatSummary", { formatted, renamed, skipped });
 }
 
 /** Creates dialog navigation actions. */
@@ -800,9 +883,9 @@ function buildDraftFieldLabel(
     const error = state.draftCellErrors.value.get(index)?.[field];
     const nameCell = state.citationNameCells.value.get(index);
     const help =
-        error == null && nameCell === field
+        error == null && field === "value" && nameCell != null
             ? msg(
-                  field === "value"
+                  nameCell === "value"
                       ? "draft.nameValueHelp"
                       : "draft.nameAliasHelp",
               )
@@ -1232,6 +1315,10 @@ function recordSessionWrite(
     beforeText: string,
     afterText: string,
 ): void {
+    if (beforeText === afterText) {
+        return;
+    }
+    state.formatArticleAttempt.value = null;
     const snapshot = state.sessionUndo.value;
     if (snapshot == null || snapshot.afterText !== beforeText) {
         state.sessionUndo.value = null;

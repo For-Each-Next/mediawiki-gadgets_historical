@@ -39,6 +39,7 @@ const testMovesCitationsToExistingReferences = () => {
     assertReferenceMarker(result.text, "§ 0 Lead");
     assert.match(result.text, /\| date = 2006-06-01/u);
     assert.equal(result.citationsFormatted, 1);
+    assert.equal(result.referenceTagsRenamed, 1);
     assert.equal(result.referencesMoved, 1);
 };
 test(
@@ -308,6 +309,7 @@ const testRInvocationConversion = () => {
     assert.doesNotMatch(result.text, /\{\{r\|/u);
     assert.equal(result.individualReferencesFound, 1);
     assert.equal(result.referenceCallsFound, 1);
+    assert.equal(result.referenceTagsRenamed, 2);
     assert.equal(result.rTemplatesFound, 1);
 };
 test("converts r invocations and definitions", testRInvocationConversion);
@@ -323,12 +325,28 @@ const testRepeatedReferenceCounts = () => {
 
     assert.equal(result.individualReferencesFound, 1);
     assert.equal(result.referenceCallsFound, 3);
+    assert.equal(result.referenceTagsRenamed, 3);
     assert.equal(result.rTemplatesFound, 1);
+    assert.equal(
+        formatCitationWikitext(result.text, templateData).referenceTagsRenamed,
+        0,
+    );
 };
 test(
     "counts individual references separately from repeated call tags",
     testRepeatedReferenceCounts,
 );
+
+test("does not count already-correct ref names as renamed", () => {
+    const source = [
+        'A.<ref name="Ma, 2020">{{cite web|author=Ma|date=2020|title=X}}</ref>',
+        'B.<ref name="Ma, 2020" />',
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.equal(result.referenceTagsRenamed, 0);
+});
 
 const testIncompleteAuthorAliases = () => {
     const source = [

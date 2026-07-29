@@ -2,6 +2,7 @@
  * Defines editable form values, review rows, and restoration behavior.
  */
 
+import type { StatusType } from "@wikimedia/codex";
 import {
     ARTICLE_PARAMETER_GROUPS,
     NAME_MARKETS,
@@ -849,7 +850,7 @@ export function getArticleField(key: string): any {
  * @param status - Review status value.
  * @returns Codex InfoChip status.
  */
-export function getReviewStatusChipStatus(status: string): string {
+export function getReviewStatusChipStatus(status: string): StatusType {
     if (status === "OK" || status === "Exists") {
         return "success";
     }

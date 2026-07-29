@@ -80,6 +80,7 @@ interface MountedManager extends Record<string, unknown> {
     draft: { value: SourceDraft | null };
     draftCs1Checking: { value: boolean };
     existingSources: { value: ExistingSource[] };
+    formatArticleDisabled: { readonly value: boolean };
     getOpenableDraftUrl: (value: string) => string | null | undefined;
     isUrlDraftParameter: (name: string) => boolean;
     joinAuthorIcon: Icon;
@@ -228,21 +229,28 @@ test("preserves position while formatting citations", async () => {
         const editor = editBox.createEditBox(textarea);
 
         await openCitationFormatterDialog(editor);
-        callAction(harness.getManager(), "formatArticle");
+        const manager = harness.getManager();
+        callAction(manager, "formatArticle");
 
         assert.notEqual(textarea.value, beforeText);
         assert.equal(textarea.selectionStart, cursor);
         assert.equal(textarea.selectionEnd, cursor);
         assert.equal(textarea.scrollLeft, 6);
         assert.equal(textarea.scrollTop, 240);
-        callAction(harness.getManager(), "close");
+        assert.equal(manager.formatArticleDisabled.value, true);
+
+        textarea.value += "\nChanged.";
+        textarea.dispatchEvent(new Event("input"));
+        assert.equal(manager.formatArticleDisabled.value, false);
+
+        callAction(manager, "close");
         await Promise.resolve();
     } finally {
         harness.restore();
     }
 });
 
-test("does not toast when repeated formatting makes no changes", async () => {
+test("summarizes one formatting attempt and disables repeats", async () => {
     const harness = installSourceManagerHarness([]);
     try {
         const beforeText =
@@ -259,13 +267,22 @@ test("does not toast when repeated formatting makes no changes", async () => {
         const formattedText = editor.read();
         assert.notEqual(formattedText, beforeText);
         assert.equal(writeCount, 1);
-        assert.deepEqual(harness.successMessages, ["Citations formatted."]);
+        assert.deepEqual(harness.successMessages, [
+            "Formatted 1 citation; skipped 0 references not in a supported " +
+                "standard {{Cite …}} format; renamed 1 <ref> tag.",
+        ]);
+        assert.equal(manager.formatArticleDisabled.value, true);
 
         callAction(manager, "formatArticle");
 
         assert.equal(editor.read(), formattedText);
         assert.equal(writeCount, 1);
-        assert.deepEqual(harness.successMessages, ["Citations formatted."]);
+        assert.equal(harness.successMessages.length, 1);
+
+        callAction(manager, "setBlockCitations", true);
+        assert.equal(manager.formatArticleDisabled.value, false);
+        callAction(manager, "setBlockCitations", false);
+        assert.equal(manager.formatArticleDisabled.value, true);
         callAction(manager, "close");
         await Promise.resolve();
     } finally {
@@ -273,7 +290,7 @@ test("does not toast when repeated formatting makes no changes", async () => {
     }
 });
 
-test("does not repeat incomplete warnings for unchanged text", async () => {
+test("summarizes skipped references once", async () => {
     const harness = installSourceManagerHarness([]);
     try {
         let writeCount = 0;
@@ -286,7 +303,11 @@ test("does not repeat incomplete warnings for unchanged text", async () => {
         callAction(manager, "formatArticle");
 
         assert.equal(writeCount, 1);
-        assert.equal(harness.warningMessages.length, 1);
+        assert.deepEqual(harness.warningMessages, [
+            "Formatted 0 citations; skipped 1 reference not in a supported " +
+                "standard {{Cite …}} format; renamed 1 <ref> tag.",
+        ]);
+        assert.equal(manager.formatArticleDisabled.value, true);
 
         callAction(manager, "formatArticle");
 
@@ -294,6 +315,72 @@ test("does not repeat incomplete warnings for unchanged text", async () => {
         assert.equal(harness.warningMessages.length, 1);
         callAction(manager, "close");
         await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("uses one neutral toast for an initially formatted article", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor(
+            "<ref>{{cite web|url=https://example.test|title=Example}}</ref>",
+        );
+
+        await openCitationFormatterDialog(editor);
+        callAction(harness.getManager(), "formatArticle");
+        callAction(harness.getManager(), "close");
+        await Promise.resolve();
+        harness.successMessages.length = 0;
+        harness.warningMessages.length = 0;
+
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        callAction(manager, "formatArticle");
+
+        assert.deepEqual(harness.infoMessages, [
+            "No citation formatting changes were made.",
+        ]);
+        assert.deepEqual(harness.successMessages, []);
+        assert.deepEqual(harness.warningMessages, []);
+        assert.equal(manager.formatArticleDisabled.value, true);
+
+        callAction(manager, "formatArticle");
+        assert.equal(harness.infoMessages.length, 1);
+        callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("uses four-second toasts and clears them with the dialog", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor(
+            "<ref>{{cite web|url=https://example.test|" +
+                "title=Example}}</ref>",
+        );
+
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        callAction(manager, "formatArticle");
+
+        assert.deepEqual(harness.toastAutoDismissValues, [4_000]);
+        assert.deepEqual(harness.dismissedToastIds, []);
+
+        await openCitationFormatterDialog(editor);
+
+        assert.deepEqual(harness.dismissedToastIds, ["toast-0"]);
+
+        const replacement = harness.getManager();
+        callAction(replacement, "formatArticle");
+        assert.deepEqual(harness.toastAutoDismissValues, [4_000, 4_000]);
+
+        callAction(replacement, "close");
+        await Promise.resolve();
+
+        assert.deepEqual(harness.dismissedToastIds, ["toast-0", "toast-1"]);
     } finally {
         harness.restore();
     }
@@ -650,15 +737,13 @@ function installSourceManagerHarness(responses: unknown[]) {
         "mw",
         "requestAnimationFrame",
     ]);
-    const successMessages: string[] = [];
-    const warningMessages: string[] = [];
+    const toastHarness = createToastHarness();
     let manager: MountedManager | null = null;
     let apiCalls = 0;
-    const toast = createToastController(successMessages, warningMessages);
     const Vue = createVueModule((mounted) => {
         manager = mounted;
     });
-    const Codex = createCodexComponents(toast);
+    const Codex = createCodexComponents(toastHarness.toast);
     installBrowserGlobals(globals, Vue, Codex, responses, () => {
         apiCalls += 1;
         return apiCalls;
@@ -672,7 +757,28 @@ function installSourceManagerHarness(responses: unknown[]) {
         restore() {
             restoreGlobals(globals, original);
         },
+        ...toastHarness,
+    };
+}
+
+function createToastHarness() {
+    const dismissedToastIds: string[] = [];
+    const infoMessages: string[] = [];
+    const successMessages: string[] = [];
+    const toastAutoDismissValues: Array<boolean | number | undefined> = [];
+    const warningMessages: string[] = [];
+    return {
+        dismissedToastIds,
+        infoMessages,
         successMessages,
+        toast: createToastController(
+            infoMessages,
+            successMessages,
+            warningMessages,
+            toastAutoDismissValues,
+            dismissedToastIds,
+        ),
+        toastAutoDismissValues,
         warningMessages,
     };
 }
@@ -691,7 +797,6 @@ function createVueModule(
         createMwApp(component: unknown) {
             return {
                 component() {},
-                directive() {},
                 mount() {
                     const definition = component as {
                         setup: () => MountedManager;
@@ -729,23 +834,43 @@ function createCodexComponents(toast: ToastController): CodexComponents {
         CdxTextArea: null,
         CdxTextInput: null,
         CdxToastContainer: null,
-        CdxTooltip: null,
         useToast: () => toast,
     };
 }
 
 function createToastController(
+    infoMessages: string[],
     successMessages: string[],
     warningMessages: string[],
+    autoDismissValues: Array<boolean | number | undefined>,
+    dismissedToastIds: string[],
 ): ToastController {
+    let nextToastId = 0;
+    const track = function track(
+        autoDismiss: boolean | number | undefined,
+    ): string {
+        autoDismissValues.push(autoDismiss);
+        return `toast-${nextToastId++}`;
+    };
     return {
-        error() {},
-        info() {},
-        success(message) {
-            successMessages.push(message);
+        clear() {},
+        dismiss(id) {
+            dismissedToastIds.push(id);
         },
-        warning(message) {
+        error(_message, options) {
+            return track(options?.autoDismiss);
+        },
+        info(message, options) {
+            infoMessages.push(message);
+            return track(options?.autoDismiss);
+        },
+        success(message, options) {
+            successMessages.push(message);
+            return track(options?.autoDismiss);
+        },
+        warning(message, options) {
             warningMessages.push(message);
+            return track(options?.autoDismiss);
         },
     };
 }

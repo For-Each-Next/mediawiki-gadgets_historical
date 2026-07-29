@@ -2,6 +2,35 @@
 
 ## Until 0.6
 
+### 0.5.1 (2026-07-29 21:25 UTC)
+
+Overview: VG Stub Creator improves accessibility, review updates, validation,
+readable builds, comment-free userscripts, and package documentation.
+
+- Preserved localized native titles and accessible labels on all icon-only
+  table actions.
+- Removed the shared tooltip state, focus and pointer handlers, positioned
+  overlay markup, and presentation rules.
+- Added structural coverage for all native-titled icon actions and the
+  repository-wide ban on scripted tooltips.
+- Made redirect, category, and navbox refresh actions safely reuse the current
+  row value when no textbox event is present.
+- Added isolated project-wide Vue template validation, made `tsconfig.json` its
+  root entry point, and centralized Prettier, Stylelint, and JSON-compatible
+  Vue settings in package manifests.
+- Added a formatted, human-readable build with documentation comments and wrote
+  all three uniquely named artifacts directly under `dist/`, with rebuild
+  cleanup limited to this gadget's outputs.
+- Aligned readable gadget and userscript JavaScript with the repository's
+  four-space indentation while preserving ordinary multiline template values.
+- Retained userscript metadata comments while removing comments from the
+  executable code section without altering comment-like runtime strings.
+- Consolidated the shared build CLI and HTML-template processing under
+  package-style `gadget-build` entry points enforced by package validation.
+- Expanded user-facing workflow and review features, kept focused support
+  guides, centralized release and commit workflows, and retained only
+  package-specific scoped instructions.
+
 ### 0.5.0 (2026-07-29 18:02 UTC)
 
 Overview: VG Stub Creator now has typed workflows, JSON localization, nine

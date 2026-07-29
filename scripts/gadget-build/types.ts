@@ -4,6 +4,7 @@
 
 export interface BundleOptions {
     minifyText?: boolean;
+    preserveDocumentation?: boolean;
 }
 
 export interface DefineConfig {
@@ -14,7 +15,6 @@ export interface GadgetBuildConfig {
     defines?: Record<string, DefineConfig>;
     entryPoint?: string;
     globalName?: string;
-    outputDirectory?: string;
     outputName?: string;
     target?: "es2024";
     userscript?: UserscriptConfig;
@@ -28,6 +28,7 @@ export interface PackageMetadata {
     main?: string;
     name: string;
     version: string;
+    vue?: VueConfig;
 }
 
 export interface ResolvedGadgetBuildConfig extends GadgetBuildConfig {
@@ -51,4 +52,13 @@ export interface UserscriptConfig {
     namespace?: string;
     runAt?: string;
     sandbox?: string;
+}
+
+export interface VueConfig {
+    assetsDir?: string;
+    css?: {
+        extract?: boolean;
+    };
+    filenameHashing?: boolean;
+    outputDir?: string;
 }

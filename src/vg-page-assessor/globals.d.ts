@@ -1,2 +1,27 @@
-declare const __VG_PAGE_ASSESSOR_DIALOG_TEMPLATE__: string;
-declare const __VG_PAGE_ASSESSOR_DIALOG_STYLES__: string;
+/**
+ * Build globals and template context for VG Page Assessor.
+ */
+
+import type * as Dialog from "./ui/dialogs/assessment-dialog.ts";
+
+type RawTemplateContext = ReturnType<
+    typeof Dialog.createAssessmentDialogBindings
+>;
+type TemplateContext = {
+    [Key in keyof RawTemplateContext]: RawTemplateContext[Key] extends {
+        value: infer Value;
+    }
+        ? Value
+        : RawTemplateContext[Key];
+};
+
+declare global {
+    const __VG_PAGE_ASSESSOR_DIALOG_TEMPLATE__: string;
+    const __VG_PAGE_ASSESSOR_DIALOG_STYLES__: string;
+}
+
+declare module "@vue/runtime-core" {
+    interface ComponentCustomProperties extends TemplateContext {}
+}
+
+export {};

@@ -1,4 +1,4 @@
-import { html } from "#shared";
+import * as html from "#shared/html";
 
 const {
     createElement: createRawElement,

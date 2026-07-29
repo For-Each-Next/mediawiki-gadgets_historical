@@ -4,11 +4,11 @@
 
 import { cleanValue } from "./citation.ts";
 import {
-    normalizeSourceUrl,
     serializeSourceDraftPreservingNames,
     type ExistingSource,
     type SourceDraft,
 } from "./source-manager.ts";
+import { normalizeSourceUrl } from "./source-url.ts";
 import { getCanonicalTemplateName } from "./templates.ts";
 import { applyReplacements } from "./wikitext.ts";
 

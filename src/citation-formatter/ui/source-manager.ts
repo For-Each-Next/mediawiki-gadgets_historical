@@ -2,28 +2,18 @@
  * Cursor-aware source insertion and citation-field management dialog.
  */
 
-import { manageCitationsWithResult } from "#me/app/format.ts";
-import { detectCitationLayout } from "#me/domain/manager.ts";
+import { manageCitationsWithResult } from "#gadget/api.ts";
+import { detectCitationLayout } from "#gadget/domain/manager.ts";
 import {
     buildExistingSourceReference,
-    canJoinAuthorDraftRow,
-    canSplitAuthorDraftRow,
     changeSourceDraftTemplate,
     createManualSourceDraft,
     ensureNextAuthorDraftRows,
-    filterExistingSources,
-    findCreatorAliasSuggestions,
     findExistingSources,
     formatSourceDraftRows,
-    getSourceDraftCitationNameCells,
-    getSourceDraftCitationNameParts,
     getSourceDraftParameterAliasInfo,
-    isAuthorDraftParameter,
-    isLastAuthorDraftParameter,
-    joinAuthorDraftRow,
     listExistingSourceSections,
     listExistingSources,
-    listSourceDraftParameterNames,
     moveSourceDraftTitleToScriptTitle,
     moveSourceTitlesToScriptTitle,
     parseSourceDraft,
@@ -32,99 +22,115 @@ import {
     replaceExistingSource,
     serializeSourceDraft,
     SourceParameterCollisionError,
-    splitAuthorDraftRow,
     StaleSourceError,
     type ExistingSource,
-    type CreatorAliasSuggestion,
     type ParsedSourceInput,
     type SourceSection,
     type SourceDraft,
-    type SourceDraftCitationNameCell,
-    type SourceDraftCitationNameParts,
     type SourceDraftRow,
-} from "#me/domain/source-manager.ts";
+} from "#gadget/domain/source-manager.ts";
+import type * as validation from "#gadget/domain/source-validation.ts";
 import {
-    getSourceDraftErrors,
-    type SourceDraftErrors,
-    type SourceDraftRowErrors,
-} from "#me/domain/source-validation.ts";
-import {
-    extractCs1IssueMessages,
-    getCs1DraftFingerprint,
-    mergeSourceDraftErrors,
     parseCs1ValidationResult,
-} from "#me/domain/cs1-validation.ts";
+    type Cs1ValidationResult,
+} from "#gadget/domain/cs1-validation.ts";
 import {
-    analyzeCitationSources,
     applySourceAnalysisReplacements,
-    type CitationSourceAnalysis,
     type SourceAnalysisCell,
-    type SourceAnalysisFinding,
-    type SourceAnalysisOccurrence,
     type SourceAnalysisReplacement,
-} from "#me/domain/source-analysis.ts";
+} from "#gadget/domain/source-analysis.ts";
 import {
     interfaceLocale,
     msg,
     sourceAnalysisMessages,
-    sourceValidationMessages,
     type MessageId,
-} from "#me/i18n/index.ts";
+} from "#gadget/i18n/index.ts";
+import { getCanonicalTemplateName } from "#gadget/domain/templates.ts";
+import type { CitationLayout } from "#gadget/domain/types.ts";
 import {
-    getCanonicalTemplateName,
-    SUPPORTED_CITATION_TEMPLATES,
-} from "#me/domain/templates.ts";
-import type { CitationLayout } from "#me/domain/types.ts";
-import {
-    fetchAvailableArchive,
-    resolveSourceMetadata,
-} from "#me/infra/source-metadata.ts";
-import { resolveCitationWikiLink } from "#me/infra/wiki-link.ts";
+    type Cs1CheckedSource,
+    type Cs1ExistingSourceReview,
+    type Cs1ReviewWorkflow,
+} from "#gadget/contracts/cs1-review.ts";
 import {
     registerCitationFormatterComponents,
     type CodexComponents,
     type ResourceLoaderRequire,
     type ToastController,
     type VueModule,
-} from "#me/ui/codex.ts";
+} from "#gadget/ui/codex.ts";
 import {
     appendAnalysisUndo,
     getAnalysisUndoText,
-    type AnalysisUndoSnapshot,
-} from "#me/ui/analysis-session.ts";
+} from "#gadget/ui/analysis-session.ts";
 import {
-    buildSourcePreview,
-    type SourcePreviewPart,
-} from "#me/ui/source-preview.ts";
-import { installCitationFormatterStyles } from "#me/ui/styles.ts";
-import { SOURCE_MANAGER_TEMPLATE } from "#me/ui/source-manager-template.ts";
-import type { editBox } from "#shared";
+    buildAnalysisTabs,
+    refreshSourceAnalysis,
+    type AppliedAnalysisFinding,
+    type AppliedAnalysisTarget,
+    type EditableCitationSourceAnalysis,
+    type EditableSourceAnalysisFinding,
+    isAnalysisFindingInTab,
+    type SelectedAnalysisFinding,
+    type SelectableSourceAnalysisOccurrence,
+} from "#gadget/ui/source-analysis-state.ts";
 import {
-    cdxIconArticle,
-    cdxIconBook,
-    cdxIconBrowser,
-    cdxIconDie,
+    createAliasDraftActions,
+    createAuthorDraftActions,
+} from "#gadget/ui/source-draft-alias-actions.ts";
+import {
+    buildSourceSectionSelectors,
+    type SourceSectionSelector,
+} from "#gadget/ui/source-list-presentation.ts";
+import {
+    applyResolvedMetadata,
+    buildMetadataWarnings,
+    createArchiveSeed,
+    createLookupFallbackDraft,
+    formatMetadataFailure,
+    setSourceDraftValue,
+} from "#gadget/ui/source-metadata-draft.ts";
+import {
+    type OpenCitationFormatterDialog,
+    type ReferenceStyle,
+    type SourceManagerDependencies,
+    type SourceManagerOptions,
+} from "#gadget/ui/source-manager-contracts.ts";
+import {
+    clearCheckedCs1Errors,
+    clearDraftValidationSummary,
+    createSourceManagerState,
+    getCurrentCs1DraftFingerprint,
+    type PreloadedCheckerSource,
+    type SourceCheckerTool,
+    type SourceManagerState,
+} from "#gadget/ui/source-manager-state.ts";
+import { installCitationFormatterStyles } from "#gadget/ui/styles.ts";
+import * as sourceManagerTemplate from "#gadget/ui/source-manager-template.ts";
+import type * as editBox from "#shared/edit-box";
+import {
     cdxIconEdit,
     cdxIconKey,
     cdxIconLink,
     cdxIconMagicWand,
     cdxIconMerge,
-    cdxIconMessage,
-    cdxIconMusicalScore,
     cdxIconNewWindow,
-    cdxIconNewspaper,
-    cdxIconNotice,
     cdxIconReferenceExisting,
     cdxIconUpdate,
-    cdxIconUserTalk,
-    type Icon,
 } from "@wikimedia/codex-icons";
+import * as templateOptions from "#gadget/ui/citation-template-options.ts";
+
+export { buildSourceSectionSelectors };
+export type {
+    OpenCitationFormatterDialog,
+    ReferenceStyle,
+    SourceManagerDependencies,
+    SourceManagerOptions,
+} from "#gadget/ui/source-manager-contracts.ts";
 
 const HOST_ID = "citation-formatter-source-manager";
 const BASED_ON_TEMPLATE = "__based-on__";
-const CS1_CHECK_ID_PREFIX = "citation-formatter-cs1-check-";
 const CUSTOM_ANALYSIS_REPLACEMENT = "\u0000custom-analysis-value";
-const UNUSED_SOURCE_SECTION_ID = "unused";
 const AUTOSIZE_DIALOG_TEXTAREA_SELECTOR = [
     ".cf-source-manager__draft-dialog .cdx-text-area__textarea",
     ".cf-source-manager__parameter-alias-dialog .cdx-text-area__textarea",
@@ -160,52 +166,9 @@ const URL_DRAFT_PARAMETERS = new Set([
     "transcript-url",
     "transcripturl",
 ]);
-const REFERENCE_NAME_DIRECTIVES = [
-    "!no-author",
-    "!no-date",
-    "!no-part",
-] as const;
-const PRIORITIZED_TEMPLATE_NAMES = [
-    "Cite web",
-    "Cite magazine",
-    "Cite book",
-    "Cite interview",
-    "Cite tweet",
-    "Cite video game",
-    "Cite press release",
-    "Cite AV media",
-    "Cite AV media notes",
-] as const;
-const prioritizedTemplateIcons = new Map<string, Icon>([
-    ["Cite web", cdxIconBrowser],
-    ["Cite magazine", cdxIconNewspaper],
-    ["Cite book", cdxIconBook],
-    ["Cite interview", cdxIconUserTalk],
-    ["Cite tweet", cdxIconMessage],
-    ["Cite video game", cdxIconDie],
-    ["Cite press release", cdxIconNotice],
-    ["Cite AV media", cdxIconMusicalScore],
-    ["Cite AV media notes", cdxIconArticle],
-]);
-const prioritizedTemplateNameSet = new Set<string>(PRIORITIZED_TEMPLATE_NAMES);
-const remainingTemplateNames = SUPPORTED_CITATION_TEMPLATES.filter(
-    function isRemainingTemplate(name) {
-        return !prioritizedTemplateNameSet.has(name);
-    },
-);
-const TEMPLATE_OPTIONS = [
-    ...PRIORITIZED_TEMPLATE_NAMES,
-    ...remainingTemplateNames,
-].map(function toOption(name) {
-    return {
-        icon: prioritizedTemplateIcons.get(name),
-        label: name,
-        value: name.toLocaleLowerCase("en-US"),
-    };
-});
 const MANUAL_TEMPLATE_OPTIONS = [
     { label: msg("lookup.basedOnExisting"), value: BASED_ON_TEMPLATE },
-    ...TEMPLATE_OPTIONS,
+    ...templateOptions.CITATION_TEMPLATE_OPTIONS,
 ];
 const SOURCE_TABLE_COLUMNS = [
     { id: "reference", label: msg("lookup.reference"), width: "28%" },
@@ -218,144 +181,11 @@ const PARAMETER_TABLE_COLUMNS = [
     { id: "actions", label: msg("lookup.actions"), width: "4em" },
 ];
 
-type Cs1ToolStatus = "checking" | "complete" | "idle" | "unavailable";
-type SourceToolPopup = "analysis" | "cs1" | "non-cs1" | null;
-type SourceCheckerTool = Extract<SourceToolPopup, "cs1" | "non-cs1">;
-type DraftActions = Record<string, unknown>;
-export type ReferenceStyle = "r" | "ref";
 let removeActiveSourceManager: (() => void) | null = null;
 let sourceManagerGeneration = 0;
 let analysisChangeSequence = 0;
 
-interface SelectableSourceAnalysisOccurrence extends SourceAnalysisOccurrence {
-    selected: boolean;
-}
-
-interface EditableSourceAnalysisFinding extends Omit<
-    SourceAnalysisFinding,
-    "occurrences"
-> {
-    customReplacement: string;
-    description: string;
-    displayOrder: number;
-    occurrences: SelectableSourceAnalysisOccurrence[];
-    replacementChoice: string;
-    title: string;
-}
-
-interface EditableCitationSourceAnalysis extends Omit<
-    CitationSourceAnalysis,
-    "findings"
-> {
-    findings: EditableSourceAnalysisFinding[];
-}
-
-interface AppliedAnalysisTarget {
-    cell: SourceAnalysisReplacement["cell"];
-    oldValue: string;
-    parameter: string;
-    replacement: string;
-    rowIndex: number;
-    sourceGroup: string;
-    sourceId: string;
-    sourceReferenceName: string;
-    sourceTemplateStart: number;
-}
-
-interface AppliedAnalysisFinding {
-    changeId: number;
-    finding: EditableSourceAnalysisFinding;
-    targets: AppliedAnalysisTarget[];
-}
-
-interface SelectedAnalysisFinding {
-    finding: EditableSourceAnalysisFinding;
-    replacements: SourceAnalysisReplacement[];
-}
-
-interface AnalysisTab {
-    appliedFindings: AppliedAnalysisFinding[];
-    findings: EditableSourceAnalysisFinding[];
-    label: string;
-    name: SourceAnalysisCell;
-}
-
-export interface SourceManagerOptions {
-    citationLayout?: CitationLayout;
-    referenceStyle?: ReferenceStyle;
-}
-
-interface SourceManagerState {
-    activeAnalysisTab: { value: SourceAnalysisCell };
-    activeLookupTab: { value: string };
-    appliedAnalysisFindings: { value: AppliedAnalysisFinding[] };
-    analysisFindingOrder: { value: string[] };
-    analysisUndo: { value: AnalysisUndoSnapshot | null };
-    autoScriptTitle: { value: boolean };
-    basedOnSourceId: { value: string | null };
-    basedOnSourceOptions: {
-        readonly value: Array<{
-            label: string;
-            supportingText: string;
-            value: string;
-        }>;
-    };
-    citationLayout: { value: CitationLayout };
-    citationNameCells: {
-        readonly value: Map<number, SourceDraftCitationNameCell>;
-    };
-    citationNameParts: {
-        readonly value: SourceDraftCitationNameParts;
-    };
-    checkedCs1CellErrors: { value: SourceDraftErrors };
-    checkedCs1Source: { value: string };
-    closeConfirmationOpen: { value: boolean };
-    cs1ToolMessages: { value: string[] };
-    cs1ToolSources: { value: Cs1CheckedSource[] };
-    cs1ToolStatus: { value: Cs1ToolStatus };
-    dismissedAliasSuggestions: { value: Set<string> };
-    draft: { value: SourceDraft | null };
-    draftCs1Checking: { value: boolean };
-    draftPopupOpen: { value: boolean };
-    draftReviewQueue: { value: PreloadedCheckerSource[] };
-    draftReviewTool: { value: SourceCheckerTool | null };
-    draftCellErrors: { readonly value: SourceDraftErrors };
-    draftSourcePreview: { readonly value: SourcePreviewPart[] };
-    editingSource: { value: ExistingSource | null };
-    error: { value: string };
-    existingSourceQuery: { value: string };
-    existingSourceSections: { value: SourceSection[] };
-    existingSources: { value: ExistingSource[] };
-    filteredExistingSources: { readonly value: ExistingSource[] };
-    keywordFilterLabel: { readonly value: string };
-    nonCs1Sources: { readonly value: ExistingSource[] };
-    loading: { value: boolean };
-    manualTemplate: { value: string | null };
-    open: { value: boolean };
-    parameterAliasDialogOpen: { value: boolean };
-    parameterAliasDialogDirectives: { value: string[] };
-    parameterAliasDialogOriginalValue: { value: string };
-    parameterAliasDialogRowIndex: { value: number | null };
-    parameterAliasDialogValue: { value: string };
-    referenceStyle: { value: ReferenceStyle };
-    sessionUndo: { value: AnalysisUndoSnapshot | null };
-    sourceInput: { value: string };
-    sourceAnalysis: { value: EditableCitationSourceAnalysis };
-    toolPopup: { value: SourceToolPopup };
-    toolPopupOpen: { value: boolean };
-    sourceSectionPath: { value: string[] };
-    sectionFilterLabel: { readonly value: string };
-    sourceTableRows: { readonly value: SourceTableRow[] };
-    sourceSectionSelectors: {
-        readonly value: SourceSectionSelector[];
-    };
-    parameterNameOptions: {
-        readonly value: Array<{ label: string; value: string }>;
-    };
-    warning: { value: string };
-}
-
-interface SourceManagerActionContext {
+interface SourceManagerActionContext extends SourceManagerDependencies {
     cleanup: () => void;
     close: () => void;
     editor: editBox.EditBox;
@@ -363,49 +193,13 @@ interface SourceManagerActionContext {
     toast: ToastController;
 }
 
-interface SourceManagerDerivedInputs {
-    checkedCs1CellErrors: SourceManagerState["checkedCs1CellErrors"];
-    checkedCs1Source: SourceManagerState["checkedCs1Source"];
-    citationLayout: SourceManagerState["citationLayout"];
-    draft: SourceManagerState["draft"];
-    existingSourceQuery: SourceManagerState["existingSourceQuery"];
-    existingSourceSections: SourceManagerState["existingSourceSections"];
-    existingSources: SourceManagerState["existingSources"];
-    referenceStyle: SourceManagerState["referenceStyle"];
-    sourceSectionPath: SourceManagerState["sourceSectionPath"];
+interface SourceManagerActionServices extends SourceManagerDependencies {
+    cleanup: () => void;
+    toast: ToastController;
 }
 
-interface SourceSectionSelector {
-    label: string;
-    level: number;
-    menuItems: Array<{
-        label: string;
-        sectionId: string;
-        value: string;
-    }>;
-    selected: string;
-}
-
-interface SourceTableRow {
-    actions: string;
-    details: string;
-    group: string;
-    id: string;
-    reference: string;
-    source: string;
-    titleLanguage: string;
-    usageCount: number;
-}
-
-interface Cs1CheckedSource {
-    html: string;
-    messages: string[];
-    source: ExistingSource;
-}
-
-interface PreloadedCheckerSource {
-    checkedHtml: string;
-    sourceIndex: number;
+interface SourceManagerConfiguration extends SourceManagerDependencies {
+    options: SourceManagerOptions;
 }
 
 interface SourceDraftWriteResult {
@@ -424,44 +218,32 @@ interface SourceDraftChangeSummary {
     updated: string[];
 }
 
-type SourceManagerDerivedState = Pick<
-    SourceManagerState,
-    | "basedOnSourceOptions"
-    | "citationNameCells"
-    | "citationNameParts"
-    | "draftSourcePreview"
-    | "draftCellErrors"
-    | "filteredExistingSources"
-    | "keywordFilterLabel"
-    | "nonCs1Sources"
-    | "parameterNameOptions"
-    | "sourceSectionSelectors"
-    | "sectionFilterLabel"
-    | "sourceTableRows"
->;
-
 /**
- * Opens Citation Formatter for the active MediaWiki source editor.
+ * Creates a dialog opener with its review workflow injected.
  *
- * @param editor - Adapter for reading and writing article wikitext.
- * @param options - Initial citation layout and reference syntax.
+ * @param dependencies - Source-manager workflow dependencies.
+ * @returns Bound dialog opener.
  */
-export async function openCitationFormatterDialog(
-    editor: editBox.EditBox,
-    options: SourceManagerOptions = {},
-): Promise<void> {
-    const generation = ++sourceManagerGeneration;
-    installCitationFormatterStyles();
-    const require = (await mw.loader.using([
-        "vue",
-        "@wikimedia/codex",
-        "mediawiki.api",
-    ])) as ResourceLoaderRequire;
-    if (generation !== sourceManagerGeneration) {
-        return;
-    }
-    removeActiveSourceManager?.();
-    mountSourceManager(editor, require, options);
+export function createOpenCitationFormatterDialog(
+    dependencies: SourceManagerDependencies,
+): OpenCitationFormatterDialog {
+    return async function openCitationFormatterDialog(
+        editor,
+        options = {},
+    ): Promise<void> {
+        const generation = ++sourceManagerGeneration;
+        installCitationFormatterStyles();
+        const require = (await mw.loader.using([
+            "vue",
+            "@wikimedia/codex",
+            "mediawiki.api",
+        ])) as ResourceLoaderRequire;
+        if (generation !== sourceManagerGeneration) {
+            return;
+        }
+        removeActiveSourceManager?.();
+        mountSourceManager(editor, require, options, dependencies);
+    };
 }
 
 /** Mounts the source manager into a temporary document host. */
@@ -470,6 +252,7 @@ function mountSourceManager(
     editor: editBox.EditBox,
     require: ResourceLoaderRequire,
     options: SourceManagerOptions,
+    dependencies: SourceManagerDependencies,
 ): void {
     const Vue = require("vue");
     const Codex = require("@wikimedia/codex");
@@ -493,7 +276,7 @@ function mountSourceManager(
         Codex,
         editor,
         cleanup,
-        options,
+        { ...dependencies, options },
     );
     const application = Vue.createMwApp(component);
     registerCitationFormatterComponents(application, Codex);
@@ -515,17 +298,24 @@ function createSourceManagerComponent(
     Codex: CodexComponents,
     editor: editBox.EditBox,
     cleanup: () => void,
-    options: SourceManagerOptions,
+    configuration: SourceManagerConfiguration,
 ): unknown {
+    // eslint-disable-next-line max-lines-per-function
     const setup = function setup(): Record<string, unknown> {
-        const state = createSourceManagerState(Vue, editor, options);
-        const toast = Codex.useToast();
-        const actions = createSourceManagerActions(
+        const { options } = configuration;
+        const state = createSourceManagerState(
+            Vue,
             editor,
-            state,
+            options,
+            getCurrentWikiId(),
+            formatError,
+        );
+        const toast = Codex.useToast();
+        const actions = createSourceManagerActions(editor, state, {
+            ...configuration,
             cleanup,
             toast,
-        );
+        });
         const draftRowKey = createDraftRowKey();
         return {
             analysisTabs: Vue.computed(() => buildAnalysisTabs(state)),
@@ -550,7 +340,7 @@ function createSourceManagerComponent(
             sourceTemplateLabel: getCanonicalTemplateName,
             splitAuthorIcon: cdxIconMerge,
             switchStatusIcon: cdxIconUpdate,
-            templateOptions: TEMPLATE_OPTIONS,
+            templateOptions: templateOptions.CITATION_TEMPLATE_OPTIONS,
             toolBuildLabel: TOOL_BUILD_LABEL,
             useSourceIcon: cdxIconReferenceExisting,
             ...actions,
@@ -560,7 +350,7 @@ function createSourceManagerComponent(
     return Vue.defineComponent({
         name: "CitationSourceManager",
         setup,
-        template: SOURCE_MANAGER_TEMPLATE,
+        template: sourceManagerTemplate.SOURCE_MANAGER_TEMPLATE,
     });
 }
 
@@ -592,273 +382,10 @@ function scheduleVisibleTextAreaAutosize(): void {
     });
 }
 
-/** Creates initial reactive state from the current editor contents. */
-function createSourceManagerState(
-    Vue: VueModule,
-    editor: editBox.EditBox,
-    options: SourceManagerOptions,
-): SourceManagerState {
-    const initialText = editor.read();
-    const sourceList = createInitialSourceListState(Vue, initialText);
-    const cs1State = createInitialCs1ToolState(Vue);
-    const citationLayout = Vue.ref(options.citationLayout ?? "inline");
-    const draft = Vue.ref<SourceDraft | null>(null);
-    const referenceStyle = Vue.ref(options.referenceStyle ?? "ref");
-    const derived = createSourceManagerDerivedState(Vue, {
-        ...cs1State,
-        citationLayout,
-        draft,
-        referenceStyle,
-        ...sourceList,
-    });
-    const interfaceState = createInitialInterfaceState(Vue, initialText);
-    return {
-        ...derived,
-        ...interfaceState,
-        ...sourceList,
-        ...cs1State,
-        citationLayout,
-        dismissedAliasSuggestions: Vue.ref(new Set<string>()),
-        draft,
-        editingSource: Vue.ref<ExistingSource | null>(null),
-        error: Vue.ref(""),
-        loading: Vue.ref(false),
-        referenceStyle,
-        sourceInput: Vue.ref(""),
-        warning: Vue.ref(""),
-    };
-}
-
-function createInitialInterfaceState(Vue: VueModule, initialText: string) {
-    return {
-        activeAnalysisTab: Vue.ref<SourceAnalysisCell>("value"),
-        activeLookupTab: Vue.ref("add"),
-        appliedAnalysisFindings: Vue.ref<AppliedAnalysisFinding[]>([]),
-        analysisFindingOrder: Vue.ref<string[]>([]),
-        analysisUndo: Vue.ref<AnalysisUndoSnapshot | null>(null),
-        autoScriptTitle: Vue.ref(true),
-        basedOnSourceId: Vue.ref<string | null>(null),
-        closeConfirmationOpen: Vue.ref(false),
-        draftPopupOpen: Vue.ref(false),
-        manualTemplate: Vue.ref<string | null>("cite magazine"),
-        open: Vue.ref(true),
-        parameterAliasDialogOpen: Vue.ref(false),
-        parameterAliasDialogDirectives: Vue.ref<string[]>([]),
-        parameterAliasDialogOriginalValue: Vue.ref(""),
-        parameterAliasDialogRowIndex: Vue.ref<number | null>(null),
-        parameterAliasDialogValue: Vue.ref(""),
-        sessionUndo: Vue.ref<AnalysisUndoSnapshot>({
-            afterText: initialText,
-            beforeText: initialText,
-        }),
-        toolPopup: Vue.ref<SourceToolPopup>(null),
-        toolPopupOpen: Vue.ref(false),
-    };
-}
-
-function createInitialCs1ToolState(Vue: VueModule) {
-    return {
-        checkedCs1CellErrors: Vue.ref<SourceDraftErrors>(new Map()),
-        checkedCs1Source: Vue.ref(""),
-        cs1ToolMessages: Vue.ref<string[]>([]),
-        cs1ToolSources: Vue.ref<Cs1CheckedSource[]>([]),
-        cs1ToolStatus: Vue.ref<Cs1ToolStatus>("idle"),
-        draftCs1Checking: Vue.ref(false),
-        draftReviewQueue: Vue.ref<PreloadedCheckerSource[]>([]),
-        draftReviewTool: Vue.ref<SourceCheckerTool | null>(null),
-    };
-}
-
-/** Adds mutable replacement and checkbox state to a fresh analysis. */
-function createEditableSourceAnalysis(
-    sources: ExistingSource[],
-): EditableCitationSourceAnalysis {
-    const analysis = analyzeCitationSources(sources, sourceAnalysisMessages);
-    return {
-        ...analysis,
-        findings: analysis.findings.map(
-            function makeFindingEditable(finding, displayOrder) {
-                return {
-                    ...finding,
-                    description: getAnalysisFindingDescription(finding),
-                    displayOrder,
-                    occurrences: finding.occurrences.map((occurrence) => ({
-                        ...occurrence,
-                        selected: true,
-                    })),
-                    customReplacement: "",
-                    replacementChoice: finding.suggestedValue,
-                    title: finding.subject,
-                };
-            },
-        ),
-    };
-}
-
-function refreshSourceAnalysis(state: SourceManagerState): void {
-    const analysis = createEditableSourceAnalysis(state.existingSources.value);
-    for (const finding of analysis.findings) {
-        if (!state.analysisFindingOrder.value.includes(finding.id)) {
-            state.analysisFindingOrder.value.push(finding.id);
-        }
-        finding.displayOrder = state.analysisFindingOrder.value.indexOf(
-            finding.id,
-        );
-    }
-    state.sourceAnalysis.value = analysis;
-}
-
-/** Groups pending and applied consistency findings into UI tabs. */
-function buildAnalysisTabs(state: SourceManagerState): AnalysisTab[] {
-    return [
-        buildAnalysisTab(state, "value", msg("analysis.parameterValuesTab")),
-        buildAnalysisTab(state, "alias", msg("analysis.referenceNamesTab")),
-    ];
-}
-
-function buildAnalysisTab(
-    state: SourceManagerState,
-    name: SourceAnalysisCell,
-    label: string,
-): AnalysisTab {
-    return {
-        appliedFindings: state.appliedAnalysisFindings.value.filter((entry) =>
-            isAnalysisFindingInTab(entry.finding, name),
-        ),
-        findings: state.sourceAnalysis.value.findings.filter((finding) =>
-            isAnalysisFindingInTab(finding, name),
-        ),
-        label,
-        name,
-    };
-}
-
-function isAnalysisFindingInTab(
-    finding: EditableSourceAnalysisFinding,
-    tab: SourceAnalysisCell,
-): boolean {
-    return (finding.category === "alias" ? "alias" : "value") === tab;
-}
-
-/** Gets the category text displayed below an analysis-case title. */
-function getAnalysisFindingDescription(
-    finding: SourceAnalysisFinding,
-): string {
-    if (finding.category === "publication") {
-        return msg("analysis.publicationDescription");
-    }
-    if (finding.category === "publisher") {
-        return msg("analysis.publisherDescription");
-    }
-    if (finding.category === "author") {
-        return msg("analysis.authorDescription");
-    }
-    return finding.id.startsWith("alias:source-key\u0000")
-        ? msg("analysis.sourceKeyDescription")
-        : msg("analysis.hashAliasDescription");
-}
-
-/** Creates reactive source-list values from the current editor text. */
-function createInitialSourceListState(Vue: VueModule, text: string) {
-    const existingSources = Vue.ref(listExistingSources(text));
-    return {
-        existingSourceQuery: Vue.ref(""),
-        sourceAnalysis: Vue.ref(createEditableSourceAnalysis([])),
-        existingSourceSections: Vue.ref(
-            listExistingSourceSections(text, existingSources.value),
-        ),
-        existingSources,
-        sourceSectionPath: Vue.ref<string[]>([]),
-    };
-}
-
-/** Builds reactive values derived from source-manager inputs. */
-function createSourceManagerDerivedState(
-    Vue: VueModule,
-    state: SourceManagerDerivedInputs,
-): SourceManagerDerivedState {
-    return {
-        ...createDraftDerivedState(Vue, state),
-        ...createSourceListDerivedState(Vue, state),
-    };
-}
-
-/** Builds live name and source-code values for the current draft. */
-// eslint-disable-next-line max-lines-per-function
-function createDraftDerivedState(
-    Vue: VueModule,
-    state: SourceManagerDerivedInputs,
-) {
-    function getCitationNameCells(): Map<number, SourceDraftCitationNameCell> {
-        const draft = state.draft.value;
-        return draft == null
-            ? new Map<number, SourceDraftCitationNameCell>()
-            : getSourceDraftCitationNameCells(draft);
-    }
-    function getDraftSourcePreview(): SourcePreviewPart[] {
-        return buildDraftSourcePreview(
-            state.draft.value,
-            state.citationLayout.value,
-        );
-    }
-    function getCitationNameParts(): SourceDraftCitationNameParts {
-        const draft = state.draft.value;
-        if (draft == null) {
-            return { author: "", part: "", year: "" };
-        }
-        try {
-            return getSourceDraftCitationNameParts(draft);
-        } catch {
-            return { author: "", part: "", year: "" };
-        }
-    }
-    function getDraftCellErrors(): SourceDraftErrors {
-        const draft = state.draft.value;
-        if (draft == null) {
-            return new Map();
-        }
-        const local = getSourceDraftErrors(
-            draft,
-            getCurrentWikiId(),
-            sourceValidationMessages,
-        );
-        if (
-            getCurrentCs1DraftFingerprint(state) !==
-            state.checkedCs1Source.value
-        ) {
-            return local;
-        }
-        return mergeSourceDraftErrors(local, state.checkedCs1CellErrors.value);
-    }
-    return {
-        citationNameCells: Vue.computed(getCitationNameCells),
-        citationNameParts: Vue.computed(getCitationNameParts),
-        draftCellErrors: Vue.computed(getDraftCellErrors),
-        draftSourcePreview: Vue.computed(getDraftSourcePreview),
-        parameterNameOptions: Vue.computed(function getOptions() {
-            const draft = state.draft.value;
-            if (draft == null) {
-                return [];
-            }
-            return listSourceDraftParameterNames(draft).map((name) => ({
-                label: name,
-                value: name,
-            }));
-        }),
-    };
-}
-
 /** Gets the active MediaWiki database for site-specific CS1 rules. */
 function getCurrentWikiId(): string {
     const wikiId = mw.config.get("wgDBname");
     return typeof wikiId === "string" ? wikiId : "";
-}
-
-interface Cs1ParseApiResponse {
-    parse?: {
-        categories?: Array<{ category?: string }>;
-        text?: string;
-    };
 }
 
 /** Runs one explicit, article-wide CS1 parse check. */
@@ -881,75 +408,16 @@ async function fetchArticleCs1Issues(
         return;
     }
     try {
-        const response = await requestCs1Check(sources);
-        const html = response.parse?.text ?? "";
-        state.cs1ToolSources.value = mapCs1CheckedSources(html, sources);
-        state.cs1ToolMessages.value = extractCs1IssueMessages(
-            "",
-            listCs1CheckCategories(response),
+        const review = await context.cs1Review.checkArticleSources(
+            sources,
+            getCurrentCs1CheckOptions(),
         );
+        state.cs1ToolSources.value = review.sources;
+        state.cs1ToolMessages.value = review.messages;
         state.cs1ToolStatus.value = "complete";
     } catch {
         state.cs1ToolStatus.value = "unavailable";
     }
-}
-
-async function requestCs1Check(
-    sources: ExistingSource[],
-): Promise<Cs1ParseApiResponse> {
-    return requestCs1WikitextCheck(buildCs1CheckWikitext(sources));
-}
-
-async function requestCs1WikitextCheck(
-    text: string,
-): Promise<Cs1ParseApiResponse> {
-    const api = new mw.Api();
-    return (await api.post({
-        action: "parse",
-        contentmodel: "wikitext",
-        disableeditsection: true,
-        disablelimitreport: true,
-        disabletoc: true,
-        formatversion: 2,
-        preview: true,
-        prop: "text|categories",
-        text,
-        title: getCurrentPageTitle(),
-    })) as Cs1ParseApiResponse;
-}
-
-function listCs1CheckCategories(response: Cs1ParseApiResponse): string[] {
-    return (response.parse?.categories ?? []).flatMap(
-        function getCategory(entry) {
-            return entry.category == null ? [] : [entry.category];
-        },
-    );
-}
-
-function mapCs1CheckedSources(
-    html: string,
-    sources: ExistingSource[],
-): Cs1CheckedSource[] {
-    const parsed = new DOMParser().parseFromString(html, "text/html");
-    return sources.flatMap(function getCheckedSource(source, index) {
-        const element = parsed.getElementById(
-            `${CS1_CHECK_ID_PREFIX}${index}`,
-        );
-        const sourceHtml = element?.innerHTML ?? "";
-        const messages = extractCs1IssueMessages(sourceHtml);
-        return messages.length === 0
-            ? []
-            : [{ html: sourceHtml, messages, source }];
-    });
-}
-
-export function buildCs1CheckWikitext(sources: ExistingSource[]): string {
-    return sources
-        .map(function wrapSource(source, index) {
-            const id = `${CS1_CHECK_ID_PREFIX}${index}`;
-            return `<div id="${id}">\n${source.rawTemplate}\n</div>`;
-        })
-        .join("\n");
 }
 
 function getCurrentPageTitle(): string {
@@ -959,18 +427,9 @@ function getCurrentPageTitle(): string {
         : msg("tool.validationTitle");
 }
 
-function getCurrentCs1DraftFingerprint(
-    state: Pick<SourceManagerState, "draft">,
-): string {
-    const draft = state.draft.value;
-    if (draft == null) {
-        return "";
-    }
-    try {
-        return getCs1DraftFingerprint(draft);
-    } catch {
-        return "";
-    }
+/** Supplies the page context required by live CS1 checks. */
+function getCurrentCs1CheckOptions(): { pageTitle: string } {
+    return { pageTitle: getCurrentPageTitle() };
 }
 
 function formatUtcBuildTime(value: string): string {
@@ -985,232 +444,18 @@ function formatUtcBuildTime(value: string): string {
     }).format(date);
 }
 
-/** Builds a safely segmented preview from the current source draft. */
-function buildDraftSourcePreview(
-    draft: SourceDraft | null,
-    layout: CitationLayout,
-): SourcePreviewPart[] {
-    if (draft == null) {
-        return [];
-    }
-    try {
-        return buildSourcePreview(serializeSourceDraft(draft, layout));
-    } catch (error) {
-        const message = msg("draft.previewUnavailable", {
-            error: formatError(error),
-        });
-        return [{ kind: "text", text: message }];
-    }
-}
-
-/** Builds filtering and choice values for the existing-source list. */
-// eslint-disable-next-line max-lines-per-function
-function createSourceListDerivedState(
-    Vue: VueModule,
-    state: SourceManagerDerivedInputs,
-) {
-    function getFilteredExistingSources(): ExistingSource[] {
-        const selectedSection = state.sourceSectionPath.value.at(-1) ?? "";
-        return filterExistingSources(
-            state.existingSources.value,
-            state.existingSourceQuery.value,
-            selectedSection,
-        );
-    }
-    const filteredExistingSources = Vue.computed(getFilteredExistingSources);
-    function formatFilterLabel(label: MessageId, applied: boolean): string {
-        const text = msg(label);
-        return applied
-            ? msg("lookup.appliedFilterLabel", {
-                  count: filteredExistingSources.value.length,
-                  label: text,
-              })
-            : text;
-    }
-    function getBasedOnSourceOptions(): Array<{
-        label: string;
-        supportingText: string;
-        value: string;
-    }> {
-        return state.existingSources.value
-            .filter((source) => source.status !== "non-standard")
-            .map(function toOption(source) {
-                const name = source.referenceName || msg("common.unnamed");
-                const title =
-                    source.title || source.url || msg("common.untitledSource");
-                return {
-                    label: name,
-                    supportingText: title,
-                    value: source.id,
-                };
-            });
-    }
-    return {
-        basedOnSourceOptions: Vue.computed(getBasedOnSourceOptions),
-        filteredExistingSources,
-        keywordFilterLabel: Vue.computed(function getKeywordFilterLabel() {
-            return formatFilterLabel(
-                "lookup.filterKeyword",
-                state.existingSourceQuery.value.trim() !== "",
-            );
-        }),
-        nonCs1Sources: Vue.computed(function getNonCs1Sources() {
-            return state.existingSources.value.filter(
-                (source) => source.status === "non-standard",
-            );
-        }),
-        sourceSectionSelectors: Vue.computed(function getSelectors() {
-            return buildSourceSectionSelectors(
-                state.existingSourceSections.value,
-                state.sourceSectionPath.value,
-                state.existingSources.value,
-            );
-        }),
-        sectionFilterLabel: Vue.computed(function getSectionFilterLabel() {
-            return formatFilterLabel(
-                "lookup.filterSection",
-                state.sourceSectionPath.value.length > 0,
-            );
-        }),
-        sourceTableRows: Vue.computed(function getSourceTableRows() {
-            return filteredExistingSources.value.map(toSourceTableRow);
-        }),
-    };
-}
-
-/** Projects citation definitions into the Codex Table columns. */
-function toSourceTableRow(source: ExistingSource): SourceTableRow {
-    return {
-        actions: "",
-        details:
-            source.status === "non-standard"
-                ? msg("lookup.nonStandard")
-                : getCanonicalTemplateName(source.draft.template),
-        group: source.group,
-        id: source.id,
-        reference: source.referenceName || msg("common.unnamed"),
-        source: source.title || source.url || msg("common.untitledSource"),
-        titleLanguage: source.titleLanguage,
-        usageCount: source.usageCount,
-    };
-}
-
-/** Builds one combobox for each selected section hierarchy level. */
-export function buildSourceSectionSelectors(
-    sections: SourceSection[],
-    path: string[],
-    sources: ExistingSource[],
-): SourceSectionSelector[] {
-    const selectors: SourceSectionSelector[] = [];
-    let parentId = "";
-    for (let level = 0; level <= path.length; level += 1) {
-        let children = sections.filter(
-            (section) => section.parentId === parentId,
-        );
-        if (children.length === 0) {
-            break;
-        }
-        if (
-            parentId !== "" &&
-            parentId !== "0" &&
-            parentId !== UNUSED_SOURCE_SECTION_ID &&
-            sources.some((source) => source.sectionIds.includes(parentId))
-        ) {
-            children = [
-                buildLeadingSourceSection(parentId, level),
-                ...children,
-            ];
-        }
-        const selected = path[level] ?? "";
-        selectors.push(buildSourceSectionSelector(children, level, selected));
-        if (
-            selected === "" ||
-            !children.some((section) => section.id === selected)
-        ) {
-            break;
-        }
-        if (selected.endsWith(".0")) {
-            break;
-        }
-        parentId = selected;
-    }
-    return selectors;
-}
-
-/** Creates the `.0` option for a selected heading's own lead. */
-function buildLeadingSourceSection(
-    parentId: string,
-    level: number,
-): SourceSection {
-    const title =
-        level === 1
-            ? msg("sections.sectionLead")
-            : msg("sections.subsectionLead");
-    const id = `${parentId}.0`;
-    return {
-        depth: level,
-        id,
-        parentId,
-        start: -1,
-        title,
-    };
-}
-
-/** Builds the choices for one section-filter hierarchy level. */
-function buildSourceSectionSelector(
-    sections: SourceSection[],
-    level: number,
-    selected: string,
-): SourceSectionSelector {
-    const allLabel =
-        level === 0
-            ? msg("sections.allSections")
-            : msg("sections.allSubsections");
-    const sectionOptions = sections.map(function toOption(section) {
-        const label = formatSourceSectionOption(section);
-        return {
-            label,
-            sectionId: section.id,
-            value: label,
-        };
-    });
-    const allOption = {
-        label: allLabel,
-        sectionId: "",
-        value: allLabel,
-    };
-    return {
-        label:
-            level === 0 ? msg("sections.section") : msg("sections.subsection"),
-        level,
-        menuItems: [allOption, ...sectionOptions],
-        selected:
-            sectionOptions.find((option) => option.sectionId === selected)
-                ?.label ?? allLabel,
-    };
-}
-
-/** Formats structural section data for the localized filter menu. */
-function formatSourceSectionOption(section: SourceSection): string {
-    if (section.id === UNUSED_SOURCE_SECTION_ID) {
-        return msg("sections.unusedReferences");
-    }
-    const title = section.id === "0" ? msg("sections.lead") : section.title;
-    return `§ ${section.id} ${title}`.trim();
-}
-
 /** Creates source lookup, insertion, and editing actions. */
 function createSourceManagerActions(
     editor: editBox.EditBox,
     state: SourceManagerState,
-    cleanup: () => void,
-    toast: ToastController,
+    services: SourceManagerActionServices,
 ): Record<string, unknown> {
+    const { cleanup } = services;
     const close = function close(): void {
         state.open.value = false;
         queueMicrotask(cleanup);
     };
-    const context = { cleanup, close, editor, state, toast };
+    const context = { ...services, close, editor, state };
     return {
         ...createFormatterActions(context),
         ...createNavigationActions(context),
@@ -1424,7 +669,7 @@ function createDraftActions(
     }
     function getDraftFieldLabel(
         index: number,
-        field: keyof SourceDraftRowErrors,
+        field: keyof validation.SourceDraftRowErrors,
         parameter: string,
     ): string {
         return buildDraftFieldLabel(state, index, field, parameter);
@@ -1497,7 +742,7 @@ function createDraftActions(
     }
     return {
         ...createAuthorDraftActions(state),
-        ...createAliasDraftActions(state),
+        ...createAliasDraftActions(state, scheduleVisibleTextAreaAutosize),
         addParameter,
         applyDraft,
         autofillDate,
@@ -1533,7 +778,7 @@ function getOpenableDraftUrl(value: string): string {
 function buildDraftFieldLabel(
     state: SourceManagerState,
     index: number,
-    field: keyof SourceDraftRowErrors,
+    field: keyof validation.SourceDraftRowErrors,
     parameter: string,
 ): string {
     const label = getDraftFieldLabelText(field, parameter);
@@ -1555,7 +800,7 @@ function buildDraftFieldLabel(
 
 /** Gets the base label for one compact citation-table control. */
 function getDraftFieldLabelText(
-    field: keyof SourceDraftRowErrors,
+    field: keyof validation.SourceDraftRowErrors,
     parameter: string,
 ): string {
     if (field === "name") {
@@ -1746,7 +991,7 @@ function applySelectedAnalysisFindings(
     context: SourceManagerActionContext,
     selectedFindings: SelectedAnalysisFinding[],
 ): void {
-    const { editor, state, toast } = context;
+    const { toast } = context;
     const selected = selectedFindings.filter(
         (entry) => entry.replacements.length > 0,
     );
@@ -2261,7 +1506,7 @@ async function autofillArchiveDate(
             return;
         }
         const sourceUrl = getDraftRowValue(draft, "url");
-        const archive = await fetchAvailableArchive(sourceUrl);
+        const archive = await context.fetchAvailableArchive(sourceUrl);
         if (!isCurrentDraftRow(state, draft, row)) {
             return;
         }
@@ -2271,7 +1516,7 @@ async function autofillArchiveDate(
             });
             return;
         }
-        setDraftValue(draft, "archive-url", archive.archiveUrl);
+        setSourceDraftValue(draft, "archive-url", archive.archiveUrl);
         row.value = archive.archiveDate;
         toast.success(msg("feedback.archiveFieldsFilled"), {
             autoDismiss: true,
@@ -2297,10 +1542,7 @@ async function linkDraftOrganization(
     const enteredValue = row.value;
     state.loading.value = true;
     try {
-        const linkedValue = await resolveCitationWikiLink(
-            enteredValue,
-            new mw.Api(),
-        );
+        const linkedValue = await context.resolveWikiLink(enteredValue);
         if (
             !isCurrentDraftRow(state, draft, row) ||
             row.value !== enteredValue
@@ -2383,7 +1625,7 @@ async function saveNewSourceDraft(
 async function validateNewSourceWithCs1(
     context: SourceManagerActionContext,
 ): Promise<boolean> {
-    const { state, toast } = context;
+    const { cs1Review, state, toast } = context;
     const draft = state.draft.value;
     if (draft == null || state.loading.value) {
         return false;
@@ -2399,11 +1641,11 @@ async function validateNewSourceWithCs1(
     state.draftCs1Checking.value = true;
     state.loading.value = true;
     try {
-        const response = await requestCs1DraftCheck(draft);
+        const result = await checkNewSourceDraft(cs1Review, draft);
         if (state.draft.value !== draft) {
             return false;
         }
-        const issueCount = applyNewSourceCs1Result(state, draft, response);
+        const issueCount = applyNewSourceCs1Result(state, result);
         if (issueCount === 0) {
             return true;
         }
@@ -2420,6 +1662,14 @@ async function validateNewSourceWithCs1(
     }
 }
 
+/** Runs the injected new-source checker for the current article. */
+function checkNewSourceDraft(
+    cs1Review: Cs1ReviewWorkflow,
+    draft: SourceDraft,
+): Promise<Cs1ValidationResult> {
+    return cs1Review.checkNewSourceDraft(draft, getCurrentCs1CheckOptions());
+}
+
 function formatNewSourceCs1IssueMessage(issueCount: number): string {
     return formatPluralMessage(
         issueCount,
@@ -2430,24 +1680,12 @@ function formatNewSourceCs1IssueMessage(issueCount: number): string {
 
 function applyNewSourceCs1Result(
     state: SourceManagerState,
-    draft: SourceDraft,
-    response: Cs1ParseApiResponse,
+    result: Cs1ValidationResult,
 ): number {
-    const result = parseCs1ValidationResult(
-        draft,
-        response.parse?.text ?? "",
-        listCs1CheckCategories(response),
-    );
     state.checkedCs1CellErrors.value = result.cellErrors;
     state.checkedCs1Source.value = getCurrentCs1DraftFingerprint(state);
     state.warning.value = result.messages.join("\n");
     return result.issueCount;
-}
-
-function requestCs1DraftCheck(
-    draft: SourceDraft,
-): Promise<Cs1ParseApiResponse> {
-    return requestCs1WikitextCheck(serializeSourceDraft(draft, "inline"));
 }
 
 /** Validates and applies the current source draft. */
@@ -2505,11 +1743,15 @@ async function recheckAppliedCs1Draft(
     state.draftCs1Checking.value = true;
     state.loading.value = true;
     try {
-        const response = await requestCs1Check([source]);
+        const review = await context.cs1Review.checkExistingSourceDraft(
+            draft,
+            source,
+            getCurrentCs1CheckOptions(),
+        );
         if (!isCurrentAppliedDraft(state, draft, source)) {
             return;
         }
-        if (applyCs1DraftRecheckResult(state, draft, source, response) === 0) {
+        if (applyCs1DraftRecheckResult(context, source, review) === 0) {
             toast.success(msg("checker.noIssues"), { autoDismiss: true });
         }
     } catch {
@@ -2523,23 +1765,17 @@ async function recheckAppliedCs1Draft(
 }
 
 function applyCs1DraftRecheckResult(
-    state: SourceManagerState,
-    draft: SourceDraft,
+    context: SourceManagerActionContext,
     source: ExistingSource,
-    response: Cs1ParseApiResponse,
+    review: Cs1ExistingSourceReview,
 ): number {
-    const [checked] = mapCs1CheckedSources(response.parse?.text ?? "", [
-        source,
-    ]);
-    const result = parseCs1ValidationResult(
-        draft,
-        checked?.html ?? "",
-        listCs1CheckCategories(response),
-    );
+    const { state } = context;
+    const { checkedSource, validation } = review;
+    const result = validation;
     state.checkedCs1CellErrors.value = result.cellErrors;
     state.checkedCs1Source.value = getCurrentCs1DraftFingerprint(state);
     state.warning.value = result.messages.join("\n");
-    updateAppliedCs1BatchResult(state, source, checked);
+    updateAppliedCs1BatchResult(context, source, checkedSource);
     return result.issueCount;
 }
 
@@ -2556,11 +1792,12 @@ function isCurrentAppliedDraft(
 
 /** Replaces the applied source's stale open-result entry. */
 function updateAppliedCs1BatchResult(
-    state: SourceManagerState,
+    context: SourceManagerActionContext,
     source: ExistingSource,
     checked: Cs1CheckedSource | undefined,
 ): void {
-    syncCs1BatchResults(state, state.draftReviewQueue.value);
+    const { state } = context;
+    syncCs1BatchResults(context, state.draftReviewQueue.value);
     if (checked == null) {
         return;
     }
@@ -2594,7 +1831,7 @@ function saveReviewedDraft(context: SourceManagerActionContext): void {
     }
     refreshExistingSources(editor, state);
     if (reviewTool === "cs1") {
-        syncCs1BatchResults(state, reviewQueue);
+        syncCs1BatchResults(context, reviewQueue);
     }
     resetSourceDraft(state);
     toast.success(msg("feedback.sourceSaved"), { autoDismiss: true });
@@ -2603,19 +1840,22 @@ function saveReviewedDraft(context: SourceManagerActionContext): void {
 
 /** Keeps unreviewed CS1 results from the original batch request. */
 function syncCs1BatchResults(
-    state: SourceManagerState,
+    context: SourceManagerActionContext,
     queue: PreloadedCheckerSource[],
 ): void {
+    const { cs1Review, state } = context;
     state.cs1ToolSources.value = queue
         .toSorted((left, right) => left.sourceIndex - right.sourceIndex)
         .flatMap(function restoreResult(preloaded) {
             const source = state.existingSources.value[preloaded.sourceIndex];
-            const messages = extractCs1IssueMessages(preloaded.checkedHtml);
-            return source == null ||
-                source.status === "non-standard" ||
-                messages.length === 0
-                ? []
-                : [{ html: preloaded.checkedHtml, messages, source }];
+            if (source == null || source.status === "non-standard") {
+                return [];
+            }
+            const checked = cs1Review.restoreCheckedSource(
+                source,
+                preloaded.checkedHtml,
+            );
+            return checked == null ? [] : [checked];
         });
     if (state.cs1ToolSources.value.length === 0) {
         state.cs1ToolMessages.value = [];
@@ -2870,307 +2110,6 @@ function resetSourceDraft(state: SourceManagerState): void {
     state.warning.value = "";
 }
 
-/** Clears the summary superseded by field-level validation. */
-function clearDraftValidationSummary(state: SourceManagerState): void {
-    if (state.error.value === msg("draft.invalidSummary")) {
-        state.error.value = "";
-    }
-}
-
-/** Creates author-row splitting and automatic next-slot actions. */
-function createAuthorDraftActions(state: SourceManagerState): DraftActions {
-    function canJoinAuthor(index: number): boolean {
-        const draft = state.draft.value;
-        return draft != null && canJoinAuthorDraftRow(draft, index);
-    }
-    function canSplitAuthor(index: number): boolean {
-        const draft = state.draft.value;
-        return draft != null && canSplitAuthorDraftRow(draft, index);
-    }
-    function joinAuthor(index: number): void {
-        const draft = state.draft.value;
-        if (draft != null) {
-            joinAuthorDraftRow(draft, index);
-        }
-    }
-    function splitAuthor(index: number): void {
-        const draft = state.draft.value;
-        if (draft != null) {
-            splitAuthorDraftRow(draft, index);
-        }
-    }
-    function updateParameterValue(index: number, value: string): void {
-        const draft = state.draft.value;
-        if (draft?.rows[index] == null) {
-            return;
-        }
-        clearDraftValidationSummary(state);
-        draft.rows[index].value = value;
-        ensureNextAuthorDraftRows(draft);
-    }
-    return {
-        canJoinAuthor,
-        canSplitAuthor,
-        isAuthorDraftParameter,
-        isLastAuthorDraftParameter,
-        joinAuthor,
-        splitAuthor,
-        updateParameterValue,
-    };
-}
-
-/** Creates opt-in actions for previously used creator aliases. */
-function createAliasDraftActions(state: SourceManagerState): DraftActions {
-    return {
-        ...createParameterAliasDialogActions(state),
-        ...createParameterAliasPresentationActions(state),
-        ...createAliasSuggestionDraftActions(state),
-    };
-}
-
-/** Creates mutating actions for the compact parameter-alias dialog. */
-function createParameterAliasDialogActions(
-    state: SourceManagerState,
-): DraftActions {
-    function closeParameterAliasDialog(): void {
-        state.parameterAliasDialogOpen.value = false;
-        state.parameterAliasDialogDirectives.value = [];
-        state.parameterAliasDialogOriginalValue.value = "";
-        state.parameterAliasDialogRowIndex.value = null;
-        state.parameterAliasDialogValue.value = "";
-    }
-    function openParameterAliasDialog(index: number): void {
-        const row = state.draft.value?.rows[index];
-        if (row == null) {
-            return;
-        }
-        state.parameterAliasDialogRowIndex.value = index;
-        state.parameterAliasDialogDirectives.value =
-            listSelectedReferenceNameDirectives(row.directive);
-        state.parameterAliasDialogOriginalValue.value = row.value;
-        state.parameterAliasDialogValue.value = row.alias;
-        state.parameterAliasDialogOpen.value = true;
-        scheduleVisibleTextAreaAutosize();
-    }
-    function onParameterAliasDialogOpenChange(open: boolean): void {
-        if (!open) {
-            closeParameterAliasDialog();
-        }
-    }
-    function applyParameterAlias(): void {
-        if (applyParameterAliasDialogValues(state)) {
-            closeParameterAliasDialog();
-        }
-    }
-    return {
-        applyParameterAlias,
-        closeParameterAliasDialog,
-        onParameterAliasDialogOpenChange,
-        openParameterAliasDialog,
-    };
-}
-
-/** Applies both editable values held by the reference-naming dialog. */
-function applyParameterAliasDialogValues(state: SourceManagerState): boolean {
-    const draft = state.draft.value;
-    const row = getParameterAliasDialogRow(state);
-    if (draft == null || row == null || !canApplyParameterAlias(state)) {
-        return false;
-    }
-    clearDraftValidationSummary(state);
-    row.value = state.parameterAliasDialogOriginalValue.value;
-    row.alias = state.parameterAliasDialogValue.value.trim();
-    row.directive = mergeReferenceNameDirectives(
-        row.directive,
-        state.parameterAliasDialogDirectives.value,
-    );
-    ensureNextAuthorDraftRows(draft);
-    return true;
-}
-
-function listSelectedReferenceNameDirectives(directive: string): string[] {
-    const tokens = new Set(directive.trim().split(/\s+/u));
-    return REFERENCE_NAME_DIRECTIVES.filter((entry) => tokens.has(entry));
-}
-
-function mergeReferenceNameDirectives(
-    current: string,
-    selected: string[],
-): string {
-    const known = new Set<string>(REFERENCE_NAME_DIRECTIVES);
-    const unknown = current
-        .trim()
-        .split(/\s+/u)
-        .filter((entry) => entry !== "" && !known.has(entry));
-    const selectedSet = new Set(selected);
-    const ordered = REFERENCE_NAME_DIRECTIVES.filter((entry) =>
-        selectedSet.has(entry),
-    );
-    return [...ordered, ...unknown].join(" ");
-}
-
-/** Creates labels and validation for the parameter-alias dialog. */
-function createParameterAliasPresentationActions(
-    state: SourceManagerState,
-): DraftActions {
-    function canApply(): boolean {
-        return canApplyParameterAlias(state);
-    }
-    function getDialogError(): string {
-        return getParameterAliasDialogError(state);
-    }
-    function getDialogLabel(): string {
-        const row = getParameterAliasDialogRow(state);
-        return row == null
-            ? msg("draft.alias")
-            : getParameterAliasLabel(row.name);
-    }
-    function getOriginalValueLabel(): string {
-        const row = getParameterAliasDialogRow(state);
-        return msg("draft.originalValueLabel", {
-            parameter: row?.name || msg("draft.parameter"),
-        });
-    }
-    return {
-        canApplyParameterAlias: canApply,
-        getParameterAliasActionLabel,
-        getParameterAliasCaption,
-        getParameterAliasDialogError: getDialogError,
-        getParameterAliasDialogLabel: getDialogLabel,
-        getParameterAliasOriginalValueLabel: getOriginalValueLabel,
-        hasReferenceNameExclusion,
-    };
-}
-
-/** Creates opt-in actions for previously used creator aliases. */
-function createAliasSuggestionDraftActions(
-    state: SourceManagerState,
-): DraftActions {
-    function getAliasSuggestion(index: number): CreatorAliasSuggestion | null {
-        return findAvailableAliasSuggestion(state, index);
-    }
-    function useAliasSuggestion(index: number): void {
-        const draft = state.draft.value;
-        const row = draft?.rows[index];
-        const suggestion = getAliasSuggestion(index);
-        if (row != null && suggestion != null) {
-            clearDraftValidationSummary(state);
-            row.alias = suggestion.alias;
-        }
-    }
-    function dismissAliasSuggestion(index: number): void {
-        const draft = state.draft.value;
-        const row = draft?.rows[index];
-        const suggestion = getAliasSuggestion(index);
-        if (row == null || suggestion == null) {
-            return;
-        }
-        const dismissed = new Set(state.dismissedAliasSuggestions.value);
-        dismissed.add(buildAliasSuggestionKey(index, row, suggestion));
-        state.dismissedAliasSuggestions.value = dismissed;
-    }
-    return {
-        dismissAliasSuggestion,
-        getAliasSuggestion,
-        useAliasSuggestion,
-    };
-}
-
-/** Gets the draft row targeted by the compact alias dialog. */
-function getParameterAliasDialogRow(
-    state: SourceManagerState,
-): SourceDraftRow | null {
-    const index = state.parameterAliasDialogRowIndex.value;
-    return index == null ? null : (state.draft.value?.rows[index] ?? null);
-}
-
-/** Gets the localized alias or source-key label for a parameter. */
-function getParameterAliasLabel(parameter: string): string {
-    return getDraftFieldLabelText("alias", parameter);
-}
-
-/** Gets an accessible action label for the parameter alias button. */
-function getParameterAliasActionLabel(row: SourceDraftRow): string {
-    const label = getParameterAliasLabel(row.name);
-    const directives = listSelectedReferenceNameDirectives(row.directive);
-    return directives.length === 0
-        ? msg("draft.editAliasLabel", { label })
-        : msg("draft.editAliasExcludedLabel", {
-              directives: directives.join(", "),
-              label,
-          });
-}
-
-/** Marks rows excluded from at least one reference-name component. */
-function hasReferenceNameExclusion(row: SourceDraftRow): boolean {
-    return listSelectedReferenceNameDirectives(row.directive).length > 0;
-}
-
-/** Describes the alias or source key beneath a value control. */
-function getParameterAliasCaption(parameter: string, alias: string): string {
-    return msg("draft.fieldContext", {
-        label: getParameterAliasLabel(parameter),
-        message: alias,
-    });
-}
-
-/** Gets the current alias-dialog validation error. */
-function getParameterAliasDialogError(state: SourceManagerState): string {
-    const row = getParameterAliasDialogRow(state);
-    if (
-        row == null ||
-        state.parameterAliasDialogValue.value.trim() === "" ||
-        state.parameterAliasDialogOriginalValue.value.trim() !== ""
-    ) {
-        return "";
-    }
-    return msg("draft.aliasNeedsValue", {
-        parameter: row.name || msg("draft.parameter"),
-    });
-}
-
-/** Whether the current alias-dialog value can be applied. */
-function canApplyParameterAlias(state: SourceManagerState): boolean {
-    return (
-        getParameterAliasDialogRow(state) != null &&
-        getParameterAliasDialogError(state) === ""
-    );
-}
-
-/** Gets the first prior alias that was not dismissed for this row. */
-function findAvailableAliasSuggestion(
-    state: SourceManagerState,
-    index: number,
-): CreatorAliasSuggestion | null {
-    const row = state.draft.value?.rows[index];
-    if (
-        row == null ||
-        state.editingSource.value != null ||
-        row.alias.trim() !== ""
-    ) {
-        return null;
-    }
-    const suggestions = findCreatorAliasSuggestions(
-        state.existingSources.value,
-        row,
-    );
-    return (
-        suggestions.find(function isNotDismissed(suggestion) {
-            const key = buildAliasSuggestionKey(index, row, suggestion);
-            return !state.dismissedAliasSuggestions.value.has(key);
-        }) ?? null
-    );
-}
-
-/** Builds a draft-local key for one dismissible alias suggestion. */
-function buildAliasSuggestionKey(
-    index: number,
-    row: SourceDraftRow,
-    suggestion: CreatorAliasSuggestion,
-): string {
-    return [index, row.name, row.value, suggestion.alias].join("\u0000");
-}
-
 /** Applies a selected citation type without discarding entered rows. */
 function updateDraftTemplate(
     state: SourceManagerState,
@@ -3186,16 +2125,16 @@ function updateDraftTemplate(
 
 /** Validates user-added names and aliases. */
 function validateDraft(draft: SourceDraft): void {
-    const populated = draft.rows.some((row) => row.value.trim() !== "");
-    if (!populated) {
+    const empty = draft.rows.every((row) => row.value.trim() === "");
+    if (empty) {
         throw new Error(msg("draft.emptyCitation"));
     }
     for (const row of draft.rows) {
-        const hasContent = row.value.trim() !== "" || row.alias.trim() !== "";
+        const hasContent = hasDraftRowUserContent(row);
         if (row.name.trim() === "" && hasContent) {
             throw new Error(msg("draft.missingParameterName"));
         }
-        if (row.alias.trim() !== "" && row.value.trim() === "") {
+        if (hasDraftAliasWithoutValue(row)) {
             throw new Error(
                 msg("draft.aliasNeedsValue", {
                     parameter: row.name,
@@ -3203,6 +2142,16 @@ function validateDraft(draft: SourceDraft): void {
             );
         }
     }
+}
+
+/** Checks whether an entered row has a visible value or alias. */
+function hasDraftRowUserContent(row: SourceDraftRow): boolean {
+    return row.value.trim() !== "" || row.alias.trim() !== "";
+}
+
+/** Checks whether a row has an alias that cannot annotate a value. */
+function hasDraftAliasWithoutValue(row: SourceDraftRow): boolean {
+    return row.alias.trim() !== "" && row.value.trim() === "";
 }
 
 /** Creates URL, manual-source, and existing-source tab actions. */
@@ -3400,7 +2349,7 @@ async function resolveSourceInput(
         state.warning.value = msg("lookup.ambiguousSource");
         return;
     }
-    await loadNewSourceDraft(parsed, state);
+    await loadNewSourceDraft(context, parsed);
 }
 
 /** Chooses an unambiguous reusable match for immediate insertion. */
@@ -3439,11 +2388,6 @@ function openExistingSource(
     scheduleVisibleTextAreaAutosize();
 }
 
-function clearCheckedCs1Errors(state: SourceManagerState): void {
-    state.checkedCs1CellErrors.value = new Map();
-    state.checkedCs1Source.value = "";
-}
-
 /** Gets one existing source by its stable list identifier. */
 function findExistingSourceById(
     state: SourceManagerState,
@@ -3458,13 +2402,14 @@ function findExistingSourceById(
 
 /** Fetches Citoid and archive data for a new source. */
 async function loadNewSourceDraft(
+    context: SourceManagerActionContext,
     parsed: ParsedSourceInput,
-    state: SourceManagerState,
 ): Promise<void> {
+    const { state } = context;
     state.loading.value = true;
     const archiveSeed = createArchiveSeed(parsed);
     try {
-        const metadata = await resolveSourceMetadata(
+        const metadata = await context.resolveSourceMetadata(
             parsed.search,
             archiveSeed,
         );
@@ -3479,78 +2424,13 @@ async function loadNewSourceDraft(
         openDraft(state, draft, warnings.length > 0);
     } catch (error) {
         const draft = createLookupFallbackDraft(parsed);
-        setDraftValue(draft, "archive-url", parsed.archiveUrl);
-        setDraftValue(draft, "archive-date", parsed.archiveDate);
-        state.warning.value = formatMetadataFailure(error);
+        setSourceDraftValue(draft, "archive-url", parsed.archiveUrl);
+        setSourceDraftValue(draft, "archive-date", parsed.archiveDate);
+        state.warning.value = formatMetadataFailure(error, formatError);
         openDraft(state, draft, true);
     } finally {
         state.loading.value = false;
     }
-}
-
-/** Creates an archive seed only when the entered source is archived. */
-function createArchiveSeed(parsed: ParsedSourceInput) {
-    return parsed.archiveUrl === ""
-        ? null
-        : {
-              archiveDate: parsed.archiveDate,
-              archiveUrl: parsed.archiveUrl,
-          };
-}
-
-/** Formats the fallback warning after metadata resolution fails. */
-function formatMetadataFailure(error: unknown): string {
-    return [
-        msg("lookup.metadataUnavailable", { error: formatError(error) }),
-        msg("lookup.manualFallback"),
-    ].join(" ");
-}
-
-/** Builds an editable fallback after an unexpected lookup failure. */
-function createLookupFallbackDraft(parsed: ParsedSourceInput): SourceDraft {
-    if (parsed.originalUrl !== "") {
-        return parseSourceDraft(`{{Cite web | url = ${parsed.originalUrl}}}`);
-    }
-    return createManualSourceDraft("cite web");
-}
-
-/** Applies resolved URL and archive values to editable rows. */
-function applyResolvedMetadata(
-    draft: SourceDraft,
-    metadata: Awaited<ReturnType<typeof resolveSourceMetadata>>,
-    liveOriginal: boolean,
-): void {
-    if (metadata.originalUrl !== "") {
-        setDraftValue(draft, "url", metadata.originalUrl);
-    }
-    setDraftValue(draft, "archive-url", metadata.archiveUrl);
-    setDraftValue(draft, "archive-date", metadata.archiveDate);
-    if (metadata.archiveUrl !== "" && liveOriginal) {
-        setDraftValue(draft, "url-status", "live");
-    }
-}
-
-/** Builds non-blocking service warnings for an editable draft. */
-function buildMetadataWarnings(metadata: {
-    archiveError: string;
-    metadataError: string;
-}): string[] {
-    const warnings: string[] = [];
-    if (metadata.metadataError !== "") {
-        warnings.push(
-            msg("lookup.metadataUnavailable", {
-                error: metadata.metadataError,
-            }),
-        );
-    }
-    if (metadata.archiveError !== "") {
-        warnings.push(
-            msg("lookup.archiveUnavailable", {
-                error: metadata.archiveError,
-            }),
-        );
-    }
-    return warnings;
 }
 
 /** Opens a source draft without replacing the source-list view. */
@@ -3646,16 +2526,6 @@ function finishSourceManager(context: SourceManagerActionContext): void {
     queueMicrotask(function focusEditor(): void {
         context.editor.focus();
     });
-}
-
-/** Assigns a draft parameter while retaining the seeded row. */
-function setDraftValue(draft: SourceDraft, name: string, value: string): void {
-    const row = draft.rows.find((candidate) => candidate.name === name);
-    if (row != null) {
-        row.value = value;
-        return;
-    }
-    draft.rows.push({ alias: "", directive: "", main: false, name, value });
 }
 
 /** Creates a user-addable empty parameter row. */

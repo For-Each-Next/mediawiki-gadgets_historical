@@ -5,8 +5,8 @@ import {
     createFieldTemplate,
     createMessageTemplate,
     toVueString,
-} from "#me/ui/template.ts";
-import { msg } from "#me/i18n/index.ts";
+} from "#gadget/ui/template.ts";
+import { msg } from "#gadget/i18n/index.ts";
 
 /**
  * Creates the editable generated wikitext preview dialog.
@@ -282,7 +282,7 @@ function createSourcePreviewLayout(options: any): any {
  * @returns Source textarea node.
  */
 function createSourceTextArea(options: any): any {
-    const attributes = {
+    const attributes: Record<string, any> = {
         class: "vg-stub-creator-preview-text",
         ref: options.ref,
         "v-model": options.text,

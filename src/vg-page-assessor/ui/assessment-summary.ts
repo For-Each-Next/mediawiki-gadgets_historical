@@ -1,0 +1,126 @@
+/**
+ * Builds human-readable edit summaries for assessment selections.
+ */
+
+import projectConfig from "#gadget/config/project-config.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import type {
+    Assessment,
+    AssessmentMaintenance,
+    SelectionMap,
+} from "#gadget/domain/types.ts";
+
+interface LabelledSelection {
+    readonly id: string;
+    readonly label: string;
+}
+
+const SUMMARY_LINK = ":m:User:For Each ... Next/global.js/vg page assessor.js";
+const SUMMARY_TEXT = "🍄";
+const SUMMARY_SOURCE_LINK = `[[${SUMMARY_LINK}|${SUMMARY_TEXT}]]`;
+
+export const MAINTENANCE_ITEMS = [
+    { id: "reassess", label: msg("maintenance.reassess") },
+    { id: "needsInfobox", label: msg("maintenance.needsInfobox") },
+    { id: "cover", label: msg("maintenance.needsImage") },
+    { id: "screenshot", label: msg("maintenance.needsScreenshot") },
+] as const;
+
+/**
+ * Builds the default edit summary for the selected assessment.
+ */
+export function buildEditSummary(assessment: Assessment): string {
+    const banners = [
+        buildVideoGamesSummary(assessment),
+        ...getSelectedLabels(
+            projectConfig.otherProjects,
+            assessment.otherProjects,
+        ),
+    ];
+    const className = `${assessment.className || "Unassessed"}-Class`;
+    let summary;
+
+    if (banners.length === 0) {
+        summary = msg("summary.tagProjects");
+    } else {
+        summary = msg("summary.tagProjectsWithClass", {
+            className,
+            projects: banners.join(", "),
+        });
+    }
+
+    return appendSummarySourceLink(summary);
+}
+
+/**
+ * Builds the Video games summary fragment.
+ */
+function buildVideoGamesSummary(assessment: Assessment): string {
+    const details = buildVideoGamesSummaryDetails(assessment);
+
+    if (details.length === 0) {
+        return msg("summary.videoGames");
+    }
+
+    return msg("summary.videoGamesWithDetails", {
+        details: details.join("; "),
+    });
+}
+
+/**
+ * Builds the selected Video games summary details.
+ */
+function buildVideoGamesSummaryDetails(assessment: Assessment): Array<string> {
+    const details: Array<string> = [];
+    const taskForces = getSelectedLabels(
+        projectConfig.videoGames.taskForces,
+        assessment.taskForces,
+    );
+    const maintenance = getSelectedLabels(
+        MAINTENANCE_ITEMS,
+        assessment.maintenance,
+    );
+
+    if (assessment.importance) {
+        details.push(
+            msg("summary.importance", {
+                importance: assessment.importance,
+            }),
+        );
+    }
+
+    if (taskForces.length > 0) {
+        details.push(taskForces.join(", "));
+    }
+
+    if (maintenance.length > 0) {
+        details.push(maintenance.join(", "));
+    }
+
+    return details;
+}
+
+/**
+ * Gets selected item labels.
+ */
+function getSelectedLabels(
+    items: ReadonlyArray<LabelledSelection>,
+    selectedMap: SelectionMap | AssessmentMaintenance,
+): Array<string> {
+    return items
+        .filter((item) => Reflect.get(selectedMap, item.id) === true)
+        .map((item) => item.label);
+}
+
+/**
+ * Appends the source-code marker to an edit summary.
+ */
+function appendSummarySourceLink(summary: string): string {
+    const value = summary.trim();
+
+    if (value.includes(SUMMARY_SOURCE_LINK)) {
+        return value;
+    }
+
+    return `${value} ${SUMMARY_SOURCE_LINK}`.trim();
+}

@@ -1,7 +1,8 @@
 /** Resolves citation metadata and existing Wayback snapshots. */
 
-import { cite } from "#shared";
-import { sanitizeSourceUrl } from "#me/domain/source-manager.ts";
+import * as cite from "#shared/cite";
+import { isGregorianCalendarDate } from "#gadget/domain/calendar-date.ts";
+import { sanitizeSourceUrl } from "#gadget/domain/source-url.ts";
 
 const WAYBACK_AVAILABILITY_ENDPOINT = "https://archive.org/wayback/available";
 const ARCHIVE_DATE_LENGTH = 8;
@@ -76,12 +77,11 @@ export async function resolveSourceMetadata(
         bibliographic: originalUrl === "",
         sourceUrl: originalUrl || null,
     });
-    const archivePromise =
-        originalUrl === ""
-            ? Promise.resolve(null)
-            : archiveSeed
-              ? Promise.resolve(archiveSeed)
-              : requestAvailableArchive(originalUrl, options);
+    const archivePromise = resolveSourceArchive(
+        originalUrl,
+        archiveSeed,
+        options,
+    );
     const [citationResult, archiveResult] = await Promise.allSettled([
         citeTemplatePromise,
         archivePromise,
@@ -103,6 +103,20 @@ export async function resolveSourceMetadata(
         originalUrl,
         ...archive,
     };
+}
+
+/** Chooses a seeded, remote, or empty archive result. */
+function resolveSourceArchive(
+    originalUrl: string,
+    archiveSeed: SourceArchiveMetadata | null,
+    options: SourceMetadataOptions,
+): Promise<SourceArchiveMetadata | null> {
+    if (originalUrl === "") {
+        return Promise.resolve(null);
+    }
+    return archiveSeed == null
+        ? requestAvailableArchive(originalUrl, options)
+        : Promise.resolve(archiveSeed);
 }
 
 /** Requests Wayback Availability data, rejecting on failure. */
@@ -213,20 +227,11 @@ function parseAvailableArchive(
 function formatArchiveDate(timestamp: string | undefined): string {
     const date = timestamp?.slice(0, ARCHIVE_DATE_LENGTH) ?? "";
     const match = date.match(/^(\d{4})(\d{2})(\d{2})$/u);
-    if (match == null || !isCalendarDate(match[1], match[2], match[3])) {
+    if (
+        match == null ||
+        !isGregorianCalendarDate(match[1], match[2], match[3])
+    ) {
         return "";
     }
     return `${match[1]}-${match[2]}-${match[3]}`;
-}
-
-/** Checks whether three numeric components form a calendar date. */
-function isCalendarDate(year: string, month: string, day: string): boolean {
-    const date = new Date(
-        Date.UTC(Number(year), Number(month) - 1, Number(day)),
-    );
-    return (
-        date.getUTCFullYear() === Number(year) &&
-        date.getUTCMonth() === Number(month) - 1 &&
-        date.getUTCDate() === Number(day)
-    );
 }

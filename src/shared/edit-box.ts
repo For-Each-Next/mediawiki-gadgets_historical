@@ -439,5 +439,3 @@ function dispatchValueEvents(element: HTMLTextAreaElement): void {
     const changeEvent = new Event("change", { bubbles: true });
     element.dispatchEvent(changeEvent);
 }
-
-registerEditBoxHooks();

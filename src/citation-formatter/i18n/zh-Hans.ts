@@ -2,8 +2,8 @@
  * Simplified Chinese catalog for Citation Formatter.
  */
 
-import { i18n } from "#shared";
-import type english from "#me/i18n/en.ts";
+import * as i18n from "#shared/i18n";
+import type english from "#gadget/i18n/en.ts";
 
 export default i18n.defineMessages({
     "tool": {

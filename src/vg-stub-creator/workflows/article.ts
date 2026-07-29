@@ -1,17 +1,17 @@
 /**
- * Coordinates form data, review handlers, and final wikitext.
+ * Coordinates article form data, review handlers, and final wikitext.
  */
 
-import * as processor from "#me/domain/processor.ts";
+import * as processor from "#gadget/domain/processor.ts";
 import {
     buildCategoryRows,
     buildFallbackCategoryRows,
-} from "#me/infra/handlers/categories.ts";
+} from "#gadget/infra/handlers/categories.ts";
 import {
     resolveNavboxTitles,
     resolveReviewedNavboxRows,
-} from "#me/infra/handlers/navboxes.ts";
-import { fetchSourceReferences } from "#me/infra/sources/index.ts";
+} from "#gadget/infra/handlers/navboxes.ts";
+import { fetchSourceReferences } from "#gadget/infra/sources/index.ts";
 import {
     buildArticleWikitext,
     buildDefaultSortKey,
@@ -21,9 +21,9 @@ import {
     countGeneratedProseSinographs,
     formatText,
     sortCategoryRowsByProse,
-} from "#me/domain/wiki.ts";
-import { msg } from "#me/i18n/index.ts";
-import { wikitext } from "#shared";
+} from "#gadget/domain/wiki.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import * as wikitext from "#shared/wikitext";
 const { trimValue } = wikitext;
 
 /**
@@ -67,13 +67,10 @@ export async function buildStubFromForm(
     citationStore: any,
     options: any = {},
 ): Promise<any> {
-    const fetchSourceReferencesResult = [
+    const [sourceReferences, navboxText] = await Promise.all([
         fetchSourceReferences(form, citationStore),
         getFormNavboxText(form),
-    ];
-    const [sourceReferences, navboxText] = await Promise.all(
-        fetchSourceReferencesResult,
-    );
+    ]);
     const articleData = flushArticleData(
         {
             ...form,
@@ -130,30 +127,12 @@ export async function prepareNavboxRows(
             shouldGenerate = hasSeries || configuredTitles.length > 0;
         }
     }
-    const selectValueCallbackD = async function trueBranch() {
-        const result = await resolveGeneratedNavboxTitles(
-            form.series,
-            configuredTitles,
-        );
-        return result;
-    };
-    const titles = await selectValue(
-        shouldGenerate,
-        selectValueCallbackD,
-        async function falseBranch() {
-            return [];
-        },
-    );
-    const selectValueCallbackC = function trueBranch() {
-        return buildNavboxText(titles).split("\n").filter(Boolean);
-    };
-    const values = selectValue(
-        shouldGenerate,
-        selectValueCallbackC,
-        function falseBranch() {
-            return form.navboxRows;
-        },
-    );
+    const titles = shouldGenerate
+        ? await resolveGeneratedNavboxTitles(form.series, configuredTitles)
+        : [];
+    const values = shouldGenerate
+        ? buildNavboxText(titles).split("\n").filter(Boolean)
+        : form.navboxRows;
 
     return resolveReviewedNavboxRows(values);
 }
@@ -245,19 +224,9 @@ export function getArticleFieldPlaceholder(
     }
 
     if (field.key === "wikidataId") {
-        const trimmedValue = trimValue(form.enwikiTitle) === "";
-        const selectValueCallbackA = function trueBranch() {
-            return msg("metadata.enterEnwikiTitle");
-        };
-        const selectValueCallbackB = function falseBranch() {
-            return msg("metadata.noWikidataItem");
-        };
-        const result = selectValue(
-            trimmedValue,
-            selectValueCallbackA,
-            selectValueCallbackB,
-        );
-        return result;
+        return trimValue(form.enwikiTitle) === ""
+            ? msg("metadata.enterEnwikiTitle")
+            : msg("metadata.noWikidataItem");
     }
 
     if (field.key !== "sortKey") {
@@ -366,16 +335,10 @@ async function resolveGeneratedNavboxTitles(
  * @returns Wikitext-ready article data.
  */
 function prepareWikitextData(articleData: any): any {
-    const selectValueCallback = function falseBranch() {
-        return buildFallbackCategoryRows(articleData);
-    };
-    const categoryRows = selectValue(
-        articleData.categoryRows.length > 0,
-        function trueBranch() {
-            return articleData.categoryRows;
-        },
-        selectValueCallback,
-    );
+    const categoryRows =
+        articleData.categoryRows.length > 0
+            ? articleData.categoryRows
+            : buildFallbackCategoryRows(articleData);
     const result = {
         ...articleData,
         categoryRows,
@@ -406,26 +369,4 @@ function buildAttributionPreviewText(articleData: any): string {
     const preview = `${previewSentence1}${fragments.sentence2}`;
 
     return preview;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

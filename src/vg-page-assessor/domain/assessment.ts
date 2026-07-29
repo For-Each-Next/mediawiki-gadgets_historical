@@ -2,18 +2,16 @@
  * Builds and updates talk-page assessment banner wikitext.
  */
 
-export const CLASS_VALUES = [
-    "Unassessed",
-    "Stub",
-    "Start",
-    "C",
-    "B",
-    "SL",
-    "List",
-    "CL",
-    "BL",
-];
-export const IMPORTANCE_VALUES = ["", "Low", "Mid", "High", "Top"];
+import {
+    CLASS_VALUES,
+    IMPORTANCE_VALUES,
+    type Assessment,
+    type ProjectBannerConfig,
+    type ProjectConfig,
+    type VideoGamesProjectConfig,
+} from "#gadget/domain/types.ts";
+
+export { CLASS_VALUES, IMPORTANCE_VALUES };
 const BANNER_SHELL_TEMPLATE = "WikiProject banner shell";
 const BANNER_SHELL_ALIASES = [
     "WikiProject banner shell",
@@ -40,18 +38,20 @@ const BANNER_SHELL_ALIASES = [
  * @param projectConfig - Assessment project configuration.
  * @returns Default assessment values.
  */
-export function createDefaultAssessment(projectConfig: any): any {
+export function createDefaultAssessment(
+    projectConfig: ProjectConfig,
+): Assessment {
     const otherProjectEntries = projectConfig.otherProjects.map(
-        function callback(project: { id: string }) {
+        function callback(project: { id: string }): [string, false] {
             return [project.id, false];
         },
     );
     const taskForceEntries = projectConfig.videoGames.taskForces.map(
-        function callback(taskForce: { id: unknown }) {
+        function callback(taskForce: { id: string }): [string, false] {
             return [taskForce.id, false];
         },
     );
-    const result = {
+    const result: Assessment = {
         className: "Unassessed",
         importance: "",
         maintenance: {
@@ -76,8 +76,8 @@ export function createDefaultAssessment(projectConfig: any): any {
  */
 export function updateTalkPageAssessment(
     text: string,
-    assessment: any,
-    projectConfig: any,
+    assessment: Assessment,
+    projectConfig: ProjectConfig,
 ): string {
     const banners = buildAssessmentBanners(assessment, projectConfig, text);
     const result = replaceManagedTopTemplates(text, banners, projectConfig);
@@ -96,15 +96,24 @@ export function updateTalkPageTopSection(
     topSection: string,
 ): string {
     const source = String(text || "");
-    const replacement = String(topSection || "").trim();
+    const replacement = String(topSection || "");
     const heading = /^=+/mu.exec(source);
     const remainder = heading == null ? "" : source.slice(heading.index);
 
     if (remainder === "") {
-        return replacement === "" ? "" : `${replacement}\n`;
+        return replacement;
     }
 
-    return replacement === "" ? remainder : `${replacement}\n\n${remainder}`;
+    if (replacement === "") {
+        return remainder;
+    }
+
+    if (replacement.endsWith("\n\n")) {
+        return `${replacement}${remainder}`;
+    }
+
+    const separator = replacement.endsWith("\n") ? "\n" : "\n\n";
+    return `${replacement}${separator}${remainder}`;
 }
 
 /**
@@ -121,7 +130,7 @@ export function updateTalkPageTopSection(
 function replaceManagedTopTemplates(
     text: string,
     banners: string,
-    projectConfig: any,
+    projectConfig: ProjectConfig,
 ): string {
     const source = String(text || "");
     const replacement = String(banners || "").trim();
@@ -146,8 +155,8 @@ function replaceManagedTopTemplates(
  * @returns Assessment banner wikitext.
  */
 export function buildAssessmentBanners(
-    assessment: any,
-    projectConfig: any,
+    assessment: Assessment,
+    projectConfig: ProjectConfig,
     text = "",
 ): string {
     const existingBanners = extractExistingShellBanners(text);
@@ -203,8 +212,8 @@ export function buildAssessmentBanners(
  */
 export function previewTalkPageTopSection(
     text: string,
-    assessment: any,
-    projectConfig: any,
+    assessment: Assessment,
+    projectConfig: ProjectConfig,
 ): string {
     const updatedText = updateTalkPageAssessment(
         text,
@@ -264,49 +273,16 @@ export function shouldRegisterByDefault(
 }
 
 /**
- * Builds the associated talk-page title for any subject page.
- *
- * @param title - Current MediaWiki title object.
- * @returns Talk-page prefixed title.
- */
-export function getTalkPageTitle(title: mw.Title): string {
-    if (title.getNamespaceId() % 2 === 1) {
-        return title.getPrefixedText();
-    }
-
-    const mainText = title.getMainText();
-    const namespaceId = title.getNamespaceId() + 1;
-    const talkTitle = new mw.Title(mainText, namespaceId);
-    const result = talkTitle.getPrefixedText();
-    return result;
-}
-
-/**
- * Builds the subject-page title for registration.
- *
- * @param title - Current MediaWiki title object.
- * @returns Subject page title.
- */
-export function getSubjectPageTitle(title: mw.Title): string {
-    if (title.getNamespaceId() % 2 === 0) {
-        return title.getPrefixedText();
-    }
-
-    const mainText = title.getMainText();
-    const namespaceId = title.getNamespaceId() - 1;
-    const subjectTitle = new mw.Title(mainText, namespaceId);
-    const result = subjectTitle.getPrefixedText();
-    return result;
-}
-
-/**
  * Removes the configured managed project banners from the page top.
  *
  * @param text - Existing page text.
  * @param projectConfig - Assessment project configuration.
  * @returns Text without managed top banners.
  */
-function removeManagedTopTemplates(text: string, projectConfig: any): string {
+function removeManagedTopTemplates(
+    text: string,
+    projectConfig: ProjectConfig,
+): string {
     const patterns = buildManagedTemplatePatterns(projectConfig);
     let offset = 0;
     let next = readLeadingTemplate(text, offset);
@@ -337,7 +313,9 @@ function isManagedTemplate(name: string, patterns: Array<RegExp>): boolean {
  * @param projectConfig - Assessment project configuration.
  * @returns Normalized template name patterns.
  */
-function buildManagedTemplatePatterns(projectConfig: any): Array<RegExp> {
+function buildManagedTemplatePatterns(
+    projectConfig: ProjectConfig,
+): Array<RegExp> {
     const result = [
         ...BANNER_SHELL_ALIASES,
         ...[projectConfig.videoGames, ...projectConfig.otherProjects].flatMap(
@@ -409,7 +387,17 @@ function escapeRegExp(value: string): string {
  * @param start - Starting offset.
  * @returns Template token details.
  */
-function readLeadingTemplate(text: string, start: number): any | null {
+interface TemplateToken {
+    end: number;
+    name: string;
+    source: string;
+    start: number;
+}
+
+function readLeadingTemplate(
+    text: string,
+    start: number,
+): TemplateToken | null {
     const index = skipWhitespace(text, start);
 
     if (!text.startsWith("{{", index)) {
@@ -606,8 +594,8 @@ function findTopLevelEquals(parameter: string): number {
  */
 function isSelectedProjectBanner(
     banner: string,
-    assessment: any,
-    projectConfig: any,
+    assessment: Assessment,
+    projectConfig: ProjectConfig,
 ): boolean {
     const name = readLeadingTemplate(banner, 0)?.name;
 
@@ -643,7 +631,10 @@ function isSelectedProjectBanner(
  * @param project - Project config.
  * @returns Whether it matches.
  */
-function matchesProject(name: string, project: any): boolean {
+function matchesProject(
+    name: string,
+    project: ProjectBannerConfig | VideoGamesProjectConfig,
+): boolean {
     const normalizedName = normalizeTemplateName(name);
     const patterns = [project.template, ...(project.aliases || [])].map(
         buildTemplatePattern,
@@ -747,7 +738,10 @@ function skipWhitespace(text: string, start: number): number {
  * @param config - Video games project configuration.
  * @returns Video games banner call.
  */
-function buildVideoGamesBanner(assessment: any, config: any): string {
+function buildVideoGamesBanner(
+    assessment: Assessment,
+    config: VideoGamesProjectConfig,
+): string {
     const params = [
         [
             "|",
@@ -785,15 +779,16 @@ function buildVideoGamesBanner(assessment: any, config: any): string {
  * @param assessment - Selected assessment values.
  * @returns Maintenance parameter names.
  */
-function getSelectedMaintenanceParams(assessment: any): Array<string> {
-    const result = [
+function getSelectedMaintenanceParams(assessment: Assessment): Array<string> {
+    const entries: Array<[string, boolean]> = [
         ["reassess", assessment.maintenance?.reassess],
         ["needs-infobox", assessment.maintenance?.needsInfobox],
         ["cover", assessment.maintenance?.cover],
         ["screenshot", assessment.maintenance?.screenshot],
-    ]
-        .filter(([, selected]) => selected)
-        .map(([param]) => param);
+    ];
+    const result = entries
+        .filter((entry) => entry[1])
+        .map((entry) => entry[0]);
     return result;
 }
 
@@ -803,7 +798,7 @@ function getSelectedMaintenanceParams(assessment: any): Array<string> {
  * @param project - WikiProject configuration.
  * @returns Template call.
  */
-function buildSimpleProjectBanner(project: any): string {
+function buildSimpleProjectBanner(project: ProjectBannerConfig): string {
     return `{{${project.template}}}`;
 }
 

@@ -2,6 +2,7 @@
  * Canonicalizes and orders citation data and derives ref names.
  */
 
+import { isGregorianCalendarDate } from "./calendar-date.ts";
 import type {
     CitationLayout,
     CitationParam,
@@ -412,9 +413,7 @@ export function normalizeEnglishDate(value: string): string {
         return month == null ? trimmed : `${monthYear[2]}-${month}${suffix}`;
     }
 
-    const monthFirst = date.match(
-        /^([A-Za-z]+)\s+(\d{1,2})(?:,)?\s+(\d{4})$/u,
-    );
+    const monthFirst = date.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/u);
     if (monthFirst != null) {
         const result = buildIsoDate(
             monthFirst[3],
@@ -424,7 +423,7 @@ export function normalizeEnglishDate(value: string): string {
         );
         return result;
     }
-    const dayFirst = date.match(/^(\d{1,2})\s+([A-Za-z]+)(?:,)?\s+(\d{4})$/u);
+    const dayFirst = date.match(/^(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})$/u);
     if (dayFirst != null) {
         return buildIsoDate(dayFirst[3], dayFirst[2], dayFirst[1], suffix);
     }
@@ -448,7 +447,7 @@ function buildIsoDate(
 ): string {
     const month = ENGLISH_MONTHS[enteredMonth.toLocaleLowerCase("en-US")];
     const day = Number(enteredDay);
-    if (month == null || !isValidCalendarDay(year, month, day)) {
+    if (month == null || !isGregorianCalendarDate(year, month, day)) {
         return `${enteredMonth} ${enteredDay}, ${year}${suffix}`;
     }
     return `${year}-${month}-${String(day).padStart(2, "0")}${suffix}`;
@@ -462,22 +461,6 @@ function buildIsoDate(
  * @param day - Day of month.
  * @returns Whether the day exists.
  */
-function isValidCalendarDay(
-    year: string,
-    month: string,
-    day: number,
-): boolean {
-    const numericYear = Number(year);
-    const numericMonth = Number(month);
-    const timestamp = Date.UTC(numericYear, numericMonth - 1, day);
-    const date = new Date(timestamp);
-    const validDay = day >= 1;
-    const matchingYear = validDay && date.getUTCFullYear() === numericYear;
-    const matchingMonth =
-        matchingYear && date.getUTCMonth() === numericMonth - 1;
-    return matchingMonth && date.getUTCDate() === day;
-}
-
 /**
  * Derives the APA-style author/date identity and source locator.
  *

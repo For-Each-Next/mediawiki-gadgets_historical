@@ -9,9 +9,9 @@ import {
     createMessageTemplate,
     createText,
     toVueString,
-} from "#me/ui/template.ts";
-import { msg } from "#me/i18n/index.ts";
-import { wikitext } from "#shared";
+} from "#gadget/ui/template.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import * as wikitext from "#shared/wikitext";
 const { trimValue } = wikitext;
 
 interface PreSaveAction {
@@ -52,8 +52,8 @@ export function createPreSaveGroups(
     actions: Array<any>,
     form: any,
 ): Array<any> {
-    const groups = [];
-    const byTitle = new Map();
+    const groups: PreSaveGroup[] = [];
+    const byTitle = new Map<string, PreSaveGroup>();
     const actionRows = Array.isArray(actions) ? actions : [];
 
     addPreSaveActionGroups(groups, byTitle, actionRows);

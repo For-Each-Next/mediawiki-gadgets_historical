@@ -1,4 +1,4 @@
-import { cite } from "#shared";
+import * as cite from "#shared/cite";
 const { fetchCiteTemplate } = cite;
 
 export interface CitationStore {

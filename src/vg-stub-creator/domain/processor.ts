@@ -2,295 +2,50 @@
  * Normalizes form data and flushes registered article modules.
  */
 
-import { buildArticleProse, buildArticleRenderers } from "#me/domain/wiki.ts";
-import { ARTICLE_MODULES } from "#me/domain/modules.ts";
-import { cite, wikitext } from "#shared";
+import {
+    buildArticleProse,
+    buildArticleRenderers,
+} from "#gadget/domain/wiki.ts";
+import { ARTICLE_MODULES } from "#gadget/domain/modules.ts";
+import {
+    createDataRecord,
+    createDataValue,
+    defineArticleModule,
+} from "#gadget/domain/article-module.ts";
+import type {
+    ArticleForm,
+    ArticleModuleContext,
+    ArticleProcessorOptions,
+    ProcessedArticleData,
+    SourceReference,
+    SourceTags,
+} from "#gadget/domain/models.ts";
+import * as cite from "#shared/cite";
+import * as wikitext from "#shared/wikitext";
 const { buildReferenceReuseTag, nameCitationReferences } = cite;
 const { trimValue } = wikitext;
 
 export {
     completeMetadataFieldValue,
     isCompletableMetadataField,
-} from "#me/domain/data.ts";
+} from "#gadget/domain/data.ts";
 export { ARTICLE_MODULES };
 export { buildArticleProse };
-
-/**
- * Aggregate review scores attached to an article record.
- */
-export interface AggregateScoreMetadata {
-    metacritic: {
-        platform: string;
-        score: string;
-    };
-    openCritic: {
-        recommend: string;
-    };
-}
-
-/**
- * Article record containing aggregate review scores.
- */
-export interface AggregateScoreRecord {
-    metadata: AggregateScoreMetadata;
-}
-
-export type SourceTags = Record<string, string | undefined>;
-
-const ARRAY_KEYS = [
-    "assumedCategories",
-    "assumedStubTags",
-    "categoryItems",
-    "categoryPlans",
-    "citations",
-    "issues",
-    "navboxes",
-    "sourceUrls",
-    "values",
-];
-
-/**
- * Creates the shared named record emitted by every article data module.
- *
- * @param key - Stable module key.
- * @param data - Module-specific record values.
- * @returns Uniform article data record.
- */
-export function createDataRecord(
-    key: string,
-    data: any = {},
-): ArticleDataRecord {
-    const record = createBlankDataRecord(key, data);
-
-    delete record.categories;
-    delete record.stubTags;
-    cloneRecordArrays(record);
-    record.values = record.values.map(createDataValue);
-
-    if (record.sourceUrls.length === 0) {
-        record.sourceUrls = record.citations
-            .map((citation) => citation.sourceUrl)
-            .filter(Boolean);
-    }
-
-    return record;
-}
-
-/**
- * Creates a data record with blank shared collections.
- *
- * @param key - Lookup key.
- * @param data - Input data.
- * @returns A data record with blank shared collections.
- */
-function createBlankDataRecord(key: string, data: any): ArticleDataRecord {
-    const result = {
-        assumedCategories: data.categories || [],
-        assumedStubTags: data.stubTags || [],
-        categoryItems: [],
-        categoryPlans: [],
-        citations: [],
-        inputText: {},
-        issues: [],
-        key,
-        metadata: {},
-        navboxes: [],
-        normalizedText: {},
-        sourceUrls: [],
-        values: [],
-        wikitext: {},
-        ...data,
-    };
-    return result;
-}
-
-/**
- * Clones mutable array values owned by a data record.
- *
- * @param record - Record value.
- */
-function cloneRecordArrays(record: ArticleDataRecord): void {
-    ARRAY_KEYS.forEach(function callback(arrayKey) {
-        record[arrayKey] = [...(record[arrayKey] || [])];
-    });
-}
-
-/**
- * Creates one normalized value carried by an article data record.
- *
- * Module-specific keys such as `key` and `role` are retained
- * alongside the universal text, link, and metadata fields.
- *
- * @param data - Module-specific value data.
- * @returns Uniform article data value.
- */
-export function createDataValue(data: any = {}): ArticleDataValue {
-    const normalizedText =
-        data.normalizedText == null ? "" : String(data.normalizedText);
-    const selectValueCallback = function falseBranch() {
-        return String(data.displayText);
-    };
-    const value: ArticleDataValue = {
-        ...data,
-        displayText: selectValue(
-            data.displayText == null,
-            function trueBranch() {
-                return normalizedText;
-            },
-            selectValueCallback,
-        ),
-        linkTarget: data.linkTarget == null ? "" : String(data.linkTarget),
-        metadata: data.metadata || {},
-        normalizedText,
-        wikitext:
-            data.wikitext == null ? normalizedText : String(data.wikitext),
-    };
-
-    return value;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is true.
- * @param falseBranch - Branch used when the condition is false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}
-
-/**
- * Defines one registered article data module.
- *
- * @param definition - Article module definition.
- * @returns Registered article module.
- */
-export function defineArticleModule(definition: any): any {
-    if (trimKey(definition.key) === "") {
-        throw new Error("Article modules require a key.");
-    }
-
-    const fields = Object.freeze([...(definition.fields || [])]);
-    const listFields = Object.freeze([...(definition.listFields || [])]);
-    const sourceFields = Object.freeze([...(definition.sourceFields || [])]);
-    const module = {
-        fields,
-        flush: flushModule.bind(null, definition, fields),
-        formatField: formatModuleField.bind(null, definition),
-        key: definition.key,
-        listFields,
-        normalize: normalizeModule.bind(null, definition),
-        sourceFields,
-    };
-
-    return Object.freeze(module);
-}
-
-/**
- * Builds one module data record.
- *
- * @param definition - Definition value.
- * @param fields - Fields value.
- * @param form - Form values.
- * @param context - Operation context.
- * @returns One module data record.
- */
-function flushModule(
-    definition: { flush: (arg0: unknown, arg1: unknown) => {}; key: string },
-    fields: readonly string[],
-    form: unknown,
-    context: { rawForm: unknown },
-): unknown {
-    let data = {};
-
-    if (definition.flush != null) {
-        data = definition.flush(form, context);
-    }
-    const normalizedText = pickFields(form, fields);
-    const inputText = pickFields(context.rawForm, fields);
-    const payloadData = { inputText, normalizedText, ...data };
-    return createDataRecord(definition.key, payloadData);
-}
-
-/**
- * Formats a live module field.
- *
- * @param definition - Definition value.
- * @param key - Lookup key.
- * @param value - Input value.
- * @param form - Form values.
- * @returns A live module field.
- */
-function formatModuleField(
-    definition: {
-        formatField: (arg0: unknown, arg1: unknown, arg2: unknown) => unknown;
-    },
-    key: unknown,
-    value: unknown,
-    form: unknown,
-): unknown {
-    if (definition.formatField == null) {
-        return value;
-    }
-
-    return definition.formatField(key, value, form);
-}
-
-/**
- * Normalizes one module's form values.
- *
- * @param definition - Definition value.
- * @param form - Form values.
- * @param context - Operation context.
- * @returns One module's form values.
- */
-function normalizeModule(
-    definition: { normalize?: (...args: unknown[]) => unknown },
-    form: unknown,
-    context: unknown,
-): unknown {
-    if (definition.normalize == null) {
-        return {};
-    }
-
-    return definition.normalize(form, context);
-}
-
-/**
- * Gets the owned form fields from one form object.
- *
- * @param form - Normalized form values.
- * @param fields - Owned form field keys.
- * @returns Owned normalized values.
- */
-function pickFields(form: any, fields: ReadonlyArray<string>): any {
-    const filterCallback = (field: string) => Object.hasOwn(form, field);
-    const mappedValuesA = fields
-        .filter(filterCallback)
-        .map((field) => [field, form[field]]);
-    const result = Object.fromEntries(mappedValuesA);
-    return result;
-}
-
-/**
- * Trims a module key for definition validation.
- *
- * @param key - Raw module key.
- * @returns Trimmed module key.
- */
-function trimKey(key: any): string {
-    return key == null ? "" : String(key).trim();
-}
+export { createDataRecord, createDataValue, defineArticleModule };
+export type {
+    ArticleDataRecord,
+    ArticleDataValue,
+    ArticleForm,
+    ArticleModule,
+    ArticleModuleContext,
+    ArticleModuleDefinition,
+    ArticleProcessorOptions,
+    AggregateScoreMetadata,
+    AggregateScoreRecord,
+    ProcessedArticleData,
+    SourceReference,
+    SourceTags,
+} from "#gadget/domain/models.ts";
 
 /**
  * Creates normalized article data and compatibility parameters.
@@ -300,7 +55,10 @@ function trimKey(key: any): string {
  * @param options.defaultName - Fallback article title.
  * @returns Normalized article data.
  */
-export function createArticleData(form: any, options: any = {}): any {
+export function createArticleData(
+    form: ArticleForm,
+    options: ArticleProcessorOptions = {},
+): ProcessedArticleData {
     const sourceReferences = nameCitationReferences(
         form.sourceReferences || [],
     );

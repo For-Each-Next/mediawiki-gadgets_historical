@@ -7,18 +7,18 @@ import {
     formatArticleFormField,
     isArticleListField,
     isCompletableMetadataField,
-} from "#me/domain/processor.ts";
+} from "#gadget/domain/processor.ts";
 import {
     createSaveProgress,
     getSaveProgressGroups,
     isSaveProgressComplete,
     updateSaveProgress,
-} from "#me/infra/save/progress.ts";
-import { sortNoteTaEntries } from "#me/domain/wiki.ts";
+} from "#gadget/support/save-progress.ts";
+import { sortNoteTaEntries } from "#gadget/domain/wiki.ts";
 import {
     createPreSaveGroups,
     serializePreSaveProgressGroups,
-} from "#me/ui/pre-save.ts";
+} from "#gadget/ui/pre-save.ts";
 import {
     ARTICLE_PARAMETER_GROUPS,
     CATEGORY_TABLE_COLUMNS,
@@ -37,9 +37,36 @@ import {
     STEAM_NAME_HELPER_ROW,
     STUB_TAG_TABLE_COLUMNS,
     TABLE_ACTION_ICONS,
-} from "#me/ui/form/constants.ts";
-import { createDialogTemplate } from "#me/ui/form/template.ts";
-import { msg } from "#me/i18n/index.ts";
+} from "#gadget/ui/form/constants.ts";
+import {
+    buildGoogleSiteSearchUrl,
+    buildMetacriticSearchUrl,
+    buildMetacriticUrl,
+    buildOpenCriticSearchUrl,
+    buildOpenCriticUrl,
+    buildSteamSearchUrl,
+    buildSteamUrl,
+    buildWikidataSearchUrl,
+    createBlankEnwikiMetadata,
+    createEnwikiTipPlaceholders,
+    extractEnwikiTitleFromUrl,
+    getBasePageTitle,
+    getWikidataLookupStatus,
+    normalizeEnwikiTitleValue,
+} from "#gadget/ui/form/external-links.ts";
+import { createDialogTemplate } from "#gadget/ui/form/template.ts";
+import {
+    createReviewLinkSession,
+    type ReviewLinkSession,
+} from "#gadget/ui/form/review-link-session.ts";
+import {
+    findTextareaElement,
+    getCodeMirrorLoader,
+    getCodeMirrorText,
+    setCodeMirrorText,
+} from "#gadget/ui/form/source-editor.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import { getErrorMessage } from "#gadget/support/errors.ts";
 
 /**
  * Creates the Vue component definition for the Codex dialog.
@@ -164,7 +191,7 @@ let tableActionTooltipRef: any;
 let open: any;
 let sourceEditors: Map<any, any>;
 let sourceEditorLoads: Set<any>;
-let reviewLinksOpened: boolean;
+let reviewLinkSession: ReviewLinkSession;
 let componentMounted: boolean;
 let navboxRowsPrepared: boolean;
 let queueCitationPrefetch: (...args: any[]) => any;
@@ -181,6 +208,20 @@ interface CodeMirrorEditor {
     destroy?: () => void;
     initialize?: () => void;
     toTextArea?: () => void;
+}
+
+type PreSaveStatus = keyof typeof PRE_SAVE_STATUS_ICONS;
+
+/**
+ * Normalizes persisted or adapter-provided progress status values.
+ *
+ * @param status - Raw progress status.
+ * @returns Known status key.
+ */
+function normalizePreSaveStatus(status: string): PreSaveStatus {
+    return Object.hasOwn(PRE_SAVE_STATUS_ICONS, status)
+        ? (status as PreSaveStatus)
+        : "pending";
 }
 
 /**
@@ -295,7 +336,7 @@ function initializeDialogState(): void {
     initializePreviewState();
     sourceEditors = new Map();
     sourceEditorLoads = new Set();
-    reviewLinksOpened = false;
+    reviewLinkSession = createReviewLinkSession();
     componentMounted = true;
     queueCitationPrefetch = createCitationPrefetchQueue(options);
 
@@ -324,7 +365,7 @@ function initializeDialogBehavior(): void {
     }
 
     if (shouldLoadInitialEnwikiMetadata()) {
-        refreshEnwikiMetadata();
+        void refreshEnwikiMetadata();
     }
 }
 
@@ -439,11 +480,11 @@ function watchFormChanges(): void {
 function watchActiveTab(): void {
     const watchCallbackB = function callback(tab: string) {
         if (tab === "review") {
-            refreshReview();
+            void refreshReview();
         }
 
         if (tab === "references") {
-            refreshCitationRows();
+            void refreshCitationRows();
         }
     };
     Vue.watch(activeTab, watchCallbackB);
@@ -564,7 +605,7 @@ async function openPreSave() {
         preSaveMoveTitle.value =
             trimValue(prepared.move?.to) || getCurrentTitle();
     } catch (error) {
-        sourceFetchState.error = error.message || String(error);
+        sourceFetchState.error = getErrorMessage(error);
     } finally {
         sourceFetchState.loading = false;
     }
@@ -962,7 +1003,7 @@ const methods = {
                 form,
             );
         } catch (error) {
-            sourceFetchState.error = error.message || String(error);
+            sourceFetchState.error = getErrorMessage(error);
         } finally {
             sourceFetchState.loading = false;
         }
@@ -1076,7 +1117,7 @@ const methods = {
      * @returns Codex icon definition.
      */
     getPreSaveStatusIcon(status: string): any {
-        return PRE_SAVE_STATUS_ICONS[status] || PRE_SAVE_STATUS_ICONS.pending;
+        return PRE_SAVE_STATUS_ICONS[normalizePreSaveStatus(status)];
     },
 
     /**
@@ -1086,15 +1127,7 @@ const methods = {
      * @returns CSS class list.
      */
     getPreSaveStatusIconClass(status: string): string {
-        const normalized = selectValue(
-            PRE_SAVE_STATUS_ICONS[status],
-            function trueBranch() {
-                return status;
-            },
-            function falseBranch() {
-                return "pending";
-            },
-        );
+        const normalized = normalizePreSaveStatus(status);
 
         const result = [
             "vg-stub-creator-pre-save-status-ic",
@@ -1356,7 +1389,8 @@ const methods = {
                 typeof importedForm !== "object" ||
                 Array.isArray(importedForm)
             ) {
-                throw new Error(HISTORY_EXPORT_ERROR);
+                historyJsonError.value = HISTORY_EXPORT_ERROR;
+                return;
             }
 
             historyLoading.value = true;
@@ -1366,7 +1400,7 @@ const methods = {
             historyJsonOpen.value = false;
             historyOpen.value = false;
         } catch (error) {
-            historyJsonError.value = error.message || String(error);
+            historyJsonError.value = getErrorMessage(error);
         } finally {
             historyLoading.value = false;
         }
@@ -1462,7 +1496,7 @@ const methods = {
         moveTarget.value = getCurrentTitle();
         movePreviewConfirmation.value = false;
         moveOpen.value = true;
-        this.checkMoveTarget();
+        void this.checkMoveTarget();
     },
 
     /**
@@ -1479,7 +1513,7 @@ const methods = {
         moveOpen.value = true;
 
         if (moveTargetState.checkedTitle !== moveTarget.value) {
-            this.checkMoveTarget();
+            void this.checkMoveTarget();
         }
     },
 
@@ -1538,7 +1572,7 @@ const methods = {
             moveTargetState.checkedTitle = title;
             moveTargetState.exists = result?.exists === true;
         } catch (error) {
-            sourceFetchState.error = error.message || String(error);
+            sourceFetchState.error = getErrorMessage(error);
         } finally {
             moveTargetState.loading = false;
         }
@@ -1640,16 +1674,10 @@ const methods = {
      * @returns Multiline article field values.
      */
     normalizeFieldValue(field: any): void {
-        const selectValueCallbackE = function trueBranch() {
-            return normalizeEnwikiTitleValue(form[field.key]);
-        };
-        const value = selectValue(
-            field.key === "enwikiTitle",
-            selectValueCallbackE,
-            function falseBranch() {
-                return form[field.key];
-            },
-        );
+        const value =
+            field.key === "enwikiTitle"
+                ? normalizeEnwikiTitleValue(form[field.key])
+                : form[field.key];
 
         const completed = completeMetadataFieldValue(field.key, value, true);
         let formatted = formatArticleFormField(form, field.key, completed);
@@ -1901,7 +1929,7 @@ const methods = {
                 syncActiveCitationTab();
             }
         } catch (error) {
-            citationState.error = error.message || String(error);
+            citationState.error = getErrorMessage(error);
         } finally {
             citationState.loading = false;
         }
@@ -1966,7 +1994,7 @@ const methods = {
 
             event.preventDefault();
             form[field.key] = formatArticleFormField(form, field.key, title);
-            refreshEnwikiMetadata();
+            void refreshEnwikiMetadata();
             markCategoryRowsUnfixed(form.categoryRows);
             return;
         }
@@ -2733,7 +2761,7 @@ const methods = {
             companyCategoryState.text =
                 await options.onPrepareCompanyCategory(row);
         } catch (error) {
-            companyCategoryState.error = error.message || String(error);
+            companyCategoryState.error = getErrorMessage(error);
         } finally {
             companyCategoryState.loading = false;
         }
@@ -2784,8 +2812,10 @@ const methods = {
             const row = findCompanyCategoryRow();
 
             if (row == null) {
-                const message = msg("errors.categoryRowUnavailable");
-                throw new Error(message);
+                companyCategoryState.error = msg(
+                    "errors.categoryRowUnavailable",
+                );
+                return;
             }
 
             row.pendingCreation = createPendingCompanyCategory(row);
@@ -2793,7 +2823,7 @@ const methods = {
             row.status = "Pending creation";
             companyCategoryOpen.value = false;
         } catch (error) {
-            companyCategoryState.error = error.message || String(error);
+            companyCategoryState.error = getErrorMessage(error);
         } finally {
             companyCategoryState.loading = false;
         }
@@ -2901,7 +2931,7 @@ const methods = {
                 pageEditState.title,
             );
         } catch (error) {
-            pageEditState.error = error.message || String(error);
+            pageEditState.error = getErrorMessage(error);
         } finally {
             pageEditState.loading = false;
         }
@@ -3020,19 +3050,9 @@ const methods = {
      * @returns Compact status label.
      */
     formatStubTagStatusLabel(row: any): string {
-        const isBlankStubTagRowResult = isBlankStubTagRow(row);
-        const selectValueCallbackC = function trueBranch() {
-            return msg("review.empty");
-        };
-        const selectValueCallbackD = function falseBranch() {
-            return formatReviewRowStatusLabel(row, isBlankStubTagRow);
-        };
-        const result = selectValue(
-            isBlankStubTagRowResult,
-            selectValueCallbackC,
-            selectValueCallbackD,
-        );
-        return result;
+        return isBlankStubTagRow(row)
+            ? msg("review.empty")
+            : formatReviewRowStatusLabel(row, isBlankStubTagRow);
     },
 
     /**
@@ -3054,17 +3074,9 @@ const methods = {
     getCategoryPageUrl(row: any): string {
         const category = trimValue(row?.category);
 
-        const selectValueCallbackB = function falseBranch() {
-            return options.getPageUrl(`Category:${category}`);
-        };
-        const result = selectValue(
-            category === "",
-            function trueBranch() {
-                return "";
-            },
-            selectValueCallbackB,
-        );
-        return result;
+        return category === ""
+            ? ""
+            : options.getPageUrl(`Category:${category}`);
     },
 
     /**
@@ -3100,17 +3112,7 @@ const methods = {
     getStubTagPageUrl(row: any): string {
         const stubTag = trimStubTagValue(row?.stubTag);
 
-        const selectValueCallbackA = function falseBranch() {
-            return options.getPageUrl(`Template:${stubTag}`);
-        };
-        const result = selectValue(
-            stubTag === "",
-            function trueBranch() {
-                return "";
-            },
-            selectValueCallbackA,
-        );
-        return result;
+        return stubTag === "" ? "" : options.getPageUrl(`Template:${stubTag}`);
     },
 
     /**
@@ -3196,11 +3198,11 @@ const methods = {
             return msg("review.unchecked");
         }
 
-        const result =
-            {
-                Exists: msg("review.overwrite"),
-                Missing: msg("review.ok"),
-            }[status] || msg("review.unchecked");
+        const labels: Record<string, string> = {
+            Exists: msg("review.overwrite"),
+            Missing: msg("review.ok"),
+        };
+        const result = labels[String(status)] || msg("review.unchecked");
         return result;
     },
 
@@ -3379,7 +3381,7 @@ function updateFieldDependencies(key: string): void {
     }
 
     if (key === "enwikiTitle") {
-        refreshEnwikiMetadata();
+        void refreshEnwikiMetadata();
     }
 
     if (WIKI_LINK_COMPLETION_FIELDS.has(key)) {
@@ -3588,17 +3590,10 @@ function positionTableActionTooltip(rect: DOMRect): void {
     const minLeft = margin + halfWidth;
     const maxLeft =
         viewportWidth > 0 ? viewportWidth - margin - halfWidth : centered;
-    const selectValueCallback = function trueBranch() {
-        const maximumValue = Math.max(centered, minLeft);
-        return Math.min(maximumValue, maxLeft);
-    };
-    const left = selectValue(
-        width > 0 && maxLeft >= minLeft,
-        selectValueCallback,
-        function falseBranch() {
-            return centered;
-        },
-    );
+    const left =
+        width > 0 && maxLeft >= minLeft
+            ? Math.min(Math.max(centered, minLeft), maxLeft)
+            : centered;
 
     tableActionTooltip.style = {
         left: `${left}px`,
@@ -3621,7 +3616,7 @@ function queueSourceEditor(key: string, textareaRef: any, textRef: any): void {
     if (typeof Vue.nextTick === "function") {
         const nextTickCallback = function callback() {
             if (isSourceEditorOpen(key)) {
-                initializeSourceEditor(key, textareaRef, textRef);
+                void initializeSourceEditor(key, textareaRef, textRef);
             }
         };
         Vue.nextTick(nextTickCallback);
@@ -3629,7 +3624,7 @@ function queueSourceEditor(key: string, textareaRef: any, textRef: any): void {
     }
 
     if (isSourceEditorOpen(key)) {
-        initializeSourceEditor(key, textareaRef, textRef);
+        void initializeSourceEditor(key, textareaRef, textRef);
     }
 }
 
@@ -3681,7 +3676,10 @@ async function initializeSourceEditor(
  * @param textarea - Textarea value.
  * @returns Whether a source editor can start loading.
  */
-function canInitializeSourceEditor(key: string, textarea: any): boolean {
+function canInitializeSourceEditor(
+    key: string,
+    textarea: HTMLTextAreaElement | undefined,
+): textarea is HTMLTextAreaElement {
     const result =
         textarea != null &&
         !sourceEditors.has(key) &&
@@ -3931,7 +3929,7 @@ async function refreshReview(refreshOptions: any = {}): Promise<void> {
     try {
         const categoryRefreshOptionsResult =
             getCategoryRefreshOptions(refreshOptions);
-        const refreshCategoryRowsResult = [
+        await Promise.all([
             refreshCategoryRows(categoryRefreshOptionsResult),
             refreshRedirectRows(refreshOptions),
             refreshNavboxRows(
@@ -3939,10 +3937,9 @@ async function refreshReview(refreshOptions: any = {}): Promise<void> {
                 false,
                 refreshOptions,
             ),
-        ];
-        await Promise.all(refreshCategoryRowsResult);
+        ]);
     } catch (error) {
-        reviewState.error = error.message || String(error);
+        reviewState.error = getErrorMessage(error);
     } finally {
         reviewState.loading = false;
     }
@@ -3974,7 +3971,7 @@ async function refreshCitationRows(): Promise<void> {
         form.citationRows.splice(0, form.citationRows.length, ...patchedRows);
         syncActiveCitationTab();
     } catch (error) {
-        citationState.error = error.message || String(error);
+        citationState.error = getErrorMessage(error);
         sourceFetchState.error = citationState.error;
     } finally {
         citationState.loading = false;
@@ -3992,16 +3989,9 @@ async function refreshCitationRows(): Promise<void> {
 function syncActiveCitationTab(): void {
     const names = form.citationRows.map(getCitationTabName);
 
-    const hasIncludedValue = names.includes(activeCitationTab.value);
-    activeCitationTab.value = selectValue(
-        hasIncludedValue,
-        function trueBranch() {
-            return activeCitationTab.value;
-        },
-        function falseBranch() {
-            return names[0] || "";
-        },
-    );
+    if (!names.includes(activeCitationTab.value)) {
+        activeCitationTab.value = names[0] || "";
+    }
 }
 
 /**
@@ -4062,6 +4052,7 @@ async function refreshNavboxRows(
  *
  * @param force - Force value.
  * @param rebuild - Rebuild value.
+ * @param refreshOptions - Refresh behavior.
  * @returns Whether fixed navbox rows should be preserved.
  */
 function shouldSkipNavboxRefresh(
@@ -4129,9 +4120,7 @@ async function refreshRedirectRows(refreshOptions = {}): Promise<void> {
         currentTitleResultB,
     );
     const mapCallbackC = (row: unknown) => createRedirectRow(row, true);
-    const rows = preparedRows.map(mapCallbackC);
-
-    form.redirectRows = rows;
+    form.redirectRows = preparedRows.map(mapCallbackC);
     ensureTrailingRedirectRow(form);
 }
 
@@ -4146,12 +4135,12 @@ async function checkRedirectRows(refreshOptions = {}): Promise<void> {
         return;
     }
 
-    let currentRows = [];
+    let currentRows: any[] = [];
 
     if (Array.isArray(form.redirectRows)) {
         currentRows = form.redirectRows;
     }
-    const filterCallbackB = (row) => !isBlankRedirectRow(row);
+    const filterCallbackB = (row: any) => !isBlankRedirectRow(row);
     const rowsToCheck = currentRows.filter(filterCallbackB);
 
     if (shouldSkipFixedRows(refreshOptions, rowsToCheck, isRedirectRowFixed)) {
@@ -4209,7 +4198,7 @@ async function openPageEdit(params: any): Promise<void> {
     try {
         await loadPageEditText(params);
     } catch (error) {
-        pageEditState.error = error.message || String(error);
+        pageEditState.error = getErrorMessage(error);
     } finally {
         pageEditState.loading = false;
     }
@@ -4438,15 +4427,8 @@ function resetPageEdit(): void {
  */
 function buildPageEditSummary(state: any): string {
     const action = state.create ? "create" : "modify";
-    const suffix = selectValue(
-        state.kind === "navbox",
-        function trueBranch() {
-            return `, with link to '[[${currentTitle}]]'`;
-        },
-        function falseBranch() {
-            return "";
-        },
-    );
+    const suffix =
+        state.kind === "navbox" ? `, with link to '[[${currentTitle}]]'` : "";
 
     if (state.kind === "navbox" && !state.create) {
         return `add link to '[[${currentTitle}]]'`;
@@ -4488,15 +4470,8 @@ function moveFieldUrlToSource(field: any, value: string): boolean {
     }
 
     const existingValue = trimValue(form[sourceKey]);
-    form[sourceKey] = selectValue(
-        existingValue === "",
-        function trueBranch() {
-            return sourceUrl;
-        },
-        function falseBranch() {
-            return `${existingValue}\n${sourceUrl}`;
-        },
-    );
+    form[sourceKey] =
+        existingValue === "" ? sourceUrl : `${existingValue}\n${sourceUrl}`;
     form[field.key] = "";
 
     return true;
@@ -4693,13 +4668,14 @@ function getServiceSearchUrl(label: string, title: string): string {
  * Calls a search URL builder only for a nonblank title.
  *
  * @param title - Page title.
+ * @param buildUrl - Search URL builder.
  * @returns Result when the function
  *   calls a search url builder only for a nonblank
  *   title.
  */
 function getOptionalSearchUrl(
     title: string,
-    buildUrl: { (title: string): string; (arg0: unknown): string },
+    buildUrl: (title: string) => string,
 ): string {
     return title === "" ? "" : buildUrl(title);
 }
@@ -4748,17 +4724,7 @@ function openEnwikiReviewLinks(): void {
  * @returns Whether this component may open the links.
  */
 function claimReviewLinksOpeningForTab(): boolean {
-    if (reviewLinksOpened) {
-        return false;
-    }
-
-    reviewLinksOpened = true;
-
-    try {
-        return claimReviewLinksOpening(sessionStorage);
-    } catch {
-        return true;
-    }
+    return reviewLinkSession.claim();
 }
 
 /**
@@ -4872,14 +4838,12 @@ async function fetchSteamNames(): Promise<void> {
         const originalNameLanguageResult = {
             includeJapanese: getOriginalNameLanguage(form) === "ja",
         };
-        const rows = await options.onSteamNamesFetch(
+        fetchedSteamNameRows.value = await options.onSteamNamesFetch(
             steamUrl.value,
             originalNameLanguageResult,
         );
-
-        fetchedSteamNameRows.value = rows;
     } catch (error) {
-        sourceFetchState.error = error.message;
+        sourceFetchState.error = getErrorMessage(error);
     } finally {
         sourceFetchState.loading = false;
     }
@@ -5127,15 +5091,15 @@ function formatReviewRowStatusLabel(
 
     const status = typeof row === "object" && row != null ? row.status : row;
 
-    const result =
-        {
-            Exists: msg("review.ok"),
-            Missing: msg("review.missing"),
-            "Not exists": msg("review.missing"),
-            OK: msg("review.ok"),
-            "Pending creation": msg("review.pending"),
-            "Pending edit": msg("review.pending"),
-        }[status] || msg("review.unchecked");
+    const labels: Record<string, string> = {
+        Exists: msg("review.ok"),
+        Missing: msg("review.missing"),
+        "Not exists": msg("review.missing"),
+        OK: msg("review.ok"),
+        "Pending creation": msg("review.pending"),
+        "Pending edit": msg("review.pending"),
+    };
+    const result = labels[String(status)] || msg("review.unchecked");
     return result;
 }
 
@@ -5333,7 +5297,7 @@ function completeOpeningWikiLink(text: string, markerIndex: number): string {
         return text;
     }
 
-    const trailingWhitespace = segmentAfterMarker.match(/\s*$/u)[0];
+    const trailingWhitespace = segmentAfterMarker.match(/\s*$/u)?.[0] ?? "";
     const insertIndex = segmentEnd - trailingWhitespace.length;
 
     const result = [
@@ -5365,7 +5329,7 @@ function completeClosingWikiLink(text: string, markerIndex: number): string {
         return text;
     }
 
-    const leadingWhitespace = segmentBeforeMarker.match(/^\s*/u)[0];
+    const leadingWhitespace = segmentBeforeMarker.match(/^\s*/u)?.[0] ?? "";
     const insertIndex = segmentStart + leadingWhitespace.length;
 
     const result = [
@@ -5414,11 +5378,10 @@ function findListSegmentStart(text: string, index: number): number {
 function findListSegmentEnd(text: string, index: number): number {
     const match = text.slice(index).match(/[;；\r\n]/u);
 
-    return match == null ? text.length : index + match.index;
+    return match == null ? text.length : index + (match.index ?? 0);
 }
 
 import {
-    claimReviewLinksOpening,
     normalizeListFieldValue,
     markSteamNameHelperRow,
     formatCategorySourceLabel,
@@ -5449,20 +5412,6 @@ import {
     hasAnyNameRowValue,
     getArticleField,
     getReviewStatusChipStatus,
-    getBasePageTitle,
-    createBlankEnwikiMetadata,
-    getWikidataLookupStatus,
-    createEnwikiTipPlaceholders,
-    normalizeEnwikiTitleValue,
-    extractEnwikiTitleFromUrl,
-    buildWikidataSearchUrl,
-    buildMetacriticUrl,
-    buildMetacriticSearchUrl,
-    buildOpenCriticUrl,
-    buildOpenCriticSearchUrl,
-    buildSteamUrl,
-    buildSteamSearchUrl,
-    buildGoogleSiteSearchUrl,
     replaceFormValues,
     getHistoryEntryForm,
     applyCitationPatches,
@@ -5498,39 +5447,13 @@ import {
     getMetadataFieldTableRows,
     getCitationTabName,
     getCitationTabLabel,
-    getCodeMirrorLoader,
-    findTextareaElement,
-    getCodeMirrorText,
-    setCodeMirrorText,
     cloneValue,
     openDialog,
-} from "#me/ui/form/helpers.ts";
-import { wikitext } from "#shared";
+} from "#gadget/ui/form/form-model.ts";
+import * as wikitext from "#shared/wikitext";
 const {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,
     splitFieldValues,
     trimValue,
 } = wikitext;
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}

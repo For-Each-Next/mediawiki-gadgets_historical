@@ -1,4 +1,4 @@
-/** Tests the side-effect-free public Citation Formatter entry point. */
+/** Tests the side-effect-free Citation Formatter entry point. */
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,7 +13,7 @@ import {
     normalizeEnglishDate,
 } from "citation-formatter";
 
-test("exports every documented public function without a browser", () => {
+test("exports every supported operation without a browser", () => {
     const functions = [
         findNameOverrideFields,
         findUsedCitationTemplates,
@@ -27,7 +27,7 @@ test("exports every documented public function without a browser", () => {
     assert.ok(functions.every((value) => typeof value === "function"));
 });
 
-test("formats text through the public package entry point", () => {
+test("formats text through the package entry point", () => {
     const source =
         '<ref name="Example">{{cite web|title=Example|' +
         "date=January 2, 2025}}</ref>";

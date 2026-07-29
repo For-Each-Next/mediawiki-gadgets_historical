@@ -1,0 +1,142 @@
+/**
+ * Tests the reusable gadget package and dependency contracts.
+ */
+
+import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+import { checkGadgetPackages } from "../../scripts/check-gadget-packages.ts";
+import * as layerCheck from "../../scripts/check-layer-dependencies.ts";
+import { checkMarkdownLines } from "../../scripts/check-markdown-lines.ts";
+
+test("every gadget follows the reusable package contract", async () => {
+    const result = await checkGadgetPackages(process.cwd());
+
+    assert.ok(result.gadgetCount >= 3);
+    assert.deepEqual(result.problems, []);
+});
+
+test("a future gadget is discovered automatically", async (context) => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-contract-"));
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFutureGadget(workspaceRoot);
+
+    const result = await checkGadgetPackages(workspaceRoot);
+
+    assert.equal(result.gadgetCount, 1);
+    assert.deepEqual(result.problems, []);
+});
+
+test("architecture layer imports point downward", async () => {
+    const result = await layerCheck.checkLayerDependencies(process.cwd());
+
+    assert.ok(result.fileCount > 0);
+    assert.deepEqual(result.problems, []);
+});
+
+test("authored Markdown lines fit the repository width", async () => {
+    const result = await checkMarkdownLines(process.cwd());
+
+    assert.ok(result.fileCount > 0);
+    assert.deepEqual(result.problems, []);
+});
+
+/** Writes the smallest complete future gadget package contract. */
+async function writeFutureGadget(workspaceRoot: string): Promise<void> {
+    const packageRoot = join(workspaceRoot, "src", "future-gadget");
+    await mkdir(packageRoot, { recursive: true });
+    const files = {
+        "AGENTS.md": "# Fixture rules\n",
+        "HISTORY.md": createFutureHistory(),
+        "README.md": createFutureReadme(),
+        "browser.ts": 'import { start } from "#gadget/main.ts";\nstart();\n',
+        "index.ts": "export {};\n",
+        "main.ts": "export function start(): void {}\n",
+        "package.json": JSON.stringify(createFutureMetadata()),
+    };
+    await Promise.all(
+        Object.entries(files).map(([path, content]) =>
+            writeFile(join(packageRoot, path), content),
+        ),
+    );
+}
+
+/** Creates the future gadget's package metadata. */
+function createFutureMetadata(): Record<string, unknown> {
+    return {
+        author: "Test",
+        browser: "./browser.ts",
+        description: "Future package fixture.",
+        gadgetBuild: {
+            globalName: "futureGadget",
+            outputDirectory: "../../dist/future-gadget",
+            outputName: "future_gadget",
+        },
+        imports: {
+            "#gadget": "./index.ts",
+            "#gadget/*": "./*",
+        },
+        main: "./index.ts",
+        name: "future-gadget",
+        private: true,
+        scripts: {
+            build: "node ../../scripts/build-gadget.ts",
+            check: "tsc --noEmit",
+            test: "node --test",
+        },
+        type: "module",
+        version: "1.2.3-dev.1",
+    };
+}
+
+/** Creates the future gadget's README contract. */
+function createFutureReadme(): string {
+    return [
+        "# Future Gadget",
+        "",
+        "## Run",
+        "",
+        "`npm run build -w future-gadget`",
+        "",
+        "## Features",
+        "",
+        "Fixture.",
+        "",
+        "## Development",
+        "",
+        "Fixture.",
+        "",
+        "## Architecture",
+        "",
+        "```text",
+        "browser.ts",
+        "└── main.ts",
+        "```",
+        "",
+        "See [history](HISTORY.md), [rules](AGENTS.md), and",
+        "[repository rules](../../AGENTS.md).",
+        "",
+        "## License",
+        "",
+        "Fixture.",
+        "",
+    ].join("\n");
+}
+
+/** Creates the future gadget's active history entry. */
+function createFutureHistory(): string {
+    return [
+        "# History",
+        "",
+        "## Until 1.3",
+        "",
+        "### 1.2.3-dev.1 (2026-07-29 00:00 UTC)",
+        "",
+        "Overview: Added the future gadget fixture.",
+        "",
+        "- Added the fixture.",
+        "",
+    ].join("\n");
+}

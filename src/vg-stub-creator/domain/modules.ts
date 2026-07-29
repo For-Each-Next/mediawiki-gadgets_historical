@@ -9,10 +9,10 @@ import {
     buildSeriesMetadata,
     buildYearMetadata,
     normalizeYearFieldValue,
-} from "#me/domain/data.ts";
-import { defineArticleModule } from "#me/domain/processor.ts";
-import { buildNameSourceReferenceKey } from "#me/domain/wiki.ts";
-import { wikitext } from "#shared";
+} from "#gadget/domain/data.ts";
+import { defineArticleModule } from "#gadget/domain/article-module.ts";
+import { buildNameSourceReferenceKey } from "#gadget/domain/wiki.ts";
+import * as wikitext from "#shared/wikitext";
 const { formatPrefixedValue, parsePrefixedValue, trimValue } = wikitext;
 
 /**
@@ -323,21 +323,15 @@ const defineArticleModuleArgumentH = {
         const citations = context.getCitations({
             keys: ["year"],
         });
-        const values = selectYearValue(
-            metadata.value === "",
-            function trueBranch() {
-                return [];
-            },
-            function falseBranch() {
-                const result = [
-                    {
-                        normalizedText: metadata.value,
-                        wikitext: metadata.value,
-                    },
-                ];
-                return result;
-            },
-        );
+        const values =
+            metadata.value === ""
+                ? []
+                : [
+                      {
+                          normalizedText: metadata.value,
+                          wikitext: metadata.value,
+                      },
+                  ];
         const output = {
             assumedCategories: metadata.categories,
             citations,
@@ -353,28 +347,6 @@ const defineArticleModuleArgumentH = {
     },
 };
 export const yearModule = defineArticleModule(defineArticleModuleArgumentH);
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectYearValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}
 
 /**
  * Flushes genre values into shared article metadata.
@@ -622,17 +594,9 @@ const defineArticleModuleArgumentC = {
         }
 
         const enteredScore = trimValue(value);
-        const hasIncludedValue = enteredScore.includes(":");
-        const selectScoreValueCallback = function falseBranch() {
-            return enteredScore.replace(/^(.+?)\s+(\d{1,3})$/u, "$1:$2");
-        };
-        const score = selectScoreValue(
-            hasIncludedValue,
-            function trueBranch() {
-                return enteredScore;
-            },
-            selectScoreValueCallback,
-        );
+        const score = enteredScore.includes(":")
+            ? enteredScore
+            : enteredScore.replace(/^(.+?)\s+(\d{1,3})$/u, "$1:$2");
 
         const result = formatPrefixedValue(score, {
             normalizePrefix: normalizeScorePlatform,
@@ -744,28 +708,6 @@ function normalizeScorePlatform(value: any): string {
     }
 
     return platform;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectScoreValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }
 
 /**
@@ -882,21 +824,15 @@ const defineArticleModuleArgumentA = {
         const citations = context.getCitations({
             keys: ["additionalProse"],
         });
-        const values = selectAdditionalProseValue(
-            form.additionalProse === "",
-            function trueBranch() {
-                return [];
-            },
-            function falseBranch() {
-                const result = [
-                    {
-                        normalizedText: form.additionalProse,
-                        wikitext: form.additionalProse,
-                    },
-                ];
-                return result;
-            },
-        );
+        const values =
+            form.additionalProse === ""
+                ? []
+                : [
+                      {
+                          normalizedText: form.additionalProse,
+                          wikitext: form.additionalProse,
+                      },
+                  ];
         const output = {
             citations,
             values,
@@ -913,28 +849,6 @@ export const additionalProseModule = defineArticleModule(
 );
 
 /**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectAdditionalProseValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}
-
-/**
  * Flushes reviewed category and navbox selections.
  */
 
@@ -949,27 +863,13 @@ const defineArticleModuleArgument = {
      * @returns Normalized review patch.
      */
     normalize(form: any): any {
-        const isArrayValue = Array.isArray(form.categoryRows);
-        const isArrayValueA = Array.isArray(form.stubTagRows);
         const result = {
-            categoryRows: selectReviewValue(
-                isArrayValue,
-                function trueBranch() {
-                    return form.categoryRows;
-                },
-                function falseBranch() {
-                    return [];
-                },
-            ),
-            stubTagRows: selectReviewValue(
-                isArrayValueA,
-                function trueBranch() {
-                    return form.stubTagRows;
-                },
-                function falseBranch() {
-                    return null;
-                },
-            ),
+            categoryRows: Array.isArray(form.categoryRows)
+                ? form.categoryRows
+                : [],
+            stubTagRows: Array.isArray(form.stubTagRows)
+                ? form.stubTagRows
+                : null,
             navboxRows: Array.isArray(form.navboxRows) ? form.navboxRows : [],
             navboxText: trimValue(form.navboxText),
         };
@@ -1023,28 +923,6 @@ function normalizeNavbox(row: {
     };
 
     return navbox;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectReviewValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }
 
 /**

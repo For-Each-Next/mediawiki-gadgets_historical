@@ -13,7 +13,7 @@ import {
 import {
     manageCitations,
     manageCitationsWithResult,
-} from "citation-formatter/app/format.ts";
+} from "citation-formatter/api.ts";
 
 const testNonLatinNameOverrides = () => {
     const source = [
@@ -185,8 +185,9 @@ const testDetectCitationLayout = () => {
         " | url = https://example.test",
         "}}</ref>",
     ].join("\n");
+    const templateOpen = "{".repeat(2);
     const nestedInline = [
-        "<ref>{{Cite web | title = {{lang",
+        `<ref>${templateOpen}Cite web | title = ${templateOpen}lang`,
         "| en",
         "| Inline}}}}</ref>",
     ].join("\n");

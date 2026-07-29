@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     fetchExistingPageTitles,
     type PageLookupApi,
-} from "vg-stub-creator/infra/editing/pre-save.ts";
+} from "vg-stub-creator/workflows/pre-save.ts";
 import {
     buildWhatLinksHerePageTitle,
     selectArticleSubmissionTitle,

@@ -38,10 +38,8 @@ import {
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
 } from "citation-formatter/domain/templates.ts";
-import {
-    buildCs1CheckWikitext,
-    buildSourceSectionSelectors,
-} from "citation-formatter/ui/source-manager.ts";
+import { buildSourceSectionSelectors } from "citation-formatter/ui/source-manager.ts";
+import { buildCs1CheckWikitext } from "citation-formatter/infra/cs1-check.ts";
 
 function getRow(draft: SourceDraft, name: string) {
     const row = draft.rows.find((candidate) => candidate.name === name);

@@ -54,10 +54,47 @@ Each gadget keeps pure domain rules separate from MediaWiki and browser
 infrastructure, application workflows, and user-interface code. Cross-gadget
 helpers live in `src/shared/`.
 
+## Gadget package contract
+
+Every deployable package under `src/<gadget>/` follows the same downward
+dependency model:
+
+```text
+browser entry
+└── main.ts / start()
+    ├── ui
+    ├── workflows / services / domain
+    ├── sources / publishing
+    └── support / shared
+```
+
+This is a dependency model, not a mandatory folder template. A gadget keeps
+only the layers it needs and names them by responsibility. A thin forwarding
+module is integrated into its caller instead of receiving a ceremonial
+directory. Generic `utils`, `common`, or `helpers` dumping grounds are not
+allowed.
+
+Each package keeps `main.ts`, `README.md`, `AGENTS.md`, `HISTORY.md`, and
+`package.json` as entry documents. Common implementation names include
+`workflows/`, `services/`, `domain/`, `sources/`, `publishing/`, `support/`,
+`i18n/`, and `ui/`.
+
+Gadget-local imports use `#gadget/*`. Shared responsibilities use explicit
+entries such as `#shared/cite`, `#shared/html`, and `#shared/wikitext`.
+
+The package README uses `Run`, `Features`, `Development`, `Architecture`, and
+`License` sections and includes its real dependency tree. The active history
+version matches `package.json`, uses a UTC timestamp and overview, and belongs
+to the next minor-version boundary.
+
+Repository checks discover packages from their `gadgetBuild` metadata, so a
+future package receives the same structure, dependency, documentation, and
+release validation without being added to a hard-coded gadget list.
+
 Repository-wide rules and release requirements are maintained in
 [AGENTS.md][4], with additional scoped instructions in each gadget package.
-Completed gadget changes are recorded in each package's `HISTORY.md`,
-linked from its README.
+Completed gadget changes are recorded in each package's `HISTORY.md`, linked
+from its README.
 
 ## License
 

@@ -2,6 +2,7 @@
  * Validation for editable CS1 citation parameters.
  */
 
+import { isCalendarDayWithinUtcMonth } from "./calendar-date.ts";
 import templateData from "./data/index.ts";
 import { getCitationValidationConfig } from "./validation/index.ts";
 
@@ -498,7 +499,7 @@ function isValidChineseDate(value: string): boolean {
     }
     const month = match[2] == null ? 1 : Number(match[2]);
     const day = match[3] == null ? 1 : Number(match[3]);
-    return isValidCalendarDate(Number(match[1]), month, day);
+    return isCalendarDayWithinUtcMonth(match[1], month, day);
 }
 
 function isValidIsoDate(value: string): boolean {
@@ -506,11 +507,7 @@ function isValidIsoDate(value: string): boolean {
     if (match == null) {
         return false;
     }
-    return isValidCalendarDate(
-        Number(match[1]),
-        Number(match[2]),
-        Number(match[3] ?? "1"),
-    );
+    return isCalendarDayWithinUtcMonth(match[1], match[2], match[3] ?? "1");
 }
 
 function isValidEnglishDate(value: string): boolean {
@@ -537,18 +534,5 @@ function isValidNamedMonthDate(
     day: string,
 ): boolean {
     const month = ENGLISH_MONTHS.get(monthName.toLocaleLowerCase("en-US"));
-    return (
-        month != null && isValidCalendarDate(Number(year), month, Number(day))
-    );
-}
-
-function isValidCalendarDate(
-    year: number,
-    month: number,
-    day: number,
-): boolean {
-    if (month < 1 || month > 12 || day < 1) {
-        return false;
-    }
-    return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return month != null && isCalendarDayWithinUtcMonth(year, month, day);
 }

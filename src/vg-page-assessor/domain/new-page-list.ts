@@ -1,17 +1,11 @@
 /**
- * Describes the new-page-list module.
- *
- * Prepares and saves WikiProject Video games new-page-list
- * registrations.
+ * Parses and prepares Video games new-page-list registrations.
  */
 
-import {
-    loggedApiGet,
-    loggedPostWithToken,
-    logStep,
-} from "#me/infra/logger.ts";
-
-export const NEW_PAGE_LIST_TITLE = "WikiProject:电子游戏/新进条目";
+import type {
+    ExistingRegistration,
+    RegistrationResult,
+} from "#gadget/domain/types.ts";
 
 const SUMMARY_SOURCE_LINK = [
     "[[:m:User:For Each ... Next/global.js",
@@ -19,14 +13,22 @@ const SUMMARY_SOURCE_LINK = [
 ].join("");
 const DATE_LINE_PATTERN = /^\* (\d{1,2})月(\d{1,2})日 -\s*(.*)$/u;
 const SUBGROUP_PATTERN = /^\*:\s*([^：:]+)[：:]\s*(.*)$/u;
-const GROUP_ORDER = ["draft", "category", "template", "file", "other"];
+const GROUP_ORDER = [
+    "draft",
+    "category",
+    "template",
+    "file",
+    "other",
+] as const;
+type RegistrationGroup = (typeof GROUP_ORDER)[number];
+
 const GROUP_LABELS = {
     category: "分類",
     draft: "草稿",
     file: "檔案",
     other: "雜頁",
     template: "模板",
-};
+} as const satisfies Record<RegistrationGroup, string>;
 const NAMESPACE = {
     category: 14,
     draft: 118,
@@ -36,59 +38,39 @@ const NAMESPACE = {
     template: 10,
 };
 
-/**
- * Fetches the current new-page list with edit-conflict timestamps.
- *
- * @param api - MediaWiki API client.
- * @returns List page state.
- */
-export async function fetchNewPageList(api: mw.Api): Promise<any> {
-    logStep("fetchNewPageList start", { title: NEW_PAGE_LIST_TITLE });
-    const response = await loggedApiGet(api, "fetchNewPageList", {
-        action: "query",
-        curtimestamp: true,
-        formatversion: "2",
-        prop: "revisions",
-        rvprop: "content|timestamp",
-        rvslots: "main",
-        titles: NEW_PAGE_LIST_TITLE,
-    });
-    const result = parseNewPageListResponse(response);
-
-    logStep("fetchNewPageList done", {
-        textLength: result.text.length,
-        title: NEW_PAGE_LIST_TITLE,
-    });
-
-    return result;
+interface ParsedSubgroup {
+    entries: Array<string>;
+    label: string;
 }
 
-/**
- * Parses new-page-list text and edit timestamps.
- *
- * @param response - Fetch response.
- * @returns New-page-list text and edit timestamps.
- */
-function parseNewPageListResponse(response: any): any {
-    const pages = response?.query?.pages || [];
-    const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
-    const revision = page?.revisions?.[0];
-
-    if (page == null || page.missing != null || revision == null) {
-        throw new Error(`Unable to read ${NEW_PAGE_LIST_TITLE}.`);
-    }
-
-    const primaryContent =
-        revision.slots?.main?.content ?? revision.slots?.main?.["*"];
-    const text = primaryContent ?? revision["*"] ?? "";
-    const result = {
-        basetimestamp: revision.timestamp,
-        starttimestamp: response.curtimestamp,
-        text,
-    };
-
-    return result;
+interface DateBlock {
+    date: Date;
+    entries: Array<string>;
+    groups: Partial<Record<RegistrationGroup, ParsedSubgroup>>;
+    title: string;
 }
+
+interface YearSection {
+    blocks: Array<DateBlock>;
+    contentStart: number;
+    end: number;
+    year: number;
+}
+
+interface RegistrationEntry {
+    creationDate: Date;
+    creationTimes: Map<string, Date>;
+    group: RegistrationGroup | null;
+    title: string;
+}
+
+interface PreparedRegistrationEntry extends RegistrationEntry {
+    day: number;
+    month: number;
+    rendered: string;
+}
+
+type GroupEntries = Partial<Record<RegistrationGroup, Array<string>>>;
 
 /**
  * Builds registration state and proposed new-page-list text.
@@ -116,13 +98,7 @@ export function prepareNewPageListRegistration({
     namespaceNumber: number;
     creationDate: Date;
     creationTimes?: Map<string, Date>;
-}): any {
-    const creationTimestamp = creationDate?.toISOString?.();
-    logStep("prepareNewPageListRegistration start", {
-        creationDate: creationTimestamp,
-        namespaceNumber,
-        title,
-    });
+}): RegistrationResult {
     const context = createRegistrationContext({
         creationDate,
         creationTimes,
@@ -146,7 +122,7 @@ interface RegistrationContext {
     title: string;
     source: string;
     earliestDate: Date | null;
-    existing: { date: Date; listedTitle: string } | null;
+    existing: ExistingRegistration | null;
 }
 
 /**
@@ -172,7 +148,9 @@ function createRegistrationContext(
  * @param context - Operation context.
  * @returns The registration result for parsed list state.
  */
-function prepareRegistrationResult(context: RegistrationContext): unknown {
+function prepareRegistrationResult(
+    context: RegistrationContext,
+): RegistrationResult {
     const { creationDate, earliestDate, existing } = context;
 
     if (!isRegistrationDateEligible(creationDate, earliestDate)) {
@@ -198,7 +176,9 @@ function prepareRegistrationResult(context: RegistrationContext): unknown {
  * @param options - Operation options.
  * @returns Registration state for a newly listed page.
  */
-function buildNewRegistration(options: RegistrationContext): unknown {
+function buildNewRegistration(
+    options: RegistrationContext,
+): RegistrationResult {
     const group = getNamespaceGroup(options.namespaceNumber);
     const proposedText = addEntry(options.source, {
         creationDate: options.creationDate,
@@ -214,14 +194,6 @@ function buildNewRegistration(options: RegistrationContext): unknown {
         existing: null,
         proposedText,
     };
-
-    const earliestTimestamp = options.earliestDate?.toISOString?.();
-    logStep("prepareNewPageListRegistration done", {
-        changed: result.changed,
-        earliestDate: earliestTimestamp,
-        group,
-        title: options.title,
-    });
 
     return result;
 }
@@ -246,7 +218,9 @@ function isRegistrationDateEligible(
  * @param options - Operation options.
  * @returns State for a page older than retained list dates.
  */
-function buildIneligibleRegistration(options: RegistrationContext) {
+function buildIneligibleRegistration(
+    options: RegistrationContext,
+): RegistrationResult {
     const result = {
         alreadyRegistered: options.existing != null,
         changed: false,
@@ -255,13 +229,6 @@ function buildIneligibleRegistration(options: RegistrationContext) {
         existing: options.existing,
         proposedText: options.source,
     };
-
-    const earliestTimestamp = options.earliestDate.toISOString();
-    logStep("prepareNewPageListRegistration done: not eligible", {
-        earliestDate: earliestTimestamp,
-        existing: options.existing,
-        title: options.title,
-    });
 
     return result;
 }
@@ -272,25 +239,23 @@ function buildIneligibleRegistration(options: RegistrationContext) {
  * @param options - Operation options.
  * @returns Registration state for an already listed page.
  */
-function buildExistingRegistration(options: RegistrationContext) {
+function buildExistingRegistration(
+    options: RegistrationContext,
+): RegistrationResult {
+    const existing = options.existing;
+
+    if (existing == null) {
+        throw new Error("Existing registration details are unavailable.");
+    }
+
     const result = {
         alreadyRegistered: true,
         changed: false,
         earliestDate: options.earliestDate,
         eligible: true,
-        existing: options.existing,
+        existing,
         proposedText: options.source,
     };
-    const message = [
-        "prepareNewPageListRegistration don",
-        "e: already registered",
-    ].join("");
-
-    logStep(message, {
-        existing: options.existing,
-        title: options.title,
-    });
-
     return result;
 }
 
@@ -302,10 +267,6 @@ function buildExistingRegistration(options: RegistrationContext) {
  * @returns Listed titles.
  */
 export function getTitlesForDate(text: string, date: Date): Array<string> {
-    const timestamp = date?.toISOString?.();
-    logStep("getTitlesForDate start", {
-        date: timestamp,
-    });
     const year = date.getUTCFullYear();
     const month = date.getUTCMonth();
     const day = date.getUTCDate();
@@ -313,70 +274,28 @@ export function getTitlesForDate(text: string, date: Date): Array<string> {
     const section = parseYearSections(source).find(
         (item) => item.year === year,
     );
-    let block;
+    let block: DateBlock | undefined;
 
-    for (
-        let index = 0;
-        index < (section?.blocks.length || 0) && block == null;
-        index += 1
-    ) {
-        const candidate = section.blocks[index];
+    for (const candidate of section?.blocks ?? []) {
         const candidateMonth = candidate.date.getUTCMonth();
         const candidateDay = candidate.date.getUTCDate();
 
         if (candidateMonth === month && candidateDay === day) {
             block = candidate;
+            break;
         }
     }
 
     if (block == null) {
-        logStep("getTitlesForDate done: no block");
         return [];
     }
 
-    const titles = [
-        ...block.entries,
-        ...(Object.values(block.groups) as any[]).flatMap(
-            (group) => group.entries,
-        ),
-    ].map(extractVgcTitle);
-
-    logStep("getTitlesForDate done", { titles });
+    const groupedEntries = Object.values(block.groups).flatMap(
+        (group) => group.entries,
+    );
+    const titles = [...block.entries, ...groupedEntries].map(extractVgcTitle);
 
     return titles;
-}
-
-/**
- * Saves a previously prepared new-page-list update.
- *
- * @param api - MediaWiki API client.
- * @param page - Original list page state.
- * @param proposedText - Prepared replacement text.
- * @param summary - Edit summary.
- * @returns Resolves after save.
- */
-export async function savePreparedNewPageList(
-    api: mw.Api,
-    page: any,
-    proposedText: string,
-    summary: string,
-): Promise<void> {
-    logStep("savePreparedNewPageList start", {
-        summary,
-        title: NEW_PAGE_LIST_TITLE,
-    });
-    await loggedPostWithToken(api, "savePreparedNewPageList", "csrf", {
-        action: "edit",
-        basetimestamp: page.basetimestamp,
-        nocreate: true,
-        starttimestamp: page.starttimestamp,
-        summary,
-        text: proposedText,
-        title: NEW_PAGE_LIST_TITLE,
-    });
-    logStep("savePreparedNewPageList done", {
-        title: NEW_PAGE_LIST_TITLE,
-    });
 }
 
 /**
@@ -414,7 +333,7 @@ export function buildLineComparison(
     oldText: string,
     newText: string,
     contextLines: number = 1,
-): any {
+): { after: string; before: string } {
     const oldLines = String(oldText || "").split("\n");
     const newLines = String(newText || "").split("\n");
     const prefix = countCommonPrefix(oldLines, newLines);
@@ -441,16 +360,16 @@ export function buildLineComparison(
  * @param text - New-page-list source.
  * @returns Parsed year sections.
  */
-function parseYearSections(text: string): Array<any> {
+function parseYearSections(text: string): Array<YearSection> {
     const headings = [
         ...String(text || "").matchAll(/^== (\d{4})年 ==\s*$/gmu),
     ];
 
-    const result = [];
+    const result: Array<YearSection> = [];
 
     for (let index = 0; index < headings.length; index += 1) {
         const heading = headings[index];
-        const contentStart = heading.index + heading[0].length;
+        const contentStart = (heading.index ?? 0) + heading[0].length;
         const end = headings[index + 1]?.index ?? text.length;
         const section = text.slice(contentStart, end);
         const year = Number(heading[1]);
@@ -475,29 +394,32 @@ function parseYearSections(text: string): Array<any> {
  * @param year - Year number.
  * @returns Date blocks.
  */
-function parseDateBlocks(section: string, year: number): Array<any> {
+function parseDateBlocks(section: string, year: number): Array<DateBlock> {
     const lines = section.split("\n");
-    const blocks = [];
+    const blocks: Array<DateBlock> = [];
 
     for (const line of lines) {
         const dateBlock = parseDateBlockLine(line, year);
 
         if (dateBlock != null) {
             blocks.push(dateBlock);
-        } else {
-            const subgroupMatch = line.match(SUBGROUP_PATTERN);
-            const currentBlock = blocks.at(-1);
-
-            if (currentBlock != null && subgroupMatch != null) {
-                const group = normalizeGroupLabel(subgroupMatch[1]);
-
-                if (group != null) {
-                    const entries = parseEntries(subgroupMatch[2]);
-                    const label = subgroupMatch[1].trim();
-                    currentBlock.groups[group] = { entries, label };
-                }
-            }
+            continue;
         }
+
+        const subgroupMatch = line.match(SUBGROUP_PATTERN);
+        const currentBlock = blocks.at(-1);
+        if (currentBlock == null || subgroupMatch == null) {
+            continue;
+        }
+
+        const group = normalizeGroupLabel(subgroupMatch[1]);
+        if (group == null) {
+            continue;
+        }
+
+        const entries = parseEntries(subgroupMatch[2]);
+        const label = subgroupMatch[1].trim();
+        currentBlock.groups[group] = { entries, label };
     }
 
     return blocks;
@@ -510,7 +432,7 @@ function parseDateBlocks(section: string, year: number): Array<any> {
  * @param year - Year value.
  * @returns A date heading line into a mutable date block.
  */
-function parseDateBlockLine(line: string, year: number): any | null {
+function parseDateBlockLine(line: string, year: number): DateBlock | null {
     const match = line.match(DATE_LINE_PATTERN);
 
     if (match == null) {
@@ -520,7 +442,7 @@ function parseDateBlockLine(line: string, year: number): any | null {
     const month = Number(match[1]) - 1;
     const day = Number(match[2]);
     const timestamp = Date.UTC(year, month, day);
-    const result = {
+    const result: DateBlock = {
         date: new Date(timestamp),
         entries: parseEntries(match[3]),
         groups: {},
@@ -536,7 +458,7 @@ function parseDateBlockLine(line: string, year: number): any | null {
  * @param entry - Entry details.
  * @returns Updated text.
  */
-function addEntry(text: string, entry: any): string {
+function addEntry(text: string, entry: RegistrationEntry): string {
     const year = entry.creationDate.getUTCFullYear();
     const month = entry.creationDate.getUTCMonth() + 1;
     const day = entry.creationDate.getUTCDate();
@@ -571,7 +493,10 @@ function addEntry(text: string, entry: any): string {
  * @param entry - Entry details.
  * @returns Updated section.
  */
-function updateYearSection(section: string, entry: any): string {
+function updateYearSection(
+    section: string,
+    entry: PreparedRegistrationEntry,
+): string {
     const lines = section.split("\n");
     const targetIndex = findMatchingDateLine(lines, entry);
 
@@ -597,7 +522,10 @@ function updateYearSection(section: string, entry: any): string {
  * @param entry - Input entry.
  * @returns The existing date line for a new entry.
  */
-function findMatchingDateLine(lines: Array<string>, entry: any): number {
+function findMatchingDateLine(
+    lines: Array<string>,
+    entry: PreparedRegistrationEntry,
+): number {
     let result = -1;
 
     for (let index = 0; index < lines.length && result === -1; index += 1) {
@@ -623,7 +551,10 @@ function findMatchingDateLine(lines: Array<string>, entry: any): number {
  * @param entry - Input entry.
  * @returns The descending-date insertion point for a new block.
  */
-function findDateBlockInsertIndex(lines: Array<string>, entry: any): number {
+function findDateBlockInsertIndex(
+    lines: Array<string>,
+    entry: PreparedRegistrationEntry,
+): number {
     let result = -1;
 
     for (let index = 0; index < lines.length && result === -1; index += 1) {
@@ -659,8 +590,7 @@ function findTrailingWhitespaceIndex(lines: Array<string>): number {
         lineIndex < lines.length && index === -1;
         lineIndex += 1
     ) {
-        const lineIsBlank = lines[lineIndex].trim() === "";
-        let remainingBlank = lineIsBlank;
+        let remainingBlank = lines[lineIndex].trim() === "";
 
         for (
             let remainingIndex = lineIndex + 1;
@@ -690,7 +620,7 @@ function findTrailingWhitespaceIndex(lines: Array<string>): number {
 function updateExistingDateBlock(
     lines: Array<string>,
     dateIndex: number,
-    entry: any,
+    entry: PreparedRegistrationEntry,
 ): void {
     const blockEnd = findDateBlockEnd(lines, dateIndex);
     const blocks = readDateSubgroups(lines, dateIndex, blockEnd);
@@ -715,7 +645,7 @@ function updateExistingDateBlock(
         entry.creationTimes,
     );
 
-    const populatedGroups = [];
+    const populatedGroups: Array<RegistrationGroup> = [];
 
     for (const group of GROUP_ORDER) {
         if ((blocks[group] || []).length > 0) {
@@ -723,10 +653,10 @@ function updateExistingDateBlock(
         }
     }
 
-    const subgroupLines = [];
+    const subgroupLines: Array<string> = [];
 
     for (const group of populatedGroups) {
-        const entries = blocks[group].join("、");
+        const entries = blocks[group]?.join("、") ?? "";
         subgroupLines.push(`*:${GROUP_LABELS[group]}：${entries}`);
     }
 
@@ -745,8 +675,8 @@ function readDateSubgroups(
     lines: Array<string>,
     dateIndex: number,
     blockEnd: number,
-): any {
-    const blocks = {};
+): GroupEntries {
+    const blocks: GroupEntries = {};
 
     const subgroupLines = lines.slice(dateIndex + 1, blockEnd);
 
@@ -754,7 +684,7 @@ function readDateSubgroups(
         const match = line.match(SUBGROUP_PATTERN);
         const group = match == null ? null : normalizeGroupLabel(match[1]);
 
-        if (group != null) {
+        if (group != null && match != null) {
             blocks[group] = parseEntries(match[2]);
         }
     }
@@ -834,14 +764,17 @@ function compareEntriesByCreationTime(
  * @param title - Page title.
  * @returns Existing registration.
  */
-function findRegisteredEntry(years: Array<any>, title: string): any | null {
+function findRegisteredEntry(
+    years: Array<YearSection>,
+    title: string,
+): ExistingRegistration | null {
     const normalized = normalizeTitle(title);
 
     for (const year of years) {
         for (const block of year.blocks) {
             const allEntries = [
                 ...block.entries,
-                ...(Object.values(block.groups) as any[]).flatMap(
+                ...Object.values(block.groups).flatMap(
                     (group) => group.entries,
                 ),
             ];
@@ -913,7 +846,7 @@ function findEarliestRetainedDate(
  * @param year - Year.
  * @returns Content range.
  */
-function findYearRange(text: string, year: number): any | null {
+function findYearRange(text: string, year: number): YearSection | null {
     const result =
         parseYearSections(text).find((section) => section.year === year) ||
         null;
@@ -953,7 +886,7 @@ function insertYearSection(text: string, year: number, block: string): string {
 function buildDateBlock(
     month: number,
     day: number,
-    group: string | null,
+    group: RegistrationGroup | null,
     entries: Array<string>,
 ): string {
     if (group == null) {
@@ -1025,7 +958,7 @@ function parseEntries(text: string): Array<string> {
  * @param label - Existing label.
  * @returns Group name.
  */
-function normalizeGroupLabel(label: string): string | null {
+function normalizeGroupLabel(label: string): RegistrationGroup | null {
     const value = String(label || "").trim();
 
     if (value === "草稿") {
@@ -1057,7 +990,7 @@ function normalizeGroupLabel(label: string): string | null {
  * @param namespaceNumber - Namespace number.
  * @returns Subgroup, or null for articles.
  */
-function getNamespaceGroup(namespaceNumber: number): string | null {
+function getNamespaceGroup(namespaceNumber: number): RegistrationGroup | null {
     if (namespaceNumber === NAMESPACE.main) {
         return null;
     }

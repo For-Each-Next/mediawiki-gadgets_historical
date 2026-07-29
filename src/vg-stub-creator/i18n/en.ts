@@ -2,7 +2,7 @@
  * English source catalog for VG Stub Creator.
  */
 
-import { i18n } from "#shared";
+import * as i18n from "#shared/i18n";
 
 export default i18n.defineMessages({
     "form": {
@@ -262,7 +262,6 @@ export default i18n.defineMessages({
         "steamUrl": "Enter a Steam app URL.",
         "categorySaveUnavailable": "Category save handler is unavailable.",
         "editorUnavailable": "MediaWiki edit textbox is unavailable.",
-        "saveFormUnavailable": "MediaWiki save form is unavailable.",
         "previewFormUnavailable": "MediaWiki preview form is unavailable.",
     },
     "common": {

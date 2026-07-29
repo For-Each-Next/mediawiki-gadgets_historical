@@ -3,12 +3,13 @@
     "version": "0.1.1",
     "private": true,
     "type": "module",
-    "imports": {
-        "#me": "./index.ts",
-        "#me/*": "./*"
-    },
     "main": "./index.ts",
     "exports": {
-        ".": "./index.ts"
+        ".": "./index.ts",
+        "./cite": "./cite/index.ts",
+        "./edit-box": "./edit-box.ts",
+        "./html": "./html.ts",
+        "./i18n": "./i18n.ts",
+        "./wikitext": "./wikitext.ts"
     }
 }

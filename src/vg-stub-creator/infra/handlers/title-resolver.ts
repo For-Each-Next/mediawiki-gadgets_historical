@@ -5,7 +5,7 @@
  * redirects.
  */
 
-import { msg } from "#me/i18n/index.ts";
+import { msg } from "#gadget/i18n/index.ts";
 
 const API_ENDPOINT = "/w/api.php";
 const DEFAULT_BATCH_SIZE = 50;
@@ -455,7 +455,7 @@ async function finalizeTitleResolutions(
 ): Promise<Record<string, TitleResolution>> {
     const filteredValues = Object.values(resolutions)
         .map((resolution) => resolution.redirectTarget)
-        .filter(Boolean);
+        .filter((title): title is string => title != null && title !== "");
     const redirectTargets = uniqueValues(filteredValues);
 
     if (redirectTargets.length > 0) {
@@ -465,12 +465,14 @@ async function finalizeTitleResolutions(
             options,
         );
 
-        const forEachCallbackA = function callback(title: string) {
+        const resolveRedirectTarget = function resolveRedirectTarget(
+            title: string,
+        ) {
             const key = normalizeTitleKey(title, config.namespace);
 
             resolutions[key] = createResolution(title, redirectData, config);
         };
-        redirectTargets.forEach(forEachCallbackA);
+        redirectTargets.forEach(resolveRedirectTarget);
     }
 
     const mapCallbackD = function callback([key, resolution]: [
@@ -746,19 +748,13 @@ function createResolution(
     const actualTitle = getActualTitle(requestedTitle, data, config.namespace);
     const page = getResolvedPage(actualTitle, data, config.namespace);
     const redirectTarget = config.getRedirectTarget?.(page);
-    const selectValueCallback = function falseBranch() {
-        return stripNamespace(redirectTarget, config.namespace);
-    };
     const resolution = {
         exists: page != null && !page.missing,
         page,
-        redirectTarget: selectValue(
-            redirectTarget == null,
-            function trueBranch() {
-                return undefined;
-            },
-            selectValueCallback,
-        ),
+        redirectTarget:
+            redirectTarget == null
+                ? undefined
+                : stripNamespace(redirectTarget, config.namespace),
         requestedTitle: stripNamespace(requestedTitle, config.namespace),
         title: stripNamespace(actualTitle, config.namespace),
     };
@@ -903,26 +899,4 @@ function uniqueValues<T>(values: Iterable<T>): T[] {
  */
 function escapeRegExp(text: string) {
     return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

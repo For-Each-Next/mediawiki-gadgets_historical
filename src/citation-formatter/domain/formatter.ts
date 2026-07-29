@@ -9,6 +9,20 @@ import {
     getCitationIdentity,
     type CitationIdentity,
 } from "./citation.ts";
+import {
+    captureContainerPrefixes,
+    createEmptyReferenceContainer,
+    findReferenceContainers,
+    getContainingGroup,
+    getTrailingContainerText,
+    isTagInContainers,
+    type ReferenceContainer,
+} from "./reference-containers.ts";
+import {
+    escapeReferenceName,
+    formatReferenceGroupAttribute,
+    stripOptionalReferenceNameQuotes,
+} from "./ref-attributes.ts";
 import { isCitationTemplate, normalizeTemplateName } from "./templates.ts";
 import type {
     CitationLayout,
@@ -20,10 +34,13 @@ import {
     applyReplacements,
     findRefTags,
     findTemplateCalls,
-    parseTagAttributes,
     type ParsedTemplateCall,
     type RefTag,
 } from "./wikitext.ts";
+import {
+    findCitationFormattingProtectedRanges,
+    isInWikitextRanges,
+} from "./protected-wikitext.ts";
 
 const REFERENCE_SECTION_COMMENT = new RegExp(
     String.raw`<!--\s*(?:` +
@@ -52,17 +69,6 @@ const SECTION_COMMENT_WIDTH = 79;
 const CITATION_MAINTENANCE_TEMPLATES = new Set(["cbignore", "dead link"]);
 const LOWERCASE_ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 
-interface ReferenceContainer {
-    contentEnd: number;
-    contentStart: number;
-    end: number;
-    group: string;
-    kind: "references" | "reflist";
-    namedParams: Array<[string, string]>;
-    prefixText: string;
-    start: number;
-}
-
 interface ReferenceDefinition {
     finalName: string;
     formattedContent: string;
@@ -82,6 +88,16 @@ interface PlainDefinitionOptions {
     oldName: string;
     order: number;
     tag: RefTag;
+    trailingText: string;
+}
+
+interface ReferenceDefinitionOptions {
+    containingGroup: string;
+    layout: CitationLayout;
+    order: number;
+    shortCitationSources: Map<string, CitationIdentity>;
+    tag: RefTag;
+    templateData: CitationTemplateDataMap;
     trailingText: string;
 }
 
@@ -110,12 +126,12 @@ export interface CitationFormatResult {
  * @returns Used normalized template names.
  */
 export function findUsedCitationTemplates(text: string): string[] {
-    const protectedRanges = findProtectedRanges(text);
+    const protectedRanges = findCitationFormattingProtectedRanges(text);
     const calls = findTemplateCalls(text);
     const isUsedCitation = function isUsedCitation(call: ParsedTemplateCall) {
         const result =
             isCitationTemplate(call.name) &&
-            !isInRanges(call.start, protectedRanges);
+            !isInWikitextRanges(call.start, protectedRanges);
         return result;
     };
     const usedCalls = calls.filter(isUsedCitation);
@@ -145,17 +161,17 @@ export function formatCitationWikitext(
 ): CitationFormatResult {
     const rTemplatesFound = countRUseTemplates(source);
     const rConverted = convertRTemplates(source);
-    const protectedRanges = findProtectedRanges(rConverted);
+    const protectedRanges = findCitationFormattingProtectedRanges(rConverted);
     const isUnprotectedContainer = function isUnprotectedContainer(
         container: ReferenceContainer,
     ) {
-        return !isInRanges(container.start, protectedRanges);
+        return !isInWikitextRanges(container.start, protectedRanges);
     };
     const containers = findReferenceContainers(rConverted).filter(
         isUnprotectedContainer,
     );
     const isUnprotectedRefTag = (tag: RefTag) =>
-        !isInRanges(tag.start, protectedRanges);
+        !isInWikitextRanges(tag.start, protectedRanges);
     const tags = findRefTags(rConverted).filter(isUnprotectedRefTag);
     captureContainerPrefixes(containers, tags, rConverted);
     const definitions = buildReferenceDefinitions(
@@ -269,15 +285,15 @@ function buildReferenceDefinitions(
             fullTags,
             source,
         );
-        const result = createReferenceDefinition(
-            tag,
-            order,
-            templateData,
-            group,
-            trailingText,
-            shortCitationSources,
+        const result = createReferenceDefinition({
+            containingGroup: group,
             layout,
-        );
+            order,
+            shortCitationSources,
+            tag,
+            templateData,
+            trailingText,
+        });
         return result;
     };
     const result = fullTags.map(buildDefinition);
@@ -318,26 +334,19 @@ function buildAllReplacements(
 /**
  * Builds one reference record and formats a whole citation body.
  *
- * @param tag - Full ref tag.
- * @param order - Definition source order.
- * @param templateData - Citation metadata.
- * @param containingGroup - Enclosing reference-list group.
- * @param trailingText - Material following a list definition.
- * @param shortCitationSources - Citation identities keyed by
- *   CITEREF anchor.
- * @param layout - Citation-template output layout.
+ * @param options - Tag, formatting context, and container context.
  * @returns Reference definition.
  */
-// eslint-disable-next-line max-lines-per-function, max-params
-function createReferenceDefinition(
-    tag: RefTag,
-    order: number,
-    templateData: CitationTemplateDataMap,
-    containingGroup: string,
-    trailingText: string,
-    shortCitationSources: Map<string, CitationIdentity>,
-    layout: CitationLayout,
-): ReferenceDefinition {
+// eslint-disable-next-line max-lines-per-function
+function createReferenceDefinition({
+    containingGroup,
+    layout,
+    order,
+    shortCitationSources,
+    tag,
+    templateData,
+    trailingText,
+}: ReferenceDefinitionOptions): ReferenceDefinition {
     const group = tag.attributes.group || containingGroup;
     const trimmed = tag.content.trim();
     const plainOptions = {
@@ -429,9 +438,9 @@ function buildShortCitationSourceMap(
     templateData: CitationTemplateDataMap,
 ): Map<string, CitationIdentity> {
     const result = new Map<string, CitationIdentity>();
-    const protectedRanges = findProtectedRanges(source);
+    const protectedRanges = findCitationFormattingProtectedRanges(source);
     for (const call of findTemplateCalls(source)) {
-        if (isInRanges(call.start, protectedRanges)) {
+        if (isInWikitextRanges(call.start, protectedRanges)) {
             continue;
         }
         const metadata = templateData[normalizeTemplateName(call.name)];
@@ -691,13 +700,13 @@ interface SectionHeading {
  * @returns Section heading positions and names.
  */
 function findSectionHeadings(source: string): SectionHeading[] {
-    const protectedRanges = findProtectedRanges(source);
+    const protectedRanges = findCitationFormattingProtectedRanges(source);
     const headings: SectionHeading[] = [];
     const counters = [0, 0, 0, 0, 0];
     const pattern = /^(={2,6})\s*(.*?)\s*\1\s*$/gmu;
     for (const match of source.matchAll(pattern)) {
         const start = match.index || 0;
-        if (isInRanges(start, protectedRanges)) {
+        if (isInWikitextRanges(start, protectedRanges)) {
             continue;
         }
         const depth = match[1].length - 2;
@@ -806,9 +815,9 @@ function buildExplicitCitationRefMap(
     templateData: CitationTemplateDataMap,
 ): Map<string, CitationIdentity> {
     const result = new Map<string, CitationIdentity>();
-    const protectedRanges = findProtectedRanges(source);
+    const protectedRanges = findCitationFormattingProtectedRanges(source);
     for (const call of findTemplateCalls(source)) {
-        if (isInRanges(call.start, protectedRanges)) {
+        if (isInWikitextRanges(call.start, protectedRanges)) {
             continue;
         }
         if (!isCitationTemplate(call.name)) {
@@ -1265,10 +1274,7 @@ function buildReferenceContainer(
 ): string {
     const rows = buildSectionedDefinitionRows(container, definitions);
     const comments = getContainerGeneralComments(container, definitions);
-    let group = "";
-    if (container.group !== "") {
-        group = ` group="${escapeAttribute(container.group)}"`;
-    }
+    const group = formatReferenceGroupAttribute(container.group);
     if (rows === "") {
         return [`<references${group} responsive />`, ...comments].join("\n");
     }
@@ -1423,7 +1429,7 @@ function isReferenceSectionComment(comment: string): boolean {
  * @returns Full ref tag.
  */
 function buildDefinitionTag(definition: ReferenceDefinition): string {
-    const name = escapeRefName(definition.finalName);
+    const name = escapeReferenceName(definition.finalName);
     const tag = `<ref name="${name}">${definition.formattedContent}</ref>`;
     const trailing = stripReferenceSectionComments(definition.trailingText);
     return `${tag}${trailing}`.trimEnd();
@@ -1437,9 +1443,8 @@ function buildDefinitionTag(definition: ReferenceDefinition): string {
  * @returns Self-closing ref tag.
  */
 function buildReuseTag(name: string, group: string): string {
-    const groupAttribute =
-        group === "" ? "" : ` group="${escapeAttribute(group)}"`;
-    return `<ref name="${escapeRefName(name)}"${groupAttribute} />`;
+    const groupAttribute = formatReferenceGroupAttribute(group);
+    return `<ref name="${escapeReferenceName(name)}"${groupAttribute} />`;
 }
 
 /**
@@ -1489,213 +1494,6 @@ function appendMissingReferenceContainers(
 }
 
 /**
- * Builds a target for an appended native references list.
- *
- * @param group - Reference group.
- * @returns Empty references container.
- */
-function createEmptyReferenceContainer(group: string): ReferenceContainer {
-    const result: ReferenceContainer = {
-        contentEnd: 0,
-        contentStart: 0,
-        end: 0,
-        group,
-        kind: "references",
-        namedParams: [],
-        prefixText: "",
-        start: 0,
-    };
-    return result;
-}
-
-/**
- * Finds native references tags and reflist templates.
- *
- * @param text - Source wikitext.
- * @returns Reference-list containers.
- */
-function findReferenceContainers(text: string): ReferenceContainer[] {
-    const result: ReferenceContainer[] = [];
-    const referencesPattern =
-        /<references\b([^>]*?)(?:\/>|>([\s\S]*?)<\/references\s*>)/giu;
-    for (const match of text.matchAll(referencesPattern)) {
-        const attributes = parseTagAttributes(match[1]);
-        const contentEnd = getReferencesContentEnd(match);
-        const contentStart = getReferencesContentStart(match);
-        result.push({
-            contentEnd,
-            contentStart,
-            end: (match.index || 0) + match[0].length,
-            group: attributes.group || "",
-            kind: "references",
-            namedParams: [],
-            prefixText: "",
-            start: match.index || 0,
-        });
-    }
-    for (const call of findTemplateCalls(text)) {
-        if (normalizeTemplateName(call.name) !== "reflist") {
-            continue;
-        }
-        const container = buildReflistContainer(call);
-        result.push(container);
-    }
-    return result.sort((left, right) => left.start - right.start);
-}
-
-/**
- * Builds a reference container from a reflist template.
- *
- * @param call - Parsed reflist call.
- * @returns Reflist reference container.
- */
-function buildReflistContainer(call: ParsedTemplateCall): ReferenceContainer {
-    const normalizeNamedParam = function normalizeNamedParam(
-        param: ParsedTemplateCall["params"][number],
-    ) {
-        return [param.name.toLocaleLowerCase("en-US"), param.value];
-    };
-    const namedParams = call.params
-        .filter(function isNamedParam(param) {
-            return !param.positional;
-        })
-        .map(normalizeNamedParam) as Array<[string, string]>;
-    const values = Object.fromEntries(namedParams);
-    const listValue = values.list || values.refs || "";
-    const valueOffset = listValue === "" ? 0 : call.raw.indexOf(listValue);
-    const result: ReferenceContainer = {
-        contentEnd: call.start + valueOffset + listValue.length,
-        contentStart: call.start + valueOffset,
-        end: call.end,
-        group: values.group || "",
-        kind: "reflist",
-        namedParams,
-        prefixText: "",
-        start: call.start,
-    };
-    return result;
-}
-
-/**
- * Gets the start of a native references tag body.
- *
- * @param match - Native references match.
- * @returns Body start offset.
- */
-function getReferencesContentStart(match: RegExpMatchArray): number {
-    const start = match.index ?? 0;
-    const openingEnd = start + match[0].indexOf(">") + 1;
-    return openingEnd;
-}
-
-/**
- * Gets the end of a native references tag body.
- *
- * @param match - Native references match.
- * @returns Body end offset.
- */
-function getReferencesContentEnd(match: RegExpMatchArray): number {
-    const start = match.index ?? 0;
-    if (match[2] == null) {
-        return start + match[0].indexOf(">") + 1;
-    }
-    return start + match[0].lastIndexOf("</references");
-}
-
-/**
- * Captures material before the first active list definition.
- *
- * @param containers - Reference-list containers.
- * @param tags - Active ref tags.
- * @param source - Source wikitext.
- */
-function captureContainerPrefixes(
-    containers: ReferenceContainer[],
-    tags: RefTag[],
-    source: string,
-): void {
-    for (const container of containers) {
-        const first = tags.find(function isFirstContainerTag(tag) {
-            const result =
-                !tag.selfClosing &&
-                tag.start >= container.contentStart &&
-                tag.end <= container.contentEnd;
-            return result;
-        });
-        const end = first?.start ?? container.contentEnd;
-        container.prefixText = source.slice(container.contentStart, end);
-    }
-}
-
-/**
- * Captures material after a definition up to the next definition.
- *
- * @param tag - Current full ref tag.
- * @param containers - Reference-list containers.
- * @param fullTags - All full ref tags.
- * @param source - Source wikitext.
- * @returns Trailing list material.
- */
-function getTrailingContainerText(
-    tag: RefTag,
-    containers: ReferenceContainer[],
-    fullTags: RefTag[],
-    source: string,
-): string {
-    const container = containers.find(function containsTag(candidate) {
-        const result =
-            tag.start >= candidate.contentStart &&
-            tag.end <= candidate.contentEnd;
-        return result;
-    });
-    if (container == null) {
-        return "";
-    }
-    const next = fullTags.find(function isNextContainerTag(candidate) {
-        const result =
-            candidate.start > tag.start &&
-            candidate.start < container.contentEnd;
-        return result;
-    });
-    return source.slice(tag.end, next?.start ?? container.contentEnd);
-}
-
-/**
- * Checks whether a ref tag is inside a list container.
- *
- * @param tag - Parsed ref tag.
- * @param containers - Reference-list containers.
- * @returns Whether the tag is list-defined.
- */
-function isTagInContainers(
-    tag: RefTag,
-    containers: ReferenceContainer[],
-): boolean {
-    const result = containers.some(function containsTag(container) {
-        return tag.start >= container.start && tag.end <= container.end;
-    });
-    return result;
-}
-
-/**
- * Gets the group inherited from a containing list.
- *
- * @param tag - Parsed ref tag.
- * @param containers - Reference-list containers.
- * @returns Containing reference group.
- */
-function getContainingGroup(
-    tag: RefTag,
-    containers: ReferenceContainer[],
-): string {
-    const result =
-        containers.find(function containsTag(container) {
-            return tag.start >= container.start && tag.end <= container.end;
-        })?.group || "";
-    return result;
-}
-
-/**
  * Converts r wrapper templates to native ref tags.
  *
  * @param text - Source wikitext.
@@ -1726,11 +1524,11 @@ function convertRTemplates(text: string): string {
  * @returns R calls outside protected ranges.
  */
 function findActiveRTemplates(text: string): ParsedTemplateCall[] {
-    const protectedRanges = findProtectedRanges(text);
+    const protectedRanges = findCitationFormattingProtectedRanges(text);
     const isActiveR = function isActiveR(call: ParsedTemplateCall) {
         const active =
             normalizeTemplateName(call.name) === "r" &&
-            !isInRanges(call.start, protectedRanges);
+            !isInWikitextRanges(call.start, protectedRanges);
         return active;
     };
     const result = findTemplateCalls(text).filter(isActiveR);
@@ -1785,59 +1583,18 @@ function convertRTemplate(call: ParsedTemplateCall): string {
     const content = named.ref || named.r;
     const namedName = named.name || named.n;
     const enteredName = namedName || positional[0] || "";
-    const definitionName = stripRNameQuotes(enteredName);
+    const definitionName = stripOptionalReferenceNameQuotes(enteredName);
     if (content != null) {
-        const groupAttribute =
-            group === "" ? "" : ` group="${escapeAttribute(group)}"`;
-        const name = escapeRefName(definitionName);
+        const groupAttribute = formatReferenceGroupAttribute(group);
+        const name = escapeReferenceName(definitionName);
         return `<ref name="${name}"${groupAttribute}>${content}</ref>`;
     }
     const buildPositionalReuse = function buildPositionalReuse(name: string) {
-        const normalizedName = stripRNameQuotes(name);
+        const normalizedName = stripOptionalReferenceNameQuotes(name);
         return buildReuseTag(normalizedName, group);
     };
     const result = positional.map(buildPositionalReuse).join("");
     return result;
-}
-
-/**
- * Removes optional quotes around an r template name.
- *
- * @param value - Entered name.
- * @returns Unquoted name.
- */
-function stripRNameQuotes(value: string): string {
-    return value.trim().replace(/^(?:"([\s\S]*)"|'([\s\S]*)')$/u, "$1$2");
-}
-
-/**
- * Finds comments and literal wikitext regions.
- *
- * @param text - Source wikitext.
- * @returns Protected source ranges.
- */
-function findProtectedRanges(text: string): Array<[number, number]> {
-    const ranges: Array<[number, number]> = [];
-    const pattern = new RegExp(
-        "<!--[\\s\\S]*?-->|<(nowiki|pre|syntaxhighlight|source|code)" +
-            "\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>",
-        "giu",
-    );
-    for (const match of text.matchAll(pattern)) {
-        ranges.push([match.index || 0, (match.index || 0) + match[0].length]);
-    }
-    return ranges;
-}
-
-/**
- * Checks whether an offset lies in protected source.
- *
- * @param index - Source offset.
- * @param ranges - Protected ranges.
- * @returns Whether the offset is protected.
- */
-function isInRanges(index: number, ranges: Array<[number, number]>): boolean {
-    return ranges.some(([start, end]) => index >= start && index < end);
 }
 
 /**
@@ -1869,24 +1626,4 @@ function removeNestedReplacements(
     };
     const result = replacements.filter(isOuterReplacement);
     return result;
-}
-
-/**
- * Escapes a value for a quoted tag attribute.
- *
- * @param value - Raw attribute value.
- * @returns Escaped attribute value.
- */
-function escapeAttribute(value: string): string {
-    return value.replace(/&/gu, "&amp;").replace(/"/gu, "&quot;");
-}
-
-/**
- * Escapes a quoted ref name while preserving valid literal ampersands.
- *
- * @param value - Raw ref name.
- * @returns Ref name safe for a quoted attribute.
- */
-function escapeRefName(value: string): string {
-    return value.replace(/&amp;/gu, "&").replace(/"/gu, "&quot;");
 }

@@ -1,5 +1,5 @@
 /**
- * Public API for citation acquisition and reference wikitext.
+ * Shared entry point for citation acquisition and reference wikitext.
  */
 
 export {

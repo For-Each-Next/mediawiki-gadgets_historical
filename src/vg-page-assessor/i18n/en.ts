@@ -2,7 +2,7 @@
  * English source catalog for VG Page Assessor.
  */
 
-import { i18n } from "#shared";
+import * as i18n from "#shared/i18n";
 
 export default i18n.defineMessages({
     "tool": {

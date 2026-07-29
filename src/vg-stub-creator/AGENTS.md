@@ -16,13 +16,16 @@ instructions remain in force.
 
 ## Architecture and imports
 
-- Keep `index.ts` as the browser entry point. Put orchestration in `app/`, pure
-  records and rendering in `domain/`, external adapters in `infra/`, and
-  browser presentation and state in `ui/`.
+- Keep `index.ts` as the browser entry point and let it invoke `main.ts`. Keep
+  `main.ts` as the sole composition root for sibling UI, workflows, domain
+  services, and external adapters.
+- Put orchestration in `workflows/`, pure records and rendering in `domain/`,
+  external adapters in `infra/`, and browser presentation and state in `ui/`.
 - Dependencies point toward `domain/` and shared code: domain code must not
-  import app, infra, or UI code, and infra code must not import UI code.
-- Use `#me/*` for package-local imports and `#shared` for workspace-wide
-  utilities. Put cross-layer coordination in `app/workflow.ts`.
+  import workflows, infra, or UI code, and infra code must not import UI code.
+- Use `#gadget/*` for package-local imports and explicit `#shared/<name>`
+  entries for workspace responsibilities. Put cross-layer coordination in
+  `workflows/article.ts`.
 
 ## Normalization, data, and language
 
@@ -49,7 +52,7 @@ instructions remain in force.
 
 ## Verification
 
-- Run `npm run check -w vg-stub-creator` and
-  `npm test -w vg-stub-creator` for package changes.
+- Run `npm run check -w vg-stub-creator` and `npm test -w vg-stub-creator` for
+  package changes.
 - For behavior or build changes, also follow the repository build and generated
   artifact checks. A documentation-only change does not require a gadget build.

@@ -3,8 +3,8 @@ import {
     createIconActionLinkTemplate,
     createTableHeaderTemplate,
     createTableTemplate,
-} from "#me/ui/template.ts";
-import { msg } from "#me/i18n/index.ts";
+} from "#gadget/ui/template.ts";
+import { msg } from "#gadget/i18n/index.ts";
 
 /**
  * Creates editable NoteTA rows.

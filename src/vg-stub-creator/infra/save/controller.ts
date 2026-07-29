@@ -3,10 +3,20 @@
  */
 
 import {
+    SAVE_PROGRESS_STORAGE_KEY,
     readSaveProgress,
     storeSaveProgress,
-    updateSaveProgress,
-} from "#me/infra/save/progress.ts";
+} from "#gadget/infra/save/progress.ts";
+import { updateSaveProgress } from "#gadget/support/save-progress.ts";
+
+/**
+ * Removes persisted save progress after every action completes.
+ *
+ * @param storage - Session storage implementation.
+ */
+export function clearSaveProgress(storage: Storage = sessionStorage): void {
+    storage.removeItem(SAVE_PROGRESS_STORAGE_KEY);
+}
 
 /**
  * Updates and renders one save progress row.
@@ -47,16 +57,10 @@ export function failSaveProgress(error: Error): any | undefined {
     progress.error = error instanceof Error ? error.message : String(error);
     const steps: Array<{ id: string; status: string }> = progress.steps;
     const running = steps.find((step) => step.status === "running");
-    const selectValueCallback = function falseBranch() {
-        return updateSaveProgress(progress, running.id, "failed");
-    };
-    const failed = selectValue(
-        running == null,
-        function trueBranch() {
-            return progress;
-        },
-        selectValueCallback,
-    );
+    const failed =
+        running == null
+            ? progress
+            : updateSaveProgress(progress, running.id, "failed");
 
     storeSaveProgress(failed);
     return failed;
@@ -80,26 +84,4 @@ export function reportSaveProgressError(
     progress.error = error instanceof Error ? error.message : String(error);
     storeSaveProgress(progress);
     return progress;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

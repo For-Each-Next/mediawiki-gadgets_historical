@@ -2,24 +2,37 @@
 
 ## Until 0.5
 
-### 0.4.3-post.1 (2026-07-28 18:38 UTC)
+### 0.4.3-post.2 (2026-07-29 08:17 UTC)
 
-Overview: The CS1 results dialog can now rerun its check against the current
-article after source edits have cleared or changed the previous result list.
+Overview: Citation Formatter now uses a side-effect-free composition root,
+typed workflow and adapter boundaries, smaller citation primitives, and the
+workspace's strict reusable gadget build and package contracts.
 
-- Added localized Recheck article action to the CS1 results dialog.
-- Re-read the current editor text before every article-wide CS1 check.
-- Displayed the existing progress bar during rechecks and prevented duplicate
-  requests while a check was running.
-- Simplified gadget histories to use their overview paragraphs as the sole
-  release summaries.
+- Added a `main.ts` composition root that injects CS1, metadata, archive, and
+  wiki-link operations into the browser UI.
+- Extracted CS1 orchestration and transport, calendar-date checks, protected
+  wikitext policies, reference attributes and containers, and source URL
+  normalization into responsibility-named modules.
+- Split source-manager contracts, reactive state, list presentation, analysis
+  state, alias actions, and metadata-draft handling from the UI coordinator.
+- Ordered citation-template choices into important-special, important-general,
+  normal-special, and normal-general tiers, and gave `Cite news` a newspaper
+  icon.
+- Kept the private TypeScript operations available for composition and tests
+  without exporting them from the generated browser gadget.
+- Added focused CS1-adapter and domain-primitive regression coverage and
+  enabled strict TypeScript checking.
+- Added a localized Recheck article action that re-read the current editor,
+  displayed progress, and prevented duplicate requests.
+- Adopted `#gadget` imports, standardized package documentation, and the shared
+  typed ES2024 builder with clean, dedicated output directories.
 
 ### 0.4.3 (2026-07-28 18:28 UTC)
 
 Overview: Generated reference names now prefer credited creators, then
 publishing organizations, then containing publications. Installation guidance
-now covers both on-wiki personal scripts and Tampermonkey. Package documentation
-now uses consistent numbered reference links.
+now covers both on-wiki personal scripts and Tampermonkey. Package
+documentation now uses consistent numbered reference links.
 
 - Recognized unnumbered and numbered author, surname, subject, and host
   parameter forms independently of template-specific aliases.
@@ -31,8 +44,8 @@ now uses consistent numbered reference links.
   architecture and editor-safety rules.
 - Documented direct installation from a MediaWiki personal JavaScript page or
   Tampermonkey.
-- Standardized authoritative-source and package-documentation links as
-  numbered references.
+- Standardized authoritative-source and package-documentation links as numbered
+  references.
 
 ### 0.4.2 (2026-07-28 17:43 UTC)
 
@@ -57,12 +70,12 @@ their rendered content.
 
 ### 0.4.0
 
-- Added complete English, Simplified Chinese, and Traditional Chinese
-  interface catalogs with MediaWiki language-variant resolution, localized
-  launchers and lead markers, and copy aligned with the Codex voice and tone.
+- Added complete English, Simplified Chinese, and Traditional Chinese interface
+  catalogs with MediaWiki language-variant resolution, localized launchers and
+  lead markers, and copy aligned with the Codex voice and tone.
 - Rebuilt the source manager with responsive Codex dialogs, tabs, fields,
-  comboboxes, semantic source and parameter tables, validation states,
-  official icons, and logical CSS.
+  comboboxes, semantic source and parameter tables, validation states, official
+  icons, and logical CSS.
 - Separated the pure API, browser bootstrap, Vue template, localization
   adapters, domain logic, and infrastructure boundaries.
 - Moved version and UTC build information from the Tools tab into the main
@@ -84,8 +97,8 @@ their rendered content.
 - Removed the unreachable legacy manager, custom icon definitions, unused
   source-status path, test-only helpers, stale package configuration, and
   unused UI messages.
-- Documented the public functions, update workflow, supported languages, and
-  module architecture.
+- Documented the browser-independent operations, update workflow, supported
+  languages, and module architecture.
 
 ## Until 0.4
 
@@ -183,8 +196,8 @@ their rendered content.
 - Made creator alias comments searchable with limited typo tolerance, so a
   correction such as `Hiroya` can find a stored `Horiya`.
 - Hid section-lead filters when no sources are used directly in that lead.
-- Removed terminal whitespace and the `(帮助)` link label from live Chinese
-  CS1 API messages.
+- Removed terminal whitespace and the `(帮助)` link label from Chinese CS1
+  messages returned by the live API.
 
 ### 0.3.30
 
@@ -199,23 +212,23 @@ their rendered content.
 
 ### 0.3.29
 
-- Treated publication parameter names as part of consistency, so equal
-  `work` and `website` values are still offered as a fixable difference.
+- Treated publication parameter names as part of consistency, so equal `work`
+  and `website` values are still offered as a fixable difference.
 - Replaced the internal keep-parameter sentinel with an empty combobox and a
   grey `Keep as is` placeholder.
 - Removed the long count summary panels so the analysis dialog focuses on
   checking and fixing actionable inconsistencies.
-- Kept the analysis popup open and refreshed its findings after applying
-  fixes; manually closing and reopening it also rereads the editor text.
+- Kept the analysis popup open and refreshed its findings after applying fixes;
+  manually closing and reopening it also rereads the editor text.
 
 ### 0.3.28
 
-- Added consistency findings for differing or missing `<!-- # ... -->`
-  aliases, including source keys attached to repeated URLs.
+- Added consistency findings for differing or missing `<!-- # ... -->` aliases,
+  including source keys attached to repeated URLs.
 - Replaced fixed analysis selectors with editable parameter-name and value
   comboboxes, allowing a new target such as `website = [[IGN]]`.
-- Preserved a manually selected supported parameter alias during checked
-  batch replacements instead of canonicalizing it back to another name.
+- Preserved a manually selected supported parameter alias during checked batch
+  replacements instead of canonicalizing it back to another name.
 
 ### 0.3.27
 
@@ -224,8 +237,8 @@ their rendered content.
 - Flagged differing website/work and publisher values used for the same host,
   including link-, case-, and spacing-only variants, plus repeated author
   formatting variants.
-- Added per-occurrence checkboxes and selectable target values for opt-in
-  batch replacement while leaving intentional differences untouched.
+- Added per-occurrence checkboxes and selectable target values for opt-in batch
+  replacement while leaving intentional differences untouched.
 
 ### 0.3.26
 
@@ -252,8 +265,8 @@ their rendered content.
 - Moved non-CS1 source results from the View filter into the Tools tab.
 - Replaced the source suggestion combobox with inline keyword and section
   filter fields.
-- Used the Codex magic-wand icon and parameter-specific tooltips for access
-  and archive date filling.
+- Used the Codex magic-wand icon and parameter-specific tooltips for access and
+  archive date filling.
 - Kept `script-title` immediately after `title` when formatting parameters.
 
 ### 0.3.23
@@ -336,8 +349,8 @@ their rendered content.
   save-and-close actions.
 - Added source usage counts and hierarchical section/subsection filters to the
   existing-source list.
-- Used language-aware `script-title` values when citations have no `title`,
-  and removed long citation-template tooltips from the source list.
+- Used language-aware `script-title` values when citations have no `title`, and
+  removed long citation-template tooltips from the source list.
 
 ### 0.3.14
 
@@ -346,13 +359,13 @@ their rendered content.
 
 ### 0.3.13
 
-- Narrowed the editable parameter-name column and displayed parameter names
-  in bold.
+- Narrowed the editable parameter-name column and displayed parameter names in
+  bold.
 
 ### 0.3.12
 
-- Made every source parameter name directly editable and removed per-row
-  Remove actions.
+- Made every source parameter name directly editable and removed per-row Remove
+  actions.
 - Added reversible, blank-safe author controls for switching between one full
   name and separate first/last fields.
 - Highlighted draft fields that actively form the generated reference name.

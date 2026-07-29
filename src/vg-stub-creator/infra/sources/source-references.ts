@@ -2,15 +2,16 @@
  * Collects source URLs and provides shared citation fetching.
  */
 
-import { getArticleSourceFields } from "#me/domain/processor.ts";
-import type { CitationStore } from "#me/infra/sources/citation-store.ts";
-import { buildNameSourceReferenceKey } from "#me/domain/wiki.ts";
-import { cite, wikitext } from "#shared";
+import {
+    getEnteredSourceReferenceFields,
+    getEnteredSourceUrls,
+} from "#gadget/domain/source-fields.ts";
+import type { CitationStore } from "#gadget/infra/sources/citation-store.ts";
+import * as cite from "#shared/cite";
+import * as wikitext from "#shared/wikitext";
 const { buildCiteTemplateFromParts, parseCiteTemplate, sortCitationParams } =
     cite;
-const { splitSourceUrls, trimValue } = wikitext;
-
-const NAME_GROUP_KEYS = ["localizedNames", "officialNames", "commonNames"];
+const { trimValue } = wikitext;
 
 interface ManagedCitationRow {
     modified: boolean;
@@ -130,7 +131,7 @@ async function prepareManagedCitationRow(
     const params = selectManagedCitationParams(existing, generated);
     let template = generated.template;
 
-    if (trimValue(existing?.template)) {
+    if (existing != null && trimValue(existing.template)) {
         template = existing.template;
     }
 
@@ -153,7 +154,8 @@ async function prepareManagedCitationRow(
  * @returns Generated or user-modified citation parameters.
  */
 function selectManagedCitationParams(
-    existing: { modified: boolean; template: string; params: unknown[] },
+    existing:
+        { modified: boolean; template: string; params: unknown[] } | undefined,
     generated: { params: unknown[]; template: string },
 ): Array<unknown> {
     if (existing?.modified !== true) {
@@ -161,48 +163,6 @@ function selectManagedCitationParams(
     }
     const template = existing.template || generated.template;
     return sortCitationParams(existing.params || [], template);
-}
-
-/**
- * Gets all source reference fields with entered URLs.
- *
- * @param form - Dialog form values.
- * @returns Entered source fields.
- */
-export function getEnteredSourceReferenceFields(form: any): Array<any> {
-    const flatMapCallbackA = function callback(field: any) {
-        const result = splitSourceUrls(form[field.sourceKey]).map(
-            function callback(sourceUrl: string) {
-                const result = {
-                    ...field,
-                    sourceUrl,
-                };
-                return result;
-            },
-        );
-        return result;
-    };
-    const result = [
-        ...getArticleSourceFields().flatMap(flatMapCallbackA),
-        ...getEnteredNameSourceReferenceFields(form),
-    ];
-    return result;
-}
-
-/**
- * Gets all unique source URLs currently entered in the form.
- *
- * @param form - Dialog form values.
- * @returns Unique source URLs.
- */
-export function getEnteredSourceUrls(form: any): Array<string> {
-    const mapCallback = (field: any) => trimValue(field.sourceUrl);
-    const enteredUrls = getEnteredSourceReferenceFields(form)
-        .map(mapCallback)
-        .filter(Boolean);
-    const uniqueUrls = new Set(enteredUrls);
-    const result = [...uniqueUrls];
-    return result;
 }
 
 /**
@@ -227,49 +187,4 @@ function getManagedCitation(form: any, sourceUrl: string): string {
     }
 
     return buildCiteTemplateFromParts(row);
-}
-
-/**
- * Gets source fields for localized name rows with entered URLs.
- *
- * @param form - Dialog form values.
- * @returns Entered localized-name source fields.
- */
-export function getEnteredNameSourceReferenceFields(form: any): Array<any> {
-    const flatMapCallback = function callback(key: string) {
-        const flatMapCallbackB = function callback(
-            row: { sourceUrl: unknown; name: unknown },
-            index: number,
-        ) {
-            const mapCallbackC = function callback(sourceUrl: string) {
-                const result = {
-                    key: buildNameSourceReferenceKey(key, index),
-                    name: row.name,
-                    sourceUrl,
-                };
-                return result;
-            };
-            const result = splitSourceUrls(row.sourceUrl).map(mapCallbackC);
-            return result;
-        };
-        const filterCallback = function callback(field: {
-            name: unknown;
-            sourceUrl: unknown;
-        }) {
-            const name = trimValue(field.name);
-
-            if (!Boolean(name)) {
-                return false;
-            }
-
-            const sourceUrl = trimValue(field.sourceUrl);
-            return Boolean(sourceUrl);
-        };
-        const result = (form[key] || [])
-            .flatMap(flatMapCallbackB)
-            .filter(filterCallback);
-        return result;
-    };
-    const result = NAME_GROUP_KEYS.flatMap(flatMapCallback);
-    return result;
 }

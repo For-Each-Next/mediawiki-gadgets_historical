@@ -28,20 +28,12 @@ export function buildEditSummary(metadata: any): string {
         metadata.displayName,
         metadata.year,
     );
-    const selectValueCallbackA = function falseBranch() {
-        const proseCountTextResult = buildProseCountText(
-            metadata.proseSinographs,
-        );
-        const result = buildProseDetailText(proseCountTextResult);
-        return result;
-    };
-    const proseText = selectValue(
-        nameText === "",
-        function trueBranch() {
-            return "";
-        },
-        selectValueCallbackA,
-    );
+    const proseText =
+        nameText === ""
+            ? ""
+            : buildProseDetailText(
+                  buildProseCountText(metadata.proseSinographs),
+              );
     const sourceText = nameText === "" ? "" : buildSourceDetailText(metadata);
     return addEditSummarySuffix(`${nameText}${proseText}${sourceText}`);
 }
@@ -55,15 +47,8 @@ export function buildEditSummary(metadata: any): string {
 export function addEditSummarySuffix(summary: string): string {
     const text = String(summary || "").trim();
 
-    const result = selectValue(
-        text === "",
-        function trueBranch() {
-            return EDIT_SUMMARY_SUFFIX;
-        },
-        function falseBranch() {
-            return `${text} ${EDIT_SUMMARY_SUFFIX}`;
-        },
-    );
+    const result =
+        text === "" ? EDIT_SUMMARY_SUFFIX : `${text} ${EDIT_SUMMARY_SUFFIX}`;
     return result;
 }
 
@@ -124,21 +109,14 @@ function buildSourceDetailText(metadata: any): string {
         buildWikidataSummaryLink(metadata.wikidataId),
     ].filter(Boolean);
 
-    const selectValueCallback = function falseBranch() {
-        const result = [
-            "; also see ",
-            links.map((link) => `"${link}"`).join(" and "),
-            "",
-        ].join("");
-        return result;
-    };
-    const result = selectValue(
-        links.length === 0,
-        function trueBranch() {
-            return "";
-        },
-        selectValueCallback,
-    );
+    const result =
+        links.length === 0
+            ? ""
+            : [
+                  "; also see ",
+                  links.map((link) => `"${link}"`).join(" and "),
+                  "",
+              ].join("");
     return result;
 }
 
@@ -192,26 +170,4 @@ function buildWikidataSummaryLink(id: string): string {
     const value = String(id || "").trim();
 
     return value === "" ? "" : `[[:d:${value}]]`;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

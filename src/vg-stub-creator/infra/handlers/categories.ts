@@ -1,11 +1,11 @@
-import { getDefinitionCollections } from "#me/config/terminologies/index.ts";
+import * as terminologies from "#gadget/config/terminologies/index.ts";
 import {
     normalizeTitleKey,
     resolvePageTitles,
     stripNamespace,
-} from "#me/infra/handlers/title-resolver.ts";
-import { sortCategoryRowsByProse } from "#me/domain/wiki.ts";
-import { wikitext } from "#shared";
+} from "#gadget/infra/handlers/title-resolver.ts";
+import { sortCategoryRowsByProse } from "#gadget/domain/wiki.ts";
+import * as wikitext from "#shared/wikitext";
 const { trimValue, uniqueValues } = wikitext;
 
 const CATEGORY_NAMESPACE = "Category";
@@ -526,15 +526,10 @@ function applyCategoryResolution(row: any, resolutions: any): any {
         ...row,
         category: resolution?.category || row.category,
         enabled: getResolvedCategoryEnabled(row, resolution),
-        originalCategory: selectValue(
-            !isEdited && resolution?.category != null,
-            function trueBranch() {
-                return resolution.category;
-            },
-            function falseBranch() {
-                return row.originalCategory;
-            },
-        ),
+        originalCategory:
+            !isEdited && resolution?.category != null
+                ? resolution.category
+                : row.originalCategory,
         status: resolution?.status || CATEGORY_STATUS.unchecked,
     };
     const result = normalizeCategoryRow(values);
@@ -615,15 +610,10 @@ function normalizeCategoryRow(row: any): any {
         status: trimValue(row.status),
         stubTag: trimValue(row.stubTag),
         stubTagEnabled: row.stubTagEnabled === true,
-        originalStubTagEnabled: selectValue(
-            row.originalStubTagEnabled == null,
-            function trueBranch() {
-                return row.stubTagEnabled === true;
-            },
-            function falseBranch() {
-                return row.originalStubTagEnabled === true;
-            },
-        ),
+        originalStubTagEnabled:
+            row.originalStubTagEnabled == null
+                ? row.stubTagEnabled === true
+                : row.originalStubTagEnabled === true,
     };
     return result;
 }
@@ -734,7 +724,7 @@ function enrichManualCategoryRows(
  * @returns Matching stub metadata.
  */
 function getConfiguredCategoryStubMetadata(category: string): any | undefined {
-    for (const definitions of getDefinitionCollections()) {
+    for (const definitions of terminologies.getDefinitionCollections()) {
         const metadata = findConfiguredCategoryStubMetadata(
             definitions,
             category,
@@ -823,15 +813,10 @@ function mergePreviousGeneratedRows(
             category: previous.category,
             enabled: previous.enabled,
             pendingCreation: previous.pendingCreation,
-            stubTagEnabled: selectValue(
-                previous.stubTagEnabled == null,
-                function trueBranch() {
-                    return row.stubTagEnabled;
-                },
-                function falseBranch() {
-                    return previous.stubTagEnabled;
-                },
-            ),
+            stubTagEnabled:
+                previous.stubTagEnabled == null
+                    ? row.stubTagEnabled
+                    : previous.stubTagEnabled,
         };
         return result;
     };
@@ -1059,26 +1044,4 @@ function uniqueCategoryRows(rows: Array<any>): Array<any> {
  */
 function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

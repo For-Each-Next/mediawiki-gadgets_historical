@@ -15,10 +15,14 @@ repository-wide `AGENTS.md`.
 
 ## Architecture
 
-- Keep `index.ts` focused on browser startup and dependency wiring.
+- Keep `index.ts` focused on browser startup and let it invoke `main.ts`. Keep
+  `main.ts` as the sole composition root for sibling UI, workflows, and
+  infrastructure.
 - Keep assessment and wikitext rules in `domain/`, application workflows in
-  `app/`, MediaWiki access and logging in `infra/`, and rendering and user
-  interaction in `ui/`.
+  `workflows/`, MediaWiki access and logging in `infra/`, and rendering and
+  user interaction in `ui/`.
+- Use `#gadget/*` for package-local imports and explicit `#shared/<name>`
+  entries for workspace shared responsibilities.
 - Keep project-specific constants in `config/` and all user-facing text in
   `i18n/`. Do not bypass these boundaries by embedding API calls, project
   configuration, or untranslated text in domain logic.
@@ -27,21 +31,21 @@ repository-wide `AGENTS.md`.
 
 - Keep `README.md`, `AGENTS.md`, and `HISTORY.md` at the package root. Put
   supporting package documentation in `docs/`.
-- Maintain the canonical package history in `HISTORY.md` and update its
-  active section for every completed package-scoped change, including
+- Maintain the canonical package history in `HISTORY.md` and update its active
+  section for every completed package-scoped change, including
   documentation-only work.
 
 ## Releases
 
-- The `0.1.x` line reflects the user-selected early-development status.
-  Inherit all version, suffix, build, and generated-artifact rules from the
-  repository instructions; do not choose a new major or minor line.
+- The `0.1.x` line reflects the user-selected early-development status. Inherit
+  all version, suffix, build, and generated-artifact rules from the repository
+  instructions; do not choose a new major or minor line.
 
 ## Focused Verification
 
 - For source changes, run `npm run check -w vg-page-assessor` and
   `npm test -w vg-page-assessor`.
-- For material browser-behavior changes, advance the version as required by
-  the repository instructions, run `npm run build -w vg-page-assessor`, and
-  verify both generated artifact headers. Documentation-only changes do not
-  require a build.
+- For material browser-behavior changes, advance the version as required by the
+  repository instructions, run `npm run build -w vg-page-assessor`, and verify
+  both generated artifact headers. Documentation-only changes do not require a
+  build.

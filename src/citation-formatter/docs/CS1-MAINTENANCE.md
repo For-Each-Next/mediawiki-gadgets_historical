@@ -4,10 +4,9 @@ This guide defines the workflow shared by Citation Formatter's English and
 Chinese Wikipedia metadata and validation refreshes. Read it together with the
 site-specific guide:
 
-- [ENWIKI-CS1.md][1] describes the canonical English TemplateData
-  snapshot and enwiki rules.
-- [ZHWIKI-CS1.md][2] describes the zhwiki comparison snapshot and
-  local rules.
+- [ENWIKI-CS1.md][1] describes the canonical English TemplateData snapshot and
+  enwiki rules.
+- [ZHWIKI-CS1.md][2] describes the zhwiki comparison snapshot and local rules.
 
 ## Authority and safety
 
@@ -17,8 +16,8 @@ pages for parameter metadata. The TemplateData API resolves redirects and
 returns the canonical title, `paramOrder`, parameter aliases, and parameter
 types in one structured response.
 
-The committed validators provide conservative, immediate editor feedback.
-Each wiki's live CS1 Lua modules remain authoritative for complex date ranges,
+The committed validators provide conservative, immediate editor feedback. Each
+wiki's live CS1 Lua modules remain authoritative for complex date ranges,
 deprecated combinations, class-specific restrictions, and parameter
 interactions.
 
@@ -77,6 +76,7 @@ abbreviated request shows every required API option:
 
 ```sh
 CS1_LANGUAGE=en
+CS1_TITLES='Template:Citation|Template:Cite web|Template:Cite book'
 
 curl --fail --location --silent --show-error \
   --get "https://${CS1_LANGUAGE}.wikipedia.org/w/api.php" \
@@ -85,7 +85,7 @@ curl --fail --location --silent --show-error \
   --data-urlencode 'formatversion=2' \
   --data-urlencode 'redirects=1' \
   --data-urlencode 'includeMissingTitles=1' \
-  --data-urlencode 'titles=Template:Citation|Template:Cite web|Template:Cite book'
+  --data-urlencode "titles=${CS1_TITLES}"
 ```
 
 For every returned page:
@@ -108,10 +108,14 @@ date-validation sources separately:
 
 ```sh
 curl --fail --location --silent --show-error \
-  "https://${CS1_LANGUAGE}.wikipedia.org/w/index.php?title=Module:Citation/CS1/Whitelist&action=raw"
+  --get "https://${CS1_LANGUAGE}.wikipedia.org/w/index.php" \
+  --data-urlencode 'title=Module:Citation/CS1/Whitelist' \
+  --data-urlencode 'action=raw'
 
 curl --fail --location --silent --show-error \
-  "https://${CS1_LANGUAGE}.wikipedia.org/w/index.php?title=Module:Citation/CS1/Date_validation&action=raw"
+  --get "https://${CS1_LANGUAGE}.wikipedia.org/w/index.php" \
+  --data-urlencode 'title=Module:Citation/CS1/Date_validation' \
+  --data-urlencode 'action=raw'
 ```
 
 Compare them with the target file under `domain/validation/` and with
@@ -120,12 +124,12 @@ site-specific guide.
 
 ## Understand live validation
 
-When the user runs **Check CS1 issues** in Tools, the source manager submits the
-current article source over HTTPS to the target wiki's read-only `action=parse`
-API. The wiki's complete live CS1 suite returns error and maintenance messages,
-which Citation Formatter displays as normal source-list rows in a separate
-popup. Opening a result uses the normal citation editor and maps applicable API
-errors to its fields.
+When the user runs **Check CS1 issues** in Tools, the source manager submits
+the current article source over HTTPS to the target wiki's read-only
+`action=parse` API. The wiki's complete live CS1 suite returns error and
+maintenance messages, which Citation Formatter displays as normal source-list
+rows in a separate popup. Opening a result uses the normal citation editor and
+maps applicable API errors to its fields.
 
 Normal editing uses local static validation and makes no parse request.
 

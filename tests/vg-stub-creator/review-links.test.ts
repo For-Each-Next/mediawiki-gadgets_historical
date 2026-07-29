@@ -8,7 +8,18 @@ import test from "node:test";
 import {
     claimReviewLinksOpening,
     normalizeListFieldValue,
-} from "vg-stub-creator/ui/form/helpers.ts";
+} from "vg-stub-creator/ui/form/form-model.ts";
+import * as reviewLinks from "vg-stub-creator/ui/form/review-link-session.ts";
+
+test("review-link sessions keep two dialog instances isolated", () => {
+    const first = reviewLinks.createReviewLinkSession(() => createStorage());
+    const second = reviewLinks.createReviewLinkSession(() => createStorage());
+
+    assert.equal(first.claim(), true);
+    assert.equal(first.claim(), false);
+    assert.equal(second.claim(), true);
+    assert.equal(second.claim(), false);
+});
 
 const testCallbackC = () => {
     const storage = createStorage();

@@ -2,19 +2,24 @@
  * Prepares and saves company video game categories.
  */
 
-import { addEditSummarySuffix } from "#me/infra/editing/summary.ts";
+import { addEditSummarySuffix } from "#gadget/infra/editing/summary.ts";
 import {
     addTalkPageBanner,
     connectWikidataSitelink,
-} from "#me/infra/editing/pre-save.ts";
+} from "#gadget/infra/editing/wiki-writes.ts";
 import {
     buildDefaultSortText,
     formatText,
     getTextTemplate,
-} from "#me/domain/wiki.ts";
-import { fetchEnwikiMetadata } from "#me/infra/sources/crosswiki.ts";
+} from "#gadget/domain/wiki.ts";
+import { fetchEnwikiMetadata } from "#gadget/infra/sources/crosswiki.ts";
 
 const CATEGORY_NAMESPACE = "Category:";
+
+interface CompanyCategoryMetadata {
+    pageExists: boolean;
+    wikidataId: string;
+}
 
 /**
  * Builds the initial wikitext for a company video game category.
@@ -126,15 +131,20 @@ export async function saveCompanyCategory(
 async function fetchCompanyCategoryMetadata(
     englishTitle: string,
     options: {
-        fetchMetadata: (title: string, options?: unknown) => Promise<unknown>;
+        fetchMetadata?: (
+            title: string,
+            options?: unknown,
+        ) => Promise<CompanyCategoryMetadata>;
     },
-) {
+): Promise<CompanyCategoryMetadata | null> {
     if (englishTitle === "") {
         return null;
     }
 
     const fetchMetadata = options.fetchMetadata || fetchEnwikiMetadata;
-    const metadata = await fetchMetadata(englishTitle);
+    const metadata = (await fetchMetadata(
+        englishTitle,
+    )) as CompanyCategoryMetadata;
 
     return metadata;
 }
@@ -148,7 +158,7 @@ async function saveCompanyCategoryPage(context: {
     api: mw.Api;
     category: string;
     englishTitle: string;
-    metadata: { pageExists: boolean; wikidataId: string };
+    metadata: CompanyCategoryMetadata | null;
     options: { onProgress?: (step: string, status: string) => void };
     text: string;
 }): Promise<void> {
@@ -182,10 +192,10 @@ async function saveCompanyCategoryPage(context: {
 async function connectCompanyCategory(
     categoryTitle: string,
     englishTitle: string,
-    metadata: { pageExists: boolean; wikidataId: string },
+    metadata: CompanyCategoryMetadata | null,
     options: {
-        wikidataApi: mw.ForeignApi;
-        onProgress: (arg0: string, arg1: string) => void;
+        wikidataApi?: mw.ForeignApi;
+        onProgress?: (operation: string, status: string) => void;
     },
 ): Promise<void> {
     if (metadata == null || metadata.pageExists === false) {
@@ -242,7 +252,9 @@ async function saveCompanyCategorySitelink(
 async function addCompanyCategoryTalkBanner(
     categoryTitle: string,
     api: unknown,
-    options: { onProgress: (arg0: string, arg1: string) => void },
+    options: {
+        onProgress?: (operation: string, status: string) => void;
+    },
 ) {
     try {
         options.onProgress?.("talk-banner", "running");

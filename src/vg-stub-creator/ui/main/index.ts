@@ -1,9 +1,9 @@
-import { createElement, createText } from "#me/ui/template.ts";
-import { createFieldGroupTemplate } from "#me/ui/main/article-fields.ts";
-import { createCitationGroupTemplate } from "#me/ui/main/citations.ts";
-import { createNameGroupTemplate } from "#me/ui/main/localized-names.ts";
-import { createNoteTaGroupTemplate } from "#me/ui/main/noteta.ts";
-import { createCategoryGroupTemplate } from "#me/ui/main/review.ts";
+import { createElement, createText } from "#gadget/ui/template.ts";
+import { createFieldGroupTemplate } from "#gadget/ui/main/article-fields.ts";
+import { createCitationGroupTemplate } from "#gadget/ui/main/citations.ts";
+import { createNameGroupTemplate } from "#gadget/ui/main/localized-names.ts";
+import { createNoteTaGroupTemplate } from "#gadget/ui/main/noteta.ts";
+import { createCategoryGroupTemplate } from "#gadget/ui/main/review.ts";
 
 /**
  * Creates the tab container template node.

@@ -1,7 +1,20 @@
-import { addEditSummarySuffix } from "#me/infra/editing/summary.ts";
-import { msg } from "#me/i18n/index.ts";
-import { wikitext } from "#shared";
-const { buildTemplateCall, buildTemplateText } = wikitext;
+import {
+    addTalkPageBanner,
+    connectWikidataSitelink,
+    createRedirect,
+    movePage,
+    savePageEdit,
+} from "#gadget/infra/editing/wiki-writes.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import { planPreSaveExecution } from "#gadget/workflows/pre-save-plan.ts";
+
+export {
+    TALK_PAGE_BANNER,
+    addTalkPageBanner,
+    connectWikidataSitelink,
+    createRedirect,
+    movePage,
+} from "#gadget/infra/editing/wiki-writes.ts";
 
 type DynamicRecord = Record<string, any>;
 
@@ -10,25 +23,6 @@ export interface PageLookupApi {
 }
 
 const MAX_ACTION_ATTEMPTS = 3;
-
-const videoGamesBanner = buildTemplateCall("WikiProject Video games");
-export const TALK_PAGE_BANNER = buildTemplateText(
-    "WikiProject banner shell",
-    [
-        ["class", "stub"],
-        ["1", videoGamesBanner],
-    ],
-    "block",
-);
-const unassessedBannerParams: Parameters<typeof buildTemplateText>[1] = [
-    ["class", "unassessed"],
-    ["1", buildTemplateCall("WikiProject Video games")],
-];
-const UNASSESSED_TALK_PAGE_BANNER = buildTemplateText(
-    "WikiProject banner shell",
-    unassessedBannerParams,
-    "block",
-);
 
 /**
  * Builds the selectable pre-save action rows.
@@ -779,23 +773,27 @@ export async function runSelectedActions(
     actions: Array<any>,
     options: any,
 ): Promise<any> {
-    const completed = [];
-    const failed = [];
+    const completed: SelectedAction[] = [];
+    const failed: SelectedAction[] = [];
     const originalTitle = normalizeTitle(options.title);
-    const moveTitle = normalizeTitle(options.move?.to);
-    const shouldMove =
-        options.move?.enabled === true &&
-        moveTitle !== "" &&
-        normalizeTitleKey(moveTitle) !== normalizeTitleKey(originalTitle);
-    const finalTitle = shouldMove ? moveTitle : originalTitle;
+    const plan = planPreSaveExecution(
+        actions as SelectedAction[],
+        originalTitle,
+        options.move,
+    );
 
-    await runSelectedMove(originalTitle, finalTitle, shouldMove, options);
+    await runSelectedMove(
+        originalTitle,
+        plan.finalTitle,
+        plan.shouldMove,
+        options,
+    );
 
-    for (const phase of getSelectedActionPhases(actions)) {
+    for (const phase of plan.phases) {
         await runSelectedActionPhase(phase, {
             completed,
             failed,
-            finalTitle,
+            finalTitle: plan.finalTitle,
             options,
         });
     }
@@ -803,7 +801,7 @@ export async function runSelectedActions(
     const result = {
         completed,
         failed,
-        title: finalTitle,
+        title: plan.finalTitle,
     };
     return result;
 }
@@ -996,64 +994,6 @@ function failSelectedAction(
 }
 
 /**
- * Gets selected actions grouped by the execution phases.
- *
- * @param actions - Action rows.
- * @returns Selected action phases.
- */
-function getSelectedActionPhases(actions: Array<any>): Array<any> {
-    const selected = actions.filter((item) => item.selected);
-    const localActions = selected.filter(
-        (action) => action.type !== "interwiki",
-    );
-    const wikidataActions = selected.filter(
-        (action) => action.type === "interwiki",
-    );
-
-    const result = [
-        {
-            actions: localActions,
-            type: "local",
-        },
-        {
-            actions: wikidataActions,
-            type: "wikidata",
-        },
-    ];
-    return result;
-}
-
-/**
- * Moves the saved article before running follow-up edits.
- *
- * @param api - MediaWiki API client.
- * @param from - Current page title.
- * @param to - Destination page title.
- * @param options - Move options.
- * @param options.leaveRedirect - Whether to leave a redirect.
- * @returns Resolves after the page is moved.
- */
-export async function movePage(
-    api: any,
-    from: string,
-    to: string,
-    options: any,
-): Promise<void> {
-    const params: Record<string, any> = {
-        action: "move",
-        from,
-        reason: addEditSummarySuffix(`Rename to [[${to}]]`),
-        to,
-    };
-
-    if (!options.leaveRedirect) {
-        params.noredirect = true;
-    }
-
-    await api.postWithToken("csrf", params);
-}
-
-/**
  * Runs one selected follow-up action.
  *
  * @param action - Action row.
@@ -1119,7 +1059,12 @@ async function runCategoryAction(
             reportCategoryActionProgress(action, operation, status, options);
         },
     };
-    await save(action.category, action.text, action.englishName, saveArgument);
+    await save(
+        action.category ?? "",
+        action.text ?? "",
+        action.englishName ?? "",
+        saveArgument,
+    );
 }
 
 /**
@@ -1181,194 +1126,6 @@ async function runSelectedActionWithRetry(
 }
 
 /**
- * Saves a staged page edit.
- *
- * @param api - MediaWiki API client.
- * @param action - Page edit action.
- * @returns Resolves after the page is saved.
- */
-async function savePageEdit(api: any, action: any): Promise<void> {
-    const params: Record<string, any> = {
-        action: "edit",
-        summary: addEditSummarySuffix(action.summary),
-        text: action.text,
-        title: action.title,
-    };
-
-    if (action.create) {
-        params.createonly = true;
-    }
-
-    await api.postWithToken("csrf", params);
-}
-
-/**
- * Connects the saved Chinese Wikipedia page to a Wikidata item.
- *
- * @param api - MediaWiki API client.
- * @param wikidataId - Wikidata entity ID.
- * @param title - Chinese Wikipedia article title.
- * @returns Resolves after the sitelink is saved.
- */
-export async function connectWikidataSitelink(
-    api: any,
-    wikidataId: string,
-    title: string,
-): Promise<void> {
-    const summaryLink = buildWikidataSummaryLink(title);
-    const wikidataSummaryLinkResult = `see '${summaryLink}'`;
-    const params = {
-        action: "wbsetsitelink",
-        id: wikidataId,
-        linksite: "zhwiki",
-        linktitle: title,
-        summary: addEditSummarySuffix(wikidataSummaryLinkResult),
-    };
-
-    await api.postWithToken("csrf", params);
-}
-
-/**
- * Builds a summary link to the connected Chinese Wikipedia page.
- *
- * @param title - Chinese Wikipedia page title.
- * @returns Wikitext link suitable for a Wikidata edit summary.
- */
-function buildWikidataSummaryLink(title: string): string {
-    return `[[w:zh:${title}]]`;
-}
-
-/**
- * Creates one redirect without overwriting an existing page.
- *
- * @param api - MediaWiki API client.
- * @param redirectTitle - Redirect page title.
- * @param targetTitle - Redirect target.
- * @returns Resolves after the redirect is created.
- */
-export async function createRedirect(
-    api: any,
-    redirectTitle: string,
-    targetTitle: string,
-): Promise<void> {
-    const params = {
-        action: "edit",
-        createonly: true,
-        summary: addEditSummarySuffix(
-            `redirect "${redirectTitle}" to "[[${targetTitle}]]"`,
-        ),
-        text: `#REDIRECT [[${targetTitle}]]`,
-        title: redirectTitle,
-    };
-
-    await api.postWithToken("csrf", params);
-}
-
-/**
- * Adds the video game project banner when it is not already present.
- *
- * @param api - MediaWiki API client.
- * @param articleTitle - Article title.
- * @returns Resolves after the talk page is updated.
- */
-export async function addTalkPageBanner(
-    api: any,
-    articleTitle: string,
-): Promise<void> {
-    const title = getTalkPageTitle(articleTitle);
-    const banner = getTalkPageBanner(articleTitle);
-    const text = await fetchTalkPageText(api, title);
-
-    if (/WikiProject\s+Video games/iu.test(text)) {
-        return;
-    }
-
-    const joinedText = [
-        "tagging the {{[[Template:WikiProje",
-        "ct Video games|WikiProject Video g",
-        "ames]]}} banner",
-    ].join("");
-    const params = {
-        action: "edit",
-        appendtext: `${text === "" ? "" : "\n\n"}${banner}`,
-        summary: addEditSummarySuffix(joinedText),
-        title,
-    };
-
-    await api.postWithToken("csrf", params);
-}
-
-/**
- * Fetches the current talk-page wikitext.
- *
- * @param api - MediaWiki API client.
- * @param title - Page title.
- * @returns The current talk-page wikitext.
- */
-async function fetchTalkPageText(api: any, title: string): Promise<string> {
-    const data = await api.get({
-        action: "query",
-        prop: "revisions",
-        rvprop: "content",
-        rvslots: "main",
-        titles: title,
-    });
-    const page: any = Object.values(data?.query?.pages || {})[0];
-    const text =
-        page?.revisions?.[0]?.slots?.main?.content ||
-        page?.revisions?.[0]?.["*"] ||
-        "";
-
-    return text;
-}
-
-/**
- * Handles get talk page banner.
- *
- * Builds the project banner with an assessment appropriate to the
- * subject.
- *
- * @param title - Subject-page title.
- * @returns Talk-page banner wikitext.
- */
-function getTalkPageBanner(title: string): string {
-    const titleResult = normalizeTitle(title);
-    const matchesPattern = /^Category:/iu.test(titleResult);
-    const result = selectValue(
-        matchesPattern,
-        function trueBranch() {
-            return UNASSESSED_TALK_PAGE_BANNER;
-        },
-        function falseBranch() {
-            return TALK_PAGE_BANNER;
-        },
-    );
-    return result;
-}
-
-/**
- * Gets the canonical talk-page title for an article or category.
- *
- * @param title - Subject-page title.
- * @returns Talk-page title.
- */
-function getTalkPageTitle(title: string): string {
-    const categoryMatch = normalizeTitle(title).match(/^Category:(.+)$/iu);
-
-    const selectValueCallback = function trueBranch() {
-        return `Talk:${normalizeTitle(title)}`;
-    };
-    const result = selectValue(
-        categoryMatch == null,
-        selectValueCallback,
-        function falseBranch() {
-            return `Category talk:${categoryMatch[1]}`;
-        },
-    );
-    return result;
-}
-
-/**
  * Normalizes title whitespace.
  *
  * @param value - Raw title value.
@@ -1409,26 +1166,4 @@ function isChineseNameRow(row: any): boolean {
 
     const title = normalizeTitle(row.name);
     return /\p{Script=Han}/u.test(title);
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: boolean,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

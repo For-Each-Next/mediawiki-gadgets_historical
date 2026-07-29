@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     getConfiguredNavboxTitles,
     prepareNavboxRows,
-} from "vg-stub-creator/app/workflow.ts";
+} from "vg-stub-creator/workflows/article.ts";
 import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
 const testCallbackA = () => {

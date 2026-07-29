@@ -12,11 +12,28 @@ import {
 } from "./citation.ts";
 import templateData from "./data/index.ts";
 import { getCitationOutputParams } from "./post-formatter.ts";
+import {
+    findSourceDiscoveryProtectedRanges,
+    isInWikitextRanges,
+    maskWikitextRanges,
+} from "./protected-wikitext.ts";
+import {
+    decodeReferenceAttribute,
+    escapeReferenceName,
+    formatReferenceGroupAttribute,
+    stripOptionalReferenceNameQuotes,
+} from "./ref-attributes.ts";
+import {
+    normalizeSourceUrl,
+    parseSourceInput,
+    parseSourceUrl,
+} from "./source-url.ts";
 import { isCitationTemplate, normalizeTemplateName } from "./templates.ts";
 import type {
     CitationLayout,
     CitationParam,
     CitationTemplate,
+    TextReplacement,
 } from "./types.ts";
 import {
     applyReplacements,
@@ -172,15 +189,13 @@ const CREATOR_ALIAS_PARAMETER_PATTERNS = [
 ];
 const UNUSED_SOURCE_SECTION_ID = "unused";
 
-export interface ParsedSourceUrl {
-    archiveDate: string;
-    archiveUrl: string;
-    originalUrl: string;
-}
-
-export interface ParsedSourceInput extends ParsedSourceUrl {
-    search: string;
-}
+export {
+    normalizeSourceUrl,
+    parseSourceInput,
+    parseSourceUrl,
+    sanitizeSourceUrl,
+} from "./source-url.ts";
+export type { ParsedSourceInput, ParsedSourceUrl } from "./source-url.ts";
 
 export interface SourceDraftRow {
     alias: string;
@@ -536,52 +551,6 @@ function getDraftAuthorSlot(name: string): number | null {
     return parseStructuredAuthorParameter(name)?.index ?? null;
 }
 
-/** Parses a normal HTTP URL or an Internet Archive playback URL. */
-export function parseSourceUrl(value: string): ParsedSourceUrl | null {
-    const clean = decodeUrlEntities(value.trim());
-    const parsed = parseHttpUrl(clean);
-    if (parsed == null) {
-        return null;
-    }
-    const wayback = parseWaybackUrl(parsed);
-    if (wayback != null) {
-        return wayback;
-    }
-    return {
-        archiveDate: "",
-        archiveUrl: "",
-        originalUrl: sanitizeParsedUrl(parsed),
-    };
-}
-
-/**
- * Parses a Citoid lookup while retaining URL-specific archive data.
- */
-export function parseSourceInput(value: string): ParsedSourceInput | null {
-    const search = value.trim();
-    if (search === "") {
-        return null;
-    }
-    const parsedUrl = parseSourceUrl(search);
-    return {
-        archiveDate: parsedUrl?.archiveDate ?? "",
-        archiveUrl: parsedUrl?.archiveUrl ?? "",
-        originalUrl: parsedUrl?.originalUrl ?? "",
-        search: parsedUrl?.originalUrl ?? search,
-    };
-}
-
-/** Returns a deterministic source URL used only for matching. */
-export function normalizeSourceUrl(value: string): string {
-    const clean = cleanValue(decodeUrlEntities(value));
-    const parsed = parseHttpUrl(clean);
-    if (parsed == null) {
-        return clean.replace(/#.*$/u, "");
-    }
-    parsed.hash = "";
-    return sanitizeParsedUrl(parsed);
-}
-
 /**
  * Finds previously used aliases for a matching creator display value.
  */
@@ -599,10 +568,7 @@ export function findCreatorAliasSuggestions(
     const counts = new Map<string, number>();
     for (const source of sources) {
         for (const candidate of source.draft.rows) {
-            if (
-                !isCreatorAliasDraftParameter(candidate.name) ||
-                normalizeCreatorAliasValue(candidate.value) !== displayValue
-            ) {
+            if (!isMatchingCreatorAliasCandidate(candidate, displayValue)) {
                 continue;
             }
             const alias = candidate.alias.trim();
@@ -612,6 +578,17 @@ export function findCreatorAliasSuggestions(
         }
     }
     return [...counts].map(([alias, count]) => ({ alias, count }));
+}
+
+/** Checks whether a draft row represents the same visible creator. */
+function isMatchingCreatorAliasCandidate(
+    row: SourceDraftRow,
+    displayValue: string,
+): boolean {
+    return (
+        isCreatorAliasDraftParameter(row.name) &&
+        normalizeCreatorAliasValue(row.value) === displayValue
+    );
 }
 
 /**
@@ -786,8 +763,8 @@ export function moveSourceTitlesToScriptTitle(
     text: string,
     wikiId: string,
 ): { moved: number; text: string } {
-    const replacements = [];
-    const protectedRanges = findProtectedRanges(text);
+    const replacements: TextReplacement[] = [];
+    const protectedRanges = findSourceDiscoveryProtectedRanges(text);
     let moved = 0;
     for (const call of findTemplateCalls(text)) {
         const nestedReplacement = replacements.some(
@@ -796,7 +773,7 @@ export function moveSourceTitlesToScriptTitle(
         );
         if (
             !isCitationTemplate(call.name) ||
-            isInRanges(call.start, protectedRanges) ||
+            isInWikitextRanges(call.start, protectedRanges) ||
             nestedReplacement
         ) {
             continue;
@@ -878,8 +855,8 @@ export function getSourceDraftCitationNameParts(
 
 /** Lists citation definitions contained in active full ref tags. */
 export function listExistingSources(text: string): ExistingSource[] {
-    const protectedRanges = findProtectedRanges(text);
-    const masked = maskProtectedRanges(text, protectedRanges);
+    const protectedRanges = findSourceDiscoveryProtectedRanges(text);
+    const masked = maskWikitextRanges(text, protectedRanges);
     const calls = findRestoredTemplateCalls(text, masked);
     const containers = findReferenceContainers(masked, calls);
     const sources = new Map<number, ExistingSource>();
@@ -899,8 +876,8 @@ export function listExistingSourceSections(
     text: string,
     sources: ExistingSource[],
 ): SourceSection[] {
-    const ranges = findProtectedRanges(text);
-    const masked = maskProtectedRanges(text, ranges);
+    const ranges = findSourceDiscoveryProtectedRanges(text);
+    const masked = maskWikitextRanges(text, ranges);
     const sections = findSourceSections(masked);
     const usedIds = sources.flatMap((source) => source.sectionIds);
     const used = new Set(usedIds);
@@ -1065,8 +1042,8 @@ export function buildExistingSourceReference(
     ) {
         return `{{r|${source.referenceName}}}`;
     }
-    const name = escapeRefName(source.referenceName);
-    const group = buildGroupAttribute(source.group);
+    const name = escapeSourceReferenceName(source.referenceName);
+    const group = formatReferenceGroupAttribute(source.group);
     return `<ref name="${name}"${group} />`;
 }
 
@@ -1102,8 +1079,8 @@ function buildConvertedReference(
     const name =
         source.referenceName === ""
             ? ""
-            : ` name="${escapeRefName(source.referenceName)}"`;
-    const group = buildGroupAttribute(source.group);
+            : ` name="${escapeSourceReferenceName(source.referenceName)}"`;
+    const group = formatReferenceGroupAttribute(source.group);
     return `<ref${name}${group}>${citation}</ref>`;
 }
 
@@ -1167,8 +1144,8 @@ function buildReferenceUsageIndex(
         if (isInReferenceContainer(tag.start, containers)) {
             continue;
         }
-        const name = decodeAttribute(tag.attributes.name || "");
-        const group = decodeAttribute(tag.attributes.group || "");
+        const name = decodeReferenceAttribute(tag.attributes.name || "");
+        const group = decodeReferenceAttribute(tag.attributes.group || "");
         addReferenceUsage(result, name, group, tag.start);
     }
     for (const call of calls) {
@@ -1200,9 +1177,13 @@ function addCompactReferenceUsages(
     }
     const enteredName = named.get("name") ?? named.get("n");
     const names = enteredName == null ? positional : [enteredName];
-    const group = decodeAttribute(named.get("group") ?? named.get("g") ?? "");
+    const group = decodeReferenceAttribute(
+        named.get("group") ?? named.get("g") ?? "",
+    );
     for (const name of names) {
-        const cleanName = decodeAttribute(stripOptionalQuotes(name));
+        const cleanName = decodeReferenceAttribute(
+            stripOptionalReferenceNameQuotes(name),
+        );
         addReferenceUsage(usages, cleanName, group, call.start);
     }
 }
@@ -1306,85 +1287,6 @@ function isInReferenceContainer(
     return containers.some(
         (container) => position >= container.start && position < container.end,
     );
-}
-
-function parseHttpUrl(value: string): URL | null {
-    try {
-        const parsed = new URL(value);
-        return ["http:", "https:"].includes(parsed.protocol) ? parsed : null;
-    } catch {
-        return null;
-    }
-}
-
-function parseWaybackUrl(parsed: URL): ParsedSourceUrl | null {
-    if (!isWaybackHost(parsed.hostname)) {
-        return null;
-    }
-    const match = parsed.pathname.match(
-        /^\/web\/(\d{4}(?:\d{2}){0,5})(?:[a-z][a-z0-9_-]*)?\/(.+)$/iu,
-    );
-    if (match == null) {
-        return null;
-    }
-    const original = decodeWaybackTarget(
-        `${match[2]}${parsed.search}${parsed.hash}`,
-    );
-    const originalUrl = parseHttpUrl(original);
-    if (originalUrl == null) {
-        return null;
-    }
-    return {
-        archiveDate: formatWaybackDate(match[1]),
-        archiveUrl: sanitizeParsedUrl(parsed),
-        originalUrl: sanitizeParsedUrl(originalUrl),
-    };
-}
-
-function isWaybackHost(hostname: string): boolean {
-    const normalized = hostname.toLocaleLowerCase("en-US");
-    return normalized === "archive.org" || normalized.endsWith(".archive.org");
-}
-
-function decodeWaybackTarget(value: string): string {
-    if (/^https?:\/\//iu.test(value)) {
-        return value;
-    }
-    try {
-        return decodeURIComponent(value);
-    } catch {
-        return value;
-    }
-}
-
-function formatWaybackDate(timestamp: string): string {
-    const match = timestamp.match(/^(\d{4})(\d{2})(\d{2})/u);
-    if (match == null || !isCalendarDate(match[1], match[2], match[3])) {
-        return "";
-    }
-    return `${match[1]}-${match[2]}-${match[3]}`;
-}
-
-function decodeUrlEntities(value: string): string {
-    return value
-        .replace(/&amp;/giu, "&")
-        .replace(/&#0*38;/giu, "&")
-        .replace(/&#x0*26;/giu, "&");
-}
-
-/**
- * Encodes template delimiters that URL parsing deliberately preserves.
- */
-export function sanitizeSourceUrl(value: string): string {
-    const clean = decodeUrlEntities(value.trim());
-    const parsed = parseHttpUrl(clean);
-    return parsed == null
-        ? clean.replace(/\|/gu, "%7C")
-        : sanitizeParsedUrl(parsed);
-}
-
-function sanitizeParsedUrl(url: URL): string {
-    return url.toString().replace(/\|/gu, "%7C");
 }
 
 function getDraftTemplateName(entered: string): string {
@@ -1661,35 +1563,6 @@ function addAliasComment(
     return `${value} <!-- ${directive}${hash} -->`.trim();
 }
 
-function findProtectedRanges(text: string): Array<[number, number]> {
-    const pattern = new RegExp(
-        String.raw`<!--[\s\S]*?-->|` +
-            String.raw`<(nowiki|pre|source|syntaxhighlight|math|code|` +
-            String.raw`templatedata|templatestyles|graph|timeline|score|` +
-            String.raw`mapframe)\b` +
-            String.raw`[^>]*>[\s\S]*?<\/\1\s*>`,
-        "giu",
-    );
-    return Array.from(text.matchAll(pattern), function toRange(match) {
-        return [match.index, match.index + match[0].length];
-    });
-}
-
-function isInRanges(index: number, ranges: Array<[number, number]>): boolean {
-    return ranges.some(([start, end]) => index >= start && index < end);
-}
-
-/** Masks protected regions while preserving source offsets. */
-function maskProtectedRanges(
-    text: string,
-    ranges: Array<[number, number]>,
-): string {
-    const replacements = ranges.map(function maskRange([start, end]) {
-        return { end, start, text: " ".repeat(end - start) };
-    });
-    return applyReplacements(text, replacements);
-}
-
 /** Restores template text after scanning a protected-range mask. */
 function findRestoredTemplateCalls(text: string, masked: string) {
     return findTemplateCalls(masked).map(function restoreCall(call) {
@@ -1715,11 +1588,11 @@ function addNativeRefSources(
         const group =
             enteredGroup === ""
                 ? getContainerGroup(tag.start, containers)
-                : decodeAttribute(enteredGroup);
+                : decodeReferenceAttribute(enteredGroup);
         const reference = {
             end: tag.end,
             group,
-            name: decodeAttribute(tag.attributes.name || ""),
+            name: decodeReferenceAttribute(tag.attributes.name || ""),
             raw: text.slice(tag.start, tag.end),
             start: tag.start,
         };
@@ -1796,11 +1669,13 @@ function parseCompactDefinition(
     const group =
         enteredGroup === ""
             ? getContainerGroup(call.start, containers)
-            : decodeAttribute(enteredGroup);
+            : decodeReferenceAttribute(enteredGroup);
     const reference = {
         end: call.end,
         group,
-        name: decodeAttribute(stripOptionalQuotes(enteredName || "")),
+        name: decodeReferenceAttribute(
+            stripOptionalReferenceNameQuotes(enteredName || ""),
+        ),
         raw: call.raw,
         start: call.start,
     };
@@ -1923,7 +1798,7 @@ function findReferenceContainers(
         const attributes = parseTagAttributes(match[1]);
         result.push({
             end: closing.lastIndex,
-            group: decodeAttribute(attributes.group || ""),
+            group: decodeReferenceAttribute(attributes.group || ""),
             start,
         });
     }
@@ -1959,7 +1834,7 @@ function buildReflistContainer(
     const start = call.start + valueOffset;
     return {
         end: start + list.value.length,
-        group: decodeAttribute(group?.value || ""),
+        group: decodeReferenceAttribute(group?.value || ""),
         start,
     };
 }
@@ -1973,23 +1848,6 @@ function getContainerGroup(
         (candidate) => index >= candidate.start && index < candidate.end,
     );
     return container?.group || "";
-}
-
-/** Removes optional matching quote marks used by R names. */
-function stripOptionalQuotes(value: string): string {
-    return value.trim().replace(/^(?:"([\s\S]*)"|'([\s\S]*)')$/u, "$1$2");
-}
-
-/** Checks whether three numeric components form a calendar date. */
-function isCalendarDate(year: string, month: string, day: string): boolean {
-    const date = new Date(
-        Date.UTC(Number(year), Number(month) - 1, Number(day)),
-    );
-    return (
-        date.getUTCFullYear() === Number(year) &&
-        date.getUTCMonth() === Number(month) - 1 &&
-        date.getUTCDate() === Number(day)
-    );
 }
 
 function getDraftValue(draft: SourceDraft, name: string): string {
@@ -2030,22 +1888,7 @@ function setsIntersect(left: Set<string>, right: Set<string>): boolean {
     return [...left].some((value) => right.has(value));
 }
 
-function decodeAttribute(value: string): string {
-    return value
-        .replace(/&quot;/giu, '"')
-        .replace(/&amp;/giu, "&")
-        .replace(/&#0*38;/giu, "&")
-        .replace(/&#x0*26;/giu, "&");
-}
-
-function escapeRefName(value: string): string {
-    return value.replace(/&amp;/giu, "&").replace(/"/gu, "&quot;");
-}
-
-function buildGroupAttribute(value: string): string {
-    if (value === "") {
-        return "";
-    }
-    const escaped = value.replace(/&/gu, "&amp;").replace(/"/gu, "&quot;");
-    return ` group="${escaped}"`;
+/** Escapes a source-manager name using its historical entity policy. */
+function escapeSourceReferenceName(value: string): string {
+    return escapeReferenceName(value, { caseInsensitiveAmpEntity: true });
 }

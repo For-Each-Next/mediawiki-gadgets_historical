@@ -5,9 +5,8 @@ import type { OnLoadResult, Plugin } from "esbuild";
 import { minify } from "html-minifier-terser";
 
 const HTML_LITERAL_PATTERN =
-    /(?:`|'|")\s*(?:<!doctype\s|<!--|<\/?[a-z][\w-]*(?:\s|>))/iu;
-const HTML_VALUE_PATTERN =
-    /^\s*(?:<!doctype\s|<!--|<\/?[a-z][\w-]*(?:\s|>))/iu;
+    /[`'"]\s*(?:<!doctype\s|<!--|<\/?[a-z][\w-]*[\s>])/iu;
+const HTML_VALUE_PATTERN = /^\s*(?:<!doctype\s|<!--|<\/?[a-z][\w-]*[\s>])/iu;
 const VALUE_EXPORT_PATTERN = /\bexport\s+(?:const|default)\b/u;
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Provides vg-stub-creator form state, row, URL, and editor helpers.
+ * Defines editable form values, review rows, and restoration behavior.
  */
 
 import {
@@ -8,14 +8,35 @@ import {
     NOTE_TA_NAMES_SOURCE,
     SOURCE_REFERENCE_FIELDS,
     STEAM_NAME_HELPER_ROW,
-} from "#me/ui/form/constants.ts";
-import { getEnteredSourceUrls } from "#me/infra/sources/index.ts";
+} from "#gadget/ui/form/constants.ts";
+import { getEnteredSourceUrls } from "#gadget/domain/source-fields.ts";
 import {
     buildOfficialNameConversionText,
     sortNoteTaEntries,
-} from "#me/domain/wiki.ts";
-import { msg } from "#me/i18n/index.ts";
-import { cite, wikitext } from "#shared";
+} from "#gadget/domain/wiki.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import * as reviewLinkSession from "#gadget/ui/form/review-link-session.ts";
+import * as cite from "#shared/cite";
+import * as wikitext from "#shared/wikitext";
+
+export {
+    buildGoogleSiteSearchUrl,
+    buildMetacriticSearchUrl,
+    buildMetacriticUrl,
+    buildOpenCriticSearchUrl,
+    buildOpenCriticUrl,
+    buildSteamSearchUrl,
+    buildSteamUrl,
+    buildWikidataSearchUrl,
+    createBlankEnwikiMetadata,
+    createEnwikiTipPlaceholders,
+    extractEnwikiTitleFromUrl,
+    getBasePageTitle,
+    getWikidataLookupStatus,
+    normalizeEnwikiTitleValue,
+} from "#gadget/ui/form/external-links.ts";
+export const { claimReviewLinksOpening } = reviewLinkSession;
+
 const { sortCitationParams } = cite;
 const {
     hasFirstLevelFieldSeparator,
@@ -23,23 +44,6 @@ const {
     splitFieldValues,
     trimValue,
 } = wikitext;
-
-const REVIEW_LINKS_OPENED_STORAGE_KEY = "vg-stub-creator-review-links-opened";
-
-/**
- * Claims the one-time review-link opening for the current tab.
- *
- * @param storage - Tab-scoped storage implementation.
- * @returns Whether the caller claimed the opening.
- */
-export function claimReviewLinksOpening(storage: Storage): boolean {
-    if (storage.getItem(REVIEW_LINKS_OPENED_STORAGE_KEY) !== null) {
-        return false;
-    }
-
-    storage.setItem(REVIEW_LINKS_OPENED_STORAGE_KEY, "1");
-    return true;
-}
 
 /**
  * Normalizes a list value entered through an article field.
@@ -106,7 +110,7 @@ export function getCategorySourceDisplay(source: string): any {
     const value = String(source || "").trim();
     const modified = value.endsWith("†");
     const base = modified ? value.replace(/\s*†$/u, "") : value;
-    const labels = {
+    const labels: Record<string, string> = {
         found: msg("review.found"),
         known: msg("review.known"),
         manual: msg("review.manual"),
@@ -200,7 +204,7 @@ export function syncStubTagRowsFromCategories(form: any): void {
  * @returns Stub-tag review rows.
  */
 export function buildStubTagRowsFromCategories(rows: Array<any>): Array<any> {
-    const tags = [];
+    const tags: string[] = [];
     const safeRows = (rows || []).filter(Boolean);
 
     const forEachCallbackC = function callback(row: any) {
@@ -437,18 +441,9 @@ export function createStubTagRow(value: any = ""): any {
         originalStubTag: trimStubTagValue(value?.originalStubTag || stubTag),
         status: trimValue(value?.status),
         stubTag,
-        ...selectValue(
-            value?.pendingEdit == null,
-            function trueBranch() {
-                return {};
-            },
-            function falseBranch() {
-                const result = {
-                    pendingEdit: value.pendingEdit,
-                };
-                return result;
-            },
-        ),
+        ...(value?.pendingEdit == null
+            ? {}
+            : { pendingEdit: value.pendingEdit }),
     };
     return result;
 }
@@ -481,8 +476,8 @@ export function trimStubTagValue(value: any): string {
 export function createCitationPrefetchQueue(
     options: any,
 ): (...args: any[]) => any {
-    let lastUrlsKey = null;
-    let timer = null;
+    let lastUrlsKey: string | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     const result = function callback(form: Record<string, unknown>) {
         if (options.onSourceUrlChange == null) {
@@ -577,19 +572,7 @@ export function createNameRow(
  * @returns NoteTA row.
  */
 export function createNoteTaRow(key: any = "", value: string = ""): any {
-    const row = selectValue(
-        key != null && typeof key === "object",
-        function trueBranch() {
-            return key;
-        },
-        function falseBranch() {
-            const result = {
-                key,
-                value,
-            };
-            return result;
-        },
-    );
+    const row = key != null && typeof key === "object" ? key : { key, value };
 
     const created: Record<string, any> = {
         key: trimValue(row.key),
@@ -926,229 +909,6 @@ export function getEmptyFieldValue(field: any): Array<string> {
  */
 export function getFieldValueKey(field: any): string {
     return field.sourceKey || field.key;
-}
-
-/**
- * Removes a trailing parenthesized disambiguator from a page title.
- *
- * @param title - Page title.
- * @returns Base page title.
- */
-export function getBasePageTitle(title: string): string {
-    return trimValue(title).replace(/ \(.+?\)$/u, "");
-}
-
-/**
- * Creates blank external identifiers for the Enwiki lookup tip.
- *
- * @returns Blank identifier values.
- */
-export function createBlankEnwikiMetadata(): any {
-    const result = {
-        metacriticId: "",
-        openCriticId: "",
-        pageExists: null,
-        steamId: "",
-    };
-    return result;
-}
-
-/**
- * Formats the Enwiki-to-Wikidata lookup outcome.
- *
- * @param pageExists - Whether the English Wikipedia page
- * exists.
- * @returns Lookup status text.
- */
-export function getWikidataLookupStatus(pageExists: boolean | null): string {
-    if (pageExists === false) {
-        return msg("metadata.noEnwikiPage");
-    }
-
-    if (pageExists === true) {
-        return msg("metadata.notConnected");
-    }
-
-    return msg("metadata.lookupFailed");
-}
-
-/**
- * Creates fixed Enwiki tip slots with a shared placeholder value.
- *
- * @param value - Placeholder text.
- * @returns Tip slot definitions.
- */
-export function createEnwikiTipPlaceholders(value: string): Array<any> {
-    const result = ["Wikidata", "Metacritic", "OpenCritic", "Steam"].map(
-        function callback(label) {
-            const result = {
-                label,
-                value,
-                url: "",
-            };
-            return result;
-        },
-    );
-    return result;
-}
-
-/**
- * Normalizes an English Wikipedia field value.
- *
- * @param value - Raw field value.
- * @returns Normalized title or trimmed value.
- */
-export function normalizeEnwikiTitleValue(value: any): string {
-    return extractEnwikiTitleFromUrl(value) || trimValue(value);
-}
-
-/**
- * Extracts an English Wikipedia title from a pasted URL.
- *
- * @param value - Raw pasted value.
- * @returns English Wikipedia page title, or an empty string.
- */
-export function extractEnwikiTitleFromUrl(value: any): string {
-    const text = trimValue(value);
-
-    if (text === "") {
-        return "";
-    }
-
-    try {
-        const url = new URL(text);
-        const host = url.hostname.toLowerCase();
-
-        if (host !== "en.wikipedia.org" && host !== "en.m.wikipedia.org") {
-            return "";
-        }
-
-        const prefix = "/wiki/";
-
-        if (!url.pathname.startsWith(prefix)) {
-            return "";
-        }
-
-        const slicedValue = url.pathname.slice(prefix.length);
-        const title = decodeURIComponent(slicedValue)
-            .replace(/_/gu, " ")
-            .trim();
-
-        return title;
-    } catch (_error) {
-        return "";
-    }
-}
-
-/**
- * Builds a Google site search for a Wikidata item.
- *
- * @param title - Page title without a disambiguation suffix.
- * @returns Search URL.
- */
-export function buildWikidataSearchUrl(title: string): string {
-    return buildGoogleSiteSearchUrl(title, "wikidata.org/wiki");
-}
-
-/**
- * Builds a Metacritic game URL.
- *
- * @param id - Metacritic game ID.
- * @returns Game URL.
- */
-export function buildMetacriticUrl(id: string): string {
-    const result = [
-        "https://www.metacritic.com/game/",
-        encodeURIComponent(id),
-        "/",
-    ].join("");
-    return result;
-}
-
-/**
- * Builds a Google site search for a Metacritic game page.
- *
- * @param title - Game title without a disambiguation suffix.
- * @returns Search URL.
- */
-export function buildMetacriticSearchUrl(title: string): string {
-    const query = `"${getBasePageTitle(title)}" site:metacritic.com`;
-
-    const result = [
-        "https://www.google.com/search?q=",
-        encodeURIComponent(query),
-        "",
-    ].join("");
-    return result;
-}
-
-/**
- * Builds an OpenCritic game URL.
- *
- * @param id - OpenCritic game ID.
- * @returns Game URL.
- */
-export function buildOpenCriticUrl(id: string): string {
-    const result = [
-        "https://opencritic.com/game/",
-        encodeURIComponent(id),
-        "/-",
-    ].join("");
-    return result;
-}
-
-/**
- * Builds a Google site search for an OpenCritic game page.
- *
- * @param title - Game title without a disambiguation suffix.
- * @returns Search URL.
- */
-export function buildOpenCriticSearchUrl(title: string): string {
-    return buildGoogleSiteSearchUrl(title, "opencritic.com/game");
-}
-
-/**
- * Builds a Steam store application URL.
- *
- * @param id - Steam application ID.
- * @returns Store URL.
- */
-export function buildSteamUrl(id: string): string {
-    const result = [
-        "https://store.steampowered.com/app",
-        "/",
-        encodeURIComponent(id),
-        "/",
-    ].join("");
-    return result;
-}
-
-/**
- * Builds a Google site search for a Steam application page.
- *
- * @param title - Game title without a disambiguation suffix.
- * @returns Search URL.
- */
-export function buildSteamSearchUrl(title: string): string {
-    return buildGoogleSiteSearchUrl(title, "store.steampowered.com/app");
-}
-
-/**
- * Builds a Google site search URL.
- *
- * @param title - Page title without a disambiguation suffix.
- * @param site - Site or path restriction.
- * @returns Search URL.
- */
-export function buildGoogleSiteSearchUrl(title: string, site: string): string {
-    const query = `"${getBasePageTitle(title)}" site:${site}`;
-
-    const result = [
-        "https://www.google.com/search?q=",
-        encodeURIComponent(query),
-        "",
-    ].join("");
-    return result;
 }
 
 /**
@@ -1672,21 +1432,13 @@ export function isManualNoteTaRow(row: any): boolean {
  * @returns Official name rows.
  */
 export function getOfficialNameNoteTaRows(form: any): Array<any> {
-    const localizedNames: Array<{ official: boolean }> =
-        form.localizedNames || [];
-    const isArrayValue = Array.isArray(form.localizedNames);
-    const selectValueCallback = function trueBranch() {
-        const result = localizedNames.filter((row) => row.official);
-        return result;
-    };
-    const result = selectValue(
-        isArrayValue,
-        selectValueCallback,
-        function falseBranch() {
-            return [];
-        },
+    if (!Array.isArray(form.localizedNames)) {
+        return [];
+    }
+
+    return form.localizedNames.filter(
+        (row: { official: boolean }) => row.official,
     );
-    return result;
 }
 
 /**
@@ -1947,18 +1699,9 @@ export function createNavboxRow(
         status: value?.status || "",
         text,
         title: value?.title || getNavboxTitle(text),
-        ...selectValue(
-            value?.pendingEdit == null,
-            function trueBranch() {
-                return {};
-            },
-            function falseBranch() {
-                const result = {
-                    pendingEdit: value.pendingEdit,
-                };
-                return result;
-            },
-        ),
+        ...(value?.pendingEdit == null
+            ? {}
+            : { pendingEdit: value.pendingEdit }),
     };
     return result;
 }
@@ -2203,118 +1946,6 @@ export function getCitationSourceDomain(sourceUrl: string): string {
 }
 
 /**
- * Gets the MediaWiki ResourceLoader object when it can load CodeMirror.
- *
- * @returns ResourceLoader object.
- */
-export function getCodeMirrorLoader(): any | undefined {
-    if (typeof mw === "undefined" || typeof mw.loader?.using !== "function") {
-        return undefined;
-    }
-
-    return mw.loader;
-}
-
-/**
- * Finds the native textarea for a Codex TextArea ref.
- *
- * @param element - Vue template ref value.
- * @returns Textarea element.
- */
-export function findTextareaElement(
-    element: any,
-): HTMLTextAreaElement | undefined {
-    if (element == null) {
-        return undefined;
-    }
-
-    if (element.tagName === "TEXTAREA") {
-        return element;
-    }
-
-    if (element.$el != null) {
-        return findTextareaElement(element.$el);
-    }
-
-    if (typeof element.querySelector === "function") {
-        return element.querySelector("textarea") || undefined;
-    }
-
-    return undefined;
-}
-
-/**
- * Handles get code mirror text.
- *
- * Reads text from either MediaWiki's CodeMirror wrapper or the
- * textarea.
- *
- * @param editor - CodeMirror editor instance.
- * @param textarea - Backing textarea.
- * @returns Current source text.
- */
-export function getCodeMirrorText(
-    editor: any,
-    textarea: HTMLTextAreaElement,
-): string {
-    if (typeof editor.getValue === "function") {
-        return editor.getValue();
-    }
-
-    if (typeof editor.getText === "function") {
-        return editor.getText();
-    }
-
-    if (editor.view?.state?.doc != null) {
-        return String(editor.view.state.doc);
-    }
-
-    return textarea.value;
-}
-
-/**
- * Writes text to either MediaWiki's CodeMirror wrapper or the textarea.
- *
- * @param editor - CodeMirror editor instance.
- * @param textarea - Backing textarea.
- * @param text - Source text.
- * @returns Result when the function
- *   writes text to either mediawiki's codemirror
- *   wrapper or the textarea.
- */
-export function setCodeMirrorText(
-    editor: any,
-    textarea: HTMLTextAreaElement,
-    text: string,
-): void {
-    if (typeof editor.setValue === "function") {
-        editor.setValue(text);
-        return;
-    }
-
-    if (typeof editor.setText === "function") {
-        editor.setText(text);
-        return;
-    }
-
-    const view = editor.view;
-    const doc = view?.state?.doc;
-
-    if (typeof view?.dispatch === "function" && doc != null) {
-        view.dispatch({
-            changes: {
-                from: 0,
-                insert: text,
-                to: doc.length,
-            },
-        });
-        return;
-    }
-
-    textarea.value = text;
-}
-
-/**
  * Checks whether a citation parameter row has any entered value.
  *
  * @param param - Citation parameter row.
@@ -2345,26 +1976,4 @@ export function cloneValue(value: any): any {
  */
 export function openDialog(open: any): void {
     open.value = true;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

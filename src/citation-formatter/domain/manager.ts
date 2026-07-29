@@ -4,6 +4,10 @@
 
 import { isCitationTemplate } from "./templates.ts";
 import {
+    findCitationManagementProtectedRanges,
+    isInWikitextRanges,
+} from "./protected-wikitext.ts";
+import {
     applyReplacements,
     findRefTags,
     findTemplateCalls,
@@ -70,11 +74,11 @@ export interface NameOverrideUpdate {
  */
 export function findNameOverrideFields(text: string): NameOverrideField[] {
     const fields = new Map<string, NameOverrideField>();
-    const protectedRanges = findProtectedRanges(text);
+    const protectedRanges = findCitationManagementProtectedRanges(text);
     for (const call of findTemplateCalls(text)) {
         if (
             !isCitationTemplate(call.name) ||
-            isInRanges(call.start, protectedRanges)
+            isInWikitextRanges(call.start, protectedRanges)
         ) {
             continue;
         }
@@ -102,9 +106,9 @@ export function applyNameOverrides(
 ): string {
     const byId = buildOverrideIndex(updates);
     const replacements: TextReplacement[] = [];
-    const protectedRanges = findProtectedRanges(text);
+    const protectedRanges = findCitationManagementProtectedRanges(text);
     for (const call of findTemplateCalls(text)) {
-        if (isInRanges(call.start, protectedRanges)) {
+        if (isInWikitextRanges(call.start, protectedRanges)) {
             continue;
         }
         const replacement = buildOverrideReplacement(call, byId);
@@ -419,9 +423,9 @@ function buildOverrideReplacement(
  * @returns Wikitext with compact reuse calls.
  */
 export function compactReferenceCalls(text: string): string {
-    const protectedRanges = findProtectedRanges(text);
+    const protectedRanges = findCitationManagementProtectedRanges(text);
     const isActiveTag = (tag: RefTag) =>
-        !isInRanges(tag.start, protectedRanges);
+        !isInWikitextRanges(tag.start, protectedRanges);
     const tags = findRefTags(text)
         .filter(isCompactableReuseTag)
         .filter(isActiveTag);
@@ -460,9 +464,9 @@ export function compactReferenceCalls(text: string): string {
  * @returns Wikitext with native reuse tags.
  */
 export function expandCompactReferenceCalls(text: string): string {
-    const protectedRanges = findProtectedRanges(text);
+    const protectedRanges = findCitationManagementProtectedRanges(text);
     const isActiveCall = (call: ParsedTemplateCall) =>
-        !isInRanges(call.start, protectedRanges);
+        !isInWikitextRanges(call.start, protectedRanges);
     const expandCall = function expandCall(
         call: ParsedTemplateCall,
     ): TextReplacement {
@@ -492,13 +496,13 @@ export function expandCompactReferenceCalls(text: string): string {
  * @returns Detected citation-template output layout.
  */
 export function detectCitationLayout(text: string): CitationLayout {
-    const protectedRanges = findProtectedRanges(text);
+    const protectedRanges = findCitationManagementProtectedRanges(text);
     const definitionTags = findRefTags(text).filter(isFullRefDefinition);
     const isActiveCitation = function isActiveCitation(
         call: ParsedTemplateCall,
     ) {
         return (
-            !isInRanges(call.start, protectedRanges) &&
+            !isInWikitextRanges(call.start, protectedRanges) &&
             isInRefDefinition(call, definitionTags) &&
             isCitationTemplate(call.name)
         );
@@ -701,38 +705,4 @@ function hasOnlyPositionalParams(
     call: ReturnType<typeof findTemplateCalls>[number],
 ): boolean {
     return call.params.every((param) => param.positional);
-}
-
-/**
- * Finds source ranges where citation transformations must not apply.
- *
- * @param text - Article wikitext.
- * @returns Protected source ranges.
- */
-function findProtectedRanges(text: string): Array<[number, number]> {
-    const pattern = new RegExp(
-        String.raw`<!--[\s\S]*?-->|` +
-            String.raw`<(nowiki|pre|source|syntaxhighlight)\b[^>]*>` +
-            String.raw`[\s\S]*?<\/\1\s*>`,
-        "giu",
-    );
-    const matches = text.matchAll(pattern);
-    const result = Array.from(matches, function buildProtectedRange(match): [
-        number,
-        number,
-    ] {
-        return [match.index, match.index + match[0].length];
-    });
-    return result;
-}
-
-/**
- * Checks whether a source offset falls within protected ranges.
- *
- * @param index - Source offset.
- * @param ranges - Protected source ranges.
- * @returns Whether the offset is protected.
- */
-function isInRanges(index: number, ranges: Array<[number, number]>): boolean {
-    return ranges.some(([start, end]) => index >= start && index < end);
 }

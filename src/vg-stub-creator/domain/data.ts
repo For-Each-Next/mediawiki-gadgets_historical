@@ -2,9 +2,10 @@
  * Article metadata builders.
  */
 
-import { get as getTerminology } from "#me/config/terminologies/index.ts";
-import { formatText, getTextTemplate } from "#me/domain/wiki.ts";
-import { wikitext } from "#shared";
+import { get as getTerminology } from "#gadget/config/terminologies/index.ts";
+import { formatText, getTextTemplate } from "#gadget/domain/wiki.ts";
+import type { ArticleDataValue } from "#gadget/domain/models.ts";
+import * as wikitext from "#shared/wikitext";
 
 const {
     buildLinkText,
@@ -18,7 +19,7 @@ const {
     uniqueValues,
 } = wikitext;
 
-const COMPLETABLE_METADATA_FIELDS = {
+const COMPLETABLE_METADATA_FIELDS: Record<string, string | null> = {
     developers: "company",
     genres: "genre",
     platforms: "platform",
@@ -1033,16 +1034,10 @@ function buildSeriesTitleItem(series: string): ArticleDataValue {
 function buildLinkedSeriesTitleItem(series: string): ArticleDataValue {
     const parts = getWikilinkParts(series);
     const label = parts.label || parts.target;
-    const selectValueCallback = function trueBranch() {
-        return formatText("patterns.titleSeries", { title: parts.target });
-    };
-    const linkTarget = selectValue(
-        parts.label === "",
-        selectValueCallback,
-        function falseBranch() {
-            return parts.target;
-        },
-    );
+    const linkTarget =
+        parts.label === ""
+            ? formatText("patterns.titleSeries", { title: parts.target })
+            : parts.target;
     const displayText = formatText("patterns.seriesDisplayTitle", {
         title: label,
     });
@@ -1260,26 +1255,4 @@ function buildSeriesTitleCandidates(title: string) {
         title,
     ];
     return result;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

@@ -2,11 +2,11 @@
  * Citation Formatter locale registry and domain-message adapters.
  */
 
-import { i18n } from "#shared";
-import english from "#me/i18n/en.ts";
-import simplifiedChinese from "#me/i18n/zh-Hans.ts";
-import traditionalChinese from "#me/i18n/zh-Hant.ts";
-import type { SourceAnalysisMessages } from "#me/domain/source-analysis.ts";
+import * as i18n from "#shared/i18n";
+import english from "#gadget/i18n/en.ts";
+import simplifiedChinese from "#gadget/i18n/zh-Hans.ts";
+import traditionalChinese from "#gadget/i18n/zh-Hant.ts";
+import type * as sourceAnalysis from "#gadget/domain/source-analysis.ts";
 import type { SourceValidationMessages } from "../domain/source-validation.ts";
 
 const catalogs = {
@@ -107,7 +107,7 @@ export function createSourceValidationMessages(
 // eslint-disable-next-line max-lines-per-function
 export function createSourceAnalysisMessages(
     translator: Pick<CitationFormatterI18n, "msg">,
-): SourceAnalysisMessages {
+): sourceAnalysis.SourceAnalysisMessages {
     return {
         aliasLabel(sourceKey, value) {
             return translator.msg(

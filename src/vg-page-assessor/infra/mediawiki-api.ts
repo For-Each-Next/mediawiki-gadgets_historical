@@ -2,22 +2,23 @@
  * Handles MediaWiki API calls for talk assessment.
  */
 
+import type { PageSnapshot, SubjectPageInfo } from "#gadget/domain/types.ts";
 import {
-    getTalkPageTopSection,
-    isEmptyImportanceOnlyChange,
-    previewTalkPageTopSection,
-    updateTalkPageAssessment,
-    updateTalkPageTopSection,
-} from "#me/domain/assessment.ts";
+    type CreationTimeCache,
+    normalizeCreationTimeCacheTitle,
+    readCreationTimeCache,
+    writeCreationTimeCache,
+} from "#gadget/infra/creation-time-cache.ts";
+import { loggedApiGet, logStep } from "#gadget/infra/logger.ts";
 import {
-    loggedApiGet,
-    loggedPostWithToken,
-    logStep,
-} from "#me/infra/logger.ts";
+    asRecord,
+    getFirstQueryPage,
+    getFirstRevision,
+    getRequiredString,
+    getRevisionContent,
+} from "#gadget/infra/mediawiki-response.ts";
 
-const MAX_EDIT_ATTEMPTS = 3;
 const MAX_TITLES_PER_QUERY = 50;
-const CREATION_CACHE_KEY = "vg-page-assessor.creation-datetimes.v1";
 const KNOWN_NAMESPACE_PREFIXES = new Set([
     "category",
     "cat",
@@ -46,7 +47,10 @@ const KNOWN_NAMESPACE_PREFIXES = new Set([
  * @param title - Talk-page title.
  * @returns Page text and edit timestamps.
  */
-export async function fetchPageText(api: any, title: string): Promise<any> {
+export async function fetchPageText(
+    api: mw.Api,
+    title: string,
+): Promise<PageSnapshot> {
     logStep("fetchPageText start", { title });
     const response = await loggedApiGet(api, "fetchPageText", {
         action: "query",
@@ -57,7 +61,7 @@ export async function fetchPageText(api: any, title: string): Promise<any> {
         rvslots: "main",
         titles: title,
     });
-    const result = parseFetchedPageText(response);
+    const result = decodePageTextResponse(response);
 
     logStep("fetchPageText done", {
         exists: result.exists,
@@ -74,21 +78,26 @@ export async function fetchPageText(api: any, title: string): Promise<any> {
  * @param response - Fetch response.
  * @returns Page text and edit timestamps from a query response.
  */
-function parseFetchedPageText(response: any): any {
-    const pages = response?.query?.pages || [];
-    const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
-    const revision = page?.revisions?.[0];
+export function decodePageTextResponse(response: unknown): PageSnapshot {
+    const responseRecord = asRecord(response);
+    const page = getFirstQueryPage(response);
+    const revision = getFirstRevision(page);
+    const basetimestamp = revision?.timestamp;
 
-    const primaryContent =
-        revision?.slots?.main?.content ?? revision?.slots?.main?.["*"];
-    const text = primaryContent ?? revision?.["*"] ?? "";
-    const result = {
-        basetimestamp: revision?.timestamp,
-        exists: page?.missing == null,
-        starttimestamp: response.curtimestamp,
-        text,
+    if (responseRecord == null || page == null) {
+        throw new Error("MediaWiki response omitted the requested page.");
+    }
+
+    return {
+        ...(typeof basetimestamp === "string" ? { basetimestamp } : {}),
+        exists: page.missing == null,
+        starttimestamp: getRequiredString(
+            responseRecord,
+            "curtimestamp",
+            "the query timestamp",
+        ),
+        text: getRevisionContent(revision),
     };
-    return result;
 }
 
 /**
@@ -99,9 +108,9 @@ function parseFetchedPageText(response: any): any {
  * @returns Page metadata.
  */
 export async function fetchSubjectPageInfo(
-    api: any,
+    api: mw.Api,
     title: string,
-): Promise<any> {
+): Promise<SubjectPageInfo> {
     logStep("fetchSubjectPageInfo start", { title });
     const page = await fetchPageInfo(api, title);
     const currentText = await fetchCurrentPageText(api, title);
@@ -118,7 +127,7 @@ export async function fetchSubjectPageInfo(
         creationDate,
         isRedirect: redirectTarget != null,
         listedTitle: title,
-        namespaceNumber: page?.ns,
+        namespaceNumber: readPageNamespace(page, title),
         targetTitle,
     };
 
@@ -138,7 +147,10 @@ export async function fetchSubjectPageInfo(
  * @param title - Page title.
  * @returns Page info.
  */
-async function fetchPageInfo(api: any, title: string): Promise<any> {
+async function fetchPageInfo(
+    api: mw.Api,
+    title: string,
+): Promise<Record<string, unknown> | null> {
     logStep("fetchPageInfo start", { title });
     const response = await loggedApiGet(api, "fetchPageInfo", {
         action: "query",
@@ -146,9 +158,7 @@ async function fetchPageInfo(api: any, title: string): Promise<any> {
         prop: "info",
         titles: title,
     });
-    const pages = response?.query?.pages || [];
-
-    const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
+    const page = getFirstQueryPage(response);
 
     logStep("fetchPageInfo done", {
         missing: page?.missing != null,
@@ -159,6 +169,17 @@ async function fetchPageInfo(api: any, title: string): Promise<any> {
     return page;
 }
 
+function readPageNamespace(
+    page: Record<string, unknown> | null,
+    title: string,
+): number {
+    if (typeof page?.ns !== "number") {
+        throw new Error(`Unable to read the namespace for ${title}.`);
+    }
+
+    return page.ns;
+}
+
 /**
  * Fetches creation times for a set of titles, following redirects.
  *
@@ -167,14 +188,14 @@ async function fetchPageInfo(api: any, title: string): Promise<any> {
  * @returns Creation times by listed title.
  */
 export async function fetchPageCreationTimes(
-    api: any,
+    api: mw.Api,
     titles: Array<string>,
 ): Promise<Map<string, Date>> {
     logStep("fetchPageCreationTimes start", { titles });
     const enteredTitles = titles.filter(Boolean);
     const titleSet = new Set(enteredTitles);
     const uniqueTitles = [...titleSet];
-    const creationTimes = new Map();
+    const creationTimes = new Map<string, Date>();
 
     if (uniqueTitles.length === 0) {
         logStep("fetchPageCreationTimes skipped: no titles");
@@ -227,8 +248,11 @@ function serializeCreationTimeEntries(
  * @param titles - Page titles.
  * @returns Redirect targets for requested page titles.
  */
-async function resolveRedirectTitles(api: any, titles: Array<string>) {
-    const resolvedTitles = new Map();
+async function resolveRedirectTitles(
+    api: mw.Api,
+    titles: Array<string>,
+): Promise<Map<string, string>> {
+    const resolvedTitles = new Map<string, string>();
     const resolveTitle = resolveRedirectTitle.bind(null, api, resolvedTitles);
     const requests = titles.map(resolveTitle);
 
@@ -245,7 +269,7 @@ async function resolveRedirectTitles(api: any, titles: Array<string>) {
  * @param title - Source title.
  */
 async function resolveRedirectTitle(
-    api: any,
+    api: mw.Api,
     resolvedTitles: Map<string, string>,
     title: string,
 ): Promise<void> {
@@ -285,7 +309,10 @@ function mergeResolvedCreationTimes(
  * @param title - Page title.
  * @returns Current page source.
  */
-async function fetchCurrentPageText(api: any, title: string): Promise<string> {
+async function fetchCurrentPageText(
+    api: mw.Api,
+    title: string,
+): Promise<string> {
     logStep("fetchCurrentPageText start", { title });
     const response = await loggedApiGet(api, "fetchCurrentPageText", {
         action: "query",
@@ -295,13 +322,9 @@ async function fetchCurrentPageText(api: any, title: string): Promise<string> {
         rvslots: "main",
         titles: title,
     });
-    const pages = response?.query?.pages || [];
-    const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
-    const revision = page?.revisions?.[0];
-
-    const primaryContent =
-        revision?.slots?.main?.content ?? revision?.slots?.main?.["*"];
-    const text = primaryContent ?? revision?.["*"] ?? "";
+    const page = getFirstQueryPage(response);
+    const revision = getFirstRevision(page);
+    const text = getRevisionContent(revision);
 
     logStep("fetchCurrentPageText done", {
         textLength: text.length,
@@ -340,15 +363,15 @@ function parseRedirectTarget(text: string): string | null {
  * @returns Creation timestamps.
  */
 async function fetchRevisionCreationTimes(
-    api: any,
+    api: mw.Api,
     titles: Array<string>,
 ): Promise<Map<string, Date>> {
     logStep("fetchRevisionCreationTimes start", { titles });
-    const creationTimes = new Map();
+    const creationTimes = new Map<string, Date>();
     const enteredTitles = titles.filter(Boolean);
     const titleSet = new Set(enteredTitles);
     const uniqueTitles = [...titleSet];
-    const cache = readCreationDateCache();
+    const cache = readCreationTimeCache();
     const uncachedTitles = readCachedCreationTimes(
         uniqueTitles,
         cache,
@@ -362,7 +385,7 @@ async function fetchRevisionCreationTimes(
         creationTimes,
     );
 
-    writeCreationDateCache(cache);
+    writeCreationTimeCache(cache);
     const entries = serializeCreationTimeEntries(creationTimes);
     logStep("fetchRevisionCreationTimes done", { entries });
 
@@ -380,13 +403,13 @@ async function fetchRevisionCreationTimes(
  */
 function readCachedCreationTimes(
     titles: string[],
-    cache: Record<string, string>,
+    cache: CreationTimeCache,
     creationTimes: Map<string, Date>,
 ): Array<string> {
     const result = [];
 
     for (const title of titles) {
-        const cacheTitle = normalizeCacheTitle(title);
+        const cacheTitle = normalizeCreationTimeCacheTitle(title);
         const cached = cache[cacheTitle];
 
         if (cached == null) {
@@ -413,9 +436,9 @@ function readCachedCreationTimes(
  * @param output - Output value.
  */
 async function fetchUncachedCreationTimes(
-    api: unknown,
+    api: mw.Api,
     titles: string[],
-    cache: Record<string, string>,
+    cache: CreationTimeCache,
     output: Map<string, Date>,
 ) {
     for (const group of groupTitlesByNamespace(titles).values()) {
@@ -442,13 +465,13 @@ async function fetchUncachedCreationTimes(
  */
 function mergeCreationTimeBatch(
     output: Map<string, Date>,
-    cache: Record<string, string>,
+    cache: CreationTimeCache,
     titles: string[],
     times: Map<string, Date>,
 ): void {
     for (const [title, date] of times) {
         output.set(title, date);
-        const cacheTitle = normalizeCacheTitle(title);
+        const cacheTitle = normalizeCreationTimeCacheTitle(title);
         cache[cacheTitle] = date.toISOString();
     }
 
@@ -457,7 +480,7 @@ function mergeCreationTimeBatch(
 
         if (date != null) {
             output.set(title, date);
-            const cacheTitle = normalizeCacheTitle(title);
+            const cacheTitle = normalizeCreationTimeCacheTitle(title);
             cache[cacheTitle] = date.toISOString();
         }
     }
@@ -474,7 +497,7 @@ function mergeCreationTimeBatch(
  * @returns Creation timestamps.
  */
 async function fetchRevisionCreationTimeBatch(
-    api: any,
+    api: mw.Api,
     titles: Array<string>,
 ): Promise<Map<string, Date>> {
     try {
@@ -499,7 +522,7 @@ async function fetchRevisionCreationTimeBatch(
  *   a time.
  */
 async function fetchIndividualCreationTimes(
-    api: unknown,
+    api: mw.Api,
     titles: string[],
     error: unknown,
 ): Promise<Map<string, Date>> {
@@ -531,7 +554,7 @@ async function fetchIndividualCreationTimes(
  * @returns Creation timestamps.
  */
 async function fetchRevisionCreationTimeBatchUnsafe(
-    api: any,
+    api: mw.Api,
     titles: Array<string>,
 ): Promise<Map<string, Date>> {
     const namespaceGroup = getNamespaceGroupKey(titles[0]);
@@ -566,15 +589,22 @@ async function fetchRevisionCreationTimeBatchUnsafe(
  * @param response - Fetch response.
  * @returns First-revision timestamps from a query response.
  */
-function parseRevisionCreationTimes(response: any): Map<string, Date> {
-    const pages = response?.query?.pages || [];
-    const creationTimes = new Map();
-    const pageList = Array.isArray(pages) ? pages : Object.values(pages);
+function parseRevisionCreationTimes(response: unknown): Map<string, Date> {
+    const responseRecord = asRecord(response);
+    const query = asRecord(responseRecord?.query);
+    const pages = query?.pages;
+    const creationTimes = new Map<string, Date>();
+    const pageRecord = asRecord(pages);
+    const pageList = Array.isArray(pages)
+        ? pages
+        : Object.values(pageRecord ?? {});
 
-    for (const page of pageList) {
-        const timestamp = page?.revisions?.[0]?.timestamp;
+    for (const pageValue of pageList) {
+        const page = asRecord(pageValue);
+        const revision = getFirstRevision(page);
+        const timestamp = revision?.timestamp;
 
-        if (timestamp != null && page?.title != null) {
+        if (typeof timestamp === "string" && typeof page?.title === "string") {
             const creationDate = new Date(timestamp);
             creationTimes.set(page.title, creationDate);
         }
@@ -595,7 +625,7 @@ function parseRevisionCreationTimes(response: any): Map<string, Date> {
 function groupTitlesByNamespace(
     titles: Array<string>,
 ): Map<string, Array<string>> {
-    const groups = new Map();
+    const groups = new Map<string, Array<string>>();
 
     for (const title of titles) {
         const key = getNamespaceGroupKey(title);
@@ -604,7 +634,7 @@ function groupTitlesByNamespace(
             groups.set(key, []);
         }
 
-        groups.get(key).push(title);
+        groups.get(key)?.push(title);
     }
 
     const entries = [...groups.entries()];
@@ -632,66 +662,6 @@ function getNamespaceGroupKey(title: string): string {
 }
 
 /**
- * Reads cached creation datetimes from localStorage.
- *
- * @returns Cache object.
- */
-function readCreationDateCache(): any {
-    try {
-        const raw = globalThis.localStorage?.getItem(CREATION_CACHE_KEY);
-
-        if (!raw) {
-            return {};
-        }
-
-        const parsed = JSON.parse(raw);
-
-        return parsed && typeof parsed === "object" ? parsed : {};
-    } catch (error) {
-        logStep("readCreationDateCache failed", { error });
-        return {};
-    }
-}
-
-/**
- * Writes cached creation datetimes to localStorage.
- *
- * @param cache - Cache object.
- * @returns Result when the function
- *   writes cached creation datetimes to localstorage.
- */
-function writeCreationDateCache(cache: any): void {
-    try {
-        const storage = globalThis.localStorage;
-
-        if (storage != null) {
-            const serialized = JSON.stringify(cache);
-            storage.setItem(CREATION_CACHE_KEY, serialized);
-        }
-
-        const size = Object.keys(cache).length;
-        logStep("writeCreationDateCache done", {
-            size,
-        });
-    } catch (error) {
-        logStep("writeCreationDateCache failed", { error });
-    }
-}
-
-/**
- * Normalizes titles for cache keys.
- *
- * @param title - Page title.
- * @returns Cache key.
- */
-function normalizeCacheTitle(title: string): string {
-    const result = String(title || "")
-        .replace(/_/gu, " ")
-        .trim();
-    return result;
-}
-
-/**
  * Gets a creation time from a map using title normalization.
  *
  * @param creationTimes - Creation times.
@@ -703,15 +673,16 @@ function getCreationTimeForTitle(
     title: string,
 ): Date | null {
     if (creationTimes.has(title)) {
-        return creationTimes.get(title);
+        return creationTimes.get(title) ?? null;
     }
 
-    const normalized = normalizeCacheTitle(title);
+    const normalized = normalizeCreationTimeCacheTitle(title);
     let found: Date | null = null;
 
     for (const [entryTitle, date] of creationTimes) {
         if (found == null) {
-            const normalizedEntryTitle = normalizeCacheTitle(entryTitle);
+            const normalizedEntryTitle =
+                normalizeCreationTimeCacheTitle(entryTitle);
 
             if (normalizedEntryTitle === normalized) {
                 found = date;
@@ -720,214 +691,4 @@ function getCreationTimeForTitle(
     }
 
     return found;
-}
-
-/**
- * Saves the updated talk-page assessment with edit-conflict retry.
- *
- * @param api - MediaWiki API client.
- * @param title - Talk-page title.
- * @param assessmentText - Replacement top-section text,
- * or
- * selected assessment values.
- * @param projectConfig - Assessment project configuration.
- * @param summary - Talk-page edit summary.
- * @returns Saved talk-page text.
- */
-export async function saveTalkAssessment(
-    api: any,
-    title: string,
-    assessmentText: string | any,
-    projectConfig: any,
-    summary: string = "add or update WikiProject assessment banner",
-): Promise<string> {
-    for (let attempt = 0; attempt < MAX_EDIT_ATTEMPTS; attempt += 1) {
-        try {
-            const result = await saveTalkAssessmentAttempt({
-                api,
-                assessmentText,
-                attempt,
-                projectConfig,
-                summary,
-                title,
-            });
-            return result;
-        } catch (error) {
-            logStep("saveTalkAssessment caught error", {
-                attempt: attempt + 1,
-                error,
-                title,
-            });
-            if (!isEditConflict(error) || attempt === MAX_EDIT_ATTEMPTS - 1) {
-                throw error;
-            }
-        }
-    }
-
-    return "";
-}
-
-/**
- * Runs one talk-page assessment save attempt.
- *
- * @param options - Operation options.
- * @returns Result when the function
- *   runs one talk-page assessment save attempt.
- */
-async function saveTalkAssessmentAttempt(options: any): Promise<string> {
-    logStep("saveTalkAssessment attempt start", {
-        attempt: options.attempt + 1,
-        title: options.title,
-    });
-    const page = await fetchPageText(options.api, options.title);
-    const update = buildTalkAssessmentUpdate(page, options);
-
-    if (shouldSkipTalkAssessmentSave(page, update, options.title)) {
-        return update.text;
-    }
-
-    const params = buildTalkAssessmentEditParams(page, update.text, options);
-
-    await loggedPostWithToken(
-        options.api,
-        "saveTalkAssessment",
-        "csrf",
-        params,
-    );
-    logStep("saveTalkAssessment saved", {
-        attempt: options.attempt + 1,
-        title: options.title,
-    });
-
-    return update.text;
-}
-
-/**
- * Builds updated talk text and its replacement top section.
- *
- * @param page - Page value.
- * @param options - Operation options.
- * @returns Updated talk text and its replacement top section.
- */
-function buildTalkAssessmentUpdate(page: any, options: any): any {
-    const isText = typeof options.assessmentText === "string";
-    let text;
-
-    if (isText) {
-        text = updateTalkPageTopSection(page.text, options.assessmentText);
-    } else {
-        text = updateTalkPageAssessment(
-            page.text,
-            options.assessmentText,
-            options.projectConfig,
-        );
-    }
-
-    const newTopSection = buildNewTalkTopSection(page, options, isText);
-
-    return { newTopSection, text };
-}
-
-/**
- * Builds the new top section used for no-op detection.
- *
- * @param page - Page value.
- * @param options - Operation options.
- * @param isText - Whether is text.
- * @returns The new top section used for no-op detection.
- */
-function buildNewTalkTopSection(
-    page: { text: string },
-    options: { assessmentText: string; projectConfig: unknown },
-    isText: unknown,
-): string {
-    let result;
-
-    if (isText) {
-        result = options.assessmentText.trimEnd();
-    } else {
-        result = previewTalkPageTopSection(
-            page.text,
-            options.assessmentText,
-            options.projectConfig,
-        );
-    }
-
-    return result;
-}
-
-/**
- * Checks whether an assessment save has no effective change.
- *
- * @param page - Page value.
- * @param update - Update value.
- * @param title - Page title.
- * @returns Whether an assessment save has no effective change.
- */
-function shouldSkipTalkAssessmentSave(
-    page: { text: string; exists: unknown },
-    update: { newTopSection: string; text: unknown },
-    title: unknown,
-): boolean {
-    const oldTopSection = getTalkPageTopSection(page.text);
-    const emptyChange = isEmptyImportanceOnlyChange(
-        oldTopSection,
-        update.newTopSection,
-    );
-    const skip = page.exists && (update.text === page.text || emptyChange);
-
-    if (skip) {
-        logStep("saveTalkAssessment skipped: no effective change", {
-            textChanged: update.text !== page.text,
-            title,
-        });
-    }
-
-    return skip;
-}
-
-/**
- * Builds MediaWiki edit parameters for an assessment save.
- *
- * @param page - Page value.
- * @param text - Source text.
- * @param options - Operation options.
- * @returns MediaWiki edit parameters for an assessment save.
- */
-function buildTalkAssessmentEditParams(
-    page: { starttimestamp: unknown; basetimestamp: null; exists: unknown },
-    text: unknown,
-    options: { summary: unknown; title: unknown },
-): unknown {
-    const params: Record<string, any> = {
-        action: "edit",
-        starttimestamp: page.starttimestamp,
-        summary: options.summary,
-        text,
-        title: options.title,
-    };
-
-    if (page.basetimestamp != null) {
-        params.basetimestamp = page.basetimestamp;
-    }
-
-    if (!page.exists) {
-        params.createonly = true;
-    }
-
-    return params;
-}
-
-/**
- * Checks whether a failed API edit should be retried.
- *
- * @param error - MediaWiki API rejection.
- * @returns Whether the error is an edit conflict.
- */
-function isEditConflict(error: any): boolean {
-    const result =
-        error === "editconflict" ||
-        error?.code === "editconflict" ||
-        error?.error?.code === "editconflict";
-    return result;
 }

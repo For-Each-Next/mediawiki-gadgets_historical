@@ -29,7 +29,9 @@ function listPlaceholders(message: string): string[] {
 }
 
 test("keeps translated catalogs aligned with English", () => {
-    const messageIds = Object.keys(english).toSorted();
+    const messageIds = (
+        Object.keys(english) as Array<keyof typeof english>
+    ).toSorted();
     for (const catalog of catalogs) {
         assert.deepEqual(Object.keys(catalog).toSorted(), messageIds);
         for (const messageId of messageIds) {

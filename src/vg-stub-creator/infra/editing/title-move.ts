@@ -89,8 +89,8 @@ function updateInfoboxTitleLines(
     let infobox = text.slice(start, blockEnd);
 
     const forEachCallback = function callback(key: string) {
-        const configValue = lines.current.get(key);
-        const configValueA = lines.target.get(key);
+        const configValue = lines.current.get(key) ?? null;
+        const configValueA = lines.target.get(key) ?? null;
         infobox = updateInfoboxParameterLine(
             infobox,
             configValue,
@@ -187,13 +187,11 @@ function updateInfoboxParameterLine(
         return infobox;
     }
     if (currentLine != null && infobox.includes(currentLine)) {
-        let updated = infobox.replace(currentLine, targetLine);
-
         if (targetLine == null) {
-            updated = infobox.replace(`\n${currentLine}`, "");
+            return infobox.replace(`\n${currentLine}`, "");
         }
 
-        return updated;
+        return infobox.replace(currentLine, targetLine);
     }
     if (targetLine != null) {
         const updated = infobox.replace(

@@ -1,4 +1,4 @@
-import { msg } from "#me/i18n/index.ts";
+import { msg } from "#gadget/i18n/index.ts";
 
 /**
  * Adds gadget triggers to MediaWiki page actions.

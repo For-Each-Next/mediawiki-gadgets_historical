@@ -8,7 +8,7 @@ import test from "node:test";
 import {
     applyLocalizedNameAsPageTitle,
     normalizeReceivedFormValues,
-} from "vg-stub-creator/ui/form/helpers.ts";
+} from "vg-stub-creator/ui/form/form-model.ts";
 
 const testCallbackA = () => {
     const form = normalizeReceivedFormValues({ localizedNames: [] });

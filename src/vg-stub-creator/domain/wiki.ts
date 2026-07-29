@@ -5,9 +5,10 @@
 import type {
     AggregateScoreRecord,
     SourceTags,
-} from "#me/domain/processor.ts";
-import { get as getTerminology } from "#me/config/terminologies/index.ts";
-import { cite, wikitext } from "#shared";
+} from "#gadget/domain/models.ts";
+import { get as getTerminology } from "#gadget/config/terminologies/index.ts";
+import * as cite from "#shared/cite";
+import * as wikitext from "#shared/wikitext";
 
 const { buildTemplateCall, buildTemplateText, trimValue, uniqueValues } =
     wikitext;
@@ -745,17 +746,9 @@ function getCategoryProsePosition(
         .map(mapCallbackE)
         .filter((position) => position >= 0);
 
-    const selectCategoryValueCallback = function falseBranch() {
-        return Math.min(...positions);
-    };
-    const result = selectCategoryValue(
-        positions.length === 0,
-        function trueBranch() {
-            return Number.POSITIVE_INFINITY;
-        },
-        selectCategoryValueCallback,
-    );
-    return result;
+    return positions.length === 0
+        ? Number.POSITIVE_INFINITY
+        : Math.min(...positions);
 }
 
 /**
@@ -874,28 +867,6 @@ function trimCategoryValue(value: unknown): string {
 }
 
 /**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectCategoryValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}
-
-/**
  * Builds footer maintenance templates for video game stubs.
  */
 
@@ -994,20 +965,13 @@ function buildJapaneseNameText(params: any): string | undefined {
 
     const originalName = normalizeInfoboxValue(params.originalName);
 
-    const isSameInfoboxBaseTitleResult = isSameInfoboxBaseTitle(
-        originalName,
-        params.name,
-    );
-    const result = selectInfoboxValue(
-        isSameInfoboxBaseTitleResult,
-        function trueBranch() {
-            return undefined;
-        },
-        function falseBranch() {
-            return originalName;
-        },
-    );
-    return result;
+    if (originalName == null) {
+        return undefined;
+    }
+
+    return isSameInfoboxBaseTitle(originalName, params.name)
+        ? undefined
+        : originalName;
 }
 
 /**
@@ -1020,6 +984,10 @@ function buildJapaneseNameText(params: any): string | undefined {
  */
 function buildEnglishNameText(params: any): string | undefined {
     const englishName = normalizeInfoboxValue(params.englishName);
+
+    if (englishName == null) {
+        return undefined;
+    }
 
     if (isSameInfoboxBaseTitle(englishName, params.name)) {
         return undefined;
@@ -1138,28 +1106,6 @@ function normalizeInfoboxTitleForComparison(title: string): string {
     return result;
 }
 
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectInfoboxValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
-}
-
 const ITALIC_LANGUAGE_CODES = new Set(["en", "fr"]);
 
 /**
@@ -1270,7 +1216,7 @@ function buildLangxTemplate(language: string, text: string): string {
  * @param language - Language code.
  * @returns Langx italic parameter, or an empty string.
  */
-function buildLangxItalicParam(language: string): string {
+function buildLangxItalicParam(language: string): string | undefined {
     return ITALIC_LANGUAGE_CODES.has(language) ? "yes" : undefined;
 }
 
@@ -1321,14 +1267,14 @@ export function buildNavboxText(titles: Array<string>): string {
  */
 export function buildReviewedNavboxText(rows: Array<any | string>): string {
     const mapCallbackC = (row: any) => trimValue(row?.text ?? row);
-    const mapCallbackD = function callback(text: string) {
+    const formatNavbox = function formatNavbox(text: string) {
         return text.startsWith("{{") ? text : buildTemplateCall(text);
     };
     const result = rows
         .filter((row) => row?.enabled !== false)
         .map(mapCallbackC)
-        .filter(Boolean)
-        .map(mapCallbackD)
+        .filter((text) => text !== "")
+        .map(formatNavbox)
         .join("\n");
 
     return result;
@@ -1398,7 +1344,7 @@ function getNoteTaConversionText(
     const suppressed =
         hasEditableNameConversionEntry(entries) ||
         params.namesRemoved === true;
-    let text: string;
+    let text: string | undefined;
 
     if (!suppressed) {
         text = buildOfficialNameConversionText(params.officialNames);
@@ -1998,19 +1944,12 @@ export function buildYearGenreProse(
     sourceTag: string = "",
 ): string {
     const yearText = year.metadata.phrase || "";
-    const selectProseValueCallback = function falseBranch() {
-        const result = formatText("prose.genreClass", {
-            genreText: genre.wikitext.list,
-        });
-        return result;
-    };
-    const genreText = selectProseValue(
-        genre.wikitext.list === "",
-        function trueBranch() {
-            return "";
-        },
-        selectProseValueCallback,
-    );
+    const genreText =
+        genre.wikitext.list === ""
+            ? ""
+            : formatText("prose.genreClass", {
+                  genreText: genre.wikitext.list,
+              });
     const prefix =
         `${yearText}${genreText}` ||
         getTextTemplate("prose.fallbackYearGenrePrefix");
@@ -2161,15 +2100,9 @@ export function buildAppendProse(
     }
 
     const hasPeriod = text.endsWith("。");
-    const templateKey = selectProseValue(
-        hasPeriod,
-        function trueBranch() {
-            return "prose.sentence4WithPeriod";
-        },
-        function falseBranch() {
-            return "prose.sentence4";
-        },
-    );
+    const templateKey = hasPeriod
+        ? "prose.sentence4WithPeriod"
+        : "prose.sentence4";
     const slicedValue = {
         sourceTag,
         text: hasPeriod ? text.slice(0, -1) : text,
@@ -2232,14 +2165,16 @@ function buildCompanyRoleText(
  * @returns Result when the function
  *   defines the module-level build series list text.
  */
-function buildSeriesListText(values: unknown[]) {
-    const mapCallbackA = function callback(value: { wikitext: unknown }) {
+function buildSeriesListText(values: Array<{ wikitext: unknown }>) {
+    const formatSeriesTitle = function formatSeriesTitle(value: {
+        wikitext: unknown;
+    }) {
         const result = formatText("prose.seriesTitle", {
             value: value.wikitext,
         });
         return result;
     };
-    const names = values.map(mapCallbackA);
+    const names = values.map(formatSeriesTitle);
 
     if (names.length === 2) {
         const textResultA = getTextTemplate("shared.conjunction");
@@ -2265,28 +2200,6 @@ function joinSourceTags(
     const tags = keys.map((key) => sourceTags[key] || "").join("");
 
     return tags;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectProseValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }
 
 /**

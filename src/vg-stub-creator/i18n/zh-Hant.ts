@@ -2,8 +2,8 @@
  * Traditional Chinese source catalog for VG Stub Creator.
  */
 
-import { i18n } from "#shared";
-import type english from "#me/i18n/en.ts";
+import * as i18n from "#shared/i18n";
+import type english from "#gadget/i18n/en.ts";
 
 export default i18n.defineMessages({
     "form": {
@@ -247,7 +247,6 @@ export default i18n.defineMessages({
         "steamUrl": "請輸入 Steam 應用程式網址。",
         "categorySaveUnavailable": "分類儲存處理程式無法使用。",
         "editorUnavailable": "MediaWiki 編輯文字方塊無法使用。",
-        "saveFormUnavailable": "MediaWiki 儲存表單無法使用。",
         "previewFormUnavailable": "MediaWiki 預覽表單無法使用。",
     },
     "common": {

@@ -2,9 +2,7 @@
  * Browser entry point for the MediaWiki gadget bundle.
  */
 
-export * from "#me/api.ts";
-
-import { mountCitationFormatter } from "#me/ui/editor.ts";
+import { start } from "#gadget/main.ts";
 
 if (typeof mw !== "undefined" && typeof mw.loader?.using === "function") {
     mountWhenMediaWikiIsReady();
@@ -15,7 +13,7 @@ if (typeof mw !== "undefined" && typeof mw.loader?.using === "function") {
 function mountWhenMediaWikiIsReady(): void {
     void mw.loader
         .using("mediawiki.util")
-        .then(mountCitationFormatter)
+        .then(start)
         .catch(function reportStartupFailure(error: unknown): void {
             console.error("Citation Formatter failed to start.", error);
         });

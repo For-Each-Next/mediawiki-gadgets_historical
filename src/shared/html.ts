@@ -1,8 +1,17 @@
 /**
  * A serializable markup element.
  */
+export type TemplateStyle = Readonly<
+    Record<string, string | number | boolean | null | undefined>
+>;
+
+export type TemplateAttributeValue =
+    string | number | boolean | TemplateStyle | null | undefined;
+
+export type TemplateAttributes = Record<string, TemplateAttributeValue>;
+
 export interface TemplateElement {
-    attributes: Record<string, any>;
+    attributes: TemplateAttributes;
     children: Array<TemplateNode>;
     tagName: string;
 }
@@ -39,7 +48,7 @@ const VOID_ELEMENTS = new Set([
  */
 export function createElement(
     tagName: string,
-    attributes: Record<string, any> = {},
+    attributes: TemplateAttributes = {},
     children: Array<TemplateNode> = [],
 ): TemplateElement {
     const result = {
@@ -163,7 +172,7 @@ function renderElement(element: TemplateElement): string {
  * @param attributes - Element attributes.
  * @returns Attribute markup.
  */
-function renderAttributes(attributes: Record<string, any>): string {
+function renderAttributes(attributes: TemplateAttributes): string {
     return Object.entries(attributes).map(renderAttribute).join("");
 }
 
@@ -173,9 +182,10 @@ function renderAttributes(attributes: Record<string, any>): string {
  * @param entry - Attribute name and value.
  * @returns Attribute markup.
  */
-function renderAttribute(entry: [string, any]): string {
+function renderAttribute(entry: [string, TemplateAttributeValue]): string {
     const [name, value] = entry;
-    const renderedValue = name === "style" ? renderStyle(value) : value;
+    const renderedValue =
+        name === "style" ? renderStyle(value as TemplateStyle) : value;
 
     if (renderedValue === "") {
         return ` ${name}`;
@@ -191,7 +201,7 @@ function renderAttribute(entry: [string, any]): string {
  * @param style - Style declaration object.
  * @returns Style declaration text.
  */
-function renderStyle(style: Record<string, any>): string {
+function renderStyle(style: TemplateStyle): string {
     const declarations = Object.entries(style)
         .map(renderStyleDeclaration)
         .join("; ");
@@ -205,7 +215,9 @@ function renderStyle(style: Record<string, any>): string {
  * @param entry - Style property and value.
  * @returns Style declaration text.
  */
-function renderStyleDeclaration(entry: [string, any]): string {
+function renderStyleDeclaration(
+    entry: [string, string | number | boolean | null | undefined],
+): string {
     const [name, value] = entry;
 
     return `${toKebabCase(name)}: ${value}`;

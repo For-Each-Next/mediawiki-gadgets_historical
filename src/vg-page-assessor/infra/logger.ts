@@ -5,7 +5,20 @@
  * failures.
  */
 
+import { asRecord } from "#gadget/infra/mediawiki-response.ts";
+
 const PREFIX = "[vg page assessor]";
+
+export type ApiParameterValue =
+    | string
+    | number
+    | boolean
+    | File
+    | Array<string>
+    | Array<number>
+    | undefined;
+
+export type ApiParameters = Record<string, ApiParameterValue>;
 
 /**
  * Logs one workflow step.
@@ -15,7 +28,7 @@ const PREFIX = "[vg page assessor]";
  * @returns Result when the function
  *   logs one workflow step.
  */
-export function logStep(step: string, details?: any): void {
+export function logStep(step: string, details?: unknown): void {
     if (details === undefined) {
         console.log(PREFIX, step);
         return;
@@ -33,10 +46,10 @@ export function logStep(step: string, details?: any): void {
  * @returns API response.
  */
 export async function loggedApiGet(
-    api: any,
+    api: mw.Api,
     label: string,
-    params: any,
-): Promise<any> {
+    params: ApiParameters,
+): Promise<unknown> {
     const loggedParams = cloneForLog(params);
     logStep(`API GET start: ${label}`, loggedParams);
 
@@ -66,11 +79,11 @@ export async function loggedApiGet(
  * @returns API response.
  */
 export async function loggedPostWithToken(
-    api: any,
+    api: mw.Api,
     label: string,
     token: string,
-    params: any,
-): Promise<any> {
+    params: ApiParameters,
+): Promise<unknown> {
     const loggedParams = summarizeEditParams(params);
     logStep(`API POST start: ${label}`, {
         params: loggedParams,
@@ -99,7 +112,7 @@ export async function loggedPostWithToken(
  * @param value - Value to clone.
  * @returns Cloned value.
  */
-function cloneForLog(value: any): any {
+function cloneForLog(value: unknown): unknown {
     try {
         const serialized = JSON.stringify(value);
         return JSON.parse(serialized);
@@ -114,18 +127,25 @@ function cloneForLog(value: any): any {
  * @param response - API response.
  * @returns Response summary.
  */
-function summarizeResponse(response: any): any {
-    const pages = response?.query?.pages || [];
-    const pageList = Array.isArray(pages) ? pages : Object.values(pages);
+function summarizeResponse(response: unknown): Record<string, unknown> {
+    const responseRecord = asRecord(response);
+    const query = asRecord(responseRecord?.query);
+    const pages = query?.pages;
+    const pageRecord = asRecord(pages);
+    const pageList = Array.isArray(pages)
+        ? pages
+        : Object.values(pageRecord ?? {});
 
     const result = {
-        curtimestamp: response?.curtimestamp,
+        curtimestamp: responseRecord?.curtimestamp,
         pageCount: pageList.length,
-        pages: pageList.map(function callback(page) {
+        pages: pageList.map(function callback(pageValue) {
+            const page = asRecord(pageValue);
+            const revisions = page?.revisions;
             const result = {
                 missing: page?.missing != null,
                 ns: page?.ns,
-                revisionCount: page?.revisions?.length || 0,
+                revisionCount: Array.isArray(revisions) ? revisions.length : 0,
                 title: page?.title,
             };
             return result;
@@ -140,18 +160,19 @@ function summarizeResponse(response: any): any {
  * @param params - Edit params.
  * @returns Summarized params.
  */
-function summarizeEditParams(params: any): any {
-    let text = params?.text;
+function summarizeEditParams(params: ApiParameters): Record<string, unknown> {
+    let text: unknown = params.text;
 
-    if (typeof params?.text === "string") {
+    if (typeof params.text === "string") {
         text = {
             length: params.text.length,
             preview: params.text.slice(0, 500),
         };
     }
 
+    const clonedParams = asRecord(cloneForLog(params)) ?? {};
     const result = {
-        ...cloneForLog(params),
+        ...clonedParams,
         text,
     };
     return result;

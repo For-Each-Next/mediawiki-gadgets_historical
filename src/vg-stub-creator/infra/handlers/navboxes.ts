@@ -1,10 +1,10 @@
-import { formatText } from "#me/domain/wiki.ts";
+import { formatText } from "#gadget/domain/wiki.ts";
 import {
     normalizeTitleKey,
     resolvePageTitles,
     stripNamespace,
-} from "#me/infra/handlers/title-resolver.ts";
-import { wikitext } from "#shared";
+} from "#gadget/infra/handlers/title-resolver.ts";
+import * as wikitext from "#shared/wikitext";
 const { splitLookupFieldValues, trimValue, uniqueValues } = wikitext;
 
 const TEMPLATE_NAMESPACE = "Template";
@@ -32,10 +32,14 @@ export async function resolveNavboxTitles(
     const uniqueValuesResult = uniqueValues(flattenedValues);
     const resolutions = await resolveTemplates(uniqueValuesResult, options);
 
-    const mapCallbackC = function callback(plan: { candidates: string[] }) {
+    const findExistingTitle = function findExistingTitle(plan: {
+        candidates: string[];
+    }) {
         return getFirstExistingTemplate(plan.candidates, resolutions);
     };
-    const filteredValuesB = plans.map(mapCallbackC).filter(Boolean);
+    const filteredValuesB = plans
+        .map(findExistingTitle)
+        .filter((title): title is string => title != null && title !== "");
     const titles = uniqueValues(filteredValuesB);
 
     return titles;

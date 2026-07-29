@@ -12,17 +12,48 @@ import type {
     SourceDraft,
 } from "citation-formatter/domain/source-manager.ts";
 import {
-    openCitationFormatterDialog,
+    createOpenCitationFormatterDialog,
     type SourceManagerOptions,
 } from "citation-formatter/ui/source-manager.ts";
+import {
+    buildCs1CheckWikitext,
+    requestCs1WikitextCheck,
+    splitCs1CheckHtml,
+} from "citation-formatter/infra/cs1-check.ts";
+// eslint-disable-next-line max-len
+import { createCs1ReviewWorkflow } from "citation-formatter/workflows/cs1-review.ts";
 import type {
     CodexComponents,
     ResourceLoaderRequire,
     ToastController,
     VueModule,
 } from "citation-formatter/ui/codex.ts";
-import type { editBox } from "@mediawiki-gadgets/shared";
+import type * as editBox from "@mediawiki-gadgets/shared/edit-box";
 import { cdxIconMerge, type Icon } from "@wikimedia/codex-icons";
+
+const openCitationFormatterDialog = createOpenCitationFormatterDialog({
+    cs1Review: createCs1ReviewWorkflow({
+        buildCheckWikitext: buildCs1CheckWikitext,
+        requestCheck: requestCs1WikitextCheck,
+        splitCheckHtml: splitCs1CheckHtml,
+    }),
+    async fetchAvailableArchive() {
+        return null;
+    },
+    async resolveSourceMetadata(sourceInput, archiveSeed) {
+        return {
+            archiveDate: archiveSeed?.archiveDate ?? "",
+            archiveError: "",
+            archiveUrl: archiveSeed?.archiveUrl ?? "",
+            citeTemplate: `{{Cite web | url = ${sourceInput}}}`,
+            metadataError: "",
+            originalUrl: sourceInput,
+        };
+    },
+    async resolveWikiLink(value) {
+        return value;
+    },
+});
 
 interface MountedAnalysisFinding {
     category: SourceAnalysisFindingCategory;

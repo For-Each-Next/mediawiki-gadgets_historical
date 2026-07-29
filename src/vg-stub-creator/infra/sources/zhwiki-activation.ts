@@ -5,7 +5,7 @@
  * URLs.
  */
 
-import { wikitext } from "#shared";
+import * as wikitext from "#shared/wikitext";
 const { trimValue } = wikitext;
 
 export const ZHWIKI_API_URL = "https://zh.wikipedia.org/w/api.php";
@@ -122,17 +122,10 @@ export function buildZhwikiCreationUrl(
 export function readZhwikiActivationForm(
     search: string | URLSearchParams,
 ): any | null {
-    const selectValueCallback = function falseBranch() {
-        const searchText = String(search || "");
-        return new URLSearchParams(searchText);
-    };
-    const params = selectValue(
-        search instanceof URLSearchParams,
-        function trueBranch() {
-            return search;
-        },
-        selectValueCallback,
-    );
+    const params =
+        search instanceof URLSearchParams
+            ? search
+            : new URLSearchParams(String(search || ""));
 
     if (params.get(ZHWIKI_ACTIVATION_PARAM) !== "1") {
         return null;
@@ -149,26 +142,4 @@ export function readZhwikiActivationForm(
         enwikiTitle,
     };
     return result;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

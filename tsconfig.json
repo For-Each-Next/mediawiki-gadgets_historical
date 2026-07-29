@@ -8,11 +8,16 @@
         "moduleResolution": "Bundler",
         "noEmit": true,
         "skipLibCheck": true,
-        "strict": false,
+        "strict": true,
         "target": "ES2024",
         "types": ["node", "types-mediawiki"],
         "paths": {
-            "#shared": ["./src/shared/index.ts"]
+            "#shared": ["./src/shared/index.ts"],
+            "#shared/cite": ["./src/shared/cite/index.ts"],
+            "#shared/edit-box": ["./src/shared/edit-box.ts"],
+            "#shared/html": ["./src/shared/html.ts"],
+            "#shared/i18n": ["./src/shared/i18n.ts"],
+            "#shared/wikitext": ["./src/shared/wikitext.ts"]
         }
     },
     "include": [

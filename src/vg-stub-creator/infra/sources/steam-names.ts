@@ -2,8 +2,8 @@
  * Fetches localized official game names from Steam citations.
  */
 
-import { msg } from "#me/i18n/index.ts";
-import { wikitext } from "#shared";
+import { msg } from "#gadget/i18n/index.ts";
+import * as wikitext from "#shared/wikitext";
 const { trimValue } = wikitext;
 
 /**

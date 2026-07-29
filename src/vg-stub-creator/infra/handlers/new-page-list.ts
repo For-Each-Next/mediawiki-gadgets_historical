@@ -5,10 +5,11 @@
  * list.
  */
 
-import { addEditSummarySuffix } from "#me/infra/editing/summary.ts";
-import { msg } from "#me/i18n/index.ts";
+import { addEditSummarySuffix } from "#gadget/infra/editing/summary.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import { NEW_PAGE_LIST_TITLE } from "#gadget/config/wiki-pages.ts";
 
-export const NEW_PAGE_LIST_TITLE = "WikiProject:电子游戏/新进条目";
+export { NEW_PAGE_LIST_TITLE };
 const MAX_EDIT_ATTEMPTS = 3;
 
 interface NewPageRegistration {
@@ -465,18 +466,11 @@ function buildDateBlock(
     article: string,
     categories: Array<string>,
 ): string {
-    const selectValueCallback = function falseBranch() {
-        return [`*:分類：${categories.join("、")}`];
-    };
     const result = [
         `* ${month}月${day}日 - ${article}`,
-        ...selectValue(
-            categories.length === 0,
-            function trueBranch() {
-                return [];
-            },
-            selectValueCallback,
-        ),
+        ...(categories.length === 0
+            ? []
+            : [`*:分類：${categories.join("、")}`]),
     ].join("\n");
     return result;
 }
@@ -567,26 +561,4 @@ function isEditConflict(error: any): boolean {
         error?.code === "editconflict" ||
         error?.error?.code === "editconflict";
     return result;
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

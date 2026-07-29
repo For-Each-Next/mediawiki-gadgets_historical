@@ -1,0 +1,198 @@
+/**
+ * Characterizes MediaWiki response decoding and protected saves.
+ */
+
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import * as pageApi from "vg-page-assessor/infra/mediawiki-api.ts";
+import * as listApi from "vg-page-assessor/infra/new-page-list-api.ts";
+import { postTalkPageEdit } from "vg-page-assessor/infra/talk-page-api.ts";
+import {
+    createTalkSaveWorkflow,
+    isEditConflict,
+} from "vg-page-assessor/workflows/save-talk-assessment.ts";
+
+const saveTalkAssessment = createTalkSaveWorkflow({
+    fetchPageText: pageApi.fetchPageText,
+    logStep() {},
+    postTalkPageEdit,
+});
+
+function pageResponse(
+    text: string,
+    basetimestamp: string,
+    starttimestamp: string,
+): unknown {
+    return {
+        curtimestamp: starttimestamp,
+        query: {
+            pages: [
+                {
+                    revisions: [
+                        {
+                            slots: { main: { content: text } },
+                            timestamp: basetimestamp,
+                        },
+                    ],
+                    title: "Talk:Example",
+                },
+            ],
+        },
+    };
+}
+
+interface PostedRequest {
+    params: Record<string, unknown>;
+    token: string;
+}
+
+function createConflictingApi(): {
+    api: mw.Api;
+    posts: Array<PostedRequest>;
+} {
+    const responses = [
+        pageResponse(
+            "{{Old}}\n\n== Discussion ==\nOriginal body",
+            "base-1",
+            "start-1",
+        ),
+        pageResponse(
+            "{{Concurrent}}\n\n== Discussion ==\nConcurrent body",
+            "base-2",
+            "start-2",
+        ),
+    ];
+    const posts: Array<PostedRequest> = [];
+    const api = {
+        async get(): Promise<unknown> {
+            return responses.shift();
+        },
+        async postWithToken(
+            token: string,
+            params: Record<string, unknown>,
+        ): Promise<unknown> {
+            posts.push({ params, token });
+            if (posts.length === 1) {
+                throw { error: { code: "editconflict" } };
+            }
+            return { edit: { result: "Success" } };
+        },
+    } as unknown as mw.Api;
+
+    return { api, posts };
+}
+
+test("decodes current slot revision content", () => {
+    const result = pageApi.decodePageTextResponse(
+        pageResponse("array text", "base-1", "start-1"),
+    );
+
+    assert.deepEqual(result, {
+        basetimestamp: "base-1",
+        exists: true,
+        starttimestamp: "start-1",
+        text: "array text",
+    });
+});
+
+test("decodes keyed and legacy revision content", () => {
+    const keyedResult = pageApi.decodePageTextResponse({
+        curtimestamp: "start-2",
+        query: {
+            pages: {
+                42: {
+                    revisions: [
+                        {
+                            slots: { main: { "*": "keyed text" } },
+                            timestamp: "base-2",
+                        },
+                    ],
+                },
+            },
+        },
+    });
+    const legacyResult = pageApi.decodePageTextResponse({
+        curtimestamp: "start-3",
+        query: {
+            pages: [
+                {
+                    revisions: [{ "*": "legacy text", timestamp: "base-3" }],
+                },
+            ],
+        },
+    });
+
+    assert.equal(keyedResult.text, "keyed text");
+    assert.equal(legacyResult.text, "legacy text");
+    assert.throws(
+        () => pageApi.decodePageTextResponse({ curtimestamp: "start" }),
+        /requested page/u,
+    );
+});
+
+test("requires list content and both edit timestamps", () => {
+    const decoded = listApi.decodeNewPageListResponse(
+        pageResponse("list text", "base", "start"),
+    );
+
+    assert.deepEqual(decoded, {
+        basetimestamp: "base",
+        starttimestamp: "start",
+        text: "list text",
+    });
+    assert.throws(
+        () =>
+            listApi.decodeNewPageListResponse({
+                query: { pages: [{ missing: true }] },
+            }),
+        /Unable to read/u,
+    );
+    assert.throws(
+        () =>
+            listApi.decodeNewPageListResponse({
+                query: {
+                    pages: [
+                        {
+                            revisions: [
+                                {
+                                    slots: {
+                                        main: { content: "list text" },
+                                    },
+                                    timestamp: "base",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }),
+        /query timestamp/u,
+    );
+});
+
+test("recognizes direct and nested edit conflicts", () => {
+    assert.equal(isEditConflict("editconflict"), true);
+    assert.equal(isEditConflict({ code: "editconflict" }), true);
+    assert.equal(isEditConflict({ error: { code: "editconflict" } }), true);
+    assert.equal(isEditConflict({ code: "permissiondenied" }), false);
+});
+
+test("retries conflicts with the exact reviewed top section", async () => {
+    const { api, posts } = createConflictingApi();
+
+    const result = await saveTalkAssessment(api, {
+        summary: "Reviewed summary",
+        title: "Talk:Example",
+        topSection: "{{Reviewed}}\n",
+    });
+
+    const expected = "{{Reviewed}}\n\n== Discussion ==\nConcurrent body";
+    assert.equal(result, expected);
+    assert.equal(posts.length, 2);
+    assert.equal(posts[0].token, "csrf");
+    assert.equal(posts[0].params.basetimestamp, "base-1");
+    assert.equal(posts[1].params.basetimestamp, "base-2");
+    assert.equal(posts[1].params.starttimestamp, "start-2");
+    assert.equal(posts[1].params.summary, "Reviewed summary");
+    assert.equal(posts[1].params.text, expected);
+});

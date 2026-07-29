@@ -5,20 +5,29 @@
     "description": "TypeScript development workspace for MediaWiki gadgets.",
     "type": "module",
     "imports": {
-        "#shared": "./src/shared/index.ts"
+        "#shared": "./src/shared/index.ts",
+        "#shared/cite": "./src/shared/cite/index.ts",
+        "#shared/edit-box": "./src/shared/edit-box.ts",
+        "#shared/html": "./src/shared/html.ts",
+        "#shared/i18n": "./src/shared/i18n.ts",
+        "#shared/wikitext": "./src/shared/wikitext.ts"
     },
     "workspaces": [
         "src/*"
     ],
     "scripts": {
         "build": "npm run build --workspaces --if-present",
-        "check": "npm run typecheck && npm run lint && npm test && npm run format:check",
-        "format": "prettier --write src scripts tests",
-        "format:check": "prettier --check src scripts tests",
+        "check": "npm run check:packages && npm run check:layers && npm run check:markdown && npm run typecheck && npm run lint && npm test && npm run format:check",
+        "check:layers": "node scripts/check-layer-dependencies.ts",
+        "check:markdown": "node scripts/check-markdown-lines.ts",
+        "check:packages": "node scripts/check-gadget-packages.ts",
+        "format": "prettier --write \"*.md\" .prettierrc.json package.json tsconfig.json \"*.config.ts\" src scripts tests",
+        "format:check": "prettier --check \"*.md\" .prettierrc.json package.json tsconfig.json \"*.config.ts\" src scripts tests",
         "lint": "eslint src scripts tests && npm run lint:css",
         "lint:css": "stylelint \"src/**/*.css\"",
         "lint:fix": "eslint src scripts tests --fix",
-        "test": "npm run test --workspaces --if-present",
+        "test": "npm run test:repository && npm run test --workspaces --if-present",
+        "test:repository": "node --test tests/repository/*.test.ts",
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {

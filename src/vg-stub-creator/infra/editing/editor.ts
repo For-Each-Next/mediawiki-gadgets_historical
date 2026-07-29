@@ -2,8 +2,8 @@
  * Writes generated content into the MediaWiki edit form.
  */
 
-import { msg } from "#me/i18n/index.ts";
-import { editBox } from "#shared";
+import { msg } from "#gadget/i18n/index.ts";
+import * as editBox from "#shared/edit-box";
 
 /**
  * Replaces the MediaWiki edit textarea with generated wikitext.
@@ -101,28 +101,6 @@ export function readEditSummary(): string {
 }
 
 /**
- * Submits the MediaWiki edit form through its save button.
- *
- * @returns Result when the function
- *   submits the mediawiki edit form through its save
- *   button.
- */
-export function submitEditForm(): void {
-    const editForm = document.getElementById(
-        "editform",
-    ) as HTMLFormElement | null;
-    const saveButton = document.getElementById("wpSave");
-
-    if (editForm == null || saveButton == null) {
-        const message = msg("errors.saveFormUnavailable");
-        throw new Error(message);
-    }
-
-    allowNextSaveSubmit = true;
-    editForm.requestSubmit(saveButton);
-}
-
-/**
  * Submits the MediaWiki edit form through its preview button.
  *
  * @returns Result when the function
@@ -143,8 +121,6 @@ export function submitPreviewForm(): void {
     editForm.requestSubmit(previewButton);
 }
 
-let allowNextSaveSubmit = false;
-
 /**
  * Routes native MediaWiki save submissions through a review callback.
  *
@@ -157,21 +133,14 @@ export function interceptEditSave(
     const editForm = document.getElementById("editform");
 
     if (editForm == null) {
-        return function callback() {};
+        return function removeNoopListener() {};
     }
 
-    const handleSubmit = function callback(event: {
-        submitter: { id: unknown };
-        preventDefault: () => void;
-        stopImmediatePropagation: () => void;
-    }) {
-        const submitterId = event.submitter?.id;
+    const handleSubmit = function handleSubmit(event: Event) {
+        const submitter = (event as SubmitEvent).submitter;
+        const submitterId =
+            submitter instanceof HTMLElement ? submitter.id : undefined;
         if (submitterId != null && submitterId !== "wpSave") {
-            return;
-        }
-
-        if (allowNextSaveSubmit) {
-            allowNextSaveSubmit = false;
             return;
         }
 
@@ -182,7 +151,7 @@ export function interceptEditSave(
 
     editForm.addEventListener("submit", handleSubmit, true);
 
-    const result = function callback() {
+    const result = function removeSaveListener() {
         editForm.removeEventListener("submit", handleSubmit, true);
     };
     return result;

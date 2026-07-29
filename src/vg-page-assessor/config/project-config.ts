@@ -1,3 +1,5 @@
+import type { ProjectConfig } from "#gadget/domain/types.ts";
+
 export default {
     videoGames: {
         template: "WikiProject Video games",
@@ -118,4 +120,4 @@ export default {
             ],
         },
     ],
-};
+} as const satisfies ProjectConfig;

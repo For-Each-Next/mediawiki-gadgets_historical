@@ -2,8 +2,8 @@
  * Defines vg-stub-creator dialog form metadata and reusable constants.
  */
 
-import { getArticleSourceFields } from "#me/domain/processor.ts";
-import { msg } from "#me/i18n/index.ts";
+import { getArticleSourceFields } from "#gadget/domain/processor.ts";
+import { msg } from "#gadget/i18n/index.ts";
 
 interface ArticleParameterFieldOptions {
     breakBefore?: boolean;
@@ -47,7 +47,7 @@ class ArticleParameterField {
         key: string,
         label: string,
         path: string,
-        sourceField: null,
+        sourceField: unknown | null,
         options: ArticleParameterFieldOptions = {},
     ) {
         this.breakBefore = Boolean(options.breakBefore);
@@ -84,7 +84,7 @@ class ArticleParameterGroup {
         key: string,
         label: string,
         fields: ArticleParameterField[],
-        nameGroupKey: string,
+        nameGroupKey: string | null,
         options: ArticleParameterGroupOptions = {},
     ) {
         this.categoryReview = Boolean(options.categoryReview);

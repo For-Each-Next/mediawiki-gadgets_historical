@@ -86,7 +86,7 @@ async function fetchCitoidResponse(
 /**
  * Builds citation wikitext from a successful Citoid response.
  *
- * @param url - Request URL.
+ * @param search - Source lookup value.
  * @param response - Fetch response.
  * @param options - Operation options.
  * @returns Citation wikitext from a successful Citoid response.
@@ -117,7 +117,7 @@ async function buildCitoidResponseTemplate(
 /**
  * Handles a failed Citoid response or builds its web fallback.
  *
- * @param url - Request URL.
+ * @param search - Source lookup value.
  * @param response - Fetch response.
  * @param fetcher - Fetch implementation.
  * @param options - Operation options.
@@ -284,7 +284,10 @@ export function parseCiteTemplate(text: string): any {
 export function buildCiteTemplateFromParts(parts: any): string {
     const template = trimFieldText(parts?.template) || "cite web";
     const params = sortCitationParams(parts?.params || [], template);
-    const entries = params.map((param) => [param.name, param.value]);
+    const entries = params.map((param): [string, any] => [
+        param.name,
+        param.value,
+    ]);
     const valuedEntries = entries.filter(hasTemplateValue);
     const result = formatTemplateCall(template, valuedEntries);
     return result;
@@ -747,6 +750,11 @@ function applySetFromSourceQueryFix(
     }
 
     const queryValue = source.searchParams.get(operand.key);
+
+    if (queryValue == null) {
+        return values;
+    }
+
     const fieldValue = operand.values[queryValue];
 
     if (fieldValue == null) {
@@ -875,6 +883,11 @@ function preserveSourceQueryKey(
     }
 
     const value = source.searchParams.get(key);
+
+    if (value == null) {
+        return;
+    }
+
     citation.searchParams.set(key, value);
 }
 
@@ -1280,26 +1293,4 @@ function formatAccessDate(date: Date): string {
     const accessDate = date || new Date();
 
     return accessDate.toISOString().slice(0, DATE_PARTS_LENGTH);
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

@@ -5,6 +5,6 @@
 export { createCitationStore, type CitationStore } from "./citation-store.ts";
 export {
     fetchSourceReferences,
-    getEnteredSourceUrls,
     prepareManagedCitationRows,
 } from "./source-references.ts";
+export { getEnteredSourceUrls } from "#gadget/domain/source-fields.ts";

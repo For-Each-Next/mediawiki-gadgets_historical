@@ -2,7 +2,7 @@
  * Semantic segmentation for citation-source previews.
  */
 
-import { splitTopLevel } from "#me/domain/wikitext.ts";
+import { splitTopLevel } from "#gadget/domain/wikitext.ts";
 
 export interface SourcePreviewPart {
     kind: "alias" | "parameter" | "text";

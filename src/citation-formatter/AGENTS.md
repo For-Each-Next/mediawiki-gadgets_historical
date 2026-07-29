@@ -5,15 +5,19 @@ repository instructions.
 
 ## Architecture
 
-- Keep `index.ts` and `api.ts` side-effect free. Limit MediaWiki startup and
-  editor mounting to `browser.ts` and `ui/`.
+- Keep `index.ts`, `api.ts`, and `main.ts` side-effect free. Let `browser.ts`
+  invoke `main.ts`, and keep MediaWiki startup and editor mounting in
+  `browser.ts` and `ui/`.
+- Keep `main.ts` as the sole composition root for wiring sibling UI, workflows,
+  and infrastructure. Use `#gadget/*` for package-local imports and explicit
+  `#shared/<name>` entries for workspace shared responsibilities.
 - Keep citation parsing, validation, analysis, and wikitext transformations in
   `domain/` deterministic and independent of MediaWiki globals, the DOM, and
   network access.
 - Keep Citoid, archive, and wiki integrations in `infra/`. Keep Codex and Vue
   rendering, editor adapters, and user interaction in `ui/`.
-- Preserve type-checked localization through `i18n/`; do not embed
-  user-visible strings in otherwise locale-independent domain services.
+- Preserve type-checked localization through `i18n/`; do not embed user-visible
+  strings in otherwise locale-independent domain services.
 
 ## Runtime and Editor Safety
 
@@ -21,13 +25,15 @@ repository instructions.
   unsupported syntax and custom citation fields unless the user explicitly
   chooses a transformation.
 - Keep editor writes reviewable, scoped to the active action, and recoverable
-  within the current session. Re-read editor content when an action promises
-  to operate on the current article state.
+  within the current session. Re-read editor content when an action promises to
+  operate on the current article state.
 - Use HTTPS for remote requests. Normal editing must use local validation and
   must not trigger live `action=parse` checks; live CS1 validation remains an
   explicit user action.
 - Mount only after the required MediaWiki modules and editor surface are
-  available. Keep the public API usable without `mw`, Vue, or a browser DOM.
+  available. Keep browser-independent operations usable in tests without `mw`,
+  Vue, or a browser DOM. The generated gadget and userscript are the products;
+  the private TypeScript package is not a published library.
 
 ## TemplateData and Site Validation
 
@@ -49,16 +55,16 @@ repository instructions.
 
 - Keep the package overview and usage in `README.md`, the release record in
   `HISTORY.md`, and detailed maintenance guides under `docs/`.
-- Record every completed package-scoped change in `HISTORY.md`. Inherit
-  all version selection and suffix rules from the repository instructions;
+- Record every completed package-scoped change in `HISTORY.md`. Inherit all
+  version selection and suffix rules from the repository instructions;
   documentation-only work does not bump the package version.
 
 ## Verification
 
 - For package changes, run `npm run check -w citation-formatter` and
   `npm test -w citation-formatter`.
-- For material browser changes, apply the repository's build-version rules,
-  run `npm run build -w citation-formatter`, and inspect both generated
-  artifact headers.
+- For material browser changes, apply the repository's build-version rules, run
+  `npm run build -w citation-formatter`, and inspect both generated artifact
+  headers.
 - For documentation-only changes, run Prettier on the package Markdown, check
   local Markdown links, and inspect `git diff --check`.

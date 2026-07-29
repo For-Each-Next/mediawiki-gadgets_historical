@@ -1,9 +1,9 @@
 # English Wikipedia CS1 Maintenance
 
-Use the shared [CS1 data maintenance guide][1] for the title
-checklist, safe download commands, Lua review, live-validation behavior, and
-verification procedure. This file records the English Wikipedia sources and
-interpretation rules.
+Use the shared [CS1 data maintenance guide][1] for the title checklist, safe
+download commands, Lua review, live-validation behavior, and verification
+procedure. This file records the English Wikipedia sources and interpretation
+rules.
 
 Last live HTTPS review: 2026-07-26.
 
@@ -40,13 +40,12 @@ Compare the downloaded Lua sources with `domain/validation/enwiki.ts` and
 - Preprint classes such as arXiv, bioRxiv, CiteSeerX, medRxiv, and SSRN use
   restricted parameter sets. CS1 remains authoritative for class-specific
   combinations.
-- Several citation classes add unique parameters beyond the shared basic
-  table.
+- Several citation classes add unique parameters beyond the shared basic table.
 
 The local date validator intentionally recognizes only clear, common CS1 forms
-for immediate editor feedback. It permits `n.d.` and `nd` only for `date`.
-Live template and module validation remains authoritative for complex ranges
-and unusual date syntax.
+for immediate editor feedback. It permits `n.d.` and `nd` only for `date`. Live
+template and module validation remains authoritative for complex ranges and
+unusual date syntax.
 
 [1]: CS1-MAINTENANCE.md
 [2]: https://en.wikipedia.org/w/api.php?action=templatedata

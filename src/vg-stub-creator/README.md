@@ -1,64 +1,113 @@
 # VG Stub Creator
 
 VG Stub Creator helps editors create video-game stub articles on Chinese
-Wikipedia. It adds page actions on English and Chinese Wikipedia, imports and
-normalizes source metadata, builds article wikitext, and coordinates related
-follow-up edits.
+Wikipedia. It imports and normalizes source metadata, builds reviewable article
+wikitext, and coordinates related follow-up edits.
 
 > **Status:** VG Stub Creator is under active development. This private
 > workspace package produces browser-ready MediaWiki gadget and userscript
 > artifacts rather than a published npm library.
 
-## Use
+## Run
 
-A local build writes these files to `dist/vg-stub-creator/`:
+Build the package from the repository root:
 
-- `vg_stub_creator.min.js` for deployment as MediaWiki gadget or personal
-  JavaScript.
-- `vg_stub_creator.user.js` for installation with a userscript manager. The
-  userscript matches English and Chinese Wikipedia.
+```shell
+npm run build -w vg-stub-creator
+```
 
-A deployed compressed copy is available from
-[Meta-Wiki][1], although it may lag behind this repository.
+This writes two ignored artifacts to `dist/vg-stub-creator/`:
 
-The interface can import metadata from English Wikipedia, Wikidata, Steam, and
-source URLs. Before saving, editors can review generated categories, redirects,
-navboxes, localized names, citations, and stub tags. The workflow can also
-create related category and navbox pages, redirects, talk-page banners,
-Wikidata sitelinks, and new-page-list entries.
+- `vg_stub_creator.min.js` for a MediaWiki personal JavaScript page.
+- `vg_stub_creator.user.js` for a userscript manager. Its generated metadata
+  matches English and Chinese Wikipedia.
+
+### MediaWiki user page
+
+Open `Special:MyPage/common.js` on a supported wiki, paste the complete
+contents of `dist/vg-stub-creator/vg_stub_creator.min.js`, and publish the
+page. Use [Meta-Wiki's `Special:MyPage/global.js`][1] to load it across
+Wikimedia projects where the account is active.
+
+After publishing, bypass the browser cache or perform a hard refresh.
+
+### Userscript manager
+
+Create a script in a userscript manager, replace its editor contents with
+`dist/vg-stub-creator/vg_stub_creator.user.js`, and save it. Keep the generated
+metadata header intact.
+
+After either installation, use the page action on English or Chinese Wikipedia.
+Review the generated article and every related operation before confirming a
+save.
+
+## Features
+
+VG Stub Creator:
+
+- imports article metadata from English Wikipedia and Wikidata;
+- collects localized names from source pages, Wikidata, and Steam;
+- builds citations from article sources and manually entered URLs;
+- normalizes terminology for companies, genres, platforms, series, and years;
+- generates reviewable Chinese Wikipedia article wikitext;
+- resolves categories, redirects, navboxes, and stub tags before saving;
+- previews related page, talk-page, and Wikidata operations;
+- records resumable save progress for partial failures; and
+- preserves form history for restoring or comparing earlier drafts.
+
+The interface includes English, Simplified Chinese, and Traditional Chinese
+catalogs. Live-wiki writes occur only after the review and confirmation steps.
 
 ## Development
 
 The workspace requires Node.js 22.18 or later. From the repository root, run:
 
-```sh
-npm run check
+```shell
+npm install
+npm run check -w vg-stub-creator
 npm test -w vg-stub-creator
 npm run build -w vg-stub-creator
 ```
 
+Tests use local fixtures and mocked external services. Do not verify editing,
+page moves, or Wikidata updates against production.
+
+See the [development guide][2] for terminology, data-normalization, source, and
+fixture guidance.
+
 ## Architecture
 
-- `index.ts` is the browser bundle entry point.
-- `config/` and `domain/` define terminology data, normalized article records,
-  processing contracts, and wikitext rendering.
-- `app/` coordinates the article-creation workflow.
-- `infra/` contains MediaWiki, source, editing, save, and persistence adapters.
-- `i18n/` contains the English, Simplified Chinese, and Traditional Chinese
-  interface catalogs.
-- `ui/` contains the Codex interface, previews, review state, and browser
-  activation.
-- `../shared/` provides workspace-wide citation and wikitext utilities.
+Dependencies flow downward from the browser entry point:
 
-See the [development guide][2] for detailed source and data guidance, the
-[release history][3] for completed changes, and the [package instructions][4]
-for contribution and release rules.
+```text
+index.ts
+└── main.ts
+    ├── ui
+    ├── workflows
+    ├── domain
+    ├── infra
+    └── shared
+```
+
+- `index.ts` invokes the browser composition root.
+- `main.ts` wires UI, workflows, domain services, and external adapters.
+- `ui/` owns the Codex interface, previews, and browser state.
+- `workflows/` coordinates import, review, pre-save, and save workflows.
+- `domain/` contains normalized article records and wikitext rendering.
+- `infra/` isolates MediaWiki, Wikidata, storage, and source adapters.
+- `config/` contains typed terminology data.
+- `i18n/` contains type-checked interface catalogs.
+- `../shared/` supplies workspace-wide citation and wikitext primitives.
+
+See the package [history][3], its scoped [AGENTS.md][4], and the repository
+[AGENTS.md][5] for architecture, safety, versioning, and verification rules.
 
 ## License
 
 VG Stub Creator is licensed under CC BY-SA 4.0.
 
-[1]: https://meta.wikimedia.org/wiki/User:For_Each_..._Next/global.js/vg_stub_creator.js
+[1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: docs/DEVELOPMENT.md
 [3]: HISTORY.md
 [4]: AGENTS.md
+[5]: ../../AGENTS.md

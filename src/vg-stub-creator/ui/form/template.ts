@@ -5,9 +5,9 @@
 import {
     createPageEditDialogTemplate,
     createPreviewDialogTemplate,
-} from "#me/ui/source-preview.ts";
-import { createTabsTemplate } from "#me/ui/main/index.ts";
-import { createPreSaveDialogTemplate } from "#me/ui/pre-save.ts";
+} from "#gadget/ui/source-preview.ts";
+import { createTabsTemplate } from "#gadget/ui/main/index.ts";
+import { createPreSaveDialogTemplate } from "#gadget/ui/pre-save.ts";
 import {
     createActionFooterTemplate,
     createButtonTemplate,
@@ -17,9 +17,9 @@ import {
     createText,
     renderTemplate,
     toVueString,
-} from "#me/ui/template.ts";
-import { DIALOG_BODY_MASK_CLASS } from "#me/ui/form/constants.ts";
-import { msg } from "#me/i18n/index.ts";
+} from "#gadget/ui/template.ts";
+import { DIALOG_BODY_MASK_CLASS } from "#gadget/ui/form/constants.ts";
+import { msg } from "#gadget/i18n/index.ts";
 
 /**
  * Creates the Vue dialog template as a serialized markup tree.

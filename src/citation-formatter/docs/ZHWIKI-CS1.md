@@ -1,9 +1,9 @@
 # Chinese Wikipedia CS1 Maintenance
 
-Use the shared [CS1 data maintenance guide][1] for the title
-checklist, safe download commands, Lua review, live-validation behavior, and
-verification procedure. This file records the Chinese Wikipedia sources and
-interpretation rules.
+Use the shared [CS1 data maintenance guide][1] for the title checklist, safe
+download commands, Lua review, live-validation behavior, and verification
+procedure. This file records the Chinese Wikipedia sources and interpretation
+rules.
 
 Last live HTTPS review: 2026-07-26.
 
@@ -19,10 +19,9 @@ Use `CS1_LANGUAGE=zh` with the shared download commands.
 ## TemplateData destination
 
 Citation Formatter uses the committed English TemplateData snapshot for form
-layout and adds zhwiki-specific validation in
-`domain/validation/zhwiki.ts`. Treat a zhwiki download as a comparison
-snapshot: review its title, order, and alias differences before changing shared
-form metadata.
+layout and adds zhwiki-specific validation in `domain/validation/zhwiki.ts`.
+Treat a zhwiki download as a comparison snapshot: review its title, order, and
+alias differences before changing shared form metadata.
 
 When a zhwiki alias or accepted parameter is intentionally absent from English
 TemplateData, add it to `additionalParameters` in
@@ -42,9 +41,9 @@ Compare the downloaded Lua sources with `domain/validation/zhwiki.ts` and
 - Zhwiki retains local and legacy forms absent from English TemplateData,
   including compact archive, display, DOI, transliteration, and tracking
   aliases.
-- Chinese dates include `YYYY年`, `YYYY年M月`, and `YYYY年M月D日`, in addition
-  to common ISO and English forms. `n.d.` and `nd` are accepted only by the
-  general `date` parameter.
+- Chinese dates include the `YYYY年`, `YYYY年M月`, and `YYYY年M月D日` forms, in
+  addition to common ISO and English forms. `n.d.` and `nd` are accepted only
+  by the general `date` parameter.
 
 The local validator is conservative UI feedback, not a complete Lua port. The
 live zhwiki CS1 modules remain authoritative for complex ranges, deprecated

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { editBox } from "#shared";
+import * as editBox from "#shared/edit-box";
 
 const { createEditBox, registerEditBoxHooks } = editBox;
 

@@ -2,7 +2,7 @@
  * Stores and restores vg-stub-creator form history.
  */
 
-import { msg } from "#me/i18n/index.ts";
+import { msg } from "#gadget/i18n/index.ts";
 
 const HISTORY_LIMIT = 20;
 const HISTORY_STORAGE_KEY = "vg-stub-creator-form-history";
@@ -55,8 +55,13 @@ export function readFormDraft(): any | undefined {
             return undefined;
         }
 
-        const itemResultC = localStorage.getItem(DRAFT_STORAGE_KEY);
-        const draft = JSON.parse(itemResultC);
+        const storedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+
+        if (storedDraft == null) {
+            return undefined;
+        }
+
+        const draft: unknown = JSON.parse(storedDraft);
 
         return draft == null || typeof draft !== "object" ? undefined : draft;
     } catch (_error) {
@@ -139,21 +144,16 @@ export function readFormHistory(): Array<any> {
             return [];
         }
 
-        const itemResultB = localStorage.getItem(HISTORY_STORAGE_KEY);
-        const entries = JSON.parse(itemResultB);
+        const storedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
 
-        const isArrayValue = Array.isArray(entries);
-        const selectValueCallback = function trueBranch() {
-            return entries.filter(isFormHistoryEntry);
-        };
-        const result = selectValue(
-            isArrayValue,
-            selectValueCallback,
-            function falseBranch() {
-                return [];
-            },
-        );
-        return result;
+        if (storedHistory == null) {
+            return [];
+        }
+
+        const entries: unknown = JSON.parse(storedHistory);
+        return Array.isArray(entries)
+            ? entries.filter(isFormHistoryEntry)
+            : [];
     } catch (_error) {
         return [];
     }
@@ -678,8 +678,12 @@ function writeStorageItem(key: string, value: any): void {
  */
 function readFormDraftSavedAt(): string {
     try {
-        const itemResultA = localStorage.getItem(DRAFT_SAVED_AT_STORAGE_KEY);
-        return JSON.parse(itemResultA);
+        const storedTimestamp = localStorage.getItem(
+            DRAFT_SAVED_AT_STORAGE_KEY,
+        );
+        return storedTimestamp == null
+            ? msg("history.temporaryDraft")
+            : JSON.parse(storedTimestamp);
     } catch (_error) {
         return msg("history.temporaryDraft");
     }
@@ -692,8 +696,8 @@ function readFormDraftSavedAt(): string {
  */
 function readFormDraftPage(): string {
     try {
-        const itemResult = localStorage.getItem(DRAFT_PAGE_STORAGE_KEY);
-        return JSON.parse(itemResult);
+        const storedPage = localStorage.getItem(DRAFT_PAGE_STORAGE_KEY);
+        return storedPage == null ? "" : JSON.parse(storedPage);
     } catch (_error) {
         return "";
     }
@@ -733,26 +737,4 @@ function cloneValue(value: any): any {
  */
 function normalizePage(page: string): string {
     return String(page || "").trim();
-}
-
-/**
- * Selects a lazily evaluated value for a condition.
- *
- * @param condition - Condition to evaluate.
- * @param trueBranch - Branch used when the condition is
- * true.
- * @param falseBranch - Branch used when the condition is
- * false.
- * @returns Value returned by the selected branch.
- */
-function selectValue(
-    condition: unknown,
-    trueBranch: (...args: any[]) => any,
-    falseBranch: (...args: any[]) => any,
-): any {
-    if (condition) {
-        return trueBranch();
-    }
-
-    return falseBranch();
 }

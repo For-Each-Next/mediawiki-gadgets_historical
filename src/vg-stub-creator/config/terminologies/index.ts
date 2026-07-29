@@ -1,8 +1,8 @@
-import companies from "#me/config/terminologies/companies.ts";
-import genres from "#me/config/terminologies/genres.ts";
-import platforms from "#me/config/terminologies/platforms.ts";
-import years from "#me/config/terminologies/years.ts";
-import { wikitext } from "#shared";
+import companies from "#gadget/config/terminologies/companies.ts";
+import genres from "#gadget/config/terminologies/genres.ts";
+import platforms from "#gadget/config/terminologies/platforms.ts";
+import years from "#gadget/config/terminologies/years.ts";
+import * as wikitext from "#shared/wikitext";
 const { buildLinkText, getReferenceDefinition, getWikilinkValue } = wikitext;
 
 const TERMINOLOGY_DEFINITIONS = { companies, genres, platforms, years };
@@ -16,7 +16,9 @@ const GENRE_TYPE_SUFFIXES = [
     /\s+game$/iu,
 ];
 
-const TYPE_KEYS = {
+type TerminologyKey = keyof typeof TERMINOLOGY_DEFINITIONS;
+
+const TYPE_KEYS: Record<string, TerminologyKey> = {
     companies: "companies",
     company: "companies",
     genre: "genres",

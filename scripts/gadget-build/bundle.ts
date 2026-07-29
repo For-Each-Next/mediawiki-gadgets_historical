@@ -5,7 +5,11 @@
 import { readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { build, transform, type BuildOptions } from "esbuild";
-import { createHtmlTemplateMinifier } from "../minify-html-templates.ts";
+import {
+    createHtmlTemplateMinifier,
+    extractVueTemplate,
+    minifyHtmlTemplate,
+} from "../minify-html-templates.ts";
 import type { BundleOptions, DefineConfig, GadgetBuildPlan } from "./types.ts";
 
 /**
@@ -86,24 +90,29 @@ async function buildDefineEntry(
 ): Promise<[string, string]> {
     const path = resolve(plan.packageRoot, definition.textFile);
     const text = await readFile(path, "utf8");
-    const value = options.minifyText
-        ? await minifyInjectedText(path, text)
-        : text;
+    const value = await prepareInjectedText(path, text, options);
     return [placeholder, JSON.stringify(value)];
 }
 
 /**
- * Minifies a supported injected text format.
+ * Prepares a supported injected text format.
  *
  * @param path - Source file path.
  * @param text - Source text.
- * @returns Minified or unchanged text.
+ * @param options - Text-minification options.
+ * @returns Extracted, minified, or unchanged text.
  */
-async function minifyInjectedText(
+async function prepareInjectedText(
     path: string,
     text: string,
+    options: BundleOptions,
 ): Promise<string> {
-    if (extname(path) !== ".css") {
+    const extension = extname(path);
+    if (extension === ".vue") {
+        const template = extractVueTemplate(text, path);
+        return options.minifyText ? minifyHtmlTemplate(template) : template;
+    }
+    if (extension !== ".css" || !options.minifyText) {
         return text;
     }
     const result = await transform(text, { loader: "css", minify: true });

@@ -22,6 +22,15 @@
   Domain code must not import orchestration, external-adapter, or UI code;
   adapters must not import orchestration or UI code; orchestration must not
   import UI code.
+- Store each gadget's authored locale catalogs as flat dotted-key JSON under
+  `i18n/`. Keep locale selection, message-ID typing, and runtime translation in
+  `i18n/index.ts`, and keep every translation aligned with the English keys and
+  named placeholders.
+- Keep each Codex dialog as a co-located `.vue`, `.ts`, and `.css` trio under
+  `ui/dialogs/`. Use a template-only Vue single-file component for markup,
+  TypeScript for state and build-injected assets, and package-scoped CSS for
+  presentation. Do not style bare Codex classes globally or keep static styles
+  inline in dialog templates.
 - Do not keep a directory solely for one thin forwarding module. Integrate the
   wrapper into its caller or give the module a domain-specific responsibility.
 - Do not add a top-level `app/` beside the `main.ts` composition root.

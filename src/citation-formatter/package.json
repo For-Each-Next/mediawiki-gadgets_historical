@@ -1,6 +1,6 @@
 {
     "name": "citation-formatter",
-    "version": "0.5.0-dev.1",
+    "version": "0.5.0-dev.6",
     "description": "Format and manage CS1 citations in MediaWiki source editors.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -21,6 +21,36 @@
         "defines": {
             "__CITATION_FORMATTER_STYLES__": {
                 "textFile": "ui/styles.css"
+            },
+            "__CITATION_FORMATTER_MAIN_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/main-dialog.vue"
+            },
+            "__CITATION_FORMATTER_MAIN_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/main-dialog.css"
+            },
+            "__CITATION_FORMATTER_DRAFT_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/draft-dialog.vue"
+            },
+            "__CITATION_FORMATTER_DRAFT_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/draft-dialog.css"
+            },
+            "__CITATION_FORMATTER_PARAMETER_ALIAS_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/parameter-alias-dialog.vue"
+            },
+            "__CITATION_FORMATTER_PARAMETER_ALIAS_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/parameter-alias-dialog.css"
+            },
+            "__CITATION_FORMATTER_TOOL_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/tool-dialog.vue"
+            },
+            "__CITATION_FORMATTER_TOOL_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/tool-dialog.css"
+            },
+            "__CITATION_FORMATTER_CLOSE_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/close-confirmation-dialog.vue"
+            },
+            "__CITATION_FORMATTER_CLOSE_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/close-confirmation-dialog.css"
             }
         },
         "userscript": {

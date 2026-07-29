@@ -1,0 +1,197 @@
+.cf-source-manager.cdx-dialog {
+    max-width: min(96vw, 72em);
+    width: min(96vw, 72em);
+}
+
+.cf-source-manager__source-lookup,
+.cf-source-manager__manual-source {
+    align-items: end;
+    display: grid;
+    gap: 0.75em;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-top: 1em;
+}
+
+.cf-source-manager__manual-source {
+    border-top: 1px solid var(--border-color-subtle, #c8ccd1);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    margin-top: 1.25em;
+}
+
+.cf-source-manager__source-lookup .cdx-field__help-text:empty,
+.cf-source-manager__manual-source .cdx-field__help-text:empty {
+    display: none;
+}
+
+.cf-source-manager__create-source {
+    grid-column: 3;
+    justify-self: end;
+}
+
+.cf-source-manager__source-filters {
+    display: grid;
+    gap: 0.35em;
+    padding-top: 1em;
+}
+
+.cf-source-manager__filter-field {
+    align-items: center;
+    display: grid;
+    gap: 0.75em;
+    grid-template-columns: 9em minmax(0, 1fr);
+    margin: 0;
+    min-width: 0;
+}
+
+.cf-source-manager__filter-field > .cdx-label,
+.cf-source-manager__filter-field > .cf-source-manager__filter-label {
+    align-self: center;
+    grid-column: 1;
+    grid-row: 1;
+    justify-content: center;
+    margin: 0;
+    min-height: 2rem;
+    padding: 0;
+}
+
+.cf-source-manager__filter-label {
+    font-weight: 700;
+    line-height: 1.4286;
+}
+
+.cf-source-manager__filter-field > .cdx-field__control,
+.cf-source-manager__filter-field > .cf-source-manager__filter-controls {
+    align-self: center;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+}
+
+.cf-source-manager__filter-field > .cdx-field__help-text,
+.cf-source-manager__filter-field > .cdx-field__validation-message {
+    grid-column: 2;
+}
+
+.cf-source-manager__filter-controls {
+    display: grid;
+    gap: 0.5em;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14em), 1fr));
+    min-width: 0;
+    width: 100%;
+}
+
+.cf-source-manager__filter-controls > .cdx-combobox {
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+}
+
+.cf-source-manager__source-table {
+    margin-top: 0.5em;
+    max-width: 100%;
+}
+
+.cf-source-manager__source-table table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.cf-source-manager.cdx-dialog .cf-source-manager__source-table th,
+.cf-source-manager.cdx-dialog .cf-source-manager__source-table td {
+    vertical-align: middle;
+}
+
+.cf-source-manager__source-reference {
+    min-width: 0;
+}
+
+.cf-source-manager__source-reference-name,
+.cf-source-manager__source-details {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cf-source-manager__source-reference-name,
+.cf-source-manager__source-title {
+    min-width: 0;
+}
+
+.cf-source-manager__source-reference-name {
+    font-size: 0.875em;
+}
+
+.cf-source-manager__source-title {
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    overflow: hidden;
+}
+
+.cf-source-manager__source-details {
+    color: var(--color-subtle, #54595d);
+    font-weight: 400;
+    margin-top: 0.15em;
+}
+
+.cf-source-manager__source-table .cf-source-manager__source-actions {
+    flex-wrap: wrap;
+}
+
+.cf-source-manager__tools {
+    display: grid;
+    gap: 1em;
+    max-width: 42em;
+    padding-top: 1em;
+}
+
+.cf-source-manager__advanced-formatting .cdx-button {
+    justify-self: start;
+}
+
+.cf-source-manager__tool-launchers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+@media (max-width: 60em) {
+    .cf-source-manager__filter-field {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+    }
+
+    .cf-source-manager__filter-field > .cdx-label,
+    .cf-source-manager__filter-field > .cf-source-manager__filter-label,
+    .cf-source-manager__filter-field > .cdx-field__control,
+    .cf-source-manager__filter-field > .cf-source-manager__filter-controls,
+    .cf-source-manager__filter-field > .cdx-field__help-text,
+    .cf-source-manager__filter-field > .cdx-field__validation-message {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .cf-source-manager__filter-field > .cdx-label,
+    .cf-source-manager__filter-field > .cf-source-manager__filter-label {
+        justify-content: initial;
+        min-height: 0;
+    }
+}
+
+@media (max-width: 42em) {
+    .cf-source-manager__source-lookup,
+    .cf-source-manager__manual-source {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+    }
+
+    .cf-source-manager__create-source {
+        grid-column: 1;
+        justify-self: end;
+    }
+
+    .cf-source-manager__filter-controls {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -105,8 +105,8 @@ import {
     type SourceCheckerTool,
     type SourceManagerState,
 } from "#gadget/ui/source-manager-state.ts";
+import { SOURCE_MANAGER_TEMPLATE } from "#gadget/ui/dialogs/index.ts";
 import { installCitationFormatterStyles } from "#gadget/ui/styles.ts";
-import * as sourceManagerTemplate from "#gadget/ui/source-manager-template.ts";
 import * as editBox from "#shared/edit-box";
 import {
     cdxIconEdit,
@@ -350,7 +350,7 @@ function createSourceManagerComponent(
     return Vue.defineComponent({
         name: "CitationSourceManager",
         setup,
-        template: sourceManagerTemplate.SOURCE_MANAGER_TEMPLATE,
+        template: SOURCE_MANAGER_TEMPLATE,
     });
 }
 
@@ -475,6 +475,7 @@ function createFormatterActions(
         const { editor, state } = context;
         const beforeText = editor.read();
         let referencesNotFormatted = 0;
+        let textChanged = false;
         try {
             const compact = state.referenceStyle.value === "r";
             const source = state.autoScriptTitle.value
@@ -489,25 +490,27 @@ function createFormatterActions(
                 msg("sections.lead"),
             );
             referencesNotFormatted = result.referencesNotFormatted;
-            editBox.writePreservingPosition(editor, result.text);
-            recordSessionWrite(state, beforeText, result.text);
-            clearAnalysisUndo(state);
+            textChanged = result.text !== beforeText;
+            if (textChanged) {
+                editBox.writePreservingPosition(editor, result.text);
+                recordSessionWrite(state, beforeText, result.text);
+                clearAnalysisUndo(state);
+            }
         } catch (error) {
             state.error.value = formatError(error);
             return;
         }
-        const message =
-            referencesNotFormatted === 0
-                ? msg("feedback.formatComplete")
-                : formatPluralMessage(
-                      referencesNotFormatted,
-                      "feedback.formatIncompleteOne",
-                      "feedback.formatIncompleteMany",
-                  );
-        if (referencesNotFormatted === 0) {
-            context.toast.success(message, { autoDismiss: true });
-        } else {
+        if (textChanged && referencesNotFormatted > 0) {
+            const message = formatPluralMessage(
+                referencesNotFormatted,
+                "feedback.formatIncompleteOne",
+                "feedback.formatIncompleteMany",
+            );
             context.toast.warning(message, { autoDismiss: true });
+        } else if (textChanged) {
+            context.toast.success(msg("feedback.formatComplete"), {
+                autoDismiss: true,
+            });
         }
         refreshExistingSources(editor, state);
         state.activeLookupTab.value = "view";

@@ -4,14 +4,21 @@
 
 import type { PageAssessorRuntime } from "#gadget/contracts/dialog.ts";
 import {
-    createAssessmentDialog,
-    loadRegistrationPanel,
-} from "#gadget/ui/dialog-controller.ts";
-import { setDialogStatus } from "#gadget/ui/dialog-view.ts";
+    ASSESSMENT_DIALOG_STYLES,
+    createAssessmentDialogComponent,
+} from "#gadget/ui/dialogs/assessment-dialog.ts";
+import {
+    type ResourceLoaderRequire,
+    type VueApp,
+    registerPageAssessorComponents,
+} from "#gadget/ui/codex.ts";
 import { msg } from "#gadget/i18n/index.ts";
 
-const DIALOG_CSS = __ASSESS_VG_PAGE_DIALOG_CSS__;
+const HOST_ID = "avgp-dialog-host";
+const STYLE_ID = "avgp-styles";
 
+let activeDialogCleanup: (() => void) | null = null;
+let dialogGeneration = 0;
 let runtime: PageAssessorRuntime | null = null;
 
 /**
@@ -24,7 +31,7 @@ export function startPageAssessor(dependencies: PageAssessorRuntime): void {
 
     runtime = dependencies;
     void mw.loader.using(
-        ["codex-styles", "mediawiki.api", "mediawiki.Title", "mediawiki.util"],
+        ["mediawiki.api", "mediawiki.Title", "mediawiki.util"],
         init,
     );
 }
@@ -36,23 +43,19 @@ function init(): void {
     const dbName = mw.config.get("wgDBname");
     const namespaceNumber = mw.config.get("wgNamespaceNumber");
     const pageName = mw.config.get("wgPageName");
-    logStep("init start", {
-        dbName,
-        namespaceNumber,
-        pageName,
-    });
 
+    logStep("init start", { dbName, namespaceNumber, pageName });
     if (dbName !== "zhwiki" || namespaceNumber < 0) {
         logStep("init skipped");
         return;
     }
 
-    addStyles();
-    logStep("init adding toolbox link");
+    installDialogStyles();
     addToolboxLink();
 }
 
 function addToolboxLink(): void {
+    logStep("init adding toolbox link");
     const link = mw.util.addPortletLink(
         "p-tb",
         "#",
@@ -74,56 +77,85 @@ function handleOpenDialogError(error: unknown): void {
 }
 
 async function openDialog(): Promise<void> {
-    logStep("openDialog start");
+    const generation = ++dialogGeneration;
     const assessorRuntime = getRuntime();
     const api = new mw.Api();
     const pageName = mw.config.get("wgPageName");
     const currentTitle = mw.Title.newFromText(pageName);
 
+    logStep("openDialog start");
     if (currentTitle == null) {
         throw new Error(`Unable to resolve the current page: ${pageName}`);
     }
 
-    const state = await assessorRuntime.loadDialogState(api, currentTitle);
-    const dialog = createAssessmentDialog(state, assessorRuntime);
+    const [state, require] = await Promise.all([
+        assessorRuntime.loadDialogState(api, currentTitle),
+        loadVueAndCodex(),
+    ]);
+    if (generation !== dialogGeneration) {
+        return;
+    }
 
-    document.body.append(dialog);
-    dialog.showModal();
+    activeDialogCleanup?.();
+    mountAssessmentDialog(require, state, assessorRuntime);
     logStep("openDialog shown");
-
-    const handleError = handleRegistrationLoadError.bind(
-        null,
-        dialog,
-        assessorRuntime,
-    );
-    loadRegistrationPanel(dialog, state, assessorRuntime).catch(handleError);
 }
 
-function handleRegistrationLoadError(
-    dialog: HTMLDialogElement,
+async function loadVueAndCodex(): Promise<ResourceLoaderRequire> {
+    return (await mw.loader.using([
+        "vue",
+        "@wikimedia/codex",
+    ])) as ResourceLoaderRequire;
+}
+
+function mountAssessmentDialog(
+    require: ResourceLoaderRequire,
+    state: Awaited<ReturnType<PageAssessorRuntime["loadDialogState"]>>,
     assessorRuntime: PageAssessorRuntime,
-    error: unknown,
 ): void {
-    assessorRuntime.logStep("loadNewPageListState failed", { error });
-    const message = getErrorMessage(error);
+    const Vue = require("vue");
+    const Codex = require("@wikimedia/codex");
+    const host = document.createElement("div");
+    let application: VueApp | null = null;
+    let cleaned = false;
 
-    setDialogStatus(dialog, message, true);
-    assessorRuntime.logStep("status updated", {
-        isError: true,
-        text: message,
+    host.id = HOST_ID;
+    document.documentElement.append(host);
+
+    function cleanup(): void {
+        if (cleaned) {
+            return;
+        }
+        cleaned = true;
+        application?.unmount();
+        host.remove();
+        if (activeDialogCleanup === cleanup) {
+            activeDialogCleanup = null;
+        }
+    }
+
+    const component = createAssessmentDialogComponent(Vue, {
+        currentNamespace: mw.config.get("wgNamespaceNumber"),
+        onClose: cleanup,
+        runtime: assessorRuntime,
+        state,
     });
+    application = Vue.createMwApp(component);
+    registerPageAssessorComponents(application, Codex);
+    application.mount(host);
+    activeDialogCleanup = cleanup;
 }
 
-function addStyles(): void {
-    if (document.getElementById("avgp-styles") != null) {
+function installDialogStyles(): void {
+    if (document.getElementById(STYLE_ID) != null) {
         logStep("addStyles skipped: already present");
         return;
     }
 
     const style = document.createElement("style");
 
-    style.id = "avgp-styles";
-    style.textContent = DIALOG_CSS;
+    style.id = STYLE_ID;
+    style.textContent = ASSESSMENT_DIALOG_STYLES;
     document.head.append(style);
     logStep("addStyles done");
 }
@@ -132,7 +164,6 @@ function getRuntime(): PageAssessorRuntime {
     if (runtime == null) {
         throw new Error("Page assessor UI has not been composed.");
     }
-
     return runtime;
 }
 

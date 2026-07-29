@@ -6,9 +6,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import * as i18n from "@mediawiki-gadgets/shared/i18n";
-import english from "vg-page-assessor/i18n/en.ts";
-import simplifiedChinese from "vg-page-assessor/i18n/zh-Hans.ts";
-import traditionalChinese from "vg-page-assessor/i18n/zh-Hant.ts";
+import {
+    english,
+    simplifiedChinese,
+    traditionalChinese,
+} from "vg-page-assessor/i18n/index.ts";
 
 const catalogs = {
     "en": english,

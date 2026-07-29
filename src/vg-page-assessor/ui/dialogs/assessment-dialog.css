@@ -1,0 +1,151 @@
+.avgp-dialog.cdx-dialog {
+    max-width: min(96vw, 85rem);
+    width: min(96vw, 85rem);
+}
+
+.avgp-dialog__body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.avgp-fieldset {
+    border: 1px solid var(--border-color-subtle, #c8ccd1);
+    border-radius: 2px;
+    margin: 0;
+    min-inline-size: 0;
+    padding: 1rem;
+}
+
+.avgp-fieldset-title {
+    font-size: 1rem;
+    font-weight: 700;
+    padding-inline: 0.25rem;
+}
+
+.avgp-assessment-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(20rem, 61.8fr) minmax(0, 38.2fr);
+}
+
+.avgp-controls,
+.avgp-source {
+    min-width: 0;
+}
+
+.avgp-source {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.avgp-section.cdx-field,
+.avgp-list-preview,
+.avgp-list-summary.cdx-field,
+.avgp-summary.cdx-field {
+    border: 0;
+    margin-block: 1rem 0;
+    padding: 0;
+}
+
+.avgp-section:first-child {
+    margin-block-start: 0;
+}
+
+.avgp-button-group,
+.avgp-check-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+}
+
+.avgp-check-grid {
+    align-items: flex-start;
+}
+
+.avgp-source-textarea,
+.avgp-source-textarea .cdx-text-area__textarea {
+    max-width: none;
+    width: 100%;
+}
+
+.avgp-source-textarea .cdx-text-area__textarea {
+    box-sizing: border-box;
+    font-family: var(--font-family-monospace, monospace);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    min-height: 7.5em;
+    resize: vertical;
+}
+
+.avgp-register-loading {
+    color: var(--color-subtle, #54595d);
+    display: grid;
+    gap: 0.5rem;
+}
+
+.avgp-register-loading .cdx-progress-bar {
+    max-width: none;
+    width: 100%;
+}
+
+.avgp-summary .cdx-text-input,
+.avgp-list-summary .cdx-text-input {
+    max-width: none;
+    width: 100%;
+}
+
+.avgp-compare-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.avgp-compare-field {
+    min-width: 0;
+}
+
+.avgp-compare-field--removed .cdx-text-area__textarea {
+    background-color: var(--background-color-error-subtle, #fee7e6);
+}
+
+.avgp-compare-field--added .cdx-text-area__textarea {
+    background-color: var(--background-color-success-subtle, #d5fdf4);
+}
+
+.avgp-compare-textarea,
+.avgp-compare-textarea .cdx-text-area__textarea {
+    max-width: none;
+    width: 100%;
+}
+
+.avgp-compare-textarea .cdx-text-area__textarea {
+    box-sizing: border-box;
+    direction: ltr;
+    font-family: var(--font-family-monospace, monospace);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    min-height: 8em;
+    overflow: auto;
+    resize: vertical;
+    white-space: pre-wrap;
+}
+
+.avgp-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.avgp-status.cdx-message {
+    margin-block: 0;
+}
+
+@media (max-width: 61.25rem) {
+    .avgp-assessment-grid,
+    .avgp-compare-grid {
+        grid-template-columns: 1fr;
+    }
+}

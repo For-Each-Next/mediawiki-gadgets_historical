@@ -61,8 +61,8 @@ Citation Formatter:
   or citation while reusing an existing named URL reference when possible;
 - builds editable drafts from Wikimedia Citoid metadata and existing Internet
   Archive snapshots, including pasted Wayback URLs;
-- orders citation-template choices by importance and specificity, with icons on
-  the important choices; and
+- orders citation-template choices by importance and source type, then
+  alphabetically within each group, with icons on the important choices; and
 - creates manual citations for offline sources while preserving populated and
   custom fields during citation-template changes.
 
@@ -132,14 +132,16 @@ api.ts / index.ts
   internal composition and tests, not from the generated gadget global.
 - `browser.ts` invokes the `start` function from the composition root.
 - `main.ts` wires MediaWiki startup, UI, domain services, and adapters.
-- `ui/` owns Codex rendering, editor adapters, and user interaction.
+- `ui/` owns Codex rendering, editor adapters, and user interaction; each
+  source-manager dialog keeps its template, bundle contract, and styles in a
+  `.vue` / `.ts` / `.css` trio under `ui/dialogs/`.
 - `workflows/` coordinates live review operations through typed ports.
 - `contracts/` defines the boundary shared by workflows and UI.
 - `domain/` contains deterministic citation metadata mapping and wikitext
   rules.
 - `infra/` uses the shared raw Citoid client and isolates archive and wiki
   integrations.
-- `i18n/` contains type-checked interface catalogs.
+- `i18n/` stores flat JSON locale catalogs behind a typed registry.
 
 See the package [changelog][8], its scoped [AGENTS.md][9], and the repository
 [AGENTS.md][10] for architecture, safety, versioning, and verification rules.

@@ -1,0 +1,19 @@
+.cf-source-manager__parameter-alias-dialog.cdx-dialog {
+    max-width: min(96vw, 32em);
+    width: min(96vw, 32em);
+}
+
+.cf-source-manager__parameter-alias-fields {
+    display: grid;
+    gap: 1em;
+}
+
+.cf-source-manager__parameter-alias-fields .cdx-text-area {
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+}
+
+.cf-source-manager__parameter-alias-fields .cdx-text-area__textarea {
+    min-height: 2.25rem;
+}

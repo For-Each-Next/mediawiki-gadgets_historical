@@ -2,24 +2,23 @@
 /* eslint-disable max-len, max-lines-per-function */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import english from "citation-formatter/i18n/en.ts";
 import {
     createCitationFormatterI18n,
     createSourceAnalysisMessages,
     createSourceValidationMessages,
+    english,
+    simplifiedChinese,
+    traditionalChinese,
 } from "citation-formatter/i18n/index.ts";
-import simplifiedChinese from "citation-formatter/i18n/zh-Hans.ts";
-import traditionalChinese from "citation-formatter/i18n/zh-Hant.ts";
-import { SOURCE_MANAGER_TEMPLATE } from "citation-formatter/ui/source-manager-template.ts";
+
+import {
+    SOURCE_MANAGER_STYLES_FIXTURE as sourceManagerStyles,
+    SOURCE_MANAGER_TEMPLATE_FIXTURE as SOURCE_MANAGER_TEMPLATE,
+} from "./dialog-fixtures.ts";
 
 const catalogs = [simplifiedChinese, traditionalChinese];
-const sourceManagerStyles = readFileSync(
-    new URL("../../src/citation-formatter/ui/styles.css", import.meta.url),
-    "utf8",
-);
 const parameterTableCardPattern = new RegExp(
     "<template #header>[\\s\\S]*reference-name-preview[\\s\\S]*" +
         "</template>[\\s\\S]*</cdx-table>\\s*<cdx-card[\\s\\S]*" +
@@ -76,7 +75,7 @@ test("separates concise source guidance from detailed help text", () => {
     );
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /<template #description>\s*\{\{ msg\( 'lookup\.sourceDescription' \) \}\}\s*<\/template>[\s\S]*?<template #help-text>\s*\{\{ msg\( 'lookup\.sourceHelpText' \) \}\}\s*<\/template>/u,
+        /<template #description>\s*\{\{\s*msg\(\s*["']lookup\.sourceDescription["']\s*\)\s*\}\}\s*<\/template>[\s\S]*?<template #help-text>\s*\{\{\s*msg\(\s*["']lookup\.sourceHelpText["']\s*\)\s*\}\}\s*<\/template>/u,
     );
 });
 
@@ -115,7 +114,7 @@ test("interpolates UI and domain messages in the selected locale", () => {
 test("renders safe new-tab links for openable URL fields", () => {
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /isUrlDraftParameter\(\s*row\.name\s*\)/u,
+        /isUrlDraftParameter\(\s*row\.name\s*,?\s*\)/u,
     );
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
@@ -133,7 +132,10 @@ test("renders safe new-tab links for openable URL fields", () => {
     );
     assert.match(openingTag, /\btarget="_blank"/u);
     assert.match(openingTag, /\brel="noopener noreferrer"/u);
-    assert.match(openingTag, /v-tooltip="msg\( 'draft\.openUrl' \)"/u);
+    assert.match(
+        openingTag,
+        /v-tooltip="msg\(\s*["']draft\.openUrl["']\s*\)"/u,
+    );
     assert.match(openingTag, /draft\.openUrlLabel/u);
     for (const className of [
         "cdx-button--fake-button",
@@ -205,6 +207,25 @@ test("keeps CS1 messages outside the dialog child margin reset", () => {
     );
 });
 
+test("isolates dialog content from Codex last-child margin resets", () => {
+    const dialogs = [...SOURCE_MANAGER_TEMPLATE.matchAll(/<cdx-dialog\b/gu)];
+    const bodyWrappers = [
+        ...SOURCE_MANAGER_TEMPLATE.matchAll(
+            /class="cf-source-manager__dialog-body-content"/gu,
+        ),
+    ];
+
+    assert.equal(bodyWrappers.length, dialogs.length);
+    assert.match(
+        sourceManagerStyles,
+        /\.cf-source-manager__dialog-body-content\s*\{\s*display:\s*flow-root;/u,
+    );
+    assert.doesNotMatch(
+        sourceManagerStyles,
+        /\.cdx-dialog__body\s*>\s*:last-child/u,
+    );
+});
+
 test("renders the split author glyph in the reverse merge direction", () => {
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
@@ -215,8 +236,8 @@ test("renders the split author glyph in the reverse merge direction", () => {
 
 test("references only defined messages from the Vue template", () => {
     const referencedIds = [
-        ...SOURCE_MANAGER_TEMPLATE.matchAll(/msg\(\s*'([^']+)'/gu),
-    ].map((match) => match[1]);
+        ...SOURCE_MANAGER_TEMPLATE.matchAll(/msg\(\s*(["'])([^"']+)\1/gu),
+    ].map((match) => match[2]);
 
     assert.ok(referencedIds.length > 0);
     for (const messageId of referencedIds) {
@@ -234,7 +255,7 @@ test("references only defined messages from the Vue template", () => {
     );
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /:caption="msg\( 'draft\.parametersCaption' \)"/u,
+        /:caption="msg\(\s*["']draft\.parametersCaption["']\s*\)"/u,
     );
     assert.match(SOURCE_MANAGER_TEMPLATE, /<template #header>/u);
     assert.match(SOURCE_MANAGER_TEMPLATE, parameterTableCardPattern);
@@ -300,7 +321,7 @@ test("references only defined messages from the Vue template", () => {
     );
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /v-tooltip="getParameterNameTooltip\( row\.name \)"/u,
+        /v-tooltip="\s*getParameterNameTooltip\(\s*row\.name\s*\)\s*"/u,
     );
     assert.match(SOURCE_MANAGER_TEMPLATE, /:icon="parameterAliasIcon"/u);
     assert.doesNotMatch(

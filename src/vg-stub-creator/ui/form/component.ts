@@ -19,6 +19,7 @@ import {
     createPreSaveGroups,
     serializePreSaveProgressGroups,
 } from "#gadget/ui/pre-save.ts";
+import { VG_STUB_CREATOR_DIALOG_TEMPLATE } from "#gadget/ui/dialogs/index.ts";
 import {
     ARTICLE_PARAMETER_GROUPS,
     CATEGORY_TABLE_COLUMNS,
@@ -54,7 +55,6 @@ import {
     getWikidataLookupStatus,
     normalizeEnwikiTitleValue,
 } from "#gadget/ui/form/external-links.ts";
-import { createDialogTemplate } from "#gadget/ui/form/template.ts";
 import {
     createReviewLinkSession,
     type ReviewLinkSession,
@@ -65,7 +65,7 @@ import {
     getCodeMirrorText,
     setCodeMirrorText,
 } from "#gadget/ui/form/source-editor.ts";
-import { msg } from "#gadget/i18n/index.ts";
+import { msg, msgParts } from "#gadget/i18n/index.ts";
 import { getErrorMessage } from "#gadget/support/errors.ts";
 
 /**
@@ -3442,7 +3442,7 @@ function createComponentDefinition(): any {
             };
             return state;
         },
-        template: createDialogTemplate(),
+        template: VG_STUB_CREATOR_DIALOG_TEMPLATE,
     };
     return result;
 }
@@ -3471,6 +3471,8 @@ function getCoreSetupState(): any {
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
         fetchedSteamNameRows,
+        msg,
+        msgParts,
     };
     return state;
 }

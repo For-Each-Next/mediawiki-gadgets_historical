@@ -2,14 +2,15 @@
 
 ## Until 0.6
 
-### 0.5.0-dev.1 (2026-07-29 10:51 UTC)
+### 0.5.0-dev.3 (2026-07-29 13:45 UTC)
 
 Overview: VG Stub Creator now composes its established review-and-save behavior
 through a typed root, responsibility-named workflows and records, and explicit
-browser and wiki-write boundaries backed by stronger focused tests, with raw
-Citoid acquisition shared independently of package-owned citation formatting.
-Its release record now follows the repository-wide changelog and
-development-version contract.
+browser and wiki-write boundaries backed by stronger focused tests. Its nine
+dialogs now use template-only Vue components, scoped CSS, and runtime messages
+from typed JSON catalogs, with raw Citoid acquisition shared independently of
+package-owned citation formatting. Its release record follows the
+repository-wide changelog and development-version contract.
 
 - Added a `main.ts` composition root that injected article, pre-save, editing,
   category, source, and progress ports into an instance-bound browser app.
@@ -20,12 +21,18 @@ development-version contract.
 - Replaced the generic form helper module with form-model and source-editor
   modules, and extracted external-link and review-link session
   responsibilities.
+- Moved English and Chinese interface catalogs from TypeScript objects to flat
+  JSON data while retaining typed message IDs and placeholder validation.
+- Replaced generated TypeScript markup with nine co-located Vue, TypeScript,
+  and CSS dialog trios assembled under one setup scope, preserving runtime
+  localization, review actions, and dynamic tooltip positioning.
 - Extracted MediaWiki preview handling and replaced untyped UI port signatures
   with named structural contracts.
 - Preserved article, category, redirect, navbox, Wikidata, preview, history,
   resumable progress, and confirmation behavior.
 - Added pre-save planning, review-session, and citation-fetch regression tests
-  and enabled strict TypeScript checking.
+  plus dialog composition and asset-safety coverage, and enabled strict
+  TypeScript checking.
 - Split URL-or-identifier Citoid fetching into a transport-only shared client
   while moving citation rules, TemplateData, reference wikitext, cleanup, and
   template formatting into the package domain and isolating its 404 HTML-title

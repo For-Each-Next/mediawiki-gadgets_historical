@@ -95,14 +95,16 @@ index.ts
 - `index.ts` is the side-effect-free package entry point.
 - `browser.ts` invokes the browser composition root.
 - `main.ts` wires UI, workflows, domain services, and external adapters.
-- `ui/` owns the Codex interface, previews, and browser state.
+- `ui/dialogs/` keeps each Codex dialog in a template, state-asset, and scoped
+  style trio.
+- `ui/` owns the assembled Codex interface, previews, and browser state.
 - `workflows/` coordinates import, review, pre-save, and save workflows.
 - `domain/` contains normalized article records, citation rules, and wikitext
   rendering.
 - `infra/` isolates MediaWiki, Wikidata, storage, and source adapters,
   including citation fallback requests.
 - `config/` contains typed terminology data.
-- `i18n/` contains type-checked interface catalogs.
+- `i18n/` stores flat JSON locale catalogs behind a typed registry.
 - `../shared/` supplies raw Citoid acquisition and generic wikitext primitives.
 
 See the package [changelog][3], its scoped [AGENTS.md][4], and the repository

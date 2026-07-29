@@ -4,15 +4,6 @@
 
 export type MessageCatalog = Record<string, string>;
 export type MessageCatalogs = Record<string, MessageCatalog>;
-export type MessageGroups = Record<string, MessageCatalog>;
-export type FlattenMessageGroups<Groups extends MessageGroups> = {
-    [
-        Group in keyof Groups & string as `${Group}.${Extract<
-            keyof Groups[Group],
-            string
-        >}`
-    ]: Groups[Group][Extract<keyof Groups[Group], string>];
-};
 export type MessagePartValues<T> = Record<string, T | T[]>;
 export type MessageValues = Record<string, string | number>;
 export type LocaleCatalog<Source extends MessageCatalog> = {
@@ -29,26 +20,6 @@ export interface TypedI18n<Id extends string> {
     interfaceLocale: string;
     msg(id: Id, values?: MessageValues): string;
     msgParts<T>(id: Id, values: MessagePartValues<T>): Array<string | T>;
-}
-
-/**
- * Defines grouped source messages and flattens them for runtime lookup.
- *
- * @param groups - Groups value.
- * @returns Result when the function
- *   defines grouped source messages and flattens them
- *   for runtime lookup.
- */
-export function defineMessages<const Groups extends MessageGroups>(
-    groups: Groups,
-): FlattenMessageGroups<Groups> {
-    const messages: MessageCatalog = {};
-    for (const [group, entries] of Object.entries(groups)) {
-        for (const [id, message] of Object.entries(entries)) {
-            messages[`${group}.${id}`] = message;
-        }
-    }
-    return messages as FlattenMessageGroups<Groups>;
 }
 
 /**

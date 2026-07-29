@@ -1,28 +1,112 @@
 /**
- * Characterizes assessor dialog presentation after the UI split.
+ * Characterizes the Vue/Codex assessment dialog presentation.
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { compileTemplate, parse } from "@vue/compiler-sfc";
+
 import projectConfig from "vg-page-assessor/config/project-config.ts";
-import type { DialogState } from "vg-page-assessor/contracts/dialog.ts";
+import type {
+    DialogSaveReview,
+    DialogState,
+    PageAssessorRuntime,
+} from "vg-page-assessor/contracts/dialog.ts";
 import * as assessment from "vg-page-assessor/domain/assessment.ts";
+import type { VueApp, VueModule, VueRef } from "vg-page-assessor/ui/codex.ts";
 import { buildEditSummary } from "vg-page-assessor/ui/assessment-summary.ts";
-import { renderDialogMarkup } from "vg-page-assessor/ui/dialog-view.ts";
+import {
+    ASSESSMENT_DIALOG_STYLES,
+    ASSESSMENT_DIALOG_TEMPLATE,
+    createAssessmentDialogBindings,
+} from "vg-page-assessor/ui/dialogs/assessment-dialog.ts";
 
-test("renders escaped dialog content and loading registration state", () => {
-    const markup = renderDialogMarkup(createDialogState(), false);
+const dialogPath = fileURLToPath(
+    new URL(
+        "../../src/vg-page-assessor/ui/dialogs/assessment-dialog.vue",
+        import.meta.url,
+    ),
+);
 
-    assert.match(markup, /Example &lt;game&gt;/u);
-    assert.match(markup, /\bdata-avgp-preview\b/u);
-    assert.match(markup, /\bdata-avgp-current-source\b/u);
-    assert.match(markup, /avgp-register-loading/u);
-    assert.match(markup, /name="className"/u);
-    assert.match(markup, /name="importance"/u);
-    assert.match(markup, />Pokemon</u);
-    assert.match(markup, />Fictional Characters</u);
+test("keeps the assessment dialog template-only and compilable", () => {
+    const source = readFileSync(dialogPath, "utf8");
+    const parsed = parse(source, { filename: dialogPath });
+    const template = parsed.descriptor.template;
+
+    assert.deepEqual(parsed.errors, []);
+    assert.ok(template);
+    assert.equal(parsed.descriptor.script, null);
+    assert.deepEqual(parsed.descriptor.styles, []);
+    assert.match(template.content, /^\s*<cdx-dialog\b/u);
+    assert.match(template.content, /:title="subjectTitle"/u);
+    assert.doesNotMatch(template.content, /\bv-html\b/u);
+    assert.match(template.content, /<cdx-radio\b/u);
+    assert.match(template.content, /<cdx-checkbox\b/u);
+    assert.match(template.content, /<cdx-text-area\b/u);
+    const compiled = compileTemplate({
+        filename: dialogPath,
+        id: "vg-page-assessor-assessment",
+        source: template.content,
+    });
+    assert.deepEqual(compiled.errors, []);
 });
+
+test("keeps build-injected dialog assets safe in Node", () => {
+    assert.equal(ASSESSMENT_DIALOG_TEMPLATE, "");
+    assert.equal(ASSESSMENT_DIALOG_STYLES, "");
+});
+
+test(
+    "submits the exact reviewed source through the injected workflow",
+    submitReviewedSource,
+);
+
+async function submitReviewedSource(): Promise<void> {
+    const state = createDialogState();
+    const reviews: DialogSaveReview[] = [];
+    const runtime = createRuntime(state, function capture(value) {
+        reviews.push(value);
+    });
+    const bindings = createAssessmentDialogBindings(createVueHarness(), {
+        currentNamespace: 0,
+        onClose() {},
+        runtime,
+        state,
+    });
+    const reviewedSource = "  {{Reviewed banner}}\n";
+
+    bindings.onPreviewInput(reviewedSource);
+    bindings.onSummaryInput("  Reviewed summary  ");
+    await bindings.onSave();
+
+    const review = reviews[0];
+
+    assert.ok(review);
+    assert.equal(review.previewText, reviewedSource);
+    assert.equal(review.summary, "Reviewed summary");
+}
+
+test("loads registration through the injected workflow", loadRegistration);
+
+async function loadRegistration(): Promise<void> {
+    const state = createDialogState();
+    const bindings = createAssessmentDialogBindings(createVueHarness(), {
+        currentNamespace: 0,
+        onClose() {},
+        runtime: createRuntime(state),
+        state,
+    });
+
+    await bindings.loadRegistration();
+
+    assert.equal(bindings.registrationLoading.value, false);
+    assert.equal(bindings.registrationDisabled.value, false);
+    assert.equal(bindings.shouldRegister.value, true);
+    assert.equal(bindings.showRegistrationPreview.value, true);
+}
 
 test("summarizes selected assessment details with its source marker", () => {
     const selection = assessment.createDefaultAssessment(projectConfig);
@@ -39,6 +123,65 @@ test("summarizes selected assessment details with its source marker", () => {
     assert.match(summary, /\[\[:m:User:For Each \.\.\. Next/u);
 });
 
+function createVueHarness(): VueModule {
+    return {
+        computed<T>(getter: () => T): VueRef<T> {
+            return {
+                get value(): T {
+                    return getter();
+                },
+                set value(_value: T) {},
+            };
+        },
+        createMwApp(): VueApp {
+            throw new Error("The presentation test does not mount Vue.");
+        },
+        defineComponent(component: unknown): unknown {
+            return component;
+        },
+        onMounted() {},
+        onUnmounted() {},
+        reactive<T extends object>(value: T): T {
+            return value;
+        },
+        ref<T>(value: T): VueRef<T> {
+            return { value };
+        },
+    };
+}
+
+function createRuntime(
+    state: DialogState,
+    capture: (review: DialogSaveReview) => void = function noop() {},
+): PageAssessorRuntime {
+    return {
+        async loadDialogState() {
+            return state;
+        },
+        async loadRegistrationState(target) {
+            target.newPageList = {
+                basetimestamp: "2026-07-29T00:00:00Z",
+                starttimestamp: "2026-07-29T00:00:01Z",
+                text: "Before",
+            };
+            target.registration = {
+                alreadyRegistered: false,
+                changed: true,
+                earliestDate: null,
+                eligible: true,
+                existing: null,
+                proposedText: "After",
+            };
+            target.registrationLoading = false;
+        },
+        logStep() {},
+        async saveReviewedDialog(_state, review) {
+            capture(review);
+            return "saved";
+        },
+    };
+}
+
 function createDialogState(): DialogState {
     return {
         api: {} as mw.Api,
@@ -48,7 +191,7 @@ function createDialogState(): DialogState {
         page: {
             exists: true,
             starttimestamp: "2026-07-29T00:00:00Z",
-            text: "",
+            text: "{{Old banner}}\n\n== Discussion ==\nBody",
         },
         previewDirty: false,
         registration: null,

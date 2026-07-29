@@ -1,0 +1,48 @@
+.vg-stub-creator-preview-dialog.cdx-dialog {
+    max-width: min(98vw, 100em);
+    width: min(98vw, 100em);
+}
+
+.vg-stub-creator-preview-text textarea,
+textarea.vg-stub-creator-preview-text {
+    font-family: monospace;
+}
+
+.vg-stub-creator-preview-layout {
+    display: grid;
+    gap: 0.75em;
+}
+
+.vg-stub-creator-preview-rendered {
+    border: 1px solid var(--border-color-subtle, #eaecf0);
+    max-height: 35vh;
+    overflow: auto;
+    padding: 0.75em;
+}
+
+@media (min-width: 960px) {
+    .vg-stub-creator-preview-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .vg-stub-creator-preview-rendered {
+        max-height: 60vh;
+    }
+}
+
+.vg-stub-creator-destructive-action {
+    color: var(--color-destructive, #d73333);
+}
+
+.vg-stub-creator-dialog-footer {
+    align-items: center;
+    display: flex;
+    gap: 0.75em;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.vg-stub-creator-dialog-footer-group {
+    display: flex;
+    gap: 0.75em;
+}

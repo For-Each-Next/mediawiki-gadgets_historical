@@ -1,0 +1,18 @@
+.vg-stub-creator-history-list {
+    display: grid;
+    gap: 0.5em;
+}
+
+.vg-stub-creator-history-entry {
+    align-items: center;
+    border-bottom: 1px solid var(--border-color-subtle, #eaecf0);
+    display: grid;
+    gap: 0.5em;
+    grid-template-columns: 1fr auto auto auto;
+    padding: 0.5em 0;
+}
+
+.vg-stub-creator-history-saved-at {
+    color: var(--color-subtle, #54595d);
+    font-size: 0.75em;
+}

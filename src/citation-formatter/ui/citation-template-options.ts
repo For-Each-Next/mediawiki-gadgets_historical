@@ -1,6 +1,6 @@
 /**
- * Orders citation-template selector options by importance and
- * specificity.
+ * Orders citation-template selector options by importance and type.
+ * Sorts each resulting group alphabetically.
  */
 
 import { SUPPORTED_CITATION_TEMPLATES } from "#gadget/domain/templates.ts";
@@ -32,21 +32,15 @@ type CitationTemplateDefinition =
 
 export const CITATION_TEMPLATE_DEFINITIONS = [
     {
-        icon: cdxIconNewspaper,
-        importance: "important",
-        name: "Cite news",
-        type: "special",
-    },
-    {
         icon: cdxIconUserTalk,
         importance: "important",
         name: "Cite interview",
         type: "special",
     },
     {
-        icon: cdxIconDie,
+        icon: cdxIconNewspaper,
         importance: "important",
-        name: "Cite video game",
+        name: "Cite news",
         type: "special",
     },
     {
@@ -56,9 +50,9 @@ export const CITATION_TEMPLATE_DEFINITIONS = [
         type: "special",
     },
     {
-        icon: cdxIconBrowser,
+        icon: cdxIconBook,
         importance: "important",
-        name: "Cite web",
+        name: "Cite book",
         type: "general",
     },
     {
@@ -68,9 +62,15 @@ export const CITATION_TEMPLATE_DEFINITIONS = [
         type: "general",
     },
     {
-        icon: cdxIconBook,
+        icon: cdxIconDie,
         importance: "important",
-        name: "Cite book",
+        name: "Cite video game",
+        type: "general",
+    },
+    {
+        icon: cdxIconBrowser,
+        importance: "important",
+        name: "Cite web",
         type: "general",
     },
     { importance: "normal", name: "Cite arXiv", type: "special" },
@@ -133,17 +133,38 @@ function validateTemplateDefinitions(
             );
         },
     );
+    const groupsAreAlphabetical = definitions.every(
+        isDefinitionGroupAlphabetical,
+    );
     if (
         uniqueNames.size !== names.length ||
         uniqueNames.size !== supportedNames.size ||
         !hasEverySupportedName ||
-        !tiersAreOrdered
+        !tiersAreOrdered ||
+        !groupsAreAlphabetical
     ) {
         throw new Error(
             "Citation template definitions must classify every supported " +
-                "template in tier order.",
+                "template in tier and alphabetical order.",
         );
     }
+}
+
+/**
+ * Checks one definition against the previous name in its
+ * ordering group.
+ */
+function isDefinitionGroupAlphabetical(
+    definition: CitationTemplateDefinition,
+    index: number,
+    definitions: readonly CitationTemplateDefinition[],
+): boolean {
+    const previous = definitions[index - 1];
+    return (
+        previous == null ||
+        getTemplateTierRank(previous) !== getTemplateTierRank(definition) ||
+        previous.name.localeCompare(definition.name, "en-US") <= 0
+    );
 }
 
 /** Returns the display rank for one importance and type combination. */

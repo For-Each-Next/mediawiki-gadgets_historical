@@ -1,0 +1,4 @@
+.cf-source-manager__confirmation-dialog.cdx-dialog {
+    max-width: min(96vw, 32em);
+    width: min(96vw, 32em);
+}

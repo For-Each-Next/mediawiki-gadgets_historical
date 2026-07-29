@@ -1,5 +1,7 @@
 /** Installs Citation Formatter styles bundled with the gadget. */
 
+import { SOURCE_MANAGER_DIALOG_STYLES } from "#gadget/ui/dialogs/index.ts";
+
 let installed = false;
 
 /** Adds the gadget stylesheet to the page once. */
@@ -16,8 +18,15 @@ export function installCitationFormatterStyles(): void {
 
 /** Returns the stylesheet injected by the gadget build. */
 function getBundledStyles(): string {
-    if (typeof __CITATION_FORMATTER_STYLES__ === "undefined") {
-        return "";
-    }
-    return __CITATION_FORMATTER_STYLES__;
+    const sharedStyles =
+        typeof __CITATION_FORMATTER_STYLES__ === "undefined"
+            ? ""
+            : __CITATION_FORMATTER_STYLES__;
+    return [sharedStyles, SOURCE_MANAGER_DIALOG_STYLES]
+        .filter(isNonEmpty)
+        .join("\n");
+}
+
+function isNonEmpty(value: string): boolean {
+    return value !== "";
 }

@@ -1,6 +1,6 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.5.0-dev.1",
+    "version": "0.5.0-dev.3",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -19,8 +19,62 @@
         "outputDirectory": "../../dist/vg-stub-creator",
         "outputName": "vg_stub_creator",
         "defines": {
-            "__VG_STUB_CREATOR_DIALOG_CSS__": {
-                "textFile": "ui/styles.css"
+            "__VG_STUB_CREATOR_SHARED_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/shared.css"
+            },
+            "__VG_STUB_CREATOR_MAIN_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/main-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_MAIN_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/main-dialog.css"
+            },
+            "__VG_STUB_CREATOR_PRE_SAVE_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/pre-save-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_PRE_SAVE_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/pre-save-dialog.css"
+            },
+            "__VG_STUB_CREATOR_COMPANY_CATEGORY_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/company-category-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_COMPANY_CATEGORY_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/company-category-dialog.css"
+            },
+            "__VG_STUB_CREATOR_CATEGORY_VIEW_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/category-view-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_CATEGORY_VIEW_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/category-view-dialog.css"
+            },
+            "__VG_STUB_CREATOR_PAGE_EDIT_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/page-edit-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_PAGE_EDIT_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/page-edit-dialog.css"
+            },
+            "__VG_STUB_CREATOR_MOVE_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/move-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_MOVE_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/move-dialog.css"
+            },
+            "__VG_STUB_CREATOR_PREVIEW_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/preview-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_PREVIEW_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/preview-dialog.css"
+            },
+            "__VG_STUB_CREATOR_HISTORY_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/history-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_HISTORY_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/history-dialog.css"
+            },
+            "__VG_STUB_CREATOR_HISTORY_JSON_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/history-json-dialog.vue"
+            },
+            "__VG_STUB_CREATOR_HISTORY_JSON_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/history-json-dialog.css"
             }
         },
         "userscript": {

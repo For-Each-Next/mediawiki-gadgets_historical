@@ -1,0 +1,10 @@
+.vg-stub-creator-category-view-dialog.cdx-dialog {
+    max-width: min(96vw, 60em);
+    width: min(96vw, 60em);
+}
+
+.vg-stub-creator-category-view {
+    border: 1px solid var(--border-color-base, #a2a9b1);
+    height: 70vh;
+    width: 100%;
+}

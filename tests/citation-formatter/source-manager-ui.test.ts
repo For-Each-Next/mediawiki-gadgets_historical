@@ -242,6 +242,63 @@ test("preserves position while formatting citations", async () => {
     }
 });
 
+test("does not toast when repeated formatting makes no changes", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const beforeText =
+            "<ref>{{cite web|url=https://example.test|title=Example}}</ref>";
+        let writeCount = 0;
+        const editor = createMemoryEditor(beforeText, () => {
+            writeCount += 1;
+        });
+
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        callAction(manager, "formatArticle");
+
+        const formattedText = editor.read();
+        assert.notEqual(formattedText, beforeText);
+        assert.equal(writeCount, 1);
+        assert.deepEqual(harness.successMessages, ["Citations formatted."]);
+
+        callAction(manager, "formatArticle");
+
+        assert.equal(editor.read(), formattedText);
+        assert.equal(writeCount, 1);
+        assert.deepEqual(harness.successMessages, ["Citations formatted."]);
+        callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("does not repeat incomplete warnings for unchanged text", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        let writeCount = 0;
+        const editor = createMemoryEditor("<ref>Plain text</ref>", () => {
+            writeCount += 1;
+        });
+
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        callAction(manager, "formatArticle");
+
+        assert.equal(writeCount, 1);
+        assert.equal(harness.warningMessages.length, 1);
+
+        callAction(manager, "formatArticle");
+
+        assert.equal(writeCount, 1);
+        assert.equal(harness.warningMessages.length, 1);
+        callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
 function createDeferred<T>(): {
     promise: Promise<T>;
     resolve: (value: T) => void;
@@ -548,7 +605,10 @@ async function callAsyncAction(
     await action();
 }
 
-function createMemoryEditor(initialText: string): editBox.EditBox {
+function createMemoryEditor(
+    initialText: string,
+    onWrite?: () => void,
+): editBox.EditBox {
     let text = initialText;
     return {
         element: null,
@@ -560,6 +620,7 @@ function createMemoryEditor(initialText: string): editBox.EditBox {
             text += value;
         },
         write(value) {
+            onWrite?.();
             text = value;
         },
     };
@@ -590,9 +651,10 @@ function installSourceManagerHarness(responses: unknown[]) {
         "requestAnimationFrame",
     ]);
     const successMessages: string[] = [];
+    const warningMessages: string[] = [];
     let manager: MountedManager | null = null;
     let apiCalls = 0;
-    const toast = createToastController(successMessages);
+    const toast = createToastController(successMessages, warningMessages);
     const Vue = createVueModule((mounted) => {
         manager = mounted;
     });
@@ -611,6 +673,7 @@ function installSourceManagerHarness(responses: unknown[]) {
             restoreGlobals(globals, original);
         },
         successMessages,
+        warningMessages,
     };
 }
 
@@ -671,14 +734,19 @@ function createCodexComponents(toast: ToastController): CodexComponents {
     };
 }
 
-function createToastController(successMessages: string[]): ToastController {
+function createToastController(
+    successMessages: string[],
+    warningMessages: string[],
+): ToastController {
     return {
         error() {},
         info() {},
         success(message) {
             successMessages.push(message);
         },
-        warning() {},
+        warning(message) {
+            warningMessages.push(message);
+        },
     };
 }
 

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { OnLoadResult, Plugin } from "esbuild";
 import { minify } from "html-minifier-terser";
+import { parse } from "@vue/compiler-sfc";
 
 const HTML_LITERAL_PATTERN =
     /[`'"]\s*(?:<!doctype\s|<!--|<\/?[a-z][\w-]*[\s>])/iu;
@@ -23,6 +24,35 @@ export function createHtmlTemplateMinifier(): Plugin {
             );
         },
     };
+}
+
+/**
+ * Extracts the HTML from a template-only Vue single-file component.
+ *
+ * @param source - Authored Vue single-file component source.
+ * @param filename - Source filename used in parser diagnostics.
+ * @returns Inner template HTML.
+ */
+export function extractVueTemplate(
+    source: string,
+    filename: string = "template.vue",
+): string {
+    const result = parse(source, { filename });
+    const { descriptor } = result;
+    const template = descriptor.template;
+    const hasOnlyTemplate =
+        result.errors.length === 0 &&
+        template != null &&
+        descriptor.script == null &&
+        descriptor.scriptSetup == null &&
+        descriptor.styles.length === 0 &&
+        descriptor.customBlocks.length === 0;
+    if (!hasOnlyTemplate || template == null) {
+        throw new Error(
+            `${filename} must contain one template and no other SFC blocks.`,
+        );
+    }
+    return template.content.trim();
 }
 
 /**

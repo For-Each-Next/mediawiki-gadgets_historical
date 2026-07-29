@@ -1,0 +1,82 @@
+.vg-stub-creator-pre-save-groups {
+    display: grid;
+    gap: 0.875em;
+    margin-top: 0.75em;
+}
+
+.vg-stub-creator-pre-save-page {
+    display: grid;
+    gap: 0.35em;
+}
+
+.vg-stub-creator-pre-save-title {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.vg-stub-creator-pre-save-list {
+    display: grid;
+    gap: 0.35em;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.vg-stub-creator-pre-save-item {
+    margin: 0 -0.35em;
+    padding: 0.2em 0.35em;
+}
+
+.vg-stub-creator-pre-save-progress-row {
+    align-items: start;
+    display: grid;
+    gap: 0.4em;
+    grid-template-columns: min-content minmax(0, 1fr);
+}
+
+.vg-stub-creator-pre-save-progress-row--running {
+    background-color: var(--background-color-progressive-subtle, #eaf3ff);
+    box-shadow: inset 3px 0 0 var(--color-progressive, #36c);
+}
+
+.vg-stub-creator-pre-save-progress-row--retrying {
+    background-color: var(--background-color-warning-subtle, #fef6e7);
+    box-shadow: inset 3px 0 0 var(--color-warning, #edab00);
+}
+
+.vg-stub-creator-pre-save-progress-row--failed {
+    background-color: var(--background-color-error-subtle, #fee7e6);
+    box-shadow: inset 3px 0 0 var(--color-error, #d73333);
+}
+
+.vg-stub-creator-pre-save-status-icon {
+    margin-top: 0.15em;
+}
+
+.vg-stub-creator-pre-save-status-icon--complete {
+    color: var(--color-success, #14866d);
+}
+
+.vg-stub-creator-pre-save-status-icon--failed {
+    color: var(--color-error, #d73333);
+}
+
+.vg-stub-creator-pre-save-status-icon--pending {
+    color: var(--color-subtle, #54595d);
+}
+
+.vg-stub-creator-pre-save-status-icon--running {
+    color: var(--color-progressive, #36c);
+}
+
+.vg-stub-creator-pre-save-status-icon--retrying {
+    color: var(--color-warning, #edab00);
+}
+
+.vg-stub-creator-pre-save-status-icon--skipped {
+    color: var(--color-warning, #edab00);
+}
+
+.vg-stub-creator-pre-save-note {
+    overflow-wrap: anywhere;
+}

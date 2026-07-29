@@ -10,9 +10,9 @@ import {
     CITATION_TEMPLATE_DEFINITIONS,
     CITATION_TEMPLATE_OPTIONS,
 } from "citation-formatter/ui/citation-template-options.ts";
-import { cdxIconNewspaper } from "@wikimedia/codex-icons";
+import { cdxIconDie, cdxIconNewspaper } from "@wikimedia/codex-icons";
 
-test("orders citation templates by importance and specificity", () => {
+test("orders citation templates by group and alphabetically", () => {
     const expectedNames = CITATION_TEMPLATE_DEFINITIONS.map(
         (definition) => definition.name,
     );
@@ -25,6 +25,33 @@ test("orders citation templates by importance and specificity", () => {
         new Set(expectedNames),
         new Set(templates.SUPPORTED_CITATION_TEMPLATES),
     );
+    assert.deepEqual(expectedNames.slice(0, 7), [
+        "Cite interview",
+        "Cite news",
+        "Cite press release",
+        "Cite book",
+        "Cite magazine",
+        "Cite video game",
+        "Cite web",
+    ]);
+    assertDefinitionGroupsAreAlphabetical();
+});
+
+test("classifies video game as an important general medium", () => {
+    const videoGame = CITATION_TEMPLATE_DEFINITIONS.find(
+        (definition) => definition.name === "Cite video game",
+    );
+    const interview = CITATION_TEMPLATE_DEFINITIONS.find(
+        (definition) => definition.name === "Cite interview",
+    );
+    const videoGameOption = CITATION_TEMPLATE_OPTIONS.find(
+        (option) => option.label === "Cite video game",
+    );
+
+    assert.equal(videoGame?.importance, "important");
+    assert.equal(videoGame?.type, "general");
+    assert.deepEqual(videoGameOption?.icon, cdxIconDie);
+    assert.equal(interview?.type, "special");
 });
 
 test("classifies tweet and AV media templates as normal special", () => {
@@ -67,3 +94,21 @@ test("uses a newspaper icon for Cite news", () => {
 
     assert.deepEqual(citeNews?.icon, cdxIconNewspaper);
 });
+
+function assertDefinitionGroupsAreAlphabetical(): void {
+    const groups = new Map<string, string[]>();
+    for (const definition of CITATION_TEMPLATE_DEFINITIONS) {
+        const key = `${definition.importance}:${definition.type}`;
+        const names = groups.get(key) ?? [];
+        names.push(definition.name);
+        groups.set(key, names);
+    }
+    for (const names of groups.values()) {
+        assert.deepEqual(
+            names,
+            names.toSorted((first, second) =>
+                first.localeCompare(second, "en-US"),
+            ),
+        );
+    }
+}

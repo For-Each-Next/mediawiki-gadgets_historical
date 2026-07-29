@@ -23,7 +23,9 @@ categories, navboxes, and module-specific wikitext.
 - `infra/editing/`: edit-session and MediaWiki write adapters.
 - `infra/save/`: persistent save-progress storage and controllers.
 - `support/`: presentation-neutral state transitions and error normalization.
-- `ui/`: form UI, previews, review state, and browser activation.
+- `ui/dialogs/`: template-only Vue dialogs with matching TypeScript asset
+  modules and package-scoped styles.
+- `ui/`: form state, previews, review state, and browser activation.
 
 Workspace-wide MediaWiki template and link helpers live in
 `src/shared/wikitext.ts`. Raw Citoid acquisition lives in

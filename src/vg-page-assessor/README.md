@@ -93,12 +93,14 @@ index.ts
 - `index.ts` is the side-effect-free package entry point.
 - `browser.ts` invokes the browser composition root.
 - `main.ts` wires UI, workflows, MediaWiki adapters, and logging.
-- `ui/` renders the dialog, previews, summaries, and user interactions.
+- `ui/dialogs/` keeps the Vue template, reactive TypeScript state, and scoped
+  CSS for the Codex assessment dialog together.
+- `ui/` mounts the dialog and owns previews, summaries, and user interactions.
 - `workflows/` coordinates loading, preview preparation, and confirmed saves.
 - `domain/` contains deterministic assessment and new-page-list rules.
 - `infra/` isolates MediaWiki requests, response decoding, caching, and logs.
 - `config/` contains project-specific titles and assessment options.
-- `i18n/` contains type-checked interface catalogs.
+- `i18n/` stores flat JSON locale catalogs behind a typed registry.
 
 See the package [changelog][2], its scoped [AGENTS.md][3], and the repository
 [AGENTS.md][4] for architecture, safety, versioning, and verification rules.

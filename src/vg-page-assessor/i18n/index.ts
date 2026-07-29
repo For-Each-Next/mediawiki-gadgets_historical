@@ -3,9 +3,15 @@
  */
 
 import * as i18n from "#shared/i18n";
-import english from "#gadget/i18n/en.ts";
-import simplifiedChinese from "#gadget/i18n/zh-Hans.ts";
-import traditionalChinese from "#gadget/i18n/zh-Hant.ts";
+import englishCatalog from "#gadget/i18n/en.json" with { type: "json" };
+import zhHansCatalog from "#gadget/i18n/zh-Hans.json" with { type: "json" };
+import zhHantCatalog from "#gadget/i18n/zh-Hant.json" with { type: "json" };
+
+export const english = englishCatalog;
+export const simplifiedChinese: i18n.LocaleCatalog<typeof english> =
+    zhHansCatalog;
+export const traditionalChinese: i18n.LocaleCatalog<typeof english> =
+    zhHantCatalog;
 
 export type MessageId = Extract<keyof typeof english, string>;
 

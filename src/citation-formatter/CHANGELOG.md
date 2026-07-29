@@ -2,13 +2,14 @@
 
 ## Until 0.6
 
-### 0.5.0-dev.1 (2026-07-29 10:51 UTC)
+### 0.5.0-dev.6 (2026-07-29 13:18 UTC)
 
 Overview: Citation Formatter now uses a side-effect-free composition root,
 typed workflow and adapter boundaries, smaller citation primitives, and the
 workspace's strict reusable gadget build and package contracts, with clearer
-source-entry guidance, stable editor positions during formatting, and a shared
-raw citation-metadata boundary with package-owned output mapping. Its release
+source-entry guidance, stable and quiet repeated formatting, alphabetized
+citation-template groups, Codex-safe dialog spacing, and a shared raw
+citation-metadata boundary with package-owned output mapping. Its release
 record now follows the repository-wide changelog and development-version
 contract.
 
@@ -19,21 +20,32 @@ contract.
   normalization into responsibility-named modules.
 - Split source-manager contracts, reactive state, list presentation, analysis
   state, alias actions, and metadata-draft handling from the UI coordinator.
+- Split all five Codex dialogs into co-located `.vue`, `.ts`, and `.css`
+  groups, with template-only Vue extraction and package-scoped stylesheet
+  checks in the shared build and test workflow.
+- Moved English and Chinese interface catalogs from TypeScript objects to flat
+  JSON data while retaining typed message IDs and placeholder validation.
 - Defined each citation-template choice with its name, importance, type, and
-  optional icon; kept `Cite tweet` and both AV media choices normal-special
-  without priority icons; and gave `Cite news` a newspaper icon.
+  optional icon; alphabetized each ordering group; placed `Cite video game`
+  with the important general-media choices; kept `Cite tweet` and both AV media
+  choices normal-special without priority icons; and gave `Cite news` a
+  newspaper icon.
 - Kept the private TypeScript operations available for composition and tests
   without exporting them from the generated browser gadget.
 - Added focused CS1-adapter and domain-primitive regression coverage and
   enabled strict TypeScript checking.
 - Added a localized Recheck article action that re-read the current editor,
   displayed progress, and prevented duplicate requests.
-- Kept CS1 result messages outside Codex's direct-dialog-child margin reset so
-  their standard spacing remained intact.
+- Isolated every dialog body from Codex's broad direct-last-child reset,
+  preserving component-owned bottom spacing without modifying shared Codex
+  styles.
 - Kept source-entry descriptions concise while retaining detailed accepted
   input and existing-source insertion guidance below the field.
 - Preserved the edit-box selection and viewport when formatting all citations
   across native textarea, CodeMirror, and VisualEditor source backends.
+- Kept repeated Format citations actions quiet when the article text was
+  already formatted, without rewriting the editor or recording an empty undo
+  change.
 - Fetched raw Citoid metadata through a shared URL-or-identifier client and
   mapped it through Citation Formatter's own TemplateData and serializers,
   keeping VG Stub Creator's site cleanup rules out of editable source drafts.

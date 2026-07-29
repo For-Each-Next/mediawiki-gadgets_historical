@@ -138,7 +138,8 @@ Normal editing uses local static validation and makes no parse request.
 After updating authored data or rules:
 
 1. Add focused tests under `tests/citation-formatter/`.
-2. Increment the package patch version and update its version history.
+2. Advance the package version under the repository release rules and update
+   `CHANGELOG.md`.
 3. Run `npm run check -w citation-formatter`.
 4. Run `npm test -w citation-formatter`.
 5. Run `npm run build -w citation-formatter`.

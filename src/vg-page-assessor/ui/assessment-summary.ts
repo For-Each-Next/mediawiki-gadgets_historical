@@ -2,29 +2,22 @@
  * Builds human-readable edit summaries for assessment selections.
  */
 
-import projectConfig from "#gadget/config/project-config.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import type {
     Assessment,
     AssessmentMaintenance,
     SelectionMap,
 } from "#gadget/domain/types.ts";
-
-interface LabelledSelection {
-    readonly id: string;
-    readonly label: string;
-}
+import {
+    MAINTENANCE_OPTIONS,
+    OTHER_PROJECT_OPTIONS,
+    TASK_FORCE_OPTIONS,
+    type LabelledAssessmentOption,
+} from "#gadget/ui/assessment-options.ts";
 
 const SUMMARY_LINK = ":m:User:For Each ... Next/global.js/vg page assessor.js";
 const SUMMARY_TEXT = "🍄";
 const SUMMARY_SOURCE_LINK = `[[${SUMMARY_LINK}|${SUMMARY_TEXT}]]`;
-
-export const MAINTENANCE_ITEMS = [
-    { id: "reassess", label: msg("maintenance.reassess") },
-    { id: "needsInfobox", label: msg("maintenance.needsInfobox") },
-    { id: "cover", label: msg("maintenance.needsImage") },
-    { id: "screenshot", label: msg("maintenance.needsScreenshot") },
-] as const;
 
 /**
  * Builds the default edit summary for the selected assessment.
@@ -32,10 +25,7 @@ export const MAINTENANCE_ITEMS = [
 export function buildEditSummary(assessment: Assessment): string {
     const banners = [
         buildVideoGamesSummary(assessment),
-        ...getSelectedLabels(
-            projectConfig.otherProjects,
-            assessment.otherProjects,
-        ),
+        ...getSelectedLabels(OTHER_PROJECT_OPTIONS, assessment.otherProjects),
     ];
     const className = `${assessment.className || "Unassessed"}-Class`;
     let summary;
@@ -73,11 +63,11 @@ function buildVideoGamesSummary(assessment: Assessment): string {
 function buildVideoGamesSummaryDetails(assessment: Assessment): Array<string> {
     const details: Array<string> = [];
     const taskForces = getSelectedLabels(
-        projectConfig.videoGames.taskForces,
+        TASK_FORCE_OPTIONS,
         assessment.taskForces,
     );
     const maintenance = getSelectedLabels(
-        MAINTENANCE_ITEMS,
+        MAINTENANCE_OPTIONS,
         assessment.maintenance,
     );
 
@@ -104,7 +94,7 @@ function buildVideoGamesSummaryDetails(assessment: Assessment): Array<string> {
  * Gets selected item labels.
  */
 function getSelectedLabels(
-    items: ReadonlyArray<LabelledSelection>,
+    items: ReadonlyArray<LabelledAssessmentOption>,
     selectedMap: SelectionMap | AssessmentMaintenance,
 ): Array<string> {
     return items

@@ -1,5 +1,5 @@
 /**
- * Fetches Citoid metadata and formats it as citation template wikitext.
+ * Formats citation metadata as citation template wikitext.
  */
 
 import citationRules from "./data/citation-rules.ts";
@@ -8,223 +8,17 @@ import {
     type CitationTemplateData,
 } from "./data/templates.ts";
 
-const CITOID_ENDPOINT = "/api/rest_v1/data/citation/zotero/";
 const CITATION_RULES = getCitationRules();
 const DATE_PARTS_LENGTH = 10;
-const HTTP_NOT_FOUND = 404;
 const UNKNOWN_PARAM_ORDER_OFFSET = 10000;
 
 /**
- * Builds a cite template from the first Citoid result for a source
- * lookup.
- *
- * @param search - URL, identifier, or citation text to resolve through
- *   Citoid.
- * @param options - Fetch and formatting options.
- * @param options.fetcher - Fetch implementation.
- * @param options.now - Date used for access-date.
- * @param options.cache - Citation cache keyed by lookup text.
- * @param options.sourceUrl - HTTP(S) source URL to preserve, or null
- *   when the lookup is not a URL.
- * @returns Generated citation template wikitext.
- */
-export async function fetchCiteTemplate(
-    search: string,
-    options: any = {},
-): Promise<string> {
-    const cachedTemplate = getCachedCiteTemplate(search, options);
-
-    if (cachedTemplate != null) {
-        return cachedTemplate;
-    }
-
-    const fetcher = options.fetcher || fetch;
-    const response = await fetchCitoidResponse(search, fetcher);
-
-    if (!response.ok) {
-        const fallback = await handleFailedCitoidResponse(
-            search,
-            response,
-            fetcher,
-            options,
-        );
-
-        return fallback;
-    }
-
-    const citeTemplate = await buildCitoidResponseTemplate(
-        search,
-        response,
-        options,
-    );
-
-    setCachedCiteTemplate(search, citeTemplate, options);
-
-    return citeTemplate;
-}
-
-/**
- * Requests citation metadata from Citoid.
- *
- * @param url - Request URL.
- * @param fetcher - Fetch implementation.
- * @returns Result when the function
- *   requests citation metadata from citoid.
- */
-async function fetchCitoidResponse(
-    url: string,
-    fetcher: typeof fetch,
-): Promise<Response> {
-    const requestUrl = buildCitoidUrl(url);
-    const response = await fetcher(requestUrl, {
-        headers: { accept: "application/json" },
-    });
-
-    return response;
-}
-
-/**
- * Builds citation wikitext from a successful Citoid response.
- *
- * @param search - Source lookup value.
- * @param response - Fetch response.
- * @param options - Operation options.
- * @returns Citation wikitext from a successful Citoid response.
- */
-async function buildCitoidResponseTemplate(
-    search: string,
-    response: Response,
-    options: {
-        bibliographic?: boolean;
-        now: unknown;
-        rules: unknown;
-        sourceUrl?: string | null;
-    },
-) {
-    const data = await response.json();
-    const citation = getFirstCitation(data);
-    const sourceUrl = getSourceUrlOption(search, options);
-    const template = buildCiteTemplate(citation, {
-        bibliographic: options.bibliographic,
-        now: options.now,
-        rules: options.rules,
-        url: sourceUrl,
-    });
-
-    return template;
-}
-
-/**
- * Handles a failed Citoid response or builds its web fallback.
- *
- * @param search - Source lookup value.
- * @param response - Fetch response.
- * @param fetcher - Fetch implementation.
- * @param options - Operation options.
- * @returns Result when the function
- *   handles a failed citoid response or builds its web
- *   fallback.
- */
-async function handleFailedCitoidResponse(
-    search: string,
-    response: Response,
-    fetcher: typeof fetch,
-    options: {
-        now: unknown;
-        rules: unknown;
-        sourceUrl?: string | null;
-    },
-) {
-    if (response.status !== HTTP_NOT_FOUND) {
-        throw new Error(`Citoid request failed: HTTP ${response.status}`);
-    }
-
-    const sourceUrl = getSourceUrlOption(search, options);
-    if (sourceUrl == null) {
-        throw new Error("Citoid could not resolve the entered source.");
-    }
-    const citeTemplate = await buildFallbackCiteWebTemplate(sourceUrl, {
-        fetcher,
-        now: options.now,
-        rules: options.rules,
-    });
-
-    setCachedCiteTemplate(search, citeTemplate, options);
-
-    return citeTemplate;
-}
-
-/**
- * Builds the Citoid REST URL for source lookup text.
- *
- * @param url - Source lookup text to resolve through Citoid.
- * @returns Citoid request URL.
- */
-export function buildCitoidUrl(url: string): string {
-    const trimmedUrl = url.trim();
-
-    if (trimmedUrl === "") {
-        throw new Error("Enter a source before fetching a citation.");
-    }
-
-    return `${CITOID_ENDPOINT}${encodeURIComponent(trimmedUrl)}`;
-}
-
-/**
- * Resolves the URL for URL-specific formatting and fallback behavior.
- */
-function getSourceUrlOption(
-    search: string,
-    options: { sourceUrl?: string | null },
-): string | null {
-    return options.sourceUrl === undefined ? search : options.sourceUrl;
-}
-
-/**
- * Gets a cached cite template for a URL.
+ * Trims one citation source URL.
  *
  * @param url - Source URL.
- * @param options - Fetch and formatting options.
- * @param options.cache - Citation cache keyed by source URL.
- * @returns Cached cite template.
+ * @returns Trimmed source URL.
  */
-function getCachedCiteTemplate(url: string, options: any): string | undefined {
-    if (options.cache == null) {
-        return undefined;
-    }
-
-    return options.cache[normalizeCitationCacheKey(url)];
-}
-
-/**
- * Stores a generated cite template for a URL.
- *
- * @param url - Source URL.
- * @param citeTemplate - Generated cite template.
- * @param options - Fetch and formatting options.
- * @param options.cache - Citation cache keyed by source URL.
- * @returns Result when the function
- *   stores a generated cite template for a url.
- */
-function setCachedCiteTemplate(
-    url: string,
-    citeTemplate: string,
-    options: any,
-): void {
-    if (options.cache == null) {
-        return;
-    }
-
-    options.cache[normalizeCitationCacheKey(url)] = citeTemplate;
-}
-
-/**
- * Normalizes the cache key for one source URL.
- *
- * @param url - Source URL.
- * @returns Cache key.
- */
-function normalizeCitationCacheKey(url: string): string {
+function normalizeCitationSource(url: string): string {
     return url.trim();
 }
 
@@ -317,178 +111,12 @@ export function sortCitationParams(
 }
 
 /**
- * Builds a minimal cite web template when Citoid cannot resolve a URL.
- *
- * @param url - Source URL.
- * @param options - Formatting options.
- * @param options.fetcher - Fetch implementation.
- * @param options.now - Date used for access-date.
- * @returns Generated cite web template wikitext.
- */
-async function buildFallbackCiteWebTemplate(
-    url: string,
-    options: any = {},
-): Promise<string> {
-    const trimmedUrl = normalizeCitationCacheKey(url);
-    const steamUrl = isSteamUrl(trimmedUrl);
-    let title = "";
-    if (!steamUrl) {
-        title = await fetchFallbackTitle(trimmedUrl, options);
-    }
-    const websiteTitle = getFallbackWebsiteTitle(url);
-    const citation = {
-        itemType: "webpage",
-        title,
-        url: trimmedUrl,
-        websiteTitle,
-    };
-    const formatOptions = {
-        now: options.now,
-        rules: options.rules || CITATION_RULES,
-        url,
-    };
-    const result = buildCiteTemplate(citation, formatOptions);
-    return result;
-}
-
-/**
- * Checks whether a source URL is on Steam.
- *
- * @param url - Source URL.
- * @returns Whether the source is a Steam URL.
- */
-function isSteamUrl(url: string): boolean {
-    return parseUrl(url)?.hostname === "store.steampowered.com";
-}
-
-/**
- * Fetches the source page title for a fallback citation.
- *
- * @param url - Source URL.
- * @param options - Fetch options.
- * @param options.fetcher - Fetch implementation.
- * @returns Page title, or an empty string when
- * unavailable.
- */
-async function fetchFallbackTitle(url: string, options: any): Promise<string> {
-    const fetcher = options.fetcher || fetch;
-
-    try {
-        const response = await fetcher(url, {
-            headers: {
-                accept: "text/html",
-            },
-        });
-
-        if (!response.ok) {
-            return "";
-        }
-
-        const html = await response.text();
-        return extractHtmlTitle(html);
-    } catch (_error) {
-        return "";
-    }
-}
-
-/**
- * Extracts a document title from HTML text.
- *
- * @param html - HTML source.
- * @returns Extracted title, or an empty string.
- */
-function extractHtmlTitle(html: string): string {
-    const match = String(html || "").match(
-        /<title\b[^>]*>([\s\S]*?)<\/title>/iu,
-    );
-
-    if (match == null) {
-        return "";
-    }
-
-    const compactTitle = match[1].replace(/\s+/gu, " ").trim();
-    return decodeHtmlEntities(compactTitle);
-}
-
-/**
- * Decodes common HTML entities from title text.
- *
- * @param text - Encoded title text.
- * @returns Decoded title text.
- */
-function decodeHtmlEntities(text: string): string {
-    const result = text
-        .replace(/&#(\d+);/gu, decodeDecimalHtmlEntity)
-        .replace(/&#x([\da-f]+);/giu, decodeHexHtmlEntity)
-        .replace(/&quot;/gu, '"')
-        .replace(/&apos;/gu, "'")
-        .replace(/&amp;/gu, "&")
-        .replace(/&lt;/gu, "<")
-        .replace(/&gt;/gu, ">");
-    return result;
-}
-
-/**
- * Decodes one decimal numeric HTML entity.
- *
- * @param _match - Full entity text.
- * @param code - Decimal code point.
- * @returns Decoded character.
- */
-function decodeDecimalHtmlEntity(_match: string, code: string): string {
-    const codePoint = Number(code);
-    return String.fromCodePoint(codePoint);
-}
-
-/**
- * Decodes one hexadecimal numeric HTML entity.
- *
- * @param _match - Full entity text.
- * @param code - Hexadecimal code point.
- * @returns Decoded character.
- */
-function decodeHexHtmlEntity(_match: string, code: string): string {
-    const codePoint = Number.parseInt(code, 16);
-    return String.fromCodePoint(codePoint);
-}
-
-/**
- * Handles get fallback website title.
- *
- * Gets a website title for a fallback citation from the source URL
- * hostname.
- *
- * @param url - Source URL.
- * @returns Source URL hostname, or an empty string.
- */
-function getFallbackWebsiteTitle(url: string): string {
-    const normalizedUrl = normalizeCitationCacheKey(url);
-    const parsedUrl = parseUrl(normalizedUrl);
-
-    return (parsedUrl?.hostname || "").replace(/^www\./u, "");
-}
-
-/**
  * Gets bundled citation cleanup rules.
  *
  * @returns Site-specific citation cleanup rules.
  */
 function getCitationRules(): Array<any> {
     return citationRules;
-}
-
-/**
- * Gets the first Citoid citation from a response body.
- *
- * @param citations - Citoid response body.
- * @returns First citation object.
- */
-function getFirstCitation(citations: Array<any>): any {
-    if (!Array.isArray(citations) || citations.length === 0) {
-        throw new Error("Citoid did not return citation data.");
-    }
-
-    return citations[0];
 }
 
 /**
@@ -606,7 +234,7 @@ function applyCitationRules(values: any, options: any): any {
     }
     let initialValues = values;
     if (!preserveValues) {
-        const normalizedUrl = normalizeCitationCacheKey(options.sourceUrl);
+        const normalizedUrl = normalizeCitationSource(options.sourceUrl);
         initialValues = { ...values, url: normalizedUrl };
     }
 

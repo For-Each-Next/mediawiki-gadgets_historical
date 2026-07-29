@@ -6,11 +6,13 @@ import {
     getEnteredSourceReferenceFields,
     getEnteredSourceUrls,
 } from "#gadget/domain/source-fields.ts";
+import {
+    buildCiteTemplateFromParts,
+    parseCiteTemplate,
+    sortCitationParams,
+} from "#gadget/domain/citations/index.ts";
 import type { CitationStore } from "#gadget/infra/sources/citation-store.ts";
-import * as cite from "#shared/cite";
 import * as wikitext from "#shared/wikitext";
-const { buildCiteTemplateFromParts, parseCiteTemplate, sortCitationParams } =
-    cite;
 const { trimValue } = wikitext;
 
 interface ManagedCitationRow {

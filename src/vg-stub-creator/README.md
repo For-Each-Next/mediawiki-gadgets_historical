@@ -77,37 +77,46 @@ fixture guidance.
 
 ## Architecture
 
-Dependencies flow downward from the browser entry point:
+Dependencies flow downward from the browser entry point. The package entry
+point remains side-effect free:
 
 ```text
-index.ts
+browser.ts
 └── main.ts
     ├── ui
     ├── workflows
     ├── domain
     ├── infra
     └── shared
+
+index.ts
 ```
 
-- `index.ts` invokes the browser composition root.
+- `index.ts` is the side-effect-free package entry point.
+- `browser.ts` invokes the browser composition root.
 - `main.ts` wires UI, workflows, domain services, and external adapters.
 - `ui/` owns the Codex interface, previews, and browser state.
 - `workflows/` coordinates import, review, pre-save, and save workflows.
-- `domain/` contains normalized article records and wikitext rendering.
-- `infra/` isolates MediaWiki, Wikidata, storage, and source adapters.
+- `domain/` contains normalized article records, citation rules, and wikitext
+  rendering.
+- `infra/` isolates MediaWiki, Wikidata, storage, and source adapters,
+  including citation fallback requests.
 - `config/` contains typed terminology data.
 - `i18n/` contains type-checked interface catalogs.
-- `../shared/` supplies workspace-wide citation and wikitext primitives.
+- `../shared/` supplies raw Citoid acquisition and generic wikitext primitives.
 
-See the package [history][3], its scoped [AGENTS.md][4], and the repository
+See the package [changelog][3], its scoped [AGENTS.md][4], and the repository
 [AGENTS.md][5] for architecture, safety, versioning, and verification rules.
 
 ## License
 
-VG Stub Creator is licensed under CC BY-SA 4.0.
+VG Stub Creator is licensed under [CC BY-SA 4.0][6]. The repository license
+notice is in [LICENSE][7].
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: docs/DEVELOPMENT.md
-[3]: HISTORY.md
+[3]: CHANGELOG.md
 [4]: AGENTS.md
 [5]: ../../AGENTS.md
+[6]: https://creativecommons.org/licenses/by-sa/4.0/
+[7]: ../../LICENSE

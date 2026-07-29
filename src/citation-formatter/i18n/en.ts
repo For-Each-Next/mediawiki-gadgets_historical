@@ -37,10 +37,12 @@ export default i18n.defineMessages({
     },
     "lookup": {
         "source": "Source",
-        "sourceDescription":
+        "sourceDescription": "Enter a URL, identifier, or reference name.",
+        "sourceHelpText":
             "Enter a URL, archive link, identifier (DOI, ISBN, ISSN, PMID, " +
-            "PMCID, or QID), or citation text. Citations with the same URL " +
-            "are reused.",
+            "PMCID, or QID), or citation text. If the source already " +
+            "exists, a reference is inserted directly into the article " +
+            "source.",
         "sourcePlaceholder": "URL, identifier, or citation",
         "findSource": "Find source",
         "loading": "Getting source details and archive…",

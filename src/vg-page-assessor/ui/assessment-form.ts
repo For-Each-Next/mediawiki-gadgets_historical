@@ -20,9 +20,11 @@ import type {
 import { msg } from "#gadget/i18n/index.ts";
 import * as html from "#shared/html";
 import {
-    MAINTENANCE_ITEMS,
-    buildEditSummary,
-} from "#gadget/ui/assessment-summary.ts";
+    MAINTENANCE_OPTIONS,
+    OTHER_PROJECT_OPTIONS,
+    TASK_FORCE_OPTIONS,
+} from "#gadget/ui/assessment-options.ts";
+import { buildEditSummary } from "#gadget/ui/assessment-summary.ts";
 import {
     type TemplateAttributes,
     type TemplateElement,
@@ -174,17 +176,17 @@ function buildAssessmentControls(): TemplateElement {
         buildCheckboxSection(
             msg("dialog.taskForces"),
             "taskForce",
-            projectConfig.videoGames.taskForces,
+            TASK_FORCE_OPTIONS,
         ),
         buildCheckboxSection(
             msg("dialog.maintenance"),
             "maintenance",
-            MAINTENANCE_ITEMS,
+            MAINTENANCE_OPTIONS,
         ),
         buildCheckboxSection(
             msg("dialog.otherProjects"),
             "otherProject",
-            projectConfig.otherProjects,
+            OTHER_PROJECT_OPTIONS,
         ),
     ];
 

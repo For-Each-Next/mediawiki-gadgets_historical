@@ -53,6 +53,9 @@ const ADD_SOURCE_TAB_TEMPLATE = `
                 autofocus
                 @paste="onSourcePaste"
             />
+            <template #help-text>
+                {{ msg( 'lookup.sourceHelpText' ) }}
+            </template>
         </cdx-field>
         <cdx-button
             action="progressive"

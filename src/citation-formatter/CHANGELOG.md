@@ -1,12 +1,16 @@
-# History
+# Changelog
 
-## Until 0.5
+## Until 0.6
 
-### 0.4.3-post.4 (2026-07-29 08:39 UTC)
+### 0.5.0-dev.1 (2026-07-29 10:51 UTC)
 
 Overview: Citation Formatter now uses a side-effect-free composition root,
 typed workflow and adapter boundaries, smaller citation primitives, and the
-workspace's strict reusable gadget build and package contracts.
+workspace's strict reusable gadget build and package contracts, with clearer
+source-entry guidance, stable editor positions during formatting, and a shared
+raw citation-metadata boundary with package-owned output mapping. Its release
+record now follows the repository-wide changelog and development-version
+contract.
 
 - Added a `main.ts` composition root that injects CS1, metadata, archive, and
   wiki-link operations into the browser UI.
@@ -15,9 +19,9 @@ workspace's strict reusable gadget build and package contracts.
   normalization into responsibility-named modules.
 - Split source-manager contracts, reactive state, list presentation, analysis
   state, alias actions, and metadata-draft handling from the UI coordinator.
-- Ordered citation-template choices into important-special, important-general,
-  normal-special, and normal-general tiers; classified `Cite tweet` and both AV
-  media choices as important-general; and gave `Cite news` a newspaper icon.
+- Defined each citation-template choice with its name, importance, type, and
+  optional icon; kept `Cite tweet` and both AV media choices normal-special
+  without priority icons; and gave `Cite news` a newspaper icon.
 - Kept the private TypeScript operations available for composition and tests
   without exporting them from the generated browser gadget.
 - Added focused CS1-adapter and domain-primitive regression coverage and
@@ -26,8 +30,21 @@ workspace's strict reusable gadget build and package contracts.
   displayed progress, and prevented duplicate requests.
 - Kept CS1 result messages outside Codex's direct-dialog-child margin reset so
   their standard spacing remained intact.
+- Kept source-entry descriptions concise while retaining detailed accepted
+  input and existing-source insertion guidance below the field.
+- Preserved the edit-box selection and viewport when formatting all citations
+  across native textarea, CodeMirror, and VisualEditor source backends.
+- Fetched raw Citoid metadata through a shared URL-or-identifier client and
+  mapped it through Citation Formatter's own TemplateData and serializers,
+  keeping VG Stub Creator's site cleanup rules out of editable source drafts.
 - Adopted `#gadget` imports, standardized package documentation, and the shared
   typed ES2024 builder with clean, dedicated output directories.
+- Renamed the durable release record to `CHANGELOG.md` and advanced the
+  user-selected next minor line to its first development build.
+- Moved detailed reference-name directives into a focused guide, added a root
+  license notice, and made both documents part of the package entry path.
+
+## Until 0.5
 
 ### 0.4.3 (2026-07-28 18:28 UTC)
 
@@ -42,7 +59,7 @@ documentation now uses consistent numbered reference links.
 - Retained periodicals as fallbacks when no eligible publisher or institution
   was available.
 - Consolidated CS1 maintenance guidance under `docs/`, kept `README.md` and
-  `HISTORY.md` as package entry documents, and added package-scoped
+  `CHANGELOG.md` as package entry documents, and added package-scoped
   architecture and editor-safety rules.
 - Documented direct installation from a MediaWiki personal JavaScript page or
   Tampermonkey.
@@ -59,7 +76,7 @@ controls, with the complete package history kept in a dedicated record.
 - Split citation consistency results into parameter-value and reference-name
   tabs, with bulk changes scoped to the visible tab.
 - Migrated the complete legacy version history from the README into this
-  package-local history.
+  package-local changelog.
 
 ### 0.4.1 (2026-07-27 13:24 UTC)
 

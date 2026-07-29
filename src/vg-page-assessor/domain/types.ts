@@ -38,13 +38,11 @@ export interface Assessment {
 export interface ProjectBannerConfig {
     readonly aliases: readonly string[];
     readonly id: string;
-    readonly label: string;
     readonly template: string;
 }
 
 export interface TaskForceConfig {
     readonly id: string;
-    readonly label: string;
     readonly parameter: string;
 }
 

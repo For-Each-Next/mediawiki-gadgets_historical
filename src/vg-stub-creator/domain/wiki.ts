@@ -7,12 +7,11 @@ import type {
     SourceTags,
 } from "#gadget/domain/models.ts";
 import { get as getTerminology } from "#gadget/config/terminologies/index.ts";
-import * as cite from "#shared/cite";
+import { buildReferencesSection } from "#gadget/domain/reference-wikitext.ts";
 import * as wikitext from "#shared/wikitext";
 
 const { buildTemplateCall, buildTemplateText, trimValue, uniqueValues } =
     wikitext;
-const { buildReferencesSection } = cite;
 
 /**
  * Builds a source reference key for one localized name row.

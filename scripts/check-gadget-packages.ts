@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 
 const REQUIRED_FILES = [
     "AGENTS.md",
-    "HISTORY.md",
+    "CHANGELOG.md",
     "README.md",
     "index.ts",
     "main.ts",
@@ -31,7 +31,7 @@ const SEMVER_PATTERN = new RegExp(
         "(?:-(?:dev|post)\\.([1-9]\\d*))?$",
     "u",
 );
-const HISTORY_HEADING_PATTERN =
+const CHANGELOG_HEADING_PATTERN =
     /^### (\S+) \(\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\)$/mu;
 const JAVASCRIPT_IDENTIFIER_PATTERN = /^[A-Za-z_$][\w$]*$/u;
 const OUTPUT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
@@ -132,7 +132,7 @@ function isGadgetPackage(candidate: {
 }
 
 /**
- * Validates one gadget's metadata, structure, README, and history.
+ * Validates one gadget's metadata, structure, README, and changelog.
  *
  * @param directory - Gadget package directory.
  * @param metadata - Parsed package metadata.
@@ -149,7 +149,7 @@ async function checkGadgetPackage(
     await checkRequiredPaths(directory, problems);
     await checkBrowserEntry(directory, packageName, metadata, problems);
     await checkReadme(directory, packageName, metadata, problems);
-    await checkHistory(directory, packageName, metadata, problems);
+    await checkChangelog(directory, packageName, metadata, problems);
 
     return problems;
 }
@@ -601,7 +601,12 @@ function checkReadmeLinks(
     packageName: string,
     problems: string[],
 ): void {
-    for (const link of ["HISTORY.md", "AGENTS.md", "../../AGENTS.md"]) {
+    for (const link of [
+        "CHANGELOG.md",
+        "AGENTS.md",
+        "../../AGENTS.md",
+        "../../LICENSE",
+    ]) {
         check(
             readme.includes(link),
             problems,
@@ -612,52 +617,52 @@ function checkReadmeLinks(
 }
 
 /**
- * Checks that active history metadata matches the package version.
+ * Checks that active changelog metadata matches the package version.
  *
  * @param directory - Gadget package directory.
  * @param packageName - Gadget package name.
  * @param metadata - Parsed package metadata.
  * @param problems - Mutable problem collection.
  */
-async function checkHistory(
+async function checkChangelog(
     directory: string,
     packageName: string,
     metadata: PackageMetadata,
     problems: string[],
 ): Promise<void> {
-    const history = await readFile(join(directory, "HISTORY.md"), "utf8");
-    const heading = HISTORY_HEADING_PATTERN.exec(history);
+    const changelog = await readFile(join(directory, "CHANGELOG.md"), "utf8");
+    const heading = CHANGELOG_HEADING_PATTERN.exec(changelog);
     const versionMatch = metadata.version?.match(SEMVER_PATTERN);
     const nextMinor = versionMatch
         ? `${versionMatch[1]}.${Number(versionMatch[2]) + 1}`
         : null;
 
     check(
-        history.startsWith("# History\n"),
+        changelog.startsWith("# Changelog\n"),
         problems,
         packageName,
-        'HISTORY.md must begin with "# History".',
+        'CHANGELOG.md must begin with "# Changelog".',
     );
     check(
         heading?.[1] === metadata.version,
         problems,
         packageName,
-        "active HISTORY.md version must match package.json.",
+        "active CHANGELOG.md version must match package.json.",
     );
     if (heading != null) {
         const overviewStart = heading.index + heading[0].length;
         check(
-            history.slice(overviewStart).startsWith("\n\nOverview: "),
+            changelog.slice(overviewStart).startsWith("\n\nOverview: "),
             problems,
             packageName,
-            "active history entry must begin with an Overview paragraph.",
+            "active changelog entry must begin with an Overview paragraph.",
         );
     }
     check(
-        nextMinor != null && history.includes(`\n## Until ${nextMinor}\n`),
+        nextMinor != null && changelog.includes(`\n## Until ${nextMinor}\n`),
         problems,
         packageName,
-        "active history group must use the next minor-version boundary.",
+        "active changelog group must use the next minor-version boundary.",
     );
 }
 

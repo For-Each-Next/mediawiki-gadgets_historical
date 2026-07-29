@@ -5,7 +5,8 @@ import test from "node:test";
 
 import * as editBox from "#shared/edit-box";
 
-const { createEditBox, registerEditBoxHooks } = editBox;
+const { createEditBox, registerEditBoxHooks, writePreservingPosition } =
+    editBox;
 
 const testNativeTextareaBackend = () => {
     const events: string[] = [];
@@ -63,12 +64,41 @@ test("replaces selected and collapsed native textarea ranges", () => {
     assert.deepEqual(events, ["input", "change", "input", "change"]);
 });
 
+test("preserves native selection and viewport during a full write", () => {
+    const events: string[] = [];
+    const textarea = new EventTarget() as HTMLTextAreaElement;
+    textarea.value = "before source";
+    textarea.selectionStart = 4;
+    textarea.selectionEnd = 12;
+    textarea.selectionDirection = "backward";
+    textarea.scrollLeft = 7;
+    textarea.scrollTop = 180;
+    textarea.setSelectionRange = (start, end, direction) => {
+        textarea.selectionStart = start ?? 0;
+        textarea.selectionEnd = end ?? textarea.selectionStart;
+        textarea.selectionDirection = direction ?? "none";
+    };
+    textarea.addEventListener("input", (event) => events.push(event.type));
+    textarea.addEventListener("change", (event) => events.push(event.type));
+
+    const editor = createEditBox(textarea);
+    writePreservingPosition(editor, "short");
+
+    assert.equal(textarea.value, "short");
+    assert.equal(textarea.selectionStart, 4);
+    assert.equal(textarea.selectionEnd, 5);
+    assert.equal(textarea.selectionDirection, "backward");
+    assert.equal(textarea.scrollLeft, 7);
+    assert.equal(textarea.scrollTop, 180);
+    assert.deepEqual(events, ["input", "change"]);
+});
+
 const testCodeMirrorBackend = () => {
     const hooks = installMediaWikiHookMock();
     registerEditBoxHooks();
     const textarea = { value: "stale" } as HTMLTextAreaElement;
     const fixture = createCodeMirrorFixture(textarea);
-    const { codeMirror, state } = fixture;
+    const { codeMirror, scrollDOM, state } = fixture;
     hooks.get("ext.CodeMirror.ready")?.(codeMirror);
 
     const editor = createEditBox(textarea);
@@ -84,11 +114,20 @@ const testCodeMirrorBackend = () => {
     });
     assert.deepEqual(state.selection, { from: 8, to: 8 });
 
-    editor.write("updated source");
+    scrollDOM.scrollLeft = 9;
+    scrollDOM.scrollTop = 220;
+    writePreservingPosition(editor, "updated source");
     editor.focus();
 
     const updatedText = editor.read();
     assert.equal(updatedText, "updated source");
+    assert.deepEqual(state.transactions[1], {
+        changes: { from: 0, insert: "updated source", to: 15 },
+        selection: { anchor: 8, head: 8 },
+    });
+    assert.deepEqual(state.selection, { from: 8, to: 8 });
+    assert.equal(scrollDOM.scrollLeft, 9);
+    assert.equal(scrollDOM.scrollTop, 220);
     assert.equal(textarea.value, "stale");
     assert.equal(state.focused, true);
     hooks.get("ext.CodeMirror.toggle")?.(false, codeMirror);
@@ -100,9 +139,11 @@ const testVisualEditorBackend = () => {
     const fixture = createVisualEditorFixture();
     const { state, surface } = fixture;
     class Range {
+        public readonly end: number | undefined;
         public readonly start: number;
 
-        public constructor(start: number) {
+        public constructor(start: number, end?: number) {
+            this.end = end;
             this.start = start;
         }
     }
@@ -126,12 +167,16 @@ const testVisualEditorBackend = () => {
     assert.equal(state.selectionStart, 10);
     assert.equal(state.selectionEnd, 10);
 
-    editor.write("updated source");
+    writePreservingPosition(editor, "updated source");
     editor.focus();
 
     const updatedText = editor.read();
     assert.equal(updatedText, "updated source");
     assert.equal(state.rangeStart, 0);
+    assert.equal(state.restoredSelectionStart, 10);
+    assert.equal(state.restoredSelectionEnd, 10);
+    assert.equal(state.scrollLeft, 13);
+    assert.equal(state.scrollTop, 260);
     assert.equal(state.focused, true);
     delete (globalThis as { ve?: unknown }).ve;
 };
@@ -143,7 +188,7 @@ test(
 interface CodeMirrorTransaction {
     changes: { from: number; insert: string; to: number };
     scrollIntoView?: boolean;
-    selection?: { anchor: number };
+    selection?: { anchor: number; head?: number };
 }
 
 interface CodeMirrorFixtureState {
@@ -158,6 +203,10 @@ interface VisualEditorFixtureState {
     currentFragmentCalls: number;
     focused: boolean;
     rangeStart: number;
+    restoredSelectionEnd: number;
+    restoredSelectionStart: number;
+    scrollLeft: number;
+    scrollTop: number;
     selected: number;
     selectionEnd: number;
     selectionStart: number;
@@ -177,6 +226,20 @@ function createCodeMirrorFixture(textarea: HTMLTextAreaElement) {
         text: "CodeMirror source",
         transactions: [],
     };
+    const scrollDOM = { scrollLeft: 0, scrollTop: 0 };
+    const view = createCodeMirrorView(state, scrollDOM);
+    const codeMirror: editBox.CodeMirrorEditor = {
+        isActive: true,
+        textarea,
+        view,
+    };
+    return { codeMirror, scrollDOM, state };
+}
+
+function createCodeMirrorView(
+    state: CodeMirrorFixtureState,
+    scrollDOM: { scrollLeft: number; scrollTop: number },
+): NonNullable<editBox.CodeMirrorEditor["view"]> {
     const doc = {
         get length() {
             return state.text.length;
@@ -185,9 +248,11 @@ function createCodeMirrorFixture(textarea: HTMLTextAreaElement) {
             return state.text;
         },
     };
-    const view: NonNullable<editBox.CodeMirrorEditor["view"]> = {
+    return {
         dispatch(transaction: CodeMirrorTransaction) {
             applyCodeMirrorTransaction(state, transaction);
+            scrollDOM.scrollLeft = 0;
+            scrollDOM.scrollTop = 0;
         },
         focus() {
             state.focused = true;
@@ -200,13 +265,8 @@ function createCodeMirrorFixture(textarea: HTMLTextAreaElement) {
                 },
             },
         },
+        scrollDOM,
     };
-    const codeMirror: editBox.CodeMirrorEditor = {
-        isActive: true,
-        textarea,
-        view,
-    };
-    return { codeMirror, state };
 }
 
 function applyCodeMirrorTransaction(
@@ -219,7 +279,7 @@ function applyCodeMirrorTransaction(
     if (transaction.selection != null) {
         state.selection = {
             from: transaction.selection.anchor,
-            to: transaction.selection.anchor,
+            to: transaction.selection.head ?? transaction.selection.anchor,
         };
     }
 }
@@ -235,6 +295,10 @@ function createVisualEditorFixture() {
         currentFragmentCalls: 0,
         focused: false,
         rangeStart: -1,
+        restoredSelectionEnd: -1,
+        restoredSelectionStart: -1,
+        scrollLeft: 13,
+        scrollTop: 260,
         selected: 0,
         selectionEnd: 12,
         selectionStart: 6,
@@ -242,22 +306,12 @@ function createVisualEditorFixture() {
     };
     const { currentFragment, rootFragment } =
         createVisualEditorFragments(state);
-    function getLinearFragment(
-        range: { start: number },
-        noAutoSelect: boolean,
-    ): editBox.VisualEditorFragment {
-        state.rangeStart = range.start;
-        assert.equal(noAutoSelect, true);
-        return rootFragment;
-    }
-    function focus(): void {
-        state.focused = true;
-    }
-    const model = {
-        getFragment: () => currentFragment,
-        getLinearFragment,
-    };
-    const view = { focus };
+    const model = createVisualEditorModel(
+        state,
+        currentFragment,
+        rootFragment,
+    );
+    const view = createVisualEditorView(state);
     const surface: editBox.VisualEditorSurface = {
         getDom: () => state.text,
         getMode: () => "source",
@@ -265,6 +319,62 @@ function createVisualEditorFixture() {
         getView: () => view,
     };
     return { state, surface };
+}
+
+function createVisualEditorModel(
+    state: VisualEditorFixtureState,
+    currentFragment: editBox.VisualEditorFragment,
+    rootFragment: editBox.VisualEditorFragment,
+) {
+    function getLinearFragment(
+        range: { end?: number; start: number },
+        noAutoSelect: boolean,
+    ): editBox.VisualEditorFragment {
+        assert.equal(noAutoSelect, true);
+        if (range.end != null) {
+            return createRestoredVisualEditorFragment(state, range);
+        }
+        state.rangeStart = range.start;
+        return rootFragment;
+    }
+    return {
+        getFragment: () => currentFragment,
+        getLinearFragment,
+        getRangeFromSourceOffsets(start: number, end = start) {
+            return { end, start };
+        },
+        getSourceOffsetFromOffset(offset: number) {
+            return offset;
+        },
+    };
+}
+
+function createVisualEditorView(state: VisualEditorFixtureState) {
+    function focus(): void {
+        state.focused = true;
+    }
+    function scrollLeft(): number;
+    function scrollLeft(value: number): void;
+    function scrollLeft(value?: number): number | void {
+        if (value == null) {
+            return state.scrollLeft;
+        }
+        state.scrollLeft = value;
+    }
+    function scrollTop(): number;
+    function scrollTop(value: number): void;
+    function scrollTop(value?: number): number | void {
+        if (value == null) {
+            return state.scrollTop;
+        }
+        state.scrollTop = value;
+    }
+    return {
+        focus,
+        getSurface() {
+            return { $scrollContainer: { scrollLeft, scrollTop } };
+        },
+    };
 }
 
 function createVisualEditorFragments(state: VisualEditorFixtureState) {
@@ -287,6 +397,8 @@ function createRootVisualEditorFragment(
         },
         insertContent(value: string) {
             state.text = value;
+            state.scrollLeft = 0;
+            state.scrollTop = 0;
             return this;
         },
         select() {
@@ -306,6 +418,16 @@ function createCurrentVisualEditorFragment(
         expandLinearSelection() {
             throw new Error("The current fragment should not be expanded.");
         },
+        getSelection() {
+            return {
+                getRange() {
+                    return {
+                        end: state.selectionEnd,
+                        start: state.selectionStart,
+                    };
+                },
+            };
+        },
         insertContent(value: string) {
             state.currentFragmentCalls += 1;
             state.text =
@@ -318,6 +440,28 @@ function createCurrentVisualEditorFragment(
         },
         select() {
             state.selected += 1;
+            return this;
+        },
+    };
+}
+
+function createRestoredVisualEditorFragment(
+    state: VisualEditorFixtureState,
+    range: { end?: number; start: number },
+): editBox.VisualEditorFragment {
+    return {
+        collapseToEnd() {
+            return this;
+        },
+        expandLinearSelection() {
+            throw new Error("A restored selection should not be expanded.");
+        },
+        insertContent() {
+            throw new Error("A restored selection should not insert content.");
+        },
+        select() {
+            state.restoredSelectionStart = range.start;
+            state.restoredSelectionEnd = range.end ?? range.start;
             return this;
         },
     };

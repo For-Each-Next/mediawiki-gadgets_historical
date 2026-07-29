@@ -7,6 +7,8 @@ import english from "#gadget/i18n/en.ts";
 import simplifiedChinese from "#gadget/i18n/zh-Hans.ts";
 import traditionalChinese from "#gadget/i18n/zh-Hant.ts";
 
+export type MessageId = Extract<keyof typeof english, string>;
+
 const messages = i18n.createI18n(english, {
     "zh-Hans": simplifiedChinese,
     "zh-Hant": traditionalChinese,

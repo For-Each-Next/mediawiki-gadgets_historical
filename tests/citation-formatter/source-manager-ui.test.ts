@@ -28,7 +28,7 @@ import type {
     ToastController,
     VueModule,
 } from "citation-formatter/ui/codex.ts";
-import type * as editBox from "@mediawiki-gadgets/shared/edit-box";
+import * as editBox from "@mediawiki-gadgets/shared/edit-box";
 import { cdxIconMerge, type Icon } from "@wikimedia/codex-icons";
 
 const openCitationFormatterDialog = createOpenCitationFormatterDialog({
@@ -205,6 +205,37 @@ test("rechecks the current article with checking progress", async () => {
         assert.deepEqual(manager.cs1ToolSources.value, []);
 
         callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("preserves position while formatting citations", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const beforeText = [
+            "Lead.",
+            "<ref>{{cite web|url=https://example.test|title=Example}}</ref>",
+            "Tail.",
+        ].join("\n");
+        const textarea = createNativeTextarea(beforeText);
+        const cursor = beforeText.indexOf("Tail.");
+        textarea.selectionStart = cursor;
+        textarea.selectionEnd = cursor;
+        textarea.scrollLeft = 6;
+        textarea.scrollTop = 240;
+        const editor = editBox.createEditBox(textarea);
+
+        await openCitationFormatterDialog(editor);
+        callAction(harness.getManager(), "formatArticle");
+
+        assert.notEqual(textarea.value, beforeText);
+        assert.equal(textarea.selectionStart, cursor);
+        assert.equal(textarea.selectionEnd, cursor);
+        assert.equal(textarea.scrollLeft, 6);
+        assert.equal(textarea.scrollTop, 240);
+        callAction(harness.getManager(), "close");
         await Promise.resolve();
     } finally {
         harness.restore();
@@ -532,6 +563,22 @@ function createMemoryEditor(initialText: string): editBox.EditBox {
             text = value;
         },
     };
+}
+
+function createNativeTextarea(value: string): HTMLTextAreaElement {
+    const textarea = new EventTarget() as HTMLTextAreaElement;
+    textarea.value = value;
+    textarea.selectionDirection = "none";
+    textarea.selectionEnd = 0;
+    textarea.selectionStart = 0;
+    textarea.scrollLeft = 0;
+    textarea.scrollTop = 0;
+    textarea.setSelectionRange = (start, end, direction) => {
+        textarea.selectionStart = start ?? 0;
+        textarea.selectionEnd = end ?? textarea.selectionStart;
+        textarea.selectionDirection = direction ?? "none";
+    };
+    return textarea;
 }
 
 function installSourceManagerHarness(responses: unknown[]) {

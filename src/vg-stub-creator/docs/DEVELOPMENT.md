@@ -12,21 +12,23 @@ categories, navboxes, and module-specific wikitext.
 - `domain/modules.ts`: field ownership and normalized record adapters.
 - `domain/processor.ts`: flushes registered modules into article data.
 - `domain/source-fields.ts`: pure extraction of entered citation fields.
+- `domain/citations/`: citation metadata mapping, cleanup, and template text.
+- `domain/reference-wikitext.ts`: reference naming and section rendering.
 - `config/terminologies/`: canonical aliases, labels, pages, and metadata.
 - `domain/wiki.ts`: pure builders and generated-language templates.
 - `workflows/article.ts`: coordinates records, adapters, and final text.
 - `workflows/pre-save.ts`: orders reviewed follow-up operations.
 - `infra/handlers/`: title, category, and navbox resolution.
-- `infra/sources/`: citations and external metadata acquisition.
+- `infra/sources/`: raw citation, fallback, and external metadata acquisition.
 - `infra/editing/`: edit-session and MediaWiki write adapters.
 - `infra/save/`: persistent save-progress storage and controllers.
 - `support/`: presentation-neutral state transitions and error normalization.
 - `ui/`: form UI, previews, review state, and browser activation.
 
-Workspace-wide MediaWiki template, link, and reference helpers live in the root
-`src/shared/wikitext.ts` module. Citation acquisition, template data, and
-reference rendering live in `src/shared/cite/`; the gadget retains only its
-source adapters and citation cache.
+Workspace-wide MediaWiki template and link helpers live in
+`src/shared/wikitext.ts`. Raw Citoid acquisition lives in
+`src/shared/citoid.ts`. VG citation template data, cleanup, reference
+rendering, fallback policy, and caching remain package-local.
 
 `main.ts` is the composition root. UI and workflows are siblings joined through
 the typed ports in `ui/ports.ts`; UI code does not import infrastructure.
@@ -58,11 +60,11 @@ when the term should not generate a wikilink.
 
 ### Citation rules
 
-Edit shared citation URL and host-specific normalization rules in
-`../shared/cite/data/citation-rules.ts`. Template-specific parameter order
-belongs in a separate module such as `../shared/cite/data/cite-web.ts`, then in
-the registry at `../shared/cite/data/templates.ts`. Unknown templates retain
-their original parameter order.
+Edit citation URL and host-specific normalization rules in
+`domain/citations/data/citation-rules.ts`. Template-specific parameter order
+belongs in a separate module such as `domain/citations/data/cite-web.ts`, then
+in the registry at `domain/citations/data/templates.ts`. Unknown templates
+retain their original parameter order.
 
 ### Interface messages
 

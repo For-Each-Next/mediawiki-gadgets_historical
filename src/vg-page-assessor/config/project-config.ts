@@ -15,32 +15,26 @@ export default {
         taskForces: [
             {
                 id: "pokemon",
-                label: "Pokemon",
                 parameter: "Pokemon",
             },
             {
                 id: "minecraft",
-                label: "Minecraft",
                 parameter: "Minecraft",
             },
             {
                 id: "se",
-                label: "Square Enix",
                 parameter: "SE",
             },
             {
                 id: "sega",
-                label: "Sega",
                 parameter: "SEGA",
             },
             {
                 id: "nintendo",
-                label: "Nintendo",
                 parameter: "NINTENDO",
             },
             {
                 id: "mihoyo",
-                label: "miHoYo",
                 parameter: "MiHoYo",
             },
         ],
@@ -48,7 +42,6 @@ export default {
     otherProjects: [
         {
             id: "fictionalCharacters",
-            label: "Fictional Characters",
             template: "WikiProject Fictional characters",
             aliases: [
                 "WikiProject Fictional characters",
@@ -58,7 +51,6 @@ export default {
         },
         {
             id: "acg",
-            label: "ACG",
             template: "ACG專題",
             aliases: [
                 "ACG[專专][題题]",
@@ -71,7 +63,6 @@ export default {
         },
         {
             id: "biography",
-            label: "Biography",
             template: "WikiProject Biography",
             aliases: [
                 "WikiProject Biography",
@@ -84,7 +75,6 @@ export default {
         },
         {
             id: "company",
-            label: "Company",
             template: "WikiProject Companies",
             aliases: [
                 "WikiProject Companies",
@@ -94,7 +84,6 @@ export default {
         },
         {
             id: "films",
-            label: "Films",
             template: "WikiProject Film",
             aliases: [
                 "WikiProject Film",
@@ -108,7 +97,6 @@ export default {
         },
         {
             id: "music",
-            label: "Music",
             template: "音樂專題",
             aliases: [
                 "音[樂乐][專专][題题]",

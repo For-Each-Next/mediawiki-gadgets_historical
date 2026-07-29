@@ -15,9 +15,9 @@ repository-wide `AGENTS.md`.
 
 ## Architecture
 
-- Keep `index.ts` focused on browser startup and let it invoke `main.ts`. Keep
-  `main.ts` as the sole composition root for sibling UI, workflows, and
-  infrastructure.
+- Keep `index.ts` and `main.ts` side-effect free. Let `browser.ts` invoke
+  `main.ts`, and keep `main.ts` as the sole composition root for sibling UI,
+  workflows, and infrastructure.
 - Keep assessment and wikitext rules in `domain/`, application workflows in
   `workflows/`, MediaWiki access and logging in `infra/`, and rendering and
   user interaction in `ui/`.
@@ -27,19 +27,19 @@ repository-wide `AGENTS.md`.
   `i18n/`. Do not bypass these boundaries by embedding API calls, project
   configuration, or untranslated text in domain logic.
 
-## Documentation and History
+## Documentation and Changelog
 
-- Keep `README.md`, `AGENTS.md`, and `HISTORY.md` at the package root. Put
+- Keep `README.md`, `AGENTS.md`, and `CHANGELOG.md` at the package root. Put
   supporting package documentation in `docs/`.
-- Maintain the canonical package history in `HISTORY.md` and update its active
-  section for every completed package-scoped change, including
+- Maintain the canonical package changelog in `CHANGELOG.md` and update its
+  active section for every completed package-scoped change, including
   documentation-only work.
 
 ## Releases
 
-- The `0.1.x` line reflects the user-selected early-development status. Inherit
-  all version, suffix, build, and generated-artifact rules from the repository
-  instructions; do not choose a new major or minor line.
+- The `0.2` development line reflects the user-selected next minor version and
+  early-development status. Inherit all version, suffix, build, and
+  generated-artifact rules from the repository instructions.
 
 ## Focused Verification
 

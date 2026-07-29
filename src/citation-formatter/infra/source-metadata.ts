@@ -1,7 +1,8 @@
 /** Resolves citation metadata and existing Wayback snapshots. */
 
-import * as cite from "#shared/cite";
+import * as citoid from "#shared/citoid";
 import { isGregorianCalendarDate } from "#gadget/domain/calendar-date.ts";
+import { buildCitationTemplate } from "#gadget/domain/citation-metadata.ts";
 import { sanitizeSourceUrl } from "#gadget/domain/source-url.ts";
 
 const WAYBACK_AVAILABILITY_ENDPOINT = "https://archive.org/wayback/available";
@@ -72,11 +73,11 @@ export async function resolveSourceMetadata(
 ): Promise<ResolvedSourceMetadata> {
     const search = sourceInput.trim();
     const originalUrl = getHttpSourceUrl(search);
-    const citeTemplatePromise = cite.fetchCiteTemplate(search, {
-        ...options,
-        bibliographic: originalUrl === "",
-        sourceUrl: originalUrl || null,
-    });
+    const citeTemplatePromise = fetchSourceCiteTemplate(
+        search,
+        originalUrl,
+        options,
+    );
     const archivePromise = resolveSourceArchive(
         originalUrl,
         archiveSeed,
@@ -103,6 +104,32 @@ export async function resolveSourceMetadata(
         originalUrl,
         ...archive,
     };
+}
+
+/** Fetches raw Citoid metadata, then maps it into editable wikitext. */
+async function fetchSourceCiteTemplate(
+    search: string,
+    originalUrl: string,
+    options: SourceMetadataOptions,
+): Promise<string> {
+    try {
+        const metadata = await citoid.fetchCitationMetadata(search, {
+            fetcher: options.fetcher,
+        });
+        return buildCitationTemplate(metadata, {
+            bibliographic: originalUrl === "",
+            now: options.now,
+            url: originalUrl || undefined,
+        });
+    } catch (error) {
+        if (
+            error instanceof citoid.CitoidRequestError &&
+            error.status === 404
+        ) {
+            throw new Error("Citoid could not resolve the entered source.");
+        }
+        throw error;
+    }
 }
 
 /** Chooses a seeded, remote, or empty archive result. */
@@ -143,7 +170,7 @@ function buildFallbackTemplate(
     options: SourceMetadataOptions,
 ): string {
     const citation = buildFallbackCitation(sourceInput, originalUrl);
-    return cite.buildCiteTemplate(citation, {
+    return buildCitationTemplate(citation, {
         bibliographic: originalUrl === "",
         now: options.now,
         url: originalUrl || undefined,

@@ -39,6 +39,22 @@ export default i18n.defineMessages({
         "needsImage": "需要封面或图像",
         "needsScreenshot": "需要截图",
     },
+    "taskForce": {
+        "pokemon": "宝可梦",
+        "minecraft": "我的世界",
+        "se": "史克威尔艾尼克斯",
+        "sega": "世嘉",
+        "nintendo": "任天堂",
+        "mihoyo": "米哈游",
+    },
+    "project": {
+        "fictionalCharacters": "虚构角色",
+        "acg": "ACG",
+        "biography": "传记",
+        "company": "公司",
+        "films": "电影",
+        "music": "音乐",
+    },
     "registration": {
         "loading": "正在加载新条目列表状态",
         "loadingList": "正在加载新条目列表……",

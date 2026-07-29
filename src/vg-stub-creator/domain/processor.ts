@@ -20,9 +20,11 @@ import type {
     SourceReference,
     SourceTags,
 } from "#gadget/domain/models.ts";
-import * as cite from "#shared/cite";
+import {
+    buildReferenceReuseTag,
+    nameCitationReferences,
+} from "#gadget/domain/reference-wikitext.ts";
 import * as wikitext from "#shared/wikitext";
-const { buildReferenceReuseTag, nameCitationReferences } = cite;
 const { trimValue } = wikitext;
 
 export {

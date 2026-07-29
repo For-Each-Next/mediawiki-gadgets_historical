@@ -14,9 +14,9 @@ import {
     buildOfficialNameConversionText,
     sortNoteTaEntries,
 } from "#gadget/domain/wiki.ts";
+import { sortCitationParams } from "#gadget/domain/citations/index.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import * as reviewLinkSession from "#gadget/ui/form/review-link-session.ts";
-import * as cite from "#shared/cite";
 import * as wikitext from "#shared/wikitext";
 
 export {
@@ -37,7 +37,6 @@ export {
 } from "#gadget/ui/form/external-links.ts";
 export const { claimReviewLinksOpening } = reviewLinkSession;
 
-const { sortCitationParams } = cite;
 const {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,

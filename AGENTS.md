@@ -6,7 +6,7 @@
 - Each deployable gadget keeps additional package-specific rules in
   `src/<gadget>/AGENTS.md`. Apply those scoped instructions together with this
   file when working in that gadget.
-- Keep `README.md`, `AGENTS.md`, `HISTORY.md`, and `package.json` as each
+- Keep `README.md`, `AGENTS.md`, `CHANGELOG.md`, and `package.json` as each
   deployable package's entry documents. Organize implementation directories by
   their real responsibilities rather than requiring identical folder names.
 - Keep `main.ts` as each gadget's composition root. Browser entry points invoke
@@ -31,6 +31,8 @@
   `License` sections, including a compact text dependency tree. Keep authored
   Markdown lines at 79 characters or fewer; replace wide tables with lists or
   definition-style sections.
+- Keep the repository license notice in the root `LICENSE` file and link to it
+  from each package README.
 
 ## Change Management
 
@@ -84,14 +86,14 @@
   metadata, and any version assertions in the same atomic change. Build outputs
   and the ignored `package-lock.json` are not release sources of truth.
 
-### Change History
+### Changelog
 
-- Keep each released gadget's durable history in `src/<gadget>/HISTORY.md`.
-  Keep `README.md`, `AGENTS.md`, and `HISTORY.md` as package-level Markdown
+- Keep each released gadget's durable changelog in `src/<gadget>/CHANGELOG.md`.
+  Keep `README.md`, `AGENTS.md`, and `CHANGELOG.md` as package-level Markdown
   entry points; place other long-form package documentation under `docs/`.
-- Start a package history with `# History`. Group versions by the next
+- Start a package changelog with `# Changelog`. Group versions by the next
   minor-version boundary using `## Until <major.minor>`, and give the active
-  version a `### <major.minor.patch>[-dev.N|-post.N] (YYYY-MM-DD HH:MM UTC)`
+  version an `### <major.minor.patch>[-dev.N|-post.N] (YYYY-MM-DD HH:MM UTC)`
   heading. Keep groups and versions newest first.
 - Put one concise `Overview:` paragraph immediately below each new or actively
   revised version heading, describing the release as a whole. Follow it with
@@ -99,11 +101,11 @@
 - When more work or suffixed builds belong to the active version, revise its
   heading, overview, and bullets. Do not retain transient build notes.
 - Record package-scoped documentation-only, comment-only, test-only, and
-  formatting-only work in the active history section without changing the
-  version. Record shared material changes in every affected gadget's history.
+  formatting-only work in the active changelog section without changing the
+  version. Record shared material changes in every affected gadget's changelog.
 - Preserve legacy entries when exact timestamps are unavailable; apply the
   current format to new and actively revised entries.
-- Add or update the applicable history entry before handing off a completed
+- Add or update the applicable changelog entry before handing off a completed
   package change.
 
 ### Git Commits

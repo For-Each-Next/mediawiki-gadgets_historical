@@ -96,6 +96,33 @@ const testResolvedMetadata = async () => {
 };
 test("combines Citoid metadata with archive metadata", testResolvedMetadata);
 
+test("does not apply VG-specific cleanup to Citoid metadata", async () => {
+    const metacriticUrl = "https://www.metacritic.com/game/example/";
+    const fetcher = (async (input: RequestInfo | URL) => {
+        if (String(input).startsWith("/api/rest_v1/")) {
+            return jsonResponse([
+                {
+                    itemType: "webpage",
+                    language: "en-US",
+                    publisher: "Raw Publisher LLC",
+                    title: "Example - Metacritic",
+                    url: metacriticUrl,
+                    websiteTitle: "Raw Review Site",
+                },
+            ]);
+        }
+        return jsonResponse({ archived_snapshots: {} });
+    }) as typeof fetch;
+    const result = await resolveSourceMetadata(metacriticUrl, null, {
+        fetcher,
+    });
+
+    assert.match(result.citeTemplate, /title = Example - Metacritic/u);
+    assert.match(result.citeTemplate, /website = Raw Review Site/u);
+    assert.match(result.citeTemplate, /publisher = Raw Publisher LLC/u);
+    assert.match(result.citeTemplate, /language = en-US/u);
+});
+
 const testNonFatalArchiveFailure = async () => {
     const fetcher = (async (input: RequestInfo | URL) => {
         const url = String(input);
@@ -212,10 +239,10 @@ test("resolves an ISBN without requesting a Wayback snapshot", async () => {
     assert.deepEqual(requests, [
         "/api/rest_v1/data/citation/zotero/978-0-306-40615-7",
     ]);
-    assert.match(result.citeTemplate, /^\{\{cite book/u);
-    assert.match(result.citeTemplate, /\|title=Example Book/u);
-    assert.match(result.citeTemplate, /\|isbn=978-0-306-40615-7/u);
-    assert.doesNotMatch(result.citeTemplate, /\|url=/u);
+    assert.match(result.citeTemplate, /^\{\{Cite book/u);
+    assert.match(result.citeTemplate, /\| title = Example Book/u);
+    assert.match(result.citeTemplate, /\| isbn = 978-0-306-40615-7/u);
+    assert.doesNotMatch(result.citeTemplate, /\| url =/u);
     assert.equal(result.originalUrl, "");
     assert.equal(result.archiveError, "");
     assert.equal(result.metadataError, "");
@@ -227,9 +254,9 @@ test("keeps an unresolvable ISSN in an editable fallback", async () => {
         fetcher,
     });
 
-    assert.match(result.citeTemplate, /^\{\{cite journal/u);
-    assert.match(result.citeTemplate, /\|issn=2049-3630/u);
-    assert.doesNotMatch(result.citeTemplate, /\|url=/u);
+    assert.match(result.citeTemplate, /^\{\{Cite journal/u);
+    assert.match(result.citeTemplate, /\| issn = 2049-3630/u);
+    assert.doesNotMatch(result.citeTemplate, /\| url =/u);
     assert.match(result.metadataError, /could not resolve/u);
     assert.equal(result.archiveError, "");
 });

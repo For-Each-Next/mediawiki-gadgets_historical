@@ -38,9 +38,10 @@ export default i18n.defineMessages({
     },
     "lookup": {
         "source": "來源",
-        "sourceDescription":
+        "sourceDescription": "輸入網址、識別碼或腳註名。",
+        "sourceHelpText":
             "輸入網址、存檔連結、識別碼（DOI、ISBN、ISSN、PMID、PMCID 或 " +
-            "QID）或引文文字。若已有使用相同網址的引文，將直接沿用。",
+            "QID）或引文文字。若已有該資源，則直接在條目原始碼中插入腳註。",
         "sourcePlaceholder": "網址、識別碼或引文",
         "findSource": "尋找來源",
         "loading": "正在取得來源資訊與存檔…",

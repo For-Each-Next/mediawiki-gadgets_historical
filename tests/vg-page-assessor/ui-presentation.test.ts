@@ -20,6 +20,8 @@ test("renders escaped dialog content and loading registration state", () => {
     assert.match(markup, /avgp-register-loading/u);
     assert.match(markup, /name="className"/u);
     assert.match(markup, /name="importance"/u);
+    assert.match(markup, />Pokemon</u);
+    assert.match(markup, />Fictional Characters</u);
 });
 
 test("summarizes selected assessment details with its source marker", () => {

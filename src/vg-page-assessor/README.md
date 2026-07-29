@@ -4,9 +4,9 @@ VG Page Assessor is a Chinese Wikipedia helper for assessing video-game
 articles. It adds a localized toolbox action that updates talk-page assessment
 banners and can register eligible articles on the WikiProject new-page list.
 
-> **Status:** The 0.1.x line is in early development and has known bugs. The
-> tool writes to live wiki pages, so review every wikitext and change preview
-> carefully before saving.
+> **Status:** The 0.2 development line has known bugs. The tool writes to live
+> wiki pages, so review every wikitext and change preview carefully before
+> saving.
 
 ## Run
 
@@ -75,19 +75,23 @@ behavior against a production wiki.
 
 ## Architecture
 
-Dependencies flow downward from the browser entry point:
+Dependencies flow downward from the browser entry point. The package entry
+point remains side-effect free:
 
 ```text
-index.ts
+browser.ts
 └── main.ts
     ├── ui
     ├── workflows
     ├── domain
     ├── infra
     └── shared
+
+index.ts
 ```
 
-- `index.ts` invokes the browser composition root.
+- `index.ts` is the side-effect-free package entry point.
+- `browser.ts` invokes the browser composition root.
 - `main.ts` wires UI, workflows, MediaWiki adapters, and logging.
 - `ui/` renders the dialog, previews, summaries, and user interactions.
 - `workflows/` coordinates loading, preview preparation, and confirmed saves.
@@ -96,16 +100,17 @@ index.ts
 - `config/` contains project-specific titles and assessment options.
 - `i18n/` contains type-checked interface catalogs.
 
-See the package [history][2], its scoped [AGENTS.md][3], and the repository
+See the package [changelog][2], its scoped [AGENTS.md][3], and the repository
 [AGENTS.md][4] for architecture, safety, versioning, and verification rules.
 
 ## License
 
 VG Page Assessor is licensed under [Creative Commons Attribution-ShareAlike 4.0
-International][5].
+International][5]. The repository license notice is in [LICENSE][6].
 
 [1]: https://www.mediawiki.org/wiki/Manual:Interface/JavaScript
-[2]: HISTORY.md
+[2]: CHANGELOG.md
 [3]: AGENTS.md
 [4]: ../../AGENTS.md
 [5]: https://creativecommons.org/licenses/by-sa/4.0/
+[6]: ../../LICENSE

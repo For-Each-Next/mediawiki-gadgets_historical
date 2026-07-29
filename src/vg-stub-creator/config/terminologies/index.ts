@@ -115,17 +115,12 @@ function getTerminologyDefinition(
         return exact;
     }
 
-    const stripGenreTypeSuffixResult = stripGenreTypeSuffix(value);
-    return getReferenceDefinition(definitions, stripGenreTypeSuffixResult);
+    const genreWithoutTypeSuffix = stripGenreTypeSuffix(value);
+    return getReferenceDefinition(definitions, genreWithoutTypeSuffix);
 }
 
 /**
- * Removes terminal words already implied by a genre field.
- *
- * @param value - Input value.
- * @returns Result when the function
- *   removes terminal words already implied by a genre
- *   field.
+ * Removes type words implied by the genre field before fallback lookup.
  */
 function stripGenreTypeSuffix(value: string): string {
     const unwrappedValue = getWikilinkValue(value);

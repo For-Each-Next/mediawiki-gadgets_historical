@@ -1,5 +1,8 @@
-import * as cite from "#shared/cite";
-const { fetchCiteTemplate } = cite;
+import { buildCiteTemplate } from "#gadget/domain/citations/index.ts";
+import * as fallback from "#gadget/infra/sources/fallback-citation.ts";
+import * as citoid from "#shared/citoid";
+
+const HTTP_NOT_FOUND = 404;
 
 export interface CitationStore {
     fetch(url: string): Promise<string>;
@@ -7,18 +10,26 @@ export interface CitationStore {
     refetch(url: string): Promise<string>;
 }
 
+export interface CitationStoreOptions {
+    fetcher?: typeof fetch;
+    now?: Date;
+}
+
 /**
  * Creates a cached citation fetch store.
  *
+ * @param options - Citation request and formatting options.
  * @returns A cached citation fetch store.
  */
-export function createCitationStore(): CitationStore {
+export function createCitationStore(
+    options: CitationStoreOptions = {},
+): CitationStore {
     const cache: Record<string, string> = {};
     const pending: Record<string, Promise<string>> = {};
     const store = {
-        fetch: createCitationFetcher(cache, pending),
+        fetch: createCitationFetcher(cache, pending, options),
         prefetch: undefined,
-        refetch: createCitationRefetcher(cache, pending),
+        refetch: createCitationRefetcher(cache, pending, options),
     } as unknown as CitationStore;
 
     store.prefetch = createCitationPrefetcher(store);
@@ -30,11 +41,13 @@ export function createCitationStore(): CitationStore {
  *
  * @param cache - Cached values.
  * @param pending - Pending value.
+ * @param options - Citation request and formatting options.
  * @returns The cache-aware citation fetch method.
  */
 function createCitationFetcher(
     cache: Record<string, string>,
     pending: Record<string, Promise<string>>,
+    options: CitationStoreOptions,
 ) {
     const result = function fetchCitation(url: string): Promise<string> {
         const key = url.trim();
@@ -42,7 +55,7 @@ function createCitationFetcher(
             return Promise.resolve(cache[key]);
         }
         if (pending[key] == null) {
-            pending[key] = fetchCiteTemplate(key, { cache }).finally(
+            pending[key] = fetchAndCacheCitation(key, cache, options).finally(
                 function callback() {
                     delete pending[key];
                 },
@@ -58,17 +71,19 @@ function createCitationFetcher(
  *
  * @param cache - Cached values.
  * @param pending - Pending value.
+ * @param options - Citation request and formatting options.
  * @returns The forced citation refresh method.
  */
 function createCitationRefetcher(
     cache: Record<string, string>,
     pending: Record<string, Promise<string>>,
+    options: CitationStoreOptions,
 ) {
     const result = function refetchCitation(url: string): Promise<string> {
         const key = url.trim();
         delete cache[key];
         delete pending[key];
-        pending[key] = fetchCiteTemplate(key, { cache }).finally(
+        pending[key] = fetchAndCacheCitation(key, cache, options).finally(
             function callback() {
                 delete pending[key];
             },
@@ -76,6 +91,39 @@ function createCitationRefetcher(
         return pending[key];
     };
     return result;
+}
+
+/** Fetches, formats, and stores one citation template. */
+async function fetchAndCacheCitation(
+    url: string,
+    cache: Record<string, string>,
+    options: CitationStoreOptions,
+): Promise<string> {
+    const template = await fetchCitationTemplate(url, options);
+    cache[url] = template;
+    return template;
+}
+
+/** Fetches raw metadata before applying VG citation formatting. */
+async function fetchCitationTemplate(
+    url: string,
+    options: CitationStoreOptions,
+): Promise<string> {
+    try {
+        const metadata = await citoid.fetchCitationMetadata(url, options);
+        return buildCiteTemplate(metadata, {
+            now: options.now,
+            url,
+        });
+    } catch (error) {
+        if (
+            !(error instanceof citoid.CitoidRequestError) ||
+            error.status !== HTTP_NOT_FOUND
+        ) {
+            throw error;
+        }
+        return fallback.buildFallbackCiteWebTemplate(url, options);
+    }
 }
 
 /**

@@ -1,7 +1,5 @@
 /**
- * Browser entry point for the VG Stub Creator gadget.
+ * Side-effect-free package entry point.
  */
 
-import { start } from "#gadget/main.ts";
-
-start();
+export {};

@@ -16,9 +16,9 @@ instructions remain in force.
 
 ## Architecture and imports
 
-- Keep `index.ts` as the browser entry point and let it invoke `main.ts`. Keep
-  `main.ts` as the sole composition root for sibling UI, workflows, domain
-  services, and external adapters.
+- Keep `index.ts` and `main.ts` side-effect free. Let `browser.ts` invoke
+  `main.ts`, and keep `main.ts` as the sole composition root for sibling UI,
+  workflows, domain services, and external adapters.
 - Put orchestration in `workflows/`, pure records and rendering in `domain/`,
   external adapters in `infra/`, and browser presentation and state in `ui/`.
 - Dependencies point toward `domain/` and shared code: domain code must not
@@ -33,8 +33,9 @@ instructions remain in force.
   rendering or saving it. Keep handlers responsible for page resolution and
   review state, and keep wikitext builders responsible for article text.
 - Keep canonical terminology identities first in `aliases`; omit `page` when a
-  term must remain unlinked. Put shared citation normalization in
-  `src/shared/cite/`, not in a package-local duplicate.
+  term must remain unlinked. Keep VG citation formatting and cleanup in
+  `domain/`, HTML fallback requests in `infra/sources/`, and raw Citoid
+  acquisition behind `#shared/citoid`.
 - Treat English as the source interface catalog. Keep every translated catalog
   aligned on semantic message IDs and named placeholders, and import messages
   through the `i18n/` entry point.
@@ -45,8 +46,8 @@ instructions remain in force.
 ## Documentation and releases
 
 - Keep `README.md` as the package overview. Maintain detailed guidance in
-  `docs/DEVELOPMENT.md` and the durable release record in `HISTORY.md`.
-- Update the active history entry for every completed package change. Inherit
+  `docs/DEVELOPMENT.md` and the durable release record in `CHANGELOG.md`.
+- Update the active changelog entry for every completed package change. Inherit
   all version-selection, suffix, cleanup, and build rules from the repository
   instructions; do not bump versions for documentation-only work.
 

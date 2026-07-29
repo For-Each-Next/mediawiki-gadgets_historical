@@ -38,6 +38,22 @@ export default i18n.defineMessages({
         "needsImage": "Needs cover/image",
         "needsScreenshot": "Needs screenshot",
     },
+    "taskForce": {
+        "pokemon": "Pokemon",
+        "minecraft": "Minecraft",
+        "se": "Square Enix",
+        "sega": "Sega",
+        "nintendo": "Nintendo",
+        "mihoyo": "miHoYo",
+    },
+    "project": {
+        "fictionalCharacters": "Fictional Characters",
+        "acg": "ACG",
+        "biography": "Biography",
+        "company": "Company",
+        "films": "Films",
+        "music": "Music",
+    },
     "registration": {
         "loading": "Loading new-page-list registration state",
         "loadingList": "Loading new-page-list state...",

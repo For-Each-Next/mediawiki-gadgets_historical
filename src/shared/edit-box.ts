@@ -15,12 +15,23 @@ export interface CodeMirrorEditor {
         dispatch?: (transaction: {
             changes: { from: number; insert: string; to: number };
             scrollIntoView?: boolean;
-            selection?: { anchor: number };
+            selection?: { anchor: number; head?: number };
         }) => void;
         focus?: () => void;
+        scrollDOM?: {
+            scrollLeft: number;
+            scrollTop: number;
+        };
         state?: {
             doc?: { length: number; toString(): string };
-            selection?: { main?: { from: number; to: number } };
+            selection?: {
+                main?: {
+                    anchor?: number;
+                    from: number;
+                    head?: number;
+                    to: number;
+                };
+            };
         };
     };
 }
@@ -28,8 +39,18 @@ export interface CodeMirrorEditor {
 export interface VisualEditorFragment {
     collapseToEnd(): VisualEditorFragment;
     expandLinearSelection(scope: "root"): VisualEditorFragment;
+    getSelection?(): {
+        getRange(): { end: number; start: number };
+    };
     insertContent(text: string): VisualEditorFragment;
     select(): VisualEditorFragment;
+}
+
+interface VisualEditorScrollContainer {
+    scrollLeft(): number;
+    scrollLeft(value: number): unknown;
+    scrollTop(): number;
+    scrollTop(value: number): unknown;
 }
 
 export interface VisualEditorSurface {
@@ -41,8 +62,15 @@ export interface VisualEditorSurface {
             range: unknown,
             noAutoSelect?: boolean,
         ): VisualEditorFragment;
+        getRangeFromSourceOffsets(from: number, to?: number): unknown;
+        getSourceOffsetFromOffset(offset: number): number;
     };
-    getView(): { focus(): void };
+    getView(): {
+        focus(): void;
+        getSurface?(): {
+            $scrollContainer?: VisualEditorScrollContainer;
+        };
+    };
 }
 
 interface VisualEditorGlobal {
@@ -109,6 +137,33 @@ export function getEditBox(root: Document = document): EditBox | null {
  */
 export function createEditBox(element: HTMLTextAreaElement | null): EditBox {
     return new ActiveEditBox(element);
+}
+
+/**
+ * Replaces editor text while retaining its selection and viewport.
+ *
+ * @param editor - Active edit-box adapter.
+ * @param text - New document text.
+ */
+export function writePreservingPosition(editor: EditBox, text: string): void {
+    const codeMirror = findCodeMirror(editor.element);
+    if (codeMirror != null) {
+        writeCodeMirrorPreservingPosition(codeMirror, text);
+        return;
+    }
+
+    const surface = getVisualEditorSurface();
+    if (surface != null) {
+        writeVisualEditorPreservingPosition(surface, text);
+        return;
+    }
+
+    if (editor.element != null) {
+        writeNativePreservingPosition(editor.element, text);
+        return;
+    }
+
+    editor.write(text);
 }
 
 /**
@@ -325,6 +380,39 @@ function writeCodeMirror(editor: CodeMirrorEditor, text: string): void {
 }
 
 /**
+ * Replaces a CodeMirror document while retaining its selection and
+ * viewport.
+ *
+ * @param editor - Active CodeMirror wrapper.
+ * @param text - New document text.
+ */
+function writeCodeMirrorPreservingPosition(
+    editor: CodeMirrorEditor,
+    text: string,
+): void {
+    const view = editor.view;
+    const doc = view?.state?.doc;
+
+    if (typeof view?.dispatch !== "function" || doc == null) {
+        throw new Error("The active CodeMirror document is unavailable.");
+    }
+
+    const selection = view.state?.selection?.main;
+    const anchor = selection?.anchor ?? selection?.from ?? 0;
+    const head = selection?.head ?? selection?.to ?? anchor;
+    const scrollLeft = view.scrollDOM?.scrollLeft;
+    const scrollTop = view.scrollDOM?.scrollTop;
+    view.dispatch({
+        changes: { from: 0, insert: text, to: doc.length },
+        selection: {
+            anchor: clampEditBoxOffset(anchor, text),
+            head: clampEditBoxOffset(head, text),
+        },
+    });
+    restoreDomScroll(view.scrollDOM, scrollLeft, scrollTop);
+}
+
+/**
  * Replaces the active CodeMirror 6 selection in one transaction.
  *
  * @param editor - Active CodeMirror wrapper.
@@ -406,6 +494,123 @@ function writeVisualEditor(surface: VisualEditorSurface, text: string): void {
         .getLinearFragment(range, true)
         .expandLinearSelection("root")
         .insertContent(text);
+}
+
+/**
+ * Replaces a VisualEditor source document while retaining its selection
+ * and viewport.
+ *
+ * @param surface - Active VisualEditor source surface.
+ * @param text - New source text.
+ */
+function writeVisualEditorPreservingPosition(
+    surface: VisualEditorSurface,
+    text: string,
+): void {
+    const model = surface.getModel();
+    const selection = model.getFragment().getSelection?.().getRange();
+    const sourceSelection =
+        selection == null
+            ? null
+            : {
+                  end: model.getSourceOffsetFromOffset(selection.end),
+                  start: model.getSourceOffsetFromOffset(selection.start),
+              };
+    const scrollContainer = surface.getView().getSurface?.().$scrollContainer;
+    const scrollLeft = scrollContainer?.scrollLeft();
+    const scrollTop = scrollContainer?.scrollTop();
+
+    writeVisualEditor(surface, text);
+
+    if (sourceSelection != null) {
+        const range = model.getRangeFromSourceOffsets(
+            clampEditBoxOffset(sourceSelection.start, text),
+            clampEditBoxOffset(sourceSelection.end, text),
+        );
+        model.getLinearFragment(range, true).select();
+    }
+    restoreVisualEditorScroll(scrollContainer, scrollLeft, scrollTop);
+}
+
+/**
+ * Replaces native textarea text while retaining its selection and
+ * viewport.
+ *
+ * @param element - Updated textarea.
+ * @param text - New document text.
+ */
+function writeNativePreservingPosition(
+    element: HTMLTextAreaElement,
+    text: string,
+): void {
+    const selectionStart = element.selectionStart;
+    const selectionEnd = element.selectionEnd;
+    const selectionDirection = element.selectionDirection;
+    const scrollLeft = element.scrollLeft;
+    const scrollTop = element.scrollTop;
+
+    element.value = text;
+    element.setSelectionRange(
+        clampEditBoxOffset(selectionStart, text),
+        clampEditBoxOffset(selectionEnd, text),
+        selectionDirection,
+    );
+    dispatchValueEvents(element);
+    restoreDomScroll(element, scrollLeft, scrollTop);
+}
+
+/**
+ * Restores a DOM editor's scroll offsets when both were available.
+ *
+ * @param element - Editor scroll element.
+ * @param scrollLeft - Previous horizontal offset.
+ * @param scrollTop - Previous vertical offset.
+ */
+function restoreDomScroll(
+    element:
+        | {
+              scrollLeft: number;
+              scrollTop: number;
+          }
+        | undefined,
+    scrollLeft: number | undefined,
+    scrollTop: number | undefined,
+): void {
+    if (element == null || scrollLeft == null || scrollTop == null) {
+        return;
+    }
+    element.scrollLeft = scrollLeft;
+    element.scrollTop = scrollTop;
+}
+
+/**
+ * Restores a VisualEditor jQuery scroll container.
+ *
+ * @param container - VisualEditor scroll container.
+ * @param scrollLeft - Previous horizontal offset.
+ * @param scrollTop - Previous vertical offset.
+ */
+function restoreVisualEditorScroll(
+    container: VisualEditorScrollContainer | undefined,
+    scrollLeft: number | undefined,
+    scrollTop: number | undefined,
+): void {
+    if (container == null || scrollLeft == null || scrollTop == null) {
+        return;
+    }
+    container.scrollLeft(scrollLeft);
+    container.scrollTop(scrollTop);
+}
+
+/**
+ * Keeps an editor offset within the replacement document.
+ *
+ * @param offset - Previous document offset.
+ * @param text - Replacement document.
+ * @returns Clamped offset.
+ */
+function clampEditBoxOffset(offset: number, text: string): number {
+    return Math.max(0, Math.min(offset, text.length));
 }
 
 /**

@@ -6,7 +6,7 @@
     "type": "module",
     "imports": {
         "#shared": "./src/shared/index.ts",
-        "#shared/cite": "./src/shared/cite/index.ts",
+        "#shared/citoid": "./src/shared/citoid.ts",
         "#shared/edit-box": "./src/shared/edit-box.ts",
         "#shared/html": "./src/shared/html.ts",
         "#shared/i18n": "./src/shared/i18n.ts",

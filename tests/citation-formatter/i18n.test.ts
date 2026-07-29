@@ -64,6 +64,22 @@ test("uses localized reference-name and parameter-alias terminology", () => {
     );
 });
 
+test("separates concise source guidance from detailed help text", () => {
+    assert.equal(
+        simplifiedChinese["lookup.sourceDescription"],
+        "输入网址、标识符或脚注名。",
+    );
+    assert.equal(
+        simplifiedChinese["lookup.sourceHelpText"],
+        "输入网址、存档链接、标识符（DOI、ISBN、ISSN、PMID、PMCID 或 " +
+            "QID）或引文文本。若已有该资源，则直接在条目源代码中插入脚注。",
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /<template #description>\s*\{\{ msg\( 'lookup\.sourceDescription' \) \}\}\s*<\/template>[\s\S]*?<template #help-text>\s*\{\{ msg\( 'lookup\.sourceHelpText' \) \}\}\s*<\/template>/u,
+    );
+});
+
 test("resolves MediaWiki Chinese variants and English fallback", () => {
     for (const locale of ["zh", "zh-CN", "zh-Hans", "zh-SG"]) {
         assert.equal(

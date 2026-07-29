@@ -85,50 +85,8 @@ The shared [CS1 maintenance workflow][5] covers safe TemplateData and rule
 refreshes. Follow it with the site-specific [English Wikipedia][6] or [Chinese
 Wikipedia][7] interpretation rules.
 
-For a non-Latin author or organization name, an HTML comment beginning with `#`
-supplies its reference-name form without changing the citation display:
-
-```wikitext
-| author = 宵崎奏<!-- # Yoisaki, Kanade -->
-| publisher = セガ<!--# Sega -->
-```
-
-When a new source repeats a creator name with an alias used elsewhere in the
-article, the source manager offers it as an `Auto-suggested value`. **Use**
-copies it into the alias field; **Dismiss** hides it for the current draft.
-Ignoring the suggestion also leaves the citation unchanged.
-
-On a `url` field, the same comment supplies an explicit source-identity key.
-The actual URL is the fallback key, so only continuation pages need to point
-back to an unmarked base page:
-
-```wikitext
-| url = https://example.test/interview
-| page = 1
-```
-
-```wikitext
-| url = https://example.test/interview/2<!-- # /interview -->
-| page = 2
-```
-
-The real links remain unchanged. Matching source keys suppress same-year letter
-suffixes and allow page values to distinguish the reference names.
-
-Add `!no-author` to a field's comment to exclude that field from the
-author-fallback chain. It can share a comment with a reference-name override:
-
-```wikitext
-| website = 游民星空<!-- !no-author # Youmin Xingkong -->
-```
-
-The corresponding `!no-date` and `!no-part` directives exclude a field from the
-reference name's date or part locator:
-
-```wikitext
-| publication-date = 2025-05-20<!-- !no-date -->
-| time = 1:15:41<!-- !no-part -->
-```
+See the [reference-name guide][13] for alias and source-identity comments,
+exclusion directives, and source-manager suggestions.
 
 ## Development
 
@@ -154,7 +112,7 @@ rules.
 
 ## Architecture
 
-Dependencies follow the same downward orchestration model as Aranami:
+Dependencies follow a downward orchestration model:
 
 ```text
 browser.ts
@@ -177,16 +135,19 @@ api.ts / index.ts
 - `ui/` owns Codex rendering, editor adapters, and user interaction.
 - `workflows/` coordinates live review operations through typed ports.
 - `contracts/` defines the boundary shared by workflows and UI.
-- `domain/` contains deterministic citation and wikitext rules.
-- `infra/` isolates Citoid, archive, and wiki integrations.
+- `domain/` contains deterministic citation metadata mapping and wikitext
+  rules.
+- `infra/` uses the shared raw Citoid client and isolates archive and wiki
+  integrations.
 - `i18n/` contains type-checked interface catalogs.
 
-See the package [history][8], its scoped [AGENTS.md][9], and the repository
+See the package [changelog][8], its scoped [AGENTS.md][9], and the repository
 [AGENTS.md][10] for architecture, safety, versioning, and verification rules.
 
 ## License
 
-Citation Formatter is licensed under CC BY-SA 4.0.
+Citation Formatter is licensed under [CC BY-SA 4.0][11]. The repository license
+notice is in [LICENSE][12].
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: https://www.mediawiki.org/wiki/Manual:Interface/JavaScript
@@ -195,6 +156,9 @@ Citation Formatter is licensed under CC BY-SA 4.0.
 [5]: docs/CS1-MAINTENANCE.md
 [6]: docs/ENWIKI-CS1.md
 [7]: docs/ZHWIKI-CS1.md
-[8]: HISTORY.md
+[8]: CHANGELOG.md
 [9]: AGENTS.md
 [10]: ../../AGENTS.md
+[11]: https://creativecommons.org/licenses/by-sa/4.0/
+[12]: ../../LICENSE
+[13]: docs/REFERENCE-NAMES.md

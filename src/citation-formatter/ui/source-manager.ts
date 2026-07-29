@@ -107,7 +107,7 @@ import {
 } from "#gadget/ui/source-manager-state.ts";
 import { installCitationFormatterStyles } from "#gadget/ui/styles.ts";
 import * as sourceManagerTemplate from "#gadget/ui/source-manager-template.ts";
-import type * as editBox from "#shared/edit-box";
+import * as editBox from "#shared/edit-box";
 import {
     cdxIconEdit,
     cdxIconKey,
@@ -489,7 +489,7 @@ function createFormatterActions(
                 msg("sections.lead"),
             );
             referencesNotFormatted = result.referencesNotFormatted;
-            editor.write(result.text);
+            editBox.writePreservingPosition(editor, result.text);
             recordSessionWrite(state, beforeText, result.text);
             clearAnalysisUndo(state);
         } catch (error) {

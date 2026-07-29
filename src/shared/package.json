@@ -6,7 +6,7 @@
     "main": "./index.ts",
     "exports": {
         ".": "./index.ts",
-        "./cite": "./cite/index.ts",
+        "./citoid": "./citoid.ts",
         "./edit-box": "./edit-box.ts",
         "./html": "./html.ts",
         "./i18n": "./i18n.ts",

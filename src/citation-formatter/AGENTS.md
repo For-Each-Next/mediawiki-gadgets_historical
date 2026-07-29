@@ -51,11 +51,11 @@ repository instructions.
 - Keep local validators conservative. The installed wiki CS1 modules remain
   authoritative for complex and site-specific behavior.
 
-## Documentation and History
+## Documentation and Changelog
 
 - Keep the package overview and usage in `README.md`, the release record in
-  `HISTORY.md`, and detailed maintenance guides under `docs/`.
-- Record every completed package-scoped change in `HISTORY.md`. Inherit all
+  `CHANGELOG.md`, and detailed maintenance guides under `docs/`.
+- Record every completed package-scoped change in `CHANGELOG.md`. Inherit all
   version selection and suffix rules from the repository instructions;
   documentation-only work does not bump the package version.
 

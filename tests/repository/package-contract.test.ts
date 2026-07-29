@@ -49,7 +49,7 @@ async function writeFutureGadget(workspaceRoot: string): Promise<void> {
     await mkdir(packageRoot, { recursive: true });
     const files = {
         "AGENTS.md": "# Fixture rules\n",
-        "HISTORY.md": createFutureHistory(),
+        "CHANGELOG.md": createFutureChangelog(),
         "README.md": createFutureReadme(),
         "browser.ts": 'import { start } from "#gadget/main.ts";\nstart();\n',
         "index.ts": "export {};\n",
@@ -87,7 +87,7 @@ function createFutureMetadata(): Record<string, unknown> {
             test: "node --test",
         },
         type: "module",
-        version: "1.2.3-dev.1",
+        version: "1.3.0-dev.1",
     };
 }
 
@@ -115,8 +115,9 @@ function createFutureReadme(): string {
         "└── main.ts",
         "```",
         "",
-        "See [history](HISTORY.md), [rules](AGENTS.md), and",
-        "[repository rules](../../AGENTS.md).",
+        "See [changelog](CHANGELOG.md), [rules](AGENTS.md),",
+        "[repository rules](../../AGENTS.md), and the",
+        "[license](../../LICENSE).",
         "",
         "## License",
         "",
@@ -125,14 +126,14 @@ function createFutureReadme(): string {
     ].join("\n");
 }
 
-/** Creates the future gadget's active history entry. */
-function createFutureHistory(): string {
+/** Creates the future gadget's active changelog entry. */
+function createFutureChangelog(): string {
     return [
-        "# History",
+        "# Changelog",
         "",
-        "## Until 1.3",
+        "## Until 1.4",
         "",
-        "### 1.2.3-dev.1 (2026-07-29 00:00 UTC)",
+        "### 1.3.0-dev.1 (2026-07-29 00:00 UTC)",
         "",
         "Overview: Added the future gadget fixture.",
         "",

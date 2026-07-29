@@ -158,7 +158,7 @@
     background-color: var(--background-color-neutral-subtle, #f8f9fa);
     border: 1px solid var(--border-color-subtle, #c8ccd1);
     border-radius: 2px;
-    font-family: var(--font-family-monospace, monospace);
+    font-family: var(--font-family-monospace, monospace), monospace;
     margin: 0;
     max-height: 16em;
     overflow: auto;
@@ -181,7 +181,7 @@
     border-radius: 2px;
     color: var(--color-base, #202122);
     display: block;
-    font-family: var(--font-family-monospace, monospace);
+    font-family: var(--font-family-monospace, monospace), monospace;
     max-height: 10em;
     min-width: 0;
     overflow: auto;

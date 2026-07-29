@@ -10,6 +10,11 @@ import mainDialog from "./main-dialog.ts";
 import parameterAliasDialog from "./parameter-alias-dialog.ts";
 import toolDialog from "./tool-dialog.ts";
 
+export type {
+    CloseDialogActions,
+    CloseDialogContext,
+} from "./close-confirmation-dialog.ts";
+
 const dialogs: readonly CitationDialogBundle[] = [
     mainDialog,
     draftDialog,

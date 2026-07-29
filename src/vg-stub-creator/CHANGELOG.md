@@ -2,15 +2,10 @@
 
 ## Until 0.6
 
-### 0.5.0-dev.3 (2026-07-29 13:45 UTC)
+### 0.5.0-dev.4 (2026-07-29 15:34 UTC)
 
-Overview: VG Stub Creator now composes its established review-and-save behavior
-through a typed root, responsibility-named workflows and records, and explicit
-browser and wiki-write boundaries backed by stronger focused tests. Its nine
-dialogs now use template-only Vue components, scoped CSS, and runtime messages
-from typed JSON catalogs, with raw Citoid acquisition shared independently of
-package-owned citation formatting. Its release record follows the
-repository-wide changelog and development-version contract.
+Overview: VG Stub Creator now has typed workflows, JSON localization, nine
+Codex dialogs, shared Citoid transport, and safer review saves.
 
 - Added a `main.ts` composition root that injected article, pre-save, editing,
   category, source, and progress ports into an instance-bound browser app.
@@ -26,6 +21,10 @@ repository-wide changelog and development-version contract.
 - Replaced generated TypeScript markup with nine co-located Vue, TypeScript,
   and CSS dialog trios assembled under one setup scope, preserving runtime
   localization, review actions, and dynamic tooltip positioning.
+- Kept the history clear action parser-safe through a named availability method
+  and made valid complex dialog selectors unambiguous to IDE tooling.
+- Validated custom properties against the official Codex token catalog without
+  bundling token defaults into MediaWiki.
 - Extracted MediaWiki preview handling and replaced untyped UI port signatures
   with named structural contracts.
 - Preserved article, category, redirect, navbox, Wikidata, preview, history,

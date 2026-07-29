@@ -11,7 +11,11 @@
         "skipLibCheck": true,
         "strict": true,
         "target": "ES2024",
-        "types": ["node", "types-mediawiki"],
+        "types": [
+            "node",
+            "types-mediawiki",
+            "./src/citation-formatter/ui/mediawiki-vue.d.ts"
+        ],
         "paths": {
             "#shared": ["./src/shared/index.ts"],
             "#shared/citoid": ["./src/shared/citoid.ts"],
@@ -25,6 +29,7 @@
         "*.config.ts",
         "scripts/**/*.ts",
         "src/**/*.ts",
+        "src/**/*.vue",
         "tests/**/*.ts"
     ]
 }

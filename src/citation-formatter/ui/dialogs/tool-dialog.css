@@ -72,7 +72,7 @@
 
 .cf-source-analysis__finding--changed {
     background-color: var(--background-color-success-subtle, #d5fdf4);
-    border-color: var(--border-color-success, #14866d);
+    border-color: var(--border-color-success, #099979);
 }
 
 .cf-source-analysis__occurrences {

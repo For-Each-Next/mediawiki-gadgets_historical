@@ -1,0 +1,8 @@
+/*
+ * Declaration-only Codex token import for stylesheet tooling.
+ *
+ * MediaWiki supplies these properties at runtime. This file is not imported
+ * into a browser bundle.
+ */
+
+@import "@wikimedia/codex-design-tokens/theme-wikimedia-ui.css";

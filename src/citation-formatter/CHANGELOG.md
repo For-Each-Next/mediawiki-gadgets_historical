@@ -2,16 +2,10 @@
 
 ## Until 0.6
 
-### 0.5.0-dev.6 (2026-07-29 13:18 UTC)
+### 0.5.0-dev.9 (2026-07-29 16:03 UTC)
 
-Overview: Citation Formatter now uses a side-effect-free composition root,
-typed workflow and adapter boundaries, smaller citation primitives, and the
-workspace's strict reusable gadget build and package contracts, with clearer
-source-entry guidance, stable and quiet repeated formatting, alphabetized
-citation-template groups, Codex-safe dialog spacing, and a shared raw
-citation-metadata boundary with package-owned output mapping. Its release
-record now follows the repository-wide changelog and development-version
-contract.
+Overview: Citation Formatter now has typed workflows, JSON localization, Codex
+dialogs, modular citation services, and safer, quieter editing.
 
 - Added a `main.ts` composition root that injects CS1, metadata, archive, and
   wiki-link operations into the browser UI.
@@ -39,6 +33,10 @@ contract.
 - Isolated every dialog body from Codex's broad direct-last-child reset,
   preserving component-owned bottom spacing without modifying shared Codex
   styles.
+- Sourced custom properties from the official Codex design-token CSS, preserved
+  MediaWiki runtime theming, and aligned fallback colors.
+- Typed build-time dialog templates against the globally registered Codex
+  surface while retaining MediaWiki ResourceLoader as the userscript runtime.
 - Kept source-entry descriptions concise while retaining detailed accepted
   input and existing-source insertion guidance below the field.
 - Preserved the edit-box selection and viewport when formatting all citations

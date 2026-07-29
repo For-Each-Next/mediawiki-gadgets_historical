@@ -1,6 +1,6 @@
 {
     "name": "citation-formatter",
-    "version": "0.5.0-dev.6",
+    "version": "0.5.0-dev.9",
     "description": "Format and manage CS1 citations in MediaWiki source editors.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -75,7 +75,9 @@
         "update:template-data": "node ../../scripts/update-citation-template-data.ts"
     },
     "devDependencies": {
-        "@wikimedia/codex-icons": "^2.6.0"
+        "@wikimedia/codex": "^2.6.0",
+        "@wikimedia/codex-icons": "^2.6.0",
+        "vue": "3.5.13"
     },
     "engines": {
         "node": ">=22.18"

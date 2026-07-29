@@ -1290,6 +1290,18 @@ const methods = {
     },
 
     /**
+     * Checks whether stored history contains a non-temporary entry.
+     *
+     * @returns Whether clearable history is available.
+     */
+    hasPersistentHistoryEntries(): boolean {
+        const isPersistent = function isPersistent(entry: any): boolean {
+            return !entry.metadata.temporary;
+        };
+        return historyEntries.value.some(isPersistent);
+    },
+
+    /**
      * Formats one history entry page label for display.
      *
      * @param entry - History entry.

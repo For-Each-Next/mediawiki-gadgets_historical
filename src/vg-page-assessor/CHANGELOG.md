@@ -2,14 +2,10 @@
 
 ## Until 0.3
 
-### 0.2.0-dev.3 (2026-07-29 13:45 UTC)
+### 0.2.0-dev.5 (2026-07-29 15:34 UTC)
 
-Overview: VG Page Assessor advances to its user-selected 0.2 development line
-with a typed composition root, deterministic assessment workflows, MediaWiki
-adapter boundaries, stronger save-safety regression coverage, and a localized
-Vue and Codex assessment interface sourced from typed JSON catalogs. Its
-release record now follows the repository-wide changelog and
-development-version contract.
+Overview: VG Page Assessor now has typed workflows, JSON localization, a Codex
+assessment dialog, and stronger conflict-safe saving.
 
 - Added a `main.ts` composition root that wired sibling UI, workflow, domain,
   configuration, logging, and MediaWiki adapter parts.
@@ -19,6 +15,8 @@ development-version contract.
 - Rebuilt the assessment UI as a real MediaWiki Vue and Codex dialog,
   co-locating its template, reactive TypeScript state, and package-scoped
   styles while retaining injected load and exact-review save workflows.
+- Used the documented Codex monospace token for source and comparison fields
+  and loaded official token declarations for stylesheet tooling.
 - Moved WikiProject and task-force display labels out of project configuration
   into typed locale catalogs and reused them in controls and edit summaries.
 - Moved English and Chinese interface catalogs from TypeScript objects to flat

@@ -16,8 +16,8 @@
 }
 
 .cf-citation-launcher:hover {
-    background-color: var(--background-color-progressive--hover, #2a4b8d);
-    border-color: var(--border-color-progressive--hover, #2a4b8d);
+    background-color: var(--background-color-progressive--hover, #3056a9);
+    border-color: var(--border-color-progressive--hover, #3056a9);
 }
 
 .cf-citation-launcher:active {
@@ -68,12 +68,12 @@ html[dir="rtl"] .cf-citation-launcher {
 
 .cf-source-manager__existing-row--error {
     background-color: var(--background-color-error-subtle, #fee7e6);
-    border-inline-start: 4px solid var(--border-color-error, #b32424);
+    border-inline-start: 4px solid var(--border-color-error, #f54739);
 }
 
 .cf-source-manager__existing-row--non-standard {
     background-color: var(--background-color-warning-subtle, #fef6e7);
-    border-inline-start: 4px solid var(--border-color-warning, #ac6600);
+    border-inline-start: 4px solid var(--border-color-warning, #ab7f2a);
 }
 
 .cf-source-manager__existing-row::before {

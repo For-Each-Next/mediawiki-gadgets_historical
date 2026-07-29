@@ -105,7 +105,10 @@ import {
     type SourceCheckerTool,
     type SourceManagerState,
 } from "#gadget/ui/source-manager-state.ts";
-import { SOURCE_MANAGER_TEMPLATE } from "#gadget/ui/dialogs/index.ts";
+import {
+    type CloseDialogActions,
+    SOURCE_MANAGER_TEMPLATE,
+} from "#gadget/ui/dialogs/index.ts";
 import { installCitationFormatterStyles } from "#gadget/ui/styles.ts";
 import * as editBox from "#shared/edit-box";
 import {
@@ -608,7 +611,7 @@ function createDraftPopupNavigationActions(
 
 function createCloseConfirmationActions(
     context: SourceManagerActionContext,
-): Record<string, unknown> {
+): CloseDialogActions {
     function cancelCloseConfirmation(): void {
         context.state.closeConfirmationOpen.value = false;
     }

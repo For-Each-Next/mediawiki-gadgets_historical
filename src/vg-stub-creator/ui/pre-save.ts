@@ -158,7 +158,7 @@ function addArticleRegistrationGroup(
 ): void {
     const title = getPreSaveRegistrationArticleTitle(actions);
 
-    if (title === "" || form?.registerNewPage === false) {
+    if (title === "" || !form.registerNewPage) {
         return;
     }
 
@@ -188,7 +188,7 @@ function addCompanyRegistrationGroups(
     const companyActions = actions.filter(isCompanyCategoryPreSaveAction);
 
     for (const action of companyActions) {
-        if (action?.selected === false || form?.registerNewPage === false) {
+        if (action?.selected === false || !form.registerNewPage) {
             continue;
         }
 

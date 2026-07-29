@@ -76,7 +76,9 @@
                         type="button"
                         v-on:click="clearHistory"
                         action="destructive"
-                        v-bind:disabled="historyLoading || !historyEntries.some((entry) =&gt; !entry.metadata.temporary)"
+                        v-bind:disabled="
+                            historyLoading || !hasPersistentHistoryEntries()
+                        "
                     >
                         {{ msg("form.clear") }}
                     </cdx-button>

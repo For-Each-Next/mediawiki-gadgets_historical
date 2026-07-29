@@ -18,6 +18,11 @@ repository instructions.
   rendering, editor adapters, and user interaction in `ui/`.
 - Preserve type-checked localization through `i18n/`; do not embed user-visible
   strings in otherwise locale-independent domain services.
+- Source authored CSS custom properties from the documented
+  `@wikimedia/codex-design-tokens` catalog. Do not infer design tokens from
+  component CSS or introduce undeclared token names.
+- Let MediaWiki provide Codex token values at runtime. Keep the shared
+  declaration-only token import for stylesheet tooling out of browser bundles.
 
 ## Runtime and Editor Safety
 

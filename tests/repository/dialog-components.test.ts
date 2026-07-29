@@ -268,7 +268,7 @@ function inspectSelectorRule(
         selector.walkClasses(function collectClass(classNode) {
             classes.push(classNode.value);
         });
-        if (classes[0]?.startsWith(prefix) !== true) {
+        if (!classes[0]?.startsWith(prefix)) {
             findings.push(`${file}: ${selector.toString()}`);
         }
     });

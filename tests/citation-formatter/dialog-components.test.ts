@@ -149,7 +149,7 @@ function inspectSelectorRule(rule: Rule, unscoped: string[]): void {
         selector.walkClasses(function collectClass(classNode) {
             classes.push(classNode.value);
         });
-        if (classes[0]?.startsWith("cf-") !== true) {
+        if (!classes[0]?.startsWith("cf-")) {
             unscoped.push(selector.toString());
         }
     });

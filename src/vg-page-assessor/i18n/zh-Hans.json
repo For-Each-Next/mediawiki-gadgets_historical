@@ -45,6 +45,7 @@
     "registration.loadingList": "正在加载新条目列表……",
     "registration.ineligible": "不符合条件（{created}）",
     "registration.createdOn": "创建于{date}",
+
     "registration.existing": "已于{date}以“{title}”登记",
     "registration.alreadyRegistered": "已在新条目列表中登记",
     "registration.register": "登记此页面（{created}）",

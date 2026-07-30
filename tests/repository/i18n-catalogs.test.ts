@@ -10,12 +10,21 @@ import test from "node:test";
 
 const sourceRoot = fileURLToPath(new URL("../../src/", import.meta.url));
 const LOCALES = ["en", "zh-Hans", "zh-Hant"] as const;
+const CHINESE_LOCALES = ["zh-Hans", "zh-Hant"] as const;
+const spacedChineseWesternBoundary =
+    /\p{Script=Han} +[A-Za-z0-9]|[A-Za-z0-9] +\p{Script=Han}/u;
 
 type MessageCatalog = Record<string, string>;
 
 test("stores every gadget locale catalog as flat JSON", () => {
     for (const packageRoot of listGadgetPackageRoots()) {
         assertJsonCatalogs(packageRoot);
+    }
+});
+
+test("omits spaces at Chinese and Western message boundaries", () => {
+    for (const packageRoot of listGadgetPackageRoots()) {
+        assertChineseCatalogSpacing(packageRoot);
     }
 });
 
@@ -48,6 +57,23 @@ function assertJsonCatalogs(packageRoot: string): void {
         readCatalog(join(i18nRoot, `${locale}.json`)),
     );
     assertCatalogsAlign(catalogs, basename(packageRoot));
+}
+
+function assertChineseCatalogSpacing(packageRoot: string): void {
+    for (const locale of CHINESE_LOCALES) {
+        const catalog = readCatalog(
+            join(packageRoot, "i18n", `${locale}.json`),
+        );
+        for (const [id, message] of Object.entries(catalog)) {
+            const context = `${basename(packageRoot)}: ${locale}: ${id}`;
+            assert.equal(message, message.trim(), context);
+            assert.doesNotMatch(
+                exposeWesternMessageTokens(message),
+                spacedChineseWesternBoundary,
+                context,
+            );
+        }
+    }
 }
 
 function readCatalog(path: string): MessageCatalog {
@@ -91,4 +117,13 @@ function listPlaceholders(message: string): string[] {
     return [...message.matchAll(/(?<!\{)\{([A-Za-z][A-Za-z0-9]*)\}(?!\})/gu)]
         .map((match) => match[1])
         .toSorted();
+}
+
+function exposeWesternMessageTokens(message: string): string {
+    return message
+        .replace(/\{\{[^{}]*\}\}/gu, "Token9")
+        .replace(/\[\[[^\[\]]+\]\]/gu, "Token9")
+        .replace(/<[^<>]+>/gu, "Token9")
+        .replace(/\|[A-Za-z][A-Za-z0-9-]*=?/gu, "Token9")
+        .replace(/\{[A-Za-z][A-Za-z0-9]*\}/gu, "Token9");
 }

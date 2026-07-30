@@ -2,6 +2,15 @@
 
 ## Until 0.6
 
+### 0.5.1-post.1 (2026-07-30 09:53 UTC)
+
+Overview: VG Stub Creator aligns Chinese interface typography across mixed
+scripts, numbers, placeholders, and wikitext tokens.
+
+- Removed spacing between Chinese text and adjacent Latin terms, numbers,
+  placeholders, and wikitext tokens in Simplified and Traditional Chinese
+  messages while preserving meaningful punctuation separators.
+
 ### 0.5.1 (2026-07-29 21:25 UTC)
 
 Overview: VG Stub Creator improves accessibility, review updates, validation,

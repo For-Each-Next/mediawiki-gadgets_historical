@@ -40,6 +40,7 @@ export interface SourceValidationMessages {
         parameter: string,
     ): string;
     invalidDate(parameter: string): string;
+    invalidParameterName(): string;
     parameterRequired(): string;
     unsupportedParameter(parameter: string): string;
 }
@@ -66,6 +67,12 @@ const ENGLISH_VALIDATION_MESSAGES: SourceValidationMessages = {
     },
     invalidDate(parameter) {
         return `Enter a correct date for ${parameter}.`;
+    },
+    invalidParameterName() {
+        return (
+            "Enter a parameter name without wikitext markup " +
+            "or line breaks."
+        );
     },
     parameterRequired() {
         return "Enter a parameter name.";
@@ -128,15 +135,16 @@ export function getSourceDraftErrors(
     messages: SourceValidationMessages = ENGLISH_VALIDATION_MESSAGES,
 ): SourceDraftErrors {
     const config = getCitationValidationConfig(wikiId);
-    const metadata = templateData[draft.template] ?? templateData["cite web"];
+    const metadataFree = !Object.hasOwn(templateData, draft.template);
+    const metadata = getValidationTemplateData(draft.template, metadataFree);
     const canonicalNames = GLOBAL_CANONICAL_NAMES;
     const supportedNames = new Set([
         ...GLOBAL_SUPPORTED_NAMES,
         ...config.additionalParameters.map(normalizeParameterName),
     ]);
     const dateNames = new Set([
-        ...CS1_DATE_PARAMETERS,
-        ...(metadata.dateParams ?? []),
+        ...(metadataFree ? [] : CS1_DATE_PARAMETERS),
+        ...(metadata?.dateParams ?? []),
     ]);
     const numberedNames = new Set(config.numberedParameters);
     const errors: SourceDraftErrors = new Map();
@@ -145,10 +153,37 @@ export function getSourceDraftErrors(
             canonicalNames,
             dateNames,
             dateStyle: config.dateStyle,
+            metadataFree,
             messages,
             numberedNames,
             supportedNames,
         });
+    }
+    validateDraftRelationships(
+        draft,
+        metadataFree,
+        canonicalNames,
+        errors,
+        messages,
+    );
+    return errors;
+}
+
+function getValidationTemplateData(template: string, metadataFree: boolean) {
+    return metadataFree
+        ? null
+        : (templateData[template] ?? templateData["cite web"]);
+}
+
+function validateDraftRelationships(
+    draft: SourceDraftLike,
+    metadataFree: boolean,
+    canonicalNames: Map<string, string>,
+    errors: SourceDraftErrors,
+    messages: SourceValidationMessages,
+): void {
+    if (metadataFree) {
+        return;
     }
     validateArchivePair(draft.rows, { canonicalNames, errors, messages });
     validateParameterDependencies(
@@ -157,13 +192,13 @@ export function getSourceDraftErrors(
         errors,
         messages,
     );
-    return errors;
 }
 
 interface DraftRowValidationContext {
     canonicalNames: Map<string, string>;
     dateNames: Set<string>;
     dateStyle: "english" | "chinese";
+    metadataFree: boolean;
     messages: SourceValidationMessages;
     numberedNames: Set<string>;
     supportedNames: Set<string>;
@@ -199,14 +234,28 @@ function validateDraftRowName(
     context: DraftRowValidationContext,
 ): void {
     const name = normalizeParameterName(row.name);
+    if (name !== "" && !isSafeDraftParameterName(row.name)) {
+        addCellError(
+            errors,
+            index,
+            "name",
+            context.messages.invalidParameterName(),
+        );
+        return;
+    }
     const numberedName = name.replace(/\d+/gu, "#");
     const supported =
+        context.metadataFree ||
         context.supportedNames.has(name) ||
         context.numberedNames.has(numberedName);
     if (name !== "" && !supported) {
         const message = context.messages.unsupportedParameter(row.name.trim());
         addCellError(errors, index, "name", message);
     }
+}
+
+function isSafeDraftParameterName(value: string): boolean {
+    return !/[#<>\[\]|{}=\u0000-\u001f\u007f]/u.test(value.trim());
 }
 
 function validateDraftRowAlias(

@@ -7,7 +7,7 @@ import {
     type ExistingSource,
     type SourceSection,
 } from "#gadget/domain/source-manager.ts";
-import { getCanonicalTemplateName } from "#gadget/domain/templates.ts";
+import { getCanonicalTemplateNameFromKey } from "#gadget/domain/templates.ts";
 import { msg, type MessageId } from "#gadget/i18n/index.ts";
 import type { VueModule } from "#gadget/ui/codex.ts";
 
@@ -94,7 +94,7 @@ export function createSourceListDerivedState(
     }> {
         return state.existingSources.value
             .filter(function isStandardSource(source) {
-                return source.status !== "non-standard";
+                return source.status === "standard";
             })
             .map(function toOption(source) {
                 const name = source.referenceName || msg("common.unnamed");
@@ -174,7 +174,7 @@ function toSourceTableRow(
         details:
             source.status === "non-standard"
                 ? msg("lookup.nonStandard")
-                : getCanonicalTemplateName(source.draft.template),
+                : getCanonicalTemplateNameFromKey(source.draft.template),
         group: source.group,
         id: source.id,
         reference: source.referenceName || msg("common.unnamed"),

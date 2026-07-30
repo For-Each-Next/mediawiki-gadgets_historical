@@ -3,6 +3,7 @@
  */
 export interface CitationTemplateData {
     aliases: Record<string, string[]>;
+    canonicalName?: string;
     dateParams?: string[];
     paramOrder: string[];
 }
@@ -12,6 +13,7 @@ export interface CitationTemplateData {
  */
 export interface CitationParam {
     name: string;
+    positional?: boolean;
     value: string;
 }
 

@@ -62,6 +62,7 @@ export interface ArticleFormatAttempt {
 
 export interface PreloadedCheckerSource {
     checkedHtml: string;
+    checkedMessages: string[];
     sourceIndex: number;
 }
 
@@ -100,6 +101,7 @@ export interface SourceManagerState extends SourceListDerivedState {
     existingSourceSections: { value: SourceSection[] };
     existingSources: { value: ExistingSource[] };
     formatArticleAttempt: { value: ArticleFormatAttempt | null };
+    formatArticleInProgress: { value: boolean };
     loading: { value: boolean };
     manualTemplate: { value: string | null };
     open: { value: boolean };
@@ -193,6 +195,7 @@ export function createSourceManagerState(
         editingSource: Vue.ref<ExistingSource | null>(null),
         error: Vue.ref(""),
         formatArticleAttempt: Vue.ref<ArticleFormatAttempt | null>(null),
+        formatArticleInProgress: Vue.ref(false),
         loading: Vue.ref(false),
         referenceStyle,
         sourceInput: Vue.ref(""),

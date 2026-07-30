@@ -3,11 +3,20 @@
  */
 
 import type { TextReplacement } from "./types.ts";
+import {
+    findProtectedWikitextRanges,
+    SOURCE_DISCOVERY_LITERAL_TAGS,
+} from "./protected-wikitext.ts";
 
 export interface ParsedTemplateCall {
     end: number;
     name: string;
-    params: Array<{ name: string; positional: boolean; value: string }>;
+    params: Array<{
+        name: string;
+        positional: boolean;
+        rawValue: string;
+        value: string;
+    }>;
     raw: string;
     start: number;
 }
@@ -52,12 +61,24 @@ export function applyReplacements(
  * @param text - Source wikitext.
  * @returns Parsed template calls.
  */
+// eslint-disable-next-line max-lines-per-function
 export function findTemplateCalls(text: string): ParsedTemplateCall[] {
     const calls: ParsedTemplateCall[] = [];
+    const protectedRanges = findProtectedWikitextRanges(
+        text,
+        SOURCE_DISCOVERY_LITERAL_TAGS,
+    );
+    let protectedIndex = 0;
     const stack: number[] = [];
     let comment = false;
 
     for (let index = 0; index < text.length - 1; index += 1) {
+        const protectedRange = protectedRanges[protectedIndex];
+        if (protectedRange?.[0] === index) {
+            index = protectedRange[1] - 1;
+            protectedIndex += 1;
+            continue;
+        }
         if (!comment && text.startsWith("<!--", index)) {
             comment = true;
             index += 3;
@@ -112,6 +133,7 @@ export function parseTemplateCall(
             const result = {
                 name: String(positionalIndex),
                 positional: true,
+                rawValue: part,
                 value: part.trim(),
             };
             return result;
@@ -119,6 +141,7 @@ export function parseTemplateCall(
         const result = {
             name: part.slice(0, separator).trim(),
             positional: false,
+            rawValue: part.slice(separator + 1),
             value: part.slice(separator + 1).trim(),
         };
         return result;
@@ -226,6 +249,11 @@ interface SplitState {
  */
 export function splitTopLevel(text: string, separator: string): string[] {
     const parts: string[] = [];
+    const protectedRanges = findProtectedWikitextRanges(
+        text,
+        SOURCE_DISCOVERY_LITERAL_TAGS,
+    );
+    let protectedIndex = 0;
     let start = 0;
     const state: SplitState = {
         comment: false,
@@ -234,6 +262,12 @@ export function splitTopLevel(text: string, separator: string): string[] {
     };
 
     for (let index = 0; index < text.length; index += 1) {
+        const protectedRange = protectedRanges[protectedIndex];
+        if (protectedRange?.[0] === index) {
+            index = protectedRange[1] - 1;
+            protectedIndex += 1;
+            continue;
+        }
         const skip = updateSplitState(text, index, state);
         if (skip != null) {
             index += skip;

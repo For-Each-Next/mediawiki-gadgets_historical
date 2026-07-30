@@ -11,6 +11,8 @@ import type {
     ExistingSource,
     SourceDraft,
 } from "citation-formatter/domain/source-manager.ts";
+// eslint-disable-next-line max-len
+import type { CitationTemplateDataMap } from "citation-formatter/domain/types.ts";
 import {
     createOpenCitationFormatterDialog,
     type SourceManagerOptions,
@@ -31,6 +33,11 @@ import type {
 import * as editBox from "@mediawiki-gadgets/shared/edit-box";
 import { cdxIconMerge, type Icon } from "@wikimedia/codex-icons";
 
+const executionTimerFinishes: string[] = [];
+const executionTimerStarts: string[] = [];
+const templateDataRequests: string[][] = [];
+let templateDataResponse:
+    CitationTemplateDataMap | Promise<CitationTemplateDataMap> = {};
 const openCitationFormatterDialog = createOpenCitationFormatterDialog({
     cs1Review: createCs1ReviewWorkflow({
         buildCheckWikitext: buildCs1CheckWikitext,
@@ -39,6 +46,10 @@ const openCitationFormatterDialog = createOpenCitationFormatterDialog({
     }),
     async fetchAvailableArchive() {
         return null;
+    },
+    async loadCitationTemplateData(names) {
+        templateDataRequests.push(names);
+        return await templateDataResponse;
     },
     async resolveSourceMetadata(sourceInput, archiveSeed) {
         return {
@@ -52,6 +63,16 @@ const openCitationFormatterDialog = createOpenCitationFormatterDialog({
     },
     async resolveWikiLink(value) {
         return value;
+    },
+    startExecutionTimer(label) {
+        executionTimerStarts.push(label);
+        let finished = false;
+        return function finishExecutionTimer() {
+            if (!finished) {
+                executionTimerFinishes.push(label);
+                finished = true;
+            }
+        };
     },
 });
 
@@ -69,10 +90,14 @@ interface MountedAnalysisTab {
 
 interface MountedManager extends Record<string, unknown> {
     activeAnalysisTab: { value: SourceAnalysisCell };
+    activeLookupTab: { value: string };
     analysisTabs: { readonly value: MountedAnalysisTab[] };
     countSelectedAnalysisReplacements: () => number;
     cs1ToolSources: {
-        value: Array<{ source: ExistingSource }>;
+        value: Array<{
+            severity: "error" | "maintenance";
+            source: ExistingSource;
+        }>;
     };
     cs1ToolStatus: {
         value: "checking" | "complete" | "idle" | "unavailable";
@@ -84,12 +109,16 @@ interface MountedManager extends Record<string, unknown> {
     getOpenableDraftUrl: (value: string) => string | null | undefined;
     isUrlDraftParameter: (name: string) => boolean;
     joinAuthorIcon: Icon;
+    nonCs1Sources: { readonly value: ExistingSource[] };
     parameterAliasDialogDirectives: { value: string[] };
     splitAuthorIcon: Icon;
     sourceAnalysis: {
         value: {
             findings: MountedAnalysisFinding[];
         };
+    };
+    templateOptions: {
+        readonly value: Array<{ label: string; value: string }>;
     };
     toolPopup: { value: string | null };
 }
@@ -212,6 +241,94 @@ test("rechecks the current article with checking progress", async () => {
     }
 });
 
+test(
+    "keeps CS1 errors before maintenance after apply and review sync",
+    testCs1SeverityOrder,
+);
+
+// eslint-disable-next-line max-lines-per-function
+async function testCs1SeverityOrder(): Promise<void> {
+    const maintenanceA = '<span class="citation-comment">Maintenance A</span>';
+    const errorB =
+        '<span class="cs1-visible-error citation-comment">Error B</span>';
+    const maintenanceC = '<span class="citation-comment">Maintenance C</span>';
+    const batchHtml = [maintenanceA, errorB, maintenanceC]
+        .map(
+            (html, index) =>
+                `<div id="citation-formatter-cs1-check-${index}">` +
+                `${html}</div>`,
+        )
+        .join("");
+    const recheckedA =
+        '<div id="citation-formatter-cs1-check-0">' + `${maintenanceA}</div>`;
+    const harness = installSourceManagerHarness([
+        { parse: { categories: [], text: batchHtml } },
+        { parse: { categories: [], text: recheckedA } },
+    ]);
+    try {
+        const editor = createMemoryEditor(
+            [
+                "<ref>{{cite web|title=Maintenance A}}</ref>",
+                "<ref>{{cite web|title=Error B}}</ref>",
+                "<ref>{{cite web|title=Maintenance C}}</ref>",
+            ].join("\n"),
+        );
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        await callAsyncAction(manager, "openCs1Tool");
+        assertCs1SourceOrder(manager, [
+            ["Error B", "error"],
+            ["Maintenance A", "maintenance"],
+            ["Maintenance C", "maintenance"],
+        ]);
+
+        const maintenanceSource = manager.cs1ToolSources.value.find(
+            (result) => result.source.title === "Maintenance A",
+        )?.source;
+        assert.ok(maintenanceSource);
+        callAction(manager, "reviewCs1Source", maintenanceSource.id);
+        await callAsyncAction(manager, "applyDraft");
+        assertCs1SourceOrder(manager, [
+            ["Error B", "error"],
+            ["Maintenance A", "maintenance"],
+            ["Maintenance C", "maintenance"],
+        ]);
+
+        await callAsyncAction(manager, "saveDraft");
+        assertCs1SourceOrder(manager, [
+            ["Error B", "error"],
+            ["Maintenance C", "maintenance"],
+        ]);
+    } finally {
+        harness.restore();
+    }
+}
+
+test("edits Cite comic without sending it through live CS1", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor(
+            "<ref>{{cite comic|writer=Example|title=Issue}}</ref>",
+        );
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        const source = manager.existingSources.value[0];
+        assert.equal(source?.status, "metadata-free");
+        assert.ok(source);
+        assert.deepEqual(manager.nonCs1Sources.value, []);
+
+        callAction(manager, "editListedSource", source.id);
+        assert.equal(manager.draft.value?.template, "Cite comic");
+        assert.equal(manager.templateOptions.value[0]?.value, "Cite comic");
+
+        await callAsyncAction(manager, "openCs1Tool");
+        assert.equal(harness.apiCallCount(), 0);
+        assert.equal(manager.cs1ToolStatus.value, "complete");
+    } finally {
+        harness.restore();
+    }
+});
+
 test("preserves position while formatting citations", async () => {
     const harness = installSourceManagerHarness([]);
     try {
@@ -250,7 +367,7 @@ test("preserves position while formatting citations", async () => {
     }
 });
 
-test("summarizes one formatting attempt and disables repeats", async () => {
+test("summarizes one formatting attempt without switching tabs", async () => {
     const harness = installSourceManagerHarness([]);
     try {
         const beforeText =
@@ -262,22 +379,25 @@ test("summarizes one formatting attempt and disables repeats", async () => {
 
         await openCitationFormatterDialog(editor);
         const manager = harness.getManager();
+        assert.equal(manager.activeLookupTab.value, "add");
         callAction(manager, "formatArticle");
 
         const formattedText = editor.read();
         assert.notEqual(formattedText, beforeText);
         assert.equal(writeCount, 1);
         assert.deepEqual(harness.successMessages, [
-            "Formatted 1 citation; skipped 0 references not in a supported " +
-                "standard {{Cite …}} format; renamed 1 <ref> tag.",
+            "Formatted 1 citation; renamed 1 <ref> tag.",
         ]);
         assert.equal(manager.formatArticleDisabled.value, true);
+        assert.equal(manager.activeLookupTab.value, "add");
 
         callAction(manager, "formatArticle");
 
         assert.equal(editor.read(), formattedText);
         assert.equal(writeCount, 1);
         assert.equal(harness.successMessages.length, 1);
+        assert.deepEqual(harness.executionTimerStarts, ["format action"]);
+        assert.deepEqual(harness.executionTimerFinishes, ["format action"]);
 
         callAction(manager, "setBlockCitations", true);
         assert.equal(manager.formatArticleDisabled.value, false);
@@ -320,6 +440,133 @@ test("summarizes skipped references once", async () => {
     }
 });
 
+const fanGuideTemplateData: CitationTemplateDataMap = {
+    "Cite Fan Guide": {
+        aliases: {
+            issue: [],
+            title: ["name"],
+            writer: ["Writer"],
+        },
+        canonicalName: "Cite Fan Guide",
+        paramOrder: ["title", "writer", "issue"],
+    },
+};
+
+test(
+    "formats unknown Cite templates " + "without reporting them as skipped",
+    async () => {
+        const harness = installSourceManagerHarness([], fanGuideTemplateData);
+        try {
+            const editor = createMemoryEditor(
+                "Guide.<ref>{{cite Fan Guide|issue=|Writer=First|" +
+                    "name=Guide}}</ref>",
+            );
+
+            await openCitationFormatterDialog(editor);
+            const manager = harness.getManager();
+            await callAsyncAction(manager, "formatArticle");
+
+            assert.deepEqual(harness.warningMessages, []);
+            assert.deepEqual(harness.successMessages, [
+                "Formatted 1 citation; renamed 1 <ref> tag.",
+            ]);
+            assert.ok(
+                editor
+                    .read()
+                    .includes(
+                        "{{Cite Fan Guide | title = Guide | " +
+                            "writer = First | issue = }}",
+                    ),
+            );
+            assert.deepEqual(harness.templateDataRequests, [
+                ["Cite Fan Guide"],
+            ]);
+            callAction(manager, "close");
+            await Promise.resolve();
+        } finally {
+            harness.restore();
+        }
+    },
+);
+
+test(
+    "guards repeated formatting " + "while generic TemplateData loads",
+    async () => {
+        const templateData = createDeferred<CitationTemplateDataMap>();
+        const harness = installSourceManagerHarness([], templateData.promise);
+        try {
+            const editor = createMemoryEditor(
+                "<ref>{{Cite fan guide|title=Example}}</ref>",
+            );
+            await openCitationFormatterDialog(editor);
+            const manager = harness.getManager();
+            const action = manager.formatArticle as () => Promise<void>;
+
+            const first = action();
+            const repeated = action();
+
+            assert.equal(manager.formatArticleDisabled.value, true);
+            assert.deepEqual(harness.templateDataRequests, [
+                ["Cite fan guide"],
+            ]);
+            editor.replaceSelection(
+                "\n<ref>{{Cite New Guide|title=New}}</ref>",
+            );
+            templateData.resolve({});
+            await Promise.all([first, repeated]);
+
+            assert.equal(harness.successMessages.length, 1);
+            assert.ok(editor.read().includes("{{Cite New Guide"));
+            assert.deepEqual(harness.templateDataRequests, [
+                ["Cite fan guide"],
+                ["Cite New Guide"],
+            ]);
+            assert.deepEqual(harness.executionTimerStarts, ["format action"]);
+            assert.deepEqual(harness.executionTimerFinishes, [
+                "format action",
+            ]);
+            callAction(manager, "close");
+            await Promise.resolve();
+        } finally {
+            harness.restore();
+        }
+    },
+);
+
+test(
+    "cancels a pending format action " + "when its dialog is replaced",
+    async () => {
+        const templateData = createDeferred<CitationTemplateDataMap>();
+        const harness = installSourceManagerHarness([], templateData.promise);
+        try {
+            let firstWrites = 0;
+            const firstEditor = createMemoryEditor(
+                "<ref>{{Cite First Guide|title=First}}</ref>",
+                () => {
+                    firstWrites += 1;
+                },
+            );
+            await openCitationFormatterDialog(firstEditor);
+            const pending = callAsyncAction(
+                harness.getManager(),
+                "formatArticle",
+            );
+
+            const secondEditor = createMemoryEditor("Second editor.");
+            await openCitationFormatterDialog(secondEditor);
+            templateData.resolve({});
+            await pending;
+
+            assert.equal(firstWrites, 0);
+            assert.equal(harness.successMessages.length, 0);
+            callAction(harness.getManager(), "close");
+            await Promise.resolve();
+        } finally {
+            harness.restore();
+        }
+    },
+);
+
 test("uses one neutral toast for an initially formatted article", async () => {
     const harness = installSourceManagerHarness([]);
     try {
@@ -347,6 +594,14 @@ test("uses one neutral toast for an initially formatted article", async () => {
 
         callAction(manager, "formatArticle");
         assert.equal(harness.infoMessages.length, 1);
+        assert.deepEqual(harness.executionTimerStarts, [
+            "format action",
+            "format action",
+        ]);
+        assert.deepEqual(harness.executionTimerFinishes, [
+            "format action",
+            "format action",
+        ]);
         callAction(manager, "close");
         await Promise.resolve();
     } finally {
@@ -673,6 +928,19 @@ function assertOpenableDraftUrlSafety(manager: MountedManager): void {
     }
 }
 
+function assertCs1SourceOrder(
+    manager: MountedManager,
+    expected: Array<[title: string, severity: "error" | "maintenance"]>,
+): void {
+    assert.deepEqual(
+        manager.cs1ToolSources.value.map((result) => [
+            result.source.title,
+            result.severity,
+        ]),
+        expected,
+    );
+}
+
 function callAction(
     manager: MountedManager,
     name: string,
@@ -729,7 +997,12 @@ function createNativeTextarea(value: string): HTMLTextAreaElement {
     return textarea;
 }
 
-function installSourceManagerHarness(responses: unknown[]) {
+function installSourceManagerHarness(
+    responses: unknown[],
+    runtimeTemplateData:
+        CitationTemplateDataMap | Promise<CitationTemplateDataMap> = {},
+) {
+    resetSourceManagerHarness(runtimeTemplateData);
     const globals = globalThis as unknown as Record<string, unknown>;
     const original = snapshotGlobals(globals, [
         "DOMParser",
@@ -750,6 +1023,8 @@ function installSourceManagerHarness(responses: unknown[]) {
     });
     return {
         apiCallCount: () => apiCalls,
+        executionTimerFinishes,
+        executionTimerStarts,
         getManager(): MountedManager {
             assert.ok(manager);
             return manager;
@@ -757,8 +1032,19 @@ function installSourceManagerHarness(responses: unknown[]) {
         restore() {
             restoreGlobals(globals, original);
         },
+        templateDataRequests,
         ...toastHarness,
     };
+}
+
+function resetSourceManagerHarness(
+    runtimeTemplateData:
+        CitationTemplateDataMap | Promise<CitationTemplateDataMap>,
+): void {
+    executionTimerFinishes.length = 0;
+    executionTimerStarts.length = 0;
+    templateDataRequests.length = 0;
+    templateDataResponse = runtimeTemplateData;
 }
 
 function createToastHarness() {

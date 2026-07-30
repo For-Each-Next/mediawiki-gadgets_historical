@@ -71,6 +71,11 @@ html[dir="rtl"] .cf-citation-launcher {
     border-inline-start: 4px solid var(--border-color-error, #f54739);
 }
 
+.cf-source-manager__existing-row--maintenance {
+    background-color: var(--background-color-success-subtle, #dff2eb);
+    border-inline-start: 4px solid var(--border-color-success, #099979);
+}
+
 .cf-source-manager__existing-row--non-standard {
     background-color: var(--background-color-warning-subtle, #fef6e7);
     border-inline-start: 4px solid var(--border-color-warning, #ab7f2a);

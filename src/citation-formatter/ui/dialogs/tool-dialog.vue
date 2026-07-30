@@ -343,7 +343,13 @@
                     <li
                         v-for="result in cs1ToolSources"
                         :key="result.source.id"
-                        class="cf-source-manager__existing-row cf-source-manager__existing-row--error"
+                        class="cf-source-manager__existing-row"
+                        :class="{
+                            'cf-source-manager__existing-row--error':
+                                result.severity === 'error',
+                            'cf-source-manager__existing-row--maintenance':
+                                result.severity === 'maintenance',
+                        }"
                     >
                         <div class="cf-source-manager__existing-summary">
                             <small

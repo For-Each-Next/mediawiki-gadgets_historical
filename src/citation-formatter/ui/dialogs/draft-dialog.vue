@@ -76,6 +76,7 @@
                     <template #header>
                         <div class="cf-source-manager__parameter-table-header">
                             <div
+                                v-if="hasCitationIdentity"
                                 class="cf-source-manager__reference-name-preview"
                             >
                                 <strong>
@@ -219,6 +220,7 @@
                                     </small>
                                     <small
                                         v-if="
+                                            hasCitationIdentity &&
                                             draftCellErrors.get(index)?.alias
                                         "
                                         :id="
@@ -229,7 +231,10 @@
                                         {{ draftCellErrors.get(index)?.alias }}
                                     </small>
                                     <div
-                                        v-if="getAliasSuggestion(index)"
+                                        v-if="
+                                            hasCitationIdentity &&
+                                            getAliasSuggestion(index)
+                                        "
                                         class="cf-source-manager__alias-suggestion"
                                     >
                                         <small>
@@ -276,6 +281,7 @@
                                         class="cf-source-manager__parameter-actions"
                                     >
                                         <cdx-button
+                                            v-if="hasCitationIdentity"
                                             :title="
                                                 getParameterAliasActionLabel(
                                                     row,
@@ -389,6 +395,7 @@
                                         </cdx-button>
                                         <cdx-button
                                             v-if="
+                                                hasCitationIdentity &&
                                                 isAuthorDraftParameter(
                                                     row.name,
                                                 )
@@ -413,6 +420,7 @@
                                         </cdx-button>
                                         <cdx-button
                                             v-else-if="
+                                                hasCitationIdentity &&
                                                 isLastAuthorDraftParameter(
                                                     row.name,
                                                 )
@@ -470,7 +478,7 @@
                     <cdx-button
                         v-if="
                             editingSource &&
-                            editingSource.status !== 'non-standard' &&
+                            editingSource.status === 'standard' &&
                             !draftReviewTool
                         "
                         :disabled="loading"

@@ -9,6 +9,7 @@ import * as templates from "citation-formatter/domain/templates.ts";
 import {
     CITATION_TEMPLATE_DEFINITIONS,
     CITATION_TEMPLATE_OPTIONS,
+    getSourceDraftTemplateOptions,
 } from "citation-formatter/ui/citation-template-options.ts";
 import { cdxIconDie, cdxIconNewspaper } from "@wikimedia/codex-icons";
 
@@ -93,6 +94,22 @@ test("uses a newspaper icon for Cite news", () => {
     );
 
     assert.deepEqual(citeNews?.icon, cdxIconNewspaper);
+});
+
+test("offers an unknown Cite type only while editing that template", () => {
+    const creationNames = CITATION_TEMPLATE_OPTIONS.map(
+        (option) => option.value,
+    );
+    const genericDraftNames = getSourceDraftTemplateOptions(
+        "cite Fan Guide",
+    ).map((option) => option.value);
+    const webDraftNames = getSourceDraftTemplateOptions("cite web").map(
+        (option) => option.value,
+    );
+
+    assert.equal(creationNames.includes("Cite Fan Guide"), false);
+    assert.equal(webDraftNames.includes("Cite Fan Guide"), false);
+    assert.equal(genericDraftNames[0], "Cite Fan Guide");
 });
 
 function assertDefinitionGroupsAreAlphabetical(): void {

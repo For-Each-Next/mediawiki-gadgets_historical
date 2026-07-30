@@ -3,7 +3,9 @@
  */
 
 import {
+    extractCs1FragmentIssues,
     extractCs1IssueMessages,
+    orderCs1ItemsBySeverity,
     parseCs1ValidationResult,
     type Cs1ValidationResult,
 } from "#gadget/domain/cs1-validation.ts";
@@ -75,9 +77,20 @@ async function checkArticleSources(
 ): Promise<Cs1ArticleReview> {
     const text = dependencies.buildCheckWikitext(sources);
     const response = await dependencies.requestCheck(text, context);
+    const checkedSources = mapCs1CheckedSources(
+        dependencies,
+        response.html,
+        response.categories,
+        sources,
+    );
+    const sourceMessages = new Set(
+        checkedSources.flatMap((checked) => checked.messages),
+    );
     return {
-        messages: extractCs1IssueMessages("", response.categories),
-        sources: mapCs1CheckedSources(dependencies, response.html, sources),
+        messages: extractCs1IssueMessages("", response.categories).filter(
+            (message) => !sourceMessages.has(message),
+        ),
+        sources: checkedSources,
     };
 }
 
@@ -103,9 +116,12 @@ async function checkExistingSourceDraft(
         dependencies.buildCheckWikitext([source]),
         context,
     );
-    const [checkedSource] = mapCs1CheckedSources(dependencies, response.html, [
-        source,
-    ]);
+    const [checkedSource] = mapCs1CheckedSources(
+        dependencies,
+        response.html,
+        response.categories,
+        [source],
+    );
     return {
         checkedSource,
         validation: parseCs1ValidationResult(
@@ -120,20 +136,37 @@ async function checkExistingSourceDraft(
 function restoreCheckedSource(
     source: ExistingSource,
     html: string,
+    categories: readonly string[] = [],
 ): Cs1CheckedSource | null {
-    const messages = extractCs1IssueMessages(html);
-    return messages.length === 0 ? null : { html, messages, source };
+    const issues = extractCs1FragmentIssues(html, categories);
+    if (issues.length === 0) {
+        return null;
+    }
+    return {
+        html,
+        messages: issues.map((issue) => issue.message),
+        severity: issues.some((issue) => issue.severity === "error")
+            ? "error"
+            : "maintenance",
+        source,
+    };
 }
 
 /** Maps isolated batch fragments back to their source records. */
 function mapCs1CheckedSources(
     dependencies: Cs1ReviewDependencies,
     html: string,
+    categories: readonly string[],
     sources: ExistingSource[],
 ): Cs1CheckedSource[] {
     const fragments = dependencies.splitCheckHtml(html, sources.length);
-    return sources.flatMap(function getCheckedSource(source, index) {
-        const checked = restoreCheckedSource(source, fragments[index] ?? "");
+    const checked = sources.flatMap(function getCheckedSource(source, index) {
+        const checked = restoreCheckedSource(
+            source,
+            fragments[index] ?? "",
+            categories,
+        );
         return checked == null ? [] : [checked];
     });
+    return orderCs1ItemsBySeverity(checked);
 }

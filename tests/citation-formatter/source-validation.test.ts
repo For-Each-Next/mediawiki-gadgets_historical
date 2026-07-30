@@ -110,6 +110,71 @@ test("marks unsupported parameters and malformed dates", () => {
     );
 });
 
+test("uses only structural validation without template metadata", () => {
+    const draft = parseSourceDraft(
+        "{{cite comic|writer=Example|comic-only=value|" +
+            "date=2026-13-40|archive-url=https://archive.test}}",
+    );
+    draft.rows.push({
+        alias: "",
+        directive: "",
+        main: false,
+        name: "",
+        value: "Missing name",
+    });
+    draft.rows.push({
+        alias: "Reference text",
+        directive: "",
+        main: false,
+        name: "artist",
+        value: "",
+    });
+
+    const errors = getSourceDraftErrors(draft, "enwiki");
+
+    for (const name of ["writer", "comic-only", "date", "archive-url"]) {
+        assert.equal(errors.get(getRowIndex(draft, name)), undefined);
+    }
+    assert.match(
+        errors.get(draft.rows.length - 2)?.name ?? "",
+        /parameter name/u,
+    );
+    assert.match(
+        errors.get(draft.rows.length - 1)?.alias ?? "",
+        /original text/u,
+    );
+});
+
+test("rejects structural markup in generic draft parameter names", () => {
+    const draft = parseSourceDraft("{{Cite comic|writer=Example}}");
+    const unsafeNames = [
+        "x|y",
+        "x=y",
+        "x}}tail",
+        "line\nbreak",
+        "x<!--comment-->y",
+    ];
+    for (const name of unsafeNames) {
+        draft.rows.push({
+            alias: "",
+            directive: "",
+            main: false,
+            name,
+            value: "Unsafe",
+        });
+    }
+
+    const errors = getSourceDraftErrors(draft, "enwiki");
+
+    for (const name of unsafeNames) {
+        assert.match(
+            errors.get(getRowIndex(draft, name))?.name ?? "",
+            /without wikitext markup or line breaks/u,
+        );
+    }
+    assert.equal(errors.get(getRowIndex(draft, "writer")), undefined);
+});
+
 test("accepts CS1 parameters supported by another citation class", () => {
     const draft = parseSourceDraft("{{cite web|title=Example|pages=4–6}}");
 

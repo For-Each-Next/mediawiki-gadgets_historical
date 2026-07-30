@@ -14,9 +14,11 @@ import {
     ensureNextAuthorDraftRows,
     filterExistingSources,
     findCreatorAliasSuggestions,
+    formatSourceDraftRows,
     getSourceDraftCitationNameCells,
     getSourceDraftCitationNameParts,
     getSourceDraftParameterAliasInfo,
+    hasSourceDraftCitationIdentity,
     findExistingSources,
     joinAuthorDraftRow,
     listExistingSourceSections,
@@ -946,13 +948,116 @@ test("classifies citation templates and non-standard references", () => {
         [
             '<ref name="Good">{{cite web|title=Good}}</ref>',
             '<ref name="Error">{{cite web|title=Bad|date=2026-02-30}}</ref>',
+            '<ref name="Mixed">{{cite magazine|title=Print review}} ' +
+                "Full review appears only in printed version.</ref>",
+            '<ref name="Comic">{{cite comic|title=Comic}}</ref>',
+            '<ref name="Guide">{{Cite Fan Guide|title=Guide}}</ref>',
             '<ref name="Plain">A plain source note.</ref>',
         ].join("\n"),
     );
 
     assert.deepEqual(
         sources.map((source) => source.status),
-        ["standard", "standard", "non-standard"],
+        [
+            "standard",
+            "standard",
+            "standard",
+            "metadata-free",
+            "metadata-free",
+            "non-standard",
+        ],
+    );
+});
+
+test("edits Cite comic without TemplateData hints or field rewrites", () => {
+    const text = [
+        '<ref name="Comic">Before ',
+        "{{cite comic|Writer=First|issue=|writer=Second|custom=Value}}",
+        " after</ref>",
+    ].join("");
+    const [source] = listExistingSources(text);
+
+    assert.equal(source?.status, "metadata-free");
+    assert.equal(source?.draft.template, "Cite comic");
+    assert.deepEqual(
+        source?.draft.rows.map((row) => [row.name, row.value]),
+        [
+            ["Writer", "First"],
+            ["issue", ""],
+            ["writer", "Second"],
+            ["custom", "Value"],
+        ],
+    );
+    assertMetadataFreeDraftControls(source.draft);
+
+    formatSourceDraftRows(source.draft);
+    getRow(source.draft, "custom").value = "Updated";
+    const updated = replaceExistingSource(
+        text,
+        source,
+        source.draft,
+        "inline",
+    );
+
+    assert.equal(
+        updated,
+        '<ref name="Comic">Before {{Cite comic | Writer = First | ' +
+            "issue =  | writer = Second | custom = Updated}} after</ref>",
+    );
+});
+
+function assertMetadataFreeDraftControls(draft: SourceDraft): void {
+    assert.deepEqual(listSourceDraftParameterNames(draft), []);
+    assert.equal(getSourceDraftParameterAliasInfo(draft, "Writer"), null);
+    assert.equal(hasSourceDraftCitationIdentity(draft), false);
+    assert.deepEqual(getSourceDraftCitationNameCells(draft), new Map());
+    assert.deepEqual(getSourceDraftCitationNameParts(draft), {
+        author: "",
+        part: "",
+        year: "",
+    });
+    const genericAuthor = parseSourceDraft("{{Cite comic|author=First Last}}");
+    assert.equal(canSplitAuthorDraftRow(genericAuthor, 0), false);
+    assert.equal(splitAuthorDraftRow(genericAuthor, 0), false);
+}
+
+test("round trips significant positional values in generic drafts", () => {
+    const draft = parseSourceDraft(
+        "{{Cite fan guide|  padded  |title=Example}}",
+    );
+
+    assert.equal(draft.rows[0]?.name, "1");
+    assert.equal(draft.rows[0]?.value, "  padded  ");
+    assert.equal(draft.rows[0]?.positionalIndex, 1);
+    assert.equal(
+        serializeSourceDraft(draft, "inline"),
+        "{{Cite fan guide|  padded  | title = Example}}",
+    );
+});
+
+test("does not renumber later positional values after a draft edit", () => {
+    const draft = parseSourceDraft("{{Cite fan guide|first|second}}");
+    draft.rows[0]!.name = "";
+
+    assert.equal(
+        serializeSourceDraft(draft, "inline"),
+        "{{Cite fan guide | 2 = second}}",
+    );
+});
+
+test("keeps an edited top-level equals in its positional field", () => {
+    const draft = parseSourceDraft("{{Cite fan guide|old}}");
+    draft.rows[0]!.value = "x=y";
+
+    assert.equal(
+        serializeSourceDraft(draft, "inline"),
+        "{{Cite fan guide | 1 = x=y}}",
+    );
+
+    draft.rows[0]!.value = "{{lang|en|x=y}}";
+    assert.equal(
+        serializeSourceDraft(draft, "inline"),
+        "{{Cite fan guide|{{lang|en|x=y}}}}",
     );
 });
 

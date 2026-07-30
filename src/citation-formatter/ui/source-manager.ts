@@ -3,6 +3,7 @@
  */
 
 import {
+    findUsedMetadataFreeCitationTemplates,
     manageCitationsWithResult,
     type CitationFormatResult,
 } from "#gadget/api.ts";
@@ -15,6 +16,7 @@ import {
     findExistingSources,
     formatSourceDraftRows,
     getSourceDraftParameterAliasInfo,
+    hasSourceDraftCitationIdentity,
     listExistingSourceSections,
     listExistingSources,
     moveSourceDraftTitleToScriptTitle,
@@ -34,6 +36,7 @@ import {
 } from "#gadget/domain/source-manager.ts";
 import type * as validation from "#gadget/domain/source-validation.ts";
 import {
+    orderCs1ItemsBySeverity,
     parseCs1ValidationResult,
     type Cs1ValidationResult,
 } from "#gadget/domain/cs1-validation.ts";
@@ -48,8 +51,11 @@ import {
     sourceAnalysisMessages,
     type MessageId,
 } from "#gadget/i18n/index.ts";
-import { getCanonicalTemplateName } from "#gadget/domain/templates.ts";
-import type { CitationLayout } from "#gadget/domain/types.ts";
+import { getCanonicalTemplateNameFromKey } from "#gadget/domain/templates.ts";
+import type {
+    CitationLayout,
+    CitationTemplateDataMap,
+} from "#gadget/domain/types.ts";
 import {
     type Cs1CheckedSource,
     type Cs1ExistingSourceReview,
@@ -204,16 +210,19 @@ interface SourceManagerActionContext extends SourceManagerDependencies {
     cleanup: () => void;
     close: () => void;
     editor: editBox.EditBox;
+    isActive: () => boolean;
     state: SourceManagerState;
     toast: ToastController;
 }
 
 interface SourceManagerActionServices extends SourceManagerDependencies {
     cleanup: () => void;
+    isActive: () => boolean;
     toast: ToastController;
 }
 
 interface SourceManagerConfiguration extends SourceManagerDependencies {
+    isActive: () => boolean;
     options: SourceManagerOptions;
     registerToastCleanup: (cleanup: () => void) => void;
     sourceRevision: { value: number };
@@ -233,6 +242,11 @@ interface SourceDraftChangeSummary {
     textChanged: boolean;
     toTemplate: string;
     updated: string[];
+}
+
+interface LoadedCurrentCitationTemplateData {
+    metadata: CitationTemplateDataMap;
+    requestedNames: Set<string>;
 }
 
 /**
@@ -303,6 +317,7 @@ function mountSourceManager(
         cleanup,
         {
             ...dependencies,
+            isActive: () => !cleaned,
             options,
             registerToastCleanup(cleanupToasts) {
                 clearToasts = cleanupToasts;
@@ -358,8 +373,15 @@ function createSourceManagerComponent(
             canCheckCs1Tool: ["enwiki", "zhwiki"].includes(getCurrentWikiId()),
             draftRowKey,
             editSourceIcon: cdxIconEdit,
-            formatArticleDisabled: Vue.computed(() =>
-                isCurrentArticleFormatAttempt(editor, state),
+            formatArticleDisabled: Vue.computed(
+                () =>
+                    state.formatArticleInProgress.value ||
+                    isCurrentArticleFormatAttempt(editor, state),
+            ),
+            hasCitationIdentity: Vue.computed(
+                () =>
+                    state.draft.value != null &&
+                    hasSourceDraftCitationIdentity(state.draft.value),
             ),
             interfaceLocale,
             joinAuthorIcon: cdxIconMerge,
@@ -376,10 +398,14 @@ function createSourceManagerComponent(
             customAnalysisReplacement: CUSTOM_ANALYSIS_REPLACEMENT,
             parameterTableColumns: PARAMETER_TABLE_COLUMNS,
             sourceTableColumns: SOURCE_TABLE_COLUMNS,
-            sourceTemplateLabel: getCanonicalTemplateName,
+            sourceTemplateLabel: getCanonicalTemplateNameFromKey,
             splitAuthorIcon: cdxIconMerge,
             switchStatusIcon: cdxIconUpdate,
-            templateOptions: templateOptions.CITATION_TEMPLATE_OPTIONS,
+            templateOptions: Vue.computed(() =>
+                templateOptions.getSourceDraftTemplateOptions(
+                    state.draft.value?.template,
+                ),
+            ),
             toolBuildLabel: TOOL_BUILD_LABEL,
             useSourceIcon: cdxIconReferenceExisting,
             ...actions,
@@ -437,7 +463,7 @@ async function fetchArticleCs1Issues(
     }
     refreshExistingSources(editor, state);
     const sources = state.existingSources.value.filter(
-        (source) => source.status !== "non-standard",
+        (source) => source.status === "standard",
     );
     state.cs1ToolMessages.value = [];
     state.cs1ToolSources.value = [];
@@ -513,56 +539,79 @@ function createFormatterActions(
     "formatArticle" | "setBlockCitations" | "setCompactReferences"
 > {
     // eslint-disable-next-line max-lines-per-function
-    function formatArticle(): void {
+    async function formatArticle(): Promise<void> {
         const { editor, state } = context;
-        if (isCurrentArticleFormatAttempt(editor, state)) {
+        if (
+            state.formatArticleInProgress.value ||
+            isCurrentArticleFormatAttempt(editor, state)
+        ) {
             return;
         }
-        const beforeText = editor.read();
-        let result: CitationFormatResult;
-        let textChanged = false;
+        state.formatArticleInProgress.value = true;
+        const finishFormatting = context.startExecutionTimer("format action");
         try {
+            const initialNames = findUsedMetadataFreeCitationTemplates(
+                editor.read(),
+            );
+            let loadedTemplateData: LoadedCurrentCitationTemplateData = {
+                metadata: {},
+                requestedNames: new Set(),
+            };
+            if (initialNames.length > 0) {
+                loadedTemplateData = await loadCurrentCitationTemplateData(
+                    context,
+                    initialNames,
+                );
+            }
+            if (!context.isActive() || !state.open.value) {
+                return;
+            }
+            const beforeText = editor.read();
+            const latestNames =
+                findUsedMetadataFreeCitationTemplates(beforeText);
+            if (
+                latestNames.some(
+                    (name) => !loadedTemplateData.requestedNames.has(name),
+                )
+            ) {
+                return;
+            }
+            if (isCurrentArticleFormatAttempt(editor, state)) {
+                return;
+            }
             const compact = state.referenceStyle.value === "r";
             const source = state.autoScriptTitle.value
                 ? moveSourceTitlesToScriptTitle(beforeText, getCurrentWikiId())
                       .text
                 : beforeText;
-            result = manageCitationsWithResult(
+            const result = manageCitationsWithResult(
                 source,
                 [],
                 compact,
                 state.citationLayout.value,
-                msg("sections.lead"),
+                {
+                    leadSectionLabel: msg("sections.lead"),
+                    runtimeTemplateData: loadedTemplateData.metadata,
+                },
             );
-            textChanged = result.text !== beforeText;
+            const textChanged = result.text !== beforeText;
             if (textChanged) {
                 editBox.writePreservingPosition(editor, result.text);
                 recordSessionWrite(state, beforeText, result.text);
                 clearAnalysisUndo(state);
             }
+            state.formatArticleAttempt.value = buildArticleFormatAttempt(
+                result.text,
+                state,
+            );
+            showArticleFormatResult(context, result, textChanged);
+            refreshExistingSources(editor, state);
         } catch (error) {
             state.error.value = formatError(error);
-            return;
+        } finally {
+            state.formatArticleInProgress.value = false;
+            finishFormatting();
         }
-        state.formatArticleAttempt.value = buildArticleFormatAttempt(
-            result.text,
-            state,
-        );
-        if (!textChanged) {
-            context.toast.info(msg("feedback.formatNoChanges"), {
-                autoDismiss: true,
-            });
-        } else if (result.referencesNotFormatted > 0) {
-            context.toast.warning(formatArticleSummary(result), {
-                autoDismiss: true,
-            });
-        } else {
-            context.toast.success(formatArticleSummary(result), {
-                autoDismiss: true,
-            });
-        }
-        refreshExistingSources(editor, state);
-        state.activeLookupTab.value = "view";
     }
     function setBlockCitations(enabled: boolean): void {
         context.state.citationLayout.value = enabled ? "block" : "inline";
@@ -571,6 +620,63 @@ function createFormatterActions(
         context.state.referenceStyle.value = enabled ? "r" : "ref";
     }
     return { formatArticle, setBlockCitations, setCompactReferences };
+}
+
+async function loadCurrentCitationTemplateData(
+    context: SourceManagerActionContext,
+    initialNames: string[],
+): Promise<LoadedCurrentCitationTemplateData> {
+    const initial = await loadCitationTemplateDataSafely(
+        context,
+        initialNames,
+    );
+    if (!context.isActive()) {
+        return { metadata: initial, requestedNames: new Set(initialNames) };
+    }
+    const latestNames = findUsedMetadataFreeCitationTemplates(
+        context.editor.read(),
+    );
+    const initialSet = new Set(initialNames);
+    const addedNames = latestNames.filter((name) => !initialSet.has(name));
+    const added = await loadCitationTemplateDataSafely(context, addedNames);
+    return {
+        metadata: { ...initial, ...added },
+        requestedNames: new Set([...initialNames, ...addedNames]),
+    };
+}
+
+async function loadCitationTemplateDataSafely(
+    context: SourceManagerActionContext,
+    names: string[],
+): Promise<CitationTemplateDataMap> {
+    if (names.length === 0) {
+        return {};
+    }
+    try {
+        return await context.loadCitationTemplateData(names);
+    } catch {
+        return {};
+    }
+}
+
+function showArticleFormatResult(
+    context: SourceManagerActionContext,
+    result: CitationFormatResult,
+    textChanged: boolean,
+): void {
+    if (!textChanged) {
+        context.toast.info(msg("feedback.formatNoChanges"), {
+            autoDismiss: true,
+        });
+    } else if (result.referencesNotFormatted > 0) {
+        context.toast.warning(formatArticleSummary(result), {
+            autoDismiss: true,
+        });
+    } else {
+        context.toast.success(formatArticleSummary(result), {
+            autoDismiss: true,
+        });
+    }
 }
 
 function buildArticleFormatAttempt(
@@ -617,6 +723,9 @@ function formatArticleSummary(result: CitationFormatResult): string {
         "feedback.refTagsRenamedOne",
         "feedback.refTagsRenamedMany",
     );
+    if (result.referencesNotFormatted === 0) {
+        return msg("feedback.formatSummaryNoSkipped", { formatted, renamed });
+    }
     return msg("feedback.formatSummary", { formatted, renamed, skipped });
 }
 
@@ -794,7 +903,7 @@ function createDraftActions(
         if (
             state.draft.value == null ||
             state.editingSource.value == null ||
-            state.editingSource.value.status === "non-standard"
+            state.editingSource.value.status !== "standard"
         ) {
             return;
         }
@@ -1424,7 +1533,13 @@ function reviewCs1CheckedSource(
         return;
     }
     const queue = preloadCs1ReviewQueue(state, sourceId);
-    openCs1ReviewSource(state, sourceId, checked.html, queue);
+    openCs1ReviewSource(
+        state,
+        sourceId,
+        checked.html,
+        checked.messages,
+        queue,
+    );
 }
 
 /** Opens a prechecked CS1 draft without another API request. */
@@ -1432,6 +1547,7 @@ function openCs1ReviewSource(
     state: SourceManagerState,
     sourceId: string,
     checkedHtml: string,
+    checkedMessages: string[],
     queue: PreloadedCheckerSource[],
 ): boolean {
     openExistingSourceWhenIdle(state, sourceId);
@@ -1441,7 +1557,11 @@ function openCs1ReviewSource(
     }
     state.draftReviewQueue.value = queue;
     state.draftReviewTool.value = "cs1";
-    const result = parseCs1ValidationResult(draft, checkedHtml);
+    const result = parseCs1ValidationResult(
+        draft,
+        checkedHtml,
+        checkedMessages,
+    );
     state.checkedCs1CellErrors.value = result.cellErrors;
     state.checkedCs1Source.value = getCurrentCs1DraftFingerprint(state);
     if (result.messages.length > 0) {
@@ -1495,7 +1615,12 @@ function preloadCs1ReviewQueue(
         ...results.slice(0, currentIndex),
     ];
     return ordered.flatMap(function preload(result) {
-        return preloadCheckerSource(state, result.source, result.html);
+        return preloadCheckerSource(
+            state,
+            result.source,
+            result.html,
+            result.messages,
+        );
     });
 }
 
@@ -1523,11 +1648,14 @@ function preloadCheckerSource(
     state: SourceManagerState,
     source: ExistingSource,
     checkedHtml: string = "",
+    checkedMessages: string[] = [],
 ): PreloadedCheckerSource[] {
     const sourceIndex = state.existingSources.value.findIndex(
         (candidate) => candidate.id === source.id,
     );
-    return sourceIndex < 0 ? [] : [{ checkedHtml, sourceIndex }];
+    return sourceIndex < 0
+        ? []
+        : [{ checkedHtml, checkedMessages, sourceIndex }];
 }
 
 /** Returns whether a row supports one-click date filling. */
@@ -1907,13 +2035,12 @@ function updateAppliedCs1BatchResult(
             index,
         ]),
     );
-    state.cs1ToolSources.value = [
-        ...state.cs1ToolSources.value,
-        { ...checked, source },
-    ].toSorted(
-        (left, right) =>
-            (sourceOrder.get(left.source.id) ?? 0) -
-            (sourceOrder.get(right.source.id) ?? 0),
+    state.cs1ToolSources.value = orderCs1ItemsBySeverity(
+        [...state.cs1ToolSources.value, { ...checked, source }].toSorted(
+            (left, right) =>
+                (sourceOrder.get(left.source.id) ?? 0) -
+                (sourceOrder.get(right.source.id) ?? 0),
+        ),
     );
 }
 
@@ -1944,19 +2071,23 @@ function syncCs1BatchResults(
     queue: PreloadedCheckerSource[],
 ): void {
     const { cs1Review, state } = context;
-    state.cs1ToolSources.value = queue
-        .toSorted((left, right) => left.sourceIndex - right.sourceIndex)
-        .flatMap(function restoreResult(preloaded) {
-            const source = state.existingSources.value[preloaded.sourceIndex];
-            if (source == null || source.status === "non-standard") {
-                return [];
-            }
-            const checked = cs1Review.restoreCheckedSource(
-                source,
-                preloaded.checkedHtml,
-            );
-            return checked == null ? [] : [checked];
-        });
+    state.cs1ToolSources.value = orderCs1ItemsBySeverity(
+        queue
+            .toSorted((left, right) => left.sourceIndex - right.sourceIndex)
+            .flatMap(function restoreResult(preloaded) {
+                const source =
+                    state.existingSources.value[preloaded.sourceIndex];
+                if (source == null || source.status !== "standard") {
+                    return [];
+                }
+                const checked = cs1Review.restoreCheckedSource(
+                    source,
+                    preloaded.checkedHtml,
+                    preloaded.checkedMessages,
+                );
+                return checked == null ? [] : [checked];
+            }),
+    );
     if (state.cs1ToolSources.value.length === 0) {
         state.cs1ToolMessages.value = [];
     }
@@ -2151,8 +2282,8 @@ function listAppliedSourceChanges(
     ) {
         changes.push(
             msg("feedback.sourceTemplateChanged", {
-                after: getCanonicalTemplateName(summary.toTemplate),
-                before: getCanonicalTemplateName(summary.fromTemplate),
+                after: getCanonicalTemplateNameFromKey(summary.toTemplate),
+                before: getCanonicalTemplateNameFromKey(summary.fromTemplate),
             }),
         );
     }
@@ -2353,7 +2484,7 @@ function openBasedOnSource(
 ): void {
     const source =
         sourceId == null ? null : findExistingSourceById(state, sourceId);
-    if (source == null || source.status === "non-standard") {
+    if (source == null || source.status !== "standard") {
         state.error.value = msg("lookup.chooseBasedOn");
         return;
     }

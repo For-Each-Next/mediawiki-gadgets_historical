@@ -19,6 +19,8 @@ import {
 } from "./dialog-fixtures.ts";
 
 const catalogs = [simplifiedChinese, traditionalChinese];
+const spacedChineseWesternBoundary =
+    /\p{Script=Han} +[A-Za-z0-9]|[A-Za-z0-9] +\p{Script=Han}/u;
 const parameterTableCardPattern = new RegExp(
     "<template #header>[\\s\\S]*reference-name-preview[\\s\\S]*" +
         "</template>[\\s\\S]*</cdx-table>\\s*<cdx-card[\\s\\S]*" +
@@ -30,6 +32,14 @@ function listPlaceholders(message: string): string[] {
     return [...message.matchAll(/(?<!\{)\{([A-Za-z][A-Za-z0-9]*)\}(?!\})/gu)]
         .map((match) => match[1])
         .toSorted();
+}
+
+function exposeWesternMessageTokens(message: string): string {
+    return message
+        .replace(/\{\{[^{}]*\}\}/gu, "Token9")
+        .replace(/<[^<>]+>/gu, "Token9")
+        .replace(/\|[A-Za-z][A-Za-z0-9-]*=?/gu, "Token9")
+        .replace(/\{[A-Za-z][A-Za-z0-9]*\}/gu, "Token9");
 }
 
 test("keeps translated catalogs aligned with English", () => {
@@ -45,6 +55,19 @@ test("keeps translated catalogs aligned with English", () => {
                 messageId,
             );
         }
+    }
+});
+
+test("omits spaces at Chinese and Western text boundaries", () => {
+    for (const catalog of catalogs) {
+        for (const [messageId, message] of Object.entries(catalog)) {
+            assert.doesNotMatch(
+                exposeWesternMessageTokens(message),
+                spacedChineseWesternBoundary,
+                messageId,
+            );
+        }
+        assert.equal(catalog["validation.or"], "或");
     }
 });
 
@@ -94,11 +117,11 @@ test("uses concise Simplified Chinese formatting guidance", () => {
     );
     assert.equal(
         simplifiedChinese["tools.blockCitations"],
-        "将 {{cite}} 按块状格式排版",
+        "将{{cite}}按块状格式排版",
     );
     assert.equal(
         simplifiedChinese["tools.scriptTitle"],
-        "外文文献填写语言代码时，将|title=改为|script-title 参数",
+        "外文文献填写语言代码时，将|title=改为|script-title参数",
     );
     assert.equal(simplifiedChinese["draft.originalDescription"], "原始文本");
     assert.equal(
@@ -137,6 +160,7 @@ test("resolves MediaWiki Chinese variants and English fallback", () => {
 });
 
 test("interpolates UI and domain messages in the selected locale", () => {
+    const simplifiedTranslator = createCitationFormatterI18n("zh-CN");
     const translator = createCitationFormatterI18n("zh-TW");
     const validation = createSourceValidationMessages(translator);
     const analysis = createSourceAnalysisMessages(translator);
@@ -147,9 +171,27 @@ test("interpolates UI and domain messages in the selected locale", () => {
     );
     assert.equal(
         validation.unsupportedParameter("example"),
-        "CS1 不支援 example 參數。",
+        "CS1不支援example參數。",
+    );
+    assert.equal(
+        validation.invalidParameterName(),
+        "輸入不含維基文字標記或換行符號的參數名稱。",
     );
     assert.equal(analysis.untitledSource(), "無標題來源");
+    const formatted = simplifiedTranslator.msg(
+        "feedback.citationsFormattedMany",
+        { count: 132 },
+    );
+    const renamed = simplifiedTranslator.msg("feedback.refTagsRenamedMany", {
+        count: 37,
+    });
+    assert.equal(
+        simplifiedTranslator.msg("feedback.formatSummaryNoSkipped", {
+            formatted,
+            renamed,
+        }),
+        "已格式化132条引文；已重命名37个<ref>标签。",
+    );
 });
 
 test("renders safe new-tab links for openable URL fields", () => {

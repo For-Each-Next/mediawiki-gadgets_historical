@@ -13,17 +13,27 @@ import {
     formatCitationWikitext,
     type CitationFormatResult,
 } from "#gadget/domain/formatter.ts";
-import type { CitationLayout } from "#gadget/domain/types.ts";
+import type {
+    CitationLayout,
+    CitationTemplateDataMap,
+} from "#gadget/domain/types.ts";
+
+export interface CitationManagementContext {
+    leadSectionLabel?: string;
+    runtimeTemplateData?: CitationTemplateDataMap;
+}
 
 /** Formats article wikitext with generated local TemplateData. */
 export function formatCitations(
     text: string,
     layout: CitationLayout = "block",
     leadSectionLabel: string = "Lead",
+    runtimeTemplateData: CitationTemplateDataMap = {},
 ): CitationFormatResult {
+    const activeTemplateData = { ...runtimeTemplateData, ...templateData };
     return formatCitationWikitext(
         text,
-        templateData,
+        activeTemplateData,
         layout,
         leadSectionLabel,
     );
@@ -52,10 +62,21 @@ export function manageCitationsWithResult(
     updates: NameOverrideUpdate[],
     useCompactReferences: boolean,
     layout: CitationLayout = "block",
-    leadSectionLabel: string = "Lead",
+    context: CitationManagementContext | string = "Lead",
 ): CitationFormatResult {
     const overridden = applyNameOverrides(text, updates);
-    const formatted = formatCitations(overridden, layout, leadSectionLabel);
+    const leadSectionLabel =
+        typeof context === "string"
+            ? context
+            : (context.leadSectionLabel ?? "Lead");
+    const runtimeTemplateData =
+        typeof context === "string" ? {} : (context.runtimeTemplateData ?? {});
+    const formatted = formatCitations(
+        overridden,
+        layout,
+        leadSectionLabel,
+        runtimeTemplateData,
+    );
     formatted.text = useCompactReferences
         ? compactReferenceCalls(formatted.text)
         : expandCompactReferenceCalls(formatted.text);
@@ -64,6 +85,7 @@ export function manageCitationsWithResult(
 
 export {
     findUsedCitationTemplates,
+    findUsedMetadataFreeCitationTemplates,
     formatCitationWikitext,
 } from "#gadget/domain/formatter.ts";
 export { normalizeEnglishDate } from "#gadget/domain/citation.ts";

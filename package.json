@@ -10,6 +10,7 @@
         "#shared/edit-box": "./src/shared/edit-box.ts",
         "#shared/html": "./src/shared/html.ts",
         "#shared/i18n": "./src/shared/i18n.ts",
+        "#shared/language-code": "./src/shared/language-code.ts",
         "#shared/wikitext": "./src/shared/wikitext.ts"
     },
     "workspaces": [

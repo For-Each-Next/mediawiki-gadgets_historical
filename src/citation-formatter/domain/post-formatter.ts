@@ -3,17 +3,24 @@
  */
 
 import type { CitationParam, CitationTemplate } from "./types.ts";
-import { getCanonicalTemplateName } from "./templates.ts";
+import { getCanonicalTemplateNameFromKey } from "./templates.ts";
 
 /**
  * Formats a citation with one parameter per line.
  *
  * @param citation - Canonical citation.
+ * @param preserveParameterNames
  * @returns Block-style template text.
  */
-export function formatBlockCitation(citation: CitationTemplate): string {
-    const templateName = getCanonicalTemplateName(citation.name);
-    const outputParams = getCitationOutputParams(citation);
+export function formatBlockCitation(
+    citation: CitationTemplate,
+    preserveParameterNames: boolean = false,
+): string {
+    const templateName = getCanonicalTemplateNameFromKey(citation.name);
+    const outputParams = getSerializableCitationParams(
+        citation,
+        preserveParameterNames,
+    );
     const formatParam = function formatParam(param: CitationParam) {
         return `  | ${param.name} = ${param.value}`;
     };
@@ -28,11 +35,18 @@ export function formatBlockCitation(citation: CitationTemplate): string {
  * Formats a citation on one line with spaced parameter separators.
  *
  * @param citation - Canonical citation.
+ * @param preserveParameterNames
  * @returns Inline-style template text.
  */
-export function formatInlineCitation(citation: CitationTemplate): string {
-    const templateName = getCanonicalTemplateName(citation.name);
-    const outputParams = getCitationOutputParams(citation);
+export function formatInlineCitation(
+    citation: CitationTemplate,
+    preserveParameterNames: boolean = false,
+): string {
+    const templateName = getCanonicalTemplateNameFromKey(citation.name);
+    const outputParams = getSerializableCitationParams(
+        citation,
+        preserveParameterNames,
+    );
     const formatParam = function formatParam(param: CitationParam) {
         return `${param.name} = ${param.value}`;
     };
@@ -41,6 +55,15 @@ export function formatInlineCitation(citation: CitationTemplate): string {
         return `{{${templateName}}}`;
     }
     return `{{${templateName} | ${params.join(" | ")}}}`;
+}
+
+function getSerializableCitationParams(
+    citation: CitationTemplate,
+    preserveParameterNames: boolean,
+): CitationParam[] {
+    return preserveParameterNames
+        ? citation.params
+        : getCitationOutputParams(citation);
 }
 
 /**

@@ -2,6 +2,8 @@
  * Canonicalizes and orders citation data and derives ref names.
  */
 
+import { normalizeEnglishLanguageCodes } from "#shared/language-code";
+
 import { isGregorianCalendarDate } from "./calendar-date.ts";
 import type {
     CitationLayout,
@@ -16,7 +18,10 @@ import {
     formatInlineCitation,
 } from "./post-formatter.ts";
 import { applyPreFormatHandlers } from "./pre-formatter.ts";
-import { normalizeTemplateName } from "./templates.ts";
+import {
+    getCanonicalTemplateName,
+    normalizeTemplateName,
+} from "./templates.ts";
 import { parseTemplateCall } from "./wikitext.ts";
 
 export {
@@ -224,7 +229,7 @@ export function formatCitationTemplate(
     layout: CitationLayout = "block",
 ): { citation: CitationTemplate; text: string } {
     const parsed = parseTemplateCall(raw);
-    const name = normalizeTemplateName(parsed.name);
+    const name = getCanonicalTemplateName(parsed.name);
     const params = parsed.params.map(function mapParam(param) {
         const result = {
             name: param.name,
@@ -264,6 +269,9 @@ export function canonicalizeCitation(
             DATE_PARAMS.has(name) || metadata.dateParams?.includes(name);
         if (isDate) {
             value = normalizeEnglishDate(param.value);
+        }
+        if (name === "language") {
+            value = normalizeEnglishLanguageCodes(value);
         }
         deduplicated.set(name, { name, value });
     }
@@ -309,7 +317,7 @@ function formatNameOverrideComment(_match: string, content: string): string {
 /**
  * Applies the template's TemplateData order, then a generic fallback.
  *
- * @param template - Normalized citation template name.
+ * @param template - Citation template name.
  * @param params - Canonical citation parameters.
  * @param metadata - TemplateData metadata.
  * @returns Sorted citation parameters.
@@ -324,7 +332,7 @@ function sortCitationParams(
     );
     const order = new Map(orderEntries);
     let fallbackOrder = CITE_WEB_PARAM_ORDER;
-    if (PRINT_CITATION_TEMPLATES.has(template)) {
+    if (PRINT_CITATION_TEMPLATES.has(normalizeTemplateName(template))) {
         fallbackOrder = CITE_BOOK_PARAM_ORDER;
     }
     const addSortOrder = function addSortOrder(

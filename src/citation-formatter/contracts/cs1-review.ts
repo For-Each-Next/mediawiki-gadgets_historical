@@ -2,7 +2,10 @@
  * Defines the UI-facing contract for live CS1 review workflows.
  */
 
-import type { Cs1ValidationResult } from "#gadget/domain/cs1-validation.ts";
+import type {
+    Cs1IssueSeverity,
+    Cs1ValidationResult,
+} from "#gadget/domain/cs1-validation.ts";
 import type {
     ExistingSource,
     SourceDraft,
@@ -15,6 +18,7 @@ export interface Cs1ReviewContext {
 export interface Cs1CheckedSource {
     html: string;
     messages: string[];
+    severity: Cs1IssueSeverity;
     source: ExistingSource;
 }
 
@@ -45,5 +49,6 @@ export interface Cs1ReviewWorkflow {
     restoreCheckedSource: (
         source: ExistingSource,
         html: string,
+        categories?: readonly string[],
     ) => Cs1CheckedSource | null;
 }

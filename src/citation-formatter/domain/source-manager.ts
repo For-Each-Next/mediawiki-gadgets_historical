@@ -11,6 +11,7 @@ import {
     getCitationNameContributors,
 } from "./citation.ts";
 import templateData from "./data/index.ts";
+import { serializeGenericCitation } from "./generic-citation.ts";
 import { getCitationOutputParams } from "./post-formatter.ts";
 import {
     findSourceDiscoveryProtectedRanges,
@@ -28,7 +29,14 @@ import {
     parseSourceInput,
     parseSourceUrl,
 } from "./source-url.ts";
-import { isCitationTemplate, normalizeTemplateName } from "./templates.ts";
+import {
+    getCanonicalTemplateName,
+    isCitationTemplate,
+    isCitePrefixedTemplate,
+    isEditableCitationTemplate,
+    isMetadataFreeCitationTemplate,
+    normalizeTemplateName,
+} from "./templates.ts";
 import type {
     CitationLayout,
     CitationParam,
@@ -202,6 +210,7 @@ export interface SourceDraftRow {
     directive: string;
     main: boolean;
     name: string;
+    positionalIndex?: number;
     value: string;
 }
 
@@ -250,7 +259,8 @@ export class SourceParameterCollisionError extends Error {
 }
 
 export type SourceDraftCitationNameCell = "alias" | "value";
-export type ExistingSourceStatus = "non-standard" | "standard";
+export type ExistingSourceStatus =
+    "metadata-free" | "non-standard" | "standard";
 
 interface DraftAuthorParameter {
     index: number;
@@ -326,6 +336,9 @@ export function canSplitAuthorDraftRow(
     draft: SourceDraft,
     rowIndex: number,
 ): boolean {
+    if (getTemplateMetadata(draft.template) == null) {
+        return false;
+    }
     const row = draft.rows[rowIndex];
     const author = parseDraftAuthorParameter(row?.name || "");
     if (author == null) {
@@ -344,6 +357,9 @@ export function canSplitAuthorDraftRow(
  * Adds the next blank numbered slot after each populated author row.
  */
 export function ensureNextAuthorDraftRows(draft: SourceDraft): void {
+    if (getTemplateMetadata(draft.template) == null) {
+        return;
+    }
     const populated = draft.rows.filter(function isPopulatedAuthor(row) {
         return (
             parseDraftAuthorParameter(row.name) != null &&
@@ -397,18 +413,18 @@ export function canJoinAuthorDraftRow(
     draft: SourceDraft,
     rowIndex: number,
 ): boolean {
+    if (getTemplateMetadata(draft.template) == null) {
+        return false;
+    }
     const row = draft.rows[rowIndex];
     const structured = parseStructuredAuthorParameter(row?.name || "");
     if (structured?.field !== "last") {
         return false;
     }
-    const sameSlot = draft.rows.filter(
-        function hasSameAuthorSlot(candidate, index) {
-            return (
-                index !== rowIndex &&
-                getDraftAuthorSlot(candidate.name) === structured.index
-            );
-        },
+    const sameSlot = findOtherAuthorSlotRows(
+        draft,
+        rowIndex,
+        structured.index,
     );
     if (sameSlot.some((candidate) => isAuthorDraftParameter(candidate.name))) {
         return false;
@@ -429,6 +445,17 @@ export function canJoinAuthorDraftRow(
     return (
         first == null ||
         (first.alias.trim() === "" && first.directive.trim() === "")
+    );
+}
+
+function findOtherAuthorSlotRows(
+    draft: SourceDraft,
+    rowIndex: number,
+    slot: number,
+): SourceDraftRow[] {
+    return draft.rows.filter(
+        (candidate, index) =>
+            index !== rowIndex && getDraftAuthorSlot(candidate.name) === slot,
     );
 }
 
@@ -605,8 +632,20 @@ export function isCreatorAliasDraftParameter(name: string): boolean {
 /** Converts a generated or existing citation to editable rows. */
 export function parseSourceDraft(raw: string): SourceDraft {
     const call = parseTemplateCall(raw);
-    const name = getDraftTemplateName(call.name);
+    const name = getEnteredDraftTemplateName(call.name);
     const metadata = getTemplateMetadata(name);
+    if (metadata == null) {
+        const enteredRows = call.params.map(function toGenericDraftRow(param) {
+            return buildDraftRow(
+                param.name,
+                param.positional ? param.rawValue : param.value,
+                false,
+                param.positional ? Number(param.name) : undefined,
+                false,
+            );
+        });
+        return { rows: enteredRows, template: name };
+    }
     const params = call.params.map(function toCitationParam(param) {
         return { name: param.name, value: param.value };
     });
@@ -649,6 +688,10 @@ export function serializeSourceDraft(
     layout: CitationLayout = "block",
 ): string {
     const citation = buildDraftCitation(draft);
+    const preserveParameterNames = getTemplateMetadata(citation.name) == null;
+    if (preserveParameterNames) {
+        return serializeGenericCitation(citation, layout);
+    }
     return layout === "inline"
         ? formatInlineCitation(citation)
         : formatBlockCitation(citation);
@@ -662,12 +705,19 @@ export function serializeSourceDraftPreservingNames(
     layout: CitationLayout = "block",
 ): string {
     const name = getDraftTemplateName(draft.template);
-    const params = draft.rows
+    const metadata = getTemplateMetadata(name);
+    const rows = draft.rows
         .filter((row) => row.name.trim() !== "")
-        .filter(hasDraftRowContent)
-        .map(buildDraftParam);
-    assertUniqueCanonicalParams(name, params);
+        .filter((row) => metadata == null || hasDraftRowContent(row));
+    const params = buildDraftParams(rows, metadata == null);
+    const preserveParameterNames = metadata == null;
+    if (!preserveParameterNames) {
+        assertUniqueCanonicalParams(name, params);
+    }
     const citation = { name, params };
+    if (preserveParameterNames) {
+        return serializeGenericCitation(citation, layout);
+    }
     return layout === "inline"
         ? formatInlineCitation(citation)
         : formatBlockCitation(citation);
@@ -675,7 +725,7 @@ export function serializeSourceDraftPreservingNames(
 
 /** Lists canonical names offered by the parameter combobox. */
 export function listSourceDraftParameterNames(draft: SourceDraft): string[] {
-    return [...getTemplateMetadata(draft.template).paramOrder];
+    return [...(getTemplateMetadata(draft.template)?.paramOrder ?? [])];
 }
 
 /** Resolves a parameter to its template-specific alias group. */
@@ -689,6 +739,9 @@ export function getSourceDraftParameterAliasInfo(
         return null;
     }
     const metadata = getTemplateMetadata(draft.template);
+    if (metadata == null) {
+        return null;
+    }
     for (const [canonical, aliases] of Object.entries(metadata.aliases)) {
         const normalizedCanonical = canonical.toLocaleLowerCase("en-US");
         const normalizedAliases = aliases.map((alias) =>
@@ -714,6 +767,9 @@ export function moveSourceDraftTitleToScriptTitle(
     draft: SourceDraft,
     wikiId: string,
 ): boolean {
+    if (getTemplateMetadata(draft.template) == null) {
+        return false;
+    }
     const language = getDraftValue(draft, "language").trim();
     const codePattern = /^[a-z]{2,3}(?:-[a-z0-9]+)*$/iu;
     const localLanguage = getCitationWikiLanguage(wikiId);
@@ -796,12 +852,23 @@ export function moveSourceTitlesToScriptTitle(
 /** Canonicalizes the populated rows of one editable source draft. */
 function buildDraftCitation(draft: SourceDraft): CitationTemplate {
     const name = getDraftTemplateName(draft.template);
-    const params = draft.rows
+    const metadata = getTemplateMetadata(name);
+    const rows = draft.rows
         .filter((row) => row.name.trim() !== "")
-        .filter(hasDraftRowContent)
-        .map(buildDraftParam);
+        .filter((row) => metadata == null || hasDraftRowContent(row));
+    const params = buildDraftParams(rows, metadata == null);
+    if (metadata == null) {
+        return { name, params };
+    }
     assertUniqueCanonicalParams(name, params);
-    return canonicalizeCitation({ name, params }, getTemplateMetadata(name));
+    return canonicalizeCitation({ name, params }, metadata);
+}
+
+/**
+ * Returns whether a draft has local CS1 metadata and citation identity.
+ */
+export function hasSourceDraftCitationIdentity(draft: SourceDraft): boolean {
+    return getTemplateMetadata(draft.template) != null;
 }
 
 /**
@@ -812,6 +879,9 @@ export function getSourceDraftCitationNameCells(
 ): Map<number, SourceDraftCitationNameCell> {
     const name = getDraftTemplateName(draft.template);
     const metadata = getTemplateMetadata(name);
+    if (metadata == null) {
+        return new Map();
+    }
     const rowByCanonicalName = new Map<string, number>();
     const params: CitationParam[] = [];
     for (const [index, row] of draft.rows.entries()) {
@@ -845,6 +915,9 @@ export function getSourceDraftCitationNameCells(
 export function getSourceDraftCitationNameParts(
     draft: SourceDraft,
 ): SourceDraftCitationNameParts {
+    if (!hasSourceDraftCitationIdentity(draft)) {
+        return { author: "", part: "", year: "" };
+    }
     const identity = getCitationIdentity(buildDraftCitation(draft));
     return {
         author: identity.author,
@@ -1290,12 +1363,33 @@ function isInReferenceContainer(
 }
 
 function getDraftTemplateName(entered: string): string {
+    if (Object.hasOwn(templateData, entered)) {
+        return entered;
+    }
+    return getEnteredDraftTemplateName(entered);
+}
+
+function getEnteredDraftTemplateName(entered: string): string {
     const normalized = normalizeTemplateName(entered);
-    return isCitationTemplate(normalized) ? normalized : "cite web";
+    if (isCitationTemplate(entered)) {
+        return normalized;
+    }
+    return isMetadataFreeCitationTemplate(entered)
+        ? getCanonicalTemplateName(entered)
+        : "cite web";
 }
 
 function getTemplateMetadata(name: string) {
-    return templateData[name] || templateData["cite web"];
+    const metadata = Object.hasOwn(templateData, name)
+        ? templateData[name]
+        : undefined;
+    if (metadata != null) {
+        return metadata;
+    }
+    if (isCitePrefixedTemplate(name)) {
+        return null;
+    }
+    return templateData["cite web"];
 }
 
 function seedMainRows(
@@ -1328,6 +1422,9 @@ function sortSourceDraftRows(
     template: string,
 ): SourceDraftRow[] {
     const metadata = getTemplateMetadata(template);
+    if (metadata == null) {
+        return rows;
+    }
     const order = new Map(
         metadata.paramOrder.map((name, index) => [name, index] as const),
     );
@@ -1383,6 +1480,9 @@ function getDraftAuthorParamOrder(name: string): number | null {
  */
 function getSupportedDraftFieldNames(template: string): Set<string> {
     const metadata = getTemplateMetadata(template);
+    if (metadata == null) {
+        return new Set();
+    }
     const names = new Set(metadata.paramOrder);
     for (const [canonical, aliases] of Object.entries(metadata.aliases)) {
         names.add(canonical);
@@ -1482,6 +1582,9 @@ function assertUniqueCanonicalParams(
     params: CitationParam[],
 ): void {
     const metadata = getTemplateMetadata(template);
+    if (metadata == null) {
+        return;
+    }
     const byName = new Map<string, string>();
     for (const param of params) {
         const canonical = canonicalizeCitation(
@@ -1505,15 +1608,23 @@ function buildDraftRow(
     name: string,
     enteredValue: string,
     main: boolean,
+    positionalIndex?: number,
+    parseAlias: boolean = true,
 ): SourceDraftRow {
-    const comment = extractAliasComment(enteredValue);
-    return {
+    const comment = parseAlias
+        ? extractAliasComment(enteredValue)
+        : { alias: "", directive: "", value: enteredValue };
+    const row: SourceDraftRow = {
         alias: comment.alias,
         directive: comment.directive,
         main,
         name,
         value: comment.value,
     };
+    if (positionalIndex != null) {
+        row.positionalIndex = positionalIndex;
+    }
+    return row;
 }
 
 function extractAliasComment(value: string): {
@@ -1539,13 +1650,38 @@ function extractAliasComment(value: string): {
     return { alias, directive, value: withoutComment };
 }
 
-function buildDraftParam(row: SourceDraftRow): CitationParam {
+function buildDraftParams(
+    rows: SourceDraftRow[],
+    preservePositionals: boolean,
+): CitationParam[] {
+    let nextPositionalIndex = 1;
+    return rows.map(function buildParam(row) {
+        const positional =
+            preservePositionals &&
+            row.positionalIndex === nextPositionalIndex &&
+            row.name.trim() === String(row.positionalIndex) &&
+            splitTopLevel(row.value, "=").length === 1;
+        if (positional) {
+            nextPositionalIndex += 1;
+        }
+        return buildDraftParam(row, positional);
+    });
+}
+
+function buildDraftParam(
+    row: SourceDraftRow,
+    positional: boolean = false,
+): CitationParam {
+    const name = row.name.trim();
+    if (positional) {
+        return { name, positional: true, value: row.value };
+    }
     const enteredValue = row.value.trim();
     const value =
         enteredValue === ""
             ? ""
             : addAliasComment(enteredValue, row.alias, row.directive);
-    return { name: row.name.trim(), value };
+    return { name, value };
 }
 
 function addAliasComment(
@@ -1682,7 +1818,7 @@ function parseCompactDefinition(
     return { content, reference };
 }
 
-/** Adds supported citation calls within one reference definition. */
+/** Adds editable citation calls within one reference definition. */
 function addReferenceCitationSources(
     sources: Map<number, ExistingSource>,
     reference: SourceReference,
@@ -1690,7 +1826,10 @@ function addReferenceCitationSources(
 ): boolean {
     let added = false;
     for (const call of calls) {
-        if (isCitationTemplate(call.name) && !sources.has(call.start)) {
+        if (
+            isEditableCitationTemplate(call.name) &&
+            !sources.has(call.start)
+        ) {
             sources.set(call.start, buildExistingSource(reference, call));
             added = true;
         }
@@ -1705,6 +1844,9 @@ function buildExistingSource(
 ): ExistingSource {
     const draft = parseSourceDraft(call.raw);
     const title = getExistingSourceTitle(draft);
+    const status = isCitationTemplate(call.name)
+        ? ("standard" as const)
+        : ("metadata-free" as const);
     const partial = {
         archiveUrl: getDraftValue(draft, "archive-url"),
         draft,
@@ -1716,7 +1858,7 @@ function buildExistingSource(
         referenceName: reference.name,
         referenceStart: reference.start,
         sectionIds: [],
-        status: "standard" as const,
+        status,
         templateEnd: call.end,
         templateStart: call.start,
         title: title.text,

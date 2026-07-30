@@ -48,7 +48,7 @@ export interface MainDialogActions {
     close(): void;
     createManualSource(): void;
     editListedSource(sourceId: string): void;
-    formatArticle(): void;
+    formatArticle(): Promise<void>;
     insertListedSource(sourceId: string): void;
     onOpenChange(value: boolean): void;
     onSourcePaste(event: ClipboardEvent): void;

@@ -36,14 +36,20 @@ export const SUPPORTED_CITATION_TEMPLATES = [
 ] as const;
 
 const indexCanonicalName = function indexCanonicalName(name: string) {
-    return [normalizeTemplateName(name), name] as const;
+    return [normalizeTemplateIdentity(name), name] as const;
 };
 const canonicalTemplateEntries =
     SUPPORTED_CITATION_TEMPLATES.map(indexCanonicalName);
 const CANONICAL_TEMPLATE_NAMES = new Map(canonicalTemplateEntries);
+const CANONICAL_TEMPLATE_KEY_NAMES = new Map(
+    SUPPORTED_CITATION_TEMPLATES.map(
+        (name) => [normalizeTemplateName(name), name] as const,
+    ),
+);
 
-const supportedTemplateNames = CANONICAL_TEMPLATE_NAMES.keys();
-const SUPPORTED_TEMPLATE_SET = new Set(supportedTemplateNames);
+const SUPPORTED_TEMPLATE_SET = new Set(
+    SUPPORTED_CITATION_TEMPLATES.map(normalizeTemplateIdentity),
+);
 
 /**
  * Normalizes a template title for comparison and metadata lookup.
@@ -52,23 +58,57 @@ const SUPPORTED_TEMPLATE_SET = new Set(supportedTemplateNames);
  * @returns Normalized template name.
  */
 export function normalizeTemplateName(value: string): string {
-    const result = value
-        .trim()
-        .replace(/^template\s*:/iu, "")
-        .replace(/[_\s]+/gu, " ")
-        .toLocaleLowerCase("en-US");
-    return result;
+    return normalizeTemplateDisplayName(value).toLocaleLowerCase("en-US");
 }
 
 /**
- * Returns the canonical display casing of a supported template name.
+ * Normalizes title syntax while preserving meaningful letter casing.
+ */
+function normalizeTemplateDisplayName(value: string): string {
+    return value
+        .trim()
+        .replace(/^template\s*:/iu, "")
+        .replace(/[_\s]+/gu, " ");
+}
+
+/**
+ * Normalizes syntax and MediaWiki's first-character title casing.
+ */
+function normalizeTemplateIdentity(value: string): string {
+    const entered = normalizeTemplateDisplayName(value);
+    if (entered === "") {
+        return "";
+    }
+    return entered[0].toLocaleUpperCase("en-US") + entered.slice(1);
+}
+
+/**
+ * Returns the canonical display casing of an editable template name.
  *
  * @param value - Entered or normalized template title.
  * @returns Canonically cased template name.
  */
 export function getCanonicalTemplateName(value: string): string {
+    const identity = normalizeTemplateIdentity(value);
+    const supported = CANONICAL_TEMPLATE_NAMES.get(identity);
+    if (supported != null) {
+        return supported;
+    }
+    return identity;
+}
+
+/**
+ * Returns a canonical display name for a stored lowercase metadata key.
+ */
+export function getCanonicalTemplateNameFromKey(value: string): string {
     const normalized = normalizeTemplateName(value);
-    return CANONICAL_TEMPLATE_NAMES.get(normalized) || normalized;
+    if (value === normalized) {
+        const supported = CANONICAL_TEMPLATE_KEY_NAMES.get(normalized);
+        if (supported != null) {
+            return supported;
+        }
+    }
+    return getCanonicalTemplateName(value);
 }
 
 /**
@@ -78,6 +118,27 @@ export function getCanonicalTemplateName(value: string): string {
  * @returns Whether the template is supported.
  */
 export function isCitationTemplate(value: string): boolean {
+    return SUPPORTED_TEMPLATE_SET.has(normalizeTemplateIdentity(value));
+}
+
+/**
+ * Returns whether a citation template can be edited as a source draft.
+ */
+export function isEditableCitationTemplate(value: string): boolean {
+    return isCitationTemplate(value) || isCitePrefixedTemplate(value);
+}
+
+/**
+ * Returns whether an editable template lacks local TemplateData.
+ */
+export function isMetadataFreeCitationTemplate(value: string): boolean {
+    return !isCitationTemplate(value) && isCitePrefixedTemplate(value);
+}
+
+/**
+ * Returns whether a title uses the Cite template-name family.
+ */
+export function isCitePrefixedTemplate(value: string): boolean {
     const normalized = normalizeTemplateName(value);
-    return SUPPORTED_TEMPLATE_SET.has(normalized);
+    return /^cite(?:\s|$)/u.test(normalized);
 }

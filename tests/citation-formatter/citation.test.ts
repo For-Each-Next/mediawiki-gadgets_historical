@@ -11,6 +11,13 @@ import {
     normalizeEnglishDate,
 } from "citation-formatter/domain/citation.ts";
 import generatedTemplateData from "citation-formatter/domain/data/index.ts";
+import {
+    getCanonicalTemplateName,
+    isCitationTemplate,
+    isEditableCitationTemplate,
+    isMetadataFreeCitationTemplate,
+    normalizeTemplateName,
+} from "citation-formatter/domain/templates.ts";
 import type { CitationTemplateData } from "citation-formatter/domain/types.ts";
 
 const metadata: CitationTemplateData = {
@@ -94,30 +101,82 @@ const testInlineCitationLayout = () => {
 };
 test("formats canonical citation parameters inline", testInlineCitationLayout);
 
+test("normalizes English language names while formatting citations", () => {
+    const single = formatCitationTemplate(
+        "{{cite magazine|title=Review|language=Japanese}}",
+        generatedTemplateData["cite magazine"],
+        "inline",
+    );
+    const multiple = formatCitationTemplate(
+        "{{cite magazine|title=Review|language=English,japanese}}",
+        generatedTemplateData["cite magazine"],
+        "inline",
+    );
+
+    assert.equal(
+        single.text,
+        "{{Cite magazine | title = Review | language = ja}}",
+    );
+    assert.equal(
+        multiple.text,
+        "{{Cite magazine | title = Review | language = en, ja}}",
+    );
+});
+
 const testCanonicalTemplateCasing = () => {
-    const cases = [
-        ["citation", "Citation"],
-        ["cite arxiv", "Cite arXiv"],
-        ["cite av media", "Cite AV media"],
-        ["cite av media notes", "Cite AV media notes"],
-        ["cite biorxiv", "Cite bioRxiv"],
-        ["cite citeseerx", "Cite CiteSeerX"],
-        ["cite medrxiv", "Cite medRxiv"],
-        ["cite ssrn", "Cite SSRN"],
-        ["cite tweet", "Cite tweet"],
-        ["cite web", "Cite web"],
+    const canonicalNames = [
+        "Citation",
+        "Cite arXiv",
+        "Cite AV media",
+        "Cite AV media notes",
+        "Cite bioRxiv",
+        "Cite CiteSeerX",
+        "Cite medRxiv",
+        "Cite SSRN",
+        "Cite tweet",
+        "Cite web",
     ] as const;
 
-    for (const [entered, canonical] of cases) {
+    for (const canonical of canonicalNames) {
+        const entered = canonical[0].toLocaleLowerCase() + canonical.slice(1);
+        const metadataKey = normalizeTemplateName(canonical);
         const result = formatCitationTemplate(
             `{{${entered}|title=Example}}`,
-            generatedTemplateData[entered],
+            generatedTemplateData[metadataKey],
         );
         const pattern = new RegExp(`^\\{\\{${canonical}\\n`, "u");
         assert.match(result.text, pattern);
     }
 };
 test("uses canonical citation template casing", testCanonicalTemplateCasing);
+
+test("keeps print fallback order with canonical display casing", () => {
+    const result = formatCitationTemplate(
+        "{{cite book|website=W|chapter=C|publisher=P|url=U|title=T}}",
+        { aliases: {}, paramOrder: [] },
+        "inline",
+    );
+
+    assert.equal(
+        result.text,
+        "{{Cite book | url = U | title = T | publisher = P | " +
+            "chapter = C | website = W}}",
+    );
+});
+
+test("distinguishes metadata-free editable citation templates", () => {
+    assert.equal(getCanonicalTemplateName("cite comic"), "Cite comic");
+    assert.equal(isEditableCitationTemplate("Template:Cite_comic"), true);
+    assert.equal(isMetadataFreeCitationTemplate("Cite comic"), true);
+    assert.equal(isCitationTemplate("Cite comic"), false);
+    assert.equal(getCanonicalTemplateName("cite Fan_Guide"), "Cite Fan Guide");
+    assert.equal(isEditableCitationTemplate("Cite fan guide"), true);
+    assert.equal(isMetadataFreeCitationTemplate("Cite fan guide"), true);
+    assert.equal(isCitationTemplate("Cite Web"), false);
+    assert.equal(isMetadataFreeCitationTemplate("Cite Web"), true);
+    assert.equal(getCanonicalTemplateName("Cite Web"), "Cite Web");
+    assert.equal(isEditableCitationTemplate("Citeline"), false);
+});
 
 const testDisplayedTimeFormatting = () => {
     const single = formatCitationTemplate(

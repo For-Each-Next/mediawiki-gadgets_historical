@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    extractCs1FragmentIssueMessages,
+    extractCs1FragmentIssues,
     extractCs1IssueMessages,
     getCs1DraftFingerprint,
     parseCs1ValidationResult,
@@ -119,4 +121,52 @@ test("extracts article-wide CS1 messages for the checker popup", () => {
             "CS1 maint: date and year",
         ]);
     }
+});
+
+test("classifies CS1 errors and green citation comments", () => {
+    const html = [
+        '<span class="citation-comment" style="color:#33aa33">',
+        "Informational",
+        "</span>",
+        '<span class="error citation-comment">Error first</span>',
+        '<span class="cs1-maint citation-comment">Maintenance</span>',
+        '<span class="citation-comment error">Error last</span>',
+    ].join("");
+
+    assert.deepEqual(extractCs1FragmentIssues(html), [
+        { message: "Error first", severity: "error" },
+        { message: "Error last", severity: "error" },
+        { message: "Informational", severity: "maintenance" },
+        { message: "Maintenance", severity: "maintenance" },
+    ]);
+    assert.deepEqual(extractCs1IssueMessages(html), [
+        "Error first",
+        "Error last",
+        "Maintenance",
+    ]);
+});
+
+test("uses page categories to recognize hidden zhwiki maintenance", () => {
+    const maintenance = "引文格式1维护：未识别语文类型";
+    const html = [
+        '<span class="citation-comment" ',
+        'style="display:none; color:#33aa33">',
+        ` ${maintenance} (<a href="/wiki/Category:${maintenance}">link</a>)`,
+        "</span>",
+        '<span class="citation-comment" style="color:#33aa33">',
+        "Informational",
+        "</span>",
+    ].join("");
+
+    assert.deepEqual(extractCs1FragmentIssueMessages(html), [
+        maintenance,
+        "Informational",
+    ]);
+    assert.deepEqual(extractCs1FragmentIssueMessages(html, [maintenance]), [
+        maintenance,
+        "Informational",
+    ]);
+    assert.deepEqual(extractCs1IssueMessages(html, [maintenance]), [
+        maintenance,
+    ]);
 });

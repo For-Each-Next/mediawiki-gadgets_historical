@@ -87,6 +87,34 @@ test("gives both source usage counts native titles", () => {
     assertNativeUsageCountTitle(toolSource, "source");
 });
 
+test("styles CS1 source rows by issue severity", () => {
+    const template = readFileSync(
+        join(dialogDirectory, "tool-dialog.vue"),
+        "utf8",
+    );
+    const styles = readFileSync(join(packageRoot, "ui/styles.css"), "utf8");
+
+    assert.match(
+        template,
+        /existing-row--error'[\s\S]*result\.severity === 'error'/u,
+    );
+    assert.match(
+        template,
+        /existing-row--maintenance'[\s\S]*result\.severity === 'maintenance'/u,
+    );
+    assert.match(styles, buildSeverityStylePattern("error", "error"));
+    assert.match(styles, buildSeverityStylePattern("maintenance", "success"));
+});
+
+function buildSeverityStylePattern(modifier: string, token: string): RegExp {
+    return new RegExp(
+        String.raw`\.cf-source-manager__existing-row--${modifier}\s*\{` +
+            String.raw`[\s\S]*?background-color-${token}-subtle` +
+            String.raw`[\s\S]*?border-color-${token}[\s\S]*?\}`,
+        "u",
+    );
+}
+
 function assertNativeUsageCountTitle(source: string, owner: string): void {
     const openingTag = String.raw`<(small|span)\b[^>]*:title="[^"]+"[^>]*>`;
     const elementContent = String.raw`(?:(?!<\/\1>)[\s\S])*?`;

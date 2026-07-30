@@ -93,6 +93,9 @@ export function createSourceValidationMessages(
         invalidDate(parameter) {
             return translator.msg("validation.invalidDate", { parameter });
         },
+        invalidParameterName() {
+            return translator.msg("validation.invalidParameterName");
+        },
         parameterRequired() {
             return translator.msg("validation.parameterRequired");
         },

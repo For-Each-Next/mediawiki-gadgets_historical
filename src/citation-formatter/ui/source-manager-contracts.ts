@@ -3,7 +3,10 @@
  */
 
 import type { Cs1ReviewWorkflow } from "#gadget/contracts/cs1-review.ts";
-import type { CitationLayout } from "#gadget/domain/types.ts";
+import type {
+    CitationLayout,
+    CitationTemplateDataMap,
+} from "#gadget/domain/types.ts";
 import type * as editBox from "#shared/edit-box";
 
 export type ReferenceStyle = "r" | "ref";
@@ -34,7 +37,11 @@ export interface SourceManagerDependencies {
         sourceInput: string,
         archiveSeed: SourceArchiveMetadata | null,
     ) => Promise<ResolvedSourceMetadata>;
+    loadCitationTemplateData: (
+        names: string[],
+    ) => Promise<CitationTemplateDataMap>;
     resolveWikiLink: (value: string) => Promise<string>;
+    startExecutionTimer: (label: string) => () => void;
 }
 
 export type OpenCitationFormatterDialog = (

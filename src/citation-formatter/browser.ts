@@ -3,7 +3,12 @@
  */
 
 import { start } from "#gadget/main.ts";
+import {
+    reportStartupFailure,
+    startExecutionTimer,
+} from "#gadget/infra/logger.ts";
 
+const finishLoading = startExecutionTimer("loaded");
 if (typeof mw !== "undefined" && typeof mw.loader?.using === "function") {
     mountWhenMediaWikiIsReady();
     mw.hook("ve.wikitextInteractive").add(mountWhenMediaWikiIsReady);
@@ -14,7 +19,6 @@ function mountWhenMediaWikiIsReady(): void {
     void mw.loader
         .using("mediawiki.util")
         .then(start)
-        .catch(function reportStartupFailure(error: unknown): void {
-            console.error("Citation Formatter failed to start.", error);
-        });
+        .then(finishLoading)
+        .catch(reportStartupFailure);
 }

@@ -74,6 +74,7 @@ export type DraftDialogContext = DraftDialogActions & {
     draftSourcePreview: DraftStateValue<"draftSourcePreview">;
     editingSource: DraftStateValue<"editingSource">;
     error: string;
+    hasCitationIdentity: boolean;
     interfaceLocale: string;
     joinAuthorIcon: CodexIcons["cdxIconMerge"];
     linkIcon: CodexIcons["cdxIconLink"];
@@ -86,7 +87,7 @@ export type DraftDialogContext = DraftDialogActions & {
     parameterTableColumns: TableColumn[];
     splitAuthorIcon: CodexIcons["cdxIconMerge"];
     switchStatusIcon: CodexIcons["cdxIconUpdate"];
-    templateOptions: typeof options.CITATION_TEMPLATE_OPTIONS;
+    templateOptions: ReturnType<typeof options.getSourceDraftTemplateOptions>;
     warning: string;
 };
 

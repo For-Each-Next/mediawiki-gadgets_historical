@@ -14,21 +14,43 @@ export interface Cs1ValidationResult {
     messages: string[];
 }
 
-const CS1_MESSAGE_CLASS_PATTERN = new RegExp(
+export type Cs1IssueSeverity = "error" | "maintenance";
+
+export interface Cs1Issue {
+    message: string;
+    severity: Cs1IssueSeverity;
+}
+
+/** Orders errors first while retaining order inside each group. */
+export function orderCs1ItemsBySeverity<
+    Item extends { severity: Cs1IssueSeverity },
+>(items: readonly Item[]): Item[] {
+    return [
+        ...items.filter((item) => item.severity === "error"),
+        ...items.filter((item) => item.severity === "maintenance"),
+    ];
+}
+
+const CS1_MESSAGE_SPAN_PATTERN = new RegExp(
     [
-        String.raw`<span\b(?=[^>]*\bclass=(?:"[^"]*`,
-        String.raw`(?:\bcs1-(?:visible-error|hidden-error|maint)\b|`,
-        String.raw`\bcitation-comment\b)[^"]*"|'[^']*`,
-        String.raw`(?:\bcs1-(?:visible-error|hidden-error|maint)\b|`,
-        String.raw`\bcitation-comment\b)[^']*'))[^>]*>`,
+        String.raw`<span\b(?=[^>]*\sclass\s*=\s*`,
+        String.raw`(?:"([^"]*)"|'([^']*)'))[^>]*>`,
         String.raw`([\s\S]*?)<\/span>`,
     ].join(""),
     "giu",
 );
+const CS1_ERROR_CLASSES = new Set(["cs1-hidden-error", "cs1-visible-error"]);
 const PARAMETER_PATTERN = /\|([A-Za-z][A-Za-z0-9_-]*)\s*=/gu;
 const HTML_ENTITY_PATTERN = /&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/giu;
-const CS1_CATEGORY_PATTERN =
-    /^(?:CS1 (?:errors|maint):|引文格式1(?:错误|維護|维护)[：:])/u;
+const CS1_CATEGORY_PATTERN = new RegExp(
+    [
+        String.raw`^(?:CS1 (?:errors|maint):|`,
+        String.raw`引文格式1(?:错误|錯誤|維護|维护)[：:])`,
+    ].join(""),
+    "u",
+);
+const CS1_ERROR_CATEGORY_PATTERN =
+    /^(?:CS1 errors:|引文格式1(?:错误|錯誤)[：:])/u;
 const COMMON_PARAMETER_ALIASES: Record<string, string> = {
     accessdate: "access-date",
     archivedate: "archive-date",
@@ -118,20 +140,118 @@ export function extractCs1IssueMessages(
     html: string,
     categories: readonly string[] = [],
 ): string[] {
-    const messages: string[] = [];
-    for (const match of html.matchAll(CS1_MESSAGE_CLASS_PATTERN)) {
-        const message = normalizeHtmlText(match[1]);
-        if (message !== "") {
-            messages.push(message);
+    const categoryIssues = extractCs1CategoryIssues(categories);
+    return deduplicateCs1Issues([
+        ...extractCs1HtmlIssues(html, categoryIssues, false),
+        ...categoryIssues,
+    ]).map((issue) => issue.message);
+}
+
+/**
+ * Extracts issues from one isolated citation fragment.
+ *
+ * Green citation comments are maintenance results.
+ * A matching page category refines their severity.
+ */
+export function extractCs1FragmentIssueMessages(
+    html: string,
+    categories: readonly string[] = [],
+): string[] {
+    return extractCs1FragmentIssues(html, categories).map(
+        (issue) => issue.message,
+    );
+}
+
+/** Extracts typed CS1 issues from one isolated citation fragment. */
+export function extractCs1FragmentIssues(
+    html: string,
+    categories: readonly string[] = [],
+): Cs1Issue[] {
+    return extractCs1HtmlIssues(
+        html,
+        extractCs1CategoryIssues(categories),
+        true,
+    );
+}
+
+function extractCs1HtmlIssues(
+    html: string,
+    categoryIssues: readonly Cs1Issue[],
+    includePlainComments: boolean,
+): Cs1Issue[] {
+    const issues: Cs1Issue[] = [];
+    const categorySeverities = new Map(
+        categoryIssues.map((issue) => [issue.message, issue.severity]),
+    );
+    for (const match of html.matchAll(CS1_MESSAGE_SPAN_PATTERN)) {
+        const classNames = new Set(
+            (match[1] ?? match[2] ?? "")
+                .toLocaleLowerCase("en-US")
+                .split(/\s+/gu)
+                .filter(Boolean),
+        );
+        const message = normalizeHtmlText(match[3]);
+        const severity = getCs1SpanSeverity(
+            classNames,
+            categorySeverities.get(message),
+            includePlainComments,
+        );
+        if (message === "" || severity == null) {
+            continue;
         }
+        issues.push({ message, severity });
     }
+    return deduplicateCs1Issues(issues);
+}
+
+function extractCs1CategoryIssues(categories: readonly string[]): Cs1Issue[] {
+    const issues: Cs1Issue[] = [];
     for (const category of categories) {
         const normalized = category.trim();
         if (CS1_CATEGORY_PATTERN.test(normalized)) {
-            messages.push(normalized);
+            issues.push({
+                message: normalized,
+                severity: CS1_ERROR_CATEGORY_PATTERN.test(normalized)
+                    ? "error"
+                    : "maintenance",
+            });
         }
     }
-    return [...new Set(messages)];
+    return deduplicateCs1Issues(issues);
+}
+
+function getCs1SpanSeverity(
+    classNames: Set<string>,
+    categorySeverity: Cs1IssueSeverity | undefined,
+    includePlainComments: boolean,
+): Cs1IssueSeverity | null {
+    if (
+        [...CS1_ERROR_CLASSES].some((name) => classNames.has(name)) ||
+        (classNames.has("error") && classNames.has("citation-comment"))
+    ) {
+        return "error";
+    }
+    if (classNames.has("cs1-maint")) {
+        return categorySeverity ?? "maintenance";
+    }
+    if (classNames.has("citation-comment")) {
+        if (categorySeverity != null) {
+            return categorySeverity;
+        }
+        return includePlainComments ? "maintenance" : null;
+    }
+    return null;
+}
+
+function deduplicateCs1Issues(issues: readonly Cs1Issue[]): Cs1Issue[] {
+    const unique = new Map<string, Cs1Issue>();
+    for (const issue of issues) {
+        const existing = unique.get(issue.message);
+        if (existing == null || issue.severity === "error") {
+            unique.set(issue.message, issue);
+        }
+    }
+    return orderCs1ItemsBySeverity([...unique.values()]);
 }
 
 function normalizeHtmlText(html: string): string {
@@ -142,7 +262,7 @@ function normalizeHtmlText(html: string): string {
             .replace(/\s+/gu, " ")
             .trim(),
     );
-    return text.replace(/\s*\(帮助\)$/u, "");
+    return text.replace(/\s*\((?:help|link|帮助)\)$/iu, "");
 }
 
 function decodeHtmlEntities(value: string): string {

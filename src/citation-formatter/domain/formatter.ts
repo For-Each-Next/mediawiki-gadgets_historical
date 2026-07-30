@@ -9,6 +9,7 @@ import {
     getCitationIdentity,
     type CitationIdentity,
 } from "./citation.ts";
+import { formatGenericCitationTemplate } from "./generic-citation.ts";
 import {
     captureContainerPrefixes,
     createEmptyReferenceContainer,
@@ -23,7 +24,13 @@ import {
     formatReferenceGroupAttribute,
     stripOptionalReferenceNameQuotes,
 } from "./ref-attributes.ts";
-import { isCitationTemplate, normalizeTemplateName } from "./templates.ts";
+import {
+    getCanonicalTemplateName,
+    isCitationTemplate,
+    isEditableCitationTemplate,
+    isMetadataFreeCitationTemplate,
+    normalizeTemplateName,
+} from "./templates.ts";
 import type {
     CitationLayout,
     CitationTemplate,
@@ -72,6 +79,7 @@ const LOWERCASE_ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 interface ReferenceDefinition {
     finalName: string;
     formattedContent: string;
+    formattingStatus: ReferenceFormattingStatus;
     group: string;
     identity?: CitationIdentity;
     oldName: string;
@@ -81,6 +89,8 @@ interface ReferenceDefinition {
     tag: RefTag;
     trailingText: string;
 }
+
+type ReferenceFormattingStatus = "formatted" | "unsupported";
 
 interface PlainDefinitionOptions {
     content: string;
@@ -103,7 +113,13 @@ interface ReferenceDefinitionOptions {
 
 interface FormattedCitation {
     citation: CitationTemplate;
+    identity?: CitationIdentity;
     text: string;
+}
+
+interface ReferenceCitationCalls {
+    calls: ParsedTemplateCall[];
+    wholeBody: boolean;
 }
 
 /**
@@ -127,17 +143,40 @@ export interface CitationFormatResult {
  * @returns Used normalized template names.
  */
 export function findUsedCitationTemplates(text: string): string[] {
+    return findUsedTemplateNames(
+        text,
+        isCitationTemplate,
+        normalizeTemplateName,
+    );
+}
+
+/**
+ * Returns unknown Cite-prefixed template names needing live metadata.
+ */
+export function findUsedMetadataFreeCitationTemplates(text: string): string[] {
+    return findUsedTemplateNames(
+        text,
+        isMetadataFreeCitationTemplate,
+        getCanonicalTemplateName,
+    );
+}
+
+function findUsedTemplateNames(
+    text: string,
+    matches: (name: string) => boolean,
+    normalizeName: (name: string) => string,
+): string[] {
     const protectedRanges = findCitationFormattingProtectedRanges(text);
     const calls = findTemplateCalls(text);
     const isUsedCitation = function isUsedCitation(call: ParsedTemplateCall) {
         const result =
-            isCitationTemplate(call.name) &&
+            matches(call.name) &&
             !isInWikitextRanges(call.start, protectedRanges);
         return result;
     };
     const usedCalls = calls.filter(isUsedCitation);
     const normalizeUsedTemplateName = (call: ParsedTemplateCall) =>
-        normalizeTemplateName(call.name);
+        normalizeName(call.name);
     const names = usedCalls.map(normalizeUsedTemplateName);
     const uniqueNames = new Set(names);
     const result = Array.from(uniqueNames);
@@ -235,7 +274,7 @@ function summarizeFormatting(
         };
     const result: CitationFormatResult = {
         citationsFormatted: individual.filter(
-            (definition) => definition.identity != null,
+            (definition) => definition.formattingStatus === "formatted",
         ).length,
         individualReferencesFound: individual.length,
         referenceCallsFound: tags.filter(isTagOutsideContainers).length,
@@ -245,7 +284,7 @@ function summarizeFormatting(
             containers,
         ),
         referencesNotFormatted: individual.filter(
-            (definition) => definition.identity == null,
+            (definition) => definition.formattingStatus === "unsupported",
         ).length,
         referencesMoved: definitions.filter(isDefinitionOutsideContainers)
             .length,
@@ -394,8 +433,12 @@ function createReferenceDefinition({
         tag,
         trailingText,
     };
-    const citationCalls = findWholeCitationCalls(trimmed);
-    const citations = formatCitationCalls(citationCalls, templateData, layout);
+    const citationCalls = findReferenceCitationCalls(trimmed);
+    const citations = formatCitationCalls(
+        citationCalls.calls,
+        templateData,
+        layout,
+    );
     if (citations == null || citations.length === 0) {
         const identity = getShortCitationIdentity(
             trimmed,
@@ -404,37 +447,52 @@ function createReferenceDefinition({
         if (identity != null) {
             return buildFormattedDefinition(plainOptions, trimmed, identity);
         }
-        return buildPlainDefinition(plainOptions);
+        return buildIdentityFreeDefinition(
+            plainOptions,
+            trimmed,
+            "unsupported",
+        );
     }
-    if (citations.length > 1) {
+    const content = replaceCitationCalls(
+        trimmed,
+        citationCalls.calls,
+        citations,
+    );
+    if (!citationCalls.wholeBody) {
+        return buildIdentityFreeDefinition(plainOptions, content, "formatted");
+    }
+    const allHaveIdentity = citations.every(
+        (citation) => citation.identity != null,
+    );
+    if (citations.length > 1 && allHaveIdentity) {
         return buildBundledDefinition(plainOptions, citations);
     }
-    const formatted = citations[0];
-    const identity = getCitationIdentity(formatted.citation);
-    const content = replaceSingleCitation(
-        trimmed,
-        citationCalls[0],
-        formatted,
-    );
+    const identity = citations[0].identity;
+    if (citations.length > 1 || identity == null) {
+        return buildIdentityFreeDefinition(plainOptions, content, "formatted");
+    }
     return buildFormattedDefinition(plainOptions, content, identity);
 }
 
 /**
- * Formats a citation while retaining adjacent maintenance templates.
+ * Formats citation calls while retaining surrounding reference text.
  *
  * @param content - Complete trimmed reference body.
- * @param call - Citation call within the body.
- * @param formatted - Formatted citation call.
+ * @param calls - Citation calls within the body.
+ * @param formatted - Formatted citation calls.
  * @returns Formatted body retaining surrounding maintenance templates.
  */
-function replaceSingleCitation(
+function replaceCitationCalls(
     content: string,
-    call: ParsedTemplateCall,
-    formatted: FormattedCitation,
+    calls: ParsedTemplateCall[],
+    formatted: FormattedCitation[],
 ): string {
-    const result = applyReplacements(content, [
-        { end: call.end, start: call.start, text: formatted.text },
-    ]);
+    const replacements = calls.map((call, index) => ({
+        end: call.end,
+        start: call.start,
+        text: formatted[index].text,
+    }));
+    const result = applyReplacements(content, replacements);
     return result;
 }
 
@@ -453,11 +511,31 @@ function formatCitationCalls(
 ): FormattedCitation[] | undefined {
     const result: FormattedCitation[] = [];
     for (const call of calls) {
-        const metadata = templateData[normalizeTemplateName(call.name)];
-        if (metadata == null) {
+        if (isCitationTemplate(call.name)) {
+            const metadata = templateData[normalizeTemplateName(call.name)];
+            if (metadata == null) {
+                return undefined;
+            }
+            const formatted = formatCitationTemplate(
+                call.raw,
+                metadata,
+                layout,
+            );
+            result.push({
+                ...formatted,
+                identity: getCitationIdentity(formatted.citation),
+            });
+            continue;
+        }
+        if (!isMetadataFreeCitationTemplate(call.name)) {
             return undefined;
         }
-        const formatted = formatCitationTemplate(call.raw, metadata, layout);
+        const metadata = templateData[getCanonicalTemplateName(call.name)];
+        const formatted = formatGenericCitationTemplate(
+            call.raw,
+            layout,
+            metadata,
+        );
         result.push(formatted);
     }
     return result;
@@ -477,7 +555,10 @@ function buildShortCitationSourceMap(
     const result = new Map<string, CitationIdentity>();
     const protectedRanges = findCitationFormattingProtectedRanges(source);
     for (const call of findTemplateCalls(source)) {
-        if (isInWikitextRanges(call.start, protectedRanges)) {
+        if (
+            !isCitationTemplate(call.name) ||
+            isInWikitextRanges(call.start, protectedRanges)
+        ) {
             continue;
         }
         const metadata = templateData[normalizeTemplateName(call.name)];
@@ -653,6 +734,7 @@ function buildFormattedDefinition(
     const result: ReferenceDefinition = {
         finalName: identity.baseName,
         formattedContent: content,
+        formattingStatus: "formatted",
         group: options.group,
         identity,
         oldName: options.oldName,
@@ -666,18 +748,23 @@ function buildFormattedDefinition(
 }
 
 /**
- * Builds an unparseable note definition.
+ * Builds a formatted or unsupported definition without an identity.
  *
- * @param options - Plain definition fields.
- * @returns Plain reference definition.
+ * @param options - Shared definition fields.
+ * @param content - Preserved or generically formatted reference text.
+ * @param formattingStatus - Summary classification.
+ * @returns Identity-free reference definition.
  */
-function buildPlainDefinition(
+function buildIdentityFreeDefinition(
     options: PlainDefinitionOptions,
+    content: string,
+    formattingStatus: ReferenceFormattingStatus,
 ): ReferenceDefinition {
-    const { content, group, oldName, order, tag, trailingText } = options;
+    const { group, oldName, order, tag, trailingText } = options;
     const result: ReferenceDefinition = {
         finalName: "",
         formattedContent: content,
+        formattingStatus,
         group,
         oldName,
         order,
@@ -956,14 +1043,14 @@ function assignFallbackNames(definitions: ReferenceDefinition[]): void {
 }
 
 /**
- * Finds a supported citation occupying an entire ref body.
+ * Finds top-level editable citations and checks ref-body coverage.
  *
  * @param text - Trimmed ref content.
- * @returns Whole citation call when present.
+ * @returns Calls plus whole-body coverage.
  */
-function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
+function findReferenceCitationCalls(text: string): ReferenceCitationCalls {
     const isCitationCall = function isCitationCall(call: ParsedTemplateCall) {
-        return isCitationTemplate(call.name);
+        return isEditableCitationTemplate(call.name);
     };
     const candidates = findTemplateCalls(text).filter(isCitationCall);
     const isTopLevel = function isTopLevel(candidate: ParsedTemplateCall) {
@@ -984,8 +1071,7 @@ function findWholeCitationCalls(text: string): ParsedTemplateCall[] {
     const onlyWhitespace = gaps.every(isWhitespace);
     const onlyMaintenance =
         calls.length === 1 && gaps.every(isCitationMaintenanceText);
-    const result = onlyWhitespace || onlyMaintenance ? calls : [];
-    return result;
+    return { calls, wholeBody: onlyWhitespace || onlyMaintenance };
 }
 
 /**

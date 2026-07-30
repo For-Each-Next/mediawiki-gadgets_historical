@@ -2,6 +2,79 @@
 
 ## Until 0.6
 
+### 0.5.1-post.7 (2026-07-30 10:56 UTC)
+
+Overview: Citation Formatter applies shared language normalization to every
+editable Cite template.
+
+- Extended English language-name conversion to metadata-free `Cite` templates,
+  including `Cite comic`, while retaining their generic parameter-preservation
+  behavior.
+
+### 0.5.1-post.6 (2026-07-30 10:43 UTC)
+
+Overview: Citation Formatter links CS1 results to their sources, safely formats
+mixed references, and normalizes English language names.
+
+- Attributed hidden and green CS1 comments to their citations, ordered errors
+  before maintenance results, styled the groups with red and green rows, and
+  omitted duplicate page-level messages.
+- Formatted top-level `Cite` templates inside mixed reference prose without
+  discarding surrounding text, leaving only genuinely non-citation references
+  in the skipped count.
+- Added a reusable shared English language-name normalizer generated from SIL's
+  ISO 639-3 table; preferred ISO 639-1 codes, retained ISO 639-3 fallbacks, and
+  preserved existing tags, unknown values, malformed lists, and nested
+  wikitext.
+
+### 0.5.1-post.5 (2026-07-30 09:46 UTC)
+
+Overview: Citation Formatter standardizes Chinese message spacing.
+
+- Removed spaces between Chinese text and adjacent Latin text, numbers,
+  interpolated values, template syntax, and reference tags in both Chinese
+  locale catalogs.
+
+### 0.5.1-post.4 (2026-07-30 09:35 UTC)
+
+Overview: Citation Formatter refines non-CS1 results and formatting feedback.
+
+- Excluded editable `Cite`-prefixed templates without local CS1 metadata from
+  the non-CS1 source results while retaining their generic formatting workflow.
+- Omitted the skipped-reference clause from Format citations feedback when no
+  references were skipped.
+
+### 0.5.1-post.3 (2026-07-30 09:32 UTC)
+
+Overview: Citation Formatter keeps the selected manager tab after formatting.
+
+- Kept the active lookup tab selected after Format citations refreshed the
+  source list and added regression coverage for the navigation state.
+
+### 0.5.1-post.2 (2026-07-30 09:23 UTC)
+
+Overview: Citation Formatter safely formats generic citations, recognizes CS1
+error markup precisely, and reports browser execution timing.
+
+- Made every `Cite`-prefixed template editable and layout-formattable while
+  preserving unknown, duplicate, empty, and positional fields, including
+  literal-tag pipes; rejected structural parameter-name markup; avoided
+  CS1-only workflows; and counted whole generic citations as formatted rather
+  than unsupported.
+- Fetched generic-template names, parameter order, and aliases from the local
+  wiki's TemplateData API, cached validated fields in browser storage for seven
+  days, and retained safe raw formatting when the API or storage was
+  unavailable.
+- Required both `error` and `citation-comment` classes for the Chinese CS1
+  fallback while retaining the native CS1 error and maintenance classes and
+  ignoring informational citation comments.
+- Logged successful gadget loading and every effective Format action with
+  elapsed time and a `[citation formatter]` console marker, without logging
+  guarded repeat actions.
+- Added generic citation editing, formatting, TemplateData-cache, validation,
+  selector, CS1 isolation, issue-markup, and execution-timer regression
+  coverage.
+
 ### 0.5.1 (2026-07-29 21:25 UTC)
 
 Overview: Citation Formatter improves feedback, navigation, localization,

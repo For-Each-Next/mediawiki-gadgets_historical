@@ -617,14 +617,199 @@ const testNumericPlainReferenceFallbacks = () => {
     assert.match(result.text, /A<ref name=":1" \/>/u);
     assert.match(result.text, /B<ref name=":2" \/>/u);
     assert.match(result.text, /<ref name=":1">Plain note<\/ref>/u);
-    assert.match(result.text, /<ref name=":2">See \{\{cite web/u);
-    assert.equal(result.referencesNotFormatted, 2);
-    assert.equal(result.citationsFormatted, 0);
+    assert.match(result.text, /<ref name=":2">See \{\{Cite web/u);
+    assert.equal(result.referencesNotFormatted, 1);
+    assert.equal(result.citationsFormatted, 1);
 };
 test(
-    "uses numeric-colon fallbacks for plain and mixed note content",
+    "formats mixed citation notes and numbers identity-free references",
     testNumericPlainReferenceFallbacks,
 );
+
+test("formats a citation before trailing prose in a named reference", () => {
+    const source = [
+        "Review.<ref name=GProPS>{{cite magazine" +
+            "|author=Scary Larry" +
+            "|title=PlayStation ProReview: PaRappa the Rappa" +
+            "|date=November 1997" +
+            "|magazine=[[GamePro]]" +
+            "|issue=110" +
+            "|page=148}} Full review appears only in printed version.</ref>",
+        "Plain.<ref>''Computer and Video Games'' issue 193, page 17, " +
+            "EMAP Images, December 1997</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, generatedTemplateData);
+
+    assert.equal(result.citationsFormatted, 1);
+    assert.equal(result.referencesNotFormatted, 1);
+    assert.match(result.text, /<ref name="GProPS">\{\{Cite magazine/u);
+    assert.match(
+        result.text,
+        /\}\} Full review appears only in printed version\.<\/ref>/u,
+    );
+});
+
+test("formats every whole Cite-prefixed template without CS1 assumptions", () => {
+    const source = [
+        "Guide.<ref>{{cite Fan Guide|Writer=First|issue=|Writer=Second}}</ref>",
+        "Mixed.<ref>See {{cite fan guide|title=Nested}}</ref>",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.equal(result.citationsFormatted, 2);
+    assert.equal(result.referencesNotFormatted, 0);
+    assert.ok(
+        result.text.includes(
+            [
+                "{{Cite Fan Guide",
+                "  | Writer = First",
+                "  | issue = ",
+                "  | Writer = Second",
+                "}}",
+            ].join("\n"),
+        ),
+    );
+    assert.match(result.text, /See \{\{Cite fan guide/u);
+});
+
+test("normalizes language names in metadata-free Cite templates", () => {
+    const source =
+        "<ref>{{cite comic|title=Issue|" + "language=English,japanese}}</ref>";
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.equal(result.citationsFormatted, 1);
+    assert.equal(result.referencesNotFormatted, 0);
+    assert.match(result.text, /\| language = en, ja/u);
+});
+
+test("uses live generic TemplateData without dropping citation rows", () => {
+    const source =
+        "<ref>{{Cite Fan Guide|issue=|Writer=First|name=Story|" +
+        "custom=Value|date=January 2, 2025}}</ref>";
+    const runtimeData: CitationTemplateDataMap = {
+        ...templateData,
+        "Cite Fan Guide": {
+            aliases: {
+                issue: [],
+                title: ["name"],
+                writer: ["Writer"],
+            },
+            canonicalName: "Cite Fan Guide",
+            paramOrder: ["title", "writer", "issue"],
+        },
+    };
+    const result = formatCitationWikitext(source, runtimeData);
+
+    assert.equal(result.citationsFormatted, 1);
+    assert.equal(result.referencesNotFormatted, 0);
+    assert.ok(
+        result.text.includes(
+            [
+                "{{Cite Fan Guide",
+                "  | title = Story",
+                "  | writer = First",
+                "  | issue = ",
+                "  | custom = Value",
+                "  | date = January 2, 2025",
+                "}}",
+            ].join("\n"),
+        ),
+    );
+});
+
+test("canonicalizes generic aliases only when exact and collision-free", () => {
+    const source =
+        "<ref>{{Cite Fan Guide|name=Alias|title=Canonical|" +
+        "TITLE=Upper|Writer=First|writer=Second}}</ref>";
+    const runtimeData: CitationTemplateDataMap = {
+        "Cite Fan Guide": {
+            aliases: {
+                title: ["name"],
+                writer: ["Writer"],
+            },
+            canonicalName: "Cite Fan Guide",
+            paramOrder: ["title", "writer"],
+        },
+    };
+    const result = formatCitationWikitext(source, runtimeData, "inline");
+
+    assert.ok(
+        result.text.includes(
+            "{{Cite Fan Guide | name = Alias | title = Canonical | " +
+                "Writer = First | writer = Second | TITLE = Upper}}",
+        ),
+    );
+});
+
+test("ignores structurally unsafe generic metadata", () => {
+    const source = "<ref>{{Cite Fan Guide|name=Story}}</ref>";
+    const runtimeData: CitationTemplateDataMap = {
+        "Cite Fan Guide": {
+            aliases: { "title|injected": ["name"] },
+            canonicalName: "Cite Fan Guide}}Injected",
+            paramOrder: ["title|injected"],
+        },
+    };
+    const result = formatCitationWikitext(source, runtimeData, "inline");
+
+    assert.ok(result.text.includes("{{Cite Fan Guide | name = Story}}"));
+    assert.doesNotMatch(result.text, /Injected/u);
+});
+
+test("handles prototype-like generic parameter names", () => {
+    const source = "<ref>{{Cite Fan Guide|constructor=Value}}</ref>";
+    const runtimeData: CitationTemplateDataMap = {
+        "Cite Fan Guide": {
+            aliases: {},
+            canonicalName: "Cite Fan Guide",
+            paramOrder: ["constructor"],
+        },
+    };
+    const result = formatCitationWikitext(source, runtimeData, "inline");
+
+    assert.ok(
+        result.text.includes("{{Cite Fan Guide | constructor = Value}}"),
+    );
+});
+
+test("preserves literal-tag pipes in generic citation values", () => {
+    const source = "<ref>{{Cite foo|title=<nowiki>A|B</nowiki>|x=y}}</ref>";
+    const result = formatCitationWikitext(source, templateData, "inline");
+
+    assert.ok(
+        result.text.includes(
+            "{{Cite foo | title = <nowiki>A|B</nowiki> | x = y}}",
+        ),
+    );
+    assert.doesNotMatch(result.text, /1 = B/u);
+});
+
+test("preserves significant generic positional whitespace", () => {
+    const source = "<ref>{{Cite foo|  padded  |x=y}}</ref>";
+    const result = formatCitationWikitext(source, templateData, "inline");
+
+    assert.ok(result.text.includes("{{Cite foo|  padded  | x = y}}"));
+    assert.doesNotMatch(result.text, /1 = padded/u);
+});
+
+test("keeps multiple generic citations out of CS1 cite bundles", () => {
+    const source =
+        "<ref>{{Cite Fan Guide|title=First}}" +
+        "{{Cite Comic Extra|issue=Second}}</ref>";
+    const result = formatCitationWikitext(source, templateData, "inline");
+
+    assert.equal(result.citationsFormatted, 1);
+    assert.equal(result.referencesNotFormatted, 0);
+    assert.ok(
+        result.text.includes(
+            "{{Cite Fan Guide | title = First}}" +
+                "{{Cite Comic Extra | issue = Second}}",
+        ),
+    );
+    assert.doesNotMatch(result.text, /citebundle/iu);
+});
 
 test(
     "names CITEREF-linked short citations from their source identity",

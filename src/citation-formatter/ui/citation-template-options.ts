@@ -3,7 +3,12 @@
  * Sorts each resulting group alphabetically.
  */
 
-import { SUPPORTED_CITATION_TEMPLATES } from "#gadget/domain/templates.ts";
+import {
+    getCanonicalTemplateName,
+    isMetadataFreeCitationTemplate,
+    normalizeTemplateName,
+    SUPPORTED_CITATION_TEMPLATES,
+} from "#gadget/domain/templates.ts";
 import {
     cdxIconBook,
     cdxIconBrowser,
@@ -110,6 +115,28 @@ export const CITATION_TEMPLATE_OPTIONS = CITATION_TEMPLATE_DEFINITIONS.map(
         };
     },
 );
+
+/** Includes the current metadata-free type only while editing it. */
+export function getSourceDraftTemplateOptions(template: string | undefined) {
+    const isStaticOption = CITATION_TEMPLATE_OPTIONS.some(
+        (option) => option.value === template,
+    );
+    if (
+        template == null ||
+        isStaticOption ||
+        !isMetadataFreeCitationTemplate(template)
+    ) {
+        return [...CITATION_TEMPLATE_OPTIONS];
+    }
+    const value = getCanonicalTemplateName(template);
+    return [
+        {
+            label: value,
+            value,
+        },
+        ...CITATION_TEMPLATE_OPTIONS,
+    ];
+}
 
 /**
  * Guards the selector classification when the supported set changes.

@@ -10,6 +10,11 @@
         "./edit-box": "./edit-box.ts",
         "./html": "./html.ts",
         "./i18n": "./i18n.ts",
+        "./language-code": "./language-code.ts",
         "./wikitext": "./wikitext.ts"
+    },
+    "scripts": {
+        "test": "node --test ../../tests/shared/*.test.ts",
+        "update:language-codes": "node ../../scripts/update-language-codes.ts"
     }
 }

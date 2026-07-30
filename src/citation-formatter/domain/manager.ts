@@ -2,7 +2,10 @@
  * Citation-management transformations used after initial formatting.
  */
 
-import { isCitationTemplate } from "./templates.ts";
+import {
+    isCitationTemplate,
+    isEditableCitationTemplate,
+} from "./templates.ts";
 import {
     findCitationManagementProtectedRanges,
     isInWikitextRanges,
@@ -490,7 +493,7 @@ export function expandCompactReferenceCalls(text: string): string {
  * Detects the current citation-template layout for manager defaults.
  *
  * Mixed layouts resolve to block. Applying the manager keeps the
- * default unless every supported citation is inline.
+ * default unless every editable citation is inline.
  *
  * @param text - Article wikitext.
  * @returns Detected citation-template output layout.
@@ -504,7 +507,7 @@ export function detectCitationLayout(text: string): CitationLayout {
         return (
             !isInWikitextRanges(call.start, protectedRanges) &&
             isInRefDefinition(call, definitionTags) &&
-            isCitationTemplate(call.name)
+            isEditableCitationTemplate(call.name)
         );
     };
     const calls = findTemplateCalls(text).filter(isActiveCitation);

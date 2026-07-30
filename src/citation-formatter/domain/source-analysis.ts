@@ -9,7 +9,7 @@ import {
     type SourceDraft,
 } from "./source-manager.ts";
 import { normalizeSourceUrl } from "./source-url.ts";
-import { getCanonicalTemplateName } from "./templates.ts";
+import { getCanonicalTemplateNameFromKey } from "./templates.ts";
 import { applyReplacements } from "./wikitext.ts";
 
 const PUBLICATION_PARAMETERS = new Set([
@@ -178,7 +178,7 @@ export function analyzeCitationSources(
     messages: SourceAnalysisMessages = ENGLISH_ANALYSIS_MESSAGES,
 ): CitationSourceAnalysis {
     const sources = enteredSources.filter(
-        (source) => source.status !== "non-standard",
+        (source) => source.status === "standard",
     );
     return {
         findings: [
@@ -521,7 +521,7 @@ function buildAnalysisOccurrence(
         referenceName: source.referenceName,
         rowIndex,
         sourceId: source.id,
-        template: getCanonicalTemplateName(source.draft.template),
+        template: getCanonicalTemplateNameFromKey(source.draft.template),
         title: source.title || source.url || messages.untitledSource(),
         value,
     };

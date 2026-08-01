@@ -33,7 +33,11 @@ export function startExecutionTimer(
     };
 }
 
-/** Reports a startup failure with the shared console marker. */
+/**
+ * Reports a startup failure with the shared console marker.
+ *
+ * @param error - Error value to inspect.
+ */
 export function reportStartupFailure(error: unknown): void {
     console.error(PREFIX, "failed to start.", error);
 }

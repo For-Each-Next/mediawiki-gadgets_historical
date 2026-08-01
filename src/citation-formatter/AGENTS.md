@@ -37,8 +37,9 @@ repository instructions.
 
 ## TemplateData and Site Validation
 
-- Treat `domain/data/` as generated English Wikipedia TemplateData. The
-  maintenance guide defines its reproducible refresh workflow.
+- Treat `#shared/citation` as the shared citation capability and its committed
+  `citation-template-data/` branch as generated English Wikipedia TemplateData.
+  The maintenance guide defines its reproducible refresh workflow.
 - Follow `docs/cs1-maintenance.md` and the relevant English or Chinese site
   guide for safe downloads, supported-title checks, and Lua-rule review.
 - Keep the supported template set aligned with `domain/templates.ts`. Review

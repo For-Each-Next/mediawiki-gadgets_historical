@@ -1,6 +1,6 @@
 /** Resolves citation metadata and existing Wayback snapshots. */
 
-import * as citoid from "#shared/citoid";
+import * as citoid from "#shared/citation";
 import { isGregorianCalendarDate } from "#gadget/domain/calendar-date.ts";
 import { buildCitationTemplate } from "#gadget/domain/citation-metadata.ts";
 import { sanitizeSourceUrl } from "#gadget/domain/source-url.ts";
@@ -106,7 +106,14 @@ export async function resolveSourceMetadata(
     };
 }
 
-/** Fetches raw Citoid metadata, then maps it into editable wikitext. */
+/**
+ * Fetches raw Citoid metadata, then maps it into editable wikitext.
+ *
+ * @param search - Search value.
+ * @param originalUrl - Original url value.
+ * @param options - Operation options.
+ * @returns Operation result.
+ */
 async function fetchSourceCiteTemplate(
     search: string,
     originalUrl: string,
@@ -132,7 +139,14 @@ async function fetchSourceCiteTemplate(
     }
 }
 
-/** Chooses a seeded, remote, or empty archive result. */
+/**
+ * Chooses a seeded, remote, or empty archive result.
+ *
+ * @param originalUrl - Original url value.
+ * @param archiveSeed - Archive seed value.
+ * @param options - Operation options.
+ * @returns Selected seeded, remote, or empty archive result.
+ */
 function resolveSourceArchive(
     originalUrl: string,
     archiveSeed: SourceArchiveMetadata | null,
@@ -146,7 +160,13 @@ function resolveSourceArchive(
         : Promise.resolve(archiveSeed);
 }
 
-/** Requests Wayback Availability data, rejecting on failure. */
+/**
+ * Requests Wayback Availability data, rejecting on failure.
+ *
+ * @param originalUrl - Original url value.
+ * @param options - Operation options.
+ * @returns Operation result.
+ */
 async function requestAvailableArchive(
     originalUrl: string,
     options: SourceMetadataOptions,
@@ -163,7 +183,14 @@ async function requestAvailableArchive(
     return parseAvailableArchive(data);
 }
 
-/** Builds a manual-editing draft when Citoid is unavailable. */
+/**
+ * Builds a manual-editing draft when Citoid is unavailable.
+ *
+ * @param sourceInput - Source input value.
+ * @param originalUrl - Original url value.
+ * @param options - Operation options.
+ * @returns Built manual-editing draft when Citoid is unavailable.
+ */
 function buildFallbackTemplate(
     sourceInput: string,
     originalUrl: string,
@@ -177,7 +204,13 @@ function buildFallbackTemplate(
     });
 }
 
-/** Builds a minimal editable citation for a failed lookup. */
+/**
+ * Builds a minimal editable citation for a failed lookup.
+ *
+ * @param sourceInput - Source input value.
+ * @param originalUrl - Original url value.
+ * @returns Built minimal editable citation for a failed lookup.
+ */
 function buildFallbackCitation(
     sourceInput: string,
     originalUrl: string,
@@ -201,7 +234,12 @@ function buildFallbackCitation(
     return { itemType: "webpage" };
 }
 
-/** Returns a sanitized HTTP(S) source URL, or an empty string. */
+/**
+ * Returns a sanitized HTTP(S) source URL, or an empty string.
+ *
+ * @param value - Value to process.
+ * @returns A sanitized HTTP(S) source URL, or an empty string.
+ */
 function getHttpSourceUrl(value: string): string {
     try {
         const parsed = new URL(value);
@@ -214,7 +252,12 @@ function getHttpSourceUrl(value: string): string {
     }
 }
 
-/** Gets a readable failure from one settled operation. */
+/**
+ * Gets a readable failure from one settled operation.
+ *
+ * @param result - Result value.
+ * @returns Resulting text.
+ */
 function getRejectedMessage(result: PromiseSettledResult<unknown>): string {
     if (result.status === "fulfilled") {
         return "";
@@ -224,13 +267,23 @@ function getRejectedMessage(result: PromiseSettledResult<unknown>): string {
         : String(result.reason);
 }
 
-/** Builds a Wayback Availability API request URL. */
+/**
+ * Builds a Wayback Availability API request URL.
+ *
+ * @param originalUrl - Original url value.
+ * @returns Built Wayback Availability API request URL.
+ */
 function buildAvailabilityUrl(originalUrl: string): string {
     const params = new URLSearchParams({ url: originalUrl.trim() });
     return `${WAYBACK_AVAILABILITY_ENDPOINT}?${params.toString()}`;
 }
 
-/** Parses one successful Wayback Availability API response. */
+/**
+ * Parses one successful Wayback Availability API response.
+ *
+ * @param data - Data value.
+ * @returns Parsed successful Wayback Availability API response.
+ */
 function parseAvailableArchive(
     data: WaybackAvailabilityResponse,
 ): SourceArchiveMetadata | null {
@@ -250,7 +303,12 @@ function parseAvailableArchive(
     };
 }
 
-/** Converts a Wayback timestamp to an ISO calendar date. */
+/**
+ * Converts a Wayback timestamp to an ISO calendar date.
+ *
+ * @param timestamp - Timestamp value.
+ * @returns Converted Wayback timestamp to an ISO calendar date.
+ */
 function formatArchiveDate(timestamp: string | undefined): string {
     const date = timestamp?.slice(0, ARCHIVE_DATE_LENGTH) ?? "";
     const match = date.match(/^(\d{4})(\d{2})(\d{2})$/u);

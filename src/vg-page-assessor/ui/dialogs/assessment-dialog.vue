@@ -10,6 +10,11 @@
             <cdx-message v-if="status" class="avgp-status" :type="statusType">
                 {{ status }}
             </cdx-message>
+            <cdx-progress-bar
+                v-if="saving"
+                class="avgp-save-progress"
+                :aria-label="status || msg('dialog.saving')"
+            />
 
             <fieldset class="avgp-fieldset">
                 <legend class="avgp-fieldset-title">

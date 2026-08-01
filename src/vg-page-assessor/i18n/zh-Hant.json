@@ -21,6 +21,8 @@
     "dialog.preview": "預覽",
     "dialog.cancel": "取消",
     "dialog.save": "儲存",
+    "dialog.saving": "正在儲存評級……",
+    "dialog.loadingAssessment": "正在載入評級與頁面狀態……",
     "dialog.saved": "已儲存。",
     "dialog.unchanged": "評級未變更，已略過。",
     "dialog.updatingNewPageList": "正在更新新條目列表……",

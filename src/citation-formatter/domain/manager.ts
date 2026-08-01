@@ -3,6 +3,12 @@
  */
 
 import {
+    wikitext,
+    type ParsedTemplateCall,
+    type RefTag,
+} from "#shared/wikitext";
+
+import {
     isCitationTemplate,
     isEditableCitationTemplate,
 } from "./templates.ts";
@@ -10,14 +16,7 @@ import {
     findCitationManagementProtectedRanges,
     isInWikitextRanges,
 } from "./protected-wikitext.ts";
-import {
-    applyReplacements,
-    findRefTags,
-    findTemplateCalls,
-    splitTopLevel,
-    type ParsedTemplateCall,
-    type RefTag,
-} from "./wikitext.ts";
+import { applyReplacements } from "./wikitext.ts";
 import type { CitationLayout, TextReplacement } from "./types.ts";
 
 const HTML_COMMENT = /<!--([\s\S]*?)-->/gu;
@@ -78,7 +77,7 @@ export interface NameOverrideUpdate {
 export function findNameOverrideFields(text: string): NameOverrideField[] {
     const fields = new Map<string, NameOverrideField>();
     const protectedRanges = findCitationManagementProtectedRanges(text);
-    for (const call of findTemplateCalls(text)) {
+    for (const call of wikitext(text).template.getAll()) {
         if (
             !isCitationTemplate(call.name) ||
             isInWikitextRanges(call.start, protectedRanges)
@@ -110,7 +109,7 @@ export function applyNameOverrides(
     const byId = buildOverrideIndex(updates);
     const replacements: TextReplacement[] = [];
     const protectedRanges = findCitationManagementProtectedRanges(text);
-    for (const call of findTemplateCalls(text)) {
+    for (const call of wikitext(text).template.getAll()) {
         if (isInWikitextRanges(call.start, protectedRanges)) {
             continue;
         }
@@ -130,7 +129,7 @@ export function applyNameOverrides(
  */
 function addCallNameFields(
     fields: Map<string, NameOverrideField>,
-    call: ReturnType<typeof findTemplateCalls>[number],
+    call: ParsedTemplateCall,
 ): void {
     const title = call.params.find((param) => param.name === "title");
     const forEachCallback = function addField(
@@ -389,7 +388,7 @@ function buildOverrideIndex(
  * @returns Text replacement when the call has updates.
  */
 function buildOverrideReplacement(
-    call: ReturnType<typeof findTemplateCalls>[number],
+    call: ParsedTemplateCall,
     byId: Map<string, string>,
 ): TextReplacement | null {
     const buildOverrideEntry = function buildOverrideEntry(
@@ -408,7 +407,7 @@ function buildOverrideReplacement(
         return null;
     }
     const body = call.raw.slice(2, -2);
-    const parts = splitTopLevel(body, "|");
+    const parts = wikitext(body).split("|");
     for (const entry of entries) {
         parts[entry.index + 1] = updateParamPart(
             parts[entry.index + 1],
@@ -429,7 +428,8 @@ export function compactReferenceCalls(text: string): string {
     const protectedRanges = findCitationManagementProtectedRanges(text);
     const isActiveTag = (tag: RefTag) =>
         !isInWikitextRanges(tag.start, protectedRanges);
-    const tags = findRefTags(text)
+    const tags = wikitext(text)
+        .reference.getAll()
         .filter(isCompactableReuseTag)
         .filter(isActiveTag);
     const replacements: TextReplacement[] = [];
@@ -481,7 +481,8 @@ export function expandCompactReferenceCalls(text: string): string {
         };
         return result;
     };
-    const replacements = findTemplateCalls(text)
+    const replacements = wikitext(text)
+        .template.getAll()
         .filter(isRCall)
         .filter(hasOnlyPositionalParams)
         .filter(isActiveCall)
@@ -500,7 +501,9 @@ export function expandCompactReferenceCalls(text: string): string {
  */
 export function detectCitationLayout(text: string): CitationLayout {
     const protectedRanges = findCitationManagementProtectedRanges(text);
-    const definitionTags = findRefTags(text).filter(isFullRefDefinition);
+    const definitionTags = wikitext(text)
+        .reference.getAll()
+        .filter(isFullRefDefinition);
     const isActiveCitation = function isActiveCitation(
         call: ParsedTemplateCall,
     ) {
@@ -510,7 +513,7 @@ export function detectCitationLayout(text: string): CitationLayout {
             isEditableCitationTemplate(call.name)
         );
     };
-    const calls = findTemplateCalls(text).filter(isActiveCitation);
+    const calls = wikitext(text).template.getAll().filter(isActiveCitation);
     if (calls.length === 0) {
         return "block";
     }
@@ -547,7 +550,7 @@ function isInRefDefinition(call: ParsedTemplateCall, tags: RefTag[]): boolean {
  */
 function isBlockCitationCall(call: ParsedTemplateCall): boolean {
     const inner = call.raw.slice(2, -2);
-    const parts = splitTopLevel(inner, "|");
+    const parts = wikitext(inner).split("|");
     return parts.some(hasBoundaryLineBreak);
 }
 
@@ -681,9 +684,7 @@ function addNameOverride(value: string, override: string): string {
  * @param tag - Parsed ref tag.
  * @returns Whether the tag is compactable.
  */
-function isCompactableReuseTag(
-    tag: ReturnType<typeof findRefTags>[number],
-): boolean {
+function isCompactableReuseTag(tag: RefTag): boolean {
     const keys = Object.keys(tag.attributes);
     return tag.selfClosing && keys.length === 1 && tag.attributes.name !== "";
 }
@@ -694,7 +695,7 @@ function isCompactableReuseTag(
  * @param call - Parsed template call.
  * @returns Whether the call uses the R template.
  */
-function isRCall(call: ReturnType<typeof findTemplateCalls>[number]): boolean {
+function isRCall(call: ParsedTemplateCall): boolean {
     return call.name.trim().toLocaleLowerCase("en-US") === "r";
 }
 
@@ -704,8 +705,6 @@ function isRCall(call: ReturnType<typeof findTemplateCalls>[number]): boolean {
  * @param call - Parsed template call.
  * @returns Whether every parameter is positional.
  */
-function hasOnlyPositionalParams(
-    call: ReturnType<typeof findTemplateCalls>[number],
-): boolean {
+function hasOnlyPositionalParams(call: ParsedTemplateCall): boolean {
     return call.params.every((param) => param.positional);
 }

@@ -2,7 +2,10 @@
  * Maps live CS1 validation output back to citation draft rows.
  */
 
-import { serializeSourceDraft, type SourceDraft } from "./source-manager.ts";
+import {
+    serializeSourceDraftForEdit,
+    type SourceDraft,
+} from "./source-manager.ts";
 import type {
     SourceDraftErrors,
     SourceDraftRowErrors,
@@ -21,7 +24,12 @@ export interface Cs1Issue {
     severity: Cs1IssueSeverity;
 }
 
-/** Orders errors first while retaining order inside each group. */
+/**
+ * Orders errors first while retaining order inside each group.
+ *
+ * @param items - Items value.
+ * @returns Errors first, retaining order inside each group.
+ */
 export function orderCs1ItemsBySeverity<
     Item extends { severity: Cs1IssueSeverity },
 >(items: readonly Item[]): Item[] {
@@ -69,9 +77,12 @@ const COMMON_PARAMETER_ALIASES: Record<string, string> = {
  *
  * Reference-name aliases and formatter directives are HTML comments, so
  * changing them must not hide issues returned for the citation fields.
+ *
+ * @param draft - Source draft to process.
+ * @returns Value.
  */
 export function getCs1DraftFingerprint(draft: SourceDraft): string {
-    return serializeSourceDraft(
+    return serializeSourceDraftForEdit(
         {
             rows: draft.rows.map(function omitReferenceNaming(row) {
                 return { ...row, alias: "", directive: "" };
@@ -82,7 +93,13 @@ export function getCs1DraftFingerprint(draft: SourceDraft): string {
     );
 }
 
-/** Combines local and live cell errors without dropping messages. */
+/**
+ * Combines local and live cell errors without dropping messages.
+ *
+ * @param local - Local value.
+ * @param live - Live value.
+ * @returns Operation result.
+ */
 export function mergeSourceDraftErrors(
     local: SourceDraftErrors,
     live: SourceDraftErrors,
@@ -106,6 +123,11 @@ export function mergeSourceDraftErrors(
  *
  * This avoids an HTML-library dependency, allowing Node unit tests and
  * browser use.
+ *
+ * @param draft - Source draft to process.
+ * @param html - Html value.
+ * @param categories - Categories value.
+ * @returns Value.
  */
 export function parseCs1ValidationResult(
     draft: SourceDraft,
@@ -135,7 +157,13 @@ export function parseCs1ValidationResult(
     };
 }
 
-/** Extracts unique CS1 messages from parse output. */
+/**
+ * Extracts unique CS1 messages from parse output.
+ *
+ * @param html - Html value.
+ * @param categories - Categories value.
+ * @returns Extracted unique CS1 messages from parse output.
+ */
 export function extractCs1IssueMessages(
     html: string,
     categories: readonly string[] = [],
@@ -152,6 +180,10 @@ export function extractCs1IssueMessages(
  *
  * Green citation comments are maintenance results.
  * A matching page category refines their severity.
+ *
+ * @param html - Html value.
+ * @param categories - Categories value.
+ * @returns Extracted issues from one isolated citation fragment.
  */
 export function extractCs1FragmentIssueMessages(
     html: string,
@@ -162,7 +194,13 @@ export function extractCs1FragmentIssueMessages(
     );
 }
 
-/** Extracts typed CS1 issues from one isolated citation fragment. */
+/**
+ * Extracts typed CS1 issues from one isolated citation fragment.
+ *
+ * @param html - Html value.
+ * @param categories - Categories value.
+ * @returns Typed CS1 issues from one isolated citation fragment.
+ */
 export function extractCs1FragmentIssues(
     html: string,
     categories: readonly string[] = [],

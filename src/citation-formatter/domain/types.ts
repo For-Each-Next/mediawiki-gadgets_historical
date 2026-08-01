@@ -1,12 +1,9 @@
-/**
- * TemplateData fields used by the formatter.
- */
-export interface CitationTemplateData {
-    aliases: Record<string, string[]>;
-    canonicalName?: string;
-    dateParams?: string[];
-    paramOrder: string[];
-}
+import type {
+    CitationTemplateData,
+    CitationTemplateDataMap,
+} from "#shared/citation";
+
+export type { CitationTemplateData, CitationTemplateDataMap };
 
 /**
  * Canonicalized template parameter.
@@ -27,11 +24,6 @@ export interface CitationTemplate {
 
 /** Supported citation-template serialization layouts. */
 export type CitationLayout = "block" | "inline";
-
-/**
- * Template metadata keyed by normalized template name.
- */
-export type CitationTemplateDataMap = Record<string, CitationTemplateData>;
 
 /**
  * One replacement in a source string.

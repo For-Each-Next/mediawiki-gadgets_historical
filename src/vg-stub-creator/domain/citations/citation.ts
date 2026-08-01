@@ -148,6 +148,11 @@ function buildCitationValues(citation: any, options: any): any {
 
 /**
  * Adds fields needed for a bibliographic Citoid query.
+ *
+ * @param values - Values value.
+ * @param citation - Citation value.
+ * @param options - Operation options.
+ * @returns Operation result.
  */
 function addBibliographicCitationValues(
     values: Record<string, unknown>,
@@ -185,7 +190,12 @@ function addBibliographicCitationValues(
     };
 }
 
-/** Formats the first usable scalar value returned for an identifier. */
+/**
+ * Formats the first usable scalar value returned for an identifier.
+ *
+ * @param value - Value to process.
+ * @returns Value.
+ */
 function formatIdentifierValue(value: unknown): string {
     if (Array.isArray(value)) {
         return trimFieldText(value.find((candidate) => candidate != null));
@@ -195,6 +205,10 @@ function formatIdentifierValue(value: unknown): string {
 
 /**
  * Reads an identifier stored in Zotero's newline-delimited extra field.
+ *
+ * @param extra - Extra value.
+ * @param name - Name to process.
+ * @returns Value.
  */
 function getExtraIdentifier(extra: unknown, name: string): string | undefined {
     const pattern = new RegExp(`(?:^|\\n)${name}:\\s*(\\S+)`, "iu");

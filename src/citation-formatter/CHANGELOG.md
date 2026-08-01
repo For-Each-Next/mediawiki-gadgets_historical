@@ -2,6 +2,60 @@
 
 ## Until 0.6
 
+### 0.5.1-post.17 (2026-08-01 19:25 UTC)
+
+Overview: Citation Formatter consumes lazy, construct-focused shared wikitext
+queries with exact source ranges and no document-wide syntax tree.
+
+- Replaced the `wikitext-parser` package and its object model with the single
+  `#shared/wikitext` capability.
+- Added source-bound `template`, `tag`, `reference`, `comment`, `table`, link,
+  parameter, and opaque-range collections with `getAll()` and `getFirst()`
+  methods that invoke only their focused scanners.
+- Added normalized template-name filtering, absolute parameter value ranges,
+  local template parsing, and inline, block, and indented-block template
+  builders under `wikitext.template`.
+- Migrated citation discovery, protected regions, reference containers, source
+  management, preview segmentation, and short-footnote matching to the new
+  query facade without changing formatting results.
+- Completed `@param` and `@returns` tags across authored TypeScript docstrings.
+
+### 0.5.1-post.12 (2026-08-01 17:15 UTC)
+
+Overview: Citation Formatter uses the shared balanced wikitext parser for
+template discovery and exact native-reference content ranges.
+
+- Replaced its private template and native-reference scanner with
+  `#shared/wikitext-parser`, retaining workflow-specific protected-tag rules.
+- Kept protected closing-tag text inside reference content from truncating the
+  parsed reference and shared the same parser with short-footnote matching.
+
+### 0.5.1-post.11 (2026-08-01 16:55 UTC)
+
+Overview: Citation Formatter preserves reviewed values and consumes citation
+data, acquisition, normalization, and wikitext through one shared capability.
+
+- Preserved existing parameter names and values when citations are opened or
+  manually saved, applying canonical normalization only through page formatting
+  or the item-level Sort parameters action.
+- Flashed affected author fields after splitting or merging names and retained
+  same-line HTML comments after rewritten closing ref tags.
+- Exposed bibliography citations used by `sfn`, resolved short footnotes for
+  editing and reuse, and shared that matcher with wikEd Lite.
+- Added non-Latin-only and all-foreign script-title modes, reduced copied
+  language tags to their primary subtags, and applied them consistently to item
+  and page formatting.
+- Replaced the generated language registry with a focused common-language map
+  and normalized valid single-digit ISO date components with leading zeroes.
+- Moved committed citation TemplateData into `shared` for reuse across gadgets
+  and updated its generator, imports, contributor documentation, and tests.
+- Added a shared single-template and bulk TemplateData loader with safe title
+  validation, redirect resolution, and bounded serial API batching, then based
+  Citation Formatter's site-specific cache adapter on it.
+- Consolidated Citoid, generated and live TemplateData, language-code,
+  short-footnote, and general wikitext helpers under the `#shared/citation`
+  entry point.
+
 ### 0.5.1-post.7 (2026-07-30 10:56 UTC)
 
 Overview: Citation Formatter applies shared language normalization to every

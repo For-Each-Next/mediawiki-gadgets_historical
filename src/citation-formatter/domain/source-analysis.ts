@@ -172,7 +172,13 @@ const ENGLISH_ANALYSIS_MESSAGES: SourceAnalysisMessages = {
     },
 };
 
-/** Builds summary counts and likely formatting inconsistencies. */
+/**
+ * Builds summary counts and likely formatting inconsistencies.
+ *
+ * @param enteredSources - Entered sources value.
+ * @param messages - Messages value.
+ * @returns Built summary counts and likely formatting inconsistencies.
+ */
 export function analyzeCitationSources(
     enteredSources: ExistingSource[],
     messages: SourceAnalysisMessages = ENGLISH_ANALYSIS_MESSAGES,
@@ -189,7 +195,15 @@ export function analyzeCitationSources(
     };
 }
 
-/** Applies selected replacements and preserves unselected sources. */
+/**
+ * Applies selected replacements and preserves unselected sources.
+ *
+ * @param text - Text to process.
+ * @param sources - Sources value.
+ * @param replacements - Source replacements.
+ * @param messages - Messages value.
+ * @returns Resulting text.
+ */
 export function applySourceAnalysisReplacements(
     text: string,
     sources: ExistingSource[],
@@ -220,7 +234,13 @@ export function applySourceAnalysisReplacements(
     return applyReplacements(text, textReplacements);
 }
 
-/** Finds publication and publisher variants for each exact URL host. */
+/**
+ * Finds publication and publisher variants for each exact URL host.
+ *
+ * @param sources - Sources value.
+ * @param messages - Messages value.
+ * @returns Publication and publisher variants for each exact URL host.
+ */
 function findDomainFieldInconsistencies(
     sources: ExistingSource[],
     messages: SourceAnalysisMessages,
@@ -299,7 +319,13 @@ function getDomainFieldCategory(
     return parameter === "publisher" ? "publisher" : null;
 }
 
-/** Finds repeated author text with differing presentation markup. */
+/**
+ * Finds repeated author text with differing presentation markup.
+ *
+ * @param sources - Sources value.
+ * @param messages - Messages value.
+ * @returns Repeated author text with differing presentation markup.
+ */
 function findAuthorFormattingInconsistencies(
     sources: ExistingSource[],
     messages: SourceAnalysisMessages,
@@ -366,7 +392,13 @@ function buildAuthorFinding(
     ];
 }
 
-/** Finds inconsistent hashtag aliases for repeated displayed values. */
+/**
+ * Finds inconsistent hashtag aliases for repeated displayed values.
+ *
+ * @param sources - Sources value.
+ * @param messages - Messages value.
+ * @returns Inconsistent hashtag aliases for repeated displayed values.
+ */
 function findAliasInconsistencies(
     sources: ExistingSource[],
     messages: SourceAnalysisMessages,

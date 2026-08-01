@@ -1,6 +1,6 @@
 import { buildCiteTemplate } from "#gadget/domain/citations/index.ts";
 import * as fallback from "#gadget/infra/sources/fallback-citation.ts";
-import * as citoid from "#shared/citoid";
+import * as citoid from "#shared/citation";
 
 const HTTP_NOT_FOUND = 404;
 
@@ -93,7 +93,14 @@ function createCitationRefetcher(
     return result;
 }
 
-/** Fetches, formats, and stores one citation template. */
+/**
+ * Fetches, formats, and stores one citation template.
+ *
+ * @param url - Url value.
+ * @param cache - Cache value.
+ * @param options - Operation options.
+ * @returns Operation result.
+ */
 async function fetchAndCacheCitation(
     url: string,
     cache: Record<string, string>,
@@ -104,7 +111,13 @@ async function fetchAndCacheCitation(
     return template;
 }
 
-/** Fetches raw metadata before applying VG citation formatting. */
+/**
+ * Fetches raw metadata before applying VG citation formatting.
+ *
+ * @param url - Url value.
+ * @param options - Operation options.
+ * @returns Operation result.
+ */
 async function fetchCitationTemplate(
     url: string,
     options: CitationStoreOptions,

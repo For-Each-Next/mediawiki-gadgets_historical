@@ -4,7 +4,7 @@ import {
     resolvePageTitles,
     stripNamespace,
 } from "#gadget/infra/handlers/title-resolver.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { splitLookupFieldValues, trimValue, uniqueValues } = wikitext;
 
 const TEMPLATE_NAMESPACE = "Template";

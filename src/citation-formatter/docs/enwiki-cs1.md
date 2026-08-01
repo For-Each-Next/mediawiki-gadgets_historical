@@ -20,8 +20,8 @@ Use `CS1_LANGUAGE=en` with the shared download commands.
 
 English TemplateData is the formatter's committed source for shared form
 layout. Run the updater from the shared guide; it writes the modules under
-`domain/data/` and their index as one generated set. Do not edit either by
-hand.
+`../shared/citation/citation-template-data/` and their index as one generated
+set. Do not edit either by hand.
 
 Review generated diffs especially carefully for title casing, deleted or moved
 parameters, and alias changes.

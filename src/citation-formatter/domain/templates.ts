@@ -63,6 +63,9 @@ export function normalizeTemplateName(value: string): string {
 
 /**
  * Normalizes title syntax while preserving meaningful letter casing.
+ *
+ * @param value - Value to process.
+ * @returns Value.
  */
 function normalizeTemplateDisplayName(value: string): string {
     return value
@@ -73,6 +76,9 @@ function normalizeTemplateDisplayName(value: string): string {
 
 /**
  * Normalizes syntax and MediaWiki's first-character title casing.
+ *
+ * @param value - Value to process.
+ * @returns Normalized syntax with MediaWiki title casing.
  */
 function normalizeTemplateIdentity(value: string): string {
     const entered = normalizeTemplateDisplayName(value);
@@ -99,6 +105,9 @@ export function getCanonicalTemplateName(value: string): string {
 
 /**
  * Returns a canonical display name for a stored lowercase metadata key.
+ *
+ * @param value - Value to process.
+ * @returns Canonical display name for a lowercase metadata key.
  */
 export function getCanonicalTemplateNameFromKey(value: string): string {
     const normalized = normalizeTemplateName(value);
@@ -123,6 +132,9 @@ export function isCitationTemplate(value: string): boolean {
 
 /**
  * Returns whether a citation template can be edited as a source draft.
+ *
+ * @param value - Value to process.
+ * @returns Whether a citation template can be edited as a source draft.
  */
 export function isEditableCitationTemplate(value: string): boolean {
     return isCitationTemplate(value) || isCitePrefixedTemplate(value);
@@ -130,6 +142,9 @@ export function isEditableCitationTemplate(value: string): boolean {
 
 /**
  * Returns whether an editable template lacks local TemplateData.
+ *
+ * @param value - Value to process.
+ * @returns Whether an editable template lacks local TemplateData.
  */
 export function isMetadataFreeCitationTemplate(value: string): boolean {
     return !isCitationTemplate(value) && isCitePrefixedTemplate(value);
@@ -137,6 +152,9 @@ export function isMetadataFreeCitationTemplate(value: string): boolean {
 
 /**
  * Returns whether a title uses the Cite template-name family.
+ *
+ * @param value - Value to process.
+ * @returns Whether a title uses the Cite template-name family.
  */
 export function isCitePrefixedTemplate(value: string): boolean {
     const normalized = normalizeTemplateName(value);

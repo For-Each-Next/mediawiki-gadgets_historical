@@ -2,7 +2,7 @@ import companies from "#gadget/config/terminologies/companies.ts";
 import genres from "#gadget/config/terminologies/genres.ts";
 import platforms from "#gadget/config/terminologies/platforms.ts";
 import years from "#gadget/config/terminologies/years.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { buildLinkText, getReferenceDefinition, getWikilinkValue } = wikitext;
 
 const TERMINOLOGY_DEFINITIONS = { companies, genres, platforms, years };
@@ -121,6 +121,9 @@ function getTerminologyDefinition(
 
 /**
  * Removes type words implied by the genre field before fallback lookup.
+ *
+ * @param value - Value to process.
+ * @returns Resulting text.
  */
 function stripGenreTypeSuffix(value: string): string {
     const unwrappedValue = getWikilinkValue(value);

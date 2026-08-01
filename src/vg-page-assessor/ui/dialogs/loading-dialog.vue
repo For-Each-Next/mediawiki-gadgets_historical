@@ -1,0 +1,14 @@
+<template>
+    <cdx-dialog
+        v-model:open="open"
+        class="avgp-loading-dialog"
+        :title="msg('tool.name')"
+        :lang="interfaceLocale"
+        @update:open="onOpenChange"
+    >
+        <div class="avgp-loading-dialog__progress" aria-live="polite">
+            <span>{{ msg("dialog.loadingAssessment") }}</span>
+            <cdx-progress-bar :aria-label="msg('dialog.loadingAssessment')" />
+        </div>
+    </cdx-dialog>
+</template>

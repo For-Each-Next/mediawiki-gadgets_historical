@@ -3,7 +3,7 @@
  */
 
 import { isCalendarDayWithinUtcMonth } from "./calendar-date.ts";
-import templateData from "./data/index.ts";
+import { citationTemplateData as templateData } from "#shared/citation";
 import { getCitationValidationConfig } from "./validation/index.ts";
 
 interface SourceDraftLike {
@@ -128,7 +128,14 @@ const PARAMETER_DEPENDENCIES = [
     { source: "pmc-embargo-date", targets: ["pmc"] },
 ] as const;
 
-/** Returns cell-level errors for an editable source draft. */
+/**
+ * Returns cell-level errors for an editable source draft.
+ *
+ * @param draft - Source draft to process.
+ * @param wikiId - Wiki id value.
+ * @param messages - Messages value.
+ * @returns Cell-level errors for an editable source draft.
+ */
 export function getSourceDraftErrors(
     draft: SourceDraftLike,
     wikiId: string,
@@ -204,7 +211,14 @@ interface DraftRowValidationContext {
     supportedNames: Set<string>;
 }
 
-/** Validates the three editable cells in one parameter row. */
+/**
+ * Validates the three editable cells in one parameter row.
+ *
+ * @param row - Row value.
+ * @param index - Source index.
+ * @param errors - Errors value.
+ * @param context - Context value.
+ */
 function validateDraftRow(
     row: SourceDraftRowLike,
     index: number,
@@ -292,7 +306,14 @@ function validateDraftRowValue(
     }
 }
 
-/** Adds a message without hiding a more specific earlier error. */
+/**
+ * Adds a message without hiding a more specific earlier error.
+ *
+ * @param errors - Errors value.
+ * @param index - Source index.
+ * @param cell - Cell value.
+ * @param message - Message value.
+ */
 function addCellError(
     errors: SourceDraftErrors,
     index: number,
@@ -304,7 +325,11 @@ function addCellError(
     errors.set(index, row);
 }
 
-/** Builds the shared CS1 whitelist from all generated TemplateData. */
+/**
+ * Builds the shared CS1 whitelist from all generated TemplateData.
+ *
+ * @returns Shared CS1 whitelist from generated TemplateData.
+ */
 function buildGlobalSupportedNames(): Set<string> {
     const names = new Set<string>();
     for (const metadata of Object.values(templateData)) {
@@ -321,7 +346,11 @@ function buildGlobalSupportedNames(): Set<string> {
     return names;
 }
 
-/** Maps all generated TemplateData aliases to canonical parameters. */
+/**
+ * Maps all generated TemplateData aliases to canonical parameters.
+ *
+ * @returns Value.
+ */
 function buildGlobalCanonicalNames(): Map<string, string> {
     const result = new Map<string, string>();
     for (const metadata of Object.values(templateData)) {
@@ -413,7 +442,14 @@ function addMissingArchiveError(
     }
 }
 
-/** Validates CS1 parameters that depend on another parameter. */
+/**
+ * Validates CS1 parameters that depend on another parameter.
+ *
+ * @param rows - Rows value.
+ * @param canonicalNames - Canonical names value.
+ * @param errors - Errors value.
+ * @param messages - Messages value.
+ */
 function validateParameterDependencies(
     rows: SourceDraftRowLike[],
     canonicalNames: Map<string, string>,
@@ -435,7 +471,12 @@ function validateParameterDependencies(
     }
 }
 
-/** Validates dependencies encoded in a parameter name. */
+/**
+ * Validates dependencies encoded in a parameter name.
+ *
+ * @param context - Context value.
+ * @param name - Name to process.
+ */
 function validateDynamicDependency(
     context: DependencyValidationContext,
     name: string,
@@ -507,7 +548,14 @@ function validateDependency(
     );
 }
 
-/** Recognizes unambiguous date forms accepted by the two CS1 sites. */
+/**
+ * Recognizes unambiguous date forms accepted by the two CS1 sites.
+ *
+ * @param entered - Entered value.
+ * @param style - Style value.
+ * @param canonicalName - Canonical name value.
+ * @returns Whether the condition is met.
+ */
 function isValidCitationDate(
     entered: string,
     style: "english" | "chinese",

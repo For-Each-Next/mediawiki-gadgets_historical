@@ -2,7 +2,12 @@
  * Canonicalizes and orders citation data and derives ref names.
  */
 
-import { normalizeEnglishLanguageCodes } from "#shared/language-code";
+import {
+    citeBookTemplateData,
+    citeWebTemplateData,
+    normalizeEnglishLanguageCodes,
+} from "#shared/citation";
+import { wikitext } from "#shared/wikitext";
 
 import { isGregorianCalendarDate } from "./calendar-date.ts";
 import type {
@@ -11,8 +16,6 @@ import type {
     CitationTemplate,
     CitationTemplateData,
 } from "./types.ts";
-import citeBookTemplateData from "./data/cite-book.ts";
-import citeWebTemplateData from "./data/cite-web.ts";
 import {
     formatBlockCitation,
     formatInlineCitation,
@@ -22,7 +25,6 @@ import {
     getCanonicalTemplateName,
     normalizeTemplateName,
 } from "./templates.ts";
-import { parseTemplateCall } from "./wikitext.ts";
 
 export {
     formatBlockCitation,
@@ -228,7 +230,7 @@ export function formatCitationTemplate(
     metadata: CitationTemplateData,
     layout: CitationLayout = "block",
 ): { citation: CitationTemplate; text: string } {
-    const parsed = parseTemplateCall(raw);
+    const parsed = wikitext.template.parse(raw);
     const name = getCanonicalTemplateName(parsed.name);
     const params = parsed.params.map(function mapParam(param) {
         const result = {
@@ -393,6 +395,9 @@ function getCitationParamSortOrder(
 
 /**
  * Keeps every numbered author/interviewee slot in one leading group.
+ *
+ * @param name - Name to process.
+ * @returns Operation result.
  */
 function getAuthorParamOrder(name: string): number | null {
     const match = name.match(/^(last|first|author-link)(\d*)$/u);
@@ -415,6 +420,15 @@ export function normalizeEnglishDate(value: string): string {
     const suffix = trimmed.match(/(\s*<!--[\s\S]*?-->\s*)$/u)?.[1] || "";
     const date =
         suffix === "" ? trimmed : trimmed.slice(0, -suffix.length).trim();
+    const numeric = date.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/u);
+    if (
+        numeric != null &&
+        isGregorianCalendarDate(numeric[1], numeric[2], numeric[3])
+    ) {
+        const month = numeric[2].padStart(2, "0");
+        const day = numeric[3].padStart(2, "0");
+        return `${numeric[1]}-${month}-${day}${suffix}`;
+    }
     const monthYear = date.match(/^([A-Za-z]+)\s+(\d{4})$/u);
     if (monthYear != null) {
         const month = ENGLISH_MONTHS[monthYear[1].toLocaleLowerCase("en-US")];
@@ -625,6 +639,9 @@ function getCitationAuthor(values: Record<string, string>): string {
 
 /**
  * Selects the author text together with the fields that supplied it.
+ *
+ * @param values - Values value.
+ * @returns Value.
  */
 function selectCitationAuthor(
     values: Record<string, string>,
@@ -649,7 +666,12 @@ function selectCitationAuthor(
     return selectCitationTitleAuthor(values);
 }
 
-/** Selects a normal or script title as the final fallback. */
+/**
+ * Selects a normal or script title as the final fallback.
+ *
+ * @param values - Values value.
+ * @returns Selected normal or script title as the final fallback.
+ */
 function selectCitationTitleAuthor(
     values: Record<string, string>,
 ): CitationAuthorSelection {
@@ -673,13 +695,23 @@ function selectCitationTitleAuthor(
           };
 }
 
-/** Applies a title alias before using the shortened quoted fallback. */
+/**
+ * Applies a title alias before using the shortened quoted fallback.
+ *
+ * @param title - Wiki title.
+ * @returns Resulting text.
+ */
 function formatTitleNameFallback(title: string): string {
     const override = extractNameOverride(title);
     return override === "" ? formatTitleFallback(title) : cleanValue(override);
 }
 
-/** Removes the required language-code prefix from a script title. */
+/**
+ * Removes the required language-code prefix from a script title.
+ *
+ * @param value - Value to process.
+ * @returns Resulting text.
+ */
 function stripScriptTitleLanguage(value: string): string {
     return value.replace(/^[a-z]{2,3}(?:-[a-z0-9]+)*:/iu, "");
 }
@@ -734,6 +766,9 @@ function collectCitationAuthors(
 
 /**
  * Gets the positive creator position encoded by an author-family field.
+ *
+ * @param name - Name to process.
+ * @returns Operation result.
  */
 function getCitationAuthorIndex(name: string): number | null {
     for (const pattern of CITATION_AUTHOR_INDEX_PATTERNS) {
@@ -750,6 +785,9 @@ function getCitationAuthorIndex(name: string): number | null {
 /**
  * Lists accepted author-family parameter spellings for one creator
  * position.
+ *
+ * @param index - Source index.
+ * @returns Value.
  */
 function getCitationAuthorCandidates(index: number): string[] {
     const number = String(index);
@@ -828,7 +866,12 @@ function getCitationYear(values: Record<string, string>): string {
     return clean.match(/\b(\d{4})\b/u)?.[1] || "n.d.";
 }
 
-/** Selects the first eligible date field. */
+/**
+ * Selects the first eligible date field.
+ *
+ * @param values - Values value.
+ * @returns Selected the first eligible date field.
+ */
 function selectCitationYear(
     values: Record<string, string>,
 ): CitationValueSelection | null {
@@ -851,7 +894,12 @@ function getSourceLocator(values: Record<string, string>): string {
     return selectSourceLocator(values)?.value ?? "";
 }
 
-/** Selects and formats the first eligible source locator. */
+/**
+ * Selects and formats the first eligible source locator.
+ *
+ * @param values - Values value.
+ * @returns Selected and formats the first eligible source locator.
+ */
 function selectSourceLocator(
     values: Record<string, string>,
 ): CitationValueSelection | null {

@@ -74,6 +74,7 @@ export type DraftDialogContext = DraftDialogActions & {
     draftSourcePreview: DraftStateValue<"draftSourcePreview">;
     editingSource: DraftStateValue<"editingSource">;
     error: string;
+    flashingAuthorRows: DraftStateValue<"flashingAuthorRows">;
     hasCitationIdentity: boolean;
     interfaceLocale: string;
     joinAuthorIcon: CodexIcons["cdxIconMerge"];

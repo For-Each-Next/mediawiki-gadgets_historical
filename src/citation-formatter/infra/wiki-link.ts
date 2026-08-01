@@ -24,7 +24,13 @@ interface ParsedWikiLink {
     title: string;
 }
 
-/** Checks a local page and returns a redirect-aware wikilink. */
+/**
+ * Checks a local page and returns a redirect-aware wikilink.
+ *
+ * @param value - Value to process.
+ * @param api - MediaWiki API client.
+ * @returns Operation result.
+ */
 export async function resolveCitationWikiLink(
     value: string,
     api: WikiLinkApi,
@@ -49,7 +55,12 @@ export async function resolveCitationWikiLink(
     return buildWikiLink(page.title, parsed.label);
 }
 
-/** Extracts a label and target from plain text or a simple wikilink. */
+/**
+ * Extracts a label and target from plain text or a simple wikilink.
+ *
+ * @param value - Value to process.
+ * @returns Value.
+ */
 function parseWikiLink(value: string): ParsedWikiLink {
     const entered = value.trim();
     const link = entered.match(/^\[\[([^|[\]]+)(?:\|([^|[\]]+))?\]\]$/u);
@@ -68,7 +79,13 @@ function parseWikiLink(value: string): ParsedWikiLink {
     return { label: entered, title: entered };
 }
 
-/** Uses compact form when the target is also the display label. */
+/**
+ * Uses compact form when the target is also the display label.
+ *
+ * @param title - Wiki title.
+ * @param label - Label value.
+ * @returns Resulting text.
+ */
 function buildWikiLink(title: string, label: string): string {
     const normalizedTitle = title.replaceAll("_", " ").trim();
     const normalizedLabel = label.replaceAll("_", " ").trim();

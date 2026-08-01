@@ -23,7 +23,7 @@ import {
     sortCategoryRowsByProse,
 } from "#gadget/domain/wiki.ts";
 import { msg } from "#gadget/i18n/index.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { trimValue } = wikitext;
 
 /**

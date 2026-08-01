@@ -56,7 +56,12 @@ export async function bundleSource(
         : output.text;
 }
 
-/** Selects source transformations for one bundle form. */
+/**
+ * Selects source transformations for one bundle form.
+ *
+ * @param options - Operation options.
+ * @returns Selected source transformations for one bundle form.
+ */
 function createBundlePlugins(options: BundleOptions) {
     if (options.minifyText && options.preserveDocumentation) {
         throw new Error(

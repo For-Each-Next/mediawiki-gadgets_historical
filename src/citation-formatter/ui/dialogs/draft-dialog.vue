@@ -123,6 +123,8 @@
                                 :class="{
                                     'cf-source-manager__parameter-row--reference-name':
                                         citationNameCells.has(index),
+                                    'cf-source-manager__parameter-row--author-change':
+                                        flashingAuthorRows.has(row),
                                 }"
                             >
                                 <th

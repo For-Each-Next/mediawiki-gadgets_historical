@@ -5,7 +5,7 @@ import {
     stripNamespace,
 } from "#gadget/infra/handlers/title-resolver.ts";
 import { sortCategoryRowsByProse } from "#gadget/domain/wiki.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { trimValue, uniqueValues } = wikitext;
 
 const CATEGORY_NAMESPACE = "Category";

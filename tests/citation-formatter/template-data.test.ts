@@ -3,7 +3,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import templateData from "citation-formatter/domain/data/index.ts";
+import * as citation from "@mediawiki-gadgets/shared/citation";
+
+const templateData = citation.citationTemplateData;
 import {
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,

@@ -114,7 +114,12 @@ export interface ResourceLoaderRequire {
     (module: "@wikimedia/codex"): CodexComponents;
 }
 
-/** Registers the Codex surface used by the formatter templates. */
+/**
+ * Registers the Codex surface used by the formatter templates.
+ *
+ * @param app - App value.
+ * @param Codex - Codex value.
+ */
 export function registerCitationFormatterComponents(
     app: VueApp,
     Codex: CodexComponents,

@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import generatedTemplateData from "citation-formatter/domain/data/index.ts";
+import { citationTemplateData as generatedTemplateData } from "@mediawiki-gadgets/shared/citation";
 import { formatCitationWikitext } from "citation-formatter/domain/formatter.ts";
 import type { CitationTemplateDataMap } from "citation-formatter/domain/types.ts";
 
@@ -46,6 +46,20 @@ test(
     "moves and formats citations into an existing references tag",
     testMovesCitationsToExistingReferences,
 );
+
+test("preserves a same-line HTML comment immediately after a ref", () => {
+    const comment = "<!-- Secret note: preserve this exactly. -->";
+    const source =
+        "Text.<ref>{{cite web|last=Ma|date=2025|title=Example}}</ref>" +
+        `${comment}\n<references />`;
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.match(
+        result.text,
+        new RegExp(`<ref name="Ma, 2025" \\/>${comment}`, "u"),
+    );
+    assert.equal(result.text.match(/Secret note/gu)?.length, 1);
+});
 
 test("localizes the generated lead marker", () => {
     const source =
@@ -997,6 +1011,19 @@ test(
     "does not parse refs in comments or nowiki blocks",
     testProtectedReferenceParsing,
 );
+
+test("parses ref content past protected closing-tag text", () => {
+    const source = [
+        "Text.<ref>{{cite web|last=Ma|date=2020" +
+            "|title=Before <nowiki></ref></nowiki> After}}</ref>",
+        "<references />",
+    ].join("\n");
+
+    const result = formatCitationWikitext(source, templateData);
+
+    assert.equal(result.citationsFormatted, 1);
+    assert.match(result.text, /<nowiki><\/ref><\/nowiki> After/u);
+});
 
 const testEarthBoundReferencePatterns = () => {
     const source = [

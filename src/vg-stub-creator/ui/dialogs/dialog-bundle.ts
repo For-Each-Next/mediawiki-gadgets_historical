@@ -4,7 +4,13 @@ export interface VgStubCreatorDialogBundle {
     readonly template: string;
 }
 
-/** Joins dialogs and styles in order under one setup scope. */
+/**
+ * Joins dialogs and styles in order under one setup scope.
+ *
+ * @param dialogs - Dialogs value.
+ * @param sharedStyles - Shared styles value.
+ * @returns Operation result.
+ */
 export function assembleVgStubCreatorDialogs(
     dialogs: readonly VgStubCreatorDialogBundle[],
     sharedStyles: string,

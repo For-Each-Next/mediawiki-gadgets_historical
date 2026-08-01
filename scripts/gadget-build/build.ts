@@ -73,7 +73,13 @@ interface OutputPaths {
     userscript: string;
 }
 
-/** Resolves the three exact artifact paths owned by one gadget. */
+/**
+ * Resolves the three exact artifact paths owned by one gadget.
+ *
+ * @param plan - Plan value.
+ * @param outputDirectory - Output directory value.
+ * @returns Resolved the three exact artifact paths owned by one gadget.
+ */
 function createOutputPaths(
     plan: GadgetBuildPlan,
     outputDirectory: string,
@@ -86,7 +92,11 @@ function createOutputPaths(
     };
 }
 
-/** Removes only the three exact outputs owned by one gadget. */
+/**
+ * Removes only the three exact outputs owned by one gadget.
+ *
+ * @param paths - Paths value.
+ */
 async function cleanBuildOutputs(paths: OutputPaths): Promise<void> {
     await Promise.all(
         Object.values(paths).map((path) => rm(path, { force: true })),

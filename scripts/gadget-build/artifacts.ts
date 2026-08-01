@@ -15,7 +15,12 @@ export interface ArtifactCollision {
     owners: string[];
 }
 
-/** Lists the three artifact names claimed by one gadget basename. */
+/**
+ * Lists the three artifact names claimed by one gadget basename.
+ *
+ * @param outputName - Output name value.
+ * @returns Three artifact names claimed by one gadget basename.
+ */
 export function createArtifactNames(outputName: string): string[] {
     return [
         `${outputName}.js`,
@@ -24,7 +29,12 @@ export function createArtifactNames(outputName: string): string[] {
     ];
 }
 
-/** Finds case-insensitive collisions between gadget artifact claims. */
+/**
+ * Finds case-insensitive collisions between gadget artifact claims.
+ *
+ * @param claims - Artifact claims to inspect.
+ * @returns Case-insensitive collisions between gadget artifact claims.
+ */
 export function findArtifactCollisions(
     claims: ArtifactClaim[],
 ): ArtifactCollision[] {
@@ -64,7 +74,12 @@ export async function assertUniqueWorkspaceArtifacts(
     );
 }
 
-/** Reads artifact claims from every deployable sibling package. */
+/**
+ * Reads artifact claims from every deployable sibling package.
+ *
+ * @param packageRoot - Gadget package directory.
+ * @returns Read artifact claims from every deployable sibling package.
+ */
 async function readWorkspaceArtifactClaims(
     packageRoot: string,
 ): Promise<ArtifactClaim[]> {
@@ -80,7 +95,13 @@ async function readWorkspaceArtifactClaims(
     return claims.filter((claim) => claim != null);
 }
 
-/** Reads one sibling package's effective artifact claim. */
+/**
+ * Reads one sibling package's effective artifact claim.
+ *
+ * @param packageRoot - Gadget package directory.
+ * @param packageName - Package name value.
+ * @returns Read sibling package's effective artifact claim.
+ */
 async function readArtifactClaim(
     packageRoot: string,
     packageName: string,
@@ -107,17 +128,33 @@ async function readArtifactClaim(
     return { outputName, owner: packageName };
 }
 
-/** Checks whether a value is an object record. */
+/**
+ * Checks whether a value is an object record.
+ *
+ * @param value - Value to process.
+ * @returns Whether a value is an object record.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value != null && !Array.isArray(value);
 }
 
-/** Checks whether a value contains non-whitespace text. */
+/**
+ * Checks whether a value contains non-whitespace text.
+ *
+ * @param value - Value to process.
+ * @returns Whether a value contains non-whitespace text.
+ */
 function hasText(value: unknown): value is string {
     return typeof value === "string" && value.trim() !== "";
 }
 
-/** Checks an unknown error for one Node error code. */
+/**
+ * Checks an unknown error for one Node error code.
+ *
+ * @param error - Error value to inspect.
+ * @param code - Error code to compare.
+ * @returns Whether the condition is met.
+ */
 function hasErrorCode(error: unknown, code: string): boolean {
     return (
         typeof error === "object" &&

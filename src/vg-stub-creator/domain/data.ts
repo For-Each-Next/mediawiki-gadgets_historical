@@ -5,7 +5,7 @@
 import { get as getTerminology } from "#gadget/config/terminologies/index.ts";
 import { formatText, getTextTemplate } from "#gadget/domain/wiki.ts";
 import type { ArticleDataValue } from "#gadget/domain/models.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 
 const {
     buildLinkText,

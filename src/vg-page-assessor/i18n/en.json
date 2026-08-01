@@ -21,6 +21,8 @@
     "dialog.preview": "Preview",
     "dialog.cancel": "Cancel",
     "dialog.save": "Save",
+    "dialog.saving": "Saving assessment...",
+    "dialog.loadingAssessment": "Loading assessment and page state...",
     "dialog.saved": "Saved.",
     "dialog.unchanged": "Skipped unchanged assessment.",
     "dialog.updatingNewPageList": "Updating new-page list...",

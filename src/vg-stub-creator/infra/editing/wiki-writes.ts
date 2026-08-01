@@ -3,7 +3,7 @@
  */
 
 import { addEditSummarySuffix } from "#gadget/infra/editing/summary.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 
 const { buildTemplateCall, buildTemplateText } = wikitext;
 const videoGamesBanner = buildTemplateCall("WikiProject Video games");

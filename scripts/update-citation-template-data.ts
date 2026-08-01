@@ -17,14 +17,17 @@ import {
 import type {
     CitationTemplateData,
     CitationTemplateDataMap,
-} from "../src/citation-formatter/domain/types.ts";
+} from "../src/shared/citation/citation-template-data/types.ts";
 
 const API_ENDPOINT = "https://en.wikipedia.org/w/api.php";
 const BATCH_SIZE = 20;
-const PACKAGE_DIRECTORY = fileURLToPath(
-    new URL("../src/citation-formatter/", import.meta.url),
+const SHARED_CITATION_DIRECTORY = fileURLToPath(
+    new URL("../src/shared/citation/", import.meta.url),
 );
-const OUTPUT_DIRECTORY = resolve(PACKAGE_DIRECTORY, "domain/data");
+const OUTPUT_DIRECTORY = resolve(
+    SHARED_CITATION_DIRECTORY,
+    "citation-template-data",
+);
 const OUTPUT_INDEX = resolve(OUTPUT_DIRECTORY, "index.ts");
 const execFileAsync = promisify(execFile);
 
@@ -40,6 +43,8 @@ await writeTemplateDataModules(templateData);
 
 /**
  * Downloads all supported templates in bounded batches.
+ *
+ * @returns Operation result.
  */
 async function fetchAllTemplateData(): Promise<CitationTemplateDataMap> {
     const result: CitationTemplateDataMap = {};
@@ -67,6 +72,9 @@ async function fetchAllTemplateData(): Promise<CitationTemplateDataMap> {
 
 /**
  * Downloads one TemplateData API batch over HTTPS.
+ *
+ * @param names - Names to process.
+ * @returns Operation result.
  */
 async function fetchTemplateDataBatch(
     names: string[],
@@ -95,6 +103,9 @@ async function fetchTemplateDataBatch(
 
 /**
  * Downloads one HTTPS API response with optional proxy support.
+ *
+ * @param url - Url value.
+ * @returns Operation result.
  */
 async function downloadTemplateData(url: string): Promise<string> {
     const args = [
@@ -121,7 +132,12 @@ async function downloadTemplateData(url: string): Promise<string> {
     return result.stdout;
 }
 
-/** Builds an English Wikipedia TemplateData API URL. */
+/**
+ * Builds an English Wikipedia TemplateData API URL.
+ *
+ * @param names - Names to process.
+ * @returns Built English Wikipedia TemplateData API URL.
+ */
 function buildTemplateDataUrl(names: string[]): string {
     const params = new URLSearchParams({
         action: "templatedata",
@@ -135,14 +151,24 @@ function buildTemplateDataUrl(names: string[]): string {
     return `${API_ENDPOINT}?${params}`;
 }
 
-/** Normalizes either API pages response shape to an array. */
+/**
+ * Normalizes either API pages response shape to an array.
+ *
+ * @param pages - Pages value.
+ * @returns Normalized either API pages response shape to an array.
+ */
 function getApiPages(
     pages: ApiPage[] | Record<string, ApiPage> | undefined,
 ): ApiPage[] {
     return Array.isArray(pages) ? pages : Object.values(pages || {});
 }
 
-/** Keeps only TemplateData fields required by the gadget. */
+/**
+ * Keeps only TemplateData fields required by the gadget.
+ *
+ * @param page - Page value.
+ * @returns Operation result.
+ */
 function normalizeApiPage(page: ApiPage): CitationTemplateData {
     const params = page.params || {};
     const aliases = Object.fromEntries(
@@ -163,7 +189,11 @@ function normalizeApiPage(page: ApiPage): CitationTemplateData {
     };
 }
 
-/** Writes one generated module per citation template and an index. */
+/**
+ * Writes one generated module per citation template and an index.
+ *
+ * @param data - Data value.
+ */
 async function writeTemplateDataModules(
     data: CitationTemplateDataMap,
 ): Promise<void> {
@@ -182,7 +212,13 @@ async function writeTemplateDataModules(
     await Promise.all([...writes, writeFile(OUTPUT_INDEX, index)]);
 }
 
-/** Formats one template's generated data module. */
+/**
+ * Formats one template's generated data module.
+ *
+ * @param name - Name to process.
+ * @param data - Data value.
+ * @returns Formatted template's generated data module.
+ */
 async function formatTemplateModule(
     name: string,
     data: CitationTemplateData,
@@ -195,7 +231,7 @@ async function formatTemplateModule(
         " * Run the workspace update:template-data script to refresh it.",
         " */",
         "",
-        'import type { CitationTemplateData } from "../types.ts";',
+        'import type { CitationTemplateData } from "./types.ts";',
         "",
         `const templateData: CitationTemplateData = ${json};`,
         "",
@@ -205,7 +241,12 @@ async function formatTemplateModule(
     return format(source, { parser: "typescript", tabWidth: 4 });
 }
 
-/** Formats the generated TemplateData index module. */
+/**
+ * Formats the generated TemplateData index module.
+ *
+ * @param entries - Entries value.
+ * @returns Formatted the generated TemplateData index module.
+ */
 async function formatTemplateDataIndex(
     entries: Array<[string, CitationTemplateData]>,
 ): Promise<string> {
@@ -222,7 +263,7 @@ async function formatTemplateDataIndex(
         " * Generated citation TemplateData index.",
         " */",
         "",
-        'import type { CitationTemplateDataMap } from "../types.ts";',
+        'import type { CitationTemplateDataMap } from "./types.ts";',
         ...imports,
         "",
         "const templateData: CitationTemplateDataMap = {",
@@ -235,12 +276,22 @@ async function formatTemplateDataIndex(
     return format(source, { parser: "typescript", tabWidth: 4 });
 }
 
-/** Converts a template name to its generated filename stem. */
+/**
+ * Converts a template name to its generated filename stem.
+ *
+ * @param name - Name to process.
+ * @returns Converted template name to its generated filename stem.
+ */
 function templateFileStem(name: string): string {
     return name.replace(/\s+/gu, "-");
 }
 
-/** Converts a template name to its generated import identifier. */
+/**
+ * Converts a template name to its generated import identifier.
+ *
+ * @param name - Name to process.
+ * @returns Converted template name to its generated import identifier.
+ */
 function templateIdentifier(name: string): string {
     return name.replace(/\s+(.)/gu, function uppercaseWord(_match, letter) {
         return letter.toLocaleUpperCase("en-US");

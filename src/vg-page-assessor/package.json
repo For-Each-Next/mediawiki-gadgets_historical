@@ -1,6 +1,6 @@
 {
     "name": "vg-page-assessor",
-    "version": "0.2.1",
+    "version": "0.2.1-post.4",
     "description": "Assess Chinese Wikipedia video game talk pages and register pages on the WikiProject new-page list.",
     "private": true,
     "license": "CC BY-SA 4.0",
@@ -31,6 +31,12 @@
             },
             "__VG_PAGE_ASSESSOR_DIALOG_STYLES__": {
                 "textFile": "ui/dialogs/assessment-dialog.css"
+            },
+            "__VG_PAGE_ASSESSOR_LOADING_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/loading-dialog.vue"
+            },
+            "__VG_PAGE_ASSESSOR_LOADING_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/loading-dialog.css"
             }
         },
         "userscript": {

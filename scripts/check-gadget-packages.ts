@@ -113,7 +113,12 @@ export async function checkGadgetPackages(
     };
 }
 
-/** Rejects artifact names that collide in the shared dist directory. */
+/**
+ * Rejects artifact names that collide in the shared dist directory.
+ *
+ * @param gadgets - Gadgets value.
+ * @returns Resulting values.
+ */
 function checkGeneratedFilenameCollisions(
     gadgets: Array<{ directory: string; metadata: PackageMetadata }>,
 ): string[] {
@@ -125,7 +130,12 @@ function checkGeneratedFilenameCollisions(
     );
 }
 
-/** Creates one package's effective artifact claim when possible. */
+/**
+ * Creates one package's effective artifact claim when possible.
+ *
+ * @param options - Operation options.
+ * @returns Created package's effective artifact claim when possible.
+ */
 function createArtifactClaim({
     directory,
     metadata,
@@ -230,7 +240,15 @@ async function checkBrowserEntry(
     }
 }
 
-/** Reads one browser entry and records a missing path. */
+/**
+ * Reads one browser entry and records a missing path.
+ *
+ * @param directory - Directory to inspect.
+ * @param packageName - Package name value.
+ * @param entryPoint - Entry point value.
+ * @param problems - Problems value.
+ * @returns Read browser entry and records a missing path.
+ */
 async function readBrowserEntry(
     directory: string,
     packageName: string,
@@ -250,7 +268,13 @@ async function readBrowserEntry(
     }
 }
 
-/** Validates startup and encapsulation in browser entry source. */
+/**
+ * Validates startup and encapsulation in browser entry source.
+ *
+ * @param source - Source text.
+ * @param packageName - Package name value.
+ * @param problems - Problems value.
+ */
 function checkBrowserEntrySource(
     source: string,
     packageName: string,
@@ -337,6 +361,10 @@ function checkCoreMetadata(
 
 /**
  * Validates package fields copied into entries and generated metadata.
+ *
+ * @param packageName - Package name value.
+ * @param metadata - Citation metadata.
+ * @param problems - Problems value.
  */
 function checkGeneratedMetadata(
     packageName: string,
@@ -430,7 +458,13 @@ function checkBuildMetadata(
     checkBuildEntryMetadata(packageName, metadata, problems);
 }
 
-/** Validates generated file and global identifiers. */
+/**
+ * Validates generated file and global identifiers.
+ *
+ * @param packageName - Package name value.
+ * @param metadata - Citation metadata.
+ * @param problems - Problems value.
+ */
 function checkBuildOutputMetadata(
     packageName: string,
     metadata: PackageMetadata,
@@ -440,7 +474,13 @@ function checkBuildOutputMetadata(
     checkArtifactOutputMetadata(packageName, metadata, problems);
 }
 
-/** Validates Vue-compatible settings consumed by the native builder. */
+/**
+ * Validates Vue-compatible settings consumed by the native builder.
+ *
+ * @param packageName - Package name value.
+ * @param metadata - Citation metadata.
+ * @param problems - Problems value.
+ */
 function checkVueOutputMetadata(
     packageName: string,
     metadata: PackageMetadata,
@@ -478,7 +518,13 @@ function checkVueOutputMetadata(
     );
 }
 
-/** Validates artifact basenames, globals, and JavaScript targets. */
+/**
+ * Validates artifact basenames, globals, and JavaScript targets.
+ *
+ * @param packageName - Package name value.
+ * @param metadata - Citation metadata.
+ * @param problems - Problems value.
+ */
 function checkArtifactOutputMetadata(
     packageName: string,
     metadata: PackageMetadata,
@@ -509,7 +555,13 @@ function checkArtifactOutputMetadata(
     );
 }
 
-/** Validates the browser source selected by the builder. */
+/**
+ * Validates the browser source selected by the builder.
+ *
+ * @param packageName - Package name value.
+ * @param metadata - Citation metadata.
+ * @param problems - Problems value.
+ */
 function checkBuildEntryMetadata(
     packageName: string,
     metadata: PackageMetadata,
@@ -596,7 +648,13 @@ async function checkRequiredPaths(
     }
 }
 
-/** Finds generic module and directory names below one gadget. */
+/**
+ * Finds generic module and directory names below one gadget.
+ *
+ * @param directory - Directory to inspect.
+ * @param packageRoot - Gadget package directory.
+ * @returns Generic module and directory names below one gadget.
+ */
 async function findGenericPaths(
     directory: string,
     packageRoot: string = directory,

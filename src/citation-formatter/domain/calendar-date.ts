@@ -31,6 +31,11 @@ export function isGregorianCalendarDate(
  * Checks a day against the UTC month length used by legacy CS1 input.
  *
  * This retains JavaScript's historical handling of years below 100.
+ *
+ * @param year - Year value.
+ * @param month - Month value.
+ * @param day - Day value.
+ * @returns Whether the condition is met.
  */
 export function isCalendarDayWithinUtcMonth(
     year: number | string,

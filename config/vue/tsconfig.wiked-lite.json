@@ -1,0 +1,19 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "composite": true,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "noEmit": false,
+        "outDir": "../../node_modules/.cache/vue-tsc/wiked-lite",
+        "rootDir": "../../",
+        "tsBuildInfoFile": "../../node_modules/.cache/vue-tsc/wiked-lite.tsbuildinfo",
+        "types": ["node", "types-mediawiki"]
+    },
+    "include": [
+        "codex-components.d.ts",
+        "../../src/wiked-lite/**/*",
+        "../../src/wiked-lite/**/*.json",
+        "../../src/shared/**/*.ts"
+    ]
+}

@@ -14,12 +14,14 @@ import {
     listExistingSourceSections,
     listExistingSources,
     listSourceDraftParameterNames,
-    serializeSourceDraft,
+    serializeSourceDraftForEdit,
     type ExistingSource,
     type SourceDraft,
     type SourceDraftCitationNameCell,
     type SourceDraftCitationNameParts,
+    type SourceDraftRow,
     type SourceSection,
+    type ScriptTitleMode,
 } from "#gadget/domain/source-manager.ts";
 import {
     getSourceDraftErrors,
@@ -53,9 +55,9 @@ export type SourceToolPopup = "analysis" | "cs1" | "non-cs1" | null;
 export type SourceCheckerTool = Extract<SourceToolPopup, "cs1" | "non-cs1">;
 
 export interface ArticleFormatAttempt {
-    autoScriptTitle: boolean;
     citationLayout: CitationLayout;
     referenceStyle: ReferenceStyle;
+    scriptTitleMode: ScriptTitleMode;
     sourceRevision: number;
     text: string;
 }
@@ -72,7 +74,6 @@ export interface SourceManagerState extends SourceListDerivedState {
     appliedAnalysisFindings: { value: AppliedAnalysisFinding[] };
     analysisFindingOrder: { value: string[] };
     analysisUndo: { value: AnalysisUndoSnapshot | null };
-    autoScriptTitle: { value: boolean };
     basedOnSourceId: { value: string | null };
     citationLayout: { value: CitationLayout };
     citationNameCells: {
@@ -102,6 +103,7 @@ export interface SourceManagerState extends SourceListDerivedState {
     existingSources: { value: ExistingSource[] };
     formatArticleAttempt: { value: ArticleFormatAttempt | null };
     formatArticleInProgress: { value: boolean };
+    flashingAuthorRows: { value: Set<SourceDraftRow> };
     loading: { value: boolean };
     manualTemplate: { value: string | null };
     open: { value: boolean };
@@ -114,6 +116,7 @@ export interface SourceManagerState extends SourceListDerivedState {
         readonly value: Array<{ label: string; value: string }>;
     };
     referenceStyle: { value: ReferenceStyle };
+    scriptTitleMode: { value: ScriptTitleMode };
     sessionUndo: { value: AnalysisUndoSnapshot | null };
     sourceAnalysis: { value: EditableCitationSourceAnalysis };
     sourceInput: { value: string };
@@ -154,7 +157,16 @@ interface SourceManagerStateConfiguration {
     sourceRevision: { value: number };
 }
 
-/** Creates initial reactive state from the current editor contents. */
+/**
+ * Creates initial reactive state from the current editor contents.
+ *
+ * @param Vue - Vue value.
+ * @param editor - Editor value.
+ * @param configuration - Operation configuration.
+ * @param wikiId - Wiki id value.
+ * @param formatError - Format error value.
+ * @returns Initial reactive state from current editor contents.
+ */
 // eslint-disable-next-line max-lines-per-function
 export function createSourceManagerState(
     Vue: VueModule,
@@ -196,8 +208,10 @@ export function createSourceManagerState(
         error: Vue.ref(""),
         formatArticleAttempt: Vue.ref<ArticleFormatAttempt | null>(null),
         formatArticleInProgress: Vue.ref(false),
+        flashingAuthorRows: Vue.ref(new Set<SourceDraftRow>()),
         loading: Vue.ref(false),
         referenceStyle,
+        scriptTitleMode: Vue.ref<ScriptTitleMode>("non-latin"),
         sourceInput: Vue.ref(""),
         sourceRevision,
         warning: Vue.ref(""),
@@ -211,7 +225,6 @@ function createInitialInterfaceState(Vue: VueModule, initialText: string) {
         appliedAnalysisFindings: Vue.ref<AppliedAnalysisFinding[]>([]),
         analysisFindingOrder: Vue.ref<string[]>([]),
         analysisUndo: Vue.ref<AnalysisUndoSnapshot | null>(null),
-        autoScriptTitle: Vue.ref(true),
         basedOnSourceId: Vue.ref<string | null>(null),
         closeConfirmationOpen: Vue.ref(false),
         draftPopupOpen: Vue.ref(false),
@@ -244,7 +257,13 @@ function createInitialCs1ToolState(Vue: VueModule) {
     };
 }
 
-/** Creates reactive source-list values from the current editor text. */
+/**
+ * Creates reactive source-list values from the current editor text.
+ *
+ * @param Vue - Vue value.
+ * @param text - Text to process.
+ * @returns Reactive source-list values from current editor text.
+ */
 function createInitialSourceListState(
     Vue: VueModule,
     text: string,
@@ -261,7 +280,15 @@ function createInitialSourceListState(
     };
 }
 
-/** Builds live name and source-code values for the current draft. */
+/**
+ * Builds live name and source-code values for the current draft.
+ *
+ * @param Vue - Vue value.
+ * @param state - Mutable operation state.
+ * @param wikiId - Wiki id value.
+ * @param formatError - Format error value.
+ * @returns Live name and source-code values for the current draft.
+ */
 // eslint-disable-next-line max-lines-per-function
 function createDraftDerivedState(
     Vue: VueModule,
@@ -333,7 +360,12 @@ function createDraftDerivedState(
     };
 }
 
-/** Gets the stable source text represented by the current draft. */
+/**
+ * Gets the stable source text represented by the current draft.
+ *
+ * @param state - Mutable operation state.
+ * @returns Resulting text.
+ */
 export function getCurrentCs1DraftFingerprint(
     state: Pick<SourceManagerState, "draft">,
 ): string {
@@ -348,20 +380,35 @@ export function getCurrentCs1DraftFingerprint(
     }
 }
 
-/** Clears server-side CS1 errors after the draft changes. */
+/**
+ * Clears server-side CS1 errors after the draft changes.
+ *
+ * @param state - Mutable operation state.
+ */
 export function clearCheckedCs1Errors(state: SourceManagerState): void {
     state.checkedCs1CellErrors.value = new Map();
     state.checkedCs1Source.value = "";
 }
 
-/** Clears the summary superseded by field-level validation. */
+/**
+ * Clears the summary superseded by field-level validation.
+ *
+ * @param state - Mutable operation state.
+ */
 export function clearDraftValidationSummary(state: SourceManagerState): void {
     if (state.error.value === msg("draft.invalidSummary")) {
         state.error.value = "";
     }
 }
 
-/** Builds a safely segmented preview from the current source draft. */
+/**
+ * Builds a safely segmented preview from the current source draft.
+ *
+ * @param draft - Source draft to process.
+ * @param layout - Citation layout.
+ * @param formatError - Format error value.
+ * @returns Safely segmented preview from the current source draft.
+ */
 function buildDraftSourcePreview(
     draft: SourceDraft | null,
     layout: CitationLayout,
@@ -371,7 +418,7 @@ function buildDraftSourcePreview(
         return [];
     }
     try {
-        return buildSourcePreview(serializeSourceDraft(draft, layout));
+        return buildSourcePreview(serializeSourceDraftForEdit(draft, layout));
     } catch (error) {
         return [
             {

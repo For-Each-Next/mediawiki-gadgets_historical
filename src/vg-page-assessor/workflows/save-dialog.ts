@@ -34,6 +34,9 @@ export interface ReviewedDialogSaveOperations {
 
 /**
  * Composes the reviewed-dialog save transaction.
+ *
+ * @param operations - Operations value.
+ * @returns Operation result.
  */
 export function createReviewedDialogSaveWorkflow(
     operations: ReviewedDialogSaveOperations,

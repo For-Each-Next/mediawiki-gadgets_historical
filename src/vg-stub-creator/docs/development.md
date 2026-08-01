@@ -21,9 +21,9 @@ not import UI code. Use `#gadget/*` for package-local imports and explicit
 `#shared/<name>` entries for workspace shared responsibilities.
 
 Workspace-wide MediaWiki template and link helpers live in
-`src/shared/wikitext.ts`, and raw Citoid acquisition lives in
-`src/shared/citoid.ts`. Citation templates, cleanup, reference rendering,
-fallback policy, and caching remain package-local.
+`src/shared/citation/wikitext.ts`, and raw Citoid acquisition lives in
+`src/shared/citation/citoid.ts`. Citation templates, cleanup, reference
+rendering, fallback policy, and caching remain package-local.
 
 ## Data flow
 

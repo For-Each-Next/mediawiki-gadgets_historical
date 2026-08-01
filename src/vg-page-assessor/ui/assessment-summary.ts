@@ -21,6 +21,9 @@ const SUMMARY_SOURCE_LINK = `[[${SUMMARY_LINK}|${SUMMARY_TEXT}]]`;
 
 /**
  * Builds the default edit summary for the selected assessment.
+ *
+ * @param assessment - Assessment value.
+ * @returns Built the default edit summary for the selected assessment.
  */
 export function buildEditSummary(assessment: Assessment): string {
     const banners = [
@@ -44,6 +47,9 @@ export function buildEditSummary(assessment: Assessment): string {
 
 /**
  * Builds the Video games summary fragment.
+ *
+ * @param assessment - Assessment value.
+ * @returns Built the Video games summary fragment.
  */
 function buildVideoGamesSummary(assessment: Assessment): string {
     const details = buildVideoGamesSummaryDetails(assessment);
@@ -59,6 +65,9 @@ function buildVideoGamesSummary(assessment: Assessment): string {
 
 /**
  * Builds the selected Video games summary details.
+ *
+ * @param assessment - Assessment value.
+ * @returns Built the selected Video games summary details.
  */
 function buildVideoGamesSummaryDetails(assessment: Assessment): Array<string> {
     const details: Array<string> = [];
@@ -92,6 +101,10 @@ function buildVideoGamesSummaryDetails(assessment: Assessment): Array<string> {
 
 /**
  * Gets selected item labels.
+ *
+ * @param items - Items value.
+ * @param selectedMap - Selected map value.
+ * @returns Resulting values.
  */
 function getSelectedLabels(
     items: ReadonlyArray<LabelledAssessmentOption>,
@@ -104,6 +117,9 @@ function getSelectedLabels(
 
 /**
  * Appends the source-code marker to an edit summary.
+ *
+ * @param summary - Summary value.
+ * @returns Resulting text.
  */
 function appendSummarySourceLink(summary: string): string {
     const value = summary.trim();

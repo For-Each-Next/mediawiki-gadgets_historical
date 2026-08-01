@@ -74,7 +74,11 @@ interface FixtureArtifacts {
     userscript: string;
 }
 
-/** Checks the complete flat output contract of a fixture build. */
+/**
+ * Checks the complete flat output contract of a fixture build.
+ *
+ * @param artifacts - Artifacts value.
+ */
 function assertFixtureArtifacts(artifacts: FixtureArtifacts): void {
     const {
         files,
@@ -112,7 +116,11 @@ function assertFixtureArtifacts(artifacts: FixtureArtifacts): void {
     assertBuiltMarkupValue(userscript, true);
 }
 
-/** Keeps metadata comments while removing executable-code comments. */
+/**
+ * Keeps metadata comments while removing executable-code comments.
+ *
+ * @param userscript - Userscript value.
+ */
 function assertUserscriptCodeHasNoComments(userscript: string): void {
     const headerEnd = userscript.indexOf("// ==/UserScript==");
     assert.notEqual(headerEnd, -1);
@@ -126,7 +134,12 @@ function assertUserscriptCodeHasNoComments(userscript: string): void {
     assert.deepEqual(ast.comments, []);
 }
 
-/** Checks readable indentation and template newline serialization. */
+/**
+ * Checks readable indentation and template newline serialization.
+ *
+ * @param formatted - Formatted value.
+ * @param userscript - Userscript value.
+ */
 function assertReadableMarkupFormatting(
     formatted: string,
     userscript: string,
@@ -141,7 +154,12 @@ function assertReadableMarkupFormatting(
     assert.match(userscript, /^ {4}function start\(\)/mu);
 }
 
-/** Executes one generated form and checks the exact markup value. */
+/**
+ * Executes one generated form and checks the exact markup value.
+ *
+ * @param source - Source text.
+ * @param userscript - Userscript value.
+ */
 function assertBuiltMarkupValue(
     source: string,
     userscript: boolean = false,
@@ -258,7 +276,11 @@ test("a build rejects collisions before cleaning outputs", async (context) => {
     assert.equal(preserved, "stale\n");
 });
 
-/** Creates the workspace layout expected by the shared builder. */
+/**
+ * Creates the workspace layout expected by the shared builder.
+ *
+ * @returns Created the workspace layout expected by the shared builder.
+ */
 async function createFixtureWorkspace(): Promise<{
     packageRoot: string;
     workspaceRoot: string;
@@ -375,7 +397,12 @@ function createFixtureWrites(
     return files;
 }
 
-/** Writes a sibling package used by collision preflight tests. */
+/**
+ * Writes a sibling package used by collision preflight tests.
+ *
+ * @param workspaceRoot - Workspace root value.
+ * @param outputName - Output name value.
+ */
 async function writeSiblingBuildPackage(
     workspaceRoot: string,
     outputName: string,

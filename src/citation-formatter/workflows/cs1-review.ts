@@ -46,7 +46,12 @@ export type {
     Cs1ReviewWorkflow,
 } from "#gadget/contracts/cs1-review.ts";
 
-/** Creates a CS1 review workflow from browser adapter contracts. */
+/**
+ * Creates a CS1 review workflow from browser adapter contracts.
+ *
+ * @param dependencies - Dependencies value.
+ * @returns Created CS1 review workflow from browser adapter contracts.
+ */
 export function createCs1ReviewWorkflow(
     dependencies: Cs1ReviewDependencies,
 ): Cs1ReviewWorkflow {
@@ -69,7 +74,14 @@ export function createCs1ReviewWorkflow(
     };
 }
 
-/** Checks all supported article sources in one parse request. */
+/**
+ * Checks all supported article sources in one parse request.
+ *
+ * @param dependencies - Dependencies value.
+ * @param sources - Sources value.
+ * @param context - Context value.
+ * @returns Operation result.
+ */
 async function checkArticleSources(
     dependencies: Cs1ReviewDependencies,
     sources: ExistingSource[],
@@ -94,7 +106,14 @@ async function checkArticleSources(
     };
 }
 
-/** Checks one unsaved draft without wrapping it in an article batch. */
+/**
+ * Checks one unsaved draft without wrapping it in an article batch.
+ *
+ * @param dependencies - Dependencies value.
+ * @param draft - Source draft to process.
+ * @param context - Context value.
+ * @returns Operation result.
+ */
 async function checkNewSourceDraft(
     dependencies: Cs1ReviewDependencies,
     draft: SourceDraft,
@@ -105,7 +124,15 @@ async function checkNewSourceDraft(
     return parseCs1ValidationResult(draft, response.html, response.categories);
 }
 
-/** Rechecks an applied source and retains its batch fragment. */
+/**
+ * Rechecks an applied source and retains its batch fragment.
+ *
+ * @param dependencies - Dependencies value.
+ * @param draft - Source draft to process.
+ * @param source - Source text.
+ * @param context - Context value.
+ * @returns Operation result.
+ */
 async function checkExistingSourceDraft(
     dependencies: Cs1ReviewDependencies,
     draft: SourceDraft,
@@ -132,7 +159,14 @@ async function checkExistingSourceDraft(
     };
 }
 
-/** Restores a checked source from isolated HTML. */
+/**
+ * Restores a checked source from isolated HTML.
+ *
+ * @param source - Source text.
+ * @param html - Html value.
+ * @param categories - Categories value.
+ * @returns Operation result.
+ */
 function restoreCheckedSource(
     source: ExistingSource,
     html: string,
@@ -152,7 +186,15 @@ function restoreCheckedSource(
     };
 }
 
-/** Maps isolated batch fragments back to their source records. */
+/**
+ * Maps isolated batch fragments back to their source records.
+ *
+ * @param dependencies - Dependencies value.
+ * @param html - Html value.
+ * @param categories - Categories value.
+ * @param sources - Sources value.
+ * @returns Batch fragments mapped to their source records.
+ */
 function mapCs1CheckedSources(
     dependencies: Cs1ReviewDependencies,
     html: string,

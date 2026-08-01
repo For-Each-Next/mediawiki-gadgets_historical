@@ -5377,7 +5377,7 @@ import {
     cloneValue,
     openDialog,
 } from "#gadget/ui/form/form-model.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,

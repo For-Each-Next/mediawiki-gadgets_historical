@@ -8,6 +8,10 @@ import {
     createAssessmentDialogComponent,
 } from "#gadget/ui/dialogs/assessment-dialog.ts";
 import {
+    LOADING_DIALOG_STYLES,
+    createLoadingDialogComponent,
+} from "#gadget/ui/dialogs/loading-dialog.ts";
+import {
     type ResourceLoaderRequire,
     type VueApp,
     registerPageAssessorComponents,
@@ -23,6 +27,8 @@ let runtime: PageAssessorRuntime | null = null;
 
 /**
  * Starts the dialog UI with composed workflow dependencies.
+ *
+ * @param dependencies - Dependencies value.
  */
 export function startPageAssessor(dependencies: PageAssessorRuntime): void {
     if (runtime != null) {
@@ -88,14 +94,27 @@ async function openDialog(): Promise<void> {
         throw new Error(`Unable to resolve the current page: ${pageName}`);
     }
 
-    const [state, require] = await Promise.all([
-        assessorRuntime.loadDialogState(api, currentTitle),
-        loadVueAndCodex(),
-    ]);
+    const statePromise = assessorRuntime.loadDialogState(api, currentTitle);
+    const require = await loadVueAndCodex();
     if (generation !== dialogGeneration) {
         return;
     }
 
+    activeDialogCleanup?.();
+    mountLoadingDialog(require);
+    let state: Awaited<ReturnType<PageAssessorRuntime["loadDialogState"]>>;
+    try {
+        state = await statePromise;
+    } catch (error) {
+        if (generation !== dialogGeneration) {
+            return;
+        }
+        activeDialogCleanup?.();
+        throw error;
+    }
+    if (generation !== dialogGeneration) {
+        return;
+    }
     activeDialogCleanup?.();
     mountAssessmentDialog(require, state, assessorRuntime);
     logStep("openDialog shown");
@@ -106,6 +125,37 @@ async function loadVueAndCodex(): Promise<ResourceLoaderRequire> {
         "vue",
         "@wikimedia/codex",
     ])) as ResourceLoaderRequire;
+}
+
+function mountLoadingDialog(require: ResourceLoaderRequire): void {
+    const Vue = require("vue");
+    const Codex = require("@wikimedia/codex");
+    const host = document.createElement("div");
+    let application: VueApp | null = null;
+    let cleaned = false;
+    host.id = HOST_ID;
+    document.documentElement.append(host);
+    function cleanup(): void {
+        if (cleaned) {
+            return;
+        }
+        cleaned = true;
+        application?.unmount();
+        host.remove();
+        if (activeDialogCleanup === cleanup) {
+            activeDialogCleanup = null;
+        }
+    }
+    function cancelLoading(): void {
+        dialogGeneration += 1;
+        cleanup();
+    }
+    application = Vue.createMwApp(
+        createLoadingDialogComponent(Vue, cancelLoading),
+    );
+    registerPageAssessorComponents(application, Codex);
+    application.mount(host);
+    activeDialogCleanup = cleanup;
 }
 
 function mountAssessmentDialog(
@@ -137,6 +187,7 @@ function mountAssessmentDialog(
     const component = createAssessmentDialogComponent(Vue, {
         currentNamespace: mw.config.get("wgNamespaceNumber"),
         onClose: cleanup,
+        onSaved: refreshPage,
         runtime: assessorRuntime,
         state,
     });
@@ -144,6 +195,10 @@ function mountAssessmentDialog(
     registerPageAssessorComponents(application, Codex);
     application.mount(host);
     activeDialogCleanup = cleanup;
+}
+
+function refreshPage(): void {
+    location.reload();
 }
 
 function installDialogStyles(): void {
@@ -155,7 +210,9 @@ function installDialogStyles(): void {
     const style = document.createElement("style");
 
     style.id = STYLE_ID;
-    style.textContent = ASSESSMENT_DIALOG_STYLES;
+    style.textContent = [ASSESSMENT_DIALOG_STYLES, LOADING_DIALOG_STYLES].join(
+        "\n",
+    );
     document.head.append(style);
     logStep("addStyles done");
 }

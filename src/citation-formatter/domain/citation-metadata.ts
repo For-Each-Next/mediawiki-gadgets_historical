@@ -7,7 +7,7 @@ import {
     formatBlockCitation,
     formatInlineCitation,
 } from "./citation.ts";
-import templateData from "./data/index.ts";
+import { citationTemplateData as templateData } from "#shared/citation";
 import type { CitationParam, CitationTemplate } from "./types.ts";
 
 const ACCESS_DATE_LENGTH = 10;
@@ -78,7 +78,13 @@ export function buildCitationTemplate(
         : formatInlineCitation(canonical);
 }
 
-/** Maps raw metadata fields to supported CS1 parameters. */
+/**
+ * Maps raw metadata fields to supported CS1 parameters.
+ *
+ * @param metadata - Citation metadata.
+ * @param options - Operation options.
+ * @returns Mapped raw metadata fields to supported CS1 parameters.
+ */
 function buildCitationParams(
     metadata: RawCitationMetadata,
     options: CitationMetadataFormatOptions,
@@ -115,7 +121,14 @@ function buildCitationParams(
         .map(buildCitationParam);
 }
 
-/** Adds fields returned for DOI, ISBN, ISSN, and similar lookups. */
+/**
+ * Adds fields returned for DOI, ISBN, ISSN, and similar lookups.
+ *
+ * @param metadata - Citation metadata.
+ * @param bookSection - Book section value.
+ * @param journalArticle - Journal article value.
+ * @returns Operation result.
+ */
 function buildBibliographicValues(
     metadata: RawCitationMetadata,
     bookSection: boolean,
@@ -153,22 +166,43 @@ function buildBibliographicValues(
     };
 }
 
-/** Creates one safe citation parameter from a mapped entry. */
+/**
+ * Creates one safe citation parameter from a mapped entry.
+ *
+ * @param entry - Entry to process.
+ * @returns Created safe citation parameter from a mapped entry.
+ */
 function buildCitationParam([name, value]: [string, string]): CitationParam {
     return { name, value: escapeTemplateValue(value) };
 }
 
-/** Prevents remote values from injecting another template parameter. */
+/**
+ * Prevents remote values from injecting another template parameter.
+ *
+ * @param value - Value to process.
+ * @returns Resulting text.
+ */
 function escapeTemplateValue(value: string): string {
     return value.replace(/\|/gu, "{{!}}");
 }
 
-/** Chooses the original entered URL over a URL rewritten by Citoid. */
+/**
+ * Chooses the original entered URL over a URL rewritten by Citoid.
+ *
+ * @param metadataUrl - Metadata url value.
+ * @param enteredUrl - Entered url value.
+ * @returns Original URL when Citoid supplied a rewritten URL.
+ */
 function getSourceUrl(metadataUrl: unknown, enteredUrl: string | undefined) {
     return enteredUrl == null ? getText(metadataUrl) : enteredUrl.trim();
 }
 
-/** Chooses the CS1 template corresponding to a Zotero item type. */
+/**
+ * Chooses the CS1 template corresponding to a Zotero item type.
+ *
+ * @param itemType - Item type value.
+ * @returns CS1 template corresponding to a Zotero item type.
+ */
 function getCitationTemplateName(itemType: string): string {
     if (itemType === "journalArticle") {
         return "cite journal";
@@ -182,7 +216,13 @@ function getCitationTemplateName(itemType: string): string {
     return "cite web";
 }
 
-/** Joins every author creator into one CS1 author value. */
+/**
+ * Joins every author creator into one CS1 author value.
+ *
+ * @param value - Value to process.
+ * @param creatorType - Creator type value.
+ * @returns Resulting text.
+ */
 function formatCreators(value: unknown, creatorType: string): string {
     if (!Array.isArray(value)) {
         return "";
@@ -195,14 +235,24 @@ function formatCreators(value: unknown, creatorType: string): string {
         .join("; ");
 }
 
-/** Checks whether an array item is a citation creator object. */
+/**
+ * Checks whether an array item is a citation creator object.
+ *
+ * @param value - Value to process.
+ * @returns Whether an array item is a citation creator object.
+ */
 function isRawCitationCreator(value: unknown): value is RawCitationCreator {
     return (
         typeof value === "object" && value !== null && !Array.isArray(value)
     );
 }
 
-/** Formats a corporate or personal creator name. */
+/**
+ * Formats a corporate or personal creator name.
+ *
+ * @param creator - Creator value.
+ * @returns Formatted corporate or personal creator name.
+ */
 function formatCreator(creator: RawCitationCreator): string {
     const name = getText(creator.name);
     if (name !== "") {
@@ -213,7 +263,12 @@ function formatCreator(creator: RawCitationCreator): string {
         .join(" ");
 }
 
-/** Formats the first scalar identifier returned by Citoid. */
+/**
+ * Formats the first scalar identifier returned by Citoid.
+ *
+ * @param value - Value to process.
+ * @returns Formatted the first scalar identifier returned by Citoid.
+ */
 function getIdentifierText(value: unknown): string {
     if (!Array.isArray(value)) {
         return getText(value);
@@ -222,13 +277,24 @@ function getIdentifierText(value: unknown): string {
     return getText(candidate);
 }
 
-/** Reads an identifier from Zotero's newline-delimited extra field. */
+/**
+ * Reads an identifier from Zotero's newline-delimited extra field.
+ *
+ * @param extra - Extra value.
+ * @param name - Name to process.
+ * @returns Read identifier from Zotero's newline-delimited extra field.
+ */
 function getExtraIdentifier(extra: unknown, name: string): string {
     const pattern = new RegExp(`(?:^|\\n)${name}:\\s*(\\S+)`, "iu");
     return getText(extra).match(pattern)?.[1] ?? "";
 }
 
-/** Removes generated titles that contain only a URL. */
+/**
+ * Removes generated titles that contain only a URL.
+ *
+ * @param value - Value to process.
+ * @returns Resulting text.
+ */
 function normalizeCitationTitle(value: unknown): string {
     const title = getText(value);
     try {
@@ -239,12 +305,22 @@ function normalizeCitationTitle(value: unknown): string {
     }
 }
 
-/** Converts one optional access date to an ISO calendar date. */
+/**
+ * Converts one optional access date to an ISO calendar date.
+ *
+ * @param now - Now value.
+ * @returns Converted optional access date to an ISO calendar date.
+ */
 function formatAccessDate(now: Date | undefined): string {
     return (now ?? new Date()).toISOString().slice(0, ACCESS_DATE_LENGTH);
 }
 
-/** Reads one Citoid scalar without stringifying objects. */
+/**
+ * Reads one Citoid scalar without stringifying objects.
+ *
+ * @param value - Value to process.
+ * @returns Read Citoid scalar without stringifying objects.
+ */
 function getText(value: unknown): string {
     if (typeof value === "string") {
         return value.trim();

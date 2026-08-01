@@ -14,7 +14,12 @@ import type {
     SourceArchiveMetadata,
 } from "#gadget/ui/source-manager-contracts.ts";
 
-/** Creates an archive seed only when the entered source is archived. */
+/**
+ * Creates an archive seed only when the entered source is archived.
+ *
+ * @param parsed - Parsed value.
+ * @returns Archive seed when the entered source is archived.
+ */
 export function createArchiveSeed(
     parsed: ParsedSourceInput,
 ): SourceArchiveMetadata | null {
@@ -26,7 +31,13 @@ export function createArchiveSeed(
           };
 }
 
-/** Formats the fallback warning after metadata resolution fails. */
+/**
+ * Formats the fallback warning after metadata resolution fails.
+ *
+ * @param error - Error value to inspect.
+ * @param formatError - Format error value.
+ * @returns Fallback warning after metadata resolution fails.
+ */
 export function formatMetadataFailure(
     error: unknown,
     formatError: (error: unknown) => string,
@@ -37,7 +48,12 @@ export function formatMetadataFailure(
     ].join(" ");
 }
 
-/** Builds an editable fallback after an unexpected lookup failure. */
+/**
+ * Builds an editable fallback after an unexpected lookup failure.
+ *
+ * @param parsed - Parsed value.
+ * @returns Built editable fallback after an unexpected lookup failure.
+ */
 export function createLookupFallbackDraft(
     parsed: ParsedSourceInput,
 ): SourceDraft {
@@ -47,7 +63,13 @@ export function createLookupFallbackDraft(
     return createManualSourceDraft("cite web");
 }
 
-/** Applies resolved URL and archive values to editable rows. */
+/**
+ * Applies resolved URL and archive values to editable rows.
+ *
+ * @param draft - Source draft to process.
+ * @param metadata - Citation metadata.
+ * @param liveOriginal - Live original value.
+ */
 export function applyResolvedMetadata(
     draft: SourceDraft,
     metadata: ResolvedSourceMetadata,
@@ -63,7 +85,12 @@ export function applyResolvedMetadata(
     }
 }
 
-/** Builds non-blocking service warnings for an editable draft. */
+/**
+ * Builds non-blocking service warnings for an editable draft.
+ *
+ * @param metadata - Citation metadata.
+ * @returns Built non-blocking service warnings for an editable draft.
+ */
 export function buildMetadataWarnings(
     metadata: Pick<ResolvedSourceMetadata, "archiveError" | "metadataError">,
 ): string[] {
@@ -85,7 +112,13 @@ export function buildMetadataWarnings(
     return warnings;
 }
 
-/** Assigns a draft parameter while retaining a seeded empty row. */
+/**
+ * Assigns a draft parameter while retaining a seeded empty row.
+ *
+ * @param draft - Source draft to process.
+ * @param name - Name to process.
+ * @param value - Value to process.
+ */
 export function setSourceDraftValue(
     draft: SourceDraft,
     name: string,

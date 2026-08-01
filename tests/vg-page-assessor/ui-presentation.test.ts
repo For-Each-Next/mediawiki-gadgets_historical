@@ -46,6 +46,7 @@ test("keeps the assessment dialog template-only and compilable", () => {
     assert.match(template.content, /<cdx-radio\b/u);
     assert.match(template.content, /<cdx-checkbox\b/u);
     assert.match(template.content, /<cdx-text-area\b/u);
+    assert.match(template.content, /<cdx-progress-bar\s+v-if="saving"/u);
     const compiled = compileTemplate({
         filename: dialogPath,
         id: "vg-page-assessor-assessment",
@@ -90,6 +91,27 @@ async function submitReviewedSource(): Promise<void> {
 }
 
 test("loads registration through the injected workflow", loadRegistration);
+
+test("refreshes after the reviewed save completes", refreshAfterSave);
+
+async function refreshAfterSave(): Promise<void> {
+    const state = createDialogState();
+    let refreshed = false;
+    const bindings = createAssessmentDialogBindings(createVueHarness(), {
+        currentNamespace: 0,
+        onClose() {},
+        onSaved() {
+            refreshed = true;
+        },
+        runtime: createRuntime(state),
+        state,
+    });
+
+    await bindings.onSave();
+    await new Promise((resolve) => setTimeout(resolve, 650));
+
+    assert.equal(refreshed, true);
+}
 
 async function loadRegistration(): Promise<void> {
     const state = createDialogState();

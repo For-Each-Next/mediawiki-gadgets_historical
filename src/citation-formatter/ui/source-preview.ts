@@ -2,7 +2,7 @@
  * Semantic segmentation for citation-source previews.
  */
 
-import { splitTopLevel } from "#gadget/domain/wikitext.ts";
+import { wikitext } from "#shared/wikitext";
 
 export interface SourcePreviewPart {
     kind: "alias" | "parameter" | "text";
@@ -47,12 +47,17 @@ export function buildSourcePreview(source: string): SourcePreviewPart[] {
     return result;
 }
 
-/** Locates top-level parameter labels in formatted citation source. */
+/**
+ * Locates top-level parameter labels in formatted citation source.
+ *
+ * @param source - Source text.
+ * @returns Resulting values.
+ */
 function findParameterNameRanges(source: string): SourcePreviewRange[] {
     if (!source.startsWith("{{") || !source.endsWith("}}")) {
         return [];
     }
-    const parts = splitTopLevel(source.slice(2, -2), "|");
+    const parts = wikitext(source.slice(2, -2)).split("|");
     let cursor = 2 + (parts.shift()?.length ?? 0);
     return parts.flatMap(function findParameterName(part) {
         cursor += 1;
@@ -67,7 +72,12 @@ function findParameterNameRanges(source: string): SourcePreviewRange[] {
     });
 }
 
-/** Locates hashtag alias comments in formatted citation source. */
+/**
+ * Locates hashtag alias comments in formatted citation source.
+ *
+ * @param source - Source text.
+ * @returns Resulting values.
+ */
 function findAliasCommentRanges(source: string): SourcePreviewRange[] {
     const pattern = /<!--(?:(?!-->)[\s\S])*?#(?:(?!-->)[\s\S])*?-->/gu;
     return [...source.matchAll(pattern)].map(function toRange(match) {

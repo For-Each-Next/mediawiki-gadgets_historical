@@ -5,7 +5,7 @@
  * URLs.
  */
 
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { trimValue } = wikitext;
 
 export const ZHWIKI_API_URL = "https://zh.wikipedia.org/w/api.php";

@@ -26,7 +26,7 @@ instructions remain in force.
 - Keep canonical terminology identities first in `aliases`; omit `page` when a
   term must remain unlinked. Keep VG citation formatting and cleanup in
   `domain/`, HTML fallback requests in `infra/sources/`, and raw Citoid
-  acquisition behind `#shared/citoid`.
+  acquisition behind `#shared/citation`.
 - Keep generated article-language text in `domain/wiki.ts`, separate from
   interface messages. Update fixtures and focused tests with data or
   normalization changes.

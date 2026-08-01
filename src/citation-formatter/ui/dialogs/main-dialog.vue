@@ -282,9 +282,33 @@
                                 >
                                     {{ msg("tools.blockCitations") }}
                                 </cdx-checkbox>
-                                <cdx-checkbox v-model="autoScriptTitle">
-                                    {{ msg("tools.scriptTitle") }}
-                                </cdx-checkbox>
+                                <cdx-field :is-fieldset="true">
+                                    <template #label>
+                                        {{ msg("tools.scriptTitle") }}
+                                    </template>
+                                    <cdx-radio
+                                        :model-value="scriptTitleMode"
+                                        input-value="non-latin"
+                                        name="script-title-mode"
+                                        @update:model-value="
+                                            setScriptTitleMode
+                                        "
+                                    >
+                                        {{ msg("tools.scriptTitleNonLatin") }}
+                                    </cdx-radio>
+                                    <cdx-radio
+                                        :model-value="scriptTitleMode"
+                                        input-value="all-foreign"
+                                        name="script-title-mode"
+                                        @update:model-value="
+                                            setScriptTitleMode
+                                        "
+                                    >
+                                        {{
+                                            msg("tools.scriptTitleAllForeign")
+                                        }}
+                                    </cdx-radio>
+                                </cdx-field>
                             </cdx-field>
                             <section class="cf-source-manager__tool-section">
                                 <h3>{{ msg("tools.checks") }}</h3>

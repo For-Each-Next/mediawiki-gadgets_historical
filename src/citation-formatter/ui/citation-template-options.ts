@@ -116,7 +116,12 @@ export const CITATION_TEMPLATE_OPTIONS = CITATION_TEMPLATE_DEFINITIONS.map(
     },
 );
 
-/** Includes the current metadata-free type only while editing it. */
+/**
+ * Includes the current metadata-free type only while editing it.
+ *
+ * @param template - Template wikitext.
+ * @returns Resulting values.
+ */
 export function getSourceDraftTemplateOptions(template: string | undefined) {
     const isStaticOption = CITATION_TEMPLATE_OPTIONS.some(
         (option) => option.value === template,
@@ -140,6 +145,8 @@ export function getSourceDraftTemplateOptions(template: string | undefined) {
 
 /**
  * Guards the selector classification when the supported set changes.
+ *
+ * @param definitions - Definitions value.
  */
 function validateTemplateDefinitions(
     definitions: readonly CitationTemplateDefinition[],
@@ -180,6 +187,11 @@ function validateTemplateDefinitions(
 /**
  * Checks one definition against the previous name in its
  * ordering group.
+ *
+ * @param definition - Definition value.
+ * @param index - Source index.
+ * @param definitions - Definitions value.
+ * @returns Whether the condition is met.
  */
 function isDefinitionGroupAlphabetical(
     definition: CitationTemplateDefinition,
@@ -194,7 +206,12 @@ function isDefinitionGroupAlphabetical(
     );
 }
 
-/** Returns the display rank for one importance and type combination. */
+/**
+ * Returns the display rank for one importance and type combination.
+ *
+ * @param definition - Definition value.
+ * @returns The display rank for one importance and type combination.
+ */
 function getTemplateTierRank(definition: CitationTemplateDefinition): number {
     if (definition.importance === "important") {
         return definition.type === "special" ? 0 : 1;

@@ -18,7 +18,12 @@ export interface Cs1CheckResult {
     html: string;
 }
 
-/** Builds one isolated CS1-check region for every citation source. */
+/**
+ * Builds one isolated CS1-check region for every citation source.
+ *
+ * @param sources - Sources value.
+ * @returns Built isolated CS1-check region for every citation source.
+ */
 export function buildCs1CheckWikitext(
     sources: readonly { rawTemplate: string }[],
 ): string {
@@ -32,7 +37,13 @@ ${source.rawTemplate}
         .join("\n");
 }
 
-/** Requests a live CS1 check through MediaWiki action=parse. */
+/**
+ * Requests a live CS1 check through MediaWiki action=parse.
+ *
+ * @param text - Text to process.
+ * @param options - Operation options.
+ * @returns Operation result.
+ */
 export async function requestCs1WikitextCheck(
     text: string,
     options: Cs1CheckOptions,
@@ -55,6 +66,10 @@ export async function requestCs1WikitextCheck(
 
 /**
  * Splits an isolated checker response back into per-source fragments.
+ *
+ * @param html - Html value.
+ * @param sourceCount - Source count value.
+ * @returns Value.
  */
 export function splitCs1CheckHtml(
     html: string,
@@ -67,7 +82,12 @@ export function splitCs1CheckHtml(
     });
 }
 
-/** Validates the portion of an action=parse response used by the UI. */
+/**
+ * Validates the portion of an action=parse response used by the UI.
+ *
+ * @param response - API response to parse.
+ * @returns Operation result.
+ */
 function parseCs1CheckResponse(response: unknown): Cs1CheckResult {
     if (isRecord(response)) {
         return parseCs1Result(response.parse);
@@ -75,7 +95,12 @@ function parseCs1CheckResponse(response: unknown): Cs1CheckResult {
     throw new TypeError("CS1 parse response must be an object.");
 }
 
-/** Validates the optional parse member in an action=parse response. */
+/**
+ * Validates the optional parse member in an action=parse response.
+ *
+ * @param value - Value to process.
+ * @returns Operation result.
+ */
 function parseCs1Result(value: unknown): Cs1CheckResult {
     if (value == null) {
         return { categories: [], html: "" };
@@ -89,7 +114,12 @@ function parseCs1Result(value: unknown): Cs1CheckResult {
     throw new TypeError("CS1 parse result must be an object.");
 }
 
-/** Validates the rendered HTML in a parse result. */
+/**
+ * Validates the rendered HTML in a parse result.
+ *
+ * @param value - Value to process.
+ * @returns Resulting text.
+ */
 function parseCs1Html(value: unknown): string {
     if (value == null) {
         return "";
@@ -100,7 +130,12 @@ function parseCs1Html(value: unknown): string {
     throw new TypeError("CS1 parse text must be a string.");
 }
 
-/** Extracts category names from MediaWiki formatversion 2 output. */
+/**
+ * Extracts category names from MediaWiki formatversion 2 output.
+ *
+ * @param value - Value to process.
+ * @returns Category names from MediaWiki formatversion 2 output.
+ */
 function parseCs1Categories(value: unknown): string[] {
     if (value == null) {
         return [];
@@ -123,7 +158,12 @@ function parseCs1Categories(value: unknown): string[] {
     });
 }
 
-/** Narrows unknown JSON-like values to keyed objects. */
+/**
+ * Narrows unknown JSON-like values to keyed objects.
+ *
+ * @param value - Value to process.
+ * @returns Whether the condition is met.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value != null;
 }

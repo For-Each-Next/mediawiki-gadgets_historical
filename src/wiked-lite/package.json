@@ -1,0 +1,81 @@
+{
+    "name": "wiked-lite",
+    "version": "0.4.4-dev.12",
+    "description": "Format and highlight wikitext in MediaWiki source editors.",
+    "private": true,
+    "license": "CC0-1.0",
+    "author": "Cacycle",
+    "contributors": [
+        "For Each ... Next"
+    ],
+    "type": "module",
+    "imports": {
+        "#gadget": "./index.ts",
+        "#gadget/*": "./*",
+        "#shared": "@mediawiki-gadgets/shared",
+        "#shared/*": "@mediawiki-gadgets/shared/*"
+    },
+    "main": "./index.ts",
+    "browser": "./browser.ts",
+    "vue": {
+        "outputDir": "../../dist",
+        "assetsDir": "",
+        "filenameHashing": false,
+        "css": {
+            "extract": false
+        }
+    },
+    "gadgetBuild": {
+        "globalName": "wikEdLite",
+        "outputName": "wiked_lite",
+        "defines": {
+            "__WIKED_LITE_STYLES__": {
+                "textFile": "ui/styles.css"
+            },
+            "__WIKED_LITE_FORMATTER_DIALOG_TEMPLATE__": {
+                "textFile": "ui/dialogs/formatter-dialog.vue"
+            },
+            "__WIKED_LITE_FORMATTER_DIALOG_STYLES__": {
+                "textFile": "ui/dialogs/formatter-dialog.css"
+            }
+        },
+        "userscript": {
+            "name": "wikEd Lite",
+            "description": "Format and highlight wikitext.",
+            "match": [
+                "https://*.wikipedia.org/*",
+                "https://*.wiktionary.org/*",
+                "https://*.wikibooks.org/*",
+                "https://*.wikiquote.org/*",
+                "https://*.wikinews.org/*",
+                "https://*.wikisource.org/*",
+                "https://*.wikiversity.org/*",
+                "https://*.wikivoyage.org/*",
+                "https://*.wikimedia.org/*",
+                "https://*.wikidata.org/*",
+                "https://*.wikifunctions.org/*",
+                "https://*.mediawiki.org/*"
+            ]
+        }
+    },
+    "keywords": [
+        "editor",
+        "mediawiki",
+        "wikEd",
+        "wikitext"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/gadget-build/cli.ts",
+        "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "test": "node --test ../../tests/wiked-lite/*.test.ts"
+    },
+    "devDependencies": {
+        "@wikimedia/codex": "^2.6.0",
+        "vue": "3.5.13"
+    },
+    "engines": {
+        "node": ">=22.18"
+    }
+}

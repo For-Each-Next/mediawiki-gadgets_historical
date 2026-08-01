@@ -54,6 +54,7 @@ type SelectionGroup = "maintenance" | "otherProjects" | "taskForces";
 export interface AssessmentDialogOptions {
     currentNamespace: number;
     onClose: () => void;
+    onSaved?: () => void;
     runtime: PageAssessorRuntime;
     state: DialogState;
 }
@@ -97,6 +98,10 @@ interface DialogBindings {
 
 /**
  * Creates the actual MediaWiki Vue component mounted by the UI adapter.
+ *
+ * @param Vue - Vue value.
+ * @param options - Operation options.
+ * @returns Value.
  */
 export function createAssessmentDialogComponent(
     Vue: VueModule,
@@ -120,6 +125,10 @@ export function createAssessmentDialogComponent(
 
 /**
  * Creates reactive dialog bindings without acquiring external services.
+ *
+ * @param Vue - Vue value.
+ * @param options - Operation options.
+ * @returns Value.
  */
 // eslint-disable-next-line max-lines-per-function
 export function createAssessmentDialogBindings(
@@ -294,11 +303,18 @@ export function createAssessmentDialogBindings(
                     ? msg("dialog.unchanged")
                     : msg("dialog.saved");
             setStatus(text, false);
-            setTimeout(close, DIALOG_CLOSE_DELAY_MS);
+            setTimeout(finishSave, DIALOG_CLOSE_DELAY_MS);
         } catch (error) {
             runtime.logStep("saveDialog failed", { error });
             setStatus(getErrorMessage(error), true);
             saving.value = false;
+        }
+    }
+
+    function finishSave(): void {
+        close();
+        if (options.onSaved != null) {
+            queueMicrotask(options.onSaved);
         }
     }
 

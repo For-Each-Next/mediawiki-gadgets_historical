@@ -54,14 +54,17 @@ Citation Formatter:
 - edits and formats every `Cite`-prefixed template, using browser-cached
   local-wiki TemplateData names, order, and aliases when available while
   preserving duplicate and empty fields and avoiding CS1-only checks;
-- normalizes unambiguous English citation dates to ISO dates;
-- replaces English language names with compact ISO language codes, preferring
-  ISO 639-1 where available and retaining ISO 639-3 fallbacks;
+- normalizes unambiguous English citation dates and single-digit ISO date
+  components to zero-padded ISO dates;
+- replaces a focused set of common English language names with compact ISO
+  language codes;
 - names references with an APA-style author and date key, including `n.d.`,
   same-year letter suffixes, and page or time locators;
 - names plain-text and mixed-content notes sequentially as `:1`, `:2`, and so
   on;
 - converts `{{r}}` calls to native ref tags;
+- discovers bibliography citations used through `{{sfn}}`, previews their use
+  positions, and reuses their short-footnote calls;
 - moves full refs into matching grouped `<references>` containers;
 - browses, filters, and paginates existing sources by keyword or article
   section, shows their exact usage sections, and reuses or edits them;
@@ -72,6 +75,9 @@ Citation Formatter:
   snapshots, pasted Wayback URLs, or manual offline-source details; and
 - offers categorized citation-template choices with clear icons and importance
   tiers while preserving populated and custom fields;
+- preserves existing parameter spelling and values in the item editor until an
+  explicit formatting action, and lets users limit generated `script-title`
+  values to non-Latin languages or include every foreign language;
 - checks CS1 errors and green maintenance comments in severity order, checks
   non-CS1 sources and citation-name consistency, and offers selective fixes
   with session-safe reversion; and
@@ -103,13 +109,6 @@ with:
 npm run update:template-data -w citation-formatter
 ```
 
-Refresh the shared English language-name lookup from the [SIL ISO 639-3
-registry][14] with:
-
-```shell
-npm run update:language-codes -w @mediawiki-gadgets/shared
-```
-
 Follow the shared [CS1 maintenance workflow][6] and the site-specific [English
 Wikipedia][7] or [Chinese Wikipedia][8] guide when updating metadata or
 validation rules.
@@ -117,6 +116,8 @@ validation rules.
 Tests use local fixtures. In the browser, formatting an otherwise unknown
 `Cite`-prefixed template may query the local wiki's TemplateData API and falls
 back to preservation-only formatting when the API or storage is unavailable.
+The reusable shared loader accepts one template or a large iterable, resolving
+redirects through bounded serial requests before citation-specific filtering.
 
 Completed work is recorded in the package [changelog][9]. Development follows
 the package [instructions][10] together with the repository [instructions][11].
@@ -144,9 +145,11 @@ api.ts / index.ts
   `workflows/` coordinates live review operations; and `infra/` isolates
   Citoid, archive, TemplateData-cache, and wiki integrations.
 - `domain/` contains deterministic citation metadata mapping and wikitext
-  rules, using `#shared/language-code` for reusable ISO language-name
-  normalization. `api.ts` and `index.ts` expose browser-independent operations
-  for tests without adding them to the generated gadget global.
+  rules, using lazy shared construct queries, language normalization, citation
+  TemplateData, and short-footnote matching. The queries retain source ranges
+  without building a document-wide syntax tree. `api.ts` and `index.ts` expose
+  browser-independent operations for tests without adding them to the generated
+  gadget global.
 - `i18n/` stores flat JSON locale catalogs behind a typed registry.
 
 ## License
@@ -167,4 +170,3 @@ notice is in [LICENSE][13].
 [11]: ../../AGENTS.md
 [12]: https://creativecommons.org/licenses/by-sa/4.0/
 [13]: ../../LICENSE
-[14]: https://iso639-3.sil.org/code_tables/download_tables

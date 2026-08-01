@@ -10,7 +10,7 @@ import {
     getCitationIdentity,
     normalizeEnglishDate,
 } from "citation-formatter/domain/citation.ts";
-import generatedTemplateData from "citation-formatter/domain/data/index.ts";
+import { citationTemplateData as generatedTemplateData } from "@mediawiki-gadgets/shared/citation";
 import {
     getCanonicalTemplateName,
     isCitationTemplate,
@@ -50,6 +50,7 @@ const testNormalizeEnglishDates = () => {
     const month = normalizeEnglishDate("June 2005");
     const monthFirst = normalizeEnglishDate("June 7, 2005");
     const dayFirst = normalizeEnglishDate("7 June 2005");
+    const uglyIso = normalizeEnglishDate("2026-1-13");
     const invalid = normalizeEnglishDate("February 29, 2005");
     const year = normalizeEnglishDate("2005");
     const unrecognized = normalizeEnglishDate("夏 2005");
@@ -57,6 +58,7 @@ const testNormalizeEnglishDates = () => {
     assert.equal(month, "2005-06");
     assert.equal(monthFirst, "2005-06-07");
     assert.equal(dayFirst, "2005-06-07");
+    assert.equal(uglyIso, "2026-01-13");
     assert.equal(invalid, "February 29, 2005");
     assert.equal(year, "2005");
     assert.equal(unrecognized, "夏 2005");

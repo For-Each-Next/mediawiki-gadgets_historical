@@ -121,7 +121,11 @@ test("uses concise Simplified Chinese formatting guidance", () => {
     );
     assert.equal(
         simplifiedChinese["tools.scriptTitle"],
-        "外文文献填写语言代码时，将|title=改为|script-title参数",
+        "自动处理script-title参数",
+    );
+    assert.equal(
+        simplifiedChinese["tools.scriptTitleNonLatin"],
+        "仅对使用非拉丁文字的语言使用script-title",
     );
     assert.equal(simplifiedChinese["draft.originalDescription"], "原始文本");
     assert.equal(

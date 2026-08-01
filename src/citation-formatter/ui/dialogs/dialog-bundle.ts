@@ -4,7 +4,12 @@ export interface CitationDialogBundle {
     readonly template: string;
 }
 
-/** Joins dialogs in document and cascade order. */
+/**
+ * Joins dialogs in document and cascade order.
+ *
+ * @param dialogs - Dialogs value.
+ * @returns Operation result.
+ */
 export function assembleCitationDialogs(
     dialogs: readonly CitationDialogBundle[],
 ): CitationDialogBundle {

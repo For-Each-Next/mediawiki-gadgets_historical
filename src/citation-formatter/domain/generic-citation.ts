@@ -2,7 +2,8 @@
  * Formats Cite-prefixed templates without applying CS1-only behavior.
  */
 
-import { normalizeEnglishLanguageCodes } from "#shared/language-code";
+import { normalizeEnglishLanguageCodes } from "#shared/citation";
+import { wikitext } from "#shared/wikitext";
 
 import {
     formatBlockCitation,
@@ -18,19 +19,23 @@ import type {
     CitationTemplate,
     CitationTemplateData,
 } from "./types.ts";
-import { parseTemplateCall } from "./wikitext.ts";
 
 /**
  * Formats one generic citation with optional live TemplateData.
  *
  * Parameter values, duplicates, and empty rows are retained.
+ *
+ * @param raw - Raw value.
+ * @param layout - Citation layout.
+ * @param metadata - Citation metadata.
+ * @returns Formatted generic citation with optional live TemplateData.
  */
 export function formatGenericCitationTemplate(
     raw: string,
     layout: CitationLayout,
     metadata?: CitationTemplateData,
 ): { citation: CitationTemplate; text: string } {
-    const parsed = parseTemplateCall(raw);
+    const parsed = wikitext.template.parse(raw);
     const params = parsed.params.map(function toCitationParam(param) {
         return {
             name: param.name,
@@ -48,6 +53,10 @@ export function formatGenericCitationTemplate(
 
 /**
  * Serializes a generic citation while retaining positional values.
+ *
+ * @param citation - Citation value.
+ * @param layout - Citation layout.
+ * @returns Generic citation retaining positional values.
  */
 export function serializeGenericCitation(
     citation: CitationTemplate,
@@ -64,6 +73,10 @@ export function serializeGenericCitation(
 
 /**
  * Applies only a canonical name, aliases, and declared parameter order.
+ *
+ * @param citation - Citation value.
+ * @param metadata - Citation metadata.
+ * @returns Operation result.
  */
 export function prepareGenericCitation(
     citation: CitationTemplate,

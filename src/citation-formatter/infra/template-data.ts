@@ -11,6 +11,13 @@ import type {
     CitationTemplateData,
     CitationTemplateDataMap,
 } from "#gadget/domain/types.ts";
+import {
+    loadTemplateData,
+    type MediaWikiTemplateDataApi,
+    type TemplateDataPage,
+} from "#shared/citation";
+
+export type { MediaWikiTemplateDataApi } from "#shared/citation";
 
 const BATCH_SIZE = 20;
 const CACHE_ENTRY_LIMIT = 64;
@@ -19,10 +26,6 @@ const PARAMETER_LIMIT = 512;
 const STRING_LENGTH_LIMIT = 255;
 export const TEMPLATE_DATA_CACHE_KEY =
     "mw-citation-formatter-template-data-v1";
-
-export interface MediaWikiTemplateDataApi {
-    get(parameters: Record<string, unknown>): PromiseLike<unknown>;
-}
 
 export interface TemplateDataObjectStorage {
     getObject(key: string): unknown;
@@ -38,6 +41,9 @@ export interface CitationTemplateDataLoadOptions {
 
 /**
  * Adapts browser key-value storage to the cache's object interface.
+ *
+ * @param storage - Storage value.
+ * @returns Operation result.
  */
 export function createTemplateDataObjectStorage(
     storage: Pick<Storage, "getItem" | "setItem">,
@@ -67,20 +73,6 @@ interface TemplateDataCache {
     wikiId: string;
 }
 
-interface ApiPage {
-    missing?: unknown;
-    notemplatedata?: unknown;
-    ns?: number;
-    paramOrder?: unknown;
-    params?: unknown;
-    title?: unknown;
-}
-
-interface ApiTitleMapping {
-    from?: unknown;
-    to?: unknown;
-}
-
 interface FetchedTemplateDataBatch {
     entries: CitationTemplateDataMap;
     refreshedNames: string[];
@@ -95,6 +87,10 @@ interface ResolvedCacheEntries {
  * Resolves cached entries and downloads remaining template metadata.
  *
  * Failures retain stale cache entries or fall back to raw formatting.
+ *
+ * @param names - Names to process.
+ * @param options - Operation options.
+ * @returns Value.
  */
 export async function loadCitationTemplateData(
     names: string[],
@@ -138,19 +134,18 @@ async function fetchTemplateDataBatches(
     api: MediaWikiTemplateDataApi,
 ): Promise<FetchedTemplateDataBatch[]> {
     const batches = chunkNames(pending);
-    const requests = batches.map(
-        async function fetchBatch(batch): Promise<FetchedTemplateDataBatch> {
-            try {
-                return {
-                    entries: await fetchTemplateDataBatch(batch, api),
-                    refreshedNames: batch,
-                };
-            } catch {
-                return { entries: {}, refreshedNames: [] };
-            }
-        },
-    );
-    return await Promise.all(requests);
+    const result: FetchedTemplateDataBatch[] = [];
+    for (const batch of batches) {
+        try {
+            result.push({
+                entries: await fetchTemplateDataBatch(batch, api),
+                refreshedNames: batch,
+            });
+        } catch {
+            result.push({ entries: {}, refreshedNames: [] });
+        }
+    }
+    return result;
 }
 
 function applyDownloadedEntries(
@@ -204,42 +199,20 @@ async function fetchTemplateDataBatch(
     names: string[],
     api: MediaWikiTemplateDataApi,
 ): Promise<CitationTemplateDataMap> {
-    if (names.length === 0) {
-        return {};
-    }
-    const response = await api.get({
-        action: "templatedata",
-        formatversion: 2,
-        redirects: true,
-        titles: names.map((name) => `Template:${name}`).join("|"),
+    const pages = await loadTemplateData(names, {
+        api,
+        batchSize: BATCH_SIZE,
     });
-    return parseTemplateDataResponse(response, names);
+    return parseTemplateDataPages(pages, names);
 }
 
-function parseTemplateDataResponse(
-    response: unknown,
+function parseTemplateDataPages(
+    pages: ReadonlyMap<string, TemplateDataPage>,
     requested: string[],
 ): CitationTemplateDataMap {
-    if (!isRecord(response) || !isApiPages(response.pages)) {
-        throw new TypeError("Invalid TemplateData API response");
-    }
-    const pages = getApiPages(response.pages);
-    const byCanonicalName = new Map<string, CitationTemplateData>();
-    for (const page of pages) {
-        const parsed = parseApiPage(page);
-        if (parsed == null) {
-            continue;
-        }
-        byCanonicalName.set(
-            normalizeBareTemplateTitle(parsed.canonicalName),
-            parsed,
-        );
-    }
-    const mappings = buildTitleMappings(response);
     const result: CitationTemplateDataMap = {};
     for (const requestedName of requested) {
-        const resolved = followTitleMappings(requestedName, mappings);
-        const metadata = byCanonicalName.get(resolved);
+        const metadata = parseApiPage(pages.get(requestedName));
         if (metadata != null) {
             result[requestedName] = metadata;
             result[normalizeBareTemplateTitle(metadata.canonicalName ?? "")] =
@@ -249,24 +222,11 @@ function parseTemplateDataResponse(
     return result;
 }
 
-function isApiPages(value: unknown): boolean {
-    return Array.isArray(value) || isRecord(value);
-}
-
-function getApiPages(value: unknown): ApiPage[] {
-    if (Array.isArray(value)) {
-        return value.filter(isRecord).slice(0, CACHE_ENTRY_LIMIT);
-    }
-    if (!isRecord(value)) {
-        return [];
-    }
-    return Object.values(value).filter(isRecord).slice(0, CACHE_ENTRY_LIMIT);
-}
-
-function parseApiPage(page: ApiPage): ResolvedTemplateData | null {
+function parseApiPage(
+    page: TemplateDataPage | undefined,
+): ResolvedTemplateData | null {
     if (
-        isApiFlag(page.missing) ||
-        isApiFlag(page.notemplatedata) ||
+        page == null ||
         page.ns !== 10 ||
         typeof page.title !== "string" ||
         !isRecord(page.params)
@@ -332,52 +292,6 @@ function buildCompleteParamOrder(
         (name) => !enteredOrder.includes(name),
     );
     return [...enteredOrder, ...missingFromOrder].slice(0, PARAMETER_LIMIT);
-}
-
-function isApiFlag(value: unknown): boolean {
-    return value === true || value === "";
-}
-
-function buildTitleMappings(
-    response: Record<string, unknown>,
-): Map<string, string> {
-    const result = new Map<string, string>();
-    for (const key of ["normalized", "redirects"]) {
-        const entries = Array.isArray(response[key]) ? response[key] : [];
-        for (const entry of entries) {
-            if (!isRecord(entry)) {
-                continue;
-            }
-            const mapping = entry as ApiTitleMapping;
-            if (
-                typeof mapping.from === "string" &&
-                typeof mapping.to === "string"
-            ) {
-                result.set(
-                    normalizeApiTemplateTitle(mapping.from),
-                    normalizeApiTemplateTitle(mapping.to),
-                );
-            }
-        }
-    }
-    return result;
-}
-
-function followTitleMappings(
-    name: string,
-    mappings: Map<string, string>,
-): string {
-    let current = normalizeBareTemplateTitle(name);
-    const seen = new Set<string>();
-    while (!seen.has(current)) {
-        seen.add(current);
-        const next = mappings.get(current);
-        if (next == null) {
-            break;
-        }
-        current = next;
-    }
-    return current;
 }
 
 function normalizeApiTemplateTitle(value: string): string {

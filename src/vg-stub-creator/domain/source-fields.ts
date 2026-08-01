@@ -4,7 +4,7 @@
 
 import { getArticleSourceFields } from "#gadget/domain/processor.ts";
 import { buildNameSourceReferenceKey } from "#gadget/domain/wiki.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 
 const { splitSourceUrls, trimValue } = wikitext;
 const NAME_GROUP_KEYS = ["localizedNames", "officialNames", "commonNames"];

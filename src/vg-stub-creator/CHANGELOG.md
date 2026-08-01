@@ -2,6 +2,22 @@
 
 ## Until 0.6
 
+### 0.5.1-post.3 (2026-08-01 18:01 UTC)
+
+Overview: VG Stub Creator documents every authored callable contract
+consistently in its readable browser artifact.
+
+- Completed `@param` and `@returns` tags across authored TypeScript docstrings
+  while preserving article-generation behavior.
+
+### 0.5.1-post.2 (2026-08-01 16:55 UTC)
+
+Overview: VG Stub Creator consumes citation acquisition and wikitext helpers
+through one shared citation capability.
+
+- Adopted the consolidated `#shared/citation` entry point for Citoid transport
+  and reusable template, link, field, and reference wikitext operations.
+
 ### 0.5.1-post.1 (2026-07-30 09:53 UTC)
 
 Overview: VG Stub Creator aligns Chinese interface typography across mixed

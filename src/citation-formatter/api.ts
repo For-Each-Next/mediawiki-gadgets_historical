@@ -2,7 +2,7 @@
  * Side-effect-free citation operations for composition and tests.
  */
 
-import templateData from "#gadget/domain/data/index.ts";
+import { citationTemplateData as templateData } from "#shared/citation";
 import {
     applyNameOverrides,
     compactReferenceCalls,
@@ -23,7 +23,15 @@ export interface CitationManagementContext {
     runtimeTemplateData?: CitationTemplateDataMap;
 }
 
-/** Formats article wikitext with generated local TemplateData. */
+/**
+ * Formats article wikitext with generated local TemplateData.
+ *
+ * @param text - Text to process.
+ * @param layout - Citation layout.
+ * @param leadSectionLabel - Lead section label value.
+ * @param runtimeTemplateData - Runtime template data value.
+ * @returns Article wikitext formatted with local TemplateData.
+ */
 export function formatCitations(
     text: string,
     layout: CitationLayout = "block",
@@ -39,7 +47,16 @@ export function formatCitations(
     );
 }
 
-/** Applies name edits, formatting, and the selected reuse-tag style. */
+/**
+ * Applies name edits, formatting, and the selected reuse-tag style.
+ *
+ * @param text - Text to process.
+ * @param updates - Updates value.
+ * @param useCompactReferences - Use compact references value.
+ * @param layout - Citation layout.
+ * @param leadSectionLabel - Lead section label value.
+ * @returns Resulting text.
+ */
 export function manageCitations(
     text: string,
     updates: NameOverrideUpdate[],
@@ -56,7 +73,16 @@ export function manageCitations(
     ).text;
 }
 
-/** Applies manager edits while retaining citation-formatting counts. */
+/**
+ * Applies manager edits while retaining citation-formatting counts.
+ *
+ * @param text - Text to process.
+ * @param updates - Updates value.
+ * @param useCompactReferences - Use compact references value.
+ * @param layout - Citation layout.
+ * @param context - Context value.
+ * @returns Operation result.
+ */
 export function manageCitationsWithResult(
     text: string,
     updates: NameOverrideUpdate[],

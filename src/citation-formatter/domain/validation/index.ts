@@ -7,7 +7,12 @@ const CITATION_VALIDATION_CONFIGS = [
     ZHWIKI_CITATION_VALIDATION,
 ] as const;
 
-/** Selects citation rules for one MediaWiki database name. */
+/**
+ * Selects citation rules for one MediaWiki database name.
+ *
+ * @param wikiId - Wiki id value.
+ * @returns Selected citation rules for one MediaWiki database name.
+ */
 export function getCitationValidationConfig(
     wikiId: string,
 ): CitationValidationConfig {

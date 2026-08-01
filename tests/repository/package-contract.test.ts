@@ -61,7 +61,13 @@ test("authored Markdown lines fit the repository width", async () => {
     assert.deepEqual(result.problems, []);
 });
 
-/** Writes the smallest complete future gadget package contract. */
+/**
+ * Writes the smallest complete future gadget package contract.
+ *
+ * @param workspaceRoot - Workspace root value.
+ * @param packageName - Package name value.
+ * @param outputName - Output name value.
+ */
 async function writeFutureGadget(
     workspaceRoot: string,
     packageName: string = "future-gadget",
@@ -87,7 +93,13 @@ async function writeFutureGadget(
     );
 }
 
-/** Creates the future gadget's package metadata. */
+/**
+ * Creates the future gadget's package metadata.
+ *
+ * @param packageName - Package name value.
+ * @param outputName - Output name value.
+ * @returns Created the future gadget's package metadata.
+ */
 function createFutureMetadata(
     packageName: string,
     outputName: string,
@@ -123,7 +135,12 @@ function createFutureMetadata(
     };
 }
 
-/** Creates the future gadget's README contract. */
+/**
+ * Creates the future gadget's README contract.
+ *
+ * @param packageName - Package name value.
+ * @returns Created the future gadget's README contract.
+ */
 function createFutureReadme(packageName: string): string {
     return [
         "# Future Gadget",
@@ -158,7 +175,11 @@ function createFutureReadme(packageName: string): string {
     ].join("\n");
 }
 
-/** Creates the future gadget's active changelog entry. */
+/**
+ * Creates the future gadget's active changelog entry.
+ *
+ * @returns Created the future gadget's active changelog entry.
+ */
 function createFutureChangelog(): string {
     return [
         "# Changelog",

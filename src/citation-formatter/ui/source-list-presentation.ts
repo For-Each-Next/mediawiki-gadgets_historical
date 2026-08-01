@@ -63,7 +63,13 @@ export interface SourceListDerivedState {
     sourceTableRows: { readonly value: SourceTableRow[] };
 }
 
-/** Builds filtering and choice values for the existing-source list. */
+/**
+ * Builds filtering and choice values for the existing-source list.
+ *
+ * @param Vue - Vue value.
+ * @param state - Mutable operation state.
+ * @returns Filtering and choice values for the source list.
+ */
 // eslint-disable-next-line max-lines-per-function
 export function createSourceListDerivedState(
     Vue: VueModule,
@@ -164,7 +170,13 @@ export function createSourceListDerivedState(
     };
 }
 
-/** Projects citation definitions into the Codex Table columns. */
+/**
+ * Projects citation definitions into the Codex Table columns.
+ *
+ * @param source - Source text.
+ * @param sections - Sections value.
+ * @returns Operation result.
+ */
 function toSourceTableRow(
     source: ExistingSource,
     sections: SourceSection[],
@@ -185,7 +197,13 @@ function toSourceTableRow(
     };
 }
 
-/** Formats exact sections shown for a source usage count. */
+/**
+ * Formats exact sections shown for a source usage count.
+ *
+ * @param source - Source text.
+ * @param sections - Sections value.
+ * @returns Formatted exact sections shown for a source usage count.
+ */
 export function formatSourceUsageTitle(
     source: Pick<ExistingSource, "sectionIds" | "usageCount">,
     sections: SourceSection[],
@@ -200,13 +218,25 @@ export function formatSourceUsageTitle(
     return msg("lookup.sourceUsedIn", { sections: labels.join("; ") });
 }
 
-/** Formats one exact source-use section for a compact native title. */
+/**
+ * Formats one exact source-use section for a compact native title.
+ *
+ * @param section - Section value.
+ * @returns Value.
+ */
 function formatSourceUsageSection(section: SourceSection): string {
     const title = section.id === "0" ? msg("sections.lead") : section.title;
     return `§${section.id} ${title}`.trim();
 }
 
-/** Builds one combobox for each selected section hierarchy level. */
+/**
+ * Builds one combobox for each selected section hierarchy level.
+ *
+ * @param sections - Sections value.
+ * @param path - File path.
+ * @param sources - Sources value.
+ * @returns Built combobox for each selected section hierarchy level.
+ */
 export function buildSourceSectionSelectors(
     sections: SourceSection[],
     path: string[],
@@ -243,7 +273,13 @@ export function buildSourceSectionSelectors(
     return selectors;
 }
 
-/** Checks whether a selected heading has citations in its own lead. */
+/**
+ * Checks whether a selected heading has citations in its own lead.
+ *
+ * @param parentId - Parent id value.
+ * @param sources - Sources value.
+ * @returns Whether a selected heading has citations in its own lead.
+ */
 function hasLeadingSourceSection(
     parentId: string,
     sources: ExistingSource[],
@@ -258,7 +294,13 @@ function hasLeadingSourceSection(
     return sources.some((source) => source.sectionIds.includes(parentId));
 }
 
-/** Creates the `.0` option for a selected heading's own lead. */
+/**
+ * Creates the `.0` option for a selected heading's own lead.
+ *
+ * @param parentId - Parent id value.
+ * @param level - Level value.
+ * @returns Created the `.0` option for a selected heading's own lead.
+ */
 function buildLeadingSourceSection(
     parentId: string,
     level: number,
@@ -277,7 +319,14 @@ function buildLeadingSourceSection(
     };
 }
 
-/** Builds the choices for one section-filter hierarchy level. */
+/**
+ * Builds the choices for one section-filter hierarchy level.
+ *
+ * @param sections - Sections value.
+ * @param level - Level value.
+ * @param selected - Selected value.
+ * @returns Built the choices for one section-filter hierarchy level.
+ */
 function buildSourceSectionSelector(
     sections: SourceSection[],
     level: number,
@@ -311,7 +360,12 @@ function buildSourceSectionSelector(
     };
 }
 
-/** Formats structural section data for the localized filter menu. */
+/**
+ * Formats structural section data for the localized filter menu.
+ *
+ * @param section - Section value.
+ * @returns Section data for the localized filter menu.
+ */
 function formatSourceSectionOption(section: SourceSection): string {
     if (section.id === UNUSED_SOURCE_SECTION_ID) {
         return msg("sections.unusedReferences");

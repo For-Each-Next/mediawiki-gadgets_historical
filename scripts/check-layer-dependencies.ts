@@ -132,7 +132,13 @@ async function checkFile(sourceRoot: string, file: string): Promise<string[]> {
     return problems;
 }
 
-/** Checks aliases that apply independently of architecture layers. */
+/**
+ * Checks aliases that apply independently of architecture layers.
+ *
+ * @param sourcePath - Source path value.
+ * @param imports - Imports value.
+ * @returns Resulting values.
+ */
 function getImportConventionProblems(
     sourcePath: string,
     imports: RegExpMatchArray[],

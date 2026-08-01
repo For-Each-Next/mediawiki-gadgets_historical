@@ -12,7 +12,7 @@ import {
 } from "#gadget/domain/data.ts";
 import { defineArticleModule } from "#gadget/domain/article-module.ts";
 import { buildNameSourceReferenceKey } from "#gadget/domain/wiki.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { formatPrefixedValue, parsePrefixedValue, trimValue } = wikitext;
 
 /**

@@ -99,7 +99,14 @@ export function stripJavaScriptComments(source: string): string {
     return applySourceReplacements(source, replacements);
 }
 
-/** Collects literal tokens without traversing tagged-template text. */
+/**
+ * Collects literal tokens without traversing tagged-template text.
+ *
+ * @param node - Syntax or DOM node.
+ * @param sourceFile - Source file value.
+ * @param source - Source text.
+ * @param replacements - Source replacements.
+ */
 function collectOrdinaryTemplateTokens(
     node: ts.Node,
     sourceFile: ts.SourceFile,
@@ -128,7 +135,14 @@ function collectOrdinaryTemplateTokens(
     });
 }
 
-/** Traverses only expressions inside one tagged template. */
+/**
+ * Traverses only expressions inside one tagged template.
+ *
+ * @param node - Syntax or DOM node.
+ * @param sourceFile - Source file value.
+ * @param source - Source text.
+ * @param replacements - Source replacements.
+ */
 function collectTaggedTemplateExpressions(
     node: ts.TaggedTemplateExpression,
     sourceFile: ts.SourceFile,
@@ -149,7 +163,14 @@ function collectTaggedTemplateExpressions(
     }
 }
 
-/** Collects the literal and nested-expression parts of one template. */
+/**
+ * Collects the literal and nested-expression parts of one template.
+ *
+ * @param node - Syntax or DOM node.
+ * @param sourceFile - Source file value.
+ * @param source - Source text.
+ * @param replacements - Source replacements.
+ */
 function collectTemplateExpression(
     node: ts.TemplateExpression,
     sourceFile: ts.SourceFile,
@@ -168,7 +189,14 @@ function collectTemplateExpression(
     }
 }
 
-/** Records one changed template token. */
+/**
+ * Records one changed template token.
+ *
+ * @param node - Syntax or DOM node.
+ * @param sourceFile - Source file value.
+ * @param source - Source text.
+ * @param replacements - Source replacements.
+ */
 function collectTemplateToken(
     node: ts.Node,
     sourceFile: ts.SourceFile,
@@ -183,7 +211,12 @@ function collectTemplateToken(
     }
 }
 
-/** Escapes line breaks while preserving template line continuations. */
+/**
+ * Escapes line breaks while preserving template line continuations.
+ *
+ * @param text - Text to process.
+ * @returns Escaped breaks that preserve template line continuations.
+ */
 function escapeTemplateTokenLineBreaks(text: string): string {
     const result: string[] = [];
     for (let index = 0; index < text.length; index += 1) {
@@ -216,7 +249,13 @@ function escapeTemplateTokenLineBreaks(text: string): string {
     return result.join("");
 }
 
-/** Counts the raw backslashes immediately before one line break. */
+/**
+ * Counts the raw backslashes immediately before one line break.
+ *
+ * @param text - Text to process.
+ * @param index - Source index.
+ * @returns Computed number.
+ */
 function countPrecedingBackslashes(text: string, index: number): number {
     let count = 0;
     for (
@@ -229,13 +268,24 @@ function countPrecedingBackslashes(text: string, index: number): number {
     return count;
 }
 
-/** Retains only line terminators, or one token-separating space. */
+/**
+ * Retains only line terminators, or one token-separating space.
+ *
+ * @param comment - Comment value.
+ * @returns Resulting text.
+ */
 function preserveCommentLineBreaks(comment: string): string {
     const lineBreaks = comment.match(/\r\n|[\n\r\u2028\u2029]/gu);
     return lineBreaks == null ? " " : lineBreaks.join("");
 }
 
-/** Applies non-overlapping source replacements from the end. */
+/**
+ * Applies non-overlapping source replacements from the end.
+ *
+ * @param source - Source text.
+ * @param replacements - Source replacements.
+ * @returns Resulting text.
+ */
 function applySourceReplacements(
     source: string,
     replacements: SourceReplacement[],

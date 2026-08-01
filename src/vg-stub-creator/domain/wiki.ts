@@ -8,7 +8,7 @@ import type {
 } from "#gadget/domain/models.ts";
 import { get as getTerminology } from "#gadget/config/terminologies/index.ts";
 import { buildReferencesSection } from "#gadget/domain/reference-wikitext.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 
 const { buildTemplateCall, buildTemplateText, trimValue, uniqueValues } =
     wikitext;

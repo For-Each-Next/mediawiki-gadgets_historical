@@ -5,9 +5,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import * as languageCode from "@mediawiki-gadgets/shared/language-code";
+import * as citation from "@mediawiki-gadgets/shared/citation";
 
-const normalize = languageCode.normalizeEnglishLanguageCodes;
+const normalize = citation.normalizeEnglishLanguageCodes;
 
 test("prefers ISO 639-1 codes and falls back to ISO 639-3", () => {
     assert.equal(normalize("Japanese"), "ja");

@@ -3,6 +3,12 @@
  */
 
 import {
+    wikitext,
+    type ParsedTemplateCall,
+    type RefTag,
+} from "#shared/wikitext";
+
+import {
     appendCitationLocator,
     cleanValue,
     formatCitationTemplate,
@@ -37,13 +43,7 @@ import type {
     CitationTemplateDataMap,
     TextReplacement,
 } from "./types.ts";
-import {
-    applyReplacements,
-    findRefTags,
-    findTemplateCalls,
-    type ParsedTemplateCall,
-    type RefTag,
-} from "./wikitext.ts";
+import { applyReplacements } from "./wikitext.ts";
 import {
     findCitationFormattingProtectedRanges,
     isInWikitextRanges,
@@ -152,6 +152,9 @@ export function findUsedCitationTemplates(text: string): string[] {
 
 /**
  * Returns unknown Cite-prefixed template names needing live metadata.
+ *
+ * @param text - Text to process.
+ * @returns Unknown Cite-prefixed template names needing live metadata.
  */
 export function findUsedMetadataFreeCitationTemplates(text: string): string[] {
     return findUsedTemplateNames(
@@ -181,6 +184,26 @@ function findUsedTemplateNames(
     const uniqueNames = new Set(names);
     const result = Array.from(uniqueNames);
     return result;
+}
+
+/**
+ * Gets complete ref tags through the focused reference query.
+ *
+ * @param text - Wikitext to parse.
+ * @returns Complete ref tags in source order.
+ */
+function findRefTags(text: string): RefTag[] {
+    return wikitext(text).reference.getAll();
+}
+
+/**
+ * Gets parsed template calls through the focused template query.
+ *
+ * @param text - Wikitext to parse.
+ * @returns Parsed template calls in nested source order.
+ */
+function findTemplateCalls(text: string): ParsedTemplateCall[] {
+    return wikitext(text).template.getAll();
 }
 
 /**
@@ -299,6 +322,11 @@ function summarizeFormatting(
  *
  * Full definitions remain represented after moving to a reference list.
  * Reuse tags inside a rebuilt list do not, so they are excluded.
+ *
+ * @param tags - Tags value.
+ * @param definitions - Definitions value.
+ * @param containers - Containers value.
+ * @returns Computed number.
  */
 function countRenamedReferenceTags(
     tags: RefTag[],

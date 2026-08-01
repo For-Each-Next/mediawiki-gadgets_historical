@@ -12,7 +12,7 @@ import {
     sortCitationParams,
 } from "#gadget/domain/citations/index.ts";
 import type { CitationStore } from "#gadget/infra/sources/citation-store.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { trimValue } = wikitext;
 
 interface ManagedCitationRow {

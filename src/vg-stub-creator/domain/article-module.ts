@@ -9,7 +9,7 @@ import type {
     ArticleModuleContext,
     ArticleModuleDefinition,
 } from "#gadget/domain/models.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 
 const { trimValue } = wikitext;
 
@@ -97,6 +97,10 @@ export function defineArticleModule(
 
 /**
  * Creates a data record with independent shared collections.
+ *
+ * @param key - Key value.
+ * @param data - Data value.
+ * @returns Created data record with independent shared collections.
  */
 function createBlankDataRecord(
     key: string,
@@ -126,6 +130,8 @@ function createBlankDataRecord(
 
 /**
  * Clones mutable array values owned by a data record.
+ *
+ * @param record - Record value.
  */
 function cloneRecordArrays(record: ArticleDataRecord): void {
     record.assumedCategories = [...(record.assumedCategories || [])];
@@ -141,6 +147,12 @@ function cloneRecordArrays(record: ArticleDataRecord): void {
 
 /**
  * Builds one module data record.
+ *
+ * @param definition - Definition value.
+ * @param fields - Fields value.
+ * @param form - Form value.
+ * @param context - Context value.
+ * @returns Built module data record.
  */
 function flushModule(
     definition: ArticleModuleDefinition,
@@ -161,6 +173,12 @@ function flushModule(
 
 /**
  * Formats a live module field.
+ *
+ * @param definition - Definition value.
+ * @param key - Key value.
+ * @param value - Value to process.
+ * @param form - Form value.
+ * @returns Formatted live module field.
  */
 function formatModuleField(
     definition: ArticleModuleDefinition,
@@ -173,6 +191,11 @@ function formatModuleField(
 
 /**
  * Normalizes one module's form values.
+ *
+ * @param definition - Definition value.
+ * @param form - Form value.
+ * @param context - Context value.
+ * @returns Normalized module's form values.
  */
 function normalizeModule(
     definition: ArticleModuleDefinition,
@@ -184,6 +207,10 @@ function normalizeModule(
 
 /**
  * Gets the owned form fields from one form object.
+ *
+ * @param form - Form value.
+ * @param fields - Fields value.
+ * @returns Operation result.
  */
 function pickFields(
     form: Record<string, any>,
@@ -198,6 +225,9 @@ function pickFields(
 
 /**
  * Trims a module key for definition validation.
+ *
+ * @param key - Key value.
+ * @returns Resulting text.
  */
 function trimKey(key: unknown): string {
     return trimValue(key);

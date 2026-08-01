@@ -1,0 +1,258 @@
+.wiked-lite-editor {
+    --wiked-lite-background: rgb(255, 255, 255);
+    --wiked-lite-caret: rgb(32, 33, 34);
+    --wiked-lite-foreground: rgb(32, 33, 34);
+
+    position: relative;
+    box-sizing: border-box;
+    min-height: 16rem;
+    padding: var(--spacing-75);
+    overflow: auto;
+    color: var(--wiked-lite-foreground);
+    caret-color: var(--wiked-lite-caret);
+    font-family: monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: var(--wiked-lite-background);
+    border: var(--border-width-base) var(--border-style-base)
+        var(--border-color-base);
+    border-radius: var(--border-radius-base);
+    resize: vertical;
+    tab-size: 4;
+}
+
+.wiked-lite-editor:focus {
+    outline: var(--border-width-thick) var(--border-style-base)
+        var(--border-color-progressive--focus);
+    outline-offset: -2px;
+}
+
+.wiked-lite-native {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.wiked-lite-token--comment {
+    color: rgb(0, 0, 0) !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    text-decoration: none !important;
+    background: rgb(255, 240, 208) !important;
+}
+
+.wiked-lite-token--literal {
+    color: rgb(32, 33, 34);
+    font-style: normal;
+    font-weight: normal;
+    background: rgb(248, 232, 232);
+}
+
+.wiked-lite-token--heading {
+    color: rgb(0, 0, 0);
+    font-weight: bold;
+}
+
+.wiked-lite-token--heading-2 {
+    font-size: 1.55em;
+    font-weight: normal;
+    text-decoration-line: underline;
+    text-decoration-style: double;
+    text-underline-offset: 0.2em;
+}
+
+.wiked-lite-token--heading-3 {
+    font-size: 1.32em;
+    font-weight: normal;
+    text-decoration-line: underline;
+    text-decoration-style: solid;
+    text-underline-offset: 0.2em;
+}
+
+.wiked-lite-token--heading-4 {
+    font-size: 1.1em;
+    font-weight: normal;
+}
+
+.wiked-lite-token--link,
+.wiked-lite-token--link-helper {
+    color: rgb(0, 0, 170);
+}
+
+.wiked-lite-token--link-helper {
+    font-weight: 600;
+}
+
+.wiked-lite-token--url {
+    color: rgb(0, 0, 238);
+}
+
+.wiked-lite-token--missing {
+    color: var(--color-destructive);
+    text-decoration: underline dotted;
+}
+
+.wiked-lite-token--reference {
+    font-style: normal;
+    background: rgb(243, 225, 247) !important;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--footnote {
+    background: rgb(230, 242, 255) !important;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--template-0 {
+    background: rgb(246, 246, 246);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--template-1 {
+    background: rgb(228, 228, 228);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--template-2 {
+    background: rgb(218, 218, 218);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--template-3,
+.wiked-lite-token--template-4 {
+    background: rgb(208, 208, 208);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--template-name {
+    color: rgb(85, 0, 153);
+    font-weight: bold;
+}
+
+.wiked-lite-token--parameter {
+    color: rgb(153, 0, 0);
+    font-style: normal;
+}
+
+.wiked-lite-token--list {
+    color: rgb(0, 0, 0);
+    font-weight: bold;
+    background: rgb(232, 232, 232);
+}
+
+.wiked-lite-token--table {
+    color: rgb(119, 119, 119);
+}
+
+.wiked-lite-tooltip {
+    --wiked-lite-tooltip-background: rgb(255, 255, 255);
+    --wiked-lite-tooltip-foreground: rgb(32, 33, 34);
+
+    position: fixed;
+    z-index: 2147483647;
+    box-sizing: border-box;
+    width: min(360px, calc(100vw - 24px));
+    max-height: 44vh;
+    padding: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    color: var(--wiked-lite-tooltip-foreground);
+    font-family: sans-serif;
+    font-size: 0.82em;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    scrollbar-gutter: stable;
+    background: var(--wiked-lite-tooltip-background);
+    border: 1px solid rgba(162, 169, 177, 0.78);
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+    pointer-events: auto;
+}
+
+.wiked-lite-tooltip__title {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 0.7em 0.85em 0.55em;
+    color: var(--wiked-lite-tooltip-foreground);
+    font-size: 1.05em;
+    font-weight: 700;
+    line-height: 1.3;
+    background: var(--wiked-lite-tooltip-background);
+    border: 0;
+    border-bottom: 1px solid rgb(234, 236, 240);
+}
+
+.wiked-lite-tooltip__reference {
+    color: rgb(84, 89, 93);
+    font-size: 0.82em;
+    font-weight: normal;
+}
+
+.wiked-lite-tooltip__body {
+    padding: 0.55em 0.75em 0.7em;
+}
+
+.wiked-lite-tooltip__row {
+    display: block;
+    padding: 0.18em 0 0.18em 2em;
+    border: 0;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    text-indent: -2em;
+    white-space: pre-wrap;
+}
+
+.wiked-lite-tooltip__row:last-child {
+    padding-bottom: 0;
+}
+
+.wiked-lite-tooltip__key {
+    margin-inline-end: 0.65em;
+    color: var(--wiked-lite-tooltip-foreground);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.wiked-lite-tooltip__key:not(:first-child) {
+    margin-inline-start: 2em;
+}
+
+.wiked-lite-tooltip__value {
+    color: rgb(84, 89, 93);
+    font-family: sans-serif;
+    font-weight: normal;
+}
+
+.wiked-lite-tooltip__link {
+    display: inline;
+    color: rgb(51, 102, 204);
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.wiked-lite-tooltip__link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+}
+
+.wiked-lite-tooltip__comment {
+    color: rgb(138, 75, 8);
+    font-style: italic;
+}

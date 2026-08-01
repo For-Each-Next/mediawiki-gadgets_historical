@@ -12,6 +12,8 @@ const FLOATING_LAUNCHER_ID = "citation-formatter-quick-launch";
 
 /**
  * Adds the unified citation command on MediaWiki edit pages.
+ *
+ * @param openCitationFormatterDialog - Dialog-opening callback.
  */
 export function mountCitationFormatter(
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,
@@ -28,7 +30,11 @@ export function mountCitationFormatter(
     mountFloatingCitationLauncher(openCitationFormatterDialog);
 }
 
-/** Adds the Citation Formatter command to a MediaWiki portlet once. */
+/**
+ * Adds the Citation Formatter command to a MediaWiki portlet once.
+ *
+ * @param openCitationFormatterDialog - Dialog-opening callback.
+ */
 function mountCitationToolLink(
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,
 ): void {
@@ -39,7 +45,11 @@ function mountCitationToolLink(
     addToolClickHandler(link, openCitationFormatterDialog);
 }
 
-/** Adds the localized persistent citation launcher. */
+/**
+ * Adds the localized persistent citation launcher.
+ *
+ * @param openCitationFormatterDialog - Dialog-opening callback.
+ */
 function mountFloatingCitationLauncher(
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,
 ): void {
@@ -57,7 +67,12 @@ function mountFloatingCitationLauncher(
     (document.body || document.documentElement).append(launcher);
 }
 
-/** Opens the formatter from an action-style portlet link. */
+/**
+ * Opens the formatter from an action-style portlet link.
+ *
+ * @param launcher - Launcher value.
+ * @param openCitationFormatterDialog - Dialog-opening callback.
+ */
 function addToolClickHandler(
     launcher: HTMLElement | null,
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,

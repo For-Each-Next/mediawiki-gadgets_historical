@@ -61,7 +61,9 @@ VG Page Assessor:
   same-day registrations by creation time;
 - previews focused before-and-after new-page-list snippets with an editable
   edit summary; and
-- reports visible progress and failures for each requested save.
+- opens promptly with progress for assessment and new-page-list loading,
+  reports visible progress and failures for each requested save, and refreshes
+  the completed page so its updated state is visible.
 
 The interface uses English, Simplified Chinese, or Traditional Chinese
 according to the MediaWiki interface language.

@@ -114,14 +114,23 @@ test("retains semantic line breaks from removed comments", () => {
     );
 });
 
-/** Evaluates one fixture and returns its observable string result. */
+/**
+ * Evaluates one fixture and returns its observable string result.
+ *
+ * @param source - Source text.
+ * @returns Operation result.
+ */
 function evaluateFixtureResult(source: string): unknown {
     const context: Record<string, unknown> = {};
     runInNewContext(source, context);
     return context.fixtureResult;
 }
 
-/** Distinguishes parsed comments from comment-like strings. */
+/**
+ * Distinguishes parsed comments from comment-like strings.
+ *
+ * @param source - Source text.
+ */
 function assertNoCodeComments(source: string): void {
     const { ast } = parseForESLint(source, {
         comment: true,

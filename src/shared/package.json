@@ -6,15 +6,14 @@
     "main": "./index.ts",
     "exports": {
         ".": "./index.ts",
-        "./citoid": "./citoid.ts",
+        "./citation": "./citation/index.ts",
+        "./citation/short-footnotes": "./citation/short-footnotes.ts",
         "./edit-box": "./edit-box.ts",
         "./html": "./html.ts",
         "./i18n": "./i18n.ts",
-        "./language-code": "./language-code.ts",
-        "./wikitext": "./wikitext.ts"
+        "./wikitext": "./wikitext/index.ts"
     },
     "scripts": {
-        "test": "node --test ../../tests/shared/*.test.ts",
-        "update:language-codes": "node ../../scripts/update-language-codes.ts"
+        "test": "node --test ../../tests/shared/*.test.ts"
     }
 }

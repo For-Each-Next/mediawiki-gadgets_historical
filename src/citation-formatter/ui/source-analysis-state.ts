@@ -73,7 +73,12 @@ interface SourceAnalysisState {
     sourceAnalysis: { value: EditableCitationSourceAnalysis };
 }
 
-/** Adds mutable replacement and selection state to a fresh analysis. */
+/**
+ * Adds mutable replacement and selection state to a fresh analysis.
+ *
+ * @param sources - Sources value.
+ * @returns Operation result.
+ */
 export function createEditableSourceAnalysis(
     sources: ExistingSource[],
 ): EditableCitationSourceAnalysis {
@@ -100,7 +105,11 @@ export function createEditableSourceAnalysis(
     };
 }
 
-/** Refreshes findings while retaining their stable display order. */
+/**
+ * Refreshes findings while retaining their stable display order.
+ *
+ * @param state - Mutable operation state.
+ */
 export function refreshSourceAnalysis(state: SourceAnalysisState): void {
     const analysis = createEditableSourceAnalysis(state.existingSources.value);
     for (const finding of analysis.findings) {
@@ -114,7 +123,12 @@ export function refreshSourceAnalysis(state: SourceAnalysisState): void {
     state.sourceAnalysis.value = analysis;
 }
 
-/** Groups pending and applied consistency findings into UI tabs. */
+/**
+ * Groups pending and applied consistency findings into UI tabs.
+ *
+ * @param state - Mutable operation state.
+ * @returns Resulting values.
+ */
 export function buildAnalysisTabs(state: SourceAnalysisState): AnalysisTab[] {
     return [
         buildAnalysisTab(state, "value", msg("analysis.parameterValuesTab")),
@@ -146,7 +160,12 @@ export function isAnalysisFindingInTab(
     return (finding.category === "alias" ? "alias" : "value") === tab;
 }
 
-/** Gets the category text displayed below an analysis-case title. */
+/**
+ * Gets the category text displayed below an analysis-case title.
+ *
+ * @param finding - Finding value.
+ * @returns Resulting text.
+ */
 function getAnalysisFindingDescription(
     finding: SourceAnalysisFinding,
 ): string {

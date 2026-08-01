@@ -5,7 +5,7 @@
 import type { ArticleForm } from "#gadget/domain/models.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import * as html from "#shared/html";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 
 const { serializeElementContent } = html;
 const { trimValue } = wikitext;
@@ -47,6 +47,11 @@ export function createPreviewController(
 
 /**
  * Parses article wikitext through MediaWiki's native edit preview.
+ *
+ * @param text - Text to process.
+ * @param form - Form value.
+ * @param fallbackTitle - Fallback title value.
+ * @returns Article wikitext parsed by MediaWiki's edit preview.
  */
 async function parseArticlePreviewText(
     text: string,
@@ -59,6 +64,11 @@ async function parseArticlePreviewText(
 
 /**
  * Adds the heading expected by source-reading modules during preview.
+ *
+ * @param text - Text to process.
+ * @param form - Form value.
+ * @param fallbackTitle - Fallback title value.
+ * @returns Resulting text.
  */
 function buildNativePreviewText(
     text: string,
@@ -71,6 +81,10 @@ function buildNativePreviewText(
 
 /**
  * Requests MediaWiki's native edit preview without navigating away.
+ *
+ * @param text - Text to process.
+ * @param title - Wiki title.
+ * @returns Operation result.
  */
 async function parseNativePreviewText(
     text: string,
@@ -93,6 +107,9 @@ async function parseNativePreviewText(
 
 /**
  * Builds a form payload compatible with MediaWiki's edit preview.
+ *
+ * @param text - Text to process.
+ * @returns Built form payload compatible with MediaWiki's edit preview.
  */
 function buildNativePreviewFormData(text: string): FormData {
     const editForm = document.getElementById(
@@ -113,6 +130,9 @@ function buildNativePreviewFormData(text: string): FormData {
 
 /**
  * Extracts rendered preview content from a MediaWiki response document.
+ *
+ * @param responseHtml - Response html value.
+ * @returns Value.
  */
 function extractNativePreviewHtml(responseHtml: string): string {
     const doc = new DOMParser().parseFromString(responseHtml, "text/html");
@@ -130,6 +150,10 @@ function extractNativePreviewHtml(responseHtml: string): string {
 
 /**
  * Parses generated wikitext through MediaWiki's API.
+ *
+ * @param text - Text to process.
+ * @param title - Wiki title.
+ * @returns Parsed generated wikitext through MediaWiki's API.
  */
 async function parsePreviewText(text: string, title: string): Promise<string> {
     const response = await new mw.Api().post({
@@ -147,6 +171,9 @@ async function parsePreviewText(text: string, title: string): Promise<string> {
 
 /**
  * Fetches the current source for one wiki page.
+ *
+ * @param title - Wiki title.
+ * @returns Operation result.
  */
 async function fetchPageText(title: string): Promise<string> {
     const response = await new mw.Api().get({

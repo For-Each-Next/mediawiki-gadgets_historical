@@ -1,0 +1,19 @@
+.wiked-lite-dialog__section {
+    margin-block: var(--spacing-100);
+}
+
+.wiked-lite-dialog__section .cdx-checkbox {
+    margin-block: var(--spacing-50);
+}
+
+.wiked-lite-dialog__ratio {
+    max-width: 12rem;
+    margin-block-start: var(--spacing-75);
+}
+
+.wiked-lite-dialog__actions {
+    display: flex;
+    gap: var(--spacing-75);
+    justify-content: flex-end;
+    width: 100%;
+}

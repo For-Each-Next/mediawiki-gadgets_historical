@@ -33,7 +33,7 @@ const DIALOG_PACKAGES: readonly DialogPackage[] = [
     {
         name: "vg-page-assessor",
         stylePrefix: "avgp-",
-        dialogs: ["assessment"],
+        dialogs: ["assessment", "loading"],
     },
     {
         name: "vg-stub-creator",
@@ -50,13 +50,18 @@ const DIALOG_PACKAGES: readonly DialogPackage[] = [
             "history-json",
         ],
     },
+    {
+        name: "wiked-lite",
+        stylePrefix: "wiked-lite-",
+        dialogs: ["formatter"],
+    },
 ];
 
 const sourceRoot = fileURLToPath(new URL("../../src/", import.meta.url));
 const dialogCount = DIALOG_PACKAGES.reduce(countDialogs, 0);
 
-test("keeps the fixed fifteen-dialog three-file inventory", () => {
-    assert.equal(dialogCount, 15);
+test("keeps the fixed seventeen-dialog three-file inventory", () => {
+    assert.equal(dialogCount, 17);
     for (const packageConfig of DIALOG_PACKAGES) {
         assertDialogFileSet(packageConfig);
     }

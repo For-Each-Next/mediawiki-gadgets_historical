@@ -87,7 +87,12 @@ function resolveBuildConfig(
     };
 }
 
-/** Resolves the Vue-compatible shared distribution path. */
+/**
+ * Resolves the Vue-compatible shared distribution path.
+ *
+ * @param metadata - Citation metadata.
+ * @returns Resolved the Vue-compatible shared distribution path.
+ */
 function requireOutputDirectory(metadata: PackageMetadata): string {
     const vue = metadata.vue;
     if (
@@ -106,7 +111,13 @@ function requireOutputDirectory(metadata: PackageMetadata): string {
     return outputDirectory;
 }
 
-/** Resolves the required browser entry point. */
+/**
+ * Resolves the required browser entry point.
+ *
+ * @param config - Operation configuration.
+ * @param metadata - Citation metadata.
+ * @returns Resolved the required browser entry point.
+ */
 function requireEntryPoint(
     config: GadgetBuildConfig,
     metadata: PackageMetadata,
@@ -120,7 +131,12 @@ function requireEntryPoint(
     return entryPoint;
 }
 
-/** Validates the required JavaScript global identifier. */
+/**
+ * Validates the required JavaScript global identifier.
+ *
+ * @param config - Operation configuration.
+ * @returns Resulting text.
+ */
 function requireGlobalName(config: GadgetBuildConfig): string {
     const { globalName } = config;
     if (!hasText(globalName)) {
@@ -134,7 +150,12 @@ function requireGlobalName(config: GadgetBuildConfig): string {
     return globalName;
 }
 
-/** Validates the generated JavaScript file basename. */
+/**
+ * Validates the generated JavaScript file basename.
+ *
+ * @param config - Operation configuration.
+ * @returns Resulting text.
+ */
 function requireOutputName(config: GadgetBuildConfig): string {
     const { outputName } = config;
     if (!hasText(outputName)) {

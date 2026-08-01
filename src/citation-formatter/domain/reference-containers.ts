@@ -2,13 +2,11 @@
  * Parsing and range operations for list-defined-reference containers.
  */
 
-import { normalizeTemplateName } from "./templates.ts";
 import {
-    findTemplateCalls,
-    parseTagAttributes,
+    wikitext,
     type ParsedTemplateCall,
     type RefTag,
-} from "./wikitext.ts";
+} from "#shared/wikitext";
 
 /** One native references tag or Reflist template. */
 export interface ReferenceContainer {
@@ -22,7 +20,12 @@ export interface ReferenceContainer {
     start: number;
 }
 
-/** Creates a synthetic target for a missing reference group. */
+/**
+ * Creates a synthetic target for a missing reference group.
+ *
+ * @param group - Reference group.
+ * @returns Created synthetic target for a missing reference group.
+ */
 export function createEmptyReferenceContainer(
     group: string,
 ): ReferenceContainer {
@@ -38,35 +41,43 @@ export function createEmptyReferenceContainer(
     };
 }
 
-/** Finds native references tags and Reflist templates. */
+/**
+ * Finds native references tags and Reflist templates.
+ *
+ * @param text - Text to process.
+ * @returns Native references tags and Reflist templates.
+ */
 export function findReferenceContainers(text: string): ReferenceContainer[] {
+    const code = wikitext(text);
     const result: ReferenceContainer[] = [];
-    const referencesPattern =
-        /<references\b([^>]*?)(?:\/>|>([\s\S]*?)<\/references\s*>)/giu;
-    for (const match of text.matchAll(referencesPattern)) {
-        const attributes = parseTagAttributes(match[1]);
-        const contentEnd = getReferencesContentEnd(match);
-        const contentStart = getReferencesContentStart(match);
+    for (const tag of code.tag.getAll("references")) {
+        if (!tag.closed) {
+            continue;
+        }
         result.push({
-            contentEnd,
-            contentStart,
-            end: (match.index || 0) + match[0].length,
-            group: attributes.group || "",
+            contentEnd: tag.contentEnd,
+            contentStart: tag.contentStart,
+            end: tag.end,
+            group: tag.attributes.group || "",
             kind: "references",
             namedParams: [],
             prefixText: "",
-            start: match.index || 0,
+            start: tag.start,
         });
     }
-    for (const call of findTemplateCalls(text)) {
-        if (normalizeTemplateName(call.name) === "reflist") {
-            result.push(buildReflistContainer(call));
-        }
+    for (const template of code.template.getAll("reflist")) {
+        result.push(buildReflistContainer(template));
     }
     return result.sort((left, right) => left.start - right.start);
 }
 
-/** Captures text before each container's first active definition. */
+/**
+ * Captures text before each container's first active definition.
+ *
+ * @param containers - Containers value.
+ * @param tags - Tags value.
+ * @param source - Source text.
+ */
 export function captureContainerPrefixes(
     containers: ReferenceContainer[],
     tags: RefTag[],
@@ -85,7 +96,15 @@ export function captureContainerPrefixes(
     }
 }
 
-/** Captures material after a definition up to the next definition. */
+/**
+ * Captures material after a definition up to the next definition.
+ *
+ * @param tag - Parsed tag.
+ * @param containers - Containers value.
+ * @param fullTags - Full tags value.
+ * @param source - Source text.
+ * @returns Material after a definition up to the next definition.
+ */
 export function getTrailingContainerText(
     tag: RefTag,
     containers: ReferenceContainer[],
@@ -110,7 +129,13 @@ export function getTrailingContainerText(
     return source.slice(tag.end, next?.start ?? container.contentEnd);
 }
 
-/** Checks whether a ref tag is inside a list container. */
+/**
+ * Checks whether a ref tag is inside a list container.
+ *
+ * @param tag - Parsed tag.
+ * @param containers - Containers value.
+ * @returns Whether a ref tag is inside a list container.
+ */
 export function isTagInContainers(
     tag: RefTag,
     containers: ReferenceContainer[],
@@ -121,7 +146,13 @@ export function isTagInContainers(
     );
 }
 
-/** Gets the group inherited from a containing reference list. */
+/**
+ * Gets the group inherited from a containing reference list.
+ *
+ * @param tag - Parsed tag.
+ * @param containers - Containers value.
+ * @returns Resulting text.
+ */
 export function getContainingGroup(
     tag: RefTag,
     containers: ReferenceContainer[],
@@ -134,43 +165,44 @@ export function getContainingGroup(
     );
 }
 
-/** Builds a reference container from one Reflist template. */
-function buildReflistContainer(call: ParsedTemplateCall): ReferenceContainer {
-    const namedParams = call.params
-        .filter((param) => !param.positional)
-        .map(
-            (param) =>
-                [param.name.toLocaleLowerCase("en-US"), param.value] as [
-                    string,
-                    string,
-                ],
-        );
+/**
+ * Builds a reference container from one Reflist template.
+ *
+ * @param call - Call value.
+ * @returns Built reference container from one Reflist template.
+ */
+function buildReflistContainer(
+    template: ParsedTemplateCall,
+): ReferenceContainer {
+    const namedArguments = template.params.filter(
+        (argument) => !argument.positional,
+    );
+    const namedParams = namedArguments.map(
+        (argument) =>
+            [
+                argument.name.toLocaleLowerCase("en-US"),
+                argument.value.trim(),
+            ] as [string, string],
+    );
     const values = Object.fromEntries(namedParams);
     const listValue = values.list || values.refs || "";
-    const valueOffset = listValue === "" ? 0 : call.raw.indexOf(listValue);
+    const listArgument = namedArguments.find((argument) =>
+        /^(?:list|refs)$/iu.test(argument.name),
+    );
+    const relativeValueStart = listArgument?.rawValue.indexOf(listValue) ?? 0;
+    const contentStart =
+        listValue === ""
+            ? template.start
+            : (listArgument?.valueStart ?? template.start) +
+              Math.max(relativeValueStart, 0);
     return {
-        contentEnd: call.start + valueOffset + listValue.length,
-        contentStart: call.start + valueOffset,
-        end: call.end,
+        contentEnd: contentStart + listValue.length,
+        contentStart,
+        end: template.end,
         group: values.group || "",
         kind: "reflist",
         namedParams,
         prefixText: "",
-        start: call.start,
+        start: template.start,
     };
-}
-
-/** Gets the start of a native references tag body. */
-function getReferencesContentStart(match: RegExpMatchArray): number {
-    const start = match.index ?? 0;
-    return start + match[0].indexOf(">") + 1;
-}
-
-/** Gets the end of a native references tag body. */
-function getReferencesContentEnd(match: RegExpMatchArray): number {
-    const start = match.index ?? 0;
-    if (match[2] == null) {
-        return start + match[0].indexOf(">") + 1;
-    }
-    return start + match[0].lastIndexOf("</references");
 }

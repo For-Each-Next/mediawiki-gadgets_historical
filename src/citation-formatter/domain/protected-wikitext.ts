@@ -2,6 +2,8 @@
  * Protected wikitext ranges skipped by citation transformations.
  */
 
+import { wikitext } from "#shared/wikitext";
+
 export type WikitextRange = readonly [start: number, end: number];
 
 /**
@@ -43,21 +45,36 @@ export const SOURCE_DISCOVERY_LITERAL_TAGS = [
     "mapframe",
 ] as const;
 
-/** Finds ranges protected from end-to-end citation formatting. */
+/**
+ * Finds ranges protected from end-to-end citation formatting.
+ *
+ * @param text - Text to process.
+ * @returns Ranges protected from end-to-end citation formatting.
+ */
 export function findCitationFormattingProtectedRanges(
     text: string,
 ): WikitextRange[] {
     return findProtectedWikitextRanges(text, CITATION_FORMATTING_LITERAL_TAGS);
 }
 
-/** Finds ranges protected from citation-management transformations. */
+/**
+ * Finds ranges protected from citation-management transformations.
+ *
+ * @param text - Text to process.
+ * @returns Ranges protected from citation-management transformations.
+ */
 export function findCitationManagementProtectedRanges(
     text: string,
 ): WikitextRange[] {
     return findProtectedWikitextRanges(text, CITATION_MANAGEMENT_LITERAL_TAGS);
 }
 
-/** Finds ranges protected while discovering editable sources. */
+/**
+ * Finds ranges protected while discovering editable sources.
+ *
+ * @param text - Text to process.
+ * @returns Ranges protected while discovering editable sources.
+ */
 export function findSourceDiscoveryProtectedRanges(
     text: string,
 ): WikitextRange[] {
@@ -75,20 +92,9 @@ export function findProtectedWikitextRanges(
     text: string,
     literalTags: readonly string[],
 ): WikitextRange[] {
-    const tagAlternatives = literalTags.join("|");
-    const literalPattern =
-        tagAlternatives === ""
-            ? ""
-            : String.raw`|<(${tagAlternatives})\b[^>]*>` +
-              String.raw`[\s\S]*?<\/\1\s*>`;
-    const pattern = new RegExp(
-        String.raw`<!--[\s\S]*?-->${literalPattern}`,
-        "giu",
-    );
-    return Array.from(text.matchAll(pattern), (match) => [
-        match.index,
-        match.index + match[0].length,
-    ]);
+    return wikitext(text, { literalTags })
+        .opaque.getAll()
+        .map((range) => [range.start, range.end] as const);
 }
 
 /**

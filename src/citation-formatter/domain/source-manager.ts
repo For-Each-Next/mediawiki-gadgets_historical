@@ -10,7 +10,11 @@ import {
     getCitationIdentity,
     getCitationNameContributors,
 } from "./citation.ts";
-import templateData from "./data/index.ts";
+import {
+    citationTemplateData as templateData,
+    findShortFootnoteCitations,
+} from "#shared/citation";
+import { wikitext, type ParsedTemplateCall } from "#shared/wikitext";
 import { serializeGenericCitation } from "./generic-citation.ts";
 import { getCitationOutputParams } from "./post-formatter.ts";
 import {
@@ -43,14 +47,7 @@ import type {
     CitationTemplate,
     TextReplacement,
 } from "./types.ts";
-import {
-    applyReplacements,
-    findRefTags,
-    findTemplateCalls,
-    parseTagAttributes,
-    parseTemplateCall,
-    splitTopLevel,
-} from "./wikitext.ts";
+import { applyReplacements } from "./wikitext.ts";
 
 const DEFAULT_SOURCE_FIELDS = [
     "author",
@@ -196,6 +193,71 @@ const CREATOR_ALIAS_PARAMETER_PATTERNS = [
     /^(?:developer|user)$/u,
 ];
 const UNUSED_SOURCE_SECTION_ID = "unused";
+const NON_LATIN_SCRIPT_LANGUAGE_CODES = new Set([
+    "ab",
+    "am",
+    "ar",
+    "as",
+    "az",
+    "be",
+    "bg",
+    "bn",
+    "bo",
+    "bs",
+    "ce",
+    "chr",
+    "cu",
+    "dv",
+    "dz",
+    "el",
+    "fa",
+    "grc",
+    "gu",
+    "he",
+    "hi",
+    "hy",
+    "ja",
+    "ka",
+    "kaa",
+    "kk",
+    "km",
+    "kn",
+    "ko",
+    "ku",
+    "ky",
+    "lo",
+    "mk",
+    "ml",
+    "mn",
+    "mni",
+    "mr",
+    "my",
+    "ne",
+    "or",
+    "ota",
+    "pa",
+    "ps",
+    "ru",
+    "sd",
+    "si",
+    "sr",
+    "syc",
+    "ta",
+    "te",
+    "tg",
+    "th",
+    "ti",
+    "tkr",
+    "tt",
+    "ug",
+    "uk",
+    "ur",
+    "uz",
+    "yi",
+    "yue",
+    "zh",
+    "zgh",
+]);
 
 export {
     normalizeSourceUrl,
@@ -215,9 +277,12 @@ export interface SourceDraftRow {
 }
 
 export interface SourceDraft {
+    normalizationRequested?: boolean;
     rows: SourceDraftRow[];
     template: string;
 }
+
+export type ScriptTitleMode = "all-foreign" | "non-latin";
 
 export interface SourceDraftCitationNameParts {
     author: string;
@@ -281,6 +346,7 @@ export interface ExistingSource {
     rawReference: string;
     rawTemplate: string;
     referenceEnd: number;
+    referenceKind?: "reference" | "short-footnote";
     referenceName: string;
     referenceStart: number;
     reuseText: string;
@@ -291,6 +357,7 @@ export interface ExistingSource {
     title: string;
     titleLanguage: string;
     url: string;
+    usePositions?: number[];
     usageCount: number;
 }
 
@@ -321,17 +388,33 @@ interface SourceReference {
     start: number;
 }
 
-/** Returns whether a parameter is an unstructured author slot. */
+/**
+ * Returns whether a parameter is an unstructured author slot.
+ *
+ * @param name - Name to process.
+ * @returns Whether a parameter is an unstructured author slot.
+ */
 export function isAuthorDraftParameter(name: string): boolean {
     return parseDraftAuthorParameter(name) != null;
 }
 
-/** Returns whether a parameter is a structured last-name slot. */
+/**
+ * Returns whether a parameter is a structured last-name slot.
+ *
+ * @param name - Name to process.
+ * @returns Whether a parameter is a structured last-name slot.
+ */
 export function isLastAuthorDraftParameter(name: string): boolean {
     return parseStructuredAuthorParameter(name)?.field === "last";
 }
 
-/** Checks whether an author can use separate first and last fields. */
+/**
+ * Checks whether an author can use separate first and last fields.
+ *
+ * @param draft - Source draft to process.
+ * @param rowIndex - Row index value.
+ * @returns Whether an author can use separate first and last fields.
+ */
 export function canSplitAuthorDraftRow(
     draft: SourceDraft,
     rowIndex: number,
@@ -355,6 +438,8 @@ export function canSplitAuthorDraftRow(
 
 /**
  * Adds the next blank numbered slot after each populated author row.
+ *
+ * @param draft - Source draft to process.
  */
 export function ensureNextAuthorDraftRows(draft: SourceDraft): void {
     if (getTemplateMetadata(draft.template) == null) {
@@ -373,6 +458,8 @@ export function ensureNextAuthorDraftRows(draft: SourceDraft): void {
 
 /**
  * Reorders all rows into the standard order for the selected template.
+ *
+ * @param draft - Source draft to process.
  */
 export function formatSourceDraftRows(draft: SourceDraft): void {
     draft.rows = sortSourceDraftRows(draft.rows, draft.template);
@@ -380,6 +467,10 @@ export function formatSourceDraftRows(draft: SourceDraft): void {
 
 /**
  * Converts one author value into separate last- and first-name rows.
+ *
+ * @param draft - Source draft to process.
+ * @param rowIndex - Row index value.
+ * @returns Value.
  */
 export function splitAuthorDraftRow(
     draft: SourceDraft,
@@ -408,7 +499,13 @@ export function splitAuthorDraftRow(
     return true;
 }
 
-/** Checks whether first/last fields can return to one author field. */
+/**
+ * Checks whether first/last fields can return to one author field.
+ *
+ * @param draft - Source draft to process.
+ * @param rowIndex - Row index value.
+ * @returns Whether first/last fields can return to one author field.
+ */
 export function canJoinAuthorDraftRow(
     draft: SourceDraft,
     rowIndex: number,
@@ -459,7 +556,13 @@ function findOtherAuthorSlotRows(
     );
 }
 
-/** Combines separate last and first fields into one author row. */
+/**
+ * Combines separate last and first fields into one author row.
+ *
+ * @param draft - Source draft to process.
+ * @param rowIndex - Row index value.
+ * @returns Whether the condition is met.
+ */
 export function joinAuthorDraftRow(
     draft: SourceDraft,
     rowIndex: number,
@@ -486,7 +589,12 @@ export function joinAuthorDraftRow(
     return true;
 }
 
-/** Parses an unstructured author parameter and its numeric slot. */
+/**
+ * Parses an unstructured author parameter and its numeric slot.
+ *
+ * @param name - Name to process.
+ * @returns Parsed unstructured author parameter and its numeric slot.
+ */
 function parseDraftAuthorParameter(name: string): DraftAuthorParameter | null {
     const normalized = name.trim().toLocaleLowerCase("en-US");
     if (normalized === "author") {
@@ -499,7 +607,12 @@ function parseDraftAuthorParameter(name: string): DraftAuthorParameter | null {
     return { index: Number(match[1]), suffix: match[1] };
 }
 
-/** Parses a structured first- or last-name parameter. */
+/**
+ * Parses a structured first- or last-name parameter.
+ *
+ * @param name - Name to process.
+ * @returns Parsed structured first- or last-name parameter.
+ */
 function parseStructuredAuthorParameter(
     name: string,
 ): StructuredAuthorParameter | null {
@@ -515,11 +628,16 @@ function parseStructuredAuthorParameter(
     };
 }
 
-/** Splits `Last, First` or a space-delimited `First Last` name. */
+/**
+ * Splits `Last, First` or a space-delimited `First Last` name.
+ *
+ * @param value - Value to process.
+ * @returns Split `Last, First` or a space-delimited `First Last` name.
+ */
 function splitDraftAuthorValue(
     value: string,
 ): { first: string; last: string } | null {
-    const parts = splitTopLevel(value, ",");
+    const parts = wikitext(value).split(",");
     if (parts.length >= 2) {
         const last = parts[0].trim();
         const first = parts.slice(1).join(",").trim();
@@ -533,7 +651,13 @@ function splitDraftAuthorValue(
     return { first: words.join(" "), last };
 }
 
-/** Joins structured name values in an unambiguous display order. */
+/**
+ * Joins structured name values in an unambiguous display order.
+ *
+ * @param lastValue - Last value value.
+ * @param firstValue - First value value.
+ * @returns Resulting text.
+ */
 function joinDraftAuthorValue(lastValue: string, firstValue: string): string {
     const last = lastValue.trim();
     const first = firstValue.trim();
@@ -543,7 +667,12 @@ function joinDraftAuthorValue(lastValue: string, firstValue: string): string {
     return `${last}, ${first}`;
 }
 
-/** Adds a blank author row after one populated author slot. */
+/**
+ * Adds a blank author row after one populated author slot.
+ *
+ * @param draft - Source draft to process.
+ * @param row - Row value.
+ */
 function ensureNextAuthorDraftRow(
     draft: SourceDraft,
     row: SourceDraftRow,
@@ -569,7 +698,12 @@ function ensureNextAuthorDraftRow(
     });
 }
 
-/** Gets the slot used by any supported author-name parameter. */
+/**
+ * Gets the slot used by any supported author-name parameter.
+ *
+ * @param name - Name to process.
+ * @returns Operation result.
+ */
 function getDraftAuthorSlot(name: string): number | null {
     const author = parseDraftAuthorParameter(name);
     if (author != null) {
@@ -580,6 +714,10 @@ function getDraftAuthorSlot(name: string): number | null {
 
 /**
  * Finds previously used aliases for a matching creator display value.
+ *
+ * @param sources - Sources value.
+ * @param row - Row value.
+ * @returns Value.
  */
 export function findCreatorAliasSuggestions(
     sources: ExistingSource[],
@@ -607,7 +745,13 @@ export function findCreatorAliasSuggestions(
     return [...counts].map(([alias, count]) => ({ alias, count }));
 }
 
-/** Checks whether a draft row represents the same visible creator. */
+/**
+ * Checks whether a draft row represents the same visible creator.
+ *
+ * @param row - Row value.
+ * @param displayValue - Display value value.
+ * @returns Whether a draft row represents the same visible creator.
+ */
 function isMatchingCreatorAliasCandidate(
     row: SourceDraftRow,
     displayValue: string,
@@ -621,6 +765,9 @@ function isMatchingCreatorAliasCandidate(
 /**
  * Returns whether a draft field contains a creator display or
  * family name.
+ *
+ * @param name - Name to process.
+ * @returns Whether a field contains a creator display or family name.
  */
 export function isCreatorAliasDraftParameter(name: string): boolean {
     const normalized = name.trim().toLocaleLowerCase("en-US");
@@ -629,9 +776,14 @@ export function isCreatorAliasDraftParameter(name: string): boolean {
     );
 }
 
-/** Converts a generated or existing citation to editable rows. */
+/**
+ * Converts a generated or existing citation to editable rows.
+ *
+ * @param raw - Raw value.
+ * @returns Converted generated or existing citation to editable rows.
+ */
 export function parseSourceDraft(raw: string): SourceDraft {
-    const call = parseTemplateCall(raw);
+    const call = wikitext.template.parse(raw);
     const name = getEnteredDraftTemplateName(call.name);
     const metadata = getTemplateMetadata(name);
     if (metadata == null) {
@@ -644,29 +796,45 @@ export function parseSourceDraft(raw: string): SourceDraft {
                 false,
             );
         });
-        return { rows: enteredRows, template: name };
+        return {
+            normalizationRequested: false,
+            rows: enteredRows,
+            template: name,
+        };
     }
-    const params = call.params.map(function toCitationParam(param) {
-        return { name: param.name, value: param.value };
-    });
-    const canonical = canonicalizeCitation({ name, params }, metadata);
-    const outputParams = getCitationOutputParams(canonical, true);
-    const enteredRows = outputParams.map(function toDraftRow(param) {
+    const enteredRows = call.params.map(function toDraftRow(param) {
         return buildDraftRow(param.name, param.value, false);
     });
-    return { rows: seedMainRows(enteredRows, name), template: name };
+    return {
+        normalizationRequested: false,
+        rows: seedMainRowsPreservingOrder(enteredRows, name),
+        template: name,
+    };
 }
 
-/** Creates an empty, offline-friendly source draft. */
+/**
+ * Creates an empty, offline-friendly source draft.
+ *
+ * @param template - Template wikitext.
+ * @returns Created empty, offline-friendly source draft.
+ */
 export function createManualSourceDraft(
     template: string = "cite magazine",
 ): SourceDraft {
     const name = getDraftTemplateName(template);
-    return { rows: seedMainRows([], name), template: name };
+    return {
+        normalizationRequested: true,
+        rows: seedMainRows([], name),
+        template: name,
+    };
 }
 
 /**
  * Changes a draft template while retaining entered and custom fields.
+ *
+ * @param draft - Source draft to process.
+ * @param template - Template wikitext.
+ * @returns Operation result.
  */
 export function changeSourceDraftTemplate(
     draft: SourceDraft,
@@ -679,10 +847,20 @@ export function changeSourceDraftTemplate(
             return { ...row, main: false };
         });
     migrateSourceContainer(rows, name);
-    return { rows: seedMainRows(rows, name), template: name };
+    return {
+        normalizationRequested: draft.normalizationRequested === true,
+        rows: seedMainRows(rows, name),
+        template: name,
+    };
 }
 
-/** Serializes populated rows in the selected citation layout. */
+/**
+ * Serializes populated rows in the selected citation layout.
+ *
+ * @param draft - Source draft to process.
+ * @param layout - Citation layout.
+ * @returns Serialized populated rows in the selected citation layout.
+ */
 export function serializeSourceDraft(
     draft: SourceDraft,
     layout: CitationLayout = "block",
@@ -699,6 +877,10 @@ export function serializeSourceDraft(
 
 /**
  * Serializes rows without canonicalizing entered parameter aliases.
+ *
+ * @param draft - Source draft to process.
+ * @param layout - Citation layout.
+ * @returns Rows serialized without canonicalizing entered aliases.
  */
 export function serializeSourceDraftPreservingNames(
     draft: SourceDraft,
@@ -723,12 +905,53 @@ export function serializeSourceDraftPreservingNames(
         : formatBlockCitation(citation);
 }
 
-/** Lists canonical names offered by the parameter combobox. */
+/**
+ * Serializes a draft according to its explicit normalization state.
+ *
+ * @param draft - Source draft to process.
+ * @param layout - Citation layout.
+ * @returns Draft serialized for its explicit normalization state.
+ */
+export function serializeSourceDraftForEdit(
+    draft: SourceDraft,
+    layout: CitationLayout = "block",
+): string {
+    return draft.normalizationRequested === true
+        ? serializeSourceDraft(draft, layout)
+        : serializeSourceDraftPreservingNames(draft, layout);
+}
+
+/**
+ * Canonicalizes values and aliases before an item-level sort.
+ *
+ * @param draft - Source draft to process.
+ */
+export function canonicalizeSourceDraft(draft: SourceDraft): void {
+    const citation = buildDraftCitation(draft);
+    const rows = getCitationOutputParams(citation, true).map((param) =>
+        buildDraftRow(param.name, param.value, false),
+    );
+    draft.normalizationRequested = true;
+    draft.rows = seedMainRows(rows, draft.template);
+}
+
+/**
+ * Lists canonical names offered by the parameter combobox.
+ *
+ * @param draft - Source draft to process.
+ * @returns Listed canonical names offered by the parameter combobox.
+ */
 export function listSourceDraftParameterNames(draft: SourceDraft): string[] {
     return [...(getTemplateMetadata(draft.template)?.paramOrder ?? [])];
 }
 
-/** Resolves a parameter to its template-specific alias group. */
+/**
+ * Resolves a parameter to its template-specific alias group.
+ *
+ * @param draft - Source draft to process.
+ * @param enteredName - Entered name value.
+ * @returns Resolved parameter to its template-specific alias group.
+ */
 export function getSourceDraftParameterAliasInfo(
     draft: SourceDraft,
     enteredName: string,
@@ -762,21 +985,32 @@ export function getSourceDraftParameterAliasInfo(
 
 /**
  * Moves a foreign title with one language into its script field.
+ *
+ * @param draft - Source draft to process.
+ * @param wikiId - Wiki id value.
+ * @param mode - Mode value.
+ * @returns Whether the condition is met.
  */
+// eslint-disable-next-line max-lines-per-function
 export function moveSourceDraftTitleToScriptTitle(
     draft: SourceDraft,
     wikiId: string,
+    mode: ScriptTitleMode = "non-latin",
 ): boolean {
     if (getTemplateMetadata(draft.template) == null) {
         return false;
     }
     const language = getDraftValue(draft, "language").trim();
-    const codePattern = /^[a-z]{2,3}(?:-[a-z0-9]+)*$/iu;
+    const codePattern = /^([a-z]{2,3})(?:-[a-z0-9]+)*$/iu;
+    const languageMatch = language.match(codePattern);
+    const primaryLanguage =
+        languageMatch?.[1].toLocaleLowerCase("en-US") ?? "";
     const localLanguage = getCitationWikiLanguage(wikiId);
     if (
-        !codePattern.test(language) ||
-        (localLanguage !== "" &&
-            language.toLocaleLowerCase("en-US").startsWith(localLanguage))
+        languageMatch == null ||
+        (localLanguage !== "" && primaryLanguage === localLanguage) ||
+        (mode === "non-latin" &&
+            !NON_LATIN_SCRIPT_LANGUAGE_CODES.has(primaryLanguage))
     ) {
         return false;
     }
@@ -792,7 +1026,7 @@ export function moveSourceDraftTitleToScriptTitle(
     const titleValue = title.value.trim();
     title.value = "";
     const target = scriptTitle ?? buildDraftRow("script-title", "", false);
-    target.value = `${language.toLocaleLowerCase("en-US")}:${titleValue}`;
+    target.value = `${primaryLanguage}:${titleValue}`;
     target.alias = title.alias;
     target.directive = title.directive;
     title.alias = "";
@@ -804,7 +1038,12 @@ export function moveSourceDraftTitleToScriptTitle(
     return true;
 }
 
-/** Gets the local language whose titles stay in the normal field. */
+/**
+ * Gets the local language whose titles stay in the normal field.
+ *
+ * @param wikiId - Wiki id value.
+ * @returns Resulting text.
+ */
 function getCitationWikiLanguage(wikiId: string): string {
     return (
         {
@@ -814,15 +1053,23 @@ function getCitationWikiLanguage(wikiId: string): string {
     );
 }
 
-/** Moves eligible titles before formatting all article citations. */
+/**
+ * Moves eligible titles before formatting all article citations.
+ *
+ * @param text - Text to process.
+ * @param wikiId - Wiki id value.
+ * @param mode - Mode value.
+ * @returns Operation result.
+ */
 export function moveSourceTitlesToScriptTitle(
     text: string,
     wikiId: string,
+    mode: ScriptTitleMode = "non-latin",
 ): { moved: number; text: string } {
     const replacements: TextReplacement[] = [];
     const protectedRanges = findSourceDiscoveryProtectedRanges(text);
     let moved = 0;
-    for (const call of findTemplateCalls(text)) {
+    for (const call of wikitext(text).template.getAll()) {
         const nestedReplacement = replacements.some(
             (replacement) =>
                 call.start >= replacement.start && call.end <= replacement.end,
@@ -835,7 +1082,7 @@ export function moveSourceTitlesToScriptTitle(
             continue;
         }
         const draft = parseSourceDraft(call.raw);
-        if (!moveSourceDraftTitleToScriptTitle(draft, wikiId)) {
+        if (!moveSourceDraftTitleToScriptTitle(draft, wikiId, mode)) {
             continue;
         }
         const layout = call.raw.includes("\n") ? "block" : "inline";
@@ -849,7 +1096,12 @@ export function moveSourceTitlesToScriptTitle(
     return { moved, text: applyReplacements(text, replacements) };
 }
 
-/** Canonicalizes the populated rows of one editable source draft. */
+/**
+ * Canonicalizes the populated rows of one editable source draft.
+ *
+ * @param draft - Source draft to process.
+ * @returns Operation result.
+ */
 function buildDraftCitation(draft: SourceDraft): CitationTemplate {
     const name = getDraftTemplateName(draft.template);
     const metadata = getTemplateMetadata(name);
@@ -866,6 +1118,9 @@ function buildDraftCitation(draft: SourceDraft): CitationTemplate {
 
 /**
  * Returns whether a draft has local CS1 metadata and citation identity.
+ *
+ * @param draft - Source draft to process.
+ * @returns Whether a draft has local CS1 metadata and identity.
  */
 export function hasSourceDraftCitationIdentity(draft: SourceDraft): boolean {
     return getTemplateMetadata(draft.template) != null;
@@ -873,6 +1128,9 @@ export function hasSourceDraftCitationIdentity(draft: SourceDraft): boolean {
 
 /**
  * Finds the exact value or alias cells supplying the visible ref name.
+ *
+ * @param draft - Source draft to process.
+ * @returns Value.
  */
 export function getSourceDraftCitationNameCells(
     draft: SourceDraft,
@@ -911,6 +1169,9 @@ export function getSourceDraftCitationNameCells(
 
 /**
  * Gets a draft's generated author, year, and part name components.
+ *
+ * @param draft - Source draft to process.
+ * @returns Operation result.
  */
 export function getSourceDraftCitationNameParts(
     draft: SourceDraft,
@@ -926,7 +1187,12 @@ export function getSourceDraftCitationNameParts(
     };
 }
 
-/** Lists citation definitions contained in active full ref tags. */
+/**
+ * Lists citation definitions contained in active full ref tags.
+ *
+ * @param text - Text to process.
+ * @returns Citation definitions in active full ref tags.
+ */
 export function listExistingSources(text: string): ExistingSource[] {
     const protectedRanges = findSourceDiscoveryProtectedRanges(text);
     const masked = maskWikitextRanges(text, protectedRanges);
@@ -935,6 +1201,7 @@ export function listExistingSources(text: string): ExistingSource[] {
     const sources = new Map<number, ExistingSource>();
     addNativeRefSources(sources, text, masked, calls, containers);
     addCompactDefinitionSources(sources, calls, containers);
+    addShortFootnoteSources(sources, text, calls);
     const result = [...sources.values()];
     assignExistingSourceSections(result, masked, calls, containers);
     return result.sort(
@@ -944,6 +1211,10 @@ export function listExistingSources(text: string): ExistingSource[] {
 
 /**
  * Lists article sections containing at least one existing source.
+ *
+ * @param text - Text to process.
+ * @param sources - Sources value.
+ * @returns Article sections containing an existing source.
  */
 export function listExistingSourceSections(
     text: string,
@@ -1011,6 +1282,10 @@ export function filterExistingSources(
  *
  * Alias comments are often the field being corrected, so an entered
  * correction such as `Hiroya` should still find a stored `Horiya`.
+ *
+ * @param source - Source text.
+ * @param keyword - Keyword value.
+ * @returns Whether the condition is met.
  */
 function matchesCreatorAliasKeyword(
     source: ExistingSource,
@@ -1029,7 +1304,13 @@ function matchesCreatorAliasKeyword(
     });
 }
 
-/** Checks an alias token against a bounded edit distance. */
+/**
+ * Checks an alias token against a bounded edit distance.
+ *
+ * @param keyword - Keyword value.
+ * @param token - Token value.
+ * @returns Whether the condition is met.
+ */
 function isNearbySearchToken(keyword: string, token: string): boolean {
     const shortest = Math.min(keyword.length, token.length);
     if (shortest < 5) {
@@ -1042,7 +1323,14 @@ function isNearbySearchToken(keyword: string, token: string): boolean {
     return getEditDistance(keyword, token, limit) <= limit;
 }
 
-/** Computes edit distance, stopping after the limit. */
+/**
+ * Computes edit distance, stopping after the limit.
+ *
+ * @param left - Left value to compare.
+ * @param right - Right value to compare.
+ * @param limit - Limit value.
+ * @returns Computed edit distance, stopping after the limit.
+ */
 function getEditDistance(left: string, right: string, limit: number): number {
     let previous = Array.from(
         { length: right.length + 1 },
@@ -1069,7 +1357,13 @@ function getEditDistance(left: string, right: string, limit: number): number {
     return previous.at(-1) ?? limit + 1;
 }
 
-/** Checks source use in a selected section or descendant. */
+/**
+ * Checks source use in a selected section or descendant.
+ *
+ * @param source - Source text.
+ * @param sectionId - Section id value.
+ * @returns Whether the condition is met.
+ */
 function matchesSourceSection(
     source: ExistingSource,
     sectionId: string,
@@ -1085,7 +1379,13 @@ function matchesSourceSection(
     );
 }
 
-/** Finds citations matching an original or archive URL. */
+/**
+ * Finds citations matching an original or archive URL.
+ *
+ * @param text - Text to process.
+ * @param enteredUrl - Entered url value.
+ * @returns Citations matching an original or archive URL.
+ */
 export function findExistingSources(
     text: string,
     enteredUrl: string,
@@ -1100,11 +1400,24 @@ export function findExistingSources(
     });
 }
 
-/** Builds a reuse tag when named, otherwise returns the full ref. */
+/**
+ * Builds a reuse tag when named, otherwise returns the full ref.
+ *
+ * @param source - Source text.
+ * @param compact - Compact value.
+ * @returns Built reuse tag when named, otherwise returns the full ref.
+ */
 export function buildExistingSourceReference(
-    source: Pick<ExistingSource, "group" | "rawReference" | "referenceName">,
+    source: Pick<
+        ExistingSource,
+        "group" | "rawReference" | "referenceKind" | "referenceName"
+    > &
+        Partial<Pick<ExistingSource, "reuseText">>,
     compact: boolean = false,
 ): string {
+    if (source.referenceKind === "short-footnote") {
+        return source.reuseText ?? source.rawReference;
+    }
     if (source.referenceName === "") {
         return source.rawReference;
     }
@@ -1120,7 +1433,15 @@ export function buildExistingSourceReference(
     return `<ref name="${name}"${group} />`;
 }
 
-/** Replaces a source template at its recorded range. */
+/**
+ * Replaces a source template at its recorded range.
+ *
+ * @param text - Text to process.
+ * @param source - Source text.
+ * @param draft - Source draft to process.
+ * @param layout - Citation layout.
+ * @returns Resulting text.
+ */
 export function replaceExistingSource(
     text: string,
     source: ExistingSource,
@@ -1131,7 +1452,7 @@ export function replaceExistingSource(
     if (current !== source.rawTemplate) {
         throw new StaleSourceError("The source changed after it was opened.");
     }
-    const citation = serializeSourceDraft(draft, layout);
+    const citation = serializeSourceDraftForEdit(draft, layout);
     const replacementText =
         source.status === "non-standard"
             ? buildConvertedReference(source, citation)
@@ -1144,7 +1465,13 @@ export function replaceExistingSource(
     return applyReplacements(text, [replacement]);
 }
 
-/** Converts unsupported content into a native citation reference. */
+/**
+ * Converts unsupported content into a native citation reference.
+ *
+ * @param source - Source text.
+ * @param citation - Citation value.
+ * @returns Unsupported content converted to a native citation ref.
+ */
 function buildConvertedReference(
     source: ExistingSource,
     citation: string,
@@ -1157,7 +1484,12 @@ function buildConvertedReference(
     return `<ref${name}${group}>${citation}</ref>`;
 }
 
-/** Builds searchable text from visible and editable source details. */
+/**
+ * Builds searchable text from visible and editable source details.
+ *
+ * @param source - Source text.
+ * @returns Searchable text from visible and editable source details.
+ */
 function buildExistingSourceSearchText(source: ExistingSource): string {
     const draftText = source.draft.rows.flatMap(function getDraftRowText(row) {
         return [row.name, row.value, row.alias, row.directive];
@@ -1175,18 +1507,28 @@ function buildExistingSourceSearchText(source: ExistingSource): string {
         .toLocaleLowerCase("en-US");
 }
 
-/** Normalizes a creator display value for exact suggestion matching. */
+/**
+ * Normalizes a creator display value for exact suggestion matching.
+ *
+ * @param value - Value to process.
+ * @returns Creator display value for exact suggestion matching.
+ */
 function normalizeCreatorAliasValue(value: string): string {
     return cleanValue(value).normalize("NFC").toLocaleLowerCase("en-US");
 }
 
 /**
  * Assigns every source to all article sections where its ref is used.
+ *
+ * @param sources - Sources value.
+ * @param masked - Masked value.
+ * @param calls - Calls value.
+ * @param containers - Containers value.
  */
 function assignExistingSourceSections(
     sources: ExistingSource[],
     masked: string,
-    calls: ReturnType<typeof findTemplateCalls>,
+    calls: ParsedTemplateCall[],
     containers: ReferenceContainer[],
 ): void {
     const sections = findSourceSections(masked);
@@ -1206,14 +1548,21 @@ function assignExistingSourceSections(
     }
 }
 
-/** Builds ref-name/group keys to all prose-use positions. */
+/**
+ * Builds ref-name/group keys to all prose-use positions.
+ *
+ * @param masked - Masked value.
+ * @param calls - Calls value.
+ * @param containers - Containers value.
+ * @returns Built ref-name/group keys to all prose-use positions.
+ */
 function buildReferenceUsageIndex(
     masked: string,
-    calls: ReturnType<typeof findTemplateCalls>,
+    calls: ParsedTemplateCall[],
     containers: ReferenceContainer[],
 ): Map<string, number[]> {
     const result = new Map<string, number[]>();
-    for (const tag of findRefTags(masked)) {
+    for (const tag of wikitext(masked).reference.getAll()) {
         if (isInReferenceContainer(tag.start, containers)) {
             continue;
         }
@@ -1227,10 +1576,16 @@ function buildReferenceUsageIndex(
     return result;
 }
 
-/** Adds every name called by one active R template. */
+/**
+ * Adds every name called by one active R template.
+ *
+ * @param usages - Usages value.
+ * @param call - Call value.
+ * @param containers - Containers value.
+ */
 function addCompactReferenceUsages(
     usages: Map<string, number[]>,
-    call: ReturnType<typeof findTemplateCalls>[number],
+    call: ParsedTemplateCall,
     containers: ReferenceContainer[],
 ): void {
     if (
@@ -1261,7 +1616,14 @@ function addCompactReferenceUsages(
     }
 }
 
-/** Adds one nonempty reference use to its name/group index. */
+/**
+ * Adds one nonempty reference use to its name/group index.
+ *
+ * @param usages - Usages value.
+ * @param name - Name to process.
+ * @param group - Reference group.
+ * @param position - Source position.
+ */
 function addReferenceUsage(
     usages: Map<string, number[]>,
     name: string,
@@ -1277,12 +1639,22 @@ function addReferenceUsage(
     usages.set(key, positions);
 }
 
-/** Gets all known prose positions for one source definition. */
+/**
+ * Gets all known prose positions for one source definition.
+ *
+ * @param source - Source text.
+ * @param usages - Usages value.
+ * @param containers - Containers value.
+ * @returns Resulting values.
+ */
 function getExistingSourceUsePositions(
     source: ExistingSource,
     usages: Map<string, number[]>,
     containers: ReferenceContainer[],
 ): number[] {
+    if (source.referenceKind === "short-footnote") {
+        return source.usePositions ?? [];
+    }
     if (source.referenceName !== "") {
         const key = buildReferenceUsageKey(source.referenceName, source.group);
         return usages.get(key) ?? [];
@@ -1292,12 +1664,23 @@ function getExistingSourceUsePositions(
         : [source.referenceStart];
 }
 
-/** Creates a collision-safe reference name/group lookup key. */
+/**
+ * Creates a collision-safe reference name/group lookup key.
+ *
+ * @param name - Name to process.
+ * @param group - Reference group.
+ * @returns Created collision-safe reference name/group lookup key.
+ */
 function buildReferenceUsageKey(name: string, group: string): string {
     return `${group}\u0000${name}`;
 }
 
-/** Finds numbered active headings plus the article lead. */
+/**
+ * Finds numbered active headings plus the article lead.
+ *
+ * @param masked - Masked value.
+ * @returns Numbered active headings plus the article lead.
+ */
 function findSourceSections(masked: string): SourceSection[] {
     const result: SourceSection[] = [
         {
@@ -1331,7 +1714,13 @@ function findSourceSections(masked: string): SourceSection[] {
     return result;
 }
 
-/** Finds the nearest active shallower heading. */
+/**
+ * Finds the nearest active shallower heading.
+ *
+ * @param activeIds - Active ids value.
+ * @param depth - Depth value.
+ * @returns The nearest active shallower heading.
+ */
 function findActiveParentId(activeIds: string[], depth: number): string {
     for (let index = depth - 1; index >= 0; index -= 1) {
         if (activeIds[index] !== "") {
@@ -1341,7 +1730,13 @@ function findActiveParentId(activeIds: string[], depth: number): string {
     return "";
 }
 
-/** Resolves a source offset to its nearest preceding heading. */
+/**
+ * Resolves a source offset to its nearest preceding heading.
+ *
+ * @param position - Source position.
+ * @param sections - Sections value.
+ * @returns Resolved source offset to its nearest preceding heading.
+ */
 function getSourceSectionAtPosition(
     position: number,
     sections: SourceSection[],
@@ -1352,7 +1747,13 @@ function getSourceSectionAtPosition(
     return section?.id ?? "0";
 }
 
-/** Checks whether an offset is contained by a reference-list body. */
+/**
+ * Checks whether an offset is contained by a reference-list body.
+ *
+ * @param position - Source position.
+ * @param containers - Containers value.
+ * @returns Whether an offset is contained by a reference-list body.
+ */
 function isInReferenceContainer(
     position: number,
     containers: ReferenceContainer[],
@@ -1416,7 +1817,56 @@ function seedMainRows(
     return sortSourceDraftRows([...main, ...extras], template);
 }
 
-/** Sorts rows by canonical TemplateData parameter order. */
+/**
+ * Adds empty fields without changing entered order or spelling.
+ *
+ * @param entered - Entered value.
+ * @param template - Template wikitext.
+ * @returns Resulting values.
+ */
+function seedMainRowsPreservingOrder(
+    entered: SourceDraftRow[],
+    template: string,
+): SourceDraftRow[] {
+    const metadata = getTemplateMetadata(template);
+    if (metadata == null) {
+        return entered;
+    }
+    const profile = SOURCE_FIELD_PROFILES[template] ?? DEFAULT_SOURCE_FIELDS;
+    const supported = getSupportedDraftFieldNames(template);
+    const mainFields = profile.filter((name) => supported.has(name));
+    const canonicalNames = new Set<string>();
+    const rows = entered.map(function markEnteredMain(row) {
+        const canonical = canonicalizeCitation(
+            {
+                name: template,
+                params: [{ name: row.name, value: "__draft_seed__" }],
+            },
+            metadata,
+        ).params[0]?.name;
+        const profileName =
+            getDraftAuthorSlot(row.name) === 1 ? "author" : canonical;
+        if (profileName != null) {
+            canonicalNames.add(profileName);
+        }
+        return {
+            ...row,
+            main: profileName != null && mainFields.includes(profileName),
+        };
+    });
+    const missing = mainFields
+        .filter((name) => !canonicalNames.has(name))
+        .map((name) => buildDraftRow(name, "", true));
+    return [...rows, ...missing];
+}
+
+/**
+ * Sorts rows by canonical TemplateData parameter order.
+ *
+ * @param rows - Rows value.
+ * @param template - Template wikitext.
+ * @returns Sorted rows by canonical TemplateData parameter order.
+ */
 function sortSourceDraftRows(
     rows: SourceDraftRow[],
     template: string,
@@ -1453,7 +1903,13 @@ function sortSourceDraftRows(
     return ranked.map((entry) => entry.row);
 }
 
-/** Keeps script-title beside title despite TemplateData order. */
+/**
+ * Keeps script-title beside title despite TemplateData order.
+ *
+ * @param name - Name to process.
+ * @param order - Order value.
+ * @returns Operation result.
+ */
 function getRelatedTitleParamOrder(
     name: string,
     order: Map<string, number>,
@@ -1464,7 +1920,12 @@ function getRelatedTitleParamOrder(
         : null;
 }
 
-/** Keeps author/interviewee slots together before other rows. */
+/**
+ * Keeps author/interviewee slots together before other rows.
+ *
+ * @param name - Name to process.
+ * @returns Operation result.
+ */
 function getDraftAuthorParamOrder(name: string): number | null {
     const match = name.match(/^(last|first|author-link)(\d*)$/u);
     if (match == null) {
@@ -1477,6 +1938,9 @@ function getDraftAuthorParamOrder(name: string): number | null {
 
 /**
  * Lists canonical and alias parameter names supported by one template.
+ *
+ * @param template - Template wikitext.
+ * @returns Value.
  */
 function getSupportedDraftFieldNames(template: string): Set<string> {
     const metadata = getTemplateMetadata(template);
@@ -1493,7 +1957,14 @@ function getSupportedDraftFieldNames(template: string): Set<string> {
     return new Set([...names].map((name) => name.toLocaleLowerCase("en-US")));
 }
 
-/** Seeds one main field, including a structured first author. */
+/**
+ * Seeds one main field, including a structured first author.
+ *
+ * @param name - Name to process.
+ * @param byName - By name value.
+ * @param used - Used value.
+ * @returns Resulting values.
+ */
 function seedMainField(
     name: string,
     byName: Map<string, SourceDraftRow[]>,
@@ -1514,7 +1985,12 @@ function seedMainField(
     });
 }
 
-/** Takes an unstructured or structured first-author group. */
+/**
+ * Takes an unstructured or structured first-author group.
+ *
+ * @param byName - By name value.
+ * @returns Resulting values.
+ */
 function takeFirstAuthorRows(
     byName: Map<string, SourceDraftRow[]>,
 ): SourceDraftRow[] {
@@ -1535,7 +2011,14 @@ function takeFirstAuthorRows(
     return first == null ? [last] : [last, first];
 }
 
-/** Takes entered rows for one normalized parameter name. */
+/**
+ * Takes entered rows for one normalized parameter name.
+ *
+ * @param byName - By name value.
+ * @param name - Name to process.
+ * @param count - Count value.
+ * @returns Resulting values.
+ */
 function takeDraftRows(
     byName: Map<string, SourceDraftRow[]>,
     name: string,
@@ -1555,6 +2038,9 @@ function hasDraftRowContent(row: SourceDraftRow): boolean {
 
 /**
  * Moves one periodical/container value to the destination's main field.
+ *
+ * @param rows - Rows value.
+ * @param template - Template wikitext.
  */
 function migrateSourceContainer(
     rows: SourceDraftRow[],
@@ -1576,6 +2062,9 @@ function migrateSourceContainer(
 
 /**
  * Prevents alias-equivalent populated rows from silently overwriting.
+ *
+ * @param template - Template wikitext.
+ * @param params - Params value.
  */
 function assertUniqueCanonicalParams(
     template: string,
@@ -1660,7 +2149,7 @@ function buildDraftParams(
             preservePositionals &&
             row.positionalIndex === nextPositionalIndex &&
             row.name.trim() === String(row.positionalIndex) &&
-            splitTopLevel(row.value, "=").length === 1;
+            wikitext(row.value).split("=").length === 1;
         if (positional) {
             nextPositionalIndex += 1;
         }
@@ -1699,23 +2188,41 @@ function addAliasComment(
     return `${value} <!-- ${directive}${hash} -->`.trim();
 }
 
-/** Restores template text after scanning a protected-range mask. */
+/**
+ * Restores template text after scanning a protected-range mask.
+ *
+ * @param text - Text to process.
+ * @param masked - Masked value.
+ * @returns Resulting values.
+ */
 function findRestoredTemplateCalls(text: string, masked: string) {
-    return findTemplateCalls(masked).map(function restoreCall(call) {
-        const raw = text.slice(call.start, call.end);
-        return parseTemplateCall(raw, call.start);
-    });
+    return wikitext(masked)
+        .template.getAll()
+        .map(function restoreCall(call) {
+            const raw = text.slice(call.start, call.end);
+            return wikitext.template.parse(raw, call.start);
+        });
 }
 
-/** Adds citation definitions written as native full ref tags. */
+/**
+ * Adds citation definitions written as native full ref tags.
+ *
+ * @param sources - Sources value.
+ * @param text - Text to process.
+ * @param masked - Masked value.
+ * @param calls - Calls value.
+ * @param containers - Containers value.
+ */
 function addNativeRefSources(
     sources: Map<number, ExistingSource>,
     text: string,
     masked: string,
-    calls: ReturnType<typeof findTemplateCalls>,
+    calls: ParsedTemplateCall[],
     containers: ReferenceContainer[],
 ): void {
-    const tags = findRefTags(masked).filter((tag) => !tag.selfClosing);
+    const tags = wikitext(masked)
+        .reference.getAll()
+        .filter((tag) => !tag.selfClosing);
     for (const tag of tags) {
         const openingEnd = masked.indexOf(">", tag.start) + 1;
         const closingLength = tag.raw.match(/<\/ref\s*>$/iu)?.[0].length ?? 0;
@@ -1745,10 +2252,16 @@ function addNativeRefSources(
     }
 }
 
-/** Adds citation definitions written with R's ref parameter. */
+/**
+ * Adds citation definitions written with R's ref parameter.
+ *
+ * @param sources - Sources value.
+ * @param calls - Calls value.
+ * @param containers - Containers value.
+ */
 function addCompactDefinitionSources(
     sources: Map<number, ExistingSource>,
-    calls: ReturnType<typeof findTemplateCalls>,
+    calls: ParsedTemplateCall[],
     containers: ReferenceContainer[],
 ): void {
     for (const call of calls) {
@@ -1779,9 +2292,60 @@ function addCompactDefinitionSources(
     }
 }
 
-/** Parses an R call carrying a full reference definition. */
+/**
+ * Adds bibliography citations actively referenced by {{sfn}}.
+ *
+ * @param sources - Sources value.
+ * @param text - Text to process.
+ * @param calls - Calls value.
+ */
+function addShortFootnoteSources(
+    sources: Map<number, ExistingSource>,
+    text: string,
+    calls: ParsedTemplateCall[],
+): void {
+    const callsByStart = new Map(calls.map((call) => [call.start, call]));
+    for (const definition of findShortFootnoteCitations(text)) {
+        const call = callsByStart.get(definition.start);
+        if (call == null || sources.has(call.start)) {
+            continue;
+        }
+        const draft = parseSourceDraft(call.raw);
+        const title = getExistingSourceTitle(draft);
+        sources.set(call.start, {
+            archiveUrl: getDraftValue(draft, "archive-url"),
+            draft,
+            group: "",
+            id: `sfn:${call.start}`,
+            rawReference: definition.reuseText,
+            rawTemplate: call.raw,
+            referenceEnd: call.end,
+            referenceKind: "short-footnote",
+            referenceName: definition.reuseText,
+            referenceStart: call.start,
+            reuseText: definition.reuseText,
+            sectionIds: [],
+            status: "standard",
+            templateEnd: call.end,
+            templateStart: call.start,
+            title: title.text,
+            titleLanguage: title.language,
+            url: getDraftValue(draft, "url"),
+            usePositions: definition.usePositions,
+            usageCount: 0,
+        });
+    }
+}
+
+/**
+ * Parses an R call carrying a full reference definition.
+ *
+ * @param call - Call value.
+ * @param containers - Containers value.
+ * @returns Parsed R call carrying a full reference definition.
+ */
 function parseCompactDefinition(
-    call: ReturnType<typeof findTemplateCalls>[number],
+    call: ParsedTemplateCall,
     containers: ReferenceContainer[],
 ): { content: string; reference: SourceReference } | null {
     if (normalizeTemplateName(call.name) !== "r") {
@@ -1818,11 +2382,18 @@ function parseCompactDefinition(
     return { content, reference };
 }
 
-/** Adds editable citation calls within one reference definition. */
+/**
+ * Adds editable citation calls within one reference definition.
+ *
+ * @param sources - Sources value.
+ * @param reference - Reference wikitext.
+ * @param calls - Calls value.
+ * @returns Whether the condition is met.
+ */
 function addReferenceCitationSources(
     sources: Map<number, ExistingSource>,
     reference: SourceReference,
-    calls: ReturnType<typeof findTemplateCalls>,
+    calls: ParsedTemplateCall[],
 ): boolean {
     let added = false;
     for (const call of calls) {
@@ -1837,10 +2408,16 @@ function addReferenceCitationSources(
     return added;
 }
 
-/** Builds source data from a reference and one contained citation. */
+/**
+ * Builds source data from a reference and one contained citation.
+ *
+ * @param reference - Reference wikitext.
+ * @param call - Call value.
+ * @returns Source data from a ref and one contained citation.
+ */
 function buildExistingSource(
     reference: SourceReference,
-    call: ReturnType<typeof findTemplateCalls>[number],
+    call: ParsedTemplateCall,
 ): ExistingSource {
     const draft = parseSourceDraft(call.raw);
     const title = getExistingSourceTitle(draft);
@@ -1855,6 +2432,7 @@ function buildExistingSource(
         rawReference: reference.raw,
         rawTemplate: call.raw,
         referenceEnd: reference.end,
+        referenceKind: "reference" as const,
         referenceName: reference.name,
         referenceStart: reference.start,
         sectionIds: [],
@@ -1869,7 +2447,13 @@ function buildExistingSource(
     return { ...partial, reuseText: buildExistingSourceReference(partial) };
 }
 
-/** Builds a list row for a plain or unsupported reference. */
+/**
+ * Builds a list row for a plain or unsupported reference.
+ *
+ * @param reference - Reference wikitext.
+ * @param content - Content value.
+ * @returns Built list row for a plain or unsupported reference.
+ */
 function buildNonStandardSource(
     reference: SourceReference,
     content: string,
@@ -1885,6 +2469,7 @@ function buildNonStandardSource(
         rawReference: reference.raw,
         rawTemplate: reference.raw,
         referenceEnd: reference.end,
+        referenceKind: "reference" as const,
         referenceName: reference.name,
         referenceStart: reference.start,
         sectionIds: [],
@@ -1901,6 +2486,9 @@ function buildNonStandardSource(
 
 /**
  * Gets a normal title or a language-aware script-title fallback.
+ *
+ * @param draft - Source draft to process.
+ * @returns Operation result.
  */
 function getExistingSourceTitle(draft: SourceDraft): {
     language: string;
@@ -1918,10 +2506,16 @@ function getExistingSourceTitle(draft: SourceDraft): {
         : { language: prefixed[1], text: prefixed[2].trimStart() };
 }
 
-/** Finds native references-list container ranges and their groups. */
+/**
+ * Finds native references-list container ranges and their groups.
+ *
+ * @param text - Text to process.
+ * @param calls - Calls value.
+ * @returns Native references-list container ranges and their groups.
+ */
 function findReferenceContainers(
     text: string,
-    calls: ReturnType<typeof findTemplateCalls>,
+    calls: ParsedTemplateCall[],
 ): ReferenceContainer[] {
     const result: ReferenceContainer[] = [];
     const opening = /<references\b([^>]*?)(\/?)>/giu;
@@ -1937,7 +2531,7 @@ function findReferenceContainers(
         if (closingMatch == null) {
             continue;
         }
-        const attributes = parseTagAttributes(match[1]);
+        const attributes = wikitext.tag.parseAttributes(match[1]);
         result.push({
             end: closing.lastIndex,
             group: decodeReferenceAttribute(attributes.group || ""),
@@ -1956,9 +2550,14 @@ function findReferenceContainers(
     return result;
 }
 
-/** Builds the range of a Reflist refs/list parameter. */
+/**
+ * Builds the range of a Reflist refs/list parameter.
+ *
+ * @param call - Call value.
+ * @returns Built the range of a Reflist refs/list parameter.
+ */
 function buildReflistContainer(
-    call: ReturnType<typeof findTemplateCalls>[number],
+    call: ParsedTemplateCall,
 ): ReferenceContainer | null {
     const list = call.params.find(function isListParam(param) {
         const name = param.name.toLocaleLowerCase("en-US");
@@ -1981,7 +2580,13 @@ function buildReflistContainer(
     };
 }
 
-/** Gets the group inherited from the enclosing references container. */
+/**
+ * Gets the group inherited from the enclosing references container.
+ *
+ * @param index - Source index.
+ * @param containers - Containers value.
+ * @returns Resulting text.
+ */
 function getContainerGroup(
     index: number,
     containers: ReferenceContainer[],
@@ -2030,7 +2635,12 @@ function setsIntersect(left: Set<string>, right: Set<string>): boolean {
     return [...left].some((value) => right.has(value));
 }
 
-/** Escapes a source-manager name using its historical entity policy. */
+/**
+ * Escapes a source-manager name using its historical entity policy.
+ *
+ * @param value - Value to process.
+ * @returns Escaped name using the historical entity policy.
+ */
 function escapeSourceReferenceName(value: string): string {
     return escapeReferenceName(value, { caseInsensitiveAmpEntity: true });
 }

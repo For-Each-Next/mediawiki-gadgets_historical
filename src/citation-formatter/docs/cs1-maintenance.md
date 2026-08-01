@@ -31,8 +31,9 @@ npm run update:template-data -w citation-formatter
 
 The updater reads the supported set from `domain/templates.ts`, requests it in
 bounded batches, rejects missing or incomplete responses, and then rewrites the
-generated modules and index under `domain/data/`. Do not hand-edit those
-snapshots or duplicate the supported-title list in documentation.
+generated modules and index under `../shared/citation/citation-template-data/`.
+Do not hand-edit those snapshots or duplicate the supported-title list in
+documentation.
 
 Review the complete generated diff for:
 

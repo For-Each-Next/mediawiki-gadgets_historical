@@ -18,6 +18,8 @@ type TemplateContext = {
 declare global {
     const __VG_PAGE_ASSESSOR_DIALOG_TEMPLATE__: string;
     const __VG_PAGE_ASSESSOR_DIALOG_STYLES__: string;
+    const __VG_PAGE_ASSESSOR_LOADING_DIALOG_TEMPLATE__: string;
+    const __VG_PAGE_ASSESSOR_LOADING_DIALOG_STYLES__: string;
 }
 
 declare module "@vue/runtime-core" {

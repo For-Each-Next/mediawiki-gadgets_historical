@@ -15,7 +15,12 @@ export interface ParsedSourceInput extends ParsedSourceUrl {
     search: string;
 }
 
-/** Parses a normal HTTP URL or an Internet Archive playback URL. */
+/**
+ * Parses a normal HTTP URL or an Internet Archive playback URL.
+ *
+ * @param value - Value to process.
+ * @returns Parsed normal HTTP URL or an Internet Archive playback URL.
+ */
 export function parseSourceUrl(value: string): ParsedSourceUrl | null {
     const clean = decodeUrlEntities(value.trim());
     const parsed = parseHttpUrl(clean);
@@ -35,6 +40,9 @@ export function parseSourceUrl(value: string): ParsedSourceUrl | null {
 
 /**
  * Parses a Citoid lookup while retaining URL-specific archive data.
+ *
+ * @param value - Value to process.
+ * @returns Citoid lookup retaining URL-specific archive data.
  */
 export function parseSourceInput(value: string): ParsedSourceInput | null {
     const search = value.trim();
@@ -50,7 +58,12 @@ export function parseSourceInput(value: string): ParsedSourceInput | null {
     };
 }
 
-/** Returns a deterministic source URL used only for matching. */
+/**
+ * Returns a deterministic source URL used only for matching.
+ *
+ * @param value - Value to process.
+ * @returns A deterministic source URL used only for matching.
+ */
 export function normalizeSourceUrl(value: string): string {
     const clean = cleanValue(decodeUrlEntities(value));
     const parsed = parseHttpUrl(clean);
@@ -63,6 +76,9 @@ export function normalizeSourceUrl(value: string): string {
 
 /**
  * Encodes template delimiters that URL parsing deliberately preserves.
+ *
+ * @param value - Value to process.
+ * @returns Resulting text.
  */
 export function sanitizeSourceUrl(value: string): string {
     const clean = decodeUrlEntities(value.trim());

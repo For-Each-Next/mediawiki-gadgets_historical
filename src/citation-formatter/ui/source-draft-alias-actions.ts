@@ -29,6 +29,7 @@ const REFERENCE_NAME_DIRECTIVES = [
     "!no-date",
     "!no-part",
 ] as const;
+const AUTHOR_FLASH_DURATION_MS = 700;
 
 type AuthorDraftActions = Pick<
     DraftDialogActions,
@@ -69,7 +70,12 @@ type AliasDraftActions = AliasSuggestionDraftActions &
     ParameterAliasMutationActions &
     ParameterAliasPresentationActions;
 
-/** Creates author-row splitting and automatic next-slot actions. */
+/**
+ * Creates author-row splitting and automatic next-slot actions.
+ *
+ * @param state - Mutable operation state.
+ * @returns Author splitting and automatic next-slot actions.
+ */
 // eslint-disable-next-line max-lines-per-function
 export function createAuthorDraftActions(
     state: SourceManagerState,
@@ -84,14 +90,22 @@ export function createAuthorDraftActions(
     }
     function joinAuthor(index: number): void {
         const draft = state.draft.value;
-        if (draft != null) {
-            joinAuthorDraftRow(draft, index);
+        const row = draft?.rows[index];
+        if (draft != null && row != null && joinAuthorDraftRow(draft, index)) {
+            flashAuthorRows(state, [row]);
         }
     }
     function splitAuthor(index: number): void {
         const draft = state.draft.value;
-        if (draft != null) {
-            splitAuthorDraftRow(draft, index);
+        const row = draft?.rows[index];
+        if (
+            draft != null &&
+            row != null &&
+            splitAuthorDraftRow(draft, index)
+        ) {
+            const currentIndex = draft.rows.indexOf(row);
+            const first = draft.rows[currentIndex + 1];
+            flashAuthorRows(state, first == null ? [row] : [row, first]);
         }
     }
     function updateParameterValue(index: number, value: string): void {
@@ -114,7 +128,26 @@ export function createAuthorDraftActions(
     };
 }
 
-/** Creates opt-in actions for previously used creator aliases. */
+function flashAuthorRows(
+    state: SourceManagerState,
+    rows: SourceDraftRow[],
+): void {
+    const highlighted = new Set(rows);
+    state.flashingAuthorRows.value = highlighted;
+    setTimeout(function clearAuthorFlash(): void {
+        if (state.flashingAuthorRows.value === highlighted) {
+            state.flashingAuthorRows.value = new Set();
+        }
+    }, AUTHOR_FLASH_DURATION_MS);
+}
+
+/**
+ * Creates opt-in actions for previously used creator aliases.
+ *
+ * @param state - Mutable operation state.
+ * @param scheduleTextAreaAutosize - Schedule text area autosize value.
+ * @returns Created opt-in actions for previously used creator aliases.
+ */
 export function createAliasDraftActions(
     state: SourceManagerState,
     scheduleTextAreaAutosize: () => void,
@@ -126,7 +159,13 @@ export function createAliasDraftActions(
     };
 }
 
-/** Creates mutating actions for the compact parameter-alias dialog. */
+/**
+ * Creates mutating actions for the compact parameter-alias dialog.
+ *
+ * @param state - Mutable operation state.
+ * @param scheduleTextAreaAutosize - Schedule text area autosize value.
+ * @returns Mutating actions for the parameter-alias dialog.
+ */
 // eslint-disable-next-line max-lines-per-function
 function createParameterAliasDialogActions(
     state: SourceManagerState,
@@ -170,7 +209,12 @@ function createParameterAliasDialogActions(
     };
 }
 
-/** Applies both editable values held by the reference-naming dialog. */
+/**
+ * Applies both editable values held by the reference-naming dialog.
+ *
+ * @param state - Mutable operation state.
+ * @returns Whether the condition is met.
+ */
 function applyParameterAliasDialogValues(state: SourceManagerState): boolean {
     const draft = state.draft.value;
     const row = getParameterAliasDialogRow(state);
@@ -209,7 +253,12 @@ function mergeReferenceNameDirectives(
     return [...ordered, ...unknown].join(" ");
 }
 
-/** Creates labels and validation for the parameter-alias dialog. */
+/**
+ * Creates labels and validation for the parameter-alias dialog.
+ *
+ * @param state - Mutable operation state.
+ * @returns Labels and validation for the parameter-alias dialog.
+ */
 function createParameterAliasPresentationActions(
     state: SourceManagerState,
 ): ParameterAliasPresentationActions {
@@ -242,7 +291,12 @@ function createParameterAliasPresentationActions(
     };
 }
 
-/** Creates opt-in actions for previously used creator aliases. */
+/**
+ * Creates opt-in actions for previously used creator aliases.
+ *
+ * @param state - Mutable operation state.
+ * @returns Created opt-in actions for previously used creator aliases.
+ */
 function createAliasSuggestionDraftActions(
     state: SourceManagerState,
 ): AliasSuggestionDraftActions {
@@ -276,7 +330,12 @@ function createAliasSuggestionDraftActions(
     };
 }
 
-/** Gets the draft row targeted by the compact alias dialog. */
+/**
+ * Gets the draft row targeted by the compact alias dialog.
+ *
+ * @param state - Mutable operation state.
+ * @returns Operation result.
+ */
 function getParameterAliasDialogRow(
     state: SourceManagerState,
 ): SourceDraftRow | null {
@@ -284,14 +343,24 @@ function getParameterAliasDialogRow(
     return index == null ? null : (state.draft.value?.rows[index] ?? null);
 }
 
-/** Gets the localized alias or source-key label for a parameter. */
+/**
+ * Gets the localized alias or source-key label for a parameter.
+ *
+ * @param parameter - Parameter value.
+ * @returns Resulting text.
+ */
 function getParameterAliasLabel(parameter: string): string {
     return normalizeDraftName(parameter) === "url"
         ? msg("draft.sourceKeyLabel")
         : msg("draft.aliasLabel", { parameter });
 }
 
-/** Gets an accessible action label for the parameter alias button. */
+/**
+ * Gets an accessible action label for the parameter alias button.
+ *
+ * @param row - Row value.
+ * @returns Resulting text.
+ */
 function getParameterAliasActionLabel(row: SourceDraftRow): string {
     const label = getParameterAliasLabel(row.name);
     const directives = listSelectedReferenceNameDirectives(row.directive);
@@ -303,12 +372,23 @@ function getParameterAliasActionLabel(row: SourceDraftRow): string {
           });
 }
 
-/** Marks rows excluded from at least one reference-name component. */
+/**
+ * Marks rows excluded from at least one reference-name component.
+ *
+ * @param row - Row value.
+ * @returns Whether the condition is met.
+ */
 function hasReferenceNameExclusion(row: SourceDraftRow): boolean {
     return listSelectedReferenceNameDirectives(row.directive).length > 0;
 }
 
-/** Describes the alias or source key beneath a value control. */
+/**
+ * Describes the alias or source key beneath a value control.
+ *
+ * @param parameter - Parameter value.
+ * @param alias - Alias value.
+ * @returns Resulting text.
+ */
 function getParameterAliasCaption(parameter: string, alias: string): string {
     return msg("draft.fieldContext", {
         label: getParameterAliasLabel(parameter),
@@ -316,7 +396,12 @@ function getParameterAliasCaption(parameter: string, alias: string): string {
     });
 }
 
-/** Gets the current alias-dialog validation error. */
+/**
+ * Gets the current alias-dialog validation error.
+ *
+ * @param state - Mutable operation state.
+ * @returns Resulting text.
+ */
 function getParameterAliasDialogError(state: SourceManagerState): string {
     const row = getParameterAliasDialogRow(state);
     if (
@@ -331,7 +416,12 @@ function getParameterAliasDialogError(state: SourceManagerState): string {
     });
 }
 
-/** Whether the current alias-dialog value can be applied. */
+/**
+ * Whether the current alias-dialog value can be applied.
+ *
+ * @param state - Mutable operation state.
+ * @returns Whether the condition is met.
+ */
 function canApplyParameterAlias(state: SourceManagerState): boolean {
     return (
         getParameterAliasDialogRow(state) != null &&
@@ -339,7 +429,13 @@ function canApplyParameterAlias(state: SourceManagerState): boolean {
     );
 }
 
-/** Gets the first prior alias that was not dismissed for this row. */
+/**
+ * Gets the first prior alias that was not dismissed for this row.
+ *
+ * @param state - Mutable operation state.
+ * @param index - Source index.
+ * @returns Operation result.
+ */
 function findAvailableAliasSuggestion(
     state: SourceManagerState,
     index: number,
@@ -364,7 +460,14 @@ function findAvailableAliasSuggestion(
     );
 }
 
-/** Builds a draft-local key for one dismissible alias suggestion. */
+/**
+ * Builds a draft-local key for one dismissible alias suggestion.
+ *
+ * @param index - Source index.
+ * @param row - Row value.
+ * @param suggestion - Suggestion value.
+ * @returns Built draft-local key for one dismissible alias suggestion.
+ */
 function buildAliasSuggestionKey(
     index: number,
     row: SourceDraftRow,

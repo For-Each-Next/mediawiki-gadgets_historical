@@ -2,6 +2,26 @@
 
 ## Until 0.3
 
+### 0.2.1-post.4 (2026-08-01 18:01 UTC)
+
+Overview: VG Page Assessor documents every authored callable contract
+consistently in its readable browser artifact.
+
+- Completed `@param` and `@returns` tags across authored TypeScript docstrings
+  while preserving loading, saving, and refresh behavior.
+
+### 0.2.1-post.3 (2026-08-01 16:19 UTC)
+
+Overview: VG Page Assessor now shows progress throughout loading and saving,
+then refreshes the page after a successful reviewed save.
+
+- Mounted a lightweight Codex progress dialog while assessment and page state
+  load, before replacing it with the full review dialog and its existing
+  new-page-list loading progress.
+- Added a save progress bar that follows talk-page and registration phases.
+- Closed the completed dialog and refreshed the current page after a successful
+  or unchanged save so the latest assessment is immediately visible.
+
 ### 0.2.1 (2026-07-29 21:25 UTC)
 
 Overview: VG Page Assessor now emits three consistent artifacts through shared

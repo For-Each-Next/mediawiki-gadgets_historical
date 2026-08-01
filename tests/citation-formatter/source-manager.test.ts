@@ -9,6 +9,7 @@ import {
     buildExistingSourceReference,
     canJoinAuthorDraftRow,
     canSplitAuthorDraftRow,
+    canonicalizeSourceDraft,
     changeSourceDraftTemplate,
     createManualSourceDraft,
     ensureNextAuthorDraftRows,
@@ -32,10 +33,11 @@ import {
     parseSourceUrl,
     replaceExistingSource,
     serializeSourceDraft,
+    serializeSourceDraftForEdit,
     splitAuthorDraftRow,
     type SourceDraft,
 } from "citation-formatter/domain/source-manager.ts";
-import templateData from "citation-formatter/domain/data/index.ts";
+import { citationTemplateData as templateData } from "@mediawiki-gadgets/shared/citation";
 import {
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
@@ -186,16 +188,16 @@ const testDraftParsing = () => {
         .filter((row) => row.main)
         .map((row) => row.name);
     assert.deepEqual(mainNames, [
-        "author",
-        "date",
+        "URL",
         "title",
-        "url",
-        "url-status",
+        "author",
+        "publisher",
+        "website",
+        "date",
+        "access-date",
         "archive-url",
         "archive-date",
-        "access-date",
-        "website",
-        "publisher",
+        "url-status",
         "language",
     ]);
     assert.equal(getRow(draft, "website").value, "");
@@ -218,6 +220,33 @@ const testDraftParsing = () => {
     );
 };
 test("seeds editable main fields and separates aliases", testDraftParsing);
+
+test("preserves entered values until item-level sorting is requested", () => {
+    const raw =
+        "{{Cite web | language = japanese | URL = https://example.test }}";
+    const draft = parseSourceDraft(raw);
+
+    assert.match(
+        serializeSourceDraftForEdit(draft, "inline"),
+        /language = japanese/u,
+    );
+    assert.match(serializeSourceDraftForEdit(draft, "inline"), /URL =/u);
+
+    const changed = changeSourceDraftTemplate(draft, "cite book");
+    assert.match(
+        serializeSourceDraftForEdit(changed, "inline"),
+        /language = japanese/u,
+    );
+    assert.match(serializeSourceDraftForEdit(changed, "inline"), /URL =/u);
+
+    canonicalizeSourceDraft(draft);
+
+    assert.match(
+        serializeSourceDraftForEdit(draft, "inline"),
+        /language = ja/u,
+    );
+    assert.match(serializeSourceDraftForEdit(draft, "inline"), /url =/u);
+});
 
 test("splits a comma-delimited author into last and first fields", () => {
     const draft = parseSourceDraft(
@@ -603,7 +632,7 @@ test("highlights eligible fallback name fields after directives", () => {
         .filter((_row, index) => indexes.has(index))
         .map((row) => row.name);
 
-    assert.deepEqual(names, ["year", "publisher", "pages"]);
+    assert.deepEqual(names, ["publisher", "year", "pages"]);
 
     getRow(draft, "publisher").directive = "!no-author";
     const fallbackIndexes = new Set(
@@ -613,7 +642,7 @@ test("highlights eligible fallback name fields after directives", () => {
         .filter((_row, index) => fallbackIndexes.has(index))
         .map((row) => row.name);
 
-    assert.deepEqual(fallbackNames, ["year", "website", "pages"]);
+    assert.deepEqual(fallbackNames, ["website", "year", "pages"]);
 });
 
 test("identifies only the exact value or alias cells visible in a name", () => {
@@ -1120,6 +1149,48 @@ test("moves eligible article titles before formatting", () => {
         moved: 0,
         text: protectedText,
     });
+});
+
+test("uses primary codes and honors script-title language modes", () => {
+    const japanese = parseSourceDraft(
+        "{{cite web|title=記事|language=ja-Jpan-JP}}",
+    );
+    assert.equal(
+        moveSourceDraftTitleToScriptTitle(japanese, "enwiki", "non-latin"),
+        true,
+    );
+    assert.match(serializeSourceDraft(japanese, "inline"), /ja:記事/u);
+
+    const french = parseSourceDraft(
+        "{{cite web|title=Article|language=fr-CA}}",
+    );
+    assert.equal(
+        moveSourceDraftTitleToScriptTitle(french, "enwiki", "non-latin"),
+        false,
+    );
+    assert.equal(
+        moveSourceDraftTitleToScriptTitle(french, "enwiki", "all-foreign"),
+        true,
+    );
+    assert.match(serializeSourceDraft(french, "inline"), /fr:Article/u);
+});
+
+test("lists and reuses bibliography citations referenced by sfn", () => {
+    const text = [
+        "Text.{{sfn|Weiss|2014|p=77}}",
+        "==Sources==",
+        "* {{cite book|last=Weiss|year=2014|title=Console games}}",
+    ].join("\n");
+    const sources = listExistingSources(text);
+
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0]?.referenceKind, "short-footnote");
+    assert.equal(sources[0]?.reuseText, "{{sfn|Weiss|2014}}");
+    assert.equal(sources[0]?.usageCount, 1);
+    assert.equal(
+        buildExistingSourceReference(sources[0]!),
+        "{{sfn|Weiss|2014}}",
+    );
 });
 
 test("uses a language-prefixed script title as the list title", () => {

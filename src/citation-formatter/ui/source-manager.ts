@@ -10,6 +10,7 @@ import {
 import { detectCitationLayout } from "#gadget/domain/manager.ts";
 import {
     buildExistingSourceReference,
+    canonicalizeSourceDraft,
     changeSourceDraftTemplate,
     createManualSourceDraft,
     ensureNextAuthorDraftRows,
@@ -33,6 +34,7 @@ import {
     type SourceSection,
     type SourceDraft,
     type SourceDraftRow,
+    type ScriptTitleMode,
 } from "#gadget/domain/source-manager.ts";
 import type * as validation from "#gadget/domain/source-validation.ts";
 import {
@@ -277,7 +279,14 @@ export function createOpenCitationFormatterDialog(
     };
 }
 
-/** Mounts the source manager into a temporary document host. */
+/**
+ * Mounts the source manager into a temporary document host.
+ *
+ * @param editor - Editor value.
+ * @param require - Require value.
+ * @param options - Operation options.
+ * @param dependencies - Dependencies value.
+ */
 // eslint-disable-next-line max-lines-per-function
 function mountSourceManager(
     editor: editBox.EditBox,
@@ -338,7 +347,16 @@ function mountSourceManager(
     removeActiveSourceManager = cleanup;
 }
 
-/** Creates the source-manager Vue component. */
+/**
+ * Creates the source-manager Vue component.
+ *
+ * @param Vue - Vue value.
+ * @param Codex - Codex value.
+ * @param editor - Editor value.
+ * @param cleanup - Cleanup value.
+ * @param configuration - Operation configuration.
+ * @returns Created the source-manager Vue component.
+ */
 // eslint-disable-next-line max-lines-per-function
 function createSourceManagerComponent(
     Vue: VueModule,
@@ -419,7 +437,11 @@ function createSourceManagerComponent(
     });
 }
 
-/** Creates stable Vue keys for mutable citation parameter rows. */
+/**
+ * Creates stable Vue keys for mutable citation parameter rows.
+ *
+ * @returns Created stable Vue keys for mutable citation parameter rows.
+ */
 function createDraftRowKey(): (row: SourceDraftRow) => number {
     const keys = new WeakMap<SourceDraftRow, number>();
     let nextKey = 0;
@@ -447,13 +469,21 @@ function scheduleVisibleTextAreaAutosize(): void {
     });
 }
 
-/** Gets the active MediaWiki database for site-specific CS1 rules. */
+/**
+ * Gets the active MediaWiki database for site-specific CS1 rules.
+ *
+ * @returns Resulting text.
+ */
 function getCurrentWikiId(): string {
     const wikiId = mw.config.get("wgDBname");
     return typeof wikiId === "string" ? wikiId : "";
 }
 
-/** Runs one explicit, article-wide CS1 parse check. */
+/**
+ * Runs one explicit, article-wide CS1 parse check.
+ *
+ * @param context - Context value.
+ */
 async function fetchArticleCs1Issues(
     context: SourceManagerActionContext,
 ): Promise<void> {
@@ -492,7 +522,11 @@ function getCurrentPageTitle(): string {
         : msg("tool.validationTitle");
 }
 
-/** Supplies the page context required by live CS1 checks. */
+/**
+ * Supplies the page context required by live CS1 checks.
+ *
+ * @returns Operation result.
+ */
 function getCurrentCs1CheckOptions(): { pageTitle: string } {
     return { pageTitle: getCurrentPageTitle() };
 }
@@ -509,7 +543,14 @@ function formatUtcBuildTime(value: string): string {
     }).format(date);
 }
 
-/** Creates source lookup, insertion, and editing actions. */
+/**
+ * Creates source lookup, insertion, and editing actions.
+ *
+ * @param editor - Editor value.
+ * @param state - Mutable operation state.
+ * @param services - Injected service adapters.
+ * @returns Created source lookup, insertion, and editing actions.
+ */
 function createSourceManagerActions(
     editor: editBox.EditBox,
     state: SourceManagerState,
@@ -530,13 +571,21 @@ function createSourceManagerActions(
     };
 }
 
-/** Creates the footer action for formatting the article source. */
+/**
+ * Creates the footer action for formatting the article source.
+ *
+ * @param context - Context value.
+ * @returns Created the footer action for formatting the article source.
+ */
 // eslint-disable-next-line max-lines-per-function
 function createFormatterActions(
     context: SourceManagerActionContext,
 ): Pick<
     MainDialogActions,
-    "formatArticle" | "setBlockCitations" | "setCompactReferences"
+    | "formatArticle"
+    | "setBlockCitations"
+    | "setCompactReferences"
+    | "setScriptTitleMode"
 > {
     // eslint-disable-next-line max-lines-per-function
     async function formatArticle(): Promise<void> {
@@ -580,10 +629,11 @@ function createFormatterActions(
                 return;
             }
             const compact = state.referenceStyle.value === "r";
-            const source = state.autoScriptTitle.value
-                ? moveSourceTitlesToScriptTitle(beforeText, getCurrentWikiId())
-                      .text
-                : beforeText;
+            const source = moveSourceTitlesToScriptTitle(
+                beforeText,
+                getCurrentWikiId(),
+                state.scriptTitleMode.value,
+            ).text;
             const result = manageCitationsWithResult(
                 source,
                 [],
@@ -619,7 +669,21 @@ function createFormatterActions(
     function setCompactReferences(enabled: boolean): void {
         context.state.referenceStyle.value = enabled ? "r" : "ref";
     }
-    return { formatArticle, setBlockCitations, setCompactReferences };
+    function setScriptTitleMode(value: unknown): void {
+        if (isScriptTitleMode(value)) {
+            context.state.scriptTitleMode.value = value;
+        }
+    }
+    return {
+        formatArticle,
+        setBlockCitations,
+        setCompactReferences,
+        setScriptTitleMode,
+    };
+}
+
+function isScriptTitleMode(value: unknown): value is ScriptTitleMode {
+    return value === "all-foreign" || value === "non-latin";
 }
 
 async function loadCurrentCitationTemplateData(
@@ -684,9 +748,9 @@ function buildArticleFormatAttempt(
     state: SourceManagerState,
 ): ArticleFormatAttempt {
     return {
-        autoScriptTitle: state.autoScriptTitle.value,
         citationLayout: state.citationLayout.value,
         referenceStyle: state.referenceStyle.value,
+        scriptTitleMode: state.scriptTitleMode.value,
         sourceRevision: state.sourceRevision.value,
         text,
     };
@@ -701,9 +765,9 @@ function isCurrentArticleFormatAttempt(
         attempt != null &&
         attempt.sourceRevision === state.sourceRevision.value &&
         attempt.text === editor.read() &&
-        attempt.autoScriptTitle === state.autoScriptTitle.value &&
         attempt.citationLayout === state.citationLayout.value &&
-        attempt.referenceStyle === state.referenceStyle.value
+        attempt.referenceStyle === state.referenceStyle.value &&
+        attempt.scriptTitleMode === state.scriptTitleMode.value
     );
 }
 
@@ -729,7 +793,12 @@ function formatArticleSummary(result: CitationFormatResult): string {
     return msg("feedback.formatSummary", { formatted, renamed, skipped });
 }
 
-/** Creates dialog navigation actions. */
+/**
+ * Creates dialog navigation actions.
+ *
+ * @param context - Context value.
+ * @returns Created dialog navigation actions.
+ */
 function createNavigationActions(context: SourceManagerActionContext) {
     return {
         ...createManagerCloseActions(context),
@@ -765,7 +834,11 @@ function createManagerCloseActions(
     return { cancelAllChanges, close: requestClose, onOpenChange };
 }
 
-/** Restores all safe editor writes made since the dialog opened. */
+/**
+ * Restores all safe editor writes made since the dialog opened.
+ *
+ * @param context - Context value.
+ */
 function cancelAllSourceManagerChanges(
     context: SourceManagerActionContext,
 ): void {
@@ -839,7 +912,12 @@ function createCloseConfirmationActions(
     };
 }
 
-/** Creates parameter-editing and draft-save actions. */
+/**
+ * Creates parameter-editing and draft-save actions.
+ *
+ * @param context - Context value.
+ * @returns Created parameter-editing and draft-save actions.
+ */
 // eslint-disable-next-line max-lines-per-function
 function createDraftActions(
     context: SourceManagerActionContext,
@@ -859,10 +937,12 @@ function createDraftActions(
     function sortParameters(): void {
         const draft = state.draft.value;
         if (draft != null) {
-            if (state.autoScriptTitle.value) {
-                moveSourceDraftTitleToScriptTitle(draft, getCurrentWikiId());
-            }
-            formatSourceDraftRows(draft);
+            moveSourceDraftTitleToScriptTitle(
+                draft,
+                getCurrentWikiId(),
+                state.scriptTitleMode.value,
+            );
+            canonicalizeSourceDraft(draft);
             context.toast.success(msg("feedback.parametersSorted"), {
                 autoDismiss: true,
             });
@@ -970,18 +1050,36 @@ function createDraftActions(
     };
 }
 
-/** Whether a citation parameter contains a URL. */
+/**
+ * Whether a citation parameter contains a URL.
+ *
+ * @param parameter - Parameter value.
+ * @returns Whether the condition is met.
+ */
 function isUrlDraftParameter(parameter: string): boolean {
     return URL_DRAFT_PARAMETERS.has(normalizeDraftName(parameter));
 }
 
-/** Gets a safe HTTP(S) href that preserves entered archive links. */
+/**
+ * Gets a safe HTTP(S) href that preserves entered archive links.
+ *
+ * @param value - Value to process.
+ * @returns Resulting text.
+ */
 function getOpenableDraftUrl(value: string): string {
     const parsed = parseSourceUrl(value);
     return parsed?.archiveUrl || parsed?.originalUrl || "";
 }
 
-/** Builds an accessible draft-field label with help or an error. */
+/**
+ * Builds an accessible draft-field label with help or an error.
+ *
+ * @param state - Mutable operation state.
+ * @param index - Source index.
+ * @param field - Field value.
+ * @param parameter - Parameter value.
+ * @returns Built accessible draft-field label with help or an error.
+ */
 function buildDraftFieldLabel(
     state: SourceManagerState,
     index: number,
@@ -1005,7 +1103,13 @@ function buildDraftFieldLabel(
         : msg("draft.fieldContext", { label, message: context });
 }
 
-/** Gets the base label for one compact citation-table control. */
+/**
+ * Gets the base label for one compact citation-table control.
+ *
+ * @param field - Field value.
+ * @param parameter - Parameter value.
+ * @returns Resulting text.
+ */
 function getDraftFieldLabelText(
     field: keyof validation.SourceDraftRowErrors,
     parameter: string,
@@ -1021,7 +1125,12 @@ function getDraftFieldLabelText(
         : msg("draft.aliasLabel", { parameter });
 }
 
-/** Creates explicit checker-popup actions for the Tools tab. */
+/**
+ * Creates explicit checker-popup actions for the Tools tab.
+ *
+ * @param context - Context value.
+ * @returns Created explicit checker-popup actions for the Tools tab.
+ */
 function createToolActions(context: SourceManagerActionContext): ToolActions {
     return {
         ...createAnalysisToolActions(context),
@@ -1029,7 +1138,12 @@ function createToolActions(context: SourceManagerActionContext): ToolActions {
     };
 }
 
-/** Creates citation-analysis popup and replacement actions. */
+/**
+ * Creates citation-analysis popup and replacement actions.
+ *
+ * @param context - Context value.
+ * @returns Created citation-analysis popup and replacement actions.
+ */
 function createAnalysisToolActions(
     context: SourceManagerActionContext,
 ): AnalysisToolActions {
@@ -1120,7 +1234,12 @@ function applyOneSelectedAnalysisFinding(
     ]);
 }
 
-/** Creates the CS1 and non-CS1 checker popup actions. */
+/**
+ * Creates the CS1 and non-CS1 checker popup actions.
+ *
+ * @param context - Context value.
+ * @returns Created the CS1 and non-CS1 checker popup actions.
+ */
 function createCheckerToolActions(
     context: SourceManagerActionContext,
 ): CheckerToolActions {
@@ -1191,7 +1310,12 @@ function isAnalysisOccurrenceUnchanged(
     return occurrence.value === getAnalysisReplacement(finding);
 }
 
-/** Writes selected analysis cases as one editor operation. */
+/**
+ * Writes selected analysis cases as one editor operation.
+ *
+ * @param context - Context value.
+ * @param selectedFindings - Selected findings value.
+ */
 function applySelectedAnalysisFindings(
     context: SourceManagerActionContext,
     selectedFindings: SelectedAnalysisFinding[],
@@ -1243,7 +1367,13 @@ function writeSelectedAnalysisFindings(
     refreshSourceAnalysis(state);
 }
 
-/** Captures source identities used to reverse each applied case. */
+/**
+ * Captures source identities used to reverse each applied case.
+ *
+ * @param state - Mutable operation state.
+ * @param selected - Selected value.
+ * @returns Source identities used to reverse each applied case.
+ */
 function buildAppliedAnalysisFindings(
     state: SourceManagerState,
     selected: SelectedAnalysisFinding[],
@@ -1280,7 +1410,12 @@ function buildAppliedAnalysisFindings(
     });
 }
 
-/** Reverses one applied case without discarding later cases. */
+/**
+ * Reverses one applied case without discarding later cases.
+ *
+ * @param context - Context value.
+ * @param changeId - Change id value.
+ */
 function revertAnalysisFinding(
     context: SourceManagerActionContext,
     changeId: number,
@@ -1405,7 +1540,13 @@ function clearCompletedAnalysisUndo(
     }
 }
 
-/** Records a chain of analysis-only writes as one session undo. */
+/**
+ * Records a chain of analysis-only writes as one session undo.
+ *
+ * @param state - Mutable operation state.
+ * @param beforeText - Before text value.
+ * @param afterText - After text value.
+ */
 function recordAnalysisUndo(
     state: SourceManagerState,
     beforeText: string,
@@ -1418,7 +1559,13 @@ function recordAnalysisUndo(
     );
 }
 
-/** Extends the whole-dialog undo snapshot after an editor write. */
+/**
+ * Extends the whole-dialog undo snapshot after an editor write.
+ *
+ * @param state - Mutable operation state.
+ * @param beforeText - Before text value.
+ * @param afterText - After text value.
+ */
 function recordSessionWrite(
     state: SourceManagerState,
     beforeText: string,
@@ -1445,7 +1592,12 @@ function clearAnalysisUndo(state: SourceManagerState): void {
     state.analysisFindingOrder.value = [];
 }
 
-/** Restores analysis writes unless a later editor change intervened. */
+/**
+ * Restores analysis writes unless a later editor change intervened.
+ *
+ * @param context - Context value.
+ * @returns Whether the condition is met.
+ */
 function restoreAnalysisSession(context: SourceManagerActionContext): boolean {
     const { editor, state, toast } = context;
     const snapshot = state.analysisUndo.value;
@@ -1470,7 +1622,13 @@ function restoreAnalysisSession(context: SourceManagerActionContext): boolean {
     return true;
 }
 
-/** Expands checked occurrences into domain-layer replacements. */
+/**
+ * Expands checked occurrences into domain-layer replacements.
+ *
+ * @param analysis - Analysis value.
+ * @param tab - Tab value.
+ * @returns Resulting values.
+ */
 function listSelectedAnalysisReplacements(
     analysis: EditableCitationSourceAnalysis,
     tab: SourceAnalysisCell,
@@ -1492,7 +1650,12 @@ function listSelectedAnalysisFindings(
         }));
 }
 
-/** Expands checked occurrences from one finding into replacements. */
+/**
+ * Expands checked occurrences from one finding into replacements.
+ *
+ * @param finding - Finding value.
+ * @returns Resulting values.
+ */
 function listSelectedFindingReplacements(
     finding: EditableSourceAnalysisFinding,
 ): SourceAnalysisReplacement[] {
@@ -1542,7 +1705,16 @@ function reviewCs1CheckedSource(
     );
 }
 
-/** Opens a prechecked CS1 draft without another API request. */
+/**
+ * Opens a prechecked CS1 draft without another API request.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ * @param checkedHtml - Checked html value.
+ * @param checkedMessages - Checked messages value.
+ * @param queue - Queue value.
+ * @returns Whether the condition is met.
+ */
 function openCs1ReviewSource(
     state: SourceManagerState,
     sourceId: string,
@@ -1570,7 +1742,12 @@ function openCs1ReviewSource(
     return true;
 }
 
-/** Opens one non-CS1 result in the sequential checker-edit workflow. */
+/**
+ * Opens one non-CS1 result in the sequential checker-edit workflow.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ */
 function reviewNonCs1CheckedSource(
     state: SourceManagerState,
     sourceId: string,
@@ -1583,7 +1760,14 @@ function reviewNonCs1CheckedSource(
     openNonCs1ReviewSource(state, sourceId, queue);
 }
 
-/** Opens a preloaded non-CS1 draft in the checker workflow. */
+/**
+ * Opens a preloaded non-CS1 draft in the checker workflow.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ * @param queue - Queue value.
+ * @returns Whether the condition is met.
+ */
 function openNonCs1ReviewSource(
     state: SourceManagerState,
     sourceId: string,
@@ -1598,7 +1782,13 @@ function openNonCs1ReviewSource(
     return true;
 }
 
-/** Preloads other CS1 results, wrapping after the final item. */
+/**
+ * Preloads other CS1 results, wrapping after the final item.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ * @returns Resulting values.
+ */
 function preloadCs1ReviewQueue(
     state: SourceManagerState,
     sourceId: string,
@@ -1624,7 +1814,13 @@ function preloadCs1ReviewQueue(
     });
 }
 
-/** Preloads other non-CS1 results, wrapping after the final item. */
+/**
+ * Preloads other non-CS1 results, wrapping after the final item.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ * @returns Resulting values.
+ */
 function preloadNonCs1ReviewQueue(
     state: SourceManagerState,
     sourceId: string,
@@ -1643,7 +1839,15 @@ function preloadNonCs1ReviewQueue(
     });
 }
 
-/** Captures one check result by stable source-list position. */
+/**
+ * Captures one check result by stable source-list position.
+ *
+ * @param state - Mutable operation state.
+ * @param source - Source text.
+ * @param checkedHtml - Checked html value.
+ * @param checkedMessages - Checked messages value.
+ * @returns Captured check result by stable source-list position.
+ */
 function preloadCheckerSource(
     state: SourceManagerState,
     source: ExistingSource,
@@ -1658,7 +1862,12 @@ function preloadCheckerSource(
         : [{ checkedHtml, checkedMessages, sourceIndex }];
 }
 
-/** Returns whether a row supports one-click date filling. */
+/**
+ * Returns whether a row supports one-click date filling.
+ *
+ * @param name - Name to process.
+ * @returns Whether a row supports one-click date filling.
+ */
 function isDateAutofillParameter(name: string): boolean {
     return isAccessDateParameter(name) || isArchiveDateParameter(name);
 }
@@ -1677,7 +1886,12 @@ function getDateAutofillTooltip(name: string): string {
         : msg("draft.fillArchiveDate");
 }
 
-/** Checks whether an organization field can become a local link. */
+/**
+ * Checks whether an organization field can become a local link.
+ *
+ * @param name - Name to process.
+ * @returns Whether an organization field can become a local link.
+ */
 function isLinkableDraftParameter(name: string): boolean {
     return [
         "agency",
@@ -1694,7 +1908,12 @@ function isLinkableDraftParameter(name: string): boolean {
     ].includes(normalizeDraftName(name));
 }
 
-/** Fills today's date or derives archive fields from an archive URL. */
+/**
+ * Fills today's date or derives archive fields from an archive URL.
+ *
+ * @param context - Context value.
+ * @param index - Source index.
+ */
 async function autofillDraftDate(
     context: SourceManagerActionContext,
     index: number,
@@ -1715,7 +1934,13 @@ async function autofillDraftDate(
     await autofillArchiveDate(context, draft, row);
 }
 
-/** Resolves archive fields from an available snapshot. */
+/**
+ * Resolves archive fields from an available snapshot.
+ *
+ * @param context - Context value.
+ * @param draft - Source draft to process.
+ * @param row - Row value.
+ */
 async function autofillArchiveDate(
     context: SourceManagerActionContext,
     draft: SourceDraft,
@@ -1756,7 +1981,12 @@ async function autofillArchiveDate(
     }
 }
 
-/** Validates and redirect-normalizes an organization wikilink. */
+/**
+ * Validates and redirect-normalizes an organization wikilink.
+ *
+ * @param context - Context value.
+ * @param index - Source index.
+ */
 async function linkDraftOrganization(
     context: SourceManagerActionContext,
     index: number,
@@ -1792,7 +2022,13 @@ async function linkDraftOrganization(
     }
 }
 
-/** Reports an archive failure only for an active draft row. */
+/**
+ * Reports an archive failure only for an active draft row.
+ *
+ * @param context - Context value.
+ * @param draft - Source draft to process.
+ * @param row - Row value.
+ */
 function reportArchiveCheckFailure(
     context: SourceManagerActionContext,
     draft: SourceDraft,
@@ -1805,7 +2041,14 @@ function reportArchiveCheckFailure(
     }
 }
 
-/** Checks whether an awaited action still targets this draft row. */
+/**
+ * Checks whether an awaited action still targets this draft row.
+ *
+ * @param state - Mutable operation state.
+ * @param draft - Source draft to process.
+ * @param row - Row value.
+ * @returns Whether an awaited action still targets this draft row.
+ */
 function isCurrentDraftRow(
     state: SourceManagerState,
     draft: SourceDraft,
@@ -1814,7 +2057,13 @@ function isCurrentDraftRow(
     return state.draft.value === draft && draft.rows.includes(row);
 }
 
-/** Gets one case-insensitive draft row value. */
+/**
+ * Gets one case-insensitive draft row value.
+ *
+ * @param draft - Source draft to process.
+ * @param name - Name to process.
+ * @returns Resulting text.
+ */
 function getDraftRowValue(draft: SourceDraft, name: string): string {
     const normalized = normalizeDraftName(name);
     return (
@@ -1827,7 +2076,12 @@ function normalizeDraftName(name: string): string {
     return name.trim().toLocaleLowerCase("en-US");
 }
 
-/** Formats today using the user's local calendar date. */
+/**
+ * Formats today using the user's local calendar date.
+ *
+ * @param date - Date value.
+ * @returns Formatted today using the user's local calendar date.
+ */
 function formatLocalIsoDate(date: Date): string {
     const year = String(date.getFullYear()).padStart(4, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -1835,7 +2089,11 @@ function formatLocalIsoDate(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-/** Validates, saves, and consistency-checks one new source. */
+/**
+ * Validates, saves, and consistency-checks one new source.
+ *
+ * @param context - Context value.
+ */
 async function saveNewSourceDraft(
     context: SourceManagerActionContext,
 ): Promise<void> {
@@ -1849,7 +2107,12 @@ async function saveNewSourceDraft(
     refreshAndOpenAnalysisTool(context.state);
 }
 
-/** Uses installed CS1 modules as a new-source save gate. */
+/**
+ * Uses installed CS1 modules as a new-source save gate.
+ *
+ * @param context - Context value.
+ * @returns Operation result.
+ */
 async function validateNewSourceWithCs1(
     context: SourceManagerActionContext,
 ): Promise<boolean> {
@@ -1890,7 +2153,13 @@ async function validateNewSourceWithCs1(
     }
 }
 
-/** Runs the injected new-source checker for the current article. */
+/**
+ * Runs the injected new-source checker for the current article.
+ *
+ * @param cs1Review - Cs1 review value.
+ * @param draft - Source draft to process.
+ * @returns Operation result.
+ */
 function checkNewSourceDraft(
     cs1Review: Cs1ReviewWorkflow,
     draft: SourceDraft,
@@ -1916,7 +2185,13 @@ function applyNewSourceCs1Result(
     return result.issueCount;
 }
 
-/** Validates and applies the current source draft. */
+/**
+ * Validates and applies the current source draft.
+ *
+ * @param context - Context value.
+ * @param closeAfterSave - Close after save value.
+ * @returns Whether the condition is met.
+ */
 function saveSourceDraft(
     context: SourceManagerActionContext,
     closeAfterSave: boolean,
@@ -1956,7 +2231,11 @@ function finishAppliedSourceDraft(
     return false;
 }
 
-/** Rechecks an applied CS1 review while keeping its draft open. */
+/**
+ * Rechecks an applied CS1 review while keeping its draft open.
+ *
+ * @param context - Context value.
+ */
 async function recheckAppliedCs1Draft(
     context: SourceManagerActionContext,
 ): Promise<void> {
@@ -2018,7 +2297,13 @@ function isCurrentAppliedDraft(
     );
 }
 
-/** Replaces the applied source's stale open-result entry. */
+/**
+ * Replaces the applied source's stale open-result entry.
+ *
+ * @param context - Context value.
+ * @param source - Source text.
+ * @param checked - Checked value.
+ */
 function updateAppliedCs1BatchResult(
     context: SourceManagerActionContext,
     source: ExistingSource,
@@ -2044,7 +2329,11 @@ function updateAppliedCs1BatchResult(
     );
 }
 
-/** Saves a checker result and returns to its result popup. */
+/**
+ * Saves a checker result and returns to its result popup.
+ *
+ * @param context - Context value.
+ */
 function saveReviewedDraft(context: SourceManagerActionContext): void {
     const { editor, state, toast } = context;
     const reviewTool = state.draftReviewTool.value;
@@ -2065,7 +2354,12 @@ function saveReviewedDraft(context: SourceManagerActionContext): void {
     showCheckerResults(state, reviewTool);
 }
 
-/** Keeps unreviewed CS1 results from the original batch request. */
+/**
+ * Keeps unreviewed CS1 results from the original batch request.
+ *
+ * @param context - Context value.
+ * @param queue - Queue value.
+ */
 function syncCs1BatchResults(
     context: SourceManagerActionContext,
     queue: PreloadedCheckerSource[],
@@ -2093,7 +2387,12 @@ function syncCs1BatchResults(
     }
 }
 
-/** Opens refreshed checker results over the manager lookup view. */
+/**
+ * Opens refreshed checker results over the manager lookup view.
+ *
+ * @param state - Mutable operation state.
+ * @param reviewTool - Review tool value.
+ */
 function showCheckerResults(
     state: SourceManagerState,
     reviewTool: SourceCheckerTool,
@@ -2103,7 +2402,13 @@ function showCheckerResults(
     state.toolPopupOpen.value = true;
 }
 
-/** Validates and writes the current source draft. */
+/**
+ * Validates and writes the current source draft.
+ *
+ * @param context - Context value.
+ * @returns Operation result.
+ */
+// eslint-disable-next-line max-lines-per-function
 function writeSourceDraft(
     context: SourceManagerActionContext,
 ): SourceDraftWriteResult | null {
@@ -2115,8 +2420,12 @@ function writeSourceDraft(
     const beforeText = editor.read();
     const previousSource = state.editingSource.value;
     try {
-        if (state.autoScriptTitle.value) {
-            moveSourceDraftTitleToScriptTitle(draft, getCurrentWikiId());
+        if (state.editingSource.value == null) {
+            moveSourceDraftTitleToScriptTitle(
+                draft,
+                getCurrentWikiId(),
+                state.scriptTitleMode.value,
+            );
         }
         if (state.draftCellErrors.value.size > 0) {
             state.error.value = msg("draft.invalidSummary");
@@ -2162,7 +2471,13 @@ function finishSourceDraftWrite(
     };
 }
 
-/** Anchors an applied draft to its refreshed source definition. */
+/**
+ * Anchors an applied draft to its refreshed source definition.
+ *
+ * @param state - Mutable operation state.
+ * @param writeResult - Write result value.
+ * @returns Whether the condition is met.
+ */
 function rebindAppliedDraft(
     state: SourceManagerState,
     writeResult: SourceDraftWriteResult,
@@ -2189,7 +2504,13 @@ function rebindAppliedDraft(
     return true;
 }
 
-/** Finds a named source after a no-op write. */
+/**
+ * Finds a named source after a no-op write.
+ *
+ * @param state - Mutable operation state.
+ * @param previousSource - Previous source value.
+ * @returns Named source after a no-op write.
+ */
 function findRefreshedSource(
     state: SourceManagerState,
     previousSource: ExistingSource | null,
@@ -2325,7 +2646,11 @@ function findFirstDifference(beforeText: string, afterText: string): number {
     return limit;
 }
 
-/** Clears the draft view without changing the source-list state. */
+/**
+ * Clears the draft view without changing the source-list state.
+ *
+ * @param state - Mutable operation state.
+ */
 function resetSourceDraft(state: SourceManagerState): void {
     state.dismissedAliasSuggestions.value = new Set();
     state.parameterAliasDialogOpen.value = false;
@@ -2341,7 +2666,12 @@ function resetSourceDraft(state: SourceManagerState): void {
     state.warning.value = "";
 }
 
-/** Applies a selected citation type without discarding entered rows. */
+/**
+ * Applies a selected citation type without discarding entered rows.
+ *
+ * @param state - Mutable operation state.
+ * @param template - Template wikitext.
+ */
 function updateDraftTemplate(
     state: SourceManagerState,
     template: string | null,
@@ -2354,7 +2684,11 @@ function updateDraftTemplate(
     }
 }
 
-/** Validates user-added names and aliases. */
+/**
+ * Validates user-added names and aliases.
+ *
+ * @param draft - Source draft to process.
+ */
 function validateDraft(draft: SourceDraft): void {
     const empty = draft.rows.every((row) => row.value.trim() === "");
     if (empty) {
@@ -2375,17 +2709,32 @@ function validateDraft(draft: SourceDraft): void {
     }
 }
 
-/** Checks whether an entered row has a visible value or alias. */
+/**
+ * Checks whether an entered row has a visible value or alias.
+ *
+ * @param row - Row value.
+ * @returns Whether an entered row has a visible value or alias.
+ */
 function hasDraftRowUserContent(row: SourceDraftRow): boolean {
     return row.value.trim() !== "" || row.alias.trim() !== "";
 }
 
-/** Checks whether a row has an alias that cannot annotate a value. */
+/**
+ * Checks whether a row has an alias that cannot annotate a value.
+ *
+ * @param row - Row value.
+ * @returns Whether a row has an alias that cannot annotate a value.
+ */
 function hasDraftAliasWithoutValue(row: SourceDraftRow): boolean {
     return row.alias.trim() !== "" && row.value.trim() === "";
 }
 
-/** Creates URL, manual-source, and existing-source tab actions. */
+/**
+ * Creates URL, manual-source, and existing-source tab actions.
+ *
+ * @param context - Context value.
+ * @returns Created URL, manual-source, and existing-source tab actions.
+ */
 function createLookupActions(
     context: SourceManagerActionContext,
 ): Pick<
@@ -2443,7 +2792,12 @@ function selectSourceSectionOption(
     }
 }
 
-/** Resolves a recognizable pasted source immediately. */
+/**
+ * Resolves a recognizable pasted source immediately.
+ *
+ * @param context - Context value.
+ * @param event - Browser event.
+ */
 function handleSourcePaste(
     context: SourceManagerActionContext,
     event: ClipboardEvent,
@@ -2460,7 +2814,11 @@ function handleSourcePaste(
     void resolveSourceInput(context, entered);
 }
 
-/** Opens a manual draft only when no URL request can replace it. */
+/**
+ * Opens a manual draft only when no URL request can replace it.
+ *
+ * @param state - Mutable operation state.
+ */
 function openManualSourceWhenIdle(state: SourceManagerState): void {
     if (state.loading.value) {
         return;
@@ -2477,7 +2835,12 @@ function openManualSourceWhenIdle(state: SourceManagerState): void {
     openDraft(state, createManualSourceDraft(template));
 }
 
-/** Clones one selected citation into a new source draft. */
+/**
+ * Clones one selected citation into a new source draft.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ */
 function openBasedOnSource(
     state: SourceManagerState,
     sourceId: string | null,
@@ -2491,7 +2854,13 @@ function openBasedOnSource(
     openDraft(state, cloneDraft(source.draft));
 }
 
-/** Updates one level of the hierarchical source-section filter. */
+/**
+ * Updates one level of the hierarchical source-section filter.
+ *
+ * @param state - Mutable operation state.
+ * @param level - Level value.
+ * @param selected - Selected value.
+ */
 function updateSourceSectionSelection(
     state: SourceManagerState,
     level: number,
@@ -2509,7 +2878,12 @@ function updateSourceSectionSelection(
     ];
 }
 
-/** Opens an existing draft only when no URL request can replace it. */
+/**
+ * Opens an existing draft only when no URL request can replace it.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ */
 function openExistingSourceWhenIdle(
     state: SourceManagerState,
     sourceId: string,
@@ -2519,7 +2893,12 @@ function openExistingSourceWhenIdle(
     }
 }
 
-/** Inserts a listed source only when URL lookup is idle. */
+/**
+ * Inserts a listed source only when URL lookup is idle.
+ *
+ * @param context - Context value.
+ * @param sourceId - Source id value.
+ */
 function insertListedSourceWhenIdle(
     context: SourceManagerActionContext,
     sourceId: string,
@@ -2529,7 +2908,12 @@ function insertListedSourceWhenIdle(
     }
 }
 
-/** Inserts one source chosen directly from the existing-source list. */
+/**
+ * Inserts one source chosen directly from the existing-source list.
+ *
+ * @param context - Context value.
+ * @param sourceId - Source id value.
+ */
 function insertListedExistingSource(
     context: SourceManagerActionContext,
     sourceId: string,
@@ -2551,7 +2935,12 @@ function insertListedExistingSource(
     finishSourceManager(context);
 }
 
-/** Resolves a source or immediately inserts its existing ref. */
+/**
+ * Resolves a source or immediately inserts its existing ref.
+ *
+ * @param context - Context value.
+ * @param entered - Entered value.
+ */
 async function resolveSourceInput(
     context: SourceManagerActionContext,
     entered?: string,
@@ -2591,7 +2980,12 @@ async function resolveSourceInput(
     await loadNewSourceDraft(context, parsed);
 }
 
-/** Chooses an unambiguous reusable match for immediate insertion. */
+/**
+ * Chooses an unambiguous reusable match for immediate insertion.
+ *
+ * @param matches - Matches value.
+ * @returns Selected unambiguous reusable match for immediate insertion.
+ */
 function chooseAutomaticSource(
     matches: ExistingSource[],
 ): ExistingSource | null {
@@ -2603,7 +2997,12 @@ function chooseAutomaticSource(
     return named ?? matches[0] ?? null;
 }
 
-/** Opens one listed existing citation as a cloned editable draft. */
+/**
+ * Opens one listed existing citation as a cloned editable draft.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ */
 function openExistingSource(
     state: SourceManagerState,
     sourceId: string,
@@ -2627,7 +3026,13 @@ function openExistingSource(
     scheduleVisibleTextAreaAutosize();
 }
 
-/** Gets one existing source by its stable list identifier. */
+/**
+ * Gets one existing source by its stable list identifier.
+ *
+ * @param state - Mutable operation state.
+ * @param sourceId - Source id value.
+ * @returns Operation result.
+ */
 function findExistingSourceById(
     state: SourceManagerState,
     sourceId: string,
@@ -2639,7 +3044,12 @@ function findExistingSourceById(
     );
 }
 
-/** Fetches Citoid and archive data for a new source. */
+/**
+ * Fetches Citoid and archive data for a new source.
+ *
+ * @param context - Context value.
+ * @param parsed - Parsed value.
+ */
 async function loadNewSourceDraft(
     context: SourceManagerActionContext,
     parsed: ParsedSourceInput,
@@ -2672,7 +3082,13 @@ async function loadNewSourceDraft(
     }
 }
 
-/** Opens a source draft without replacing the source-list view. */
+/**
+ * Opens a source draft without replacing the source-list view.
+ *
+ * @param state - Mutable operation state.
+ * @param draft - Source draft to process.
+ * @param preserveWarning - Preserve warning value.
+ */
 function openDraft(
     state: SourceManagerState,
     draft: SourceDraft,
@@ -2692,7 +3108,12 @@ function openDraft(
     scheduleVisibleTextAreaAutosize();
 }
 
-/** Re-reads source definitions and filters after an in-dialog save. */
+/**
+ * Re-reads source definitions and filters after an in-dialog save.
+ *
+ * @param editor - Editor value.
+ * @param state - Mutable operation state.
+ */
 function refreshExistingSources(
     editor: editBox.EditBox,
     state: SourceManagerState,
@@ -2723,7 +3144,13 @@ function retainExistingSectionPath(
     return retained;
 }
 
-/** Inserts a reuse or anonymous full ref at the active selection. */
+/**
+ * Inserts a reuse or anonymous full ref at the active selection.
+ *
+ * @param editor - Editor value.
+ * @param source - Source text.
+ * @param style - Style value.
+ */
 function insertExistingSource(
     editor: editBox.EditBox,
     source: ExistingSource,
@@ -2733,7 +3160,13 @@ function insertExistingSource(
     editor.replaceSelection(buildExistingSourceReference(source, compact));
 }
 
-/** Inserts a newly built full reference at the active selection. */
+/**
+ * Inserts a newly built full reference at the active selection.
+ *
+ * @param editor - Editor value.
+ * @param draft - Source draft to process.
+ * @param layout - Citation layout.
+ */
 function insertNewSource(
     editor: editBox.EditBox,
     draft: SourceDraft,
@@ -2743,7 +3176,13 @@ function insertNewSource(
     editor.replaceSelection(`<ref>${citation}</ref>`);
 }
 
-/** Updates one citation while preserving its current layout. */
+/**
+ * Updates one citation while preserving its current layout.
+ *
+ * @param editor - Editor value.
+ * @param state - Mutable operation state.
+ * @param draft - Source draft to process.
+ */
 function updateExistingSource(
     editor: editBox.EditBox,
     state: SourceManagerState,
@@ -2759,7 +3198,11 @@ function updateExistingSource(
     editor.write(replaced);
 }
 
-/** Closes the modal before restoring editor focus. */
+/**
+ * Closes the modal before restoring editor focus.
+ *
+ * @param context - Context value.
+ */
 function finishSourceManager(context: SourceManagerActionContext): void {
     context.close();
     queueMicrotask(function focusEditor(): void {
@@ -2767,7 +3210,11 @@ function finishSourceManager(context: SourceManagerActionContext): void {
     });
 }
 
-/** Creates a user-addable empty parameter row. */
+/**
+ * Creates a user-addable empty parameter row.
+ *
+ * @returns Created user-addable empty parameter row.
+ */
 function createBlankDraftRow(): SourceDraftRow {
     return {
         alias: "",
@@ -2778,15 +3225,26 @@ function createBlankDraftRow(): SourceDraftRow {
     };
 }
 
-/** Clones a draft without mutating the source list. */
+/**
+ * Clones a draft without mutating the source list.
+ *
+ * @param draft - Source draft to process.
+ * @returns Operation result.
+ */
 function cloneDraft(draft: SourceDraft): SourceDraft {
     return {
+        normalizationRequested: draft.normalizationRequested,
         rows: draft.rows.map((row) => ({ ...row })),
         template: draft.template,
     };
 }
 
-/** Converts a rejected value into readable UI text. */
+/**
+ * Converts a rejected value into readable UI text.
+ *
+ * @param error - Error value to inspect.
+ * @returns Converted rejected value into readable UI text.
+ */
 function formatError(error: unknown): string {
     if (error instanceof StaleSourceError) {
         return msg("errors.sourceChanged");
@@ -2801,7 +3259,14 @@ function formatError(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-/** Formats a plural message for the active interface locale. */
+/**
+ * Formats a plural message for the active interface locale.
+ *
+ * @param count - Count value.
+ * @param one - One value.
+ * @param many - Many value.
+ * @returns Formatted plural message for the active interface locale.
+ */
 function formatPluralMessage(
     count: number,
     one: MessageId,

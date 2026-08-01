@@ -41,6 +41,9 @@ export interface ResourceLoaderRequire {
 
 /**
  * Registers the Codex components used by the assessment dialog.
+ *
+ * @param app - App value.
+ * @param Codex - Codex value.
  */
 export function registerPageAssessorComponents(
     app: VueApp,

@@ -24,7 +24,7 @@ import {
     buildReferenceReuseTag,
     nameCitationReferences,
 } from "#gadget/domain/reference-wikitext.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { trimValue } = wikitext;
 
 export {

@@ -12,7 +12,6 @@ import type { CitationDialogBundle } from "./dialog-bundle.ts";
 
 type MainDialogStateKey =
     | "activeLookupTab"
-    | "autoScriptTitle"
     | "basedOnSourceId"
     | "basedOnSourceOptions"
     | "citationLayout"
@@ -26,6 +25,7 @@ type MainDialogStateKey =
     | "manualTemplate"
     | "open"
     | "referenceStyle"
+    | "scriptTitleMode"
     | "sectionFilterLabel"
     | "sourceInput"
     | "sourceSectionSelectors"
@@ -62,6 +62,7 @@ export interface MainDialogActions {
     ): void;
     setBlockCitations(enabled: boolean): void;
     setCompactReferences(enabled: boolean): void;
+    setScriptTitleMode(value: unknown): void;
 }
 
 /** Bindings exposed to the build-injected main dialog template. */

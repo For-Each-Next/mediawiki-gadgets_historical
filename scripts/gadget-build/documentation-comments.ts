@@ -49,7 +49,12 @@ export function assertNoDocumentationMarker(
     }
 }
 
-/** Loads one TypeScript module with its real JSDoc comments marked. */
+/**
+ * Loads one TypeScript module with its real JSDoc comments marked.
+ *
+ * @param args - Args value.
+ * @returns TypeScript module with its real JSDoc comments marked.
+ */
 async function loadDocumentedTypeScript(
     args: OnLoadArgs,
 ): Promise<OnLoadResult> {
@@ -62,7 +67,13 @@ async function loadDocumentedTypeScript(
     };
 }
 
-/** Marks syntax-recognized leading JSDoc comments in one module. */
+/**
+ * Marks syntax-recognized leading JSDoc comments in one module.
+ *
+ * @param path - File path.
+ * @param source - Source text.
+ * @returns Resulting text.
+ */
 function markDocumentationComments(path: string, source: string): string {
     assertNoDocumentationMarker(path, source);
     const sourceFile = ts.createSourceFile(
@@ -77,7 +88,13 @@ function markDocumentationComments(path: string, source: string): string {
     return insertSentinels(source, positions);
 }
 
-/** Collects leading JSDoc positions from a TypeScript tree. */
+/**
+ * Collects leading JSDoc positions from a TypeScript tree.
+ *
+ * @param node - Syntax or DOM node.
+ * @param source - Source text.
+ * @param positions - Positions value.
+ */
 function collectDocumentationPositions(
     node: ts.Node,
     source: string,
@@ -97,7 +114,13 @@ function collectDocumentationPositions(
     });
 }
 
-/** Inserts preservation markers from the end to keep offsets stable. */
+/**
+ * Inserts preservation markers from the end to keep offsets stable.
+ *
+ * @param source - Source text.
+ * @param positions - Positions value.
+ * @returns Resulting text.
+ */
 function insertSentinels(source: string, positions: Set<number>): string {
     const descending = [...positions].sort((left, right) => right - left);
     let result = source;

@@ -40,7 +40,7 @@ import type {
 } from "#gadget/domain/models.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import { getErrorMessage, toError } from "#gadget/support/errors.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 const { trimValue } = wikitext;
 
 const CITATION_PREFETCH_DELAY = 800;

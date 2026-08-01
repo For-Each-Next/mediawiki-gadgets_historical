@@ -16,7 +16,11 @@ export function installCitationFormatterStyles(): void {
     installed = true;
 }
 
-/** Returns the stylesheet injected by the gadget build. */
+/**
+ * Returns the stylesheet injected by the gadget build.
+ *
+ * @returns The stylesheet injected by the gadget build.
+ */
 function getBundledStyles(): string {
     const sharedStyles =
         typeof __CITATION_FORMATTER_STYLES__ === "undefined"

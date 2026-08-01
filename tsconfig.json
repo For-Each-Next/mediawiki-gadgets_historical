@@ -15,12 +15,14 @@
         "types": ["node", "types-mediawiki"],
         "paths": {
             "#shared": ["./src/shared/index.ts"],
-            "#shared/citoid": ["./src/shared/citoid.ts"],
+            "#shared/citation": ["./src/shared/citation/index.ts"],
+            "#shared/citation/short-footnotes": [
+                "./src/shared/citation/short-footnotes.ts"
+            ],
             "#shared/edit-box": ["./src/shared/edit-box.ts"],
             "#shared/html": ["./src/shared/html.ts"],
             "#shared/i18n": ["./src/shared/i18n.ts"],
-            "#shared/language-code": ["./src/shared/language-code.ts"],
-            "#shared/wikitext": ["./src/shared/wikitext.ts"]
+            "#shared/wikitext": ["./src/shared/wikitext/index.ts"]
         }
     },
     "include": [
@@ -32,6 +34,7 @@
     "references": [
         { "path": "./config/vue/tsconfig.citation-formatter.json" },
         { "path": "./config/vue/tsconfig.vg-page-assessor.json" },
-        { "path": "./config/vue/tsconfig.vg-stub-creator.json" }
+        { "path": "./config/vue/tsconfig.vg-stub-creator.json" },
+        { "path": "./config/vue/tsconfig.wiked-lite.json" }
     ]
 }

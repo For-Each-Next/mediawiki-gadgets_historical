@@ -18,7 +18,7 @@ import {
 import { sortCitationParams } from "#gadget/domain/citations/index.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import * as reviewLinkSession from "#gadget/ui/form/review-link-session.ts";
-import * as wikitext from "#shared/wikitext";
+import { wikitext } from "#shared/citation";
 
 export {
     buildGoogleSiteSearchUrl,

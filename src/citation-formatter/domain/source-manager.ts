@@ -5,10 +5,14 @@
 import {
     canonicalizeCitation,
     cleanValue,
+    findCitationParameterCollisions,
     formatBlockCitation,
     formatInlineCitation,
     getCitationIdentity,
     getCitationNameContributors,
+    getCitationParameterGroupNames,
+    suffixCitationParameterCollisions,
+    type CitationParameterCollision,
 } from "./citation.ts";
 import {
     citationTemplateData as templateData,
@@ -299,28 +303,6 @@ export interface SourceDraftParameterAliasInfo {
 /** Signals that a citation changed after its snapshot was taken. */
 export class StaleSourceError extends Error {
     override name = "StaleSourceError";
-}
-
-/** Describes aliases that resolve to one canonical parameter. */
-export class SourceParameterCollisionError extends Error {
-    override name = "SourceParameterCollisionError";
-    readonly canonicalParameter: string;
-    readonly firstParameter: string;
-    readonly secondParameter: string;
-
-    constructor(
-        firstParameter: string,
-        secondParameter: string,
-        canonicalParameter: string,
-    ) {
-        super(
-            `${firstParameter} and ${secondParameter} both map to ` +
-                `${canonicalParameter}. Remove or rename one parameter.`,
-        );
-        this.canonicalParameter = canonicalParameter;
-        this.firstParameter = firstParameter;
-        this.secondParameter = secondParameter;
-    }
 }
 
 export type SourceDraftCitationNameCell = "alias" | "value";
@@ -893,10 +875,10 @@ export function serializeSourceDraftPreservingNames(
         .filter((row) => metadata == null || hasDraftRowContent(row));
     const params = buildDraftParams(rows, metadata == null);
     const preserveParameterNames = metadata == null;
-    if (!preserveParameterNames) {
-        assertUniqueCanonicalParams(name, params);
-    }
-    const citation = { name, params };
+    const citation =
+        metadata == null
+            ? { name, params }
+            : suffixCitationParameterCollisions({ name, params }, metadata);
     if (preserveParameterNames) {
         return serializeGenericCitation(citation, layout);
     }
@@ -919,6 +901,27 @@ export function serializeSourceDraftForEdit(
     return draft.normalizationRequested === true
         ? serializeSourceDraft(draft, layout)
         : serializeSourceDraftPreservingNames(draft, layout);
+}
+
+/**
+ * Lists populated draft parameters that resolve to an earlier field.
+ *
+ * @param draft - Source draft to inspect.
+ * @returns Collisions in entered parameter order.
+ */
+export function listSourceDraftParameterCollisions(
+    draft: SourceDraft,
+): CitationParameterCollision[] {
+    const name = getDraftTemplateName(draft.template);
+    const metadata = getTemplateMetadata(name);
+    if (metadata == null) {
+        return [];
+    }
+    const rows = draft.rows
+        .filter((row) => row.name.trim() !== "")
+        .filter(hasDraftRowContent);
+    const params = buildDraftParams(rows, false);
+    return findCitationParameterCollisions({ name, params }, metadata);
 }
 
 /**
@@ -1112,7 +1115,6 @@ function buildDraftCitation(draft: SourceDraft): CitationTemplate {
     if (metadata == null) {
         return { name, params };
     }
-    assertUniqueCanonicalParams(name, params);
     return canonicalizeCitation({ name, params }, metadata);
 }
 
@@ -1152,7 +1154,10 @@ export function getSourceDraftCitationNameCells(
             { name, params: [param] },
             metadata,
         );
-        rowByCanonicalName.set(canonical.params[0]?.name ?? param.name, index);
+        const canonicalName = canonical.params[0]?.name ?? param.name;
+        if (!rowByCanonicalName.has(canonicalName)) {
+            rowByCanonicalName.set(canonicalName, index);
+        }
     }
     const citation = canonicalizeCitation({ name, params }, metadata);
     const contributors = getCitationNameContributors(citation);
@@ -1797,24 +1802,59 @@ function seedMainRows(
     entered: SourceDraftRow[],
     template: string,
 ): SourceDraftRow[] {
-    const byName = new Map<string, SourceDraftRow[]>();
-    for (const row of entered) {
-        const name = row.name.toLocaleLowerCase("en-US");
-        const matches = byName.get(name) ?? [];
-        matches.push(row);
-        byName.set(name, matches);
-    }
+    const { byCanonicalName, byName } = indexSourceDraftRows(
+        entered,
+        template,
+    );
     const used = new Set<SourceDraftRow>();
     const profile = SOURCE_FIELD_PROFILES[template] ?? DEFAULT_SOURCE_FIELDS;
     const supported = getSupportedDraftFieldNames(template);
     const mainFields = profile.filter((name) => supported.has(name));
     const main = mainFields.flatMap(function getMainRows(name) {
-        return seedMainField(name, byName, used);
+        return seedMainField(name, byName, byCanonicalName, used);
     });
     const extras = entered.filter(function isRemainingRow(row) {
         return !used.has(row);
     });
     return sortSourceDraftRows([...main, ...extras], template);
+}
+
+function indexSourceDraftRows(
+    entered: SourceDraftRow[],
+    template: string,
+): {
+    byCanonicalName: Map<string, SourceDraftRow[]>;
+    byName: Map<string, SourceDraftRow[]>;
+} {
+    const byName = new Map<string, SourceDraftRow[]>();
+    const byCanonicalName = new Map<string, SourceDraftRow[]>();
+    const metadata = getTemplateMetadata(template);
+    const groupNames =
+        metadata == null
+            ? entered.map((row) => row.name)
+            : getCitationParameterGroupNames(
+                  {
+                      name: template,
+                      params: entered.map((row) => ({
+                          name: row.name,
+                          value: "__draft_seed__",
+                      })),
+                  },
+                  metadata,
+              );
+    for (const [index, row] of entered.entries()) {
+        const name = row.name.toLocaleLowerCase("en-US");
+        const matches = byName.get(name) ?? [];
+        matches.push(row);
+        byName.set(name, matches);
+        const canonicalName = (
+            groupNames[index] ?? row.name
+        ).toLocaleLowerCase("en-US");
+        const canonicalMatches = byCanonicalName.get(canonicalName) ?? [];
+        canonicalMatches.push(row);
+        byCanonicalName.set(canonicalName, canonicalMatches);
+    }
+    return { byCanonicalName, byName };
 }
 
 /**
@@ -1878,15 +1918,18 @@ function sortSourceDraftRows(
     const order = new Map(
         metadata.paramOrder.map((name, index) => [name, index] as const),
     );
+    const groupNames = getCitationParameterGroupNames(
+        {
+            name: template,
+            params: rows.map((row) => ({
+                name: row.name,
+                value: "__draft_order__",
+            })),
+        },
+        metadata,
+    );
     const ranked = rows.map(function addRank(row, index) {
-        const canonical = canonicalizeCitation(
-            {
-                name: template,
-                params: [{ name: row.name, value: "__draft_order__" }],
-            },
-            metadata,
-        );
-        const name = canonical.params[0]?.name ?? row.name;
+        const name = groupNames[index] ?? row.name;
         const authorOrder = getDraftAuthorParamOrder(name);
         const standardOrder = order.get(name);
         const relatedTitleOrder = getRelatedTitleParamOrder(name, order);
@@ -1962,18 +2005,20 @@ function getSupportedDraftFieldNames(template: string): Set<string> {
  *
  * @param name - Name to process.
  * @param byName - By name value.
+ * @param byCanonicalName - Rows grouped by canonical parameter name.
  * @param used - Used value.
  * @returns Resulting values.
  */
 function seedMainField(
     name: string,
     byName: Map<string, SourceDraftRow[]>,
+    byCanonicalName: Map<string, SourceDraftRow[]>,
     used: Set<SourceDraftRow>,
 ): SourceDraftRow[] {
     const entered =
         name === "author"
             ? takeFirstAuthorRows(byName)
-            : takeDraftRows(byName, name, 1);
+            : takeDraftRows(byCanonicalName, name, 1);
     if (entered.length === 0) {
         return [buildDraftRow(name, "", true)];
     }
@@ -2058,39 +2103,6 @@ function migrateSourceContainer(
         return;
     }
     populated[0].name = target;
-}
-
-/**
- * Prevents alias-equivalent populated rows from silently overwriting.
- *
- * @param template - Template wikitext.
- * @param params - Params value.
- */
-function assertUniqueCanonicalParams(
-    template: string,
-    params: CitationParam[],
-): void {
-    const metadata = getTemplateMetadata(template);
-    if (metadata == null) {
-        return;
-    }
-    const byName = new Map<string, string>();
-    for (const param of params) {
-        const canonical = canonicalizeCitation(
-            { name: template, params: [param] },
-            metadata,
-        );
-        const name = canonical.params[0]?.name ?? param.name;
-        const existing = byName.get(name);
-        if (existing != null) {
-            throw new SourceParameterCollisionError(
-                existing,
-                param.name,
-                name,
-            );
-        }
-        byName.set(name, param.name);
-    }
 }
 
 function buildDraftRow(

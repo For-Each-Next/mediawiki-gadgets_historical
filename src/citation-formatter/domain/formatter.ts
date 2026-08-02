@@ -14,6 +14,7 @@ import {
     formatCitationTemplate,
     getCitationIdentity,
     type CitationIdentity,
+    type CitationParameterCollision,
 } from "./citation.ts";
 import { formatGenericCitationTemplate } from "./generic-citation.ts";
 import {
@@ -84,6 +85,7 @@ interface ReferenceDefinition {
     identity?: CitationIdentity;
     oldName: string;
     order: number;
+    parameterCollisions: number;
     section: string;
     sectionOrder: number;
     tag: RefTag;
@@ -114,6 +116,7 @@ interface ReferenceDefinitionOptions {
 interface FormattedCitation {
     citation: CitationTemplate;
     identity?: CitationIdentity;
+    parameterCollisions?: CitationParameterCollision[];
     text: string;
 }
 
@@ -128,6 +131,7 @@ interface ReferenceCitationCalls {
 export interface CitationFormatResult {
     citationsFormatted: number;
     individualReferencesFound: number;
+    parameterCollisions: number;
     referenceCallsFound: number;
     referenceTagsRenamed: number;
     referencesNotFormatted: number;
@@ -295,11 +299,15 @@ function summarizeFormatting(
         ) {
             return !isTagInContainers(definition.tag, containers);
         };
-    const result: CitationFormatResult = {
+    return {
         citationsFormatted: individual.filter(
             (definition) => definition.formattingStatus === "formatted",
         ).length,
         individualReferencesFound: individual.length,
+        parameterCollisions: individual.reduce(
+            (total, definition) => total + definition.parameterCollisions,
+            0,
+        ),
         referenceCallsFound: tags.filter(isTagOutsideContainers).length,
         referenceTagsRenamed: countRenamedReferenceTags(
             tags,
@@ -314,7 +322,6 @@ function summarizeFormatting(
         rTemplatesFound,
         text,
     };
-    return result;
 }
 
 /**
@@ -486,20 +493,50 @@ function createReferenceDefinition({
         citationCalls.calls,
         citations,
     );
+    const parameterCollisions = countCitationParameterCollisions(citations);
     if (!citationCalls.wholeBody) {
-        return buildIdentityFreeDefinition(plainOptions, content, "formatted");
+        return buildIdentityFreeDefinition(
+            plainOptions,
+            content,
+            "formatted",
+            parameterCollisions,
+        );
     }
     const allHaveIdentity = citations.every(
         (citation) => citation.identity != null,
     );
     if (citations.length > 1 && allHaveIdentity) {
-        return buildBundledDefinition(plainOptions, citations);
+        return buildBundledDefinition(
+            plainOptions,
+            citations,
+            parameterCollisions,
+        );
     }
     const identity = citations[0].identity;
     if (citations.length > 1 || identity == null) {
-        return buildIdentityFreeDefinition(plainOptions, content, "formatted");
+        return buildIdentityFreeDefinition(
+            plainOptions,
+            content,
+            "formatted",
+            parameterCollisions,
+        );
     }
-    return buildFormattedDefinition(plainOptions, content, identity);
+    return buildFormattedDefinition(
+        plainOptions,
+        content,
+        identity,
+        parameterCollisions,
+    );
+}
+
+function countCitationParameterCollisions(
+    citations: FormattedCitation[],
+): number {
+    return citations.reduce(
+        (total, citation) =>
+            total + (citation.parameterCollisions?.length ?? 0),
+        0,
+    );
 }
 
 /**
@@ -662,6 +699,7 @@ function normalizeShortCitationAnchor(value: string): string {
 function buildBundledDefinition(
     options: PlainDefinitionOptions,
     citations: FormattedCitation[],
+    parameterCollisions: number,
 ): ReferenceDefinition {
     const identities = getBundledIdentities(citations);
     const formatIdentityName = function formatIdentityName(
@@ -679,7 +717,12 @@ function buildBundledDefinition(
         year: identities.map((item) => item.year).join("; "),
     };
     const content = formatCitationBundle(citations);
-    const result = buildFormattedDefinition(options, content, identity);
+    const result = buildFormattedDefinition(
+        options,
+        content,
+        identity,
+        parameterCollisions,
+    );
     return result;
 }
 
@@ -758,6 +801,7 @@ function buildFormattedDefinition(
     options: PlainDefinitionOptions,
     content: string,
     identity: CitationIdentity,
+    parameterCollisions = 0,
 ): ReferenceDefinition {
     const result: ReferenceDefinition = {
         finalName: identity.baseName,
@@ -767,6 +811,7 @@ function buildFormattedDefinition(
         identity,
         oldName: options.oldName,
         order: options.order,
+        parameterCollisions,
         section: "",
         sectionOrder: Number.MAX_SAFE_INTEGER,
         tag: options.tag,
@@ -787,6 +832,7 @@ function buildIdentityFreeDefinition(
     options: PlainDefinitionOptions,
     content: string,
     formattingStatus: ReferenceFormattingStatus,
+    parameterCollisions = 0,
 ): ReferenceDefinition {
     const { group, oldName, order, tag, trailingText } = options;
     const result: ReferenceDefinition = {
@@ -796,6 +842,7 @@ function buildIdentityFreeDefinition(
         group,
         oldName,
         order,
+        parameterCollisions,
         section: "",
         sectionOrder: Number.MAX_SAFE_INTEGER,
         tag,

@@ -2,6 +2,21 @@
 
 ## Until 0.6
 
+### 0.5.1-post.22 (2026-08-02 12:12 UTC)
+
+Overview: Citation Formatter preserves repeated CS1 parameters as deliberate
+errors and warns without blocking article formatting or source saves.
+
+- Kept the first canonical value active and placed later repeated or
+  alias-equivalent values beside it with deliberate `-a`, `-b`, and later
+  invalid suffixes.
+- Made generated repeat markers stable across formatting passes without
+  allowing a repeated creator or link field to become a valid numbered field.
+- Replaced duplicate-parameter failures with localized notices, while keeping
+  expected CS1 unknown-parameter reports non-blocking and other issues gated.
+- Covered literal and alias repeats, occupied markers, article formatting,
+  source sorting and saving, live CS1 review, and round-trip stability.
+
 ### 0.5.1-post.20 (2026-08-02 07:51 UTC)
 
 Overview: Shared source-bound tag and template queries now filter by entered

@@ -125,6 +125,169 @@ test("normalizes English language names while formatting citations", () => {
     );
 });
 
+test("suffixes repeated parameters beside the first value", () => {
+    const entered =
+        "{{cite journal|journal=J1|issue=48|journal=J2|title=T|" +
+        "journal=J3|doi=D}}";
+    const first = formatCitationTemplate(
+        entered,
+        generatedTemplateData["cite journal"],
+        "inline",
+    );
+
+    assert.equal(
+        first.text,
+        "{{Cite journal | title = T | journal = J1 | journal-a = J2 | " +
+            "journal-b = J3 | issue = 48 | doi = D}}",
+    );
+    assert.deepEqual(
+        first.parameterCollisions.map((collision) => ({
+            canonical: collision.canonicalParameter,
+            renamed: collision.renamedParameter,
+        })),
+        [
+            { canonical: "journal", renamed: "journal-a" },
+            { canonical: "journal", renamed: "journal-b" },
+        ],
+    );
+    const second = formatCitationTemplate(
+        first.text,
+        generatedTemplateData["cite journal"],
+        "inline",
+    );
+    assert.equal(second.text, first.text);
+});
+
+test("keeps a repeated creator field invalid and stable", () => {
+    const first = formatCitationTemplate(
+        "{{cite journal|last=First|last=Repeat|title=T}}",
+        generatedTemplateData["cite journal"],
+        "inline",
+    );
+
+    assert.match(first.text, /\| author = First \| author-a = Repeat/u);
+    assert.equal(first.parameterCollisions[0]?.renamedParameter, "author-a");
+    const second = formatCitationTemplate(
+        first.text,
+        generatedTemplateData["cite journal"],
+        "inline",
+    );
+    assert.equal(second.text, first.text);
+});
+
+test("does not turn repeated numbered creators into later slots", () => {
+    const numbered = formatCitationTemplate(
+        "{{cite journal|last2=First|last2=Repeat|title=T}}",
+        generatedTemplateData["cite journal"],
+        "inline",
+    );
+    assert.match(numbered.text, /\| author2 = First \| author2-a = Repeat/u);
+    assert.doesNotMatch(numbered.text, /\| author22\s*=/u);
+    assert.equal(
+        formatCitationTemplate(
+            numbered.text,
+            generatedTemplateData["cite journal"],
+            "inline",
+        ).text,
+        numbered.text,
+    );
+});
+
+test("does not turn a repeated creator link into a later slot", () => {
+    const link = formatCitationTemplate(
+        "{{cite journal|editor-link=First|editor-link=Repeat|title=T}}",
+        generatedTemplateData["cite journal"],
+        "inline",
+    );
+    assert.match(
+        link.text,
+        /\| editor-link = First \| editor-link-a = Repeat/u,
+    );
+    assert.doesNotMatch(link.text, /\| editor-link2\s*=/u);
+    assert.equal(
+        formatCitationTemplate(
+            link.text,
+            generatedTemplateData["cite journal"],
+            "inline",
+        ).text,
+        link.text,
+    );
+});
+
+test("stabilizes repeat markers after creator output aliases", () => {
+    const speech = formatCitationTemplate(
+        "{{cite speech|last=First|last=Repeat|event=Talk}}",
+        generatedTemplateData["cite speech"],
+        "inline",
+    );
+    assert.match(speech.text, /\| author = First \| author-a = Repeat/u);
+    assert.equal(
+        formatCitationTemplate(
+            speech.text,
+            generatedTemplateData["cite speech"],
+            "inline",
+        ).text,
+        speech.text,
+    );
+});
+
+test("suffixes creator groups that share a final output name", () => {
+    const first = formatCitationTemplate(
+        "{{cite arxiv|author=A|last=B|last=C|title=T}}",
+        generatedTemplateData["cite arxiv"],
+        "inline",
+    );
+
+    assert.equal(
+        first.text,
+        "{{Cite arxiv | author = A | author-a = B | author-b = C | " +
+            "title = T}}",
+    );
+    assert.deepEqual(
+        first.parameterCollisions.map((collision) => ({
+            first: collision.firstParameter,
+            renamed: collision.renamedParameter,
+            second: collision.secondParameter,
+        })),
+        [
+            { first: "author", renamed: "author-a", second: "last" },
+            { first: "author", renamed: "author-b", second: "last" },
+        ],
+    );
+    assert.equal(
+        formatCitationTemplate(
+            first.text,
+            generatedTemplateData["cite arxiv"],
+            "inline",
+        ).text,
+        first.text,
+    );
+});
+
+test("keeps canonical aliases connected when both names are listed", () => {
+    const first = formatCitationTemplate(
+        "{{Citation|editor-last2=A|editor2-last=B|title=T}}",
+        generatedTemplateData.citation,
+        "inline",
+    );
+
+    assert.match(first.text, /\| editor-last2 = A \| editor-last2-a = B/u);
+    assert.equal(first.parameterCollisions.length, 1);
+    assert.equal(first.parameterCollisions[0]?.firstParameter, "editor-last2");
+    assert.equal(
+        first.parameterCollisions[0]?.secondParameter,
+        "editor2-last",
+    );
+    assert.equal(
+        formatCitationTemplate(
+            first.text,
+            generatedTemplateData.citation,
+            "inline",
+        ).text,
+        first.text,
+    );
+});
+
 const testCanonicalTemplateCasing = () => {
     const canonicalNames = [
         "Citation",

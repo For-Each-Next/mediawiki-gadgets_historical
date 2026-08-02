@@ -73,6 +73,53 @@ const COMMON_PARAMETER_ALIASES: Record<string, string> = {
 };
 
 /**
+ * Gets the sole parameter from an expected CS1 unknown-and-ignored
+ * message.
+ *
+ * @param message - Normalized CS1 diagnostic text.
+ * @returns Lowercase parameter name, or null for any other diagnostic.
+ */
+export function getIgnoredUnknownCs1ParameterName(
+    message: string,
+): string | null {
+    const parameters = [...message.matchAll(PARAMETER_PATTERN)];
+    if (parameters.length !== 1) {
+        return null;
+    }
+    const english =
+        /\bunknown\s+parameter\b/iu.test(message) &&
+        /\bignored\b/iu.test(message);
+    const chinese =
+        /未知(?:参数|參數)/u.test(message) && /已忽略/u.test(message);
+    if (!english && !chinese) {
+        return null;
+    }
+    return normalizeName(parameters[0][1]);
+}
+
+/**
+ * Checks for a generic CS1 unsupported-parameter tracking category.
+ *
+ * @param message - Normalized CS1 category title.
+ * @returns Whether the title tracks unsupported parameters.
+ */
+export function isUnsupportedParameterCs1Category(message: string): boolean {
+    if (
+        /^CS1 errors?:\s*(?:unknown|unsupported) parameters?$/iu.test(message)
+    ) {
+        return true;
+    }
+    const chineseCategory = /^引文格式1(?:错误|錯誤)[：:](.*)$/u.exec(message);
+    if (chineseCategory == null) {
+        return false;
+    }
+    const detail = chineseCategory[1];
+    const mentionsParameter = /参数|參數/u.test(detail);
+    const unsupported = /未知|不支持|不支援|未支援|不受支持/u.test(detail);
+    return mentionsParameter && unsupported;
+}
+
+/**
  * Serializes only draft content that can affect live CS1 validation.
  *
  * Reference-name aliases and formatter directives are HTML comments, so
@@ -407,8 +454,9 @@ function getMessageCell(message: string): keyof SourceDraftRowErrors {
     const ignoredParameter =
         /(?:unknown|unsupported|deprecated) parameter|\bignored\b/iu;
     const ignoredChineseParameter =
-        /未知参数|已忽略.*参数|参数.*(?:不支持|已弃用)/u;
-    return ignoredParameter.test(message) ||
+        /未知(?:参数|參數)|已忽略.*(?:参数|參數)|(?:参数|參數).*(?:不支持|不支援|已弃用|已棄用)/u;
+    return getIgnoredUnknownCs1ParameterName(message) != null ||
+        ignoredParameter.test(message) ||
         ignoredChineseParameter.test(message)
         ? "name"
         : "value";

@@ -132,6 +132,7 @@
     "draft.emptyCitation": "Enter at least one citation field.",
     "draft.missingParameterName": "Enter a name for each populated parameter.",
     "draft.aliasNeedsValue": "Enter the original {parameter} text before setting its reference name.",
+    "draft.parameterCollisionNotice": "Repeated or equivalent parameters: {parameters}. The first value stays active; later values receive -a, -b, … suffixes so CS1 flags them.",
     "draft.previewUnavailable": "Citation preview could not be loaded: {error}",
     "draft.noArchiveSnapshot": "No archive snapshot was found.",
     "feedback.citationsFormattedOne": "Formatted {count} citation",
@@ -142,6 +143,9 @@
     "feedback.refTagsRenamedMany": "renamed {count} <ref> tags",
     "feedback.formatSummary": "{formatted}; {skipped}; {renamed}.",
     "feedback.formatSummaryNoSkipped": "{formatted}; {renamed}.",
+    "feedback.parameterCollisionsOne": "marked {count} repeated parameter with an invalid suffix for CS1 review",
+    "feedback.parameterCollisionsMany": "marked {count} repeated parameters with invalid suffixes for CS1 review",
+    "feedback.formatSummaryWithCollisions": "{summary} Also {collisions}.",
     "feedback.formatNoChanges": "No citation formatting changes were made.",
     "feedback.parametersSorted": "Citation parameters sorted.",
     "feedback.accessDateFilled": "Access date filled.",
@@ -242,6 +246,5 @@
     "validation.dependency": "{source} requires {targets}.",
     "validation.dependencyWithParameter": "{source} requires {targets}. Add the {parameter} parameter.",
     "validation.or": " or ",
-    "errors.sourceChanged": "The source changed after it was opened. Open it again to continue.",
-    "errors.parameterCollision": "{first} and {second} both map to {parameter}. Remove or rename one parameter."
+    "errors.sourceChanged": "The source changed after it was opened. Open it again to continue."
 }

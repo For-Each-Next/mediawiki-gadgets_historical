@@ -19,6 +19,7 @@ import type {
 import {
     formatBlockCitation,
     formatInlineCitation,
+    getCitationOutputParams,
 } from "./post-formatter.ts";
 import { applyPreFormatHandlers } from "./pre-formatter.ts";
 import {
@@ -203,8 +204,16 @@ export interface CitationIdentity {
     year: string;
 }
 
-interface CitationParamMetadata extends CitationParam {
-    order: number;
+export interface CitationParameterCollision {
+    canonicalParameter: string;
+    firstParameter: string;
+    renamedParameter: string;
+    secondParameter: string;
+}
+
+interface ResolvedCitationParam extends CitationParam {
+    enteredName: string;
+    sourceIndex: number;
 }
 
 interface CitationAuthorSelection {
@@ -229,7 +238,11 @@ export function formatCitationTemplate(
     raw: string,
     metadata: CitationTemplateData,
     layout: CitationLayout = "block",
-): { citation: CitationTemplate; text: string } {
+): {
+    citation: CitationTemplate;
+    parameterCollisions: CitationParameterCollision[];
+    text: string;
+} {
     const parsed = wikitext(raw).templates.parser();
     const name = getCanonicalTemplateName(parsed.name);
     const params = parsed.params.map(function mapParam(param) {
@@ -239,12 +252,17 @@ export function formatCitationTemplate(
         };
         return result;
     });
-    const citation = canonicalizeCitation({ name, params }, metadata);
+    const entered = { name, params };
+    const parameterCollisions = findCitationParameterCollisions(
+        entered,
+        metadata,
+    );
+    const citation = canonicalizeCitation(entered, metadata);
     const text =
         layout === "inline"
             ? formatInlineCitation(citation)
             : formatBlockCitation(citation);
-    return { citation, text };
+    return { citation, parameterCollisions, text };
 }
 
 /**
@@ -258,15 +276,135 @@ export function canonicalizeCitation(
     citation: CitationTemplate,
     metadata: CitationTemplateData,
 ): CitationTemplate {
-    const canonicalNames = buildCanonicalNameMap(metadata);
-    const deduplicated = new Map<string, CitationParam>();
+    const resolved = resolveCitationParams(citation, metadata);
+    const sorted = sortCitationParams(citation.name, resolved, metadata);
+    const suffixed = suffixRepeatedCitationParams(
+        citation.name,
+        sorted,
+        metadata,
+    );
+    const params = suffixed.map(function toCitationParam(param) {
+        return { name: param.name, value: param.value };
+    });
+    return { name: citation.name, params };
+}
 
-    for (const param of applyPreFormatHandlers(citation.params)) {
-        const enteredName = param.name.trim();
-        const lookupName = enteredName.toLocaleLowerCase("en-US");
-        const name = canonicalNames.get(lookupName) || enteredName;
-        let value = param.value.trim();
-        value = normalizeNameOverrideSpacing(value);
+/**
+ * Finds names that resolve to an already populated canonical field.
+ *
+ * @param citation - Parsed citation.
+ * @param metadata - TemplateData metadata.
+ * @returns Collisions in entered parameter order.
+ */
+export function findCitationParameterCollisions(
+    citation: CitationTemplate,
+    metadata: CitationTemplateData,
+): CitationParameterCollision[] {
+    const resolved = resolveCitationParams(citation, metadata);
+    const suffixed = suffixRepeatedCitationParams(
+        citation.name,
+        resolved,
+        metadata,
+    );
+    const firstByName = new Map<string, string>();
+    const collisions: CitationParameterCollision[] = [];
+    for (const [index, param] of resolved.entries()) {
+        const first = firstByName.get(param.name);
+        if (first == null) {
+            firstByName.set(param.name, param.enteredName);
+            continue;
+        }
+        collisions.push({
+            canonicalParameter: param.name,
+            firstParameter: first,
+            renamedParameter: suffixed[index]?.name ?? param.name,
+            secondParameter: param.enteredName,
+        });
+    }
+    return collisions;
+}
+
+/**
+ * Resolves each entered parameter to its canonical sorting group.
+ *
+ * Repeat markers such as `journal-a` stay in the `journal` group when
+ * the base parameter is present. This keeps rows stable across passes.
+ *
+ * @param citation - Parsed citation.
+ * @param metadata - TemplateData metadata.
+ * @returns Canonical group names in entered parameter order.
+ */
+export function getCitationParameterGroupNames(
+    citation: CitationTemplate,
+    metadata: CitationTemplateData,
+): string[] {
+    return resolveCitationParams(citation, metadata).map(
+        (param) => param.name,
+    );
+}
+
+/**
+ * Suffixes colliding groups while retaining other spelling, values,
+ * and order.
+ *
+ * @param citation - Parsed citation.
+ * @param metadata - TemplateData metadata.
+ * @returns Citation with colliding groups made explicit.
+ */
+export function suffixCitationParameterCollisions(
+    citation: CitationTemplate,
+    metadata: CitationTemplateData,
+): CitationTemplate {
+    const resolved = resolveCitationParams(citation, metadata);
+    const counts = countCitationParamNames(resolved);
+    if (![...counts.values()].some((count) => count > 1)) {
+        return citation;
+    }
+    const collidingIndexes = new Set(
+        resolved
+            .filter((param) => (counts.get(param.name) ?? 0) > 1)
+            .map((param) => param.sourceIndex),
+    );
+    const groups = Map.groupBy(resolved, (param) => param.name);
+    const grouped = [...groups.values()].flat();
+    const suffixed = suffixRepeatedCitationParams(
+        citation.name,
+        grouped,
+        metadata,
+    );
+    const params = suffixed.map(function restoreUnchangedParam(param) {
+        if (collidingIndexes.has(param.sourceIndex)) {
+            return { name: param.name, value: param.value };
+        }
+        return citation.params[param.sourceIndex];
+    });
+    return { name: citation.name, params };
+}
+
+function resolveCitationParams(
+    citation: CitationTemplate,
+    metadata: CitationTemplateData,
+): ResolvedCitationParam[] {
+    const canonicalNames = buildCanonicalNameMap(metadata);
+    const migrated = applyPreFormatHandlers(citation.params);
+    const normalNames = migrated.map((param) =>
+        getCanonicalCitationParamName(param.name, canonicalNames),
+    );
+    const presentNames = new Map(
+        normalNames.map(
+            (name) => [name.toLocaleLowerCase("en-US"), name] as const,
+        ),
+    );
+    const resolved = migrated.map(function resolveParam(param, sourceIndex) {
+        const enteredName = citation.params[sourceIndex].name.trim();
+        const normalName = normalNames[sourceIndex];
+        const name = getRepeatedMarkerBase(
+            param.name,
+            normalName,
+            canonicalNames,
+            presentNames,
+        );
+        let value = normalizeNameOverrideSpacing(param.value.trim());
         const isDate =
             DATE_PARAMS.has(name) || metadata.dateParams?.includes(name);
         if (isDate) {
@@ -275,16 +413,194 @@ export function canonicalizeCitation(
         if (name === "language") {
             value = normalizeEnglishLanguageCodes(value);
         }
-        deduplicated.set(name, { name, value });
-    }
-
-    const deduplicatedParams = [...deduplicated.values()];
-    const params = sortCitationParams(
+        return { enteredName, name, sourceIndex, value };
+    });
+    return resolveCitationOutputParamGroups(
         citation.name,
-        deduplicatedParams,
-        metadata,
+        resolved,
+        canonicalNames,
     );
-    return { name: citation.name, params };
+}
+
+function resolveCitationOutputParamGroups(
+    template: string,
+    params: ResolvedCitationParam[],
+    canonicalNames: Map<string, string>,
+): ResolvedCitationParam[] {
+    const firstByName = new Map<string, ResolvedCitationParam>();
+    for (const param of params) {
+        if (!firstByName.has(param.name)) {
+            firstByName.set(param.name, param);
+        }
+    }
+    const representatives = [...firstByName.values()];
+    const output = getCitationOutputParams(
+        {
+            name: template,
+            params: representatives.map((param) => ({
+                name: param.name,
+                value: param.value,
+            })),
+        },
+        true,
+    );
+    const outputGroupByName = new Map<string, string>();
+    for (const [index, param] of representatives.entries()) {
+        const outputName = output[index]?.name ?? param.name;
+        const canonicalOutput =
+            canonicalNames.get(outputName.toLocaleLowerCase("en-US")) ??
+            outputName;
+        outputGroupByName.set(param.name, canonicalOutput);
+    }
+    return params.map(function useOutputGroup(param) {
+        return {
+            ...param,
+            name: outputGroupByName.get(param.name) ?? param.name,
+        };
+    });
+}
+
+function getCanonicalCitationParamName(
+    enteredName: string,
+    canonicalNames: Map<string, string>,
+): string {
+    const trimmed = enteredName.trim();
+    return canonicalNames.get(trimmed.toLocaleLowerCase("en-US")) ?? trimmed;
+}
+
+function getRepeatedMarkerBase(
+    enteredName: string,
+    normalName: string,
+    canonicalNames: Map<string, string>,
+    presentNames: Map<string, string>,
+): string {
+    const lookupName = enteredName.trim().toLocaleLowerCase("en-US");
+    if (canonicalNames.has(lookupName)) {
+        return normalName;
+    }
+    const match = lookupName.match(/^(.*?)-([a-z]+)$/u);
+    if (match == null) {
+        return normalName;
+    }
+    const base = canonicalNames.get(match[1]) ?? match[1];
+    return presentNames.get(base.toLocaleLowerCase("en-US")) ?? normalName;
+}
+
+function countCitationParamNames(
+    params: readonly Pick<CitationParam, "name">[],
+): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const param of params) {
+        counts.set(param.name, (counts.get(param.name) ?? 0) + 1);
+    }
+    return counts;
+}
+
+function suffixRepeatedCitationParams<T extends CitationParam>(
+    template: string,
+    params: T[],
+    metadata: CitationTemplateData,
+): T[] {
+    const counts = new Map<string, number>();
+    const outputBases = getRepeatedCitationParamOutputBases(template, params);
+    const reserved = new Set(
+        [...params.map((param) => param.name), ...outputBases.values()].map(
+            normalizeParamKey,
+        ),
+    );
+    const canonicalNames = buildCanonicalNameMap(metadata);
+    const supported = new Set(
+        [...canonicalNames.keys(), ...canonicalNames.values()].map(
+            normalizeParamKey,
+        ),
+    );
+    const used = new Set<string>();
+    return params.map(function suffixRepeatedParam(param) {
+        const occurrence = (counts.get(param.name) ?? 0) + 1;
+        counts.set(param.name, occurrence);
+        const base = outputBases.get(param.name) ?? param.name;
+        if (occurrence === 1) {
+            used.add(normalizeParamKey(param.name));
+            used.add(normalizeParamKey(base));
+            return param;
+        }
+        const name = getUnusedRepeatMarkerName(
+            base,
+            occurrence,
+            reserved,
+            supported,
+            used,
+        );
+        used.add(normalizeParamKey(name));
+        return { ...param, name };
+    });
+}
+
+function getRepeatedCitationParamOutputBases<T extends CitationParam>(
+    template: string,
+    params: T[],
+): Map<string, string> {
+    const firstByName = new Map<string, T>();
+    for (const param of params) {
+        if (!firstByName.has(param.name)) {
+            firstByName.set(param.name, param);
+        }
+    }
+    const representatives = [...firstByName.values()];
+    const output = getCitationOutputParams(
+        {
+            name: template,
+            params: representatives.map((param) => ({
+                name: param.name,
+                value: param.value,
+            })),
+        },
+        true,
+    );
+    const result = new Map<string, string>();
+    for (const [index, param] of representatives.entries()) {
+        result.set(param.name, output[index]?.name ?? param.name);
+    }
+    return result;
+}
+
+function getUnusedRepeatMarkerName(
+    base: string,
+    occurrence: number,
+    reserved: Set<string>,
+    supported: Set<string>,
+    used: Set<string>,
+): string {
+    let suffix = occurrence - 1;
+    let name = buildRepeatedCitationParamName(base, suffix);
+    while (
+        reserved.has(normalizeParamKey(name)) ||
+        supported.has(normalizeParamKey(name)) ||
+        used.has(normalizeParamKey(name))
+    ) {
+        suffix += 1;
+        name = buildRepeatedCitationParamName(base, suffix);
+    }
+    return name;
+}
+
+function normalizeParamKey(name: string): string {
+    return name.toLocaleLowerCase("en-US");
+}
+
+function buildRepeatedCitationParamName(base: string, suffix: number): string {
+    return `${base}-${getAlphabeticSuffix(suffix)}`;
+}
+
+function getAlphabeticSuffix(index: number): string {
+    let remaining = index;
+    let result = "";
+    while (remaining > 0) {
+        remaining -= 1;
+        result = String.fromCodePoint(97 + (remaining % 26)) + result;
+        remaining = Math.floor(remaining / 26);
+    }
+    return result;
 }
 
 /**
@@ -324,39 +640,54 @@ function formatNameOverrideComment(_match: string, content: string): string {
  * @param metadata - TemplateData metadata.
  * @returns Sorted citation parameters.
  */
-function sortCitationParams(
+function sortCitationParams<T extends CitationParam>(
     template: string,
-    params: CitationParam[],
+    params: T[],
     metadata: CitationTemplateData,
-): CitationParam[] {
+): T[] {
     const orderEntries = metadata.paramOrder.map(
         (name, index) => [name, index] as const,
     );
-    const order = new Map(orderEntries);
+    const templateOrder = new Map(orderEntries);
     let fallbackOrder = CITE_WEB_PARAM_ORDER;
     if (PRINT_CITATION_TEMPLATES.has(normalizeTemplateName(template))) {
         fallbackOrder = CITE_BOOK_PARAM_ORDER;
     }
-    const addSortOrder = function addSortOrder(
-        param: CitationParam,
-    ): CitationParamMetadata {
-        const orderedParam = {
-            ...param,
-            order: getCitationParamSortOrder(
+    const firstIndexByName = getFirstCitationParamIndexes(params);
+    const result = params
+        .map(function addSortOrder(param, index) {
+            const sortOrder = getCitationParamSortOrder(
                 param.name,
-                order,
+                templateOrder,
                 fallbackOrder,
                 metadata.paramOrder.length,
-            ),
-        };
-        return orderedParam;
-    };
-    const result = params
-        .map(addSortOrder)
-        .sort((left, right) => left.order - right.order)
-        .map(function removeOrder(param): CitationParam {
-            return { name: param.name, value: param.value };
-        });
+            );
+            return {
+                groupIndex: firstIndexByName.get(param.name) ?? index,
+                index,
+                order: sortOrder,
+                param,
+            };
+        })
+        .sort(
+            (left, right) =>
+                left.order - right.order ||
+                left.groupIndex - right.groupIndex ||
+                left.index - right.index,
+        )
+        .map((entry) => entry.param);
+    return result;
+}
+
+function getFirstCitationParamIndexes(
+    params: CitationParam[],
+): Map<string, number> {
+    const result = new Map<string, number>();
+    for (const [index, param] of params.entries()) {
+        if (!result.has(param.name)) {
+            result.set(param.name, index);
+        }
+    }
     return result;
 }
 
@@ -1036,8 +1367,15 @@ function buildCanonicalNameMap(
     const canonicalNames = new Set([...metadata.paramOrder, ...aliasNames]);
     for (const canonical of canonicalNames) {
         const normalizedCanonical = canonical.toLocaleLowerCase("en-US");
-        result.set(normalizedCanonical, canonical);
-        addCanonicalAliases(result, canonical, metadata.aliases[canonical]);
+        const representative = result.get(normalizedCanonical) ?? canonical;
+        if (!result.has(normalizedCanonical)) {
+            result.set(normalizedCanonical, representative);
+        }
+        addCanonicalAliases(
+            result,
+            representative,
+            metadata.aliases[canonical],
+        );
     }
     addNumberedAuthorAliases(result, canonicalNames);
     return result;
@@ -1083,6 +1421,8 @@ function addCanonicalAliases(
 ): void {
     for (const alias of aliases || []) {
         const normalizedAlias = alias.toLocaleLowerCase("en-US");
-        names.set(normalizedAlias, canonical);
+        if (!names.has(normalizedAlias)) {
+            names.set(normalizedAlias, canonical);
+        }
     }
 }

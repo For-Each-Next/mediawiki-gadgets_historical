@@ -132,6 +132,7 @@
     "draft.emptyCitation": "至少輸入一個引文欄位。",
     "draft.missingParameterName": "為每個已填寫的參數輸入名稱。",
     "draft.aliasNeedsValue": "輸入{parameter}的原始文字後再設定其參考名。",
+    "draft.parameterCollisionNotice": "發現重複或等效參數：{parameters}。第一個值維持生效；後續值會加上-a、-b等後綴，讓CS1報錯。",
     "draft.previewUnavailable": "無法載入引文預覽：{error}",
     "draft.noArchiveSnapshot": "找不到存檔快照。",
     "feedback.citationsFormattedOne": "已格式化{count}筆引文",
@@ -142,6 +143,9 @@
     "feedback.refTagsRenamedMany": "已重新命名{count}個<ref>標籤",
     "feedback.formatSummary": "{formatted}；{skipped}；{renamed}。",
     "feedback.formatSummaryNoSkipped": "{formatted}；{renamed}。",
+    "feedback.parameterCollisionsOne": "已為{count}個重複參數加上無效後綴，以觸發CS1報錯",
+    "feedback.parameterCollisionsMany": "已為{count}個重複參數加上無效後綴，以觸發CS1報錯",
+    "feedback.formatSummaryWithCollisions": "{summary}另有{collisions}。",
     "feedback.formatNoChanges": "未變更引文格式。",
     "feedback.parametersSorted": "已排序引文參數。",
     "feedback.accessDateFilled": "已填入存取日期。",
@@ -242,6 +246,5 @@
     "validation.dependency": "{source}需要{targets}。",
     "validation.dependencyWithParameter": "{source}需要{targets}。新增{parameter}參數。",
     "validation.or": "或",
-    "errors.sourceChanged": "來源在開啟後已變更。重新開啟來源後繼續。",
-    "errors.parameterCollision": "{first}與{second}都對應至{parameter}。移除其中一個參數或重新命名。"
+    "errors.sourceChanged": "來源在開啟後已變更。重新開啟來源後繼續。"
 }

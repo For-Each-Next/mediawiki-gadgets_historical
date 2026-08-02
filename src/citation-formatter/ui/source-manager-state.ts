@@ -13,6 +13,7 @@ import {
     getSourceDraftCitationNameParts,
     listExistingSourceSections,
     listExistingSources,
+    listSourceDraftParameterCollisions,
     listSourceDraftParameterNames,
     serializeSourceDraftForEdit,
     type ExistingSource,
@@ -334,9 +335,13 @@ function createDraftDerivedState(
             getCurrentCs1DraftFingerprint(state) !==
             state.checkedCs1Source.value
         ) {
-            return local;
+            return omitCollisionMarkerNameErrors(draft, local);
         }
-        return mergeSourceDraftErrors(local, state.checkedCs1CellErrors.value);
+        const merged = mergeSourceDraftErrors(
+            local,
+            state.checkedCs1CellErrors.value,
+        );
+        return omitCollisionMarkerNameErrors(draft, merged);
     }
     function getParameterNameOptions(): Array<{
         label: string;
@@ -358,6 +363,37 @@ function createDraftDerivedState(
         draftSourcePreview: Vue.computed(getDraftSourcePreview),
         parameterNameOptions: Vue.computed(getParameterNameOptions),
     };
+}
+
+function omitCollisionMarkerNameErrors(
+    draft: SourceDraft,
+    errors: SourceDraftErrors,
+): SourceDraftErrors {
+    const markers = new Set(
+        listSourceDraftParameterCollisions(draft).map((collision) =>
+            collision.renamedParameter.toLocaleLowerCase("en-US"),
+        ),
+    );
+    if (markers.size === 0) {
+        return errors;
+    }
+    const result = new Map(errors);
+    for (const [index, rowErrors] of result) {
+        const entered = draft.rows[index]?.name
+            .trim()
+            .toLocaleLowerCase("en-US");
+        if (entered == null || !markers.has(entered)) {
+            continue;
+        }
+        const remaining = { ...rowErrors };
+        delete remaining.name;
+        if (Object.keys(remaining).length === 0) {
+            result.delete(index);
+        } else {
+            result.set(index, remaining);
+        }
+    }
+    return result;
 }
 
 /**

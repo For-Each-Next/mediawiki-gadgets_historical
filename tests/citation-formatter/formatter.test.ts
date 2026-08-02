@@ -92,6 +92,30 @@ test(
     testInlineCitationLayout,
 );
 
+test("reports repeated parameters without blocking article formatting", () => {
+    const source =
+        "Text.<ref>{{cite journal|journal=J1|issue=48|journal=J2|" +
+        "title=T|journal=J3}}</ref>";
+    const first = formatCitationWikitext(
+        source,
+        generatedTemplateData,
+        "inline",
+    );
+
+    assert.equal(first.parameterCollisions, 2);
+    assert.match(
+        first.text,
+        /\| journal = J1 \| journal-a = J2 \| journal-b = J3 \| issue = 48/u,
+    );
+    const second = formatCitationWikitext(
+        first.text,
+        generatedTemplateData,
+        "inline",
+    );
+    assert.equal(second.text, first.text);
+    assert.equal(second.parameterCollisions, 2);
+});
+
 const testResponsiveEmptyReferences = () => {
     const result = formatCitationWikitext("<references />", templateData);
     assert.equal(result.text, "<references responsive />");

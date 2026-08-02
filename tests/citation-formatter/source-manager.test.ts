@@ -24,6 +24,7 @@ import {
     joinAuthorDraftRow,
     listExistingSourceSections,
     listExistingSources,
+    listSourceDraftParameterCollisions,
     listSourceDraftParameterNames,
     moveSourceDraftTitleToScriptTitle,
     moveSourceTitlesToScriptTitle,
@@ -534,7 +535,7 @@ test("maps a periodical field when changing manual citation types", () => {
     );
 });
 
-test("rejects colliding populated aliases instead of dropping one", () => {
+test("suffixes colliding populated aliases without dropping one", () => {
     const draft = createManualSourceDraft();
     getRow(draft, "magazine").value = "Magazine A";
     draft.rows.push({
@@ -547,11 +548,64 @@ test("rejects colliding populated aliases instead of dropping one", () => {
 
     const changed = changeSourceDraftTemplate(draft, "Cite book");
 
-    assert.equal(getRow(changed, "work").value, "Work B");
+    assert.deepEqual(
+        changed.rows.filter((row) => row.value !== "").map((row) => row.name),
+        ["magazine", "work"],
+    );
     assert.equal(getRow(changed, "magazine").value, "Magazine A");
-    assert.throws(
-        () => serializeSourceDraft(changed, "inline"),
-        /magazine and work both map to work|work and magazine both map to work/u,
+    assert.equal(getRow(changed, "work").value, "Work B");
+    assert.deepEqual(listSourceDraftParameterCollisions(changed), [
+        {
+            canonicalParameter: "work",
+            firstParameter: "magazine",
+            renamedParameter: "work-a",
+            secondParameter: "work",
+        },
+    ]);
+    assert.equal(
+        serializeSourceDraft(changed, "inline"),
+        "{{Cite book | work = Magazine A | work-a = Work B}}",
+    );
+});
+
+test("keeps repeated draft parameters adjacent and stable", () => {
+    const entered =
+        "{{cite journal|journal=J1|issue=48|journal=J2|title=T|" +
+        "journal=J3|doi=D}}";
+    const draft = parseSourceDraft(entered);
+
+    assert.deepEqual(
+        listSourceDraftParameterCollisions(draft).map(
+            (collision) => collision.renamedParameter,
+        ),
+        ["journal-a", "journal-b"],
+    );
+    assert.equal(
+        serializeSourceDraftForEdit(draft, "inline"),
+        "{{Cite journal | journal = J1 | journal-a = J2 | " +
+            "journal-b = J3 | issue = 48 | title = T | doi = D}}",
+    );
+
+    canonicalizeSourceDraft(draft);
+    assert.deepEqual(
+        draft.rows.filter((row) => row.value !== "").map((row) => row.name),
+        ["title", "journal", "journal-a", "journal-b", "issue", "doi"],
+    );
+    const first = serializeSourceDraft(draft, "inline");
+    const roundTrip = parseSourceDraft(first);
+    canonicalizeSourceDraft(roundTrip);
+    assert.equal(serializeSourceDraft(roundTrip, "inline"), first);
+});
+
+test("reuses existing alphabetic repeat markers", () => {
+    const draft = parseSourceDraft(
+        "{{cite journal|journal=A|journal-a=B|journal=C|title=T}}",
+    );
+
+    assert.equal(
+        serializeSourceDraft(draft, "inline"),
+        "{{Cite journal | title = T | journal = A | journal-a = B | " +
+            "journal-b = C}}",
     );
 });
 

@@ -103,6 +103,12 @@ interface MountedManager extends Record<string, unknown> {
         value: "checking" | "complete" | "idle" | "unavailable";
     };
     draft: { value: SourceDraft | null };
+    draftCellErrors: {
+        readonly value: Map<
+            number,
+            { alias?: string; name?: string; value?: string }
+        >;
+    };
     draftCs1Checking: { value: boolean };
     existingSources: { value: ExistingSource[] };
     formatArticleDisabled: { readonly value: boolean };
@@ -129,6 +135,21 @@ const CS1_ERROR_HTML = [
     "Unknown parameter <code>&#124;bad=</code> ignored",
     "</span></div>",
 ].join("");
+const CS1_COLLISION_ERROR_HTML = [
+    '<div id="citation-formatter-cs1-check-0">',
+    '<span class="cs1-visible-error citation-comment">',
+    "Unknown parameter <code>&#124;magazine-a=</code> ignored",
+    "</span></div>",
+].join("");
+const CS1_COLLISION_VALUE_ERROR_HTML = [
+    CS1_COLLISION_ERROR_HTML,
+    '<span class="cs1-visible-error citation-comment">',
+    "Invalid value for parameter <code>&#124;magazine-a=</code>",
+    "</span>",
+].join("");
+const CS1_UNSUPPORTED_PARAMETER_CATEGORIES = [
+    { category: "CS1 errors: unsupported parameter" },
+];
 const CS1_OK_HTML = '<div id="citation-formatter-cs1-check-0">No issues</div>';
 const CONSISTENCY_TEXT = [
     '<ref name="A">{{cite web|author=Jane Doe',
@@ -440,6 +461,32 @@ test("summarizes skipped references once", async () => {
     }
 });
 
+test("warns while formatting deliberate repeated parameters", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor(
+            "<ref>{{cite journal|title=日本|language=ja|journal=J1|" +
+                "journal=J2}}</ref>",
+        );
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+
+        callAction(manager, "formatArticle");
+
+        assert.match(editor.read(), /\| journal = J1\s+\| journal-a = J2/u);
+        assert.match(editor.read(), /\| script-title = ja:日本/u);
+        assert.deepEqual(harness.warningMessages, [
+            "Formatted 1 citation; renamed 1 <ref> tag. Also marked 1 " +
+                "repeated parameter with an invalid suffix for CS1 review.",
+        ]);
+        assert.deepEqual(harness.successMessages, []);
+        callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
 const fanGuideTemplateData: CitationTemplateDataMap = {
     "Cite Fan Guide": {
         aliases: {
@@ -716,6 +763,101 @@ test("gates a new source with CS1 before consistency analysis", async () => {
 
         callAction(manager, "cancelAllChanges");
         assert.equal(editor.read(), "Lead.");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+function populateRepeatedMagazine(draft: SourceDraft): void {
+    const title = draft.rows.find((row) => row.name === "title");
+    const magazine = draft.rows.find((row) => row.name === "magazine");
+    assert.ok(title);
+    assert.ok(magazine);
+    title.value = "Example";
+    magazine.value = "First";
+    draft.rows.push({
+        alias: "",
+        directive: "",
+        main: false,
+        name: "magazine",
+        value: "Repeat",
+    });
+}
+
+test("does not block a deliberate repeated-parameter CS1 report", async () => {
+    const harness = installSourceManagerHarness([
+        {
+            parse: {
+                categories: CS1_UNSUPPORTED_PARAMETER_CATEGORIES,
+                text: CS1_COLLISION_ERROR_HTML,
+            },
+        },
+    ]);
+    try {
+        const editor = createMemoryEditor("Lead.");
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        callAction(manager, "createManualSource");
+        const draft = manager.draft.value;
+        assert.ok(draft);
+        populateRepeatedMagazine(draft);
+        callAction(manager, "sortParameters");
+
+        await callAsyncAction(manager, "saveDraft");
+
+        assert.equal(harness.apiCallCount(), 1);
+        assert.match(
+            editor.read(),
+            /\| magazine = First\s+\| magazine-a = Repeat/u,
+        );
+        assert.deepEqual(harness.warningMessages, [
+            "Repeated or equivalent parameters: magazine. The first value " +
+                "stays active; later values receive -a, -b, … suffixes so " +
+                "CS1 flags them.",
+        ]);
+        assert.deepEqual(harness.successMessages, [
+            "Citation parameters sorted.",
+            "Citation source saved.",
+        ]);
+        callAction(manager, "cancelAllChanges");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("keeps unrelated marker diagnostics blocking", async () => {
+    const harness = installSourceManagerHarness([
+        {
+            parse: {
+                categories: CS1_UNSUPPORTED_PARAMETER_CATEGORIES,
+                text: CS1_COLLISION_VALUE_ERROR_HTML,
+            },
+        },
+    ]);
+    try {
+        const editor = createMemoryEditor("Lead.");
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        callAction(manager, "createManualSource");
+        const draft = manager.draft.value;
+        assert.ok(draft);
+        populateRepeatedMagazine(draft);
+        callAction(manager, "sortParameters");
+
+        await callAsyncAction(manager, "saveDraft");
+
+        assert.equal(harness.apiCallCount(), 1);
+        assert.equal(editor.read(), "Lead.");
+        const messages = [...manager.draftCellErrors.value.values()].flatMap(
+            (errors) => Object.values(errors),
+        );
+        assert.equal(
+            messages.some((message) => message?.includes("Invalid value")),
+            true,
+        );
+        callAction(manager, "close");
         await Promise.resolve();
     } finally {
         harness.restore();

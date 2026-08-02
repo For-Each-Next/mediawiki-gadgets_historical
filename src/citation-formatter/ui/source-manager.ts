@@ -20,6 +20,7 @@ import {
     hasSourceDraftCitationIdentity,
     listExistingSourceSections,
     listExistingSources,
+    listSourceDraftParameterCollisions,
     moveSourceDraftTitleToScriptTitle,
     moveSourceTitlesToScriptTitle,
     parseSourceDraft,
@@ -27,7 +28,6 @@ import {
     parseSourceUrl,
     replaceExistingSource,
     serializeSourceDraft,
-    SourceParameterCollisionError,
     StaleSourceError,
     type ExistingSource,
     type ParsedSourceInput,
@@ -38,6 +38,8 @@ import {
 } from "#gadget/domain/source-manager.ts";
 import type * as validation from "#gadget/domain/source-validation.ts";
 import {
+    getIgnoredUnknownCs1ParameterName,
+    isUnsupportedParameterCs1Category,
     orderCs1ItemsBySeverity,
     parseCs1ValidationResult,
     type Cs1ValidationResult,
@@ -728,7 +730,11 @@ function showArticleFormatResult(
     result: CitationFormatResult,
     textChanged: boolean,
 ): void {
-    if (!textChanged) {
+    if (result.parameterCollisions > 0) {
+        context.toast.warning(formatArticleSummary(result), {
+            autoDismiss: true,
+        });
+    } else if (!textChanged) {
         context.toast.info(msg("feedback.formatNoChanges"), {
             autoDismiss: true,
         });
@@ -787,10 +793,22 @@ function formatArticleSummary(result: CitationFormatResult): string {
         "feedback.refTagsRenamedOne",
         "feedback.refTagsRenamedMany",
     );
-    if (result.referencesNotFormatted === 0) {
-        return msg("feedback.formatSummaryNoSkipped", { formatted, renamed });
+    const summary =
+        result.referencesNotFormatted === 0
+            ? msg("feedback.formatSummaryNoSkipped", { formatted, renamed })
+            : msg("feedback.formatSummary", { formatted, renamed, skipped });
+    if (result.parameterCollisions === 0) {
+        return summary;
     }
-    return msg("feedback.formatSummary", { formatted, renamed, skipped });
+    const collisions = formatPluralMessage(
+        result.parameterCollisions,
+        "feedback.parameterCollisionsOne",
+        "feedback.parameterCollisionsMany",
+    );
+    return msg("feedback.formatSummaryWithCollisions", {
+        collisions,
+        summary,
+    });
 }
 
 /**
@@ -937,12 +955,17 @@ function createDraftActions(
     function sortParameters(): void {
         const draft = state.draft.value;
         if (draft != null) {
+            const collisionNotice = formatDraftParameterCollisionNotice(draft);
             moveSourceDraftTitleToScriptTitle(
                 draft,
                 getCurrentWikiId(),
                 state.scriptTitleMode.value,
             );
             canonicalizeSourceDraft(draft);
+            state.warning.value = appendWarning(
+                state.warning.value,
+                collisionNotice,
+            );
             context.toast.success(msg("feedback.parametersSorted"), {
                 autoDismiss: true,
             });
@@ -2117,13 +2140,8 @@ async function validateNewSourceWithCs1(
     context: SourceManagerActionContext,
 ): Promise<boolean> {
     const { cs1Review, state, toast } = context;
-    const draft = state.draft.value;
-    if (draft == null || state.loading.value) {
-        return false;
-    }
-    clearCheckedCs1Errors(state);
-    if (state.draftCellErrors.value.size > 0) {
-        state.error.value = msg("draft.invalidSummary");
+    const draft = getNewSourceDraftForCs1(state);
+    if (draft == null) {
         return false;
     }
     if (!["enwiki", "zhwiki"].includes(getCurrentWikiId())) {
@@ -2136,7 +2154,11 @@ async function validateNewSourceWithCs1(
         if (state.draft.value !== draft) {
             return false;
         }
-        const issueCount = applyNewSourceCs1Result(state, result);
+        const issueCount = applyPartitionedNewSourceCs1Result(
+            state,
+            draft,
+            result,
+        );
         if (issueCount === 0) {
             return true;
         }
@@ -2151,6 +2173,169 @@ async function validateNewSourceWithCs1(
         state.draftCs1Checking.value = false;
         state.loading.value = false;
     }
+}
+
+function getNewSourceDraftForCs1(
+    state: SourceManagerState,
+): SourceDraft | null {
+    const draft = state.draft.value;
+    if (draft == null || state.loading.value) {
+        return null;
+    }
+    clearCheckedCs1Errors(state);
+    if (state.draftCellErrors.value.size === 0) {
+        return draft;
+    }
+    state.error.value = msg("draft.invalidSummary");
+    return null;
+}
+
+interface PartitionedCs1Issues {
+    blocking: Cs1ValidationResult;
+    notices: string[];
+}
+
+interface Cs1IssuePartitionContext {
+    blockingMessages: Set<string>;
+    ignoreUnsupportedCategory: boolean;
+    markers: Set<string>;
+    notices: Set<string>;
+}
+
+function applyPartitionedNewSourceCs1Result(
+    state: SourceManagerState,
+    draft: SourceDraft,
+    result: Cs1ValidationResult,
+): number {
+    const partitioned = partitionCollisionMarkerCs1Issues(draft, result);
+    const issueCount = applyNewSourceCs1Result(state, partitioned.blocking);
+    state.warning.value = appendWarning(
+        state.warning.value,
+        partitioned.notices.join("\n"),
+    );
+    return issueCount;
+}
+
+function partitionCollisionMarkerCs1Issues(
+    draft: SourceDraft,
+    result: Cs1ValidationResult,
+): PartitionedCs1Issues {
+    const markers = new Set(
+        listSourceDraftParameterCollisions(draft).map((collision) =>
+            collision.renamedParameter.toLocaleLowerCase("en-US"),
+        ),
+    );
+    if (markers.size === 0) {
+        return { blocking: result, notices: [] };
+    }
+    const context: Cs1IssuePartitionContext = {
+        blockingMessages: new Set(),
+        ignoreUnsupportedCategory: canIgnoreUnsupportedParameterCategory(
+            result,
+            markers,
+        ),
+        markers,
+        notices: new Set(),
+    };
+    const cellErrors = partitionCs1CellErrors(result.cellErrors, context);
+    const messages = partitionCs1UnmappedMessages(result.messages, context);
+    return {
+        blocking: {
+            cellErrors,
+            issueCount: context.blockingMessages.size,
+            messages,
+        },
+        notices: [...context.notices],
+    };
+}
+
+function partitionCs1UnmappedMessages(
+    entered: string[],
+    context: Cs1IssuePartitionContext,
+): string[] {
+    return entered.filter(function partitionMessage(message) {
+        if (isCollisionMarkerCs1Issue(message, context.markers)) {
+            context.notices.add(message);
+            return false;
+        }
+        if (
+            context.ignoreUnsupportedCategory &&
+            isUnsupportedParameterCs1Category(message)
+        ) {
+            return false;
+        }
+        context.blockingMessages.add(message);
+        return true;
+    });
+}
+
+function partitionCs1CellErrors(
+    entered: validation.SourceDraftErrors,
+    context: Cs1IssuePartitionContext,
+): validation.SourceDraftErrors {
+    const result: validation.SourceDraftErrors = new Map();
+    for (const [index, errors] of entered) {
+        const remaining: validation.SourceDraftRowErrors = {};
+        for (const cell of ["alias", "name", "value"] as const) {
+            partitionCs1Messages(errors[cell], cell, remaining, context);
+        }
+        if (Object.keys(remaining).length > 0) {
+            result.set(index, remaining);
+        }
+    }
+    return result;
+}
+
+function partitionCs1Messages(
+    entered: string | undefined,
+    cell: keyof validation.SourceDraftRowErrors,
+    remaining: validation.SourceDraftRowErrors,
+    context: Cs1IssuePartitionContext,
+): void {
+    for (const message of entered?.split("\n") ?? []) {
+        if (isCollisionMarkerCs1Issue(message, context.markers)) {
+            context.notices.add(message);
+            continue;
+        }
+        context.blockingMessages.add(message);
+        const current = remaining[cell];
+        remaining[cell] = current == null ? message : `${current}\n${message}`;
+    }
+}
+
+function isCollisionMarkerCs1Issue(
+    message: string,
+    markers: Set<string>,
+): boolean {
+    const parameter = getIgnoredUnknownCs1ParameterName(message);
+    return parameter != null && markers.has(parameter);
+}
+
+function canIgnoreUnsupportedParameterCategory(
+    result: Cs1ValidationResult,
+    markers: Set<string>,
+): boolean {
+    const parameters = listCs1ResultMessages(result).flatMap(
+        function getIgnoredParameter(message) {
+            const parameter = getIgnoredUnknownCs1ParameterName(message);
+            return parameter == null ? [] : [parameter];
+        },
+    );
+    const hasExpectedMarker = parameters.some((name) => markers.has(name));
+    const hasUnexpectedParameter = parameters.some(
+        (name) => !markers.has(name),
+    );
+    return hasExpectedMarker && !hasUnexpectedParameter;
+}
+
+function listCs1ResultMessages(result: Cs1ValidationResult): string[] {
+    const messages = [...result.messages];
+    for (const errors of result.cellErrors.values()) {
+        for (const cell of ["alias", "name", "value"] as const) {
+            messages.push(...(errors[cell]?.split("\n") ?? []));
+        }
+    }
+    return messages;
 }
 
 /**
@@ -2419,6 +2604,7 @@ function writeSourceDraft(
     }
     const beforeText = editor.read();
     const previousSource = state.editingSource.value;
+    const collisionNotice = formatDraftParameterCollisionNotice(draft);
     try {
         if (state.editingSource.value == null) {
             moveSourceDraftTitleToScriptTitle(
@@ -2441,6 +2627,9 @@ function writeSourceDraft(
     } catch (error) {
         state.error.value = formatError(error);
         return null;
+    }
+    if (collisionNotice !== "") {
+        context.toast.warning(collisionNotice, { autoDismiss: true });
     }
     const afterText = editor.read();
     return finishSourceDraftWrite(
@@ -3020,8 +3209,12 @@ function openExistingSource(
     state.editingSource.value = source;
     state.draft.value = draft;
     state.error.value = "";
-    state.warning.value =
+    const warning =
         source.status === "non-standard" ? msg("lookup.replaceWarning") : "";
+    state.warning.value = appendWarning(
+        warning,
+        formatDraftParameterCollisionNotice(draft),
+    );
     state.draftPopupOpen.value = true;
     scheduleVisibleTextAreaAutosize();
 }
@@ -3104,6 +3297,10 @@ function openDraft(
     if (!preserveWarning) {
         state.warning.value = "";
     }
+    state.warning.value = appendWarning(
+        state.warning.value,
+        formatDraftParameterCollisionNotice(draft),
+    );
     state.draftPopupOpen.value = true;
     scheduleVisibleTextAreaAutosize();
 }
@@ -3249,14 +3446,27 @@ function formatError(error: unknown): string {
     if (error instanceof StaleSourceError) {
         return msg("errors.sourceChanged");
     }
-    if (error instanceof SourceParameterCollisionError) {
-        return msg("errors.parameterCollision", {
-            first: error.firstParameter,
-            parameter: error.canonicalParameter,
-            second: error.secondParameter,
-        });
-    }
     return error instanceof Error ? error.message : String(error);
+}
+
+function formatDraftParameterCollisionNotice(draft: SourceDraft): string {
+    const collisions = listSourceDraftParameterCollisions(draft);
+    if (collisions.length === 0) {
+        return "";
+    }
+    const parameters = [
+        ...new Set(collisions.map((item) => item.canonicalParameter)),
+    ];
+    return msg("draft.parameterCollisionNotice", {
+        parameters: parameters.join(", "),
+    });
+}
+
+function appendWarning(current: string, addition: string): string {
+    if (addition === "" || current.includes(addition)) {
+        return current;
+    }
+    return [current, addition].filter((message) => message !== "").join("\n");
 }
 
 /**

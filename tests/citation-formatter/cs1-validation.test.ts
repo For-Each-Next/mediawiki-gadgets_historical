@@ -8,6 +8,8 @@ import {
     extractCs1FragmentIssues,
     extractCs1IssueMessages,
     getCs1DraftFingerprint,
+    getIgnoredUnknownCs1ParameterName,
+    isUnsupportedParameterCs1Category,
     parseCs1ValidationResult,
 } from "citation-formatter/domain/cs1-validation.ts";
 import {
@@ -20,6 +22,39 @@ function getRowIndex(draft: SourceDraft, name: string): number {
     assert.notEqual(index, -1, `Missing ${name} row`);
     return index;
 }
+
+test("recognizes only exact ignored unknown-parameter diagnostics", () => {
+    assert.equal(
+        getIgnoredUnknownCs1ParameterName(
+            "Unknown parameter |journal-a= ignored",
+        ),
+        "journal-a",
+    );
+    assert.equal(
+        getIgnoredUnknownCs1ParameterName("已忽略未知参数|journal-a="),
+        "journal-a",
+    );
+    assert.equal(
+        getIgnoredUnknownCs1ParameterName("已忽略未知參數|journal-a="),
+        "journal-a",
+    );
+    for (const message of [
+        "Invalid value for |journal-a=",
+        "Unknown parameter |journal-a=",
+        "Parameter |journal-a= ignored",
+        "Unknown parameter |journal-a= ignored; see |journal=",
+    ]) {
+        assert.equal(getIgnoredUnknownCs1ParameterName(message), null);
+    }
+    assert.equal(
+        isUnsupportedParameterCs1Category("CS1 errors: unsupported parameter"),
+        true,
+    );
+    assert.equal(
+        isUnsupportedParameterCs1Category("CS1 errors: invalid parameter"),
+        false,
+    );
+});
 
 test("maps enwiki name-list and ignored-parameter errors", () => {
     const draft = parseSourceDraft(

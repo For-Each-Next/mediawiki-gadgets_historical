@@ -132,6 +132,7 @@
     "draft.emptyCitation": "至少填写一个引文字段。",
     "draft.missingParameterName": "为每个已填写的参数输入名称。",
     "draft.aliasNeedsValue": "输入{parameter}的原始文本后再设置其参考名。",
+    "draft.parameterCollisionNotice": "发现重复或等效参数：{parameters}。首个值保持生效；后续值会添加-a、-b等后缀，让CS1报错。",
     "draft.previewUnavailable": "无法加载引文预览：{error}",
     "draft.noArchiveSnapshot": "未找到存档快照。",
     "feedback.citationsFormattedOne": "已格式化{count}条引文",
@@ -142,6 +143,9 @@
     "feedback.refTagsRenamedMany": "已重命名{count}个<ref>标签",
     "feedback.formatSummary": "{formatted}；{skipped}；{renamed}。",
     "feedback.formatSummaryNoSkipped": "{formatted}；{renamed}。",
+    "feedback.parameterCollisionsOne": "已为{count}个重复参数添加无效后缀，以触发CS1报错",
+    "feedback.parameterCollisionsMany": "已为{count}个重复参数添加无效后缀，以触发CS1报错",
+    "feedback.formatSummaryWithCollisions": "{summary}另有{collisions}。",
     "feedback.formatNoChanges": "引文格式无变化。",
     "feedback.parametersSorted": "引文参数已排序。",
     "feedback.accessDateFilled": "访问日期已填入。",
@@ -242,6 +246,5 @@
     "validation.dependency": "{source}需要{targets}。",
     "validation.dependencyWithParameter": "{source}需要{targets}。添加{parameter}参数。",
     "validation.or": "或",
-    "errors.sourceChanged": "来源在打开后已更改。重新打开来源后继续。",
-    "errors.parameterCollision": "{first}和{second}均映射到{parameter}。移除或重命名其中一个参数。"
+    "errors.sourceChanged": "来源在打开后已更改。重新打开来源后继续。"
 }

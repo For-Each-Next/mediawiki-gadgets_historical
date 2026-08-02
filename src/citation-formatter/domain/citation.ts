@@ -230,7 +230,7 @@ export function formatCitationTemplate(
     metadata: CitationTemplateData,
     layout: CitationLayout = "block",
 ): { citation: CitationTemplate; text: string } {
-    const parsed = wikitext.template.parse(raw);
+    const parsed = wikitext(raw).templates.parser();
     const name = getCanonicalTemplateName(parsed.name);
     const params = parsed.params.map(function mapParam(param) {
         const result = {

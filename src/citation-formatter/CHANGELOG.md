@@ -2,6 +2,34 @@
 
 ## Until 0.6
 
+### 0.5.1-post.20 (2026-08-02 07:51 UTC)
+
+Overview: Shared source-bound tag and template queries now filter by entered
+attributes or effective parameter values without building a syntax tree.
+
+- Added typed, optional record filters to singular and plural tag and template
+  `getAll()` and `getFirst()` collections while preserving unfiltered calls.
+- Matched tag attributes by normalized names and exact values, and matched
+  template parameters by case-sensitive names, trimmed values, positional
+  indexes, and last-entered duplicate precedence.
+- Covered compound filters, empty versus absent values, aliases, duplicate
+  fields, case behavior, and explicit positional overrides.
+
+### 0.5.1-post.19 (2026-08-02 06:19 UTC)
+
+Overview: Citation Formatter uses source-bound shared tag and template parsers
+with named filters, ordered pairs, and exact inner content.
+
+- Added named `getAll()` filtering and plural aliases for shared templates,
+  tags, and references while retaining the existing singular collection API.
+- Added source-bound tag and template parsers, including ordered duplicate
+  attribute or parameter pairs, record-form attributes, exact inner text, and
+  absolute source ranges.
+- Migrated citation formatting, generic citations, source drafts, restored
+  calls, and reference containers to the source-bound shared parser API.
+- Replaced the remaining regular-expression references-container scan with the
+  balanced tag query, including support for quoted attributes containing `>`.
+
 ### 0.5.1-post.17 (2026-08-01 19:25 UTC)
 
 Overview: Citation Formatter consumes lazy, construct-focused shared wikitext

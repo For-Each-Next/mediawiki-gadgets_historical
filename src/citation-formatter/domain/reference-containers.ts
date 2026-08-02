@@ -50,7 +50,7 @@ export function createEmptyReferenceContainer(
 export function findReferenceContainers(text: string): ReferenceContainer[] {
     const code = wikitext(text);
     const result: ReferenceContainer[] = [];
-    for (const tag of code.tag.getAll("references")) {
+    for (const tag of code.tags.getAll("references")) {
         if (!tag.closed) {
             continue;
         }
@@ -65,7 +65,7 @@ export function findReferenceContainers(text: string): ReferenceContainer[] {
             start: tag.start,
         });
     }
-    for (const template of code.template.getAll("reflist")) {
+    for (const template of code.templates.getAll("reflist")) {
         result.push(buildReflistContainer(template));
     }
     return result.sort((left, right) => left.start - right.start);

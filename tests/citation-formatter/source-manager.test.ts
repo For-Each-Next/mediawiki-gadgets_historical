@@ -1221,6 +1221,19 @@ test("inherits groups from references containers", () => {
     );
 });
 
+test("parses quoted references attributes through shared tag queries", () => {
+    const text = [
+        '<references group="note>archive">',
+        '<ref name="Grouped">',
+        "{{cite web|title=Grouped|url=https://grouped.test}}",
+        "</ref></references>",
+    ].join("");
+    const [source] = listExistingSources(text);
+
+    assert.equal(source.group, "note>archive");
+    assert.equal(source.referenceName, "Grouped");
+});
+
 test("inherits groups from Reflist refs parameters", () => {
     const text = [
         "{{Reflist|group=note|refs=",

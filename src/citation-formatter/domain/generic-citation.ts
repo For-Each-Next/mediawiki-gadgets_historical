@@ -35,7 +35,7 @@ export function formatGenericCitationTemplate(
     layout: CitationLayout,
     metadata?: CitationTemplateData,
 ): { citation: CitationTemplate; text: string } {
-    const parsed = wikitext.template.parse(raw);
+    const parsed = wikitext(raw).templates.parser();
     const params = parsed.params.map(function toCitationParam(param) {
         return {
             name: param.name,

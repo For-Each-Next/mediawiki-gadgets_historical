@@ -44,6 +44,87 @@ test("template getFirst filters normalized entered names", () => {
     );
     assert.equal(templates.getFirst("missing"), undefined);
     assert.deepEqual(templates.getAll("   "), []);
+    assert.deepEqual(
+        wikitext(source)
+            .templates.getAll("cite web")
+            .map((template) => template.raw),
+        templates.getAll("cite web").map((template) => template.raw),
+    );
+});
+
+test("template queries filter by effective parameter values", () => {
+    const source = [
+        "{{Cite web|lead|title= First |lang=en|empty=}}",
+        "{{cite web|title=Old|title=Second|lang=en}}",
+        "{{Other|title=First}}",
+        "{{T|positional|1=explicit}}",
+    ].join("");
+    const templates = wikitext(source).template;
+
+    assert.deepEqual(
+        templates
+            .getAll("cite web", { lang: "en", title: "First" })
+            .map((template) => template.raw),
+        ["{{Cite web|lead|title= First |lang=en|empty=}}"],
+    );
+    assert.equal(
+        templates.getFirst("cite web", { title: "Second" })?.raw,
+        "{{cite web|title=Old|title=Second|lang=en}}",
+    );
+    assert.equal(templates.getAll(undefined, { title: "First" }).length, 2);
+    assert.equal(
+        templates.getFirst("cite web", { "1": "lead" })?.name,
+        "Cite web",
+    );
+    assert.equal(templates.getAll("cite web", { Title: "First" }).length, 0);
+    assert.equal(templates.getAll("cite web", { empty: "" }).length, 1);
+    assert.equal(templates.getAll("cite web", { missing: "" }).length, 0);
+    assert.equal(templates.getAll("T", { "1": "explicit" }).length, 1);
+    assert.deepEqual(
+        wikitext(source).templates.getAll("cite web", { title: "First" }),
+        templates.getAll("cite web", { title: "First" }),
+    );
+    assert.deepEqual(templates.getAll("cite web", { title: "Missing" }), []);
+});
+
+test("source-bound parsers preserve ordered tag and template pairs", () => {
+    const tagSource =
+        '  <ref NAME="first" name=second group=notes>Text {{x}}</ref>  ';
+    const parsedTag = wikitext(tagSource).parser();
+
+    assert.equal(parsedTag?.kind, "tag");
+    if (parsedTag?.kind !== "tag") {
+        assert.fail("Expected a parsed tag.");
+    }
+    assert.equal(parsedTag.name, "ref");
+    assert.deepEqual(parsedTag.attributePairs, [
+        { name: "name", value: "first" },
+        { name: "name", value: "second" },
+        { name: "group", value: "notes" },
+    ]);
+    assert.equal(parsedTag.attributes.name, "second");
+    assert.equal(parsedTag.innerText, "Text {{x}}");
+
+    const templateSource =
+        "{{Cite web|lead|title=First|title={{lang|en|Second}}}}";
+    const parsedTemplate = wikitext(templateSource).parser();
+
+    assert.equal(parsedTemplate?.kind, "template");
+    if (parsedTemplate?.kind !== "template") {
+        assert.fail("Expected a parsed template.");
+    }
+    assert.equal(parsedTemplate.name, "Cite web");
+    assert.deepEqual(
+        parsedTemplate.parameterPairs.map(({ name, value }) => ({
+            name,
+            value,
+        })),
+        [
+            { name: "1", value: "lead" },
+            { name: "title", value: "First" },
+            { name: "title", value: "{{lang|en|Second}}" },
+        ],
+    );
 });
 
 test("template parsing keeps raw values and absolute offsets", () => {
@@ -116,6 +197,18 @@ test("reference queries preserve exact content and groups", () => {
     assert.equal(tags[1].selfClosing, true);
     assert.deepEqual(references.getFirst("source", "notes"), tags[0]);
     assert.equal(references.getFirst("source"), undefined);
+    assert.deepEqual(references.getAll(undefined, "notes"), tags);
+    assert.deepEqual(wikitext(source).references.getAll(), tags);
+
+    const reuseFirst = [
+        "<ref name=source group=notes />",
+        "<ref name=source group=notes>{{cite web|title=Full}}</ref>",
+    ].join("");
+    assert.match(
+        wikitext(reuseFirst).references.getFirst("source", "notes")?.content ??
+            "",
+        /title=Full/u,
+    );
 });
 
 test("opaque, tag, and comment queries remain independent", () => {
@@ -136,8 +229,38 @@ test("opaque, tag, and comment queries remain independent", () => {
     );
     assert.equal(tags[0].attributes["data-label"], "a>b");
     assert.equal(code.tag.getFirst("REF")?.attributes.name, "real");
+    assert.deepEqual(code.tags.getAll("ref"), code.tag.getAll("ref"));
     assert.equal(code.comment.getFirst()?.content, " <b>ignored</b> ");
     assert.equal(code.opaque.getAll().length, 2);
+});
+
+test("tag queries filter by case-insensitive attribute names", () => {
+    const source = [
+        '<ref name="first" group="notes">One</ref>',
+        '<REF NAME="second" group="notes">Two</REF>',
+        '<ref name="second" group="other">Three</ref>',
+        '<ref name="old" name="effective" disabled>Four</ref>',
+    ].join("");
+    const tags = wikitext(source).tag;
+
+    assert.deepEqual(
+        tags
+            .getAll("ref", { group: "notes", name: "second" })
+            .map((tag) => tag.content),
+        ["Two"],
+    );
+    assert.equal(tags.getFirst("REF", { NAME: "first" })?.content, "One");
+    assert.equal(tags.getAll(undefined, { name: "second" }).length, 2);
+    assert.equal(tags.getAll("ref", { name: "Second" }).length, 0);
+    assert.equal(tags.getAll("ref", { disabled: "" }).length, 1);
+    assert.equal(tags.getAll("ref", { missing: "" }).length, 0);
+    assert.equal(tags.getAll("ref", { name: "old" }).length, 0);
+    assert.equal(tags.getAll("ref", { name: "effective" }).length, 1);
+    assert.deepEqual(
+        wikitext(source).tags.getAll("ref", { group: "notes" }),
+        tags.getAll("ref", { group: "notes" }),
+    );
+    assert.deepEqual(tags.getAll("ref", { name: "missing" }), []);
 });
 
 test("unclosed constructs stay opaque through input end", () => {

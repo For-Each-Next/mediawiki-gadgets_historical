@@ -783,7 +783,7 @@ export function isCreatorAliasDraftParameter(name: string): boolean {
  * @returns Converted generated or existing citation to editable rows.
  */
 export function parseSourceDraft(raw: string): SourceDraft {
-    const call = wikitext.template.parse(raw);
+    const call = wikitext(raw).templates.parser();
     const name = getEnteredDraftTemplateName(call.name);
     const metadata = getTemplateMetadata(name);
     if (metadata == null) {
@@ -2197,10 +2197,10 @@ function addAliasComment(
  */
 function findRestoredTemplateCalls(text: string, masked: string) {
     return wikitext(masked)
-        .template.getAll()
+        .templates.getAll()
         .map(function restoreCall(call) {
             const raw = text.slice(call.start, call.end);
-            return wikitext.template.parse(raw, call.start);
+            return wikitext(raw).templates.parser(call.start);
         });
 }
 
@@ -2518,24 +2518,14 @@ function findReferenceContainers(
     calls: ParsedTemplateCall[],
 ): ReferenceContainer[] {
     const result: ReferenceContainer[] = [];
-    const opening = /<references\b([^>]*?)(\/?)>/giu;
-    for (const match of text.matchAll(opening)) {
-        if (match[2] === "/") {
+    for (const tag of wikitext(text).tags.getAll("references")) {
+        if (tag.selfClosing || !tag.closed) {
             continue;
         }
-        const start = match.index;
-        const openingEnd = start + match[0].length;
-        const closing = /<\/references\s*>/giu;
-        closing.lastIndex = openingEnd;
-        const closingMatch = closing.exec(text);
-        if (closingMatch == null) {
-            continue;
-        }
-        const attributes = wikitext.tag.parseAttributes(match[1]);
         result.push({
-            end: closing.lastIndex,
-            group: decodeReferenceAttribute(attributes.group || ""),
-            start,
+            end: tag.end,
+            group: decodeReferenceAttribute(tag.attributes.group || ""),
+            start: tag.start,
         });
     }
     for (const call of calls) {

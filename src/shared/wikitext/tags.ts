@@ -41,13 +41,20 @@ export interface WikitextTagOptions {
     voidTags?: readonly string[];
 }
 
+export interface WikitextTagAttributePair {
+    name: string;
+    value: string;
+}
+
 export interface WikitextTag {
+    attributePairs: WikitextTagAttributePair[];
     attributes: Record<string, string>;
     closed: boolean;
     content: string;
     contentEnd: number;
     contentStart: number;
     end: number;
+    innerText: string;
     name: string;
     protectedContent: boolean;
     raw: string;
@@ -184,19 +191,37 @@ export function findWikitextTags(
  */
 export function parseTagAttributes(value: string): Record<string, string> {
     const attributes: Record<string, string> = {};
-    const pattern =
-        /([^\s=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gu;
-    for (const match of value.matchAll(pattern)) {
-        const name = match[1].toLocaleLowerCase();
-        const attributeValue = match[2] ?? match[3] ?? match[4] ?? "";
-        Object.defineProperty(attributes, name, {
+    for (const pair of parseTagAttributePairs(value)) {
+        Object.defineProperty(attributes, pair.name, {
             configurable: true,
             enumerable: true,
-            value: attributeValue,
+            value: pair.value,
             writable: true,
         });
     }
     return attributes;
+}
+
+/**
+ * Parses tag attributes as entered name/value pairs in source order.
+ *
+ * Unlike the record view, this list retains duplicate attributes.
+ *
+ * @param value - Raw attribute source after the tag name.
+ * @returns Ordered lowercase names and undecoded values.
+ */
+export function parseTagAttributePairs(
+    value: string,
+): WikitextTagAttributePair[] {
+    const pairs: WikitextTagAttributePair[] = [];
+    const pattern =
+        /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gu;
+    for (const match of value.matchAll(pattern)) {
+        const name = match[1].toLocaleLowerCase();
+        const attributeValue = match[2] ?? match[3] ?? match[4] ?? "";
+        pairs.push({ name, value: attributeValue });
+    }
+    return pairs;
 }
 
 function readTagToken(source: string, start: number): TagToken | null {
@@ -307,13 +332,16 @@ function buildTag(
     details: TagRangeDetails,
 ): WikitextTag {
     const { closed, contentEnd, end, protectedContent, selfClosing } = details;
+    const content = source.slice(opening.end, contentEnd);
     return {
+        attributePairs: parseTagAttributePairs(opening.attributesSource),
         attributes: parseTagAttributes(opening.attributesSource),
         closed,
-        content: source.slice(opening.end, contentEnd),
+        content,
         contentEnd,
         contentStart: opening.end,
         end,
+        innerText: content,
         name: opening.name,
         protectedContent,
         raw: source.slice(opening.start, end),

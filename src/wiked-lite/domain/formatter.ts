@@ -1,6 +1,10 @@
 /** Deterministic wikEd-style safe formatting operations. */
 
-import { wikitext } from "#shared/wikitext";
+import {
+    wikitext,
+    type ParsedTemplateCall,
+    type SourceRange,
+} from "#shared/wikitext";
 
 export interface FormatterOptions {
     alignEquals?: boolean;
@@ -45,6 +49,7 @@ type FormatterVariableConstruct = "parameter" | "template";
 
 const CATEGORY_LINE_PATTERN =
     /^(\s*\[\[(?:category|分类|分類)\s*:[^\n]+\]\]\s*)$/gimu;
+const EXPLANATORY_FOOTNOTE_PATTERN = /^efn(?:$|[- /])/u;
 
 /**
  * Applies basic fixes and explicitly selected layout changes.
@@ -59,6 +64,7 @@ export function formatWikitext(
 ): FormatterResult {
     const protectedSource = protectOpaqueSource(source);
     let text = normalizeBasicLayout(protectedSource.text);
+    text = numberExplanatoryFootnoteReferenceArguments(text);
     if (options.normalizeConversion === true) {
         text = normalizeChineseConversion(text);
     }
@@ -82,6 +88,55 @@ function normalizeBasicLayout(source: string): string {
         .replace(/^----+\s*$/gmu, "----")
         .replace(/\[\[\s*([^\]|]+?)\s*\|\s*([^\]]+?)\s*\]\]/gu, "[[$1|$2]]")
         .replace(/\[\[\s*([^\]]+?)\s*\]\]/gu, "[[$1]]");
+}
+
+/**
+ * Numbers an efn note with an equals sign inside a nested ref tag.
+ *
+ * MediaWiki otherwise reads the preceding text as a parameter name. An
+ * explicit number preserves the intended note value.
+ */
+function numberExplanatoryFootnoteReferenceArguments(source: string): string {
+    const query = wikitext(source);
+    const referenceOpenings = query.tag
+        .getAll("ref")
+        .map(function toOpeningRange(tag) {
+            return { end: tag.contentStart, start: tag.start };
+        });
+    const insertionPoints = query.template
+        .getAll()
+        .flatMap(function findInsertionPoint(template) {
+            return findFootnoteInsertionPoint(template, referenceOpenings);
+        })
+        .toSorted((left, right) => right - left);
+    let result = source;
+    for (const point of insertionPoints) {
+        result = `${result.slice(0, point)}1=${result.slice(point)}`;
+    }
+    return result;
+}
+
+function findFootnoteInsertionPoint(
+    template: ParsedTemplateCall,
+    referenceOpenings: SourceRange[],
+): number[] {
+    const name = wikitext.template.normalizeName(template.name);
+    if (
+        !EXPLANATORY_FOOTNOTE_PATTERN.test(name) ||
+        template.params.some((parameter) => parameter.name === "1")
+    ) {
+        return [];
+    }
+    const argument = template.params.find(function hasRefSeparator(parameter) {
+        if (parameter.positional) {
+            return false;
+        }
+        const separator = parameter.valueStart - 1;
+        return referenceOpenings.some(function containsSeparator(opening) {
+            return opening.start <= separator && separator < opening.end;
+        });
+    });
+    return argument == null ? [] : [argument.start];
 }
 
 function normalizeChineseConversion(source: string): string {

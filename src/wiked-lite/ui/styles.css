@@ -208,6 +208,10 @@
     -webkit-box-decoration-break: clone;
 }
 
+.wiked-lite-token--footnote.wiked-lite-token--reference {
+    background: rgb(243, 225, 247) !important;
+}
+
 .wiked-lite-token--template-0 {
     background: rgb(246, 246, 246);
     box-decoration-break: clone;

@@ -2,6 +2,18 @@
 
 ## Until 0.5
 
+### 0.4.4-dev.23 (2026-08-02 11:45 UTC)
+
+Overview: wikEd Lite repairs explanatory-footnote arguments and distinguishes
+nested citations from their surrounding notes.
+
+- Numbered `efn`-family note arguments when a nested `ref` attribute would
+  otherwise turn the note text into a named template parameter.
+- Removed explanatory-footnote hover previews while retaining previews for
+  nested `ref`, `r`, and `sfn` citations.
+- Gave nested citations the purple reference palette over the enclosing blue
+  explanatory-footnote palette and added focused regression coverage.
+
 ### 0.4.4-dev.21 (2026-08-02 09:38 UTC)
 
 Overview: wikEd Lite aligns standalone nested-template closers with their block

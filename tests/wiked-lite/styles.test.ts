@@ -32,6 +32,13 @@ test("highlight colors retain the original wikEd palette", () => {
         styles,
         /\.wiked-lite-token--footnote\s*\{[^}]*rgb\(230, 242, 255\)/su,
     );
+    const nestedReferencePattern = new RegExp(
+        String.raw`\.wiked-lite-token--footnote` +
+            String.raw`\.wiked-lite-token--reference\s*\{` +
+            String.raw`[^}]*rgb\(243, 225, 247\)`,
+        "su",
+    );
+    assert.match(styles, nestedReferencePattern);
     assert.match(
         styles,
         /\.wiked-lite-token--math\s*\{[^}]*rgb\(232, 240, 255\)/su,

@@ -36,8 +36,8 @@ wikitext content model. Review formatting changes before saving the page.
   blue, bold and italic apostrophe markup, table syntax, parameter names, and
   nested templates while retaining the source textarea's typography.
 - Opens delayed, anchored MediaWiki-style previews for plain references and
-  `ref`, `r`, `sfn`, or `efn` citations, with viewport-aware placement and
-  hover-safe transitions that keep links usable.
+  `ref`, `r`, or `sfn` citations, with viewport-aware placement and hover-safe
+  transitions that keep links usable.
 - Pairs matching prefixed `last` and `first` citation fields on one row and
   preserves separate original and archived links without rendering untrusted
   HTML.

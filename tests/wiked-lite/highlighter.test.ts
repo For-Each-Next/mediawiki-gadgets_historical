@@ -242,14 +242,41 @@ test("apostrophes in HTML attributes do not open article emphasis", () => {
     );
 });
 
-test("explanatory footnotes expose reference-preview metadata", () => {
-    const source = "{{efn|A note}}";
+test("explanatory footnotes do not expose reference-preview metadata", () => {
+    const footnotes = ["{{efn|1=A}}", "{{efn-ua|1=A}}"];
+    for (const source of footnotes) {
+        const segments = highlightWikitext(source);
+
+        assert.ok(
+            segments.every((segment) => segment.referenceSource == null),
+        );
+    }
+});
+
+test("nested citations keep citation preview metadata", () => {
+    const reference = '<Ref name="Gould, 2026" />';
+    const namedReuse = "{{r|Hon, 2026}}";
+    const shortFootnote = "{{sfn|Meghan G|2026}}";
+    const source = `{{efn|1=See ${reference} ${namedReuse} ${shortFootnote}}}`;
     const segments = highlightWikitext(source);
 
+    assertHasClass(source, segments, "See", "wiked-lite-token--footnote");
     assert.equal(
-        segmentAt(source, segments, "A note")?.referenceSource,
-        source,
+        segmentAt(source, segments, "See")?.referenceSource,
+        undefined,
     );
+    for (const citation of [reference, namedReuse, shortFootnote]) {
+        assertHasClass(
+            source,
+            segments,
+            citation,
+            "wiked-lite-token--reference",
+        );
+        assert.equal(
+            segmentAt(source, segments, citation)?.referenceSource,
+            citation,
+        );
+    }
 });
 
 test("emphasis is limited to template values and wikilink labels", () => {

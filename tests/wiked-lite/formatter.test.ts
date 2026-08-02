@@ -56,6 +56,29 @@ test("Chinese conversion normalization is opt in", () => {
     );
 });
 
+test("numbers efn notes containing named reference tags", () => {
+    const source =
+        '{{efn|見以下文獻：<ref name="Gould, 2026" />' +
+        '<ref name="Hon, 2026" /><ref name="Meghan G, 2026" />' +
+        '<ref name="Seigh, 2026" />}}';
+    const expected = source.replace("{{efn|", "{{efn|1=");
+
+    assert.equal(formatWikitext(source).text, expected);
+    assert.deepEqual(formatWikitext(expected), {
+        changed: false,
+        text: expected,
+    });
+    assert.equal(
+        formatWikitext('{{other|Text<ref name="source" />}}').text,
+        '{{other|Text<ref name="source" />}}',
+    );
+    assert.equal(
+        formatWikitext('{{efn|name=context|1=Text<ref name="source" />}}')
+            .text,
+        '{{efn|name=context|1=Text<ref name="source" />}}',
+    );
+});
+
 test("nested template pipes and closers follow structural depth", () => {
     const source = [
         "{{Infobox country",

@@ -262,7 +262,7 @@ function createTemplateDecorations(
         .template.getAll()
         .flatMap(function decorate(template) {
             const name = wikitext.template.normalizeName(template.name);
-            const isReferencePreview = isReferencePreviewName(name);
+            const isReferencePreview = REFERENCE_TEMPLATE_NAMES.has(name);
             const isLinkHelper = linkHelpersEnabled && isLinkHelperName(name);
             const decoration: DecoratedRange = {
                 end: template.end,
@@ -291,10 +291,6 @@ function createTemplateDecorations(
                 ),
             ];
         });
-}
-
-function isReferencePreviewName(name: string): boolean {
-    return REFERENCE_TEMPLATE_NAMES.has(name) || EFN_PATTERN.test(name);
 }
 
 function createTemplateDelimiterDecorations(

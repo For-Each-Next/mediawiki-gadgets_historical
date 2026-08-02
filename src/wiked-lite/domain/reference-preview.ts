@@ -1,9 +1,10 @@
 /** Resolves highlighted references into compact citation previews. */
 
 import * as shortFootnotes from "#shared/citation/short-footnotes";
-import { wikitext } from "#shared/wikitext";
+import { wikitext, type ParsedTemplateCall } from "#shared/wikitext";
 
 export interface ReferencePreview {
+    noteText?: string;
     referenceLabel: string;
     rows: ReferencePreviewRow[];
     templateName: string;
@@ -52,9 +53,30 @@ export function buildReferencePreview(
     const resolved = resolveReferenceSource(articleSource, referenceSource);
     const citation = findCitationTemplate(resolved.source);
     if (citation === "") {
-        return null;
+        return createNotePreview(resolved);
     }
-    const parsed = wikitext.template.parse(citation);
+    return createCitationPreview(resolved, citation);
+}
+
+function createNotePreview(
+    resolved: ResolvedReference,
+): ReferencePreview | null {
+    const noteText = resolved.source.trim();
+    return noteText === ""
+        ? null
+        : {
+              noteText,
+              referenceLabel: resolved.label,
+              rows: [],
+              templateName: "reference",
+          };
+}
+
+function createCitationPreview(
+    resolved: ResolvedReference,
+    citation: string,
+): ReferencePreview {
+    const parsed = wikitext(citation).templates.parser();
     const entered = parsed.params.filter(
         (parameter) => parameter.value !== "",
     );
@@ -118,7 +140,7 @@ function resolveTemplateReference(
     if (!reference.startsWith("{{")) {
         return null;
     }
-    const parsed = wikitext.template.parse(reference);
+    const parsed = wikitext(reference).templates.parser();
     const name = wikitext.template.normalizeName(parsed.name);
     if (name === "sfn") {
         const label = parsed.params
@@ -134,6 +156,9 @@ function resolveTemplateReference(
             ),
         };
     }
+    if (/^efn(?:$|[- /])/u.test(name)) {
+        return resolveExplanatoryFootnote(parsed);
+    }
     if (name !== "r") {
         return null;
     }
@@ -144,6 +169,18 @@ function resolveTemplateReference(
         label: label ?? "",
         source: findNamedReferenceContent(article, label ?? ""),
     };
+}
+
+function resolveExplanatoryFootnote(
+    parsed: ParsedTemplateCall,
+): ResolvedReference {
+    const note = parsed.params.find(
+        (parameter) => parameter.name === "1",
+    )?.value;
+    const label = parsed.params.find(
+        (parameter) => parameter.name.toLowerCase() === "name",
+    )?.value;
+    return { label: label ?? "", source: note ?? "" };
 }
 
 function findNamedReferenceContent(

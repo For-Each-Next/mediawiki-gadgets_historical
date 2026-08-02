@@ -2,10 +2,6 @@
 
 import { formatWikitext } from "#gadget/domain/formatter.ts";
 import { highlightWikitext } from "#gadget/domain/highlighter.ts";
-import {
-    buildReferencePreview,
-    type ReferencePreviewField,
-} from "#gadget/domain/reference-preview.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import {
     createFormatterDialogComponent,
@@ -16,14 +12,25 @@ import {
     type ResourceLoaderRequire,
     type VueApp,
 } from "#gadget/ui/codex.ts";
-import { installWikEdLiteStyles } from "#gadget/ui/styles.ts";
+import { attachReferenceTooltips } from "#gadget/ui/reference-tooltip.ts";
+import {
+    installWikEdLiteFrameStyles,
+    installWikEdLiteStyles,
+} from "#gadget/ui/styles.ts";
 
 const TEXTAREA_ID = "wpTextbox1";
 const TOOL_ID = "wiked-lite-format";
 const HOST_ID = "wiked-lite-dialog-host";
+const EDITOR_FRAME_SOURCE =
+    '<!doctype html><html><head><meta charset="UTF-8">' +
+    "</head><body></body></html>";
+const EDITOR_FRAME_LOAD_TIMEOUT = 5_000;
 
 export interface EditorServices {
-    findMissingLinks(source: string): Promise<Set<string>>;
+    findMissingLinks(source: string): Promise<{
+        linkClasses: string[];
+        titles: Set<string>;
+    }>;
     resolveRedirects(source: string): Promise<string>;
 }
 
@@ -31,13 +38,20 @@ interface EditorController {
     destroy(): void;
     focus(): void;
     getSelection(): { end: number; start: number };
+    isAttached(): boolean;
     replace(start: number, end: number, value: string): void;
-    setMissingLinks(titles: Set<string>): void;
+    setMissingLinks(titles: Set<string>, color?: string): void;
+}
+
+interface EditorSurface {
+    editor: HTMLElement;
+    frame: HTMLIFrameElement;
+    overlay: HTMLElement;
 }
 
 const controllers = new WeakMap<HTMLTextAreaElement, EditorController>();
+const pendingEditors = new WeakSet<HTMLTextAreaElement>();
 let activeDialogCleanup: (() => void) | null = null;
-let referenceTooltipHideTimer = 0;
 
 /**
  * Discovers source editors and adds the formatter action.
@@ -70,16 +84,37 @@ function installEditor(): void {
     }
     const existing = controllers.get(textarea);
     if (existing != null) {
-        if (isIncompatibleEditor(textarea)) {
-            existing.destroy();
-            controllers.delete(textarea);
+        if (existing.isAttached() && !isIncompatibleEditor(textarea)) {
+            return;
         }
-        return;
+        existing.destroy();
+        controllers.delete(textarea);
     }
     if (isIncompatibleEditor(textarea)) {
         return;
     }
-    controllers.set(textarea, createEditorController(textarea));
+    if (pendingEditors.has(textarea)) {
+        return;
+    }
+    pendingEditors.add(textarea);
+    void createEditorController(textarea).then(
+        function register(controller): void {
+            pendingEditors.delete(textarea);
+            if (
+                !controller.isAttached() ||
+                controllers.has(textarea) ||
+                isIncompatibleEditor(textarea)
+            ) {
+                controller.destroy();
+                return;
+            }
+            controllers.set(textarea, controller);
+        },
+        function report(error): void {
+            pendingEditors.delete(textarea);
+            console.error("wikEd Lite could not initialize its editor", error);
+        },
+    );
 }
 
 function isIncompatibleEditor(textarea: HTMLTextAreaElement): boolean {
@@ -90,31 +125,63 @@ function isIncompatibleEditor(textarea: HTMLTextAreaElement): boolean {
     return style.display === "none" || style.visibility === "hidden";
 }
 
-// eslint-disable-next-line max-lines-per-function
-function createEditorController(
+async function createEditorController(
     textarea: HTMLTextAreaElement,
+): Promise<EditorController> {
+    const surface = await createEditorSurface(textarea);
+    try {
+        return initializeEditorController(textarea, surface);
+    } catch (error) {
+        surface.frame.remove();
+        throw error;
+    }
+}
+
+// eslint-disable-next-line max-lines-per-function
+function initializeEditorController(
+    textarea: HTMLTextAreaElement,
+    surface: EditorSurface,
 ): EditorController {
-    const editor = document.createElement("div");
+    const { editor, frame, overlay } = surface;
     const missingTitles = new Set<string>();
     const hadNativeClass = textarea.classList.contains("wiked-lite-native");
+    const hadNativeFocus = document.activeElement === textarea;
+    const nativeAriaHidden = textarea.getAttribute("aria-hidden");
+    const nativeTabIndex = textarea.getAttribute("tabindex");
+    const form = textarea.form;
     let rendering = false;
     let composing = false;
     let timer = 0;
-    editor.className = "wiked-lite-editor";
-    editor.contentEditable = "plaintext-only";
-    editor.role = "textbox";
-    editor.ariaMultiLine = "true";
-    editor.ariaLabel = getEditorLabel(textarea);
-    editor.spellcheck = textarea.spellcheck;
-    copyTextareaPresentation(textarea, editor);
-    editor.style.height = `${Math.max(textarea.offsetHeight, 256)}px`;
-    textarea.before(editor);
-    textarea.classList.add("wiked-lite-native");
+    let destroyed = false;
+    let controller: EditorController | null = null;
+    const referenceTooltips = attachReferenceTooltips({
+        delay: window.wikEdLiteConfig?.referenceTooltipDelay,
+        editor,
+        getSource: () => textarea.value,
+        overlay,
+    });
+    const connectionObserver = new MutationObserver(
+        function removeDetachedEditor(): void {
+            if (isEditorFrameAttached(frame, textarea)) {
+                return;
+            }
+            if (
+                controller != null &&
+                controllers.get(textarea) === controller
+            ) {
+                controllers.delete(textarea);
+            }
+            destroy();
+        },
+    );
 
     function render(preserveSelection = true): void {
+        window.clearTimeout(timer);
+        timer = 0;
         const selection = preserveSelection
             ? getSelectionOffsets(editor)
             : { end: textarea.selectionEnd, start: textarea.selectionStart };
+        referenceTooltips.dismiss();
         rendering = true;
         renderSegments(editor, textarea.value, missingTitles);
         setSelectionOffsets(editor, selection.start, selection.end);
@@ -128,7 +195,11 @@ function createEditorController(
     }
 
     editor.addEventListener("input", function synchronize(): void {
-        if (rendering || composing) {
+        if (rendering) {
+            return;
+        }
+        referenceTooltips.dismiss();
+        if (composing) {
             return;
         }
         textarea.value = readEditableText(editor);
@@ -136,42 +207,73 @@ function createEditorController(
         scheduleRender();
     });
     editor.addEventListener("compositionstart", function begin(): void {
+        window.clearTimeout(timer);
+        timer = 0;
+        referenceTooltips.dismiss();
         composing = true;
     });
     editor.addEventListener("compositionend", function finish(): void {
         composing = false;
+        referenceTooltips.dismiss();
         textarea.value = readEditableText(editor);
         dispatchNativeInput(textarea);
         scheduleRender();
     });
     function updateFromNative(): void {
-        if (!rendering) {
+        if (rendering) {
+            return;
+        }
+        referenceTooltips.dismiss();
+        if (!composing) {
             scheduleRender();
         }
     }
-    textarea.addEventListener("input", updateFromNative);
-    editor.addEventListener("click", openModifiedTarget);
-    editor.addEventListener("pointerover", function show(event): void {
-        clearReferenceTooltipHideTimer();
-        showReferenceTooltip(editor, textarea.value, event);
-    });
-    editor.addEventListener("pointerout", scheduleReferenceTooltipHide);
-    render(false);
 
-    return {
-        destroy() {
-            window.clearTimeout(timer);
-            textarea.removeEventListener("input", updateFromNative);
+    function flushComposition(): void {
+        if (!composing) {
+            return;
+        }
+        textarea.value = readEditableText(editor);
+        dispatchNativeInput(textarea);
+    }
+
+    function destroy(): void {
+        if (destroyed) {
+            return;
+        }
+        const focusedSelection =
+            editor.ownerDocument.activeElement === editor
+                ? getSelectionOffsets(editor)
+                : null;
+        destroyed = true;
+        window.clearTimeout(timer);
+        connectionObserver.disconnect();
+        textarea.removeEventListener("input", updateFromNative);
+        form?.removeEventListener("submit", flushComposition, true);
+        flushComposition();
+        try {
+            referenceTooltips.destroy();
+        } finally {
+            restoreAttribute(textarea, "aria-hidden", nativeAriaHidden);
+            restoreAttribute(textarea, "tabindex", nativeTabIndex);
             if (!hadNativeClass) {
                 textarea.classList.remove("wiked-lite-native");
             }
-            editor.remove();
-        },
+            frame.remove();
+            restoreNativeFocus(textarea, focusedSelection);
+        }
+    }
+
+    controller = {
+        destroy,
         focus() {
             editor.focus({ preventScroll: true });
         },
         getSelection() {
             return getSelectionOffsets(editor);
+        },
+        isAttached() {
+            return isEditorFrameAttached(frame, textarea);
         },
         replace(start, end, value) {
             textarea.setRangeText(value, start, end, "select");
@@ -180,41 +282,265 @@ function createEditorController(
             render(false);
             editor.focus({ preventScroll: true });
         },
-        setMissingLinks(titles) {
+        setMissingLinks(titles, color = "") {
             missingTitles.clear();
             titles.forEach((title) =>
                 missingTitles.add(normalizeTitle(title)),
             );
+            if (color !== "") {
+                editor.style.setProperty("--wiked-lite-missing-link", color);
+            }
             render();
         },
     };
+    try {
+        textarea.addEventListener("input", updateFromNative);
+        form?.addEventListener("submit", flushComposition, true);
+        editor.addEventListener("click", openModifiedTarget);
+        render(false);
+        frame.dataset.wikedReady = "true";
+        if (hadNativeFocus) {
+            editor.focus({ preventScroll: true });
+        }
+        textarea.classList.add("wiked-lite-native");
+        textarea.setAttribute("aria-hidden", "true");
+        textarea.setAttribute("tabindex", "-1");
+        connectionObserver.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+        });
+    } catch (error) {
+        destroy();
+        throw error;
+    }
+    return controller;
+}
+
+async function createEditorSurface(
+    textarea: HTMLTextAreaElement,
+): Promise<EditorSurface> {
+    const frame = document.createElement("iframe");
+    const label = getEditorLabel(textarea);
+    frame.className = "wiked-editor-frame";
+    frame.classList.add("wiked-lite-frame");
+    frame.title = label;
+    frame.setAttribute("aria-label", label);
+    frame.style.height = `${Math.max(textarea.offsetHeight, 256)}px`;
+    try {
+        const target = await loadFrameDocument(frame, textarea);
+        const editor = target.createElement("main");
+        const overlay = target.createElement("div");
+        target.documentElement.lang =
+            textarea.lang || document.documentElement.lang;
+        target.body.className = "wiked-lite-frame-document";
+        editor.className = "wiked-lite-editor";
+        editor.contentEditable = "plaintext-only";
+        editor.role = "textbox";
+        editor.ariaMultiLine = "true";
+        editor.ariaLabel = label;
+        editor.spellcheck = textarea.spellcheck;
+        overlay.className = "wiked-lite-frame-overlay";
+        target.body.replaceChildren(editor, overlay);
+        installWikEdLiteFrameStyles(target);
+        copyTextareaPresentation(textarea, frame, editor);
+        return { editor, frame, overlay };
+    } catch (error) {
+        frame.remove();
+        throw error;
+    }
+}
+
+function loadFrameDocument(
+    frame: HTMLIFrameElement,
+    textarea: HTMLTextAreaElement,
+): Promise<Document> {
+    return new Promise(function load(resolve, reject) {
+        new EditorFrameLoader(frame, textarea, resolve, reject).start();
+    });
+}
+
+class EditorFrameLoader {
+    private readonly observer: MutationObserver;
+    private settled = false;
+    private timeout = 0;
+
+    constructor(
+        private readonly frame: HTMLIFrameElement,
+        private readonly textarea: HTMLTextAreaElement,
+        private readonly resolve: (target: Document) => void,
+        private readonly reject: (reason: unknown) => void,
+    ) {
+        this.observer = new MutationObserver(() => this.validateAttachment());
+    }
+
+    start(): void {
+        try {
+            this.timeout = window.setTimeout(() => {
+                this.fail(
+                    new Error(
+                        "wikEd Lite timed out loading its editor frame.",
+                    ),
+                );
+            }, EDITOR_FRAME_LOAD_TIMEOUT);
+            this.frame.addEventListener("load", this.initialize, {
+                once: true,
+            });
+            this.frame.addEventListener("error", this.failFrameLoad, {
+                once: true,
+            });
+            this.observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true,
+            });
+            this.frame.srcdoc = EDITOR_FRAME_SOURCE;
+            this.textarea.before(this.frame);
+        } catch (error) {
+            this.fail(error);
+        }
+    }
+
+    private readonly initialize = (): void => {
+        if (!isEditorFrameAttached(this.frame, this.textarea)) {
+            this.fail(new Error("The source editor moved while loading."));
+            return;
+        }
+        const target = this.frame.contentDocument;
+        if (target == null) {
+            this.fail(
+                new Error("wikEd Lite could not access its editor frame."),
+            );
+            return;
+        }
+        this.settled = true;
+        this.cleanup();
+        this.resolve(target);
+    };
+
+    private readonly failFrameLoad = (): void => {
+        this.fail(new Error("wikEd Lite could not load its editor frame."));
+    };
+
+    private validateAttachment(): void {
+        if (!isEditorFrameAttached(this.frame, this.textarea)) {
+            this.fail(
+                new Error("The source editor was removed while loading."),
+            );
+        }
+    }
+
+    private fail(reason: unknown): void {
+        if (this.settled) {
+            return;
+        }
+        this.settled = true;
+        this.cleanup();
+        this.reject(reason);
+    }
+
+    private cleanup(): void {
+        window.clearTimeout(this.timeout);
+        this.observer.disconnect();
+        this.frame.removeEventListener("load", this.initialize);
+        this.frame.removeEventListener("error", this.failFrameLoad);
+    }
+}
+
+function isEditorFrameAttached(
+    frame: HTMLIFrameElement,
+    textarea: HTMLTextAreaElement,
+): boolean {
+    return (
+        frame.isConnected &&
+        textarea.isConnected &&
+        frame.parentNode === textarea.parentNode &&
+        frame.nextSibling === textarea
+    );
+}
+
+function restoreAttribute(
+    element: HTMLElement,
+    name: string,
+    value: string | null,
+): void {
+    if (value == null) {
+        element.removeAttribute(name);
+        return;
+    }
+    element.setAttribute(name, value);
+}
+
+function restoreNativeFocus(
+    textarea: HTMLTextAreaElement,
+    selection: { end: number; start: number } | null,
+): void {
+    if (
+        selection == null ||
+        !textarea.isConnected ||
+        isIncompatibleEditor(textarea)
+    ) {
+        return;
+    }
+    textarea.setSelectionRange(selection.start, selection.end);
+    textarea.focus({ preventScroll: true });
 }
 
 function copyTextareaPresentation(
     textarea: HTMLTextAreaElement,
+    frame: HTMLIFrameElement,
     editor: HTMLElement,
 ): void {
     const style = window.getComputedStyle(textarea);
-    editor.dir = textarea.dir || style.direction;
-    editor.lang = textarea.lang || document.documentElement.lang;
-    editor.style.border = style.border;
-    editor.style.borderRadius = style.borderRadius;
+    const background = findOpaqueBackground(textarea, style);
+    const direction = textarea.dir || style.direction;
+    editor.dir = direction;
+    editor.lang = frame.contentDocument?.documentElement.lang ?? "";
+    editor.ownerDocument.documentElement.dir = direction;
+    editor.ownerDocument.body.dir = direction;
+    frame.style.border = style.border;
+    frame.style.borderRadius = style.borderRadius;
+    frame.style.resize = style.resize;
+    frame.style.setProperty("--wiked-lite-background", background);
+    frame.style.setProperty("--wiked-lite-foreground", style.color);
     editor.style.fontFamily = style.fontFamily;
     editor.style.fontSize = style.fontSize;
     editor.style.fontWeight = style.fontWeight;
     editor.style.letterSpacing = style.letterSpacing;
     editor.style.lineHeight = style.lineHeight;
     editor.style.padding = style.padding;
-    editor.style.resize = style.resize;
     editor.style.tabSize = style.tabSize;
     editor.style.setProperty("--wiked-lite-foreground", style.color);
-    editor.style.setProperty("--wiked-lite-caret", style.caretColor);
-    if (style.backgroundColor !== "rgba(0, 0, 0, 0)") {
-        editor.style.setProperty(
-            "--wiked-lite-background",
-            style.backgroundColor,
-        );
+    editor.style.setProperty(
+        "--wiked-lite-caret",
+        style.caretColor === "auto" ? style.color : style.caretColor,
+    );
+    editor.style.setProperty("--wiked-lite-background", background);
+    editor.ownerDocument.body.style.setProperty(
+        "--wiked-lite-background",
+        background,
+    );
+}
+
+function findOpaqueBackground(
+    element: HTMLElement,
+    computedStyle: CSSStyleDeclaration,
+): string {
+    let current: HTMLElement | null = element;
+    let style = computedStyle;
+    while (current != null) {
+        const color = style.backgroundColor;
+        if (
+            color !== "" &&
+            color !== "transparent" &&
+            color !== "rgba(0, 0, 0, 0)"
+        ) {
+            return color;
+        }
+        current = current.parentElement;
+        if (current != null) {
+            style = window.getComputedStyle(current);
+        }
     }
+    return "rgb(255, 255, 255)";
 }
 
 function renderSegments(
@@ -222,39 +548,60 @@ function renderSegments(
     source: string,
     missingTitles: Set<string>,
 ): void {
-    const fragment = document.createDocumentFragment();
+    const target = editor.ownerDocument;
+    const fragment = target.createDocumentFragment();
     const limit = window.wikEdLiteConfig?.maxLiveHighlightLength ?? 300_000;
     if (source.length > limit) {
-        editor.replaceChildren(document.createTextNode(source));
+        editor.replaceChildren(target.createTextNode(source));
         return;
     }
-    const linkHelpers = mw.config.get("wgDBname") === "zhwiki";
-    for (const segment of highlightWikitext(source, { linkHelpers })) {
+    const databaseName = String(mw.config.get("wgDBname") ?? "");
+    const linkHelpers = databaseName === "zhwiki";
+    const namespaceIds = mw.config.get("wgNamespaceIds") as Record<
+        string,
+        number
+    >;
+    const segments = highlightWikitext(source, {
+        databaseName,
+        linkHelpers,
+        namespaceIds,
+    });
+    appendHighlightedSegments(target, fragment, segments, missingTitles);
+    editor.replaceChildren(fragment);
+}
+
+function appendHighlightedSegments(
+    target: Document,
+    fragment: DocumentFragment,
+    segments: ReturnType<typeof highlightWikitext>,
+    missingTitles: Set<string>,
+): void {
+    for (const segment of segments) {
         if (segment.classNames.length === 0) {
-            fragment.append(document.createTextNode(segment.text));
+            fragment.append(target.createTextNode(segment.text));
             continue;
         }
-        const span = document.createElement("span");
+        const span = target.createElement("span");
         span.className = segment.classNames.join(" ");
         span.textContent = segment.text;
         if (segment.href != null) {
             span.dataset.href = segment.href;
-            markMissingLink(span, segment.href, missingTitles);
+        }
+        if (segment.missingTitle != null) {
+            markMissingLink(span, segment.missingTitle, missingTitles);
         }
         if (segment.referenceSource != null) {
             span.dataset.reference = segment.referenceSource;
         }
         fragment.append(span);
     }
-    editor.replaceChildren(fragment);
 }
 
 function markMissingLink(
     span: HTMLElement,
-    href: string,
+    title: string,
     missingTitles: Set<string>,
 ): void {
-    const title = decodeURIComponent(href.replace(/^\/wiki\//u, ""));
     if (missingTitles.has(normalizeTitle(title))) {
         span.classList.add("wiked-lite-token--missing");
     }
@@ -268,24 +615,28 @@ function readNodeText(node: Node): string {
     if (node.nodeType === Node.TEXT_NODE) {
         return node.nodeValue ?? "";
     }
-    if (node instanceof HTMLBRElement) {
+    if (node.nodeName === "BR") {
         return "\n";
     }
     let text = "";
     for (const child of node.childNodes) {
         text += readNodeText(child);
-        if (child instanceof HTMLDivElement && !text.endsWith("\n")) {
+        if (isEditableLine(child) && !text.endsWith("\n")) {
             text += "\n";
         }
     }
     return text;
 }
 
+function isEditableLine(node: Node): boolean {
+    return node.nodeName === "DIV" || node.nodeName === "P";
+}
+
 function getSelectionOffsets(editor: HTMLElement): {
     end: number;
     start: number;
 } {
-    const selection = window.getSelection();
+    const selection = editor.ownerDocument.getSelection();
     if (selection == null || selection.rangeCount === 0) {
         return { end: 0, start: 0 };
     }
@@ -300,7 +651,10 @@ function getSelectionOffsets(editor: HTMLElement): {
 }
 
 function measureOffset(root: Node, node: Node, offset: number): number {
-    const range = document.createRange();
+    const range = root.ownerDocument?.createRange();
+    if (range == null) {
+        return 0;
+    }
     range.selectNodeContents(root);
     range.setEnd(node, offset);
     return range.toString().length;
@@ -311,12 +665,12 @@ function setSelectionOffsets(
     start: number,
     end: number,
 ): void {
-    const range = document.createRange();
+    const range = editor.ownerDocument.createRange();
     const startPoint = findTextPoint(editor, start);
     const endPoint = findTextPoint(editor, end);
     range.setStart(startPoint.node, startPoint.offset);
     range.setEnd(endPoint.node, endPoint.offset);
-    const selection = window.getSelection();
+    const selection = editor.ownerDocument.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
 }
@@ -354,201 +708,20 @@ function openModifiedTarget(event: MouseEvent): void {
     if (!event.ctrlKey && !event.metaKey) {
         return;
     }
-    const target = event.target;
-    const span =
-        target instanceof Element
-            ? target.closest<HTMLElement>("[data-href]")
-            : null;
+    const target = eventElement(event.target);
+    const span = target?.closest<HTMLElement>("[data-href]") ?? null;
     if (span?.dataset.href != null) {
         event.preventDefault();
         window.open(span.dataset.href, "_blank", "noopener,noreferrer");
     }
 }
 
-function showReferenceTooltip(
-    editor: HTMLElement,
-    articleSource: string,
-    event: PointerEvent,
-): void {
-    const target = event.target;
-    const span =
-        target instanceof Element
-            ? target.closest<HTMLElement>("[data-reference]")
-            : null;
-    if (span == null || !editor.contains(span)) {
-        return;
-    }
-    const preview = buildReferencePreview(
-        articleSource,
-        span.dataset.reference ?? "",
-    );
-    if (preview != null) {
-        renderTooltip(preview, editor, event.clientX, event.clientY);
-    }
-}
-
-function renderTooltip(
-    preview: NonNullable<ReturnType<typeof buildReferencePreview>>,
-    editor: HTMLElement,
-    x: number,
-    y: number,
-): void {
-    hideReferenceTooltip();
-    const tooltip = document.createElement("div");
-    const body = document.createElement("div");
-    tooltip.className = "wiked-lite-tooltip";
-    tooltip.role = "note";
-    body.className = "wiked-lite-tooltip__body";
-    copyTooltipPresentation(editor, tooltip);
-    tooltip.append(
-        createTooltipTitle(preview.templateName, preview.referenceLabel),
-    );
-    for (const row of preview.rows) {
-        body.append(createTooltipRow(row.fields));
-    }
-    tooltip.append(body);
-    tooltip.addEventListener("pointerenter", clearReferenceTooltipHideTimer);
-    tooltip.addEventListener("pointerleave", scheduleReferenceTooltipHide);
-    document.body.append(tooltip);
-    const margin = 12;
-    const left = Math.max(
-        margin,
-        Math.min(x + margin, innerWidth - tooltip.offsetWidth - margin),
-    );
-    const top = Math.max(
-        margin,
-        Math.min(y + margin, innerHeight - tooltip.offsetHeight - margin),
-    );
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
-}
-
-function copyTooltipPresentation(
-    editor: HTMLElement,
-    tooltip: HTMLElement,
-): void {
-    const style = window.getComputedStyle(editor);
-    tooltip.style.setProperty("--wiked-lite-tooltip-foreground", style.color);
-    if (style.backgroundColor !== "rgba(0, 0, 0, 0)") {
-        tooltip.style.setProperty(
-            "--wiked-lite-tooltip-background",
-            style.backgroundColor,
-        );
-    }
-    const editorFontSize = Number.parseFloat(style.fontSize);
-    if (Number.isFinite(editorFontSize)) {
-        tooltip.style.fontSize = `${editorFontSize * 0.82}px`;
-    }
-}
-
-function createTooltipRow(fields: ReferencePreviewField[]): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "wiked-lite-tooltip__row";
-    if (fields.length > 1) {
-        row.classList.add("wiked-lite-tooltip__row--paired");
-    }
-    for (const field of fields) {
-        const key = document.createElement("span");
-        const value = document.createElement("span");
-        key.className = "wiked-lite-tooltip__key";
-        value.className = "wiked-lite-tooltip__value";
-        key.textContent = field.name;
-        appendTooltipValue(value, field);
-        row.append(key, value);
-    }
-    return row;
-}
-
-function appendTooltipValue(
-    container: HTMLElement,
-    field: ReferencePreviewField,
-): void {
-    const text = field.displayValue ?? field.value;
-    if (field.href != null) {
-        const link = createTooltipLink(field.href, text);
-        if (link != null) {
-            container.append(link);
-            return;
-        }
-    }
-    const pattern = /<!--[\s\S]*?-->|https?:\/\/[^\s<>{}\[\]|"']+/gu;
-    let cursor = 0;
-    for (const match of text.matchAll(pattern)) {
-        const index = match.index;
-        container.append(document.createTextNode(text.slice(cursor, index)));
-        if (match[0].startsWith("<!--")) {
-            const comment = document.createElement("span");
-            comment.className = "wiked-lite-tooltip__comment";
-            comment.textContent = match[0];
-            container.append(comment);
-        } else {
-            container.append(
-                createTooltipLink(match[0], match[0]) ??
-                    document.createTextNode(match[0]),
-            );
-        }
-        cursor = index + match[0].length;
-    }
-    container.append(document.createTextNode(text.slice(cursor)));
-}
-
-function createTooltipLink(
-    href: string,
-    text: string,
-): HTMLAnchorElement | null {
-    let url: URL;
-    try {
-        url = new URL(href);
-    } catch {
+function eventElement(target: EventTarget | null): Element | null {
+    if (target == null || !("nodeType" in target)) {
         return null;
     }
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return null;
-    }
-    const anchor = document.createElement("a");
-    anchor.className = "wiked-lite-tooltip__link";
-    anchor.href = url.href;
-    anchor.rel = "noopener noreferrer";
-    anchor.target = "_blank";
-    anchor.textContent = text;
-    return anchor;
-}
-
-function createTooltipTitle(
-    templateName: string,
-    referenceLabel: string,
-): HTMLElement {
-    const title = document.createElement("div");
-    title.className = "wiked-lite-tooltip__title";
-    title.append(
-        document.createTextNode(
-            templateName.replace(/^./u, (character) =>
-                character.toLocaleUpperCase(),
-            ),
-        ),
-    );
-    if (referenceLabel !== "") {
-        const reference = document.createElement("span");
-        reference.className = "wiked-lite-tooltip__reference";
-        reference.textContent = ` (${referenceLabel})`;
-        title.append(reference);
-    }
-    return title;
-}
-
-function hideReferenceTooltip(): void {
-    clearReferenceTooltipHideTimer();
-    document.querySelector(".wiked-lite-tooltip")?.remove();
-}
-
-function clearReferenceTooltipHideTimer(): void {
-    window.clearTimeout(referenceTooltipHideTimer);
-    referenceTooltipHideTimer = 0;
-}
-
-function scheduleReferenceTooltipHide(): void {
-    clearReferenceTooltipHideTimer();
-    referenceTooltipHideTimer = window.setTimeout(hideReferenceTooltip, 180);
+    const node = target as Node;
+    return node.nodeType === 1 ? (node as Element) : node.parentElement;
 }
 
 function installTool(services: EditorServices): void {
@@ -643,11 +816,40 @@ async function applyFormatting(
     }
     if (selection.highlightMissing) {
         const missing = await services.findMissingLinks(textarea.value);
-        controller?.setMissingLinks(missing);
+        controller?.setMissingLinks(
+            missing.titles,
+            siteMissingLinkColor(missing.linkClasses),
+        );
     } else {
         controller?.setMissingLinks(new Set());
     }
     notifyFormattingResult(formatted !== source, selected);
+}
+
+function siteMissingLinkColor(linkClasses: string[]): string {
+    const host =
+        document.querySelector(".mw-parser-output") ??
+        document.querySelector("#mw-content-text") ??
+        document.body;
+    if (host == null) {
+        return "";
+    }
+    const probe = document.createElement("a");
+    const classes = new Set(
+        linkClasses.map((name) => String(name).trim()).filter(Boolean),
+    );
+    classes.add("new");
+    probe.className = [...classes].join(" ");
+    probe.href = "#";
+    probe.textContent = "wikEd";
+    probe.ariaHidden = "true";
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    host.append(probe);
+    const color = window.getComputedStyle(probe).color;
+    probe.remove();
+    return color;
 }
 
 function writeFormattedSource(

@@ -25,6 +25,7 @@ declare global {
         wikEdLiteConfig?: {
             highlightDelay?: number;
             maxLiveHighlightLength?: number;
+            referenceTooltipDelay?: number;
         };
     }
 }

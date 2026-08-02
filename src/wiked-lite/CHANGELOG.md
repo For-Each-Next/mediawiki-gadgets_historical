@@ -2,6 +2,124 @@
 
 ## Until 0.5
 
+### 0.4.4-dev.21 (2026-08-02 09:38 UTC)
+
+Overview: wikEd Lite aligns standalone nested-template closers with their block
+depth.
+
+- Indented a standalone `}}` by two spaces for each owning outer template while
+  keeping the outermost closer at column zero.
+- Applied closer indentation only with template indentation enabled and
+  preserved annotated, combined, stray, table-local, and variable-local braces.
+- Added nested, deep, unfinished, table, variable, continuation, and opt-in
+  regression coverage for closing-delimiter indentation.
+
+### 0.4.4-dev.20 (2026-08-02 09:24 UTC)
+
+Overview: wikEd Lite preserves live editing state across embedded source syntax
+and iframe teardown.
+
+- Scanned the protected source as one persistent stream so templates inside
+  tables stay untouched and unfinished templates retain their live depth.
+- Balanced nested templates in triple-brace defaults, left variable content
+  unchanged, and corrected equals alignment for marks and non-ASCII names.
+- Returned a focused iframe editor's live selection to a compatible native
+  textarea during teardown without stealing focus from replacement editors.
+
+### 0.4.4-dev.19 (2026-08-02 09:05 UTC)
+
+Overview: wikEd Lite formats nested block templates at their persistent nesting
+depth instead of flattening every parameter to two spaces.
+
+- Added two spaces for every nested block-template parameter level while
+  preserving entered closing delimiters and continuation indentation.
+- Calculated equals alignment independently for each owning template rather
+  than mixing nested and outer parameter widths.
+- Excluded wikitable, template-variable, comment, and protected literal content
+  from nesting changes so embedded source retains its own wikitext structure.
+
+### 0.4.4-dev.18 (2026-08-02 08:44 UTC)
+
+Overview: wikEd Lite makes the loaded iframe lifecycle reversible when
+MediaWiki replaces or moves its source editor.
+
+- Transferred active focus into the ready frame and restored the native
+  textarea's exact accessibility and tab-order attributes on every teardown.
+- Watched frame adjacency after startup so a detached editor cannot leave its
+  submitted source clipped, and discarded stale controllers on later hooks.
+- Bounded local frame loading and rejected removal, movement, and load failures
+  while cleaning pending listeners, observers, and timers transactionally.
+- Flushed active input-method composition into the submitted textarea during
+  form submission or frame teardown so an interrupted composition is not lost.
+
+### 0.4.4-dev.17 (2026-08-02 08:29 UTC)
+
+Overview: wikEd Lite now initializes its isolated editor only after the local
+iframe document has loaded.
+
+- Created the editor iframe from a minimal trusted `srcdoc` with matching title
+  and accessible label metadata.
+- Waited for the one-shot frame load before installing editor DOM, styles, and
+  highlighting, avoiding replacement by the transient `about:blank` document.
+- Exposed the frame's ready state only after its initial safe render and hid
+  the unfinished frame through an explicit readiness selector.
+
+### 0.4.4-dev.16 (2026-08-02 07:58 UTC)
+
+Overview: wikEd Lite stabilizes iframe popovers and keeps dense source
+highlighting responsive after the initial isolated-editor build.
+
+- Preserved the compact `44vh` popup cap while remeasuring constrained previews
+  against their final rendered height.
+- Invalidated pending reference previews throughout input-method composition
+  without interrupting the active composition with a scheduled rerender.
+- Replaced per-segment full-range filtering with a boundary-event sweep so
+  emphasis-dense and tag-dense sources remain responsive near the live limit.
+
+### 0.4.4-dev.15 (2026-08-02 07:11 UTC)
+
+Overview: wikEd Lite isolates highlighting in an iframe and adds stable,
+anchored reference previews while restoring source-accurate token styles.
+
+- Rendered the editable highlighter and its reference overlay in a same-origin
+  iframe while keeping the native textarea synchronized as the submitted source
+  and restoring it when the enhancement is removed.
+- Added delayed, anchored reference popovers with above-or-below placement,
+  hover-safe token transitions, remeasured constrained height, a directional
+  tail, reduced-motion support, and plain-reference or explanatory-footnote
+  previews built from text nodes.
+- Restored bold and italic apostrophe markup without leaking styles through
+  comments, literal regions, HTML or template syntax, wikilink targets, or
+  unmatched lines, and made line scanning linear in the source length.
+- Restricted table coloring to parsed tables so block-template parameter names
+  retain their dedicated color.
+- Limited missing-page coloring to visible wikilink text, leaving brackets,
+  separators, hidden targets, and label markup unaffected while normalizing
+  fragments and leading colons for lookup.
+- Added typed tag-attribute and template-parameter filters to the shared
+  source-bound query collections, including compound and positional matching.
+- Added focused highlighter, preview, geometry, stylesheet, and iframe-source
+  regression coverage for the corrected behavior.
+
+### 0.4.4-dev.14 (2026-08-02 06:19 UTC)
+
+Overview: wikEd Lite restores original tag boundaries, Chinese title lookup,
+and highlighting colors through the shared source-bound wikitext API.
+
+- Parsed references with balanced shared tag queries so self-closing reuse tags
+  no longer color later article text as unclosed reference content.
+- Queried Chinese title variants with `converttitles`, mapped normalized and
+  converted API titles back to entered links, and derived missing-link colors
+  from the active wiki skin.
+- Restored the original HTML, literal tag, file, image-template, NoteTA,
+  language-variant, template-delimiter, reference, footnote, and nesting color
+  families, along with editor background and caret inheritance.
+- Added source-bound tag and template parsers with named collection filters,
+  ordered attribute or parameter pairs, exact inner text, and plural aliases;
+  migrated reference previews to that API.
+- Covered the supplied Arch Linux patterns with regression fixtures for NoteTA,
+  nested infobox images, ordinary `<code>` tags, and reference definitions.
+
 ### 0.4.4-dev.12 (2026-08-01 19:25 UTC)
 
 Overview: wikEd Lite uses lazy source-bound wikitext queries and restores

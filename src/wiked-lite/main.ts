@@ -15,7 +15,10 @@ export function start(): void {
                 new mw.Api(),
                 collectWikiLinkTitles(source),
             );
-            return result.missing;
+            return {
+                linkClasses: result.missingLinkClasses,
+                titles: result.missing,
+            };
         },
         async resolveRedirects(source) {
             const result = await lookupWikiLinks(

@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+    calculateReferenceTooltipPlacement,
+    selectReferenceTooltipRect,
+    type ReferenceTooltipRect,
+} from "../../src/wiked-lite/ui/reference-tooltip.ts";
+
+function rect(
+    left: number,
+    top: number,
+    width: number,
+    height: number,
+): ReferenceTooltipRect {
+    return {
+        bottom: top + height,
+        height,
+        left,
+        right: left + width,
+        top,
+        width,
+    };
+}
+
+test("reference tooltips prefer space above their anchor", () => {
+    const placement = calculateReferenceTooltipPlacement(
+        rect(100, 300, 40, 20),
+        { height: 100, width: 200 },
+        { height: 800, width: 1000 },
+    );
+
+    assert.equal(placement.side, "above");
+    assert.equal(placement.top, 190);
+    assert.equal(placement.left, 94);
+    assert.equal(placement.tailLeft, 26);
+});
+
+test("reference tooltips flip below near the viewport top", () => {
+    const placement = calculateReferenceTooltipPlacement(
+        rect(100, 20, 40, 20),
+        { height: 100, width: 200 },
+        { height: 800, width: 1000 },
+    );
+
+    assert.equal(placement.side, "below");
+    assert.equal(placement.top, 50);
+});
+
+test("constrained tooltips use the larger side and cap their height", () => {
+    const placement = calculateReferenceTooltipPlacement(
+        rect(100, 200, 40, 20),
+        { height: 300, width: 200 },
+        { height: 350, width: 1000 },
+    );
+
+    assert.equal(placement.side, "above");
+    assert.equal(placement.maxHeight, 178);
+    assert.equal(placement.top, 12);
+});
+
+test("tooltip bodies and tails stay inside horizontal edges", () => {
+    const left = calculateReferenceTooltipPlacement(
+        rect(0, 300, 10, 20),
+        { height: 100, width: 200 },
+        { height: 800, width: 400 },
+    );
+    const right = calculateReferenceTooltipPlacement(
+        rect(390, 300, 10, 20),
+        { height: 100, width: 200 },
+        { height: 800, width: 400 },
+    );
+
+    assert.equal(left.left, 12);
+    assert.equal(left.tailLeft, 18);
+    assert.equal(right.left, 188);
+    assert.equal(right.tailLeft, 182);
+});
+
+test("wrapped references anchor to the line under the pointer", () => {
+    const first = rect(10, 20, 80, 16);
+    const second = rect(10, 40, 100, 16);
+
+    assert.equal(selectReferenceTooltipRect([first, second], 48), second);
+    assert.equal(selectReferenceTooltipRect([first, second], 70), first);
+});

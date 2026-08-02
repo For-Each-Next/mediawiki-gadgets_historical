@@ -15,6 +15,34 @@ export interface FormatterResult {
     text: string;
 }
 
+interface BlockTemplateLine {
+    closingDepth?: number;
+    templateDepth: number;
+    templateId?: number;
+    text: string;
+}
+
+interface BlockParameterLine {
+    content: string;
+    indentation: string;
+}
+
+interface BlockTemplateLayout {
+    equalsColumns: Map<number, number>;
+    options: FormatterOptions;
+    ratio: number;
+}
+
+interface FormatterNestingState {
+    comment: boolean;
+    nextTemplateId: number;
+    tableDepth: number;
+    templateStack: number[];
+    variableStack: FormatterVariableConstruct[];
+}
+
+type FormatterVariableConstruct = "parameter" | "template";
+
 const CATEGORY_LINE_PATTERN =
     /^(\s*\[\[(?:category|分类|分類)\s*:[^\n]+\]\]\s*)$/gimu;
 
@@ -69,70 +97,227 @@ function formatBlockTemplates(
     source: string,
     options: FormatterOptions,
 ): string {
-    const templates = wikitext(source)
-        .template.getAll()
-        .filter((template) => template.depth === 0)
-        .sort((left, right) => right.start - left.start);
-    let formatted = source;
-    for (const template of templates) {
-        const original = formatted.slice(template.start, template.end);
-        if (!original.includes("\n")) {
+    const lines = scanBlockTemplateLines(source);
+    const ratio = options.fullWidthRatio ?? 2;
+    const layout = {
+        equalsColumns: getEqualsColumns(lines, ratio, options),
+        options,
+        ratio,
+    };
+    return lines.map((line) => formatBlockLine(line, layout)).join("\n");
+}
+
+function scanBlockTemplateLines(source: string): BlockTemplateLine[] {
+    const state: FormatterNestingState = {
+        comment: false,
+        nextTemplateId: 1,
+        tableDepth: 0,
+        templateStack: [],
+        variableStack: [],
+    };
+    return source.split("\n").map(function scanLine(text) {
+        const templateDepth = state.templateStack.length;
+        const active = isFormatterLineActive(state);
+        const closingDepth =
+            active && templateDepth > 0 && /^\s*\}\}\s*$/u.test(text)
+                ? templateDepth - 1
+                : undefined;
+        const templateId =
+            active && /^\s*\|/u.test(text)
+                ? state.templateStack.at(-1)
+                : undefined;
+        scanFormatterNesting(text, state);
+        return { closingDepth, templateDepth, templateId, text };
+    });
+}
+
+function isFormatterLineActive(state: FormatterNestingState): boolean {
+    return (
+        !state.comment &&
+        state.tableDepth === 0 &&
+        state.variableStack.length === 0
+    );
+}
+
+function scanFormatterNesting(
+    line: string,
+    state: FormatterNestingState,
+): void {
+    let index = 0;
+    while (index < line.length) {
+        const commentEnd = consumeFormatterComment(line, index, state);
+        if (commentEnd != null) {
+            index = commentEnd;
             continue;
         }
-        const replacement = formatOneBlockTemplate(original, options);
-        formatted =
-            formatted.slice(0, template.start) +
-            replacement +
-            formatted.slice(template.end);
+        const variableEnd = consumeFormatterVariable(line, index, state);
+        if (variableEnd != null) {
+            index = variableEnd;
+            continue;
+        }
+        index = consumeFormatterStructure(line, index, state) ?? index + 1;
     }
-    return formatted;
 }
 
-function formatOneBlockTemplate(
-    source: string,
+function consumeFormatterComment(
+    line: string,
+    index: number,
+    state: FormatterNestingState,
+): number | undefined {
+    if (state.comment) {
+        if (line.startsWith("-->", index)) {
+            state.comment = false;
+            return index + 3;
+        }
+        return index + 1;
+    }
+    if (line.startsWith("<!--", index)) {
+        state.comment = true;
+        return index + 4;
+    }
+    return undefined;
+}
+
+function consumeFormatterVariable(
+    line: string,
+    index: number,
+    state: FormatterNestingState,
+): number | undefined {
+    const active = state.variableStack.at(-1);
+    if (active === "parameter" && line.startsWith("}}}", index)) {
+        state.variableStack.pop();
+        return index + 3;
+    }
+    if (active === "template" && line.startsWith("}}", index)) {
+        state.variableStack.pop();
+        return index + 2;
+    }
+    if (line.startsWith("{{{", index)) {
+        state.variableStack.push("parameter");
+        return index + 3;
+    }
+    if (active == null) {
+        return undefined;
+    }
+    if (line.startsWith("{{", index)) {
+        state.variableStack.push("template");
+        return index + 2;
+    }
+    return index + 1;
+}
+
+function consumeFormatterStructure(
+    line: string,
+    index: number,
+    state: FormatterNestingState,
+): number | undefined {
+    if (line.startsWith("{|", index)) {
+        state.tableDepth += 1;
+        return index + 2;
+    }
+    if (line.startsWith("|}", index) && state.tableDepth > 0) {
+        state.tableDepth -= 1;
+        return index + 2;
+    }
+    if (line.startsWith("{{", index)) {
+        state.templateStack.push(state.nextTemplateId);
+        state.nextTemplateId += 1;
+        return index + 2;
+    }
+    if (line.startsWith("}}", index) && state.templateStack.length > 0) {
+        state.templateStack.pop();
+        return index + 2;
+    }
+    return undefined;
+}
+
+function getEqualsColumns(
+    lines: BlockTemplateLine[],
+    ratio: number,
     options: FormatterOptions,
-): string {
-    const lines = source.split("\n");
-    const parameterLines = lines.filter((line) => /^\s*\|/u.test(line));
-    const ratio = options.fullWidthRatio ?? 2;
-    const equalsColumn = options.alignEquals
-        ? getEqualsColumn(parameterLines, ratio)
-        : 0;
-    return lines
-        .map((line) => formatTemplateLine(line, equalsColumn, ratio, options))
-        .join("\n");
+): Map<number, number> {
+    const columns = new Map<number, number>();
+    if (options.alignEquals !== true) {
+        return columns;
+    }
+    for (const line of lines) {
+        if (line.templateId == null) {
+            continue;
+        }
+        const parameter = parseBlockParameterLine(line.text);
+        if (parameter == null) {
+            continue;
+        }
+        const equals = wikitext(parameter.content).findTopLevelEquals();
+        const name =
+            equals < 0 ? "" : parameter.content.slice(0, equals).trim();
+        const width = getDisplayWidth(name, ratio);
+        columns.set(
+            line.templateId,
+            Math.max(columns.get(line.templateId) ?? 0, width),
+        );
+    }
+    return columns;
 }
 
-function getEqualsColumn(lines: string[], ratio: number): number {
-    return lines.reduce(function getLongest(current, line) {
-        const content = line.replace(/^\s*\|\s*/u, "");
-        const equals = wikitext(content).findTopLevelEquals();
-        const name = equals < 0 ? "" : content.slice(0, equals).trim();
-        return Math.max(current, getDisplayWidth(name, ratio));
-    }, 0);
+function parseBlockParameterLine(
+    text: string,
+): BlockParameterLine | undefined {
+    const match = text.match(/^(\s*)\|\s*(.*)$/u);
+    return match == null
+        ? undefined
+        : { content: match[2], indentation: match[1] };
+}
+
+function formatBlockLine(
+    line: BlockTemplateLine,
+    layout: BlockTemplateLayout,
+): string {
+    if (layout.options.indentPipes && line.closingDepth != null) {
+        return line.text.replace(
+            /^\s*(?=\}\})/u,
+            "  ".repeat(line.closingDepth),
+        );
+    }
+    if (line.templateId == null) {
+        return line.text;
+    }
+    const parameter = parseBlockParameterLine(line.text);
+    return parameter == null
+        ? line.text
+        : formatTemplateLine(
+              parameter,
+              line.templateDepth,
+              layout.equalsColumns.get(line.templateId) ?? 0,
+              layout,
+          );
 }
 
 function formatTemplateLine(
-    line: string,
+    line: BlockParameterLine,
+    templateDepth: number,
     equalsColumn: number,
-    ratio: number,
-    options: FormatterOptions,
+    layout: BlockTemplateLayout,
 ): string {
-    const match = line.match(/^(\s*)\|\s*(.*)$/u);
-    if (match == null) {
-        return line;
-    }
-    const content = match[2];
+    const content = line.content;
     const equals = wikitext(content).findTopLevelEquals();
-    const prefix = options.indentPipes ? "  |" : `${match[1]}|`;
+    const indentation = layout.options.indentPipes
+        ? "  ".repeat(templateDepth)
+        : line.indentation;
+    const prefix = `${indentation}|`;
     if (equals < 0) {
         return `${prefix} ${content.trim()}`;
     }
     const name = content.slice(0, equals).trim();
     const value = content.slice(equals + 1).trim();
-    const padding = options.alignEquals
+    const padding = layout.options.alignEquals
         ? " ".repeat(
-              Math.max(1, equalsColumn - getDisplayWidth(name, ratio) + 1),
+              Math.max(
+                  1,
+                  Math.ceil(
+                      equalsColumn - getDisplayWidth(name, layout.ratio),
+                  ) + 1,
+              ),
           )
         : " ";
     return `${prefix} ${name}${padding}= ${value}`;
@@ -140,11 +325,11 @@ function formatTemplateLine(
 
 function getDisplayWidth(value: string, ratio: number): number {
     return [...value].reduce(function addWidth(total, character) {
-        const fullWidth =
-            /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(
-                character,
-            );
-        return total + (fullWidth ? ratio : 1);
+        if (/\p{Mark}/u.test(character)) {
+            return total;
+        }
+        const codePoint = character.codePointAt(0) ?? 0;
+        return total + (codePoint <= 0x7f ? 1 : ratio);
     }, 0);
 }
 

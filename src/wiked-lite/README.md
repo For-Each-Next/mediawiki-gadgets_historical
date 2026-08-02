@@ -30,14 +30,17 @@ wikitext content model. Review formatting changes before saving the page.
 
 ## Features
 
-- Keeps the native source textarea synchronized while presenting a lightweight
-  editable syntax-highlighted surface.
+- Renders the editable syntax highlighter in an isolated iframe while mirroring
+  every edit immediately to the native submitted textarea.
 - Highlights references and short footnotes in purple, explanatory footnotes in
-  blue, and nested templates with progressively darker neutral shades while
-  retaining the source textarea's typography and wikEd's heading treatment.
-- Resolves `ref`, `r`, and `sfn` citation previews from page wikitext, pairs
-  matching prefixed `last` and `first` fields on one row, and preserves
-  separate original and archived links without rendering untrusted HTML.
+  blue, bold and italic apostrophe markup, table syntax, parameter names, and
+  nested templates while retaining the source textarea's typography.
+- Opens delayed, anchored MediaWiki-style previews for plain references and
+  `ref`, `r`, `sfn`, or `efn` citations, with viewport-aware placement and
+  hover-safe transitions that keep links usable.
+- Pairs matching prefixed `last` and `first` citation fields on one row and
+  preserves separate original and archived links without rendering untrusted
+  HTML.
 - Displays Chinese `link-xx` and `tsl` helpers like local wikilinks and opens
   template or link targets on Control-click or Command-click.
 - Applies conservative wikEd-style basic fixes to the selection or whole page,
@@ -83,8 +86,9 @@ index.ts
 
 - `browser.ts` invokes `start` from the `main.ts` composition root.
 - `main.ts` wires optional MediaWiki API operations into the editor UI.
-- `ui/` owns native-textarea synchronization, safe DOM highlighting, citation
-  tooltips, styles, and the co-located Codex formatter dialog.
+- `ui/` owns iframe rendering, native-textarea synchronization, safe DOM
+  highlighting, citation tooltips, styles, and the co-located Codex formatter
+  dialog.
 - `domain/` contains deterministic formatting and preview logic backed by the
   lazy `wikitext(source)` facade. Its construct methods run focused scanners
   without building a document-wide syntax tree.

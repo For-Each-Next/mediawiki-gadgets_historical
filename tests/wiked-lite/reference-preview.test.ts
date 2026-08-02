@@ -87,6 +87,31 @@ test("a full ref preview parses only its inner content", () => {
     ]);
 });
 
+test("a plain reference previews its explanatory note text", () => {
+    const reference = '<ref name="note">  Plain explanatory note.  </ref>';
+
+    const preview = buildReferencePreview(reference, reference);
+
+    assert.equal(preview?.templateName, "reference");
+    assert.equal(preview?.referenceLabel, "note");
+    assert.equal(preview?.noteText, "Plain explanatory note.");
+    assert.deepEqual(preview?.rows, []);
+});
+
+test("an explanatory-footnote template previews its note", () => {
+    const reference =
+        "{{efn|An explanatory note with https://example.test|name=context}}";
+
+    const preview = buildReferencePreview(reference, reference);
+
+    assert.equal(preview?.templateName, "reference");
+    assert.equal(preview?.referenceLabel, "context");
+    assert.equal(
+        preview?.noteText,
+        "An explanatory note with https://example.test",
+    );
+});
+
 test("pairs person fields and retains original and archive URLs", () => {
     const reference = [
         "{{cite web",

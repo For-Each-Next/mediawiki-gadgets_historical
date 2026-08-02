@@ -1,14 +1,53 @@
+.wiked-lite-frame,
 .wiked-lite-editor {
     --wiked-lite-background: rgb(255, 255, 255);
     --wiked-lite-caret: rgb(32, 33, 34);
     --wiked-lite-foreground: rgb(32, 33, 34);
+    --wiked-lite-missing-link: rgb(186, 0, 0);
+}
 
+.wiked-lite-frame {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 16rem;
+    overflow: hidden;
+    color-scheme: light dark;
+    background: var(--wiked-lite-background);
+    border: var(--border-width-base, 1px) var(--border-style-base, solid)
+        var(--border-color-base, rgb(162, 169, 177));
+    border-radius: var(--border-radius-base, 2px);
+    resize: vertical;
+}
+
+.wiked-lite-frame:not([data-wiked-ready="true"]) {
+    visibility: hidden;
+}
+
+.wiked-lite-frame:focus {
+    outline: var(--border-width-thick, 2px) var(--border-style-base, solid)
+        var(--border-color-progressive--focus, rgb(51, 102, 204));
+    outline-offset: -2px;
+}
+
+.wiked-lite-frame-document {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    color-scheme: light dark;
+    background: var(--wiked-lite-background, rgb(255, 255, 255));
+}
+
+.wiked-lite-editor {
     position: relative;
     box-sizing: border-box;
-    min-height: 16rem;
-    padding: var(--spacing-75);
+    width: 100%;
+    height: 100vh;
+    min-height: 100%;
+    padding: var(--spacing-75, 12px);
     overflow: auto;
     color: var(--wiked-lite-foreground);
+    color-scheme: light dark;
     caret-color: var(--wiked-lite-caret);
     font-family: monospace;
     font-size: 0.875rem;
@@ -16,17 +55,17 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     background: var(--wiked-lite-background);
-    border: var(--border-width-base) var(--border-style-base)
-        var(--border-color-base);
-    border-radius: var(--border-radius-base);
-    resize: vertical;
+    border: 0;
+    outline: 0;
     tab-size: 4;
 }
 
-.wiked-lite-editor:focus {
-    outline: var(--border-width-thick) var(--border-style-base)
-        var(--border-color-progressive--focus);
-    outline-offset: -2px;
+.wiked-lite-frame-overlay {
+    position: fixed;
+    z-index: 800;
+    inset: 0;
+    overflow: visible;
+    pointer-events: none;
 }
 
 .wiked-lite-native {
@@ -48,11 +87,46 @@
     background: rgb(255, 240, 208) !important;
 }
 
-.wiked-lite-token--literal {
+.wiked-lite-token--html-tag {
+    color: var(--wiked-lite-foreground);
+    background: rgb(232, 232, 232);
+}
+
+.wiked-lite-token--pre {
     color: rgb(32, 33, 34);
     font-style: normal;
     font-weight: normal;
-    background: rgb(248, 232, 232);
+    background: transparent;
+}
+
+.wiked-lite-token--block-literal {
+    color: rgb(32, 33, 34);
+    font-style: normal;
+    font-weight: normal;
+    background: rgb(246, 246, 246) !important;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--math {
+    color: rgb(32, 33, 34);
+    font-style: normal;
+    font-weight: normal;
+    background: rgb(232, 240, 255) !important;
+}
+
+.wiked-lite-token--score {
+    color: rgb(32, 33, 34);
+    font-style: normal;
+    font-weight: normal;
+    background: rgb(255, 248, 224) !important;
+}
+
+.wiked-lite-token--nowiki {
+    color: rgb(32, 33, 34);
+    font-style: normal;
+    font-weight: normal;
+    background: rgb(248, 232, 232) !important;
 }
 
 .wiked-lite-token--heading {
@@ -81,13 +155,36 @@
     font-weight: normal;
 }
 
+.wiked-lite-token--table {
+    color: rgb(119, 119, 119);
+}
+
 .wiked-lite-token--link,
+.wiked-lite-token--category,
 .wiked-lite-token--link-helper {
     color: rgb(0, 0, 170);
 }
 
+.wiked-lite-token--link-text,
 .wiked-lite-token--link-helper {
     font-weight: 600;
+}
+
+.wiked-lite-token--wiki-markup,
+.wiked-lite-token--template-delimiter {
+    color: rgb(119, 119, 119);
+}
+
+.wiked-lite-token--file {
+    color: rgb(0, 0, 238);
+}
+
+.wiked-lite-token--file,
+.wiked-lite-token--file-link,
+.wiked-lite-token--image-template {
+    background: rgba(199, 255, 149, 0.75) !important;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
 }
 
 .wiked-lite-token--url {
@@ -95,8 +192,7 @@
 }
 
 .wiked-lite-token--missing {
-    color: var(--color-destructive);
-    text-decoration: underline dotted;
+    color: var(--wiked-lite-missing-link, rgb(186, 0, 0)) !important;
 }
 
 .wiked-lite-token--reference {
@@ -147,28 +243,45 @@
     font-style: normal;
 }
 
+.wiked-lite-token--language-conversion {
+    background: rgb(246, 246, 246);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--language-variant {
+    font-style: italic;
+}
+
+.wiked-lite-token--bold {
+    font-weight: bold;
+}
+
+.wiked-lite-token--italic {
+    font-style: italic;
+}
+
+.wiked-lite-token--wiki-markup.wiked-lite-token--bold,
+.wiked-lite-token--wiki-markup.wiked-lite-token--italic {
+    font-style: normal;
+    font-weight: normal;
+}
+
 .wiked-lite-token--list {
     color: rgb(0, 0, 0);
     font-weight: bold;
     background: rgb(232, 232, 232);
 }
 
-.wiked-lite-token--table {
-    color: rgb(119, 119, 119);
-}
-
 .wiked-lite-tooltip {
     --wiked-lite-tooltip-background: rgb(255, 255, 255);
     --wiked-lite-tooltip-foreground: rgb(32, 33, 34);
+    --wiked-lite-tooltip-tail-left: 26px;
 
     position: fixed;
-    z-index: 2147483647;
     box-sizing: border-box;
-    width: min(360px, calc(100vw - 24px));
-    max-height: 44vh;
+    width: min(27em, calc(100vw - 24px));
     padding: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
     color: var(--wiked-lite-tooltip-foreground);
     font-family: sans-serif;
     font-size: 0.82em;
@@ -176,12 +289,61 @@
     font-weight: normal;
     line-height: 1.45;
     overflow-wrap: anywhere;
+    pointer-events: auto;
+}
+
+.wiked-lite-tooltip__surface {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    max-height: 44vh;
+    overflow: auto;
+    overscroll-behavior: contain;
     scrollbar-gutter: stable;
     background: var(--wiked-lite-tooltip-background);
-    border: 1px solid rgba(162, 169, 177, 0.78);
+    border: 1px solid rgb(200, 204, 209);
     border-radius: 2px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.2);
+}
+
+.wiked-lite-tooltip__tail {
+    position: absolute;
+    z-index: 2;
+    left: calc(var(--wiked-lite-tooltip-tail-left) - 6px);
+    box-sizing: border-box;
+    width: 12px;
+    height: 12px;
+    background: var(--wiked-lite-tooltip-background);
+    transform: rotate(45deg);
     pointer-events: auto;
+}
+
+.wiked-lite-tooltip--above {
+    animation: wiked-lite-tooltip-in-down 0.2s ease forwards;
+}
+
+.wiked-lite-tooltip--above .wiked-lite-tooltip__tail {
+    bottom: -5px;
+    border-right: 1px solid rgb(200, 204, 209);
+    border-bottom: 1px solid rgb(200, 204, 209);
+}
+
+.wiked-lite-tooltip--below {
+    animation: wiked-lite-tooltip-in-up 0.2s ease forwards;
+}
+
+.wiked-lite-tooltip--below .wiked-lite-tooltip__tail {
+    top: -5px;
+    border-top: 1px solid rgb(200, 204, 209);
+    border-left: 1px solid rgb(200, 204, 209);
+}
+
+.wiked-lite-tooltip--closing.wiked-lite-tooltip--above {
+    animation: wiked-lite-tooltip-out-up 0.2s ease forwards;
+}
+
+.wiked-lite-tooltip--closing.wiked-lite-tooltip--below {
+    animation: wiked-lite-tooltip-out-down 0.2s ease forwards;
 }
 
 .wiked-lite-tooltip__title {
@@ -206,6 +368,11 @@
 
 .wiked-lite-tooltip__body {
     padding: 0.55em 0.75em 0.7em;
+}
+
+.wiked-lite-tooltip__note {
+    padding: 0.7em 0.9em;
+    white-space: pre-wrap;
 }
 
 .wiked-lite-tooltip__row {
@@ -255,4 +422,59 @@
 .wiked-lite-tooltip__comment {
     color: rgb(138, 75, 8);
     font-style: italic;
+}
+
+@keyframes wiked-lite-tooltip-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes wiked-lite-tooltip-in-down {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes wiked-lite-tooltip-out-up {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+@keyframes wiked-lite-tooltip-out-down {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wiked-lite-tooltip,
+    .wiked-lite-tooltip--closing {
+        animation: none;
+    }
 }

@@ -17,10 +17,15 @@ import type {
     CitationLayout,
     CitationTemplateDataMap,
 } from "#gadget/domain/types.ts";
+import {
+    DEFAULT_TEMPLATE_NAME_CONTEXT,
+    type TemplateNameContext,
+} from "#gadget/domain/templates.ts";
 
 export interface CitationManagementContext {
     leadSectionLabel?: string;
     runtimeTemplateData?: CitationTemplateDataMap;
+    templateNameContext?: TemplateNameContext;
 }
 
 /**
@@ -37,6 +42,7 @@ export function formatCitations(
     layout: CitationLayout = "block",
     leadSectionLabel: string = "Lead",
     runtimeTemplateData: CitationTemplateDataMap = {},
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): CitationFormatResult {
     const activeTemplateData = { ...runtimeTemplateData, ...templateData };
     return formatCitationWikitext(
@@ -44,6 +50,7 @@ export function formatCitations(
         activeTemplateData,
         layout,
         leadSectionLabel,
+        templateNameContext,
     );
 }
 
@@ -90,7 +97,11 @@ export function manageCitationsWithResult(
     layout: CitationLayout = "block",
     context: CitationManagementContext | string = "Lead",
 ): CitationFormatResult {
-    const overridden = applyNameOverrides(text, updates);
+    const templateNameContext =
+        typeof context === "string"
+            ? DEFAULT_TEMPLATE_NAME_CONTEXT
+            : (context.templateNameContext ?? DEFAULT_TEMPLATE_NAME_CONTEXT);
+    const overridden = applyNameOverrides(text, updates, templateNameContext);
     const leadSectionLabel =
         typeof context === "string"
             ? context
@@ -102,10 +113,11 @@ export function manageCitationsWithResult(
         layout,
         leadSectionLabel,
         runtimeTemplateData,
+        templateNameContext,
     );
     formatted.text = useCompactReferences
         ? compactReferenceCalls(formatted.text)
-        : expandCompactReferenceCalls(formatted.text);
+        : expandCompactReferenceCalls(formatted.text, templateNameContext);
     return formatted;
 }
 

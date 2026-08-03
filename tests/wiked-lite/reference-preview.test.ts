@@ -146,3 +146,55 @@ test("a grouped reuse resolves the definition in the same group", () => {
 
     assert.equal(preview?.templateName, "cite web");
 });
+
+test("citation previews scope namespace aliases to the selected wiki", () => {
+    const english = "<ref>{{TM:Cite web|title=English}}</ref>";
+    const chinese = "<ref>{{T:Cite web|title=Chinese}}</ref>";
+
+    assert.equal(
+        buildReferencePreview(english, english, "enwiki")?.templateName,
+        "cite web",
+    );
+    assert.equal(
+        buildReferencePreview(english, english, "zhwiki")?.templateName,
+        "reference",
+    );
+    assert.equal(
+        buildReferencePreview(chinese, chinese, "zhwiki")?.templateName,
+        "cite web",
+    );
+    assert.equal(
+        buildReferencePreview(chinese, chinese, "enwiki")?.templateName,
+        "reference",
+    );
+});
+
+test("reference-like templates use current-wiki namespace aliases", () => {
+    const source = [
+        '<ref name="source">{{T:Cite web|title=Named}}</ref>',
+        "* {{T:Cite book|last=Ma|year=2025|title=Book}}",
+    ].join("\n");
+
+    const named = buildReferencePreview(source, "{{T:R|source}}", "zhwiki");
+    const short = buildReferencePreview(source, "{{T:sfn|Ma|2025}}", "zhwiki");
+    const note = buildReferencePreview(
+        source,
+        "{{T:efn|Localized note|name=context}}",
+        "zhwiki",
+    );
+    const crossWiki = buildReferencePreview(
+        source,
+        "{{T:efn|Localized note|name=context}}",
+        "enwiki",
+    );
+
+    assert.equal(named?.templateName, "cite web");
+    assert.equal(named?.referenceLabel, "source");
+    assert.equal(short?.templateName, "cite book");
+    assert.equal(short?.referenceLabel, "Ma, 2025");
+    assert.equal(note?.templateName, "reference");
+    assert.equal(note?.referenceLabel, "context");
+    assert.equal(note?.noteText, "Localized note");
+    assert.equal(crossWiki?.referenceLabel, "");
+    assert.equal(crossWiki?.noteText, "{{T:efn|Localized note|name=context}}");
+});

@@ -15,11 +15,13 @@ export interface FormatterDialogOptions {
     onSubmit(selection: FormatterDialogSelection): Promise<void>;
 }
 
+type CharacterWidthRatio = "1:2" | "3:5";
+
 interface DialogBindings {
     alignEquals: VueRef<boolean>;
     apply(): Promise<void>;
+    characterWidthRatio: VueRef<CharacterWidthRatio>;
     error: VueRef<string>;
-    fullWidthRatio: VueRef<string>;
     highlightMissing: VueRef<boolean>;
     indentPipes: VueRef<boolean>;
     interfaceLocale: string;
@@ -30,7 +32,6 @@ interface DialogBindings {
     open: VueRef<boolean>;
     resolveRedirects: VueRef<boolean>;
     saving: VueRef<boolean>;
-    sortCategories: VueRef<boolean>;
 }
 
 export const FORMATTER_DIALOG_TEMPLATE =
@@ -74,9 +75,8 @@ export function createFormatterDialogBindings(
     const error = Vue.ref("");
     const indentPipes = Vue.ref(true);
     const alignEquals = Vue.ref(false);
-    const fullWidthRatio = Vue.ref("2");
+    const characterWidthRatio = Vue.ref<CharacterWidthRatio>("1:2");
     const normalizeConversion = Vue.ref(false);
-    const sortCategories = Vue.ref(false);
     const resolveRedirects = Vue.ref(false);
     const highlightMissing = Vue.ref(false);
     function onCancel(): void {
@@ -86,15 +86,14 @@ export function createFormatterDialogBindings(
     async function apply(): Promise<void> {
         saving.value = true;
         error.value = "";
-        const enteredRatio = Number(fullWidthRatio.value) || 2;
         try {
             await options.onSubmit({
                 formatter: {
                     alignEquals: alignEquals.value,
-                    fullWidthRatio: Math.max(1, Math.min(4, enteredRatio)),
+                    fullWidthRatio:
+                        characterWidthRatio.value === "3:5" ? 5 / 3 : 2,
                     indentPipes: indentPipes.value,
                     normalizeConversion: normalizeConversion.value,
-                    sortCategories: sortCategories.value,
                 },
                 highlightMissing: highlightMissing.value,
                 resolveRedirects: resolveRedirects.value,
@@ -109,8 +108,8 @@ export function createFormatterDialogBindings(
     return {
         alignEquals,
         apply,
+        characterWidthRatio,
         error,
-        fullWidthRatio,
         highlightMissing,
         indentPipes,
         interfaceLocale,
@@ -125,6 +124,5 @@ export function createFormatterDialogBindings(
         open,
         resolveRedirects,
         saving,
-        sortCategories,
     };
 }

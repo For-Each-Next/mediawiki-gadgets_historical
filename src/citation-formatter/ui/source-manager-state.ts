@@ -29,6 +29,7 @@ import {
     type SourceDraftErrors,
 } from "#gadget/domain/source-validation.ts";
 import type { CitationLayout } from "#gadget/domain/types.ts";
+import type { TemplateNameContext } from "#gadget/domain/templates.ts";
 import { msg, sourceValidationMessages } from "#gadget/i18n/index.ts";
 import type * as editBox from "#shared/edit-box";
 import type { AnalysisUndoSnapshot } from "#gadget/ui/analysis-session.ts";
@@ -125,6 +126,7 @@ export interface SourceManagerState extends SourceListDerivedState {
     sourceSectionPath: { value: string[] };
     toolPopup: { value: SourceToolPopup };
     toolPopupOpen: { value: boolean };
+    templateNameContext: TemplateNameContext;
     warning: { value: string };
 }
 
@@ -156,6 +158,7 @@ type FormatError = (error: unknown) => string;
 interface SourceManagerStateConfiguration {
     options: SourceManagerOptions;
     sourceRevision: { value: number };
+    templateNameContext: TemplateNameContext;
 }
 
 /**
@@ -176,9 +179,13 @@ export function createSourceManagerState(
     wikiId: string,
     formatError: FormatError,
 ): SourceManagerState {
-    const { options, sourceRevision } = configuration;
+    const { options, sourceRevision, templateNameContext } = configuration;
     const initialText = editor.read();
-    const sourceList = createInitialSourceListState(Vue, initialText);
+    const sourceList = createInitialSourceListState(
+        Vue,
+        initialText,
+        templateNameContext,
+    );
     const cs1State = createInitialCs1ToolState(Vue);
     const citationLayout = Vue.ref(options.citationLayout ?? "inline");
     const draft = Vue.ref<SourceDraft | null>(null);
@@ -215,6 +222,7 @@ export function createSourceManagerState(
         scriptTitleMode: Vue.ref<ScriptTitleMode>("non-latin"),
         sourceInput: Vue.ref(""),
         sourceRevision,
+        templateNameContext,
         warning: Vue.ref(""),
     };
 }
@@ -268,8 +276,11 @@ function createInitialCs1ToolState(Vue: VueModule) {
 function createInitialSourceListState(
     Vue: VueModule,
     text: string,
+    templateNameContext: TemplateNameContext,
 ): InitialSourceListState {
-    const existingSources = Vue.ref(listExistingSources(text));
+    const existingSources = Vue.ref(
+        listExistingSources(text, templateNameContext),
+    );
     return {
         existingSourceQuery: Vue.ref(""),
         existingSourceSections: Vue.ref(

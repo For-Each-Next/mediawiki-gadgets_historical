@@ -17,13 +17,12 @@ export interface VueModule {
 }
 
 export interface CodexComponents {
-    CdxButton: unknown;
     CdxCheckbox: unknown;
     CdxDialog: unknown;
     CdxField: unknown;
     CdxMessage: unknown;
     CdxProgressBar: unknown;
-    CdxTextInput: unknown;
+    CdxRadio: unknown;
 }
 
 export interface ResourceLoaderRequire {
@@ -41,11 +40,10 @@ export function registerFormatterComponents(
     app: VueApp,
     Codex: CodexComponents,
 ): void {
-    app.component("CdxButton", Codex.CdxButton);
     app.component("CdxCheckbox", Codex.CdxCheckbox);
     app.component("CdxDialog", Codex.CdxDialog);
     app.component("CdxField", Codex.CdxField);
     app.component("CdxMessage", Codex.CdxMessage);
     app.component("CdxProgressBar", Codex.CdxProgressBar);
-    app.component("CdxTextInput", Codex.CdxTextInput);
+    app.component("CdxRadio", Codex.CdxRadio);
 }

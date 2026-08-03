@@ -2,6 +2,8 @@
  * Builds and updates talk-page assessment banner wikitext.
  */
 
+import { stripNamespacePrefix } from "#shared/wikitext";
+
 import {
     CLASS_VALUES,
     IMPORTANCE_VALUES,
@@ -361,9 +363,7 @@ function buildTemplatePattern(name: string): RegExp {
  * @returns Normalized template key.
  */
 function normalizeTemplateName(name: string): string {
-    const result = String(name || "")
-        .trim()
-        .replace(/^(?:Template|模板):/iu, "")
+    const result = stripNamespacePrefix(String(name || ""), "zhwiki", 10)
         .replace(/_/gu, " ")
         .replace(/\s+/gu, " ")
         .toLowerCase();

@@ -1,7 +1,12 @@
 /** Resolves highlighted references into compact citation previews. */
 
 import * as shortFootnotes from "#shared/citation/short-footnotes";
-import { wikitext, type ParsedTemplateCall } from "#shared/wikitext";
+import {
+    stripNamespacePrefix,
+    wikitext,
+    type NamespaceSource,
+    type ParsedTemplateCall,
+} from "#shared/wikitext";
 
 export interface ReferencePreview {
     noteText?: string;
@@ -44,18 +49,24 @@ const HTTP_URL_PATTERN = /https?:\/\/[^\s<>{}\[\]|"']+/u;
  *
  * @param articleSource - Complete article wikitext.
  * @param referenceSource - Reference wikitext.
+ * @param namespaceSource - Current-wiki namespace rules.
  * @returns Built preview for a ref tag or reference-like template.
  */
 export function buildReferencePreview(
     articleSource: string,
     referenceSource: string,
+    namespaceSource: NamespaceSource | null = null,
 ): ReferencePreview | null {
-    const resolved = resolveReferenceSource(articleSource, referenceSource);
-    const citation = findCitationTemplate(resolved.source);
+    const resolved = resolveReferenceSource(
+        articleSource,
+        referenceSource,
+        namespaceSource,
+    );
+    const citation = findCitationTemplate(resolved.source, namespaceSource);
     if (citation === "") {
         return createNotePreview(resolved);
     }
-    return createCitationPreview(resolved, citation);
+    return createCitationPreview(resolved, citation, namespaceSource);
 }
 
 function createNotePreview(
@@ -75,6 +86,7 @@ function createNotePreview(
 function createCitationPreview(
     resolved: ResolvedReference,
     citation: string,
+    namespaceSource: NamespaceSource | null,
 ): ReferencePreview {
     const parsed = wikitext(citation).templates.parser();
     const entered = parsed.params.filter(
@@ -101,15 +113,20 @@ function createCitationPreview(
     return {
         referenceLabel: resolved.label,
         rows: pairPersonFields(fields),
-        templateName: wikitext.template.normalizeName(parsed.name),
+        templateName: normalizeTemplateName(parsed.name, namespaceSource),
     };
 }
 
 function resolveReferenceSource(
     article: string,
     reference: string,
+    namespaceSource: NamespaceSource | null,
 ): ResolvedReference {
-    const template = resolveTemplateReference(article, reference);
+    const template = resolveTemplateReference(
+        article,
+        reference,
+        namespaceSource,
+    );
     if (template != null) {
         return template;
     }
@@ -136,12 +153,13 @@ function resolveReferenceSource(
 function resolveTemplateReference(
     article: string,
     reference: string,
+    namespaceSource: NamespaceSource | null,
 ): ResolvedReference | null {
     if (!reference.startsWith("{{")) {
         return null;
     }
     const parsed = wikitext(reference).templates.parser();
-    const name = wikitext.template.normalizeName(parsed.name);
+    const name = normalizeTemplateName(parsed.name, namespaceSource);
     if (name === "sfn") {
         const label = parsed.params
             .filter((parameter) => parameter.positional)
@@ -153,6 +171,7 @@ function resolveTemplateReference(
             source: shortFootnotes.resolveShortFootnoteCitation(
                 article,
                 reference,
+                (value) => normalizeTemplateName(value, namespaceSource),
             ),
         };
     }
@@ -191,14 +210,31 @@ function findNamedReferenceContent(
     return wikitext(source).reference.getFirst(name, group)?.content ?? "";
 }
 
-function findCitationTemplate(source: string): string {
+function findCitationTemplate(
+    source: string,
+    namespaceSource: NamespaceSource | null,
+): string {
     for (const template of wikitext(source).template.getAll()) {
-        const name = wikitext.template.normalizeName(template.name);
+        const name = normalizeTemplateName(template.name, namespaceSource);
         if (/^(?:cite(?:\s|$)|citation$)/u.test(name)) {
             return template.raw;
         }
     }
     return "";
+}
+
+function normalizeTemplateName(
+    value: string,
+    namespaceSource: NamespaceSource | null,
+): string {
+    if (namespaceSource == null) {
+        return wikitext.template.normalizeName(value);
+    }
+    return stripNamespacePrefix(value, namespaceSource, 10)
+        .replaceAll("_", " ")
+        .trim()
+        .replace(/\s+/gu, " ")
+        .toLowerCase();
 }
 
 function pairPersonFields(

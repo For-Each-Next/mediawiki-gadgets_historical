@@ -7,6 +7,7 @@ import {
 } from "#gadget/infra/editing/wiki-writes.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import { planPreSaveExecution } from "#gadget/workflows/pre-save-plan.ts";
+import { formatNamespaceTitle } from "#shared/wikitext";
 
 export {
     TALK_PAGE_BANNER,
@@ -112,7 +113,7 @@ function buildInitialPreSaveActions(
  * @returns The article talk-banner action.
  */
 function createTalkBannerAction(title: unknown): unknown {
-    const talkTitle = `Talk:${title}`;
+    const talkTitle = formatNamespaceTitle(String(title ?? ""), "zhwiki", 1);
 
     const result = {
         displayLabel: msg("presave.tagBanner", { title: talkTitle }),
@@ -216,7 +217,7 @@ function createCategoryAction(row: any): any {
         englishName: normalizeTitle(row.pendingCreation.englishName),
         id: `category:${category}`,
         label: msg("progress.createCategory", { title: category }),
-        pageTitle: `Category:${category}`,
+        pageTitle: formatNamespaceTitle(category, "zhwiki", 14),
         selected: true,
         text: String(row.pendingCreation.text || ""),
         type: "category",

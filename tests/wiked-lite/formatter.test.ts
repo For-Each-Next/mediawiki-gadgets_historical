@@ -16,6 +16,7 @@ test("basic formatting protects comments and literal extension tags", () => {
         result.text,
         [
             "== Heading ==",
+            "",
             "<!-- ==  keep  ==   -->",
             "<nowiki>==  keep  ==   </nowiki>",
             "* item",
@@ -23,27 +24,50 @@ test("basic formatting protects comments and literal extension tags", () => {
     );
 });
 
-test("explicit formatter options align templates and sort categories", () => {
+test("basic formatting separates headings but not DEFAULTSORT", () => {
+    const source = [
+        "==Heading==",
+        "Paragraph.",
+        "{{DEFAULTSORT:Example}}",
+        "[[Category:Example]]",
+    ].join("\n");
+
+    assert.equal(
+        formatWikitext(source).text,
+        [
+            "== Heading ==",
+            "",
+            "Paragraph.",
+            "{{DEFAULTSORT:Example}}",
+            "[[Category:Example]]",
+        ].join("\n"),
+    );
+});
+
+test("heading separation stays idempotent at end of input", () => {
+    const expected = "== Heading ==\n\n";
+    for (const source of ["==Heading==", "==Heading==\n", expected]) {
+        const once = formatWikitext(source).text;
+
+        assert.equal(once, expected);
+        assert.equal(formatWikitext(once).text, expected);
+    }
+});
+
+test("explicit formatter options align templates", () => {
     const source = [
         "{{Cite web",
         "|url=https://example.test",
         "|long-name = Value",
         "}}",
-        "[[Category:Zulu]]",
-        "[[Category:alpha]]",
     ].join("\n");
 
     const result = formatWikitext(source, {
         alignEquals: true,
         indentPipes: true,
-        sortCategories: true,
     });
 
     assert.match(result.text, /  \| url\s+= https:\/\/example\.test/u);
-    assert.ok(
-        result.text.indexOf("[[Category:alpha]]") <
-            result.text.indexOf("[[Category:Zulu]]"),
-    );
 });
 
 test("Chinese conversion normalization is opt in", () => {

@@ -2,6 +2,20 @@
 
 ## Until 0.6
 
+### 0.5.1-post.6 (2026-08-03 07:32 UTC)
+
+Overview: VG Stub Creator uses shared Chinese and English Wikipedia namespace
+catalogs instead of literal namespace names.
+
+- Replaced hardcoded template, category, talk, special, and WikiProject title
+  construction and parsing with database-scoped namespace-ID helpers.
+- Recognized configured Chinese Wikipedia category and template aliases without
+  treating aliases from the other wiki as local prefixes.
+- Added focused coverage for localized category inputs, navbox aliases,
+  TemplateData aliases, and English-category boundaries.
+- Kept enwiki and zhwiki cross-wiki targets on immutable static catalogs while
+  shared current-wiki consumers gained validated siteinfo catalogs.
+
 ### 0.5.1-post.3 (2026-08-01 18:01 UTC)
 
 Overview: VG Stub Creator documents every authored callable contract

@@ -31,6 +31,7 @@ import type {
     VueModule,
 } from "citation-formatter/ui/codex.ts";
 import * as editBox from "@mediawiki-gadgets/shared/edit-box";
+import * as templateNames from "citation-formatter/domain/templates.ts";
 import { cdxIconMerge, type Icon } from "@wikimedia/codex-icons";
 
 const executionTimerFinishes: string[] = [];
@@ -38,7 +39,7 @@ const executionTimerStarts: string[] = [];
 const templateDataRequests: string[][] = [];
 let templateDataResponse:
     CitationTemplateDataMap | Promise<CitationTemplateDataMap> = {};
-const openCitationFormatterDialog = createOpenCitationFormatterDialog({
+const sourceManagerDependencies = {
     cs1Review: createCs1ReviewWorkflow({
         buildCheckWikitext: buildCs1CheckWikitext,
         requestCheck: requestCs1WikitextCheck,
@@ -47,11 +48,17 @@ const openCitationFormatterDialog = createOpenCitationFormatterDialog({
     async fetchAvailableArchive() {
         return null;
     },
-    async loadCitationTemplateData(names) {
+    async loadCitationTemplateData(names: string[]) {
         templateDataRequests.push(names);
         return await templateDataResponse;
     },
-    async resolveSourceMetadata(sourceInput, archiveSeed) {
+    async loadTemplateNameContext() {
+        return templateNames.DEFAULT_TEMPLATE_NAME_CONTEXT;
+    },
+    async resolveSourceMetadata(
+        sourceInput: string,
+        archiveSeed: { archiveDate: string; archiveUrl: string } | null,
+    ) {
         return {
             archiveDate: archiveSeed?.archiveDate ?? "",
             archiveError: "",
@@ -61,10 +68,10 @@ const openCitationFormatterDialog = createOpenCitationFormatterDialog({
             originalUrl: sourceInput,
         };
     },
-    async resolveWikiLink(value) {
+    async resolveWikiLink(value: string) {
         return value;
     },
-    startExecutionTimer(label) {
+    startExecutionTimer(label: string) {
         executionTimerStarts.push(label);
         let finished = false;
         return function finishExecutionTimer() {
@@ -74,6 +81,37 @@ const openCitationFormatterDialog = createOpenCitationFormatterDialog({
             }
         };
     },
+};
+const openCitationFormatterDialog = createOpenCitationFormatterDialog(
+    sourceManagerDependencies,
+);
+
+test("loads MediaWiki API before resolving namespace siteinfo", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        let loaderReady = false;
+        const runtimeMw = globalThis.mw as unknown as {
+            loader: { using(): Promise<ResourceLoaderRequire> };
+        };
+        const using = runtimeMw.loader.using.bind(runtimeMw.loader);
+        runtimeMw.loader.using = async function loadModules() {
+            const require = await using();
+            loaderReady = true;
+            return require;
+        };
+        const openWithSiteinfo = createOpenCitationFormatterDialog({
+            ...sourceManagerDependencies,
+            async loadTemplateNameContext() {
+                assert.equal(loaderReady, true);
+                return templateNames.DEFAULT_TEMPLATE_NAME_CONTEXT;
+            },
+        });
+
+        await openWithSiteinfo(createMemoryEditor(""));
+        assert.equal(loaderReady, true);
+    } finally {
+        harness.restore();
+    }
 });
 
 interface MountedAnalysisFinding {
@@ -1341,7 +1379,7 @@ function createMediaWikiGlobal(
                 if (name === "wgPageName") {
                     return "Example";
                 }
-                return "en";
+                return undefined;
             },
         },
         loader: {

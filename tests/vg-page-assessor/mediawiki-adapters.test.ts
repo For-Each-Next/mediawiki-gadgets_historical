@@ -170,6 +170,46 @@ test("requires list content and both edit timestamps", () => {
     );
 });
 
+test("batches creation times across zhwiki namespace aliases", async () => {
+    const batches: string[] = [];
+    const api = {
+        async get(params: Record<string, unknown>): Promise<unknown> {
+            const titles = String(params.titles ?? "");
+            if (params.rvdir === "newer") {
+                batches.push(titles);
+                return {
+                    query: {
+                        pages: titles.split("|").map((title) => ({
+                            revisions: [{ timestamp: "2026-08-03T00:00:00Z" }],
+                            title,
+                        })),
+                    },
+                };
+            }
+            return {
+                query: {
+                    pages: [
+                        {
+                            revisions: [{ slots: { main: { content: "" } } }],
+                            title: titles,
+                        },
+                    ],
+                },
+            };
+        },
+    } as unknown as mw.Api;
+
+    await pageApi.fetchPageCreationTimes(api, [
+        "Template:Alias batch A",
+        "T:Alias batch B",
+        "樣板:Alias batch C",
+    ]);
+
+    assert.deepEqual(batches, [
+        "Template:Alias batch A|T:Alias batch B|樣板:Alias batch C",
+    ]);
+});
+
 test("recognizes direct and nested edit conflicts", () => {
     assert.equal(isEditConflict("editconflict"), true);
     assert.equal(isEditConflict({ code: "editconflict" }), true);

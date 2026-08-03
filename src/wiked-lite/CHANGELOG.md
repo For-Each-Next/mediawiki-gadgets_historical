@@ -2,6 +2,67 @@
 
 ## Until 0.5
 
+### 0.4.4-dev.30 (2026-08-03 08:24 UTC)
+
+Overview: wikEd Lite preserves entered wikilink text when resolving redirects
+and recognizes database-scoped namespace aliases.
+
+- Rewrote unpiped redirect links as piped links whose labels keep the original
+  title and fragment, while retaining existing explicit labels.
+- Kept file and category embeds unpiped, escaped ordinary links redirected into
+  those namespaces, respected localized aliases and leading-colon escapes,
+  resolved links nested in captions, and ignored protected contents.
+- Added complete English and Chinese Wikipedia namespace-prefix catalogs and
+  replaced literal namespace matching in link and highlighting paths.
+- Loaded validated namespace siteinfo without blocking editing on other wikis,
+  while enwiki and zhwiki use their immutable static catalogs without a call.
+- Applied current-wiki aliases to link classes, template navigation, template
+  identity, reference previews, and reference-list nesting, with a retryable
+  canonical-only fallback.
+- Preserved redirect target fragments, case-distinct page keys, and File or
+  Category embedding; unsafe cross-namespace embeds remain unchanged.
+
+### 0.4.4-dev.26 (2026-08-02 17:45 UTC)
+
+Overview: wikEd Lite keeps protected wikitext from changing syntax-key and link
+boundaries.
+
+- Masked literal tag contents before splitting conversion declarations and
+  wikilink parts, preventing protected semicolons, pipes, colons, equals signs,
+  or arrows from creating visible syntax outside the tag.
+- Kept leading comments outside conversion-key bounds so a valid declaration
+  remains highlighted without including the comment in its key.
+
+### 0.4.4-dev.25 (2026-08-02 17:12 UTC)
+
+Overview: wikEd Lite makes reference-list nesting, heading layout, and syntax
+key highlighting follow the source constructs being edited.
+
+- Reset template depth inside native `references` content and `Reflist` `refs`
+  or `list` values, with contained `ref` bodies starting at level one and outer
+  template styling and metadata clipped at each boundary.
+- Highlighted `thumb`, `right`, and `alt` file options; `lang` and `style` tag
+  attributes; and the `display` CSS property with existing token families.
+- Treated every Chinese-conversion declaration key as a variant, including
+  malformed entered keys and literal or `{{=}}` arrow destinations.
+- Underlined only the trimmed text of level-two and level-three headings with a
+  `0.2em` offset, and added a blank line after headings without separating
+  `DEFAULTSORT` from its following content.
+
+### 0.4.4-dev.24 (2026-08-02 14:51 UTC)
+
+Overview: wikEd Lite streamlines optional formatting controls and makes
+network-backed link costs and policy limits explicit.
+
+- Removed category sorting from the formatter, dialog, localization, and
+  current feature documentation.
+- Nested the character-width setting under equals alignment and replaced its
+  free-form input with horizontal `1:2` and `3:5` choices.
+- Attached redirect and missing-link API costs to their controls, including the
+  `WP:NOTBROKEN` caution and intended navigation-template scope.
+- Delegated form, sub-control, and responsive action spacing to Codex instead
+  of applying gadget-specific checkbox and button layout rules.
+
 ### 0.4.4-dev.23 (2026-08-02 11:45 UTC)
 
 Overview: wikEd Lite repairs explanatory-footnote arguments and distinguishes

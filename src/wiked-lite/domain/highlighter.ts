@@ -1,10 +1,16 @@
 /** Pure wikitext classification for the enhanced editor surface. */
 
 import {
+    formatNamespaceTitle,
+    getNamespaceId,
+    getNamespacePrefixes,
+    stripNamespacePrefix,
     wikitext,
+    type NamespaceSource,
     type ParsedTemplateCall,
     type ParsedTemplateParameter,
     type SourceRange,
+    type TopLevelRange,
 } from "#shared/wikitext";
 
 export interface HighlightSegment {
@@ -20,7 +26,7 @@ export interface HighlightSegment {
 export interface HighlightOptions {
     databaseName?: string;
     linkHelpers?: boolean;
-    namespaceIds?: Readonly<Record<string, number>>;
+    namespaceSource?: NamespaceSource;
 }
 
 interface DecoratedRange extends SourceRange {
@@ -34,6 +40,29 @@ interface DecoratedRange extends SourceRange {
 interface EmphasisState {
     bold?: number;
     italic?: number;
+}
+
+interface CssScanState {
+    comment: boolean;
+    parentheses: number;
+    quote: string;
+}
+
+interface ReferenceNestingContext {
+    referenceBodies: SourceRange[];
+    resetRegions: SourceRange[];
+}
+
+interface TemplateDecorationContext {
+    databaseName: string;
+    linkHelpersEnabled: boolean;
+    namespaceSource: NamespaceSource;
+    referenceNesting: ReferenceNestingContext;
+    templates: ParsedTemplateCall[];
+}
+
+interface TemplateNestingRegion extends SourceRange {
+    baseDepth: number;
 }
 
 const REFERENCE_TEMPLATE_NAMES = new Set(["r", "sfn"]);
@@ -66,11 +95,6 @@ const LITERAL_TOKEN_CLASSES: Readonly<Record<string, string>> = {
     syntaxhighlight: "wiked-lite-token--block-literal",
     templatedata: "wiked-lite-token--pre",
     timeline: "wiked-lite-token--score",
-};
-const FALLBACK_NAMESPACE_IDS: Readonly<Record<string, number>> = {
-    category: 14,
-    file: 6,
-    image: 6,
 };
 const NON_VISIBLE_LINK_TOKEN_CLASSES = new Set([
     "wiked-lite-token--html-tag",
@@ -153,15 +177,24 @@ export function highlightWikitext(
 ): HighlightSegment[] {
     const linkHelpers = options.linkHelpers === true;
     const databaseName = options.databaseName ?? "";
+    const namespaceSource = options.namespaceSource ?? "enwiki";
+    const referenceNesting = createReferenceNestingContext(
+        source,
+        namespaceSource,
+    );
     const ranges = [
         ...createOpaqueDecorations(source),
         ...createTagDecorations(source),
-        ...createTemplateDecorations(source, linkHelpers, databaseName),
-        ...createReferenceDecorations(source),
-        ...createLinkDecorations(
+        ...createTemplateDecorations(
             source,
-            options.namespaceIds ?? FALLBACK_NAMESPACE_IDS,
+            linkHelpers,
+            databaseName,
+            referenceNesting,
+            namespaceSource,
         ),
+        ...createReferenceNestingDecorations(referenceNesting),
+        ...createReferenceDecorations(source, referenceNesting),
+        ...createLinkDecorations(source, namespaceSource),
         ...createLanguageConversionDecorations(source, linkHelpers),
         ...createEmphasisDecorations(source),
         ...createPatternDecorations(source),
@@ -169,19 +202,98 @@ export function highlightWikitext(
     return partitionRanges(source, ranges);
 }
 
-function createReferenceDecorations(source: string): DecoratedRange[] {
+function createReferenceNestingContext(
+    source: string,
+    namespaceSource: NamespaceSource,
+): ReferenceNestingContext {
     const query = createHighlightQuery(source);
-    const definitionRegions = query.tags
+    const nativeRegions = query.tags
         .getAll("references")
-        .filter((tag) => tag.closed && !tag.selfClosing);
+        .filter((tag) => !tag.selfClosing)
+        .map((tag) => ({ end: tag.contentEnd, start: tag.contentStart }));
+    const templateRegions = getReferenceTemplateRegions(
+        query.templates.getAll(),
+        namespaceSource,
+    );
+    const resetRegions = [...nativeRegions, ...templateRegions].filter(
+        (region) => region.start < region.end,
+    );
+    const definitionTags = query.tags
+        .getAll("ref")
+        .filter((tag) =>
+            resetRegions.some((region) => containsRange(region, tag)),
+        );
+    const referenceBodies = definitionTags
+        .filter((tag) => !tag.selfClosing && tag.contentStart < tag.contentEnd)
+        .map((tag) => ({ end: tag.contentEnd, start: tag.contentStart }));
+    return { referenceBodies, resetRegions };
+}
+
+function getReferenceTemplateRegions(
+    templates: ParsedTemplateCall[],
+    namespaceSource: NamespaceSource,
+): SourceRange[] {
+    return templates
+        .filter(
+            (template) =>
+                normalizeCurrentTemplateName(
+                    template.name,
+                    namespaceSource,
+                ) === "reflist",
+        )
+        .flatMap((template) =>
+            template.params
+                .filter(
+                    (parameter) =>
+                        !parameter.positional &&
+                        /^(?:list|refs)$/iu.test(parameter.name),
+                )
+                .map((parameter) => ({
+                    end: parameter.valueEnd,
+                    start: parameter.valueStart,
+                })),
+        );
+}
+
+function createReferenceNestingDecorations(
+    context: ReferenceNestingContext,
+): DecoratedRange[] {
+    const referenceBodies = context.referenceBodies.flatMap((range) =>
+        subtractDecoratedRanges(
+            {
+                ...range,
+                className: "wiked-lite-token--template-1",
+                priority: 30,
+            },
+            context.resetRegions.filter(
+                (region) =>
+                    region.start < range.end &&
+                    range.start < region.end &&
+                    !containsRange(region, range),
+            ),
+        ),
+    );
+    return [
+        ...context.resetRegions.map((range) => ({
+            ...range,
+            className: "wiked-lite-token--template-0",
+            priority: 29,
+        })),
+        ...referenceBodies,
+    ];
+}
+
+function createReferenceDecorations(
+    source: string,
+    context: ReferenceNestingContext,
+): DecoratedRange[] {
+    const query = createHighlightQuery(source);
     return query.tags
         .getAll("ref")
         .filter(
             (tag) =>
-                !definitionRegions.some(
-                    (region) =>
-                        region.contentStart <= tag.start &&
-                        tag.end <= region.contentEnd,
+                !context.resetRegions.some((region) =>
+                    containsRange(region, tag),
                 ),
         )
         .map(function decorate(tag) {
@@ -194,6 +306,26 @@ function createReferenceDecorations(source: string): DecoratedRange[] {
                 start: tag.start,
             };
         });
+}
+
+function containsRange(outer: SourceRange, inner: SourceRange): boolean {
+    return outer.start <= inner.start && inner.end <= outer.end;
+}
+
+function trimSourceRange(
+    source: string,
+    initialStart: number,
+    initialEnd: number,
+): SourceRange {
+    let start = initialStart;
+    let end = initialEnd;
+    while (start < end && /\s/u.test(source[start] ?? "")) {
+        start += 1;
+    }
+    while (start < end && /\s/u.test(source[end - 1] ?? "")) {
+        end -= 1;
+    }
+    return { end, start };
 }
 
 function createOpaqueDecorations(source: string): DecoratedRange[] {
@@ -249,54 +381,388 @@ function createTagDecorations(source: string): DecoratedRange[] {
                     start: tag.contentEnd,
                 });
             }
-            return ranges;
+            return [
+                ...ranges,
+                ...createTagAttributeDecorations(
+                    source,
+                    tag.start,
+                    tag.contentStart,
+                ),
+            ];
         });
+}
+
+function createTagAttributeDecorations(
+    source: string,
+    openingStart: number,
+    openingEnd: number,
+): DecoratedRange[] {
+    const opening = source.slice(openingStart, openingEnd);
+    const tagName = /^<\s*[\p{L}\p{N}:-]+/u.exec(opening)?.[0];
+    if (tagName == null) {
+        return [];
+    }
+    const attributesStart = openingStart + tagName.length;
+    const attributes = source.slice(attributesStart, openingEnd - 1);
+    const pattern =
+        /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gu;
+    return [...attributes.matchAll(pattern)].flatMap((match) =>
+        decorateTagAttribute(source, attributesStart, match),
+    );
+}
+
+function decorateTagAttribute(
+    source: string,
+    attributesStart: number,
+    match: RegExpMatchArray,
+): DecoratedRange[] {
+    const enteredName = match[1];
+    const name = enteredName?.toLocaleLowerCase();
+    if (enteredName == null || (name !== "lang" && name !== "style")) {
+        return [];
+    }
+    const nameStart = attributesStart + (match.index ?? 0);
+    const nameRange: DecoratedRange = {
+        className: "wiked-lite-token--parameter",
+        end: nameStart + enteredName.length,
+        priority: 101,
+        start: nameStart,
+    };
+    const valueRange = getTagAttributeValueRange(attributesStart, match);
+    return name !== "style" || valueRange == null
+        ? [nameRange]
+        : [
+              nameRange,
+              ...createCssDisplayDecorations(
+                  source,
+                  valueRange.start,
+                  valueRange.end,
+              ),
+          ];
+}
+
+function getTagAttributeValueRange(
+    attributesStart: number,
+    match: RegExpMatchArray,
+): SourceRange | null {
+    const value = match[2] ?? match[3] ?? match[4];
+    const equals = match[0].indexOf("=");
+    if (value == null || equals < 0) {
+        return null;
+    }
+    let valueOffset = equals + 1;
+    while (/\s/u.test(match[0][valueOffset] ?? "")) {
+        valueOffset += 1;
+    }
+    if (match[0][valueOffset] === '"' || match[0][valueOffset] === "'") {
+        valueOffset += 1;
+    }
+    const start = attributesStart + (match.index ?? 0) + valueOffset;
+    return { end: start + value.length, start };
+}
+
+function createCssDisplayDecorations(
+    source: string,
+    start: number,
+    end: number,
+): DecoratedRange[] {
+    const style = source.slice(start, end);
+    const scanStyle = maskCssWikitext(style);
+    const separators = findCssTopLevelSeparators(scanStyle, ";");
+    const boundaries = [-1, ...separators, style.length];
+    const ranges: DecoratedRange[] = [];
+    for (let index = 0; index < boundaries.length - 1; index += 1) {
+        const declarationStart = (boundaries[index] ?? -1) + 1;
+        const declarationEnd = boundaries[index + 1] ?? style.length;
+        const declaration = scanStyle.slice(declarationStart, declarationEnd);
+        const colon = findCssTopLevelSeparators(declaration, ":")[0];
+        if (colon == null) {
+            continue;
+        }
+        const property = trimSourceRange(
+            source,
+            start + declarationStart,
+            start + declarationStart + colon,
+        );
+        if (
+            source.slice(property.start, property.end).toLowerCase() !==
+            "display"
+        ) {
+            continue;
+        }
+        ranges.push({
+            ...property,
+            className: "wiked-lite-token--language-variant",
+            priority: 102,
+        });
+    }
+    return ranges;
+}
+
+function maskCssWikitext(source: string): string {
+    const query = createHighlightQuery(source);
+    return maskSourceRanges(source, [
+        ...query.comment.getAll(),
+        ...query.opaque.getAll(),
+        ...query.template.getAll(),
+        ...query.link.getAll(),
+        ...createTagMarkupRanges(source),
+    ]);
+}
+
+function findCssTopLevelSeparators(
+    source: string,
+    separator: string,
+): number[] {
+    const separators: number[] = [];
+    const state: CssScanState = { comment: false, parentheses: 0, quote: "" };
+    for (let index = 0; index < source.length; index += 1) {
+        const nextIndex = consumeCssProtectedSequence(source, index, state);
+        if (nextIndex != null) {
+            index = nextIndex - 1;
+            continue;
+        }
+        const character = source[index] ?? "";
+        if (character === "(") {
+            state.parentheses += 1;
+        } else if (character === ")") {
+            state.parentheses = Math.max(0, state.parentheses - 1);
+        } else if (character === separator && state.parentheses === 0) {
+            separators.push(index);
+        }
+    }
+    return separators;
+}
+
+function consumeCssProtectedSequence(
+    source: string,
+    index: number,
+    state: CssScanState,
+): number | undefined {
+    const character = source[index] ?? "";
+    const next = source[index + 1] ?? "";
+    if (state.comment) {
+        if (character === "*" && next === "/") {
+            state.comment = false;
+            return index + 2;
+        }
+        return index + 1;
+    }
+    if (state.quote !== "") {
+        if (character === "\\") {
+            return index + 2;
+        }
+        if (character === state.quote) {
+            state.quote = "";
+        }
+        return index + 1;
+    }
+    if (character === "/" && next === "*") {
+        state.comment = true;
+        return index + 2;
+    }
+    if (character === '"' || character === "'") {
+        state.quote = character;
+        return index + 1;
+    }
+    return character === "\\" ? index + 2 : undefined;
 }
 
 function createTemplateDecorations(
     source: string,
     linkHelpersEnabled: boolean,
     databaseName: string,
+    referenceNesting: ReferenceNestingContext,
+    namespaceSource: NamespaceSource,
 ): DecoratedRange[] {
-    return createHighlightQuery(source)
-        .template.getAll()
-        .flatMap(function decorate(template) {
-            const name = wikitext.template.normalizeName(template.name);
-            const isReferencePreview = REFERENCE_TEMPLATE_NAMES.has(name);
-            const isLinkHelper = linkHelpersEnabled && isLinkHelperName(name);
-            const decoration: DecoratedRange = {
-                end: template.end,
-                start: template.start,
-                className: getTemplateClass(
-                    name,
-                    template.depth,
-                    databaseName,
-                ),
-                href: `/wiki/Template:${encodeTitle(template.name)}`,
-                priority: 30 + template.depth,
-                referenceSource: isReferencePreview ? template.raw : undefined,
-            };
-            return [
-                decoration,
-                ...createTemplateDelimiterDecorations(template),
-                ...createTemplateSyntaxDecorations(source, template),
-                ...(isLinkHelper
-                    ? createLinkHelperDecorations(source, template, name)
-                    : []),
-                ...createNoteTAConversionDecorations(
-                    source,
-                    template,
-                    name,
-                    linkHelpersEnabled,
-                ),
-            ];
+    const templates = createHighlightQuery(source).template.getAll();
+    const context = {
+        databaseName,
+        linkHelpersEnabled,
+        namespaceSource,
+        referenceNesting,
+        templates,
+    };
+    return templates.flatMap((template) =>
+        decorateTemplate(source, template, context),
+    );
+}
+
+function decorateTemplate(
+    source: string,
+    template: ParsedTemplateCall,
+    context: TemplateDecorationContext,
+): DecoratedRange[] {
+    const name = normalizeCurrentTemplateName(
+        template.name,
+        context.namespaceSource,
+    );
+    const depth = getEffectiveTemplateDepth(
+        template,
+        context.templates,
+        context.referenceNesting,
+    );
+    const ranges = [
+        createTemplateMainDecoration(template, name, depth, context),
+        ...createTemplateDelimiterDecorations(template, depth),
+        ...createTemplateSyntaxDecorations(source, template, depth),
+        ...(context.linkHelpersEnabled && isLinkHelperName(name)
+            ? createLinkHelperDecorations(source, template, name)
+            : []),
+        ...createNoteTAConversionDecorations(
+            source,
+            template,
+            name,
+            context.linkHelpersEnabled,
+        ),
+    ];
+    return clipOuterTemplateDecorations(ranges, template, [
+        ...context.referenceNesting.resetRegions,
+        ...context.referenceNesting.referenceBodies,
+    ]);
+}
+
+function createTemplateMainDecoration(
+    template: ParsedTemplateCall,
+    name: string,
+    depth: number,
+    context: TemplateDecorationContext,
+): DecoratedRange {
+    const templateTitle = getTemplateTitle(
+        template.name,
+        context.namespaceSource,
+    );
+    return {
+        end: template.end,
+        start: template.start,
+        className: getTemplateClass(name, depth, context.databaseName),
+        href: `/wiki/${encodeTitle(templateTitle)}`,
+        priority: 30 + depth,
+        referenceSource: REFERENCE_TEMPLATE_NAMES.has(name)
+            ? template.raw
+            : undefined,
+    };
+}
+
+function getTemplateTitle(
+    value: string,
+    namespaceSource: NamespaceSource,
+): string {
+    const title = value.trim();
+    if (title.startsWith(":")) {
+        return title.slice(1).trimStart();
+    }
+    const separator = title.indexOf(":");
+    if (separator >= 0) {
+        const enteredPrefix = title.slice(0, separator).trim();
+        const namespaceId = getNamespaceId(namespaceSource, enteredPrefix);
+        if (namespaceId != null) {
+            const remainder = title.slice(separator + 1).trim();
+            const prefix =
+                getNamespacePrefixes(namespaceSource, namespaceId)[0] ??
+                enteredPrefix;
+            return prefix === "" ? remainder : `${prefix}:${remainder}`;
+        }
+    }
+    return formatNamespaceTitle(title, namespaceSource, 10);
+}
+
+function normalizeCurrentTemplateName(
+    value: string,
+    namespaceSource: NamespaceSource,
+): string {
+    return stripNamespacePrefix(value, namespaceSource, 10)
+        .replaceAll("_", " ")
+        .trim()
+        .replace(/\s+/gu, " ")
+        .toLowerCase();
+}
+
+function getEffectiveTemplateDepth(
+    template: ParsedTemplateCall,
+    templates: ParsedTemplateCall[],
+    context: ReferenceNestingContext,
+): number {
+    const nesting = findInnermostTemplateNestingRegion(template, context);
+    if (nesting == null) {
+        return template.depth;
+    }
+    const ancestors = templates.filter(
+        (candidate) =>
+            candidate !== template &&
+            containsRange(nesting, candidate) &&
+            candidate.start < template.start &&
+            template.end < candidate.end,
+    );
+    return nesting.baseDepth + ancestors.length;
+}
+
+function findInnermostTemplateNestingRegion(
+    inner: SourceRange,
+    context: ReferenceNestingContext,
+): TemplateNestingRegion | undefined {
+    const regions = [
+        ...context.resetRegions.map((range) => ({ ...range, baseDepth: 0 })),
+        ...context.referenceBodies.map((range) => ({
+            ...range,
+            baseDepth: 1,
+        })),
+    ];
+    return regions
+        .filter((range) => containsRange(range, inner))
+        .toSorted(
+            (left, right) => left.end - left.start - (right.end - right.start),
+        )[0];
+}
+
+function clipOuterTemplateDecorations(
+    ranges: DecoratedRange[],
+    template: ParsedTemplateCall,
+    resetRegions: SourceRange[],
+): DecoratedRange[] {
+    const childRegions = resetRegions.filter(
+        (region) =>
+            region.start < template.end &&
+            template.start < region.end &&
+            !containsRange(region, template),
+    );
+    if (childRegions.length === 0) {
+        return ranges;
+    }
+    return ranges.flatMap((range) =>
+        subtractDecoratedRanges(range, childRegions),
+    );
+}
+
+function subtractDecoratedRanges(
+    range: DecoratedRange,
+    exclusions: SourceRange[],
+): DecoratedRange[] {
+    let pieces = [range];
+    for (const exclusion of mergeSourceRanges(exclusions)) {
+        pieces = pieces.flatMap(function subtract(piece) {
+            if (piece.end <= exclusion.start || exclusion.end <= piece.start) {
+                return [piece];
+            }
+            const before =
+                piece.start < exclusion.start
+                    ? [{ ...piece, end: exclusion.start }]
+                    : [];
+            const after =
+                exclusion.end < piece.end
+                    ? [{ ...piece, start: exclusion.end }]
+                    : [];
+            return [...before, ...after];
         });
+    }
+    return pieces;
 }
 
 function createTemplateDelimiterDecorations(
     template: ParsedTemplateCall,
+    depth: number,
 ): DecoratedRange[] {
-    const priority = 49 + template.depth;
+    const priority = 49 + depth;
     const ranges = [
         createDelimiterRange(template.start, template.start + 2, priority),
         createDelimiterRange(template.end - 2, template.end, priority),
@@ -338,8 +804,9 @@ function createDelimiterRange(
 function createTemplateSyntaxDecorations(
     source: string,
     template: ParsedTemplateCall,
+    depth: number,
 ): DecoratedRange[] {
-    const priority = 50 + template.depth;
+    const priority = 50 + depth;
     const ranges: DecoratedRange[] = [];
     const nameStart = source.indexOf(
         template.name,
@@ -514,24 +981,24 @@ function isDecoratedRange(
 
 function createLinkDecorations(
     source: string,
-    namespaceIds: Readonly<Record<string, number>>,
+    namespaceSource: NamespaceSource,
 ): DecoratedRange[] {
     return createHighlightQuery(source)
         .link.getAll()
-        .flatMap((range) => decorateLink(source, range, namespaceIds));
+        .flatMap((range) => decorateLink(source, range, namespaceSource));
 }
 
 function decorateLink(
     source: string,
     range: SourceRange,
-    namespaceIds: Readonly<Record<string, number>>,
+    namespaceSource: NamespaceSource,
 ): DecoratedRange[] {
     const contentStart = range.start + 2;
     const contentEnd = range.end - 2;
     const inner = source.slice(contentStart, contentEnd);
-    const parts = createHighlightQuery(inner).splitRanges("|");
+    const parts = splitHighlightRanges(inner, "|");
     const target = parts[0]?.value.trim() ?? "";
-    const namespaceId = getLinkNamespaceId(target, namespaceIds);
+    const namespaceId = getLinkNamespaceId(target, namespaceSource);
     const className = getLinkClass(namespaceId);
     const href = `/wiki/${encodeTitle(target.replace(/^:/u, ""))}`;
     const ranges: DecoratedRange[] = [
@@ -546,6 +1013,9 @@ function decorateLink(
             priority: 25,
             start: contentStart + targetRange.start,
         });
+        ranges.push(
+            ...createFileOptionDecorations(source, contentStart, parts),
+        );
     }
     ranges.push(
         createLinkTextDecoration(
@@ -557,6 +1027,61 @@ function decorateLink(
         ),
     );
     return ranges;
+}
+
+function createFileOptionDecorations(
+    source: string,
+    contentStart: number,
+    parts: ReturnType<ReturnType<typeof createHighlightQuery>["splitRanges"]>,
+): DecoratedRange[] {
+    return parts
+        .slice(1)
+        .flatMap((part) => decorateFileOption(source, contentStart, part));
+}
+
+function decorateFileOption(
+    source: string,
+    contentStart: number,
+    part: TopLevelRange,
+): DecoratedRange[] {
+    const optionStart = contentStart + part.start;
+    const optionRange = trimSourceRange(
+        source,
+        optionStart,
+        contentStart + part.end,
+    );
+    const option = source.slice(optionRange.start, optionRange.end);
+    if (/^(?:right|thumb)$/iu.test(option)) {
+        return [createParameterRange(optionRange)];
+    }
+    const equals = getFirstTopLevelSeparator(part.value, "=") ?? -1;
+    if (equals < 0) {
+        return [];
+    }
+    const nameRange = trimSourceRange(
+        source,
+        optionStart,
+        optionStart + equals,
+    );
+    if (source.slice(nameRange.start, nameRange.end).toLowerCase() !== "alt") {
+        return [];
+    }
+    return [
+        createParameterRange(nameRange),
+        createDelimiterRange(
+            optionStart + equals,
+            optionStart + equals + 1,
+            49,
+        ),
+    ];
+}
+
+function createParameterRange(range: SourceRange): DecoratedRange {
+    return {
+        ...range,
+        className: "wiked-lite-token--parameter",
+        priority: 50,
+    };
 }
 
 function createLinkMarkupDecorations(
@@ -638,7 +1163,7 @@ function getLinkClass(namespaceId: number | undefined): string {
 
 function getLinkNamespaceId(
     rawTarget: string,
-    namespaceIds: Readonly<Record<string, number>>,
+    namespaceSource: NamespaceSource,
 ): number | undefined {
     if (rawTarget.startsWith(":")) {
         return undefined;
@@ -648,12 +1173,7 @@ function getLinkNamespaceId(
     if (colon < 0) {
         return undefined;
     }
-    const prefix = title
-        .slice(0, colon)
-        .trim()
-        .toLowerCase()
-        .replaceAll(" ", "_");
-    return namespaceIds[prefix];
+    return getNamespaceId(namespaceSource, title.slice(0, colon));
 }
 
 function createLanguageConversionDecorations(
@@ -674,7 +1194,7 @@ function createLanguageConversionDecorations(
                     priority: 35,
                     start,
                 },
-                ...decorateLanguageVariants(source, start, end),
+                ...decorateLanguageVariants(source, start + 2, end - 2),
             ];
         },
     );
@@ -694,7 +1214,7 @@ function createNoteTAConversionDecorations(
             parameter.positional ||
             parameter.name === "t" ||
             /^\d+$/u.test(parameter.name);
-        if (!eligible || !/\bzh(?:-[a-z0-9]+)+\s*:/iu.test(parameter.value)) {
+        if (!eligible) {
             return [];
         }
         const range = decorateParameterValue(
@@ -702,12 +1222,15 @@ function createNoteTAConversionDecorations(
             parameter,
             "wiked-lite-token--language-conversion",
         );
-        return range == null
-            ? []
-            : [
-                  range,
-                  ...decorateLanguageVariants(source, range.start, range.end),
-              ];
+        if (range == null) {
+            return [];
+        }
+        const variants = decorateLanguageVariants(
+            source,
+            range.start,
+            range.end,
+        );
+        return variants.length === 0 ? [] : [range, ...variants];
     });
 }
 
@@ -716,20 +1239,159 @@ function decorateLanguageVariants(
     start: number,
     end: number,
 ): DecoratedRange[] {
-    const ranges: DecoratedRange[] = [];
-    const pattern = /\bzh(?:-[a-z0-9]+)+(?=\s*:)/giu;
-    pattern.lastIndex = start;
-    let match = pattern.exec(source);
-    while (match != null && match.index < end) {
-        ranges.push({
-            className: "wiked-lite-token--language-variant",
-            end: match.index + match[0].length,
-            priority: 55,
-            start: match.index,
-        });
-        match = pattern.exec(source);
+    return findConversionKeyRanges(source, start, end).map((range) => ({
+        ...range,
+        className: "wiked-lite-token--language-variant",
+        priority: 55,
+    }));
+}
+
+function findConversionKeyRanges(
+    source: string,
+    start: number,
+    end: number,
+): SourceRange[] {
+    const body = source.slice(start, end);
+    return splitHighlightRanges(body, ";").flatMap(function findKey(part) {
+        const key = findConversionDeclarationKey(part.value);
+        return key == null
+            ? []
+            : [
+                  {
+                      end: start + part.start + key.end,
+                      start: start + part.start + key.start,
+                  },
+              ];
+    });
+}
+
+function findConversionDeclarationKey(
+    declaration: string,
+): SourceRange | null {
+    const ordinary = findConversionDestinationKey(declaration, 0);
+    const arrow = findConversionArrow(declaration);
+    if (arrow == null || (ordinary != null && ordinary.colon < arrow.start)) {
+        return ordinary?.range ?? null;
     }
-    return ranges;
+    return (
+        findConversionDestinationKey(declaration, arrow.end)?.range ??
+        ordinary?.range ??
+        null
+    );
+}
+
+function findConversionDestinationKey(
+    declaration: string,
+    destinationStart: number,
+): { colon: number; range: SourceRange } | null {
+    const destination = declaration.slice(destinationStart);
+    const colon = getFirstTopLevelSeparator(destination, ":");
+    if (colon == null) {
+        return null;
+    }
+    const keySource = destination.slice(0, colon);
+    const keyParts = splitHighlightRanges(keySource, "|");
+    const keyPart = keyParts.at(-1);
+    if (keyPart == null) {
+        return null;
+    }
+    const keyStart = destinationStart + keyPart.start;
+    const enteredKey = declaration.slice(
+        keyStart,
+        destinationStart + keyPart.end,
+    );
+    const scanKey = maskSourceRanges(
+        enteredKey,
+        createHighlightQuery(enteredKey).comment.getAll(),
+    );
+    const keyRange = trimSourceRange(scanKey, 0, scanKey.length);
+    const key = scanKey.slice(keyRange.start, keyRange.end);
+    const range = {
+        end: keyStart + keyRange.end,
+        start: keyStart + keyRange.start,
+    };
+    return /^[\p{L}\p{N}_-]+$/u.test(key)
+        ? { colon: destinationStart + colon, range }
+        : null;
+}
+
+function findConversionArrow(declaration: string): SourceRange | undefined {
+    const query = createHighlightQuery(declaration);
+    const masked = maskSourceRanges(declaration, [
+        ...query.opaque.getAll(),
+        ...createTagMarkupRanges(declaration),
+    ]);
+    const maskedQuery = createHighlightQuery(masked);
+    const equalsParts = maskedQuery.splitRanges("=");
+    const literalArrows = equalsParts
+        .slice(0, -1)
+        .flatMap((part) =>
+            declaration[part.end + 1] === ">"
+                ? [{ end: part.end + 2, start: part.end }]
+                : [],
+        );
+    const encodedArrows = maskedQuery.templates
+        .getAll()
+        .flatMap((template) =>
+            template.depth === 0 &&
+            wikitext.template.normalizeName(template.name) === "=" &&
+            declaration[template.end] === ">"
+                ? [{ end: template.end + 1, start: template.start }]
+                : [],
+        );
+    return [...literalArrows, ...encodedArrows].toSorted(
+        (left, right) => left.start - right.start,
+    )[0];
+}
+
+function getFirstTopLevelSeparator(
+    source: string,
+    separator: string,
+): number | undefined {
+    const parts = splitHighlightRanges(source, separator);
+    return parts.length > 1 ? parts[0]?.end : undefined;
+}
+
+function splitHighlightRanges(
+    source: string,
+    separator: string,
+): TopLevelRange[] {
+    const query = createHighlightQuery(source);
+    const masked = maskSourceRanges(source, [
+        ...query.opaque.getAll(),
+        ...createTagMarkupRanges(source),
+    ]);
+    return createHighlightQuery(masked)
+        .splitRanges(separator)
+        .map((range) => ({
+            ...range,
+            value: source.slice(range.start, range.end),
+        }));
+}
+
+function createTagMarkupRanges(source: string): SourceRange[] {
+    return createHighlightQuery(source)
+        .tags.getAll()
+        .flatMap(function getMarkup(tag) {
+            const ranges: SourceRange[] = [
+                { end: tag.contentStart, start: tag.start },
+            ];
+            if (!tag.selfClosing && tag.contentEnd < tag.end) {
+                ranges.push({ end: tag.end, start: tag.contentEnd });
+            }
+            return ranges;
+        });
+}
+
+function maskSourceRanges(source: string, ranges: SourceRange[]): string {
+    let cursor = 0;
+    let masked = "";
+    for (const range of mergeSourceRanges(ranges)) {
+        masked += source.slice(cursor, range.start);
+        masked += " ".repeat(range.end - range.start);
+        cursor = range.end;
+    }
+    return masked + source.slice(cursor);
 }
 
 function isNoteTAName(name: string): boolean {
@@ -873,7 +1535,7 @@ function createLinkEmphasisExclusions(
     return links.flatMap(function protectLinkTarget(link) {
         const contentStart = link.start + 2;
         const inner = source.slice(contentStart, link.end - 2);
-        const target = createHighlightQuery(inner).splitRanges("|")[0];
+        const target = splitHighlightRanges(inner, "|")[0];
         return target == null
             ? []
             : [
@@ -963,14 +1625,15 @@ function toggleEmphasisStyle(
 }
 
 function createHeadingDecorations(source: string): DecoratedRange[] {
-    const pattern = /^(={1,6})[^\n]+?\1\s*$/gmu;
+    const pattern = /^(={1,6})([^\n]+?)\1[^\S\n]*$/gmu;
     return [...source.matchAll(pattern)].flatMap(function decorate(match) {
         const start = match.index;
+        const level = match[1].length;
         const range = {
             end: start + match[0].length,
             start,
         };
-        return [
+        const ranges: DecoratedRange[] = [
             {
                 ...range,
                 className: "wiked-lite-token--heading",
@@ -978,11 +1641,41 @@ function createHeadingDecorations(source: string): DecoratedRange[] {
             },
             {
                 ...range,
-                className: `wiked-lite-token--heading-${match[1].length}`,
+                className: `wiked-lite-token--heading-${level}`,
                 priority: 11,
             },
         ];
+        return [
+            ...ranges,
+            ...createHeadingTextDecoration(source, match, level),
+        ];
     });
+}
+
+function createHeadingTextDecoration(
+    source: string,
+    match: RegExpMatchArray,
+    level: number,
+): DecoratedRange[] {
+    if (level !== 2 && level !== 3) {
+        return [];
+    }
+    const contentStart = (match.index ?? 0) + (match[1]?.length ?? 0);
+    const content = match[2] ?? "";
+    const range = trimSourceRange(
+        source,
+        contentStart,
+        contentStart + content.length,
+    );
+    return range.start === range.end
+        ? []
+        : [
+              {
+                  ...range,
+                  className: "wiked-lite-token--heading-text",
+                  priority: 12,
+              },
+          ];
 }
 
 function getPatternHref(text: string, className: string): string | undefined {
@@ -1043,7 +1736,11 @@ function createSegment(
     const active = ranges
         .filter((range) => range.start <= start && range.end >= end)
         .sort((left, right) => right.priority - left.priority);
-    const visible = active[0]?.priority === 100 ? [active[0]] : active;
+    const opaque = active.find((range) => range.priority === 100);
+    const visible =
+        opaque == null
+            ? active
+            : [...active.filter((range) => range.priority > 100), opaque];
     const classNames = [...new Set(visible.map((range) => range.className))];
     return {
         classNames,

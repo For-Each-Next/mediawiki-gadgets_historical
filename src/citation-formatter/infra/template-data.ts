@@ -3,9 +3,11 @@
  */
 
 import {
+    DEFAULT_TEMPLATE_NAME_CONTEXT,
     getCanonicalTemplateName,
     isCitePrefixedTemplate,
     isMetadataFreeCitationTemplate,
+    type TemplateNameContext,
 } from "#gadget/domain/templates.ts";
 import type {
     CitationTemplateData,
@@ -36,6 +38,7 @@ export interface CitationTemplateDataLoadOptions {
     api: MediaWikiTemplateDataApi;
     now?: () => number;
     storage?: TemplateDataObjectStorage;
+    templateNameContext?: TemplateNameContext;
     wikiId: string;
 }
 
@@ -96,7 +99,10 @@ export async function loadCitationTemplateData(
     names: string[],
     options: CitationTemplateDataLoadOptions,
 ): Promise<CitationTemplateDataMap> {
-    const requested = getRequestedTemplateNames(names);
+    const requested = getRequestedTemplateNames(
+        names,
+        options.templateNameContext ?? DEFAULT_TEMPLATE_NAME_CONTEXT,
+    );
     if (requested.length === 0) {
         return {};
     }
@@ -179,11 +185,16 @@ function evictRefreshedEntry(
     }
 }
 
-function getRequestedTemplateNames(names: string[]): string[] {
+function getRequestedTemplateNames(
+    names: string[],
+    templateNameContext: TemplateNameContext,
+): string[] {
     const normalized = names
-        .filter(isMetadataFreeCitationTemplate)
-        .map(getCanonicalTemplateName)
-        .filter(isSafeTemplateName);
+        .filter((name) =>
+            isMetadataFreeCitationTemplate(name, templateNameContext),
+        )
+        .map((name) => getCanonicalTemplateName(name, templateNameContext))
+        .filter((name) => isSafeTemplateName(name, templateNameContext));
     return [...new Set(normalized)].slice(0, CACHE_ENTRY_LIMIT);
 }
 
@@ -295,17 +306,23 @@ function buildCompleteParamOrder(
 }
 
 function normalizeApiTemplateTitle(value: string): string {
-    return normalizeBareTemplateTitle(stripTemplateNamespace(value));
+    return normalizeBareTemplateTitle(stripApiTemplateNamespace(value));
+}
+
+/**
+ * Removes a localized prefix after the API page was validated as ns 10.
+ *
+ * @param value - API-returned template page title.
+ * @returns Bare template title.
+ */
+function stripApiTemplateNamespace(value: string): string {
+    const entered = value.trim();
+    const separator = entered.indexOf(":");
+    return separator < 0 ? entered : entered.slice(separator + 1).trim();
 }
 
 function normalizeBareTemplateTitle(value: string): string {
     return getCanonicalTemplateName(value);
-}
-
-function stripTemplateNamespace(value: string): string {
-    const entered = value.trim();
-    const colon = entered.indexOf(":");
-    return colon < 0 ? entered : entered.slice(colon + 1).trim();
 }
 
 function readParameterNameArray(value: unknown): string[] | null {
@@ -322,12 +339,15 @@ function readParameterNameArray(value: unknown): string[] | null {
     return value;
 }
 
-function isSafeTemplateName(value: unknown): value is string {
+function isSafeTemplateName(
+    value: unknown,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): value is string {
     return (
         typeof value === "string" &&
         value !== "" &&
         value.length <= STRING_LENGTH_LIMIT &&
-        isCitePrefixedTemplate(value) &&
+        isCitePrefixedTemplate(value, templateNameContext) &&
         !/[#<>\[\]|{}\r\n]/u.test(value)
     );
 }

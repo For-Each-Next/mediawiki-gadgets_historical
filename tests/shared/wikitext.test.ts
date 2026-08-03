@@ -52,6 +52,37 @@ test("template getFirst filters normalized entered names", () => {
     );
 });
 
+test("template queries do not mix wiki-specific namespace aliases", () => {
+    const source = [
+        "{{TM:Cite_web|title=English alias}}",
+        "{{T:Cite web|title=Chinese shortcut}}",
+        "{{樣板:Cite web|title=Chinese name}}",
+        "{{Template:Cite web|title=Canonical name}}",
+        "{{User:Cite web|title=Other namespace}}",
+    ].join("");
+    const templates = wikitext(source).template;
+
+    assert.deepEqual(
+        templates
+            .getAll("Template:Cite web")
+            .map((template) => template.params[0]?.value),
+        ["Canonical name"],
+    );
+    assert.equal(
+        wikitext.template.normalizeName("TM:Cite web"),
+        "tm:cite web",
+    );
+    assert.equal(wikitext.template.normalizeName("T:Cite web"), "t:cite web");
+    assert.equal(
+        wikitext.template.normalizeName("樣板:Cite web"),
+        "樣板:cite web",
+    );
+    assert.equal(
+        wikitext.template.normalizeName("User:Cite web"),
+        "user:cite web",
+    );
+});
+
 test("template queries filter by effective parameter values", () => {
     const source = [
         "{{Cite web|lead|title= First |lang=en|empty=}}",

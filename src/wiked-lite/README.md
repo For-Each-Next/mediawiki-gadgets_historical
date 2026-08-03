@@ -35,6 +35,9 @@ wikitext content model. Review formatting changes before saving the page.
 - Highlights references and short footnotes in purple, explanatory footnotes in
   blue, bold and italic apostrophe markup, table syntax, parameter names, and
   nested templates while retaining the source textarea's typography.
+- Resets template depth inside native and `Reflist` reference definitions, and
+  distinguishes file options, selected HTML or CSS keys, and entered
+  Chinese-conversion declaration keys with the existing syntax palette.
 - Opens delayed, anchored MediaWiki-style previews for plain references and
   `ref`, `r`, or `sfn` citations, with viewport-aware placement and hover-safe
   transitions that keep links usable.
@@ -44,13 +47,19 @@ wikitext content model. Review formatting changes before saving the page.
 - Displays Chinese `link-xx` and `tsl` helpers like local wikilinks and opens
   template or link targets on Control-click or Command-click.
 - Applies conservative wikEd-style basic fixes to the selection or whole page,
-  with opt-in template alignment, Chinese-conversion cleanup, category sorting,
-  redirect replacement, and missing-page highlighting.
+  with opt-in template alignment, Chinese-conversion cleanup, redirect targets
+  rewritten as piped links that keep their original text, and missing-page
+  highlighting; headings gain a following blank line without separating
+  `DEFAULTSORT` from later content.
+- Recognizes every English and Chinese Wikipedia namespace alias from bundled
+  catalogs, and loads local namespace siteinfo in the background on other
+  wikis.
 - Supports English, Simplified Chinese, and Traditional Chinese interfaces.
 
 The enhanced editor does not replace the submitted textarea. It avoids pages
-where another editor has hidden that textarea and makes network-backed link
-checks optional.
+where another editor has hidden that textarea. Network-backed redirect
+replacement and missing-link highlighting remain optional because their API
+requests may slow the action.
 
 ## Development
 
@@ -64,7 +73,8 @@ npm run build -w wiked-lite
 
 Pure formatter, scanner, highlighter, and reference tests use local fixtures.
 Redirect and missing-page checks require a live MediaWiki API only in the
-browser; formatting and editing continue if those options are not selected.
+browser. Other wikis also request namespace siteinfo in the background;
+formatting and editing continue when that optional request fails.
 
 Completed work is recorded in the package [changelog][2]. Development follows
 the package [instructions][3] and repository [instructions][4].
@@ -92,7 +102,8 @@ index.ts
 - `domain/` contains deterministic formatting and preview logic backed by the
   lazy `wikitext(source)` facade. Its construct methods run focused scanners
   without building a document-wide syntax tree.
-- `infra/` batches redirect and missing-page lookups behind UI contracts.
+- `infra/` discovers current-wiki namespaces and batches redirect and
+  missing-page lookups behind UI contracts.
 - `i18n/` keeps flat, typed locale catalogs.
 
 ## License

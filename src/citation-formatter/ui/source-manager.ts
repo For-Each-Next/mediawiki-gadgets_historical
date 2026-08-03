@@ -55,7 +55,10 @@ import {
     sourceAnalysisMessages,
     type MessageId,
 } from "#gadget/i18n/index.ts";
-import { getCanonicalTemplateNameFromKey } from "#gadget/domain/templates.ts";
+import {
+    getCanonicalTemplateNameFromKey,
+    type TemplateNameContext,
+} from "#gadget/domain/templates.ts";
 import type {
     CitationLayout,
     CitationTemplateDataMap,
@@ -216,12 +219,14 @@ interface SourceManagerActionContext extends SourceManagerDependencies {
     editor: editBox.EditBox;
     isActive: () => boolean;
     state: SourceManagerState;
+    templateNameContext: TemplateNameContext;
     toast: ToastController;
 }
 
 interface SourceManagerActionServices extends SourceManagerDependencies {
     cleanup: () => void;
     isActive: () => boolean;
+    templateNameContext: TemplateNameContext;
     toast: ToastController;
 }
 
@@ -230,6 +235,7 @@ interface SourceManagerConfiguration extends SourceManagerDependencies {
     options: SourceManagerOptions;
     registerToastCleanup: (cleanup: () => void) => void;
     sourceRevision: { value: number };
+    templateNameContext: TemplateNameContext;
 }
 
 interface SourceDraftWriteResult {
@@ -276,8 +282,19 @@ export function createOpenCitationFormatterDialog(
         if (generation !== sourceManagerGeneration) {
             return;
         }
+        const templateNameContext =
+            await dependencies.loadTemplateNameContext();
+        if (generation !== sourceManagerGeneration) {
+            return;
+        }
         removeActiveSourceManager?.();
-        mountSourceManager(editor, require, options, dependencies);
+        mountSourceManager(
+            editor,
+            require,
+            options,
+            dependencies,
+            templateNameContext,
+        );
     };
 }
 
@@ -295,6 +312,7 @@ function mountSourceManager(
     require: ResourceLoaderRequire,
     options: SourceManagerOptions,
     dependencies: SourceManagerDependencies,
+    templateNameContext: TemplateNameContext,
 ): void {
     const Vue = require("vue");
     const Codex = require("@wikimedia/codex");
@@ -334,6 +352,7 @@ function mountSourceManager(
                 clearToasts = cleanupToasts;
             },
             sourceRevision,
+            templateNameContext,
         },
     );
     const application = Vue.createMwApp(component);
@@ -376,6 +395,7 @@ function createSourceManagerComponent(
             {
                 options,
                 sourceRevision: configuration.sourceRevision,
+                templateNameContext: configuration.templateNameContext,
             },
             getCurrentWikiId(),
             formatError,
@@ -418,7 +438,11 @@ function createSourceManagerComponent(
             customAnalysisReplacement: CUSTOM_ANALYSIS_REPLACEMENT,
             parameterTableColumns: PARAMETER_TABLE_COLUMNS,
             sourceTableColumns: SOURCE_TABLE_COLUMNS,
-            sourceTemplateLabel: getCanonicalTemplateNameFromKey,
+            sourceTemplateLabel: (value: string) =>
+                getCanonicalTemplateNameFromKey(
+                    value,
+                    configuration.templateNameContext,
+                ),
             splitAuthorIcon: cdxIconMerge,
             switchStatusIcon: cdxIconUpdate,
             templateOptions: Vue.computed(() =>
@@ -477,7 +501,7 @@ function scheduleVisibleTextAreaAutosize(): void {
  * @returns Resulting text.
  */
 function getCurrentWikiId(): string {
-    const wikiId = mw.config.get("wgDBname");
+    const wikiId = mw.config.get("wgWikiID") ?? mw.config.get("wgDBname");
     return typeof wikiId === "string" ? wikiId : "";
 }
 
@@ -603,6 +627,7 @@ function createFormatterActions(
         try {
             const initialNames = findUsedMetadataFreeCitationTemplates(
                 editor.read(),
+                context.templateNameContext,
             );
             let loadedTemplateData: LoadedCurrentCitationTemplateData = {
                 metadata: {},
@@ -618,8 +643,10 @@ function createFormatterActions(
                 return;
             }
             const beforeText = editor.read();
-            const latestNames =
-                findUsedMetadataFreeCitationTemplates(beforeText);
+            const latestNames = findUsedMetadataFreeCitationTemplates(
+                beforeText,
+                context.templateNameContext,
+            );
             if (
                 latestNames.some(
                     (name) => !loadedTemplateData.requestedNames.has(name),
@@ -635,6 +662,7 @@ function createFormatterActions(
                 beforeText,
                 getCurrentWikiId(),
                 state.scriptTitleMode.value,
+                context.templateNameContext,
             ).text;
             const result = manageCitationsWithResult(
                 source,
@@ -644,6 +672,7 @@ function createFormatterActions(
                 {
                     leadSectionLabel: msg("sections.lead"),
                     runtimeTemplateData: loadedTemplateData.metadata,
+                    templateNameContext: context.templateNameContext,
                 },
             );
             const textChanged = result.text !== beforeText;
@@ -701,6 +730,7 @@ async function loadCurrentCitationTemplateData(
     }
     const latestNames = findUsedMetadataFreeCitationTemplates(
         context.editor.read(),
+        context.templateNameContext,
     );
     const initialSet = new Set(initialNames);
     const addedNames = latestNames.filter((name) => !initialSet.has(name));
@@ -2867,7 +2897,11 @@ function updateDraftTemplate(
 ): void {
     const draft = state.draft.value;
     if (draft != null && template != null) {
-        const changed = changeSourceDraftTemplate(draft, template);
+        const changed = changeSourceDraftTemplate(
+            draft,
+            template,
+            state.templateNameContext,
+        );
         ensureNextAuthorDraftRows(changed);
         state.draft.value = changed;
     }
@@ -3021,7 +3055,10 @@ function openManualSourceWhenIdle(state: SourceManagerState): void {
         openBasedOnSource(state, state.basedOnSourceId.value);
         return;
     }
-    openDraft(state, createManualSourceDraft(template));
+    openDraft(
+        state,
+        createManualSourceDraft(template, state.templateNameContext),
+    );
 }
 
 /**
@@ -3130,6 +3167,7 @@ function insertListedExistingSource(
  * @param context - Context value.
  * @param entered - Entered value.
  */
+// eslint-disable-next-line max-lines-per-function
 async function resolveSourceInput(
     context: SourceManagerActionContext,
     entered?: string,
@@ -3150,7 +3188,11 @@ async function resolveSourceInput(
     const matches =
         parsed.originalUrl === ""
             ? []
-            : findExistingSources(editor.read(), value);
+            : findExistingSources(
+                  editor.read(),
+                  value,
+                  state.templateNameContext,
+              );
     const existing = chooseAutomaticSource(matches);
     if (existing != null) {
         clearAnalysisUndo(state);
@@ -3255,7 +3297,10 @@ async function loadNewSourceDraft(
             parsed.search,
             archiveSeed,
         );
-        const draft = parseSourceDraft(metadata.citeTemplate);
+        const draft = parseSourceDraft(
+            metadata.citeTemplate,
+            state.templateNameContext,
+        );
         const liveOriginal =
             parsed.originalUrl !== "" &&
             archiveSeed == null &&
@@ -3316,7 +3361,7 @@ function refreshExistingSources(
     state: SourceManagerState,
 ): void {
     const text = editor.read();
-    const sources = listExistingSources(text);
+    const sources = listExistingSources(text, state.templateNameContext);
     state.existingSources.value = sources;
     const sections = listExistingSourceSections(text, sources);
     state.existingSourceSections.value = sections;
@@ -3390,7 +3435,10 @@ function updateExistingSource(
     const layout =
         source.status === "non-standard"
             ? state.citationLayout.value
-            : detectCitationLayout(`<ref>${source.rawTemplate}</ref>`);
+            : detectCitationLayout(
+                  `<ref>${source.rawTemplate}</ref>`,
+                  state.templateNameContext,
+              );
     const replaced = replaceExistingSource(current, source, draft, layout);
     editor.write(replaced);
 }

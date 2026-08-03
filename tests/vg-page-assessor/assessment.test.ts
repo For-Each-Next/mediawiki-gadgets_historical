@@ -46,6 +46,27 @@ test("preserves unmanaged banners and talk-page discussion content", () => {
     );
 });
 
+test("recognizes zhwiki template namespace aliases", () => {
+    const source = [
+        "{{T:WikiProject banner shell|class=B|1=",
+        "{{樣板:WikiProject Anime}}",
+        "{{模板:WikiProject Video games|importance=Low|Sega=yes}}",
+        "}}",
+        "",
+        "== Discussion ==",
+        "Body",
+    ].join("\n");
+    const assessment = createDefaultAssessment(projectConfig);
+
+    assessment.className = "C";
+    assessment.importance = "High";
+    const result = updateTalkPageAssessment(source, assessment, projectConfig);
+
+    assert.match(result, /\{\{樣板:WikiProject Anime\}\}/u);
+    assert.match(result, /\{\{WikiProject Video games\|importance=High\}\}/u);
+    assert.doesNotMatch(result, /Sega=yes/u);
+});
+
 test("preview is exactly the transformed talk-page top section", () => {
     const source = [
         "{{WikiProject Anime}}",

@@ -6,6 +6,7 @@
  */
 
 import { msg } from "#gadget/i18n/index.ts";
+import { formatNamespaceTitle, stripNamespacePrefix } from "#shared/wikitext";
 
 const API_ENDPOINT = "/w/api.php";
 const DEFAULT_BATCH_SIZE = 50;
@@ -14,7 +15,7 @@ const DEFAULT_BATCH_SIZE = 50;
  * Configures MediaWiki title resolution.
  */
 interface TitleResolverConfig {
-    namespace: string;
+    namespace: number;
     batchSize?: number;
     endpoint?: string;
     getRedirectTarget?: (page: unknown) => string | undefined;
@@ -52,7 +53,7 @@ interface TitleResolverOptions {
  * @param titles - Titles with or without the configured
  * namespace.
  * @param config - Resolver configuration.
- * @param config.namespace - Namespace prefix without a colon.
+ * @param config.namespace - MediaWiki namespace ID.
  * @param config.getRedirectTarget - Page-property redirect
  * reader.
  * @param config.prop - MediaWiki prop query.
@@ -98,7 +99,7 @@ export async function resolvePageTitles(
  * @param namespace - MediaWiki namespace.
  * @returns And deduplicates requested titles.
  */
-function normalizeRequestedTitles(titles: Array<string>, namespace: string) {
+function normalizeRequestedTitles(titles: Array<string>, namespace: number) {
     const mapCallbackF = (title: string) => stripNamespace(title, namespace);
     const normalized: Array<string> = titles.map(mapCallbackF).filter(Boolean);
 
@@ -115,7 +116,7 @@ function normalizeRequestedTitles(titles: Array<string>, namespace: string) {
  */
 function getUncachedTitles(
     titles: string[],
-    namespace: string,
+    namespace: number,
     cache: Record<string, TitleResolution | null>,
 ): Array<string> {
     const filterCallbackA = function callback(title: string) {
@@ -189,13 +190,13 @@ function buildCachedResolutions(
  *
  * @param requestedTitle - Requested title.
  * @param data - MediaWiki query response.
- * @param namespace - Namespace prefix without a colon.
+ * @param namespace - MediaWiki namespace ID.
  * @returns Actual namespaced title.
  */
 export function getActualTitle(
     requestedTitle: string,
     data: any,
-    namespace: string,
+    namespace: number,
 ): string {
     const initialTitle = formatNamespacedTitle(requestedTitle, namespace);
     const transformations = [
@@ -224,13 +225,13 @@ export function getActualTitle(
  *
  * @param title - Resolved title.
  * @param data - MediaWiki query response.
- * @param namespace - Namespace prefix without a colon.
+ * @param namespace - MediaWiki namespace ID.
  * @returns Matching API page.
  */
 export function getResolvedPage(
     title: string,
     data: any,
-    namespace: string,
+    namespace: number,
 ): any | undefined {
     const titleKey = normalizeTitleKey(title, namespace);
     const findCallbackA = function findPage(item: { title: string }) {
@@ -245,15 +246,19 @@ export function getResolvedPage(
  * Adds a namespace to a title for API queries.
  *
  * @param title - Page title.
- * @param namespace - Namespace prefix without a colon.
+ * @param namespace - MediaWiki namespace ID.
  * @returns Namespaced title.
  */
 export function formatNamespacedTitle(
     title: string,
-    namespace: string,
+    namespace: number,
 ): string {
     const bareTitle = stripNamespace(title, namespace);
-    const namespacedTitle = `${namespace}:${bareTitle}`;
+    const namespacedTitle = formatNamespaceTitle(
+        bareTitle,
+        "zhwiki",
+        namespace,
+    );
 
     return namespacedTitle;
 }
@@ -262,14 +267,12 @@ export function formatNamespacedTitle(
  * Removes a namespace prefix from a title.
  *
  * @param value - Raw title.
- * @param namespace - Namespace prefix without a colon.
+ * @param namespace - MediaWiki namespace ID.
  * @returns Bare title.
  */
-export function stripNamespace(value: any, namespace: string): string {
+export function stripNamespace(value: any, namespace: number): string {
     const text = value == null ? "" : String(value).trim();
-    const escapedNamespace = escapeRegExp(namespace);
-    const pattern = new RegExp(`^${escapedNamespace}:`, "iu");
-    const title = text.replace(pattern, "").trim();
+    const title = stripNamespacePrefix(text, "zhwiki", namespace);
 
     return title;
 }
@@ -278,10 +281,10 @@ export function stripNamespace(value: any, namespace: string): string {
  * Normalizes a title for resolution-map lookup.
  *
  * @param value - Raw title.
- * @param namespace - Namespace prefix without a colon.
+ * @param namespace - MediaWiki namespace ID.
  * @returns Normalized title key.
  */
-export function normalizeTitleKey(value: any, namespace: string): string {
+export function normalizeTitleKey(value: any, namespace: number): string {
     return stripNamespace(value, namespace).replace(/_/gu, " ");
 }
 
@@ -423,7 +426,7 @@ function mergeVariantResolutions(
     titles: string[],
     resolutions: Record<string, TitleResolution>,
     sets: Array<Record<string, TitleResolution>>,
-    namespace: string,
+    namespace: number,
 ): void {
     const forEachCallbackB = function callback(title: string) {
         const key = normalizeTitleKey(title, namespace);
@@ -562,7 +565,7 @@ function createMissingResolutions(
  */
 function chooseVariantResolution(
     requestedTitle: string,
-    namespace: string,
+    namespace: number,
     resolutions: Array<TitleResolution | undefined>,
 ): TitleResolution {
     const existing = resolutions.filter(
@@ -806,7 +809,7 @@ function followMetadataRedirect(
  */
 function addResolutionAliases(
     resolutions: Record<string, TitleResolution>,
-    namespace: string,
+    namespace: number,
 ): Record<string, TitleResolution> {
     const forEachCallback = function callback(resolution: TitleResolution) {
         const key = normalizeTitleKey(resolution.title, namespace);
@@ -888,15 +891,4 @@ function uniqueValues<T>(values: Iterable<T>): T[] {
     const unique = [...new Set(values)];
 
     return unique;
-}
-
-/**
- * Defines the module-level escape reg exp.
- *
- * @param text - Source text.
- * @returns Result when the function
- *   defines the module-level escape reg exp.
- */
-function escapeRegExp(text: string) {
-    return text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }

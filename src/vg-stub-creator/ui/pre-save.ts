@@ -4,6 +4,7 @@
 
 import { msg } from "#gadget/i18n/index.ts";
 import { wikitext } from "#shared/citation";
+import { formatNamespaceTitle } from "#shared/wikitext";
 const { trimValue } = wikitext;
 
 interface PreSaveAction {
@@ -244,10 +245,12 @@ function getPreSaveGroup(
  * @returns Page title.
  */
 function getPreSaveActionPageTitle(action: any): string {
+    const categoryTitle =
+        action?.type === "category"
+            ? formatNamespaceTitle(String(action.category ?? ""), "zhwiki", 14)
+            : "";
     const result = trimValue(
-        action?.pageTitle ||
-            action?.redirectTitle ||
-            (action?.type === "category" ? `Category:${action.category}` : ""),
+        action?.pageTitle || action?.redirectTitle || categoryTitle,
     );
     return result;
 }
@@ -278,7 +281,7 @@ function getPreSaveActionNotes(action: any): Array<any> {
         {
             key: "talk-banner",
             label: msg("presave.tagBanner", {
-                title: `Category talk:${category}`,
+                title: formatNamespaceTitle(category, "zhwiki", 15),
             }),
         },
     ];

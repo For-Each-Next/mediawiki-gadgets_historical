@@ -1,9 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wikitext";
 import {
     highlightWikitext,
     type HighlightSegment,
 } from "../../src/wiked-lite/domain/highlighter.ts";
+
+const EXAMPLE_NAMESPACE_CATALOG = decodeNamespaceCatalog("examplewiki", {
+    query: {
+        namespacealiases: [{ alias: "Image", id: 6 }],
+        namespaces: {
+            0: { id: 0, name: "" },
+            2: { canonical: "User", id: 2, name: "Benutzer" },
+            6: { canonical: "File", id: 6, name: "Datei" },
+            10: { canonical: "Template", id: 10, name: "Vorlage" },
+            14: { canonical: "Category", id: 14, name: "Kategorie" },
+        },
+    },
+});
 
 function classesAt(
     source: string,
@@ -38,8 +52,127 @@ function assertHasClass(
     segments: HighlightSegment[],
     needle: string,
     className: string,
+    occurrence = 0,
 ): void {
-    assert.ok(classesAt(source, segments, needle).includes(className));
+    assert.ok(
+        classesAt(source, segments, needle, occurrence).includes(className),
+    );
+}
+
+function assertLacksClass(
+    source: string,
+    segments: HighlightSegment[],
+    needle: string,
+    className: string,
+    occurrence = 0,
+): void {
+    assert.ok(
+        !classesAt(source, segments, needle, occurrence).includes(className),
+    );
+}
+
+interface ReferenceContainerFixture {
+    body: string;
+    containerBody: string;
+    source: string;
+}
+
+const REFERENCE_CONTAINER_FIXTURES: ReferenceContainerFixture[] = [
+    {
+        body: "Native definition",
+        containerBody: "Native container",
+        source: [
+            "{{outer|",
+            "<references>",
+            "Native container {{container template|Native}}",
+            '<ref name="native">Native definition ' +
+                "{{cite web|title={{lang|en|Native}}}}</ref>",
+            "</references>",
+            "}}",
+        ].join("\n"),
+    },
+    {
+        body: "Refs definition",
+        containerBody: "Refs container",
+        source: [
+            "{{outer|",
+            "{{Reflist|refs=",
+            "Refs container {{container template|Refs}}",
+            '<ref name="refs">Refs definition ' +
+                "{{cite web|title={{lang|en|Refs}}}}</ref>",
+            "}}",
+            "}}",
+        ].join("\n"),
+    },
+    {
+        body: "List definition",
+        containerBody: "List container",
+        source: [
+            "{{outer|",
+            "{{Reflist|list=",
+            "List container {{container template|List}}",
+            '<ref name="list">List definition ' +
+                "{{cite web|title={{lang|en|List}}}}</ref>",
+            "}}",
+            "}}",
+        ].join("\n"),
+    },
+];
+
+function assertReferenceContainerNesting(
+    fixture: ReferenceContainerFixture,
+    options: Parameters<typeof highlightWikitext>[1] = {},
+): void {
+    const segments = highlightWikitext(fixture.source, options);
+    const expectedDepths = [
+        [fixture.containerBody, 0],
+        ["container template", 0],
+        [fixture.body, 1],
+        ["cite web", 1],
+        ["lang", 2],
+    ] as const;
+
+    for (const [needle, depth] of expectedDepths) {
+        assertHasClass(
+            fixture.source,
+            segments,
+            needle,
+            `wiked-lite-token--template-${depth}`,
+        );
+    }
+    assertReferenceContainerBoundaries(fixture, segments);
+}
+
+function assertReferenceContainerBoundaries(
+    fixture: ReferenceContainerFixture,
+    segments: HighlightSegment[],
+): void {
+    assertLacksClass(
+        fixture.source,
+        segments,
+        "container template",
+        "wiked-lite-token--template-1",
+    );
+    assertLacksClass(
+        fixture.source,
+        segments,
+        "cite web",
+        "wiked-lite-token--template-2",
+    );
+    assertLacksClass(
+        fixture.source,
+        segments,
+        fixture.body,
+        "wiked-lite-token--reference",
+    );
+    assert.equal(
+        segmentAt(fixture.source, segments, fixture.body)?.referenceSource,
+        undefined,
+    );
+    assert.equal(
+        segmentAt(fixture.source, segments, fixture.containerBody)?.href,
+        undefined,
+    );
 }
 
 test("reference and nested-template classes differ", () => {
@@ -83,6 +216,62 @@ test("self-closing references do not color the following article text", () => {
     );
 });
 
+test("reference containers use relative template nesting", () => {
+    for (const fixture of REFERENCE_CONTAINER_FIXTURES) {
+        assertReferenceContainerNesting(fixture);
+    }
+});
+
+test("current-wiki template prefixes preserve reference nesting", () => {
+    const fixture = {
+        ...REFERENCE_CONTAINER_FIXTURES[1],
+        source: REFERENCE_CONTAINER_FIXTURES[1].source.replace(
+            "{{Reflist",
+            "{{Vorlage:Reflist",
+        ),
+    };
+
+    assertReferenceContainerNesting(fixture, {
+        namespaceSource: EXAMPLE_NAMESPACE_CATALOG,
+    });
+});
+
+test("the innermost reference boundary controls template depth", () => {
+    const source = [
+        "{{sfn|<references>Clipped metadata</references>}}",
+        "<references><ref><references>{{Inner reset}}" +
+            "</references></ref></references>",
+    ].join("\n");
+    const segments = highlightWikitext(source);
+
+    assertLacksClass(
+        source,
+        segments,
+        "Clipped metadata",
+        "wiked-lite-token--reference",
+    );
+    assert.equal(
+        segmentAt(source, segments, "Clipped metadata")?.href,
+        undefined,
+    );
+    assert.equal(
+        segmentAt(source, segments, "Clipped metadata")?.referenceSource,
+        undefined,
+    );
+    assertHasClass(
+        source,
+        segments,
+        "Inner reset",
+        "wiked-lite-token--template-0",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "Inner reset",
+        "wiked-lite-token--template-1",
+    );
+});
+
 test("Arch Linux NoteTA rules use conversion token families", () => {
     const source = [
         "{{NoteTA",
@@ -102,6 +291,123 @@ test("Arch Linux NoteTA rules use conversion token families", () => {
         segments,
         "zh-cn",
         "wiked-lite-token--language-variant",
+    );
+});
+
+test("NoteTA conversion keys retain complete declaration boundaries", () => {
+    const source =
+        "{{NoteTA-lite|1=11zh-tw:22; a=>region:xx; a{{=}}>zh-tw:33}}";
+    const segments = highlightWikitext(source, { linkHelpers: true });
+    const malformed = segmentAt(source, segments, "11zh-tw");
+
+    assert.equal(malformed?.text, "11zh-tw");
+    assert.ok(
+        malformed?.classNames.includes("wiked-lite-token--language-variant"),
+    );
+    assertHasClass(
+        source,
+        segments,
+        "region",
+        "wiked-lite-token--language-variant",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "zh-tw",
+        "wiked-lite-token--language-variant",
+        1,
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "a=>",
+        "wiked-lite-token--language-variant",
+    );
+});
+
+test("conversion separators ignore values and tag attributes", () => {
+    const source =
+        '-{zh-cn:A=>B; zh-tw:<span title="a:b;=>c">x</span>; a=>region:xx}-';
+    const segments = highlightWikitext(source, { linkHelpers: true });
+
+    for (const key of ["zh-cn", "zh-tw", "region"]) {
+        assertHasClass(
+            source,
+            segments,
+            key,
+            "wiked-lite-token--language-variant",
+        );
+    }
+    for (const value of ["B", "a:b"]) {
+        assertLacksClass(
+            source,
+            segments,
+            value,
+            "wiked-lite-token--language-variant",
+        );
+    }
+});
+
+test("literal tag contents do not create conversion declarations", () => {
+    const source =
+        "{{NoteTA-lite|1=<nowiki>a;b:c; a=>region:xx</nowiki> plain}}";
+    const segments = highlightWikitext(source, { linkHelpers: true });
+
+    assertLacksClass(
+        source,
+        segments,
+        "plain",
+        "wiked-lite-token--language-conversion",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "region",
+        "wiked-lite-token--language-variant",
+    );
+});
+
+test("comments before conversion keys preserve declarations", () => {
+    const fixtures = [
+        ["-{<!--c-->zh-cn:x}-", "zh-cn"],
+        ["-{zh-cn:x;<!--c-->zh-tw:y}-", "zh-tw"],
+        ["{{NoteTA|1=H|<!--c-->zh-tw:x}}", "zh-tw"],
+    ] as const;
+
+    for (const [source, key] of fixtures) {
+        assertHasClass(
+            source,
+            highlightWikitext(source, { linkHelpers: true }),
+            key,
+            "wiked-lite-token--language-variant",
+        );
+    }
+});
+
+test("literal pipes do not split wikilink labels", () => {
+    const source = "[[Target|<nowiki>a|b</nowiki> visible]]";
+    const segments = highlightWikitext(source);
+
+    assertHasClass(source, segments, "visible", "wiked-lite-token--link-text");
+});
+
+test("localized namespace aliases classify file and category links", () => {
+    const source = "[[圖片:Example.svg]] [[分類:Examples]]";
+    const segments = highlightWikitext(source, {
+        namespaceSource: "zhwiki",
+    });
+
+    assertHasClass(
+        source,
+        segments,
+        "圖片:Example.svg",
+        "wiked-lite-token--file-link",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "分類:Examples",
+        "wiked-lite-token--category",
     );
 });
 
@@ -141,6 +447,127 @@ test("Arch Linux infobox links and HTML keep original token families", () => {
     assert.deepEqual(classesAt(source, segments, "PKGBUILD"), []);
 });
 
+test("file options distinguish keywords and named keys from values", () => {
+    const source =
+        "[[File:Example.svg|thumb|right|alt=Accessible map|Caption text]]";
+    const segments = highlightWikitext(source);
+
+    for (const option of ["thumb", "right", "alt"]) {
+        assertHasClass(
+            source,
+            segments,
+            option,
+            "wiked-lite-token--parameter",
+        );
+        assertHasClass(
+            source,
+            segments,
+            option,
+            "wiked-lite-token--file-link",
+        );
+    }
+    for (const value of ["Accessible map", "Caption text"]) {
+        assertLacksClass(
+            source,
+            segments,
+            value,
+            "wiked-lite-token--parameter",
+        );
+    }
+    assertHasClass(
+        source,
+        segments,
+        "|thumb",
+        "wiked-lite-token--wiki-markup",
+    );
+});
+
+test("file options ignore pipes and equals signs in tag attributes", () => {
+    const source = '[[File:X.svg|<span title="a|right|alt=x">Caption</span>]]';
+    const segments = highlightWikitext(source);
+
+    for (const text of ["right", "alt"]) {
+        assertLacksClass(
+            source,
+            segments,
+            text,
+            "wiked-lite-token--parameter",
+        );
+    }
+});
+
+test("HTML attributes and CSS properties use syntax token families", () => {
+    const source = '<span lang="ja" style="display: none">本文</span>';
+    const segments = highlightWikitext(source);
+
+    for (const attribute of ["lang", "style"]) {
+        assertHasClass(
+            source,
+            segments,
+            attribute,
+            "wiked-lite-token--parameter",
+        );
+        assertHasClass(
+            source,
+            segments,
+            attribute,
+            "wiked-lite-token--html-tag",
+        );
+    }
+    assertHasClass(
+        source,
+        segments,
+        "display",
+        "wiked-lite-token--language-variant",
+    );
+    assertHasClass(source, segments, "display", "wiked-lite-token--html-tag");
+    assertLacksClass(
+        source,
+        segments,
+        "none",
+        "wiked-lite-token--language-variant",
+    );
+    assert.deepEqual(classesAt(source, segments, "本文"), []);
+});
+
+test("HTML syntax keys respect literal content and nested wikitext", () => {
+    const source = [
+        '<syntaxhighlight lang="ts" style="display:none">display:x' +
+            "</syntaxhighlight>",
+        '<span style="{{foo|x;display:none}};color:red">text</span>',
+    ].join("\n");
+    const segments = highlightWikitext(source);
+
+    for (const attribute of ["lang", "style"]) {
+        assertHasClass(
+            source,
+            segments,
+            attribute,
+            "wiked-lite-token--parameter",
+        );
+    }
+    assertHasClass(
+        source,
+        segments,
+        "display",
+        "wiked-lite-token--language-variant",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "display",
+        "wiked-lite-token--language-variant",
+        1,
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "display",
+        "wiked-lite-token--language-variant",
+        2,
+    );
+});
+
 test("Chinese image templates use the original green family", () => {
     const source = "{{multiple image|image1=ArchWiki.svg}}";
     const segments = highlightWikitext(source, {
@@ -152,6 +579,49 @@ test("Chinese image templates use the original green family", () => {
         segments,
         "multiple image",
         "wiked-lite-token--image-template",
+    );
+});
+
+test("current namespaces format template navigation titles", () => {
+    const source = "{{Vorlage:Example}}";
+    const segments = highlightWikitext(source, {
+        namespaceSource: EXAMPLE_NAMESPACE_CATALOG,
+    });
+
+    assert.equal(
+        segmentAt(source, segments, "Vorlage:Example")?.href,
+        "/wiki/Vorlage%3AExample",
+    );
+});
+
+test("template navigation respects explicit current-wiki namespaces", () => {
+    const options = {
+        namespaceSource: EXAMPLE_NAMESPACE_CATALOG,
+    };
+
+    assert.equal(
+        segmentAt(
+            "{{Example}}",
+            highlightWikitext("{{Example}}", options),
+            "Example",
+        )?.href,
+        "/wiki/Vorlage%3AExample",
+    );
+    assert.equal(
+        segmentAt(
+            "{{Benutzer:Example}}",
+            highlightWikitext("{{Benutzer:Example}}", options),
+            "Benutzer:Example",
+        )?.href,
+        "/wiki/Benutzer%3AExample",
+    );
+    assert.equal(
+        segmentAt(
+            "{{:Article}}",
+            highlightWikitext("{{:Article}}", options),
+            ":Article",
+        )?.href,
+        "/wiki/Article",
     );
 });
 
@@ -177,20 +647,55 @@ test("comments are opaque to template highlighting", () => {
 });
 
 test("template syntax and headings receive wikEd-style tokens", () => {
-    const segments = highlightWikitext(
-        "== Heading ==\n{{ Cite web | URL = https://example.test }}",
-    );
+    const source =
+        "== Heading ==\n{{ Cite web | URL = https://example.test }}";
+    const segments = highlightWikitext(source);
     const classesFor = (text: string) =>
         segments.find((segment) => segment.text === text)?.classNames ?? [];
 
-    assert.deepEqual(classesFor("== Heading =="), [
-        "wiked-lite-token--heading-2",
-        "wiked-lite-token--heading",
-    ]);
+    assertHasClass(source, segments, "Heading", "wiked-lite-token--heading-2");
+    assertHasClass(source, segments, "Heading", "wiked-lite-token--heading");
     assert.ok(
         classesFor("Cite web").includes("wiked-lite-token--template-name"),
     );
     assert.ok(classesFor("URL").includes("wiked-lite-token--parameter"));
+});
+
+test("heading underlines contain only trimmed level 2 and 3 text", () => {
+    const source = "==   Level two   ==   \n===  Level three  ===　";
+    const segments = highlightWikitext(source);
+    const underlinedText = segments
+        .filter((segment) =>
+            segment.classNames.includes("wiked-lite-token--heading-text"),
+        )
+        .map((segment) => segment.text)
+        .join("");
+
+    assert.equal(underlinedText, "Level twoLevel three");
+    assertHasClass(
+        source,
+        segments,
+        "Level two",
+        "wiked-lite-token--heading-2",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "Level three",
+        "wiked-lite-token--heading-3",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "==   ",
+        "wiked-lite-token--heading-text",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "   ==   ",
+        "wiked-lite-token--heading-text",
+    );
 });
 
 test("apostrophe markup renders bold and italic text", () => {

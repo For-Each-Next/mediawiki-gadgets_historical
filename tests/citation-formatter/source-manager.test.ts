@@ -40,6 +40,7 @@ import {
 } from "citation-formatter/domain/source-manager.ts";
 import { citationTemplateData as templateData } from "@mediawiki-gadgets/shared/citation";
 import {
+    createTemplateNameContext,
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
 } from "citation-formatter/domain/templates.ts";
@@ -52,6 +53,9 @@ function getRow(draft: SourceDraft, name: string) {
     assert.ok(row, `Missing ${name} row`);
     return row;
 }
+
+const englishTemplateNames = createTemplateNameContext("enwiki");
+const chineseTemplateNames = createTemplateNameContext("zhwiki");
 
 const testSourceUrlParsing = () => {
     const normal = parseSourceUrl(" https://example.test/a?x=1&amp;y=2 ");
@@ -1245,6 +1249,35 @@ test("lists and reuses bibliography citations referenced by sfn", () => {
         buildExistingSourceReference(sources[0]!),
         "{{sfn|Weiss|2014}}",
     );
+});
+
+test("short footnotes accept supported template namespace aliases", () => {
+    const text = [
+        "Text.{{T:sfn|Weiss|2014}}",
+        "==Sources==",
+        "* {{樣板:cite book|last=Weiss|year=2014|title=Console games}}",
+    ].join("\n");
+    const sources = listExistingSources(text, chineseTemplateNames);
+
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0]?.referenceKind, "short-footnote");
+    assert.equal(sources[0]?.reuseText, "{{sfn|Weiss|2014}}");
+});
+
+test("short-footnote parameter names are not namespace titles", () => {
+    const citation =
+        "* {{cite book|last=Right|year=2000|ref=forced|title=Book}}";
+    const aliasedParameter = listExistingSources(
+        `{{sfn|Wrong|1999|TM:ref=forced}}\n${citation}`,
+        englishTemplateNames,
+    );
+    const refParameter = listExistingSources(
+        `{{sfn|Wrong|1999|ref=forced}}\n${citation}`,
+        englishTemplateNames,
+    );
+
+    assert.deepEqual(aliasedParameter, []);
+    assert.equal(refParameter.length, 1);
 });
 
 test("uses a language-prefixed script title as the list title", () => {

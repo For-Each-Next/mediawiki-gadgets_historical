@@ -41,6 +41,7 @@ import type {
 import { msg } from "#gadget/i18n/index.ts";
 import { getErrorMessage, toError } from "#gadget/support/errors.ts";
 import { wikitext } from "#shared/citation";
+import { formatNamespaceTitle } from "#shared/wikitext";
 const { trimValue } = wikitext;
 
 const CITATION_PREFETCH_DELAY = 800;
@@ -923,9 +924,9 @@ export function createBrowserApplication(
     function normalizeEnglishCategoryTitle(title: string): string {
         const value = trimValue(title);
 
-        return value === "" || /^Category:/iu.test(value)
+        return value === ""
             ? value
-            : `Category:${value}`;
+            : formatNamespaceTitle(value, "enwiki", 14);
     }
 
     /**

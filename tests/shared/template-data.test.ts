@@ -10,7 +10,7 @@ import {
 
 test("loads one bare or namespaced template", async () => {
     const requests: Array<Record<string, unknown>> = [];
-    const page = await loadTemplateData(" Template:Example ", {
+    const page = await loadTemplateData(" TM:Example ", {
         api: createTemplateDataApi(requests),
         requestParameters: { action: "query", maxlag: 5 },
     });

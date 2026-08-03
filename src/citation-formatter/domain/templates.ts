@@ -1,6 +1,34 @@
 /**
  * Supported English Wikipedia CS1/CS2 citation templates.
  */
+import {
+    normalizeNamespacePrefix,
+    stripNamespacePrefix,
+    type NamespaceSource,
+} from "#shared/wikitext";
+
+/** Namespace rules used while interpreting template transclusions. */
+export interface TemplateNameContext {
+    /** Current-wiki catalog, or null for the offline fallback. */
+    readonly namespaceSource: NamespaceSource | null;
+}
+
+/**
+ * Offline-safe behavior retained for deterministic package consumers.
+ *
+ * Without wiki data, operations recognize bare names and the canonical
+ * Template namespace prefix only.
+ */
+export const DEFAULT_TEMPLATE_NAME_CONTEXT: TemplateNameContext =
+    Object.freeze({ namespaceSource: null });
+
+/** Creates immutable current-wiki template-name rules. */
+export function createTemplateNameContext(
+    namespaceSource: NamespaceSource,
+): TemplateNameContext {
+    return Object.freeze({ namespaceSource });
+}
+
 export const SUPPORTED_CITATION_TEMPLATES = [
     "Citation",
     "Cite arXiv",
@@ -48,7 +76,9 @@ const CANONICAL_TEMPLATE_KEY_NAMES = new Map(
 );
 
 const SUPPORTED_TEMPLATE_SET = new Set(
-    SUPPORTED_CITATION_TEMPLATES.map(normalizeTemplateIdentity),
+    SUPPORTED_CITATION_TEMPLATES.map((name) =>
+        normalizeTemplateIdentity(name),
+    ),
 );
 
 /**
@@ -57,8 +87,13 @@ const SUPPORTED_TEMPLATE_SET = new Set(
  * @param value - Entered template title.
  * @returns Normalized template name.
  */
-export function normalizeTemplateName(value: string): string {
-    return normalizeTemplateDisplayName(value).toLocaleLowerCase("en-US");
+export function normalizeTemplateName(
+    value: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string {
+    return normalizeTemplateDisplayName(value, context).toLocaleLowerCase(
+        "en-US",
+    );
 }
 
 /**
@@ -67,11 +102,40 @@ export function normalizeTemplateName(value: string): string {
  * @param value - Value to process.
  * @returns Value.
  */
-function normalizeTemplateDisplayName(value: string): string {
-    return value
-        .trim()
-        .replace(/^template\s*:/iu, "")
-        .replace(/[_\s]+/gu, " ");
+function normalizeTemplateDisplayName(
+    value: string,
+    context: TemplateNameContext,
+): string {
+    return stripTemplatePrefix(value, context).replace(/[_\s]+/gu, " ");
+}
+
+function stripTemplatePrefix(
+    value: string,
+    context: TemplateNameContext,
+): string {
+    const source = context.namespaceSource;
+    return source == null
+        ? stripCanonicalTemplatePrefix(value)
+        : stripNamespacePrefix(value, source, 10);
+}
+
+/**
+ * Removes the canonical Template prefix without assuming a local alias.
+ *
+ * @param value - Entered template title.
+ * @returns Title without a recognized template prefix.
+ */
+function stripCanonicalTemplatePrefix(value: string): string {
+    const title = value.trim();
+    const entered = title.startsWith(":") ? title.slice(1).trimStart() : title;
+    const separator = entered.indexOf(":");
+    if (separator < 0) {
+        return title;
+    }
+    const prefix = entered.slice(0, separator);
+    return normalizeNamespacePrefix(prefix) === "template"
+        ? entered.slice(separator + 1).trim()
+        : title;
 }
 
 /**
@@ -80,8 +144,11 @@ function normalizeTemplateDisplayName(value: string): string {
  * @param value - Value to process.
  * @returns Normalized syntax with MediaWiki title casing.
  */
-function normalizeTemplateIdentity(value: string): string {
-    const entered = normalizeTemplateDisplayName(value);
+function normalizeTemplateIdentity(
+    value: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string {
+    const entered = normalizeTemplateDisplayName(value, context);
     if (entered === "") {
         return "";
     }
@@ -94,8 +161,11 @@ function normalizeTemplateIdentity(value: string): string {
  * @param value - Entered or normalized template title.
  * @returns Canonically cased template name.
  */
-export function getCanonicalTemplateName(value: string): string {
-    const identity = normalizeTemplateIdentity(value);
+export function getCanonicalTemplateName(
+    value: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string {
+    const identity = normalizeTemplateIdentity(value, context);
     const supported = CANONICAL_TEMPLATE_NAMES.get(identity);
     if (supported != null) {
         return supported;
@@ -109,15 +179,18 @@ export function getCanonicalTemplateName(value: string): string {
  * @param value - Value to process.
  * @returns Canonical display name for a lowercase metadata key.
  */
-export function getCanonicalTemplateNameFromKey(value: string): string {
-    const normalized = normalizeTemplateName(value);
+export function getCanonicalTemplateNameFromKey(
+    value: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string {
+    const normalized = normalizeTemplateName(value, context);
     if (value === normalized) {
         const supported = CANONICAL_TEMPLATE_KEY_NAMES.get(normalized);
         if (supported != null) {
             return supported;
         }
     }
-    return getCanonicalTemplateName(value);
+    return getCanonicalTemplateName(value, context);
 }
 
 /**
@@ -126,8 +199,13 @@ export function getCanonicalTemplateNameFromKey(value: string): string {
  * @param value - Entered template title.
  * @returns Whether the template is supported.
  */
-export function isCitationTemplate(value: string): boolean {
-    return SUPPORTED_TEMPLATE_SET.has(normalizeTemplateIdentity(value));
+export function isCitationTemplate(
+    value: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): boolean {
+    return SUPPORTED_TEMPLATE_SET.has(
+        normalizeTemplateIdentity(value, context),
+    );
 }
 
 /**
@@ -136,8 +214,14 @@ export function isCitationTemplate(value: string): boolean {
  * @param value - Value to process.
  * @returns Whether a citation template can be edited as a source draft.
  */
-export function isEditableCitationTemplate(value: string): boolean {
-    return isCitationTemplate(value) || isCitePrefixedTemplate(value);
+export function isEditableCitationTemplate(
+    value: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): boolean {
+    return (
+        isCitationTemplate(value, context) ||
+        isCitePrefixedTemplate(value, context)
+    );
 }
 
 /**
@@ -146,8 +230,14 @@ export function isEditableCitationTemplate(value: string): boolean {
  * @param value - Value to process.
  * @returns Whether an editable template lacks local TemplateData.
  */
-export function isMetadataFreeCitationTemplate(value: string): boolean {
-    return !isCitationTemplate(value) && isCitePrefixedTemplate(value);
+export function isMetadataFreeCitationTemplate(
+    value: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): boolean {
+    return (
+        !isCitationTemplate(value, context) &&
+        isCitePrefixedTemplate(value, context)
+    );
 }
 
 /**
@@ -156,7 +246,10 @@ export function isMetadataFreeCitationTemplate(value: string): boolean {
  * @param value - Value to process.
  * @returns Whether a title uses the Cite template-name family.
  */
-export function isCitePrefixedTemplate(value: string): boolean {
-    const normalized = normalizeTemplateName(value);
+export function isCitePrefixedTemplate(
+    value: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): boolean {
+    const normalized = normalizeTemplateName(value, context);
     return /^cite(?:\s|$)/u.test(normalized);
 }

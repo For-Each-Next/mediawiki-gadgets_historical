@@ -9,6 +9,7 @@ import type {
 import { get as getTerminology } from "#gadget/config/terminologies/index.ts";
 import { buildReferencesSection } from "#gadget/domain/reference-wikitext.ts";
 import { wikitext } from "#shared/citation";
+import { formatNamespaceTitle, stripNamespacePrefix } from "#shared/wikitext";
 
 const { buildTemplateCall, buildTemplateText, trimValue, uniqueValues } =
     wikitext;
@@ -822,7 +823,12 @@ function foldChineseVariants(value: string) {
  *   defines the module-level build category link.
  */
 function buildCategoryLink(row: { category: unknown }) {
-    return `[[Category:${normalizeCategoryTitle(row.category)}]]`;
+    const title = formatNamespaceTitle(
+        normalizeCategoryTitle(row.category),
+        "zhwiki",
+        14,
+    );
+    return `[[${title}]]`;
 }
 
 /**
@@ -833,9 +839,11 @@ function buildCategoryLink(row: { category: unknown }) {
  *   defines the module-level normalize category title.
  */
 function normalizeCategoryTitle(value: unknown) {
-    const result = trimCategoryValue(value)
-        .replace(/^Category:/iu, "")
-        .trim();
+    const result = stripNamespacePrefix(
+        trimCategoryValue(value),
+        "zhwiki",
+        14,
+    );
     return result;
 }
 

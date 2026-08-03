@@ -8,6 +8,12 @@ import {
     type RefTag,
 } from "#shared/wikitext";
 
+import {
+    DEFAULT_TEMPLATE_NAME_CONTEXT,
+    normalizeTemplateName,
+    type TemplateNameContext,
+} from "./templates.ts";
+
 /** One native references tag or Reflist template. */
 export interface ReferenceContainer {
     contentEnd: number;
@@ -47,7 +53,10 @@ export function createEmptyReferenceContainer(
  * @param text - Text to process.
  * @returns Native references tags and Reflist templates.
  */
-export function findReferenceContainers(text: string): ReferenceContainer[] {
+export function findReferenceContainers(
+    text: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): ReferenceContainer[] {
     const code = wikitext(text);
     const result: ReferenceContainer[] = [];
     for (const tag of code.tags.getAll("references")) {
@@ -65,7 +74,13 @@ export function findReferenceContainers(text: string): ReferenceContainer[] {
             start: tag.start,
         });
     }
-    for (const template of code.templates.getAll("reflist")) {
+    for (const template of code.templates.getAll()) {
+        if (
+            normalizeTemplateName(template.name, templateNameContext) !==
+            "reflist"
+        ) {
+            continue;
+        }
         result.push(buildReflistContainer(template));
     }
     return result.sort((left, right) => left.start - right.start);

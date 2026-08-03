@@ -2,6 +2,22 @@
 
 ## Until 0.6
 
+### 0.5.1-post.26 (2026-08-03 08:24 UTC)
+
+Overview: Citation Formatter resolves current-wiki Template prefixes through
+static English and Chinese catalogs or validated local siteinfo.
+
+- Added complete, immutable namespace-prefix catalogs from both wikis plus a
+  validated decoder for local `namespaces|namespacealiases` siteinfo.
+- Used the static catalogs without an API request on enwiki and zhwiki; other
+  wikis load and memoize local aliases with a retryable, canonical-only
+  fallback.
+- Threaded explicit template-name rules through citation formatting, source
+  management, reference-list containers, TemplateData discovery, short
+  footnotes, and the browser UI.
+- Kept non-Template prefixes and parameter names distinct from namespace
+  syntax, including case-preserving API and bibliography regressions.
+
 ### 0.5.1-post.22 (2026-08-02 12:12 UTC)
 
 Overview: Citation Formatter preserves repeated CS1 parameters as deliberate

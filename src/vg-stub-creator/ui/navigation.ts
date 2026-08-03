@@ -1,3 +1,5 @@
+import { formatNamespaceTitle } from "#shared/wikitext";
+
 /**
  * Builds the special-page title for backlinks to an article.
  *
@@ -5,7 +7,7 @@
  * @returns WhatLinksHere special-page title.
  */
 export function buildWhatLinksHerePageTitle(title: string): string {
-    return `Special:WhatLinksHere/${title.trim()}`;
+    return formatNamespaceTitle(`WhatLinksHere/${title.trim()}`, "zhwiki", -1);
 }
 
 /**

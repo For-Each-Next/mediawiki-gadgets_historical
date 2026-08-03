@@ -11,7 +11,7 @@ const resolvesMissingCategories = async function resolvesMissingCategories() {
     const options = { fetcher: createCategoryFetcher() };
     const rows = await categories.resolveCategoryRows(
         [
-            { category: "Existing games", enabled: true },
+            { category: "分類:Existing games", enabled: true },
             { category: "Missing games", enabled: true },
         ],
         options,

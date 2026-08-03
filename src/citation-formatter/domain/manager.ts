@@ -9,8 +9,11 @@ import {
 } from "#shared/wikitext";
 
 import {
+    DEFAULT_TEMPLATE_NAME_CONTEXT,
     isCitationTemplate,
     isEditableCitationTemplate,
+    normalizeTemplateName,
+    type TemplateNameContext,
 } from "./templates.ts";
 import {
     findCitationManagementProtectedRanges,
@@ -74,12 +77,15 @@ export interface NameOverrideUpdate {
  * @param text - Article wikitext.
  * @returns Editable override fields in source order.
  */
-export function findNameOverrideFields(text: string): NameOverrideField[] {
+export function findNameOverrideFields(
+    text: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): NameOverrideField[] {
     const fields = new Map<string, NameOverrideField>();
     const protectedRanges = findCitationManagementProtectedRanges(text);
     for (const call of wikitext(text).template.getAll()) {
         if (
-            !isCitationTemplate(call.name) ||
+            !isCitationTemplate(call.name, templateNameContext) ||
             isInWikitextRanges(call.start, protectedRanges)
         ) {
             continue;
@@ -105,12 +111,16 @@ export function findNameOverrideFields(text: string): NameOverrideField[] {
 export function applyNameOverrides(
     text: string,
     updates: NameOverrideUpdate[],
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): string {
     const byId = buildOverrideIndex(updates);
     const replacements: TextReplacement[] = [];
     const protectedRanges = findCitationManagementProtectedRanges(text);
     for (const call of wikitext(text).template.getAll()) {
         if (isInWikitextRanges(call.start, protectedRanges)) {
+            continue;
+        }
+        if (!isCitationTemplate(call.name, templateNameContext)) {
             continue;
         }
         const replacement = buildOverrideReplacement(call, byId);
@@ -466,7 +476,10 @@ export function compactReferenceCalls(text: string): string {
  * @param text - Article wikitext.
  * @returns Wikitext with native reuse tags.
  */
-export function expandCompactReferenceCalls(text: string): string {
+export function expandCompactReferenceCalls(
+    text: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string {
     const protectedRanges = findCitationManagementProtectedRanges(text);
     const isActiveCall = (call: ParsedTemplateCall) =>
         !isInWikitextRanges(call.start, protectedRanges);
@@ -483,7 +496,7 @@ export function expandCompactReferenceCalls(text: string): string {
     };
     const replacements = wikitext(text)
         .template.getAll()
-        .filter(isRCall)
+        .filter((call) => isRCall(call, templateNameContext))
         .filter(hasOnlyPositionalParams)
         .filter(isActiveCall)
         .map(expandCall);
@@ -499,7 +512,10 @@ export function expandCompactReferenceCalls(text: string): string {
  * @param text - Article wikitext.
  * @returns Detected citation-template output layout.
  */
-export function detectCitationLayout(text: string): CitationLayout {
+export function detectCitationLayout(
+    text: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): CitationLayout {
     const protectedRanges = findCitationManagementProtectedRanges(text);
     const definitionTags = wikitext(text)
         .reference.getAll()
@@ -510,7 +526,7 @@ export function detectCitationLayout(text: string): CitationLayout {
         return (
             !isInWikitextRanges(call.start, protectedRanges) &&
             isInRefDefinition(call, definitionTags) &&
-            isEditableCitationTemplate(call.name)
+            isEditableCitationTemplate(call.name, templateNameContext)
         );
     };
     const calls = wikitext(text).template.getAll().filter(isActiveCitation);
@@ -695,8 +711,11 @@ function isCompactableReuseTag(tag: RefTag): boolean {
  * @param call - Parsed template call.
  * @returns Whether the call uses the R template.
  */
-function isRCall(call: ParsedTemplateCall): boolean {
-    return call.name.trim().toLocaleLowerCase("en-US") === "r";
+function isRCall(
+    call: ParsedTemplateCall,
+    templateNameContext: TemplateNameContext,
+): boolean {
+    return normalizeTemplateName(call.name, templateNameContext) === "r";
 }
 
 /**

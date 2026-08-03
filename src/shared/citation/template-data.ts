@@ -2,6 +2,11 @@
  * Loads TemplateData from a MediaWiki API in bounded, serial batches.
  */
 
+import {
+    formatNamespaceTitle,
+    stripNamespacePrefix,
+} from "../wikitext/index.ts";
+
 const DEFAULT_BATCH_SIZE = 20;
 const MAX_BATCH_SIZE = 50;
 const TITLE_LENGTH_LIMIT = 255;
@@ -49,8 +54,8 @@ export function loadTemplateData(
 /**
  * Loads any number of templates in bounded, serial API requests.
  *
- * Map keys are trimmed, bare template names. The canonical `Template:`
- * namespace prefix is accepted as input as well.
+ * Map keys are trimmed, bare template names. English Wikipedia template
+ * namespace prefixes are accepted as input as well.
  *
  * @param names - Names to process.
  * @param options - Operation options.
@@ -238,13 +243,11 @@ function isApiPages(
 }
 
 function toTemplateTitle(name: string): string {
-    return `Template:${name}`;
+    return formatNamespaceTitle(name, "enwiki", 10);
 }
 
 function stripTemplateNamespace(value: string): string {
-    return /^template\s*:/iu.test(value)
-        ? value.replace(/^template\s*:/iu, "").trim()
-        : value;
+    return stripNamespacePrefix(value, "enwiki", 10);
 }
 
 function normalizeFullTitle(value: string): string {

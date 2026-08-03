@@ -8,6 +8,7 @@
 import { addEditSummarySuffix } from "#gadget/infra/editing/summary.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import { NEW_PAGE_LIST_TITLE } from "#gadget/config/wiki-pages.ts";
+import { formatNamespaceTitle } from "#shared/wikitext";
 
 export { NEW_PAGE_LIST_TITLE };
 const MAX_EDIT_ATTEMPTS = 3;
@@ -546,7 +547,7 @@ function normalizeCategoryTitle(category: string): string {
         return "";
     }
 
-    return /^(?:Category|分類):/iu.test(title) ? title : `Category:${title}`;
+    return formatNamespaceTitle(title, "zhwiki", 14);
 }
 
 /**

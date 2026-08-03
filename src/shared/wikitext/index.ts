@@ -390,6 +390,24 @@ function parseTagSource(
 
 export type { WikitextComment } from "./comments.ts";
 export type { WikilinkRange } from "./links.ts";
+export {
+    WIKI_NAMESPACE_PREFIXES,
+    decodeNamespaceCatalog,
+    formatNamespaceTitle,
+    getNamespaceId,
+    getNamespaceIds,
+    getNamespacePrefixes,
+    getTitleNamespaceId,
+    hasNamespacePrefix,
+    normalizeNamespacePrefix,
+    normalizeWikitextTitleKey,
+    stripNamespacePrefix,
+    type NamespaceCatalog,
+    type NamespaceDatabaseName,
+    type NamespaceIdMap,
+    type NamespacePrefixMap,
+    type NamespaceSource,
+} from "./namespace-prefixes.ts";
 export type { SourceRange, WikitextOptions } from "./opaque-ranges.ts";
 export type { RefTag } from "./references.ts";
 export type {

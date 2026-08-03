@@ -832,7 +832,13 @@ const methods = {
      * @returns The staged company-category dialog title.
      */
     getCompanyCategoryDialogTitle(): string {
-        const values = { category: companyCategoryState.category };
+        const values = {
+            title: formatNamespaceTitle(
+                companyCategoryState.category,
+                "zhwiki",
+                14,
+            ),
+        };
         if (companyCategoryState.pending) {
             return msg("review.companyCategoryModifyTitle", values);
         }
@@ -2591,7 +2597,7 @@ const methods = {
             create: getPageEditCreateState(row, row.status !== "OK"),
             kind: "navbox",
             row,
-            title: `Template:${row.title}`,
+            title: formatNamespaceTitle(row.title, "zhwiki", 10),
         };
         await openPageEdit(pageEditCreateStateResultB);
     },
@@ -2623,7 +2629,11 @@ const methods = {
             create: false,
             kind: "stubTag",
             row,
-            title: `Template:${trimStubTagValue(row.stubTag)}`,
+            title: formatNamespaceTitle(
+                trimStubTagValue(row.stubTag),
+                "zhwiki",
+                10,
+            ),
         };
         await openPageEdit(trimStubTagValueResult);
     },
@@ -2844,7 +2854,7 @@ const methods = {
             create: getPageEditCreateState(row, row.status !== "OK"),
             kind: "category",
             row,
-            title: `Category:${category}`,
+            title: formatNamespaceTitle(category, "zhwiki", 14),
         };
         await openPageEdit(pageEditCreateStateResult);
     },
@@ -3028,7 +3038,7 @@ const methods = {
 
         return category === ""
             ? ""
-            : options.getPageUrl(`Category:${category}`);
+            : options.getPageUrl(formatNamespaceTitle(category, "zhwiki", 14));
     },
 
     /**
@@ -3052,7 +3062,9 @@ const methods = {
     getNavboxPageUrl(row: any): string {
         const title = trimValue(row?.title);
 
-        return title === "" ? "" : options.getPageUrl(`Template:${title}`);
+        return title === ""
+            ? ""
+            : options.getPageUrl(formatNamespaceTitle(title, "zhwiki", 10));
     },
 
     /**
@@ -3064,7 +3076,9 @@ const methods = {
     getStubTagPageUrl(row: any): string {
         const stubTag = trimStubTagValue(row?.stubTag);
 
-        return stubTag === "" ? "" : options.getPageUrl(`Template:${stubTag}`);
+        return stubTag === ""
+            ? ""
+            : options.getPageUrl(formatNamespaceTitle(stubTag, "zhwiki", 10));
     },
 
     /**
@@ -5378,6 +5392,7 @@ import {
     openDialog,
 } from "#gadget/ui/form/form-model.ts";
 import { wikitext } from "#shared/citation";
+import { formatNamespaceTitle } from "#shared/wikitext";
 const {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,

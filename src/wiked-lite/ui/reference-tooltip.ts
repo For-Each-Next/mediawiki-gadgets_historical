@@ -5,6 +5,7 @@ import {
     type ReferencePreview,
     type ReferencePreviewField,
 } from "#gadget/domain/reference-preview.ts";
+import type { NamespaceSource } from "#shared/wikitext";
 
 export interface ReferenceTooltipController {
     destroy(): void;
@@ -14,6 +15,7 @@ export interface ReferenceTooltipController {
 export interface ReferenceTooltipOptions {
     delay?: number;
     editor: HTMLElement;
+    getNamespaceSource(): NamespaceSource | null;
     getSource(): string;
     overlay: HTMLElement;
 }
@@ -147,7 +149,11 @@ export function attachReferenceTooltips(
             return;
         }
         const source = candidate.dataset.reference ?? "";
-        const preview = buildReferencePreview(options.getSource(), source);
+        const preview = buildReferencePreview(
+            options.getSource(),
+            source,
+            options.getNamespaceSource(),
+        );
         if (preview == null) {
             candidate = null;
             return;

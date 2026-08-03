@@ -137,14 +137,20 @@
 .wiked-lite-token--heading-2 {
     font-size: 1.55em;
     font-weight: normal;
-    text-decoration-line: underline;
-    text-decoration-style: double;
-    text-underline-offset: 0.2em;
 }
 
 .wiked-lite-token--heading-3 {
     font-size: 1.32em;
     font-weight: normal;
+}
+
+.wiked-lite-token--heading-2.wiked-lite-token--heading-text {
+    text-decoration-line: underline;
+    text-decoration-style: double;
+    text-underline-offset: 0.2em;
+}
+
+.wiked-lite-token--heading-3.wiked-lite-token--heading-text {
     text-decoration-line: underline;
     text-decoration-style: solid;
     text-underline-offset: 0.2em;

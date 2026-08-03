@@ -15,8 +15,13 @@ import {
     loggedPostWithToken,
     logStep,
 } from "#gadget/infra/logger.ts";
+import { formatNamespaceTitle } from "#shared/wikitext";
 
-export const NEW_PAGE_LIST_TITLE = "WikiProject:电子游戏/新进条目";
+export const NEW_PAGE_LIST_TITLE = formatNamespaceTitle(
+    "电子游戏/新进条目",
+    "zhwiki",
+    102,
+);
 
 export async function fetchNewPageList(
     api: mw.Api,

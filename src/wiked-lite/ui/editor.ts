@@ -1,7 +1,11 @@
 /** MediaWiki source-editor integration for wikEd Lite. */
 
+import { normalizeWikitextTitleKey } from "#shared/wikitext";
 import { formatWikitext } from "#gadget/domain/formatter.ts";
-import { highlightWikitext } from "#gadget/domain/highlighter.ts";
+import {
+    highlightWikitext,
+    type HighlightOptions,
+} from "#gadget/domain/highlighter.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import {
     createFormatterDialogComponent,
@@ -31,6 +35,8 @@ export interface EditorServices {
         linkClasses: string[];
         titles: Set<string>;
     }>;
+    getHighlightOptions(): HighlightOptions;
+    loadNamespaces(): Promise<void>;
     resolveRedirects(source: string): Promise<string>;
 }
 
@@ -39,6 +45,7 @@ interface EditorController {
     focus(): void;
     getSelection(): { end: number; start: number };
     isAttached(): boolean;
+    refresh(): void;
     replace(start: number, end: number, value: string): void;
     setMissingLinks(titles: Set<string>, color?: string): void;
 }
@@ -68,16 +75,22 @@ async function initialize(services: EditorServices): Promise<void> {
     await waitForDocument();
     await mw.loader.using(["mediawiki.api", "mediawiki.util"]);
     installWikEdLiteStyles();
-    installEditor();
+    const namespaceLoad = services.loadNamespaces();
+    installEditor(services);
     installTool(services);
     mw.hook("wikipage.content").add(function refresh(): void {
-        installEditor();
+        installEditor(services);
         installTool(services);
     });
-    mw.hook("ve.wikitextInteractive").add(installEditor);
+    mw.hook("ve.wikitextInteractive").add(function install(): void {
+        installEditor(services);
+    });
+    void namespaceLoad.then(refreshCurrentEditor, function report(error) {
+        console.error("wikEd Lite could not load namespace data", error);
+    });
 }
 
-function installEditor(): void {
+function installEditor(services: EditorServices): void {
     const textarea = document.getElementById(TEXTAREA_ID);
     if (!(textarea instanceof HTMLTextAreaElement)) {
         return;
@@ -97,7 +110,7 @@ function installEditor(): void {
         return;
     }
     pendingEditors.add(textarea);
-    void createEditorController(textarea).then(
+    void createEditorController(textarea, services).then(
         function register(controller): void {
             pendingEditors.delete(textarea);
             if (
@@ -109,6 +122,7 @@ function installEditor(): void {
                 return;
             }
             controllers.set(textarea, controller);
+            controller.refresh();
         },
         function report(error): void {
             pendingEditors.delete(textarea);
@@ -127,10 +141,11 @@ function isIncompatibleEditor(textarea: HTMLTextAreaElement): boolean {
 
 async function createEditorController(
     textarea: HTMLTextAreaElement,
+    services: EditorServices,
 ): Promise<EditorController> {
     const surface = await createEditorSurface(textarea);
     try {
-        return initializeEditorController(textarea, surface);
+        return initializeEditorController(textarea, surface, services);
     } catch (error) {
         surface.frame.remove();
         throw error;
@@ -141,6 +156,7 @@ async function createEditorController(
 function initializeEditorController(
     textarea: HTMLTextAreaElement,
     surface: EditorSurface,
+    services: EditorServices,
 ): EditorController {
     const { editor, frame, overlay } = surface;
     const missingTitles = new Set<string>();
@@ -157,6 +173,8 @@ function initializeEditorController(
     const referenceTooltips = attachReferenceTooltips({
         delay: window.wikEdLiteConfig?.referenceTooltipDelay,
         editor,
+        getNamespaceSource: () =>
+            services.getHighlightOptions().namespaceSource ?? null,
         getSource: () => textarea.value,
         overlay,
     });
@@ -183,7 +201,12 @@ function initializeEditorController(
             : { end: textarea.selectionEnd, start: textarea.selectionStart };
         referenceTooltips.dismiss();
         rendering = true;
-        renderSegments(editor, textarea.value, missingTitles);
+        renderSegments(
+            editor,
+            textarea.value,
+            missingTitles,
+            services.getHighlightOptions(),
+        );
         setSelectionOffsets(editor, selection.start, selection.end);
         rendering = false;
     }
@@ -274,6 +297,11 @@ function initializeEditorController(
         },
         isAttached() {
             return isEditorFrameAttached(frame, textarea);
+        },
+        refresh() {
+            if (!composing) {
+                scheduleRender();
+            }
         },
         replace(start, end, value) {
             textarea.setRangeText(value, start, end, "select");
@@ -547,6 +575,7 @@ function renderSegments(
     editor: HTMLElement,
     source: string,
     missingTitles: Set<string>,
+    options: HighlightOptions,
 ): void {
     const target = editor.ownerDocument;
     const fragment = target.createDocumentFragment();
@@ -555,19 +584,16 @@ function renderSegments(
         editor.replaceChildren(target.createTextNode(source));
         return;
     }
-    const databaseName = String(mw.config.get("wgDBname") ?? "");
-    const linkHelpers = databaseName === "zhwiki";
-    const namespaceIds = mw.config.get("wgNamespaceIds") as Record<
-        string,
-        number
-    >;
-    const segments = highlightWikitext(source, {
-        databaseName,
-        linkHelpers,
-        namespaceIds,
-    });
+    const segments = highlightWikitext(source, options);
     appendHighlightedSegments(target, fragment, segments, missingTitles);
     editor.replaceChildren(fragment);
+}
+
+function refreshCurrentEditor(): void {
+    const textarea = document.getElementById(TEXTAREA_ID);
+    if (textarea instanceof HTMLTextAreaElement) {
+        controllers.get(textarea)?.refresh();
+    }
 }
 
 function appendHighlightedSegments(
@@ -882,7 +908,7 @@ function dispatchNativeInput(textarea: HTMLTextAreaElement): void {
 }
 
 function normalizeTitle(title: string): string {
-    return title.replaceAll("_", " ").trim().toLowerCase();
+    return normalizeWikitextTitleKey(title);
 }
 
 function getEditorLabel(textarea: HTMLTextAreaElement): string {

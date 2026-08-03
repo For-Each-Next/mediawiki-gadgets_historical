@@ -23,8 +23,10 @@ import {
 } from "./post-formatter.ts";
 import { applyPreFormatHandlers } from "./pre-formatter.ts";
 import {
+    DEFAULT_TEMPLATE_NAME_CONTEXT,
     getCanonicalTemplateName,
     normalizeTemplateName,
+    type TemplateNameContext,
 } from "./templates.ts";
 
 export {
@@ -238,13 +240,14 @@ export function formatCitationTemplate(
     raw: string,
     metadata: CitationTemplateData,
     layout: CitationLayout = "block",
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): {
     citation: CitationTemplate;
     parameterCollisions: CitationParameterCollision[];
     text: string;
 } {
     const parsed = wikitext(raw).templates.parser();
-    const name = getCanonicalTemplateName(parsed.name);
+    const name = getCanonicalTemplateName(parsed.name, templateNameContext);
     const params = parsed.params.map(function mapParam(param) {
         const result = {
             name: param.name,

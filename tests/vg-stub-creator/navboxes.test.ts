@@ -9,6 +9,10 @@ import {
     getConfiguredNavboxTitles,
     prepareNavboxRows,
 } from "vg-stub-creator/workflows/article.ts";
+import {
+    getNavboxTitle,
+    normalizeEnglishCategoryTitle,
+} from "vg-stub-creator/ui/form/form-model.ts";
 import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
 const testCallbackA = () => {
@@ -20,6 +24,19 @@ test(
     "configured navboxes are collected from terminology-backed parts",
     testCallbackA,
 );
+
+test("review titles recognize site-scoped namespace aliases", () => {
+    assert.equal(getNavboxTitle("{{T:Example|value}}"), "Example");
+    assert.equal(getNavboxTitle("{{樣板:Example}}"), "Example");
+    assert.equal(
+        normalizeEnglishCategoryTitle("Category:Games"),
+        "Category:Games",
+    );
+    assert.equal(
+        normalizeEnglishCategoryTitle("分類:Games"),
+        "Category:分類:Games",
+    );
+});
 
 const testCallback = async () => {
     const originalFetch = globalThis.fetch;

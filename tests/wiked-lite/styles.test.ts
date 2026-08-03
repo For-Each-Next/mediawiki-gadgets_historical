@@ -53,6 +53,34 @@ test("highlight colors retain the original wikEd palette", () => {
     );
 });
 
+test("heading underlines and language variants retain text styling", () => {
+    const headingRules = [
+        [
+            ".wiked-lite-token--heading-2.wiked-lite-token--heading-text",
+            "double",
+        ],
+        [
+            ".wiked-lite-token--heading-3.wiked-lite-token--heading-text",
+            "solid",
+        ],
+    ] as const;
+
+    for (const [selector, decorationStyle] of headingRules) {
+        const rule = getStyleRule(selector);
+
+        assert.match(rule, /text-decoration-line:\s*underline/u);
+        assert.match(
+            rule,
+            new RegExp(`text-decoration-style:\\s*${decorationStyle}`, "u"),
+        );
+        assert.match(rule, /text-underline-offset:\s*0\.2em/u);
+    }
+    assert.match(
+        getStyleRule(".wiked-lite-token--language-variant"),
+        /font-style:\s*italic/u,
+    );
+});
+
 test("iframe styles include emphasis and reference popovers", () => {
     assert.match(styles, /\.wiked-lite-frame\s*\{/u);
     assert.match(
@@ -193,3 +221,13 @@ test("popup code preserves pending hovers and remeasures height", () => {
     );
     assert.match(tooltipSource, /const renderedHeight = popup\.offsetHeight/u);
 });
+
+function getStyleRule(selector: string): string {
+    const opening = `${selector} {`;
+    const start = styles.indexOf(opening);
+    const end = styles.indexOf("}", start + opening.length);
+
+    assert.notEqual(start, -1, `Missing stylesheet rule ${selector}`);
+    assert.notEqual(end, -1, `Unclosed stylesheet rule ${selector}`);
+    return styles.slice(start + opening.length, end);
+}

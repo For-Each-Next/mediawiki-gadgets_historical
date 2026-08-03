@@ -18,6 +18,7 @@ import type {
     CitationTemplateData,
     CitationTemplateDataMap,
 } from "../src/shared/citation/citation-template-data/types.ts";
+import { formatNamespaceTitle } from "../src/shared/wikitext/index.ts";
 
 const API_ENDPOINT = "https://en.wikipedia.org/w/api.php";
 const BATCH_SIZE = 20;
@@ -146,7 +147,9 @@ function buildTemplateDataUrl(names: string[]): string {
         includeMissingTitles: "1",
         origin: "*",
         redirects: "1",
-        titles: names.map((name) => `Template:${name}`).join("|"),
+        titles: names
+            .map((name) => formatNamespaceTitle(name, "enwiki", 10))
+            .join("|"),
     });
     return `${API_ENDPOINT}?${params}`;
 }

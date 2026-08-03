@@ -38,12 +38,14 @@ import {
     parseSourceUrl,
 } from "./source-url.ts";
 import {
+    DEFAULT_TEMPLATE_NAME_CONTEXT,
     getCanonicalTemplateName,
     isCitationTemplate,
     isCitePrefixedTemplate,
     isEditableCitationTemplate,
     isMetadataFreeCitationTemplate,
     normalizeTemplateName,
+    type TemplateNameContext,
 } from "./templates.ts";
 import type {
     CitationLayout,
@@ -764,9 +766,12 @@ export function isCreatorAliasDraftParameter(name: string): boolean {
  * @param raw - Raw value.
  * @returns Converted generated or existing citation to editable rows.
  */
-export function parseSourceDraft(raw: string): SourceDraft {
+export function parseSourceDraft(
+    raw: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): SourceDraft {
     const call = wikitext(raw).templates.parser();
-    const name = getEnteredDraftTemplateName(call.name);
+    const name = getEnteredDraftTemplateName(call.name, templateNameContext);
     const metadata = getTemplateMetadata(name);
     if (metadata == null) {
         const enteredRows = call.params.map(function toGenericDraftRow(param) {
@@ -802,8 +807,9 @@ export function parseSourceDraft(raw: string): SourceDraft {
  */
 export function createManualSourceDraft(
     template: string = "cite magazine",
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): SourceDraft {
-    const name = getDraftTemplateName(template);
+    const name = getDraftTemplateName(template, templateNameContext);
     return {
         normalizationRequested: true,
         rows: seedMainRows([], name),
@@ -821,8 +827,9 @@ export function createManualSourceDraft(
 export function changeSourceDraftTemplate(
     draft: SourceDraft,
     template: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): SourceDraft {
-    const name = getDraftTemplateName(template);
+    const name = getDraftTemplateName(template, templateNameContext);
     const rows = draft.rows
         .filter((row) => !row.main || hasDraftRowContent(row))
         .map(function cloneAsExtra(row) {
@@ -1068,6 +1075,7 @@ export function moveSourceTitlesToScriptTitle(
     text: string,
     wikiId: string,
     mode: ScriptTitleMode = "non-latin",
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): { moved: number; text: string } {
     const replacements: TextReplacement[] = [];
     const protectedRanges = findSourceDiscoveryProtectedRanges(text);
@@ -1078,13 +1086,13 @@ export function moveSourceTitlesToScriptTitle(
                 call.start >= replacement.start && call.end <= replacement.end,
         );
         if (
-            !isCitationTemplate(call.name) ||
+            !isCitationTemplate(call.name, templateNameContext) ||
             isInWikitextRanges(call.start, protectedRanges) ||
             nestedReplacement
         ) {
             continue;
         }
-        const draft = parseSourceDraft(call.raw);
+        const draft = parseSourceDraft(call.raw, templateNameContext);
         if (!moveSourceDraftTitleToScriptTitle(draft, wikiId, mode)) {
             continue;
         }
@@ -1198,17 +1206,42 @@ export function getSourceDraftCitationNameParts(
  * @param text - Text to process.
  * @returns Citation definitions in active full ref tags.
  */
-export function listExistingSources(text: string): ExistingSource[] {
+export function listExistingSources(
+    text: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): ExistingSource[] {
     const protectedRanges = findSourceDiscoveryProtectedRanges(text);
     const masked = maskWikitextRanges(text, protectedRanges);
     const calls = findRestoredTemplateCalls(text, masked);
-    const containers = findReferenceContainers(masked, calls);
+    const containers = findReferenceContainers(
+        masked,
+        calls,
+        templateNameContext,
+    );
     const sources = new Map<number, ExistingSource>();
-    addNativeRefSources(sources, text, masked, calls, containers);
-    addCompactDefinitionSources(sources, calls, containers);
-    addShortFootnoteSources(sources, text, calls);
+    addNativeRefSources(
+        sources,
+        text,
+        masked,
+        calls,
+        containers,
+        templateNameContext,
+    );
+    addCompactDefinitionSources(
+        sources,
+        calls,
+        containers,
+        templateNameContext,
+    );
+    addShortFootnoteSources(sources, text, calls, templateNameContext);
     const result = [...sources.values()];
-    assignExistingSourceSections(result, masked, calls, containers);
+    assignExistingSourceSections(
+        result,
+        masked,
+        calls,
+        containers,
+        templateNameContext,
+    );
     return result.sort(
         (left, right) => left.templateStart - right.templateStart,
     );
@@ -1394,15 +1427,18 @@ function matchesSourceSection(
 export function findExistingSources(
     text: string,
     enteredUrl: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): ExistingSource[] {
     const entered = buildComparableUrls(enteredUrl);
     if (entered.size === 0) {
         return [];
     }
-    return listExistingSources(text).filter(function hasMatchingUrl(source) {
-        const existing = buildSourceComparableUrls(source);
-        return setsIntersect(entered, existing);
-    });
+    return listExistingSources(text, templateNameContext).filter(
+        function hasMatchingUrl(source) {
+            const existing = buildSourceComparableUrls(source);
+            return setsIntersect(entered, existing);
+        },
+    );
 }
 
 /**
@@ -1535,9 +1571,15 @@ function assignExistingSourceSections(
     masked: string,
     calls: ParsedTemplateCall[],
     containers: ReferenceContainer[],
+    templateNameContext: TemplateNameContext,
 ): void {
     const sections = findSourceSections(masked);
-    const usageIndex = buildReferenceUsageIndex(masked, calls, containers);
+    const usageIndex = buildReferenceUsageIndex(
+        masked,
+        calls,
+        containers,
+        templateNameContext,
+    );
     for (const source of sources) {
         const positions = getExistingSourceUsePositions(
             source,
@@ -1565,6 +1607,7 @@ function buildReferenceUsageIndex(
     masked: string,
     calls: ParsedTemplateCall[],
     containers: ReferenceContainer[],
+    templateNameContext: TemplateNameContext,
 ): Map<string, number[]> {
     const result = new Map<string, number[]>();
     for (const tag of wikitext(masked).reference.getAll()) {
@@ -1576,7 +1619,12 @@ function buildReferenceUsageIndex(
         addReferenceUsage(result, name, group, tag.start);
     }
     for (const call of calls) {
-        addCompactReferenceUsages(result, call, containers);
+        addCompactReferenceUsages(
+            result,
+            call,
+            containers,
+            templateNameContext,
+        );
     }
     return result;
 }
@@ -1592,9 +1640,10 @@ function addCompactReferenceUsages(
     usages: Map<string, number[]>,
     call: ParsedTemplateCall,
     containers: ReferenceContainer[],
+    templateNameContext: TemplateNameContext,
 ): void {
     if (
-        normalizeTemplateName(call.name) !== "r" ||
+        normalizeTemplateName(call.name, templateNameContext) !== "r" ||
         isInReferenceContainer(call.start, containers)
     ) {
         return;
@@ -1768,20 +1817,26 @@ function isInReferenceContainer(
     );
 }
 
-function getDraftTemplateName(entered: string): string {
+function getDraftTemplateName(
+    entered: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string {
     if (Object.hasOwn(templateData, entered)) {
         return entered;
     }
-    return getEnteredDraftTemplateName(entered);
+    return getEnteredDraftTemplateName(entered, templateNameContext);
 }
 
-function getEnteredDraftTemplateName(entered: string): string {
-    const normalized = normalizeTemplateName(entered);
-    if (isCitationTemplate(entered)) {
+function getEnteredDraftTemplateName(
+    entered: string,
+    templateNameContext: TemplateNameContext,
+): string {
+    const normalized = normalizeTemplateName(entered, templateNameContext);
+    if (isCitationTemplate(entered, templateNameContext)) {
         return normalized;
     }
-    return isMetadataFreeCitationTemplate(entered)
-        ? getCanonicalTemplateName(entered)
+    return isMetadataFreeCitationTemplate(entered, templateNameContext)
+        ? getCanonicalTemplateName(entered, templateNameContext)
         : "cite web";
 }
 
@@ -2225,12 +2280,14 @@ function findRestoredTemplateCalls(text: string, masked: string) {
  * @param calls - Calls value.
  * @param containers - Containers value.
  */
+// eslint-disable-next-line max-lines-per-function, max-params
 function addNativeRefSources(
     sources: Map<number, ExistingSource>,
     text: string,
     masked: string,
     calls: ParsedTemplateCall[],
     containers: ReferenceContainer[],
+    templateNameContext: TemplateNameContext,
 ): void {
     const tags = wikitext(masked)
         .reference.getAll()
@@ -2254,7 +2311,12 @@ function addNativeRefSources(
         const nested = calls.filter(
             (call) => call.start >= openingEnd && call.end <= contentEnd,
         );
-        const added = addReferenceCitationSources(sources, reference, nested);
+        const added = addReferenceCitationSources(
+            sources,
+            reference,
+            nested,
+            templateNameContext,
+        );
         if (!added) {
             sources.set(
                 reference.start,
@@ -2275,9 +2337,14 @@ function addCompactDefinitionSources(
     sources: Map<number, ExistingSource>,
     calls: ParsedTemplateCall[],
     containers: ReferenceContainer[],
+    templateNameContext: TemplateNameContext,
 ): void {
     for (const call of calls) {
-        const definition = parseCompactDefinition(call, containers);
+        const definition = parseCompactDefinition(
+            call,
+            containers,
+            templateNameContext,
+        );
         if (definition == null) {
             continue;
         }
@@ -2291,6 +2358,7 @@ function addCompactDefinitionSources(
             sources,
             definition.reference,
             nested,
+            templateNameContext,
         );
         if (!added) {
             sources.set(
@@ -2311,18 +2379,25 @@ function addCompactDefinitionSources(
  * @param text - Text to process.
  * @param calls - Calls value.
  */
+// eslint-disable-next-line max-lines-per-function
 function addShortFootnoteSources(
     sources: Map<number, ExistingSource>,
     text: string,
     calls: ParsedTemplateCall[],
+    templateNameContext: TemplateNameContext,
 ): void {
     const callsByStart = new Map(calls.map((call) => [call.start, call]));
-    for (const definition of findShortFootnoteCitations(text)) {
+    const normalizeCurrentTemplateName = (name: string) =>
+        normalizeTemplateName(name, templateNameContext);
+    for (const definition of findShortFootnoteCitations(
+        text,
+        normalizeCurrentTemplateName,
+    )) {
         const call = callsByStart.get(definition.start);
         if (call == null || sources.has(call.start)) {
             continue;
         }
-        const draft = parseSourceDraft(call.raw);
+        const draft = parseSourceDraft(call.raw, templateNameContext);
         const title = getExistingSourceTitle(draft);
         sources.set(call.start, {
             archiveUrl: getDraftValue(draft, "archive-url"),
@@ -2359,8 +2434,9 @@ function addShortFootnoteSources(
 function parseCompactDefinition(
     call: ParsedTemplateCall,
     containers: ReferenceContainer[],
+    templateNameContext: TemplateNameContext,
 ): { content: string; reference: SourceReference } | null {
-    if (normalizeTemplateName(call.name) !== "r") {
+    if (normalizeTemplateName(call.name, templateNameContext) !== "r") {
         return null;
     }
     const named = new Map<string, string>();
@@ -2406,14 +2482,18 @@ function addReferenceCitationSources(
     sources: Map<number, ExistingSource>,
     reference: SourceReference,
     calls: ParsedTemplateCall[],
+    templateNameContext: TemplateNameContext,
 ): boolean {
     let added = false;
     for (const call of calls) {
         if (
-            isEditableCitationTemplate(call.name) &&
+            isEditableCitationTemplate(call.name, templateNameContext) &&
             !sources.has(call.start)
         ) {
-            sources.set(call.start, buildExistingSource(reference, call));
+            sources.set(
+                call.start,
+                buildExistingSource(reference, call, templateNameContext),
+            );
             added = true;
         }
     }
@@ -2430,10 +2510,11 @@ function addReferenceCitationSources(
 function buildExistingSource(
     reference: SourceReference,
     call: ParsedTemplateCall,
+    templateNameContext: TemplateNameContext,
 ): ExistingSource {
-    const draft = parseSourceDraft(call.raw);
+    const draft = parseSourceDraft(call.raw, templateNameContext);
     const title = getExistingSourceTitle(draft);
-    const status = isCitationTemplate(call.name)
+    const status = isCitationTemplate(call.name, templateNameContext)
         ? ("standard" as const)
         : ("metadata-free" as const);
     const partial = {
@@ -2528,6 +2609,7 @@ function getExistingSourceTitle(draft: SourceDraft): {
 function findReferenceContainers(
     text: string,
     calls: ParsedTemplateCall[],
+    templateNameContext: TemplateNameContext,
 ): ReferenceContainer[] {
     const result: ReferenceContainer[] = [];
     for (const tag of wikitext(text).tags.getAll("references")) {
@@ -2541,7 +2623,9 @@ function findReferenceContainers(
         });
     }
     for (const call of calls) {
-        if (normalizeTemplateName(call.name) !== "reflist") {
+        if (
+            normalizeTemplateName(call.name, templateNameContext) !== "reflist"
+        ) {
             continue;
         }
         const container = buildReflistContainer(call);

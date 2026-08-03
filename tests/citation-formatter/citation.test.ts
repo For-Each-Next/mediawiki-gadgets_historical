@@ -12,6 +12,7 @@ import {
 } from "citation-formatter/domain/citation.ts";
 import { citationTemplateData as generatedTemplateData } from "@mediawiki-gadgets/shared/citation";
 import {
+    createTemplateNameContext,
     getCanonicalTemplateName,
     isCitationTemplate,
     isEditableCitationTemplate,
@@ -45,6 +46,8 @@ const metadata: CitationTemplateData = {
         "url-status",
     ],
 };
+const englishTemplateNames = createTemplateNameContext("enwiki");
+const chineseTemplateNames = createTemplateNameContext("zhwiki");
 
 const testNormalizeEnglishDates = () => {
     const month = normalizeEnglishDate("June 2005");
@@ -332,6 +335,19 @@ test("keeps print fallback order with canonical display casing", () => {
 test("distinguishes metadata-free editable citation templates", () => {
     assert.equal(getCanonicalTemplateName("cite comic"), "Cite comic");
     assert.equal(isEditableCitationTemplate("Template:Cite_comic"), true);
+    assert.equal(isEditableCitationTemplate("TM:Cite_comic"), false);
+    assert.equal(
+        isEditableCitationTemplate("TM:Cite_comic", englishTemplateNames),
+        true,
+    );
+    assert.equal(
+        isEditableCitationTemplate("T:Cite_comic", chineseTemplateNames),
+        true,
+    );
+    assert.equal(
+        isEditableCitationTemplate("模板:Cite_comic", chineseTemplateNames),
+        true,
+    );
     assert.equal(isMetadataFreeCitationTemplate("Cite comic"), true);
     assert.equal(isCitationTemplate("Cite comic"), false);
     assert.equal(getCanonicalTemplateName("cite Fan_Guide"), "Cite Fan Guide");

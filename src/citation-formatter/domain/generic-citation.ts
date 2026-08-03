@@ -10,8 +10,10 @@ import {
     formatInlineCitation,
 } from "./post-formatter.ts";
 import {
+    DEFAULT_TEMPLATE_NAME_CONTEXT,
     getCanonicalTemplateName,
     isCitePrefixedTemplate,
+    type TemplateNameContext,
 } from "./templates.ts";
 import type {
     CitationLayout,
@@ -34,6 +36,7 @@ export function formatGenericCitationTemplate(
     raw: string,
     layout: CitationLayout,
     metadata?: CitationTemplateData,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): { citation: CitationTemplate; text: string } {
     const parsed = wikitext(raw).templates.parser();
     const params = parsed.params.map(function toCitationParam(param) {
@@ -46,8 +49,13 @@ export function formatGenericCitationTemplate(
     const citation = prepareGenericCitation(
         { name: parsed.name, params },
         metadata,
+        templateNameContext,
     );
-    const text = serializeGenericCitation(citation, layout);
+    const text = serializeGenericCitation(
+        citation,
+        layout,
+        templateNameContext,
+    );
     return { citation, text };
 }
 
@@ -61,10 +69,15 @@ export function formatGenericCitationTemplate(
 export function serializeGenericCitation(
     citation: CitationTemplate,
     layout: CitationLayout,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): string {
     const hasPositional = citation.params.some((param) => param.positional);
     if (hasPositional) {
-        return formatCitationWithPositionals(citation, layout);
+        return formatCitationWithPositionals(
+            citation,
+            layout,
+            templateNameContext,
+        );
     }
     return layout === "inline"
         ? formatInlineCitation(citation, true)
@@ -81,13 +94,16 @@ export function serializeGenericCitation(
 export function prepareGenericCitation(
     citation: CitationTemplate,
     metadata?: CitationTemplateData,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): CitationTemplate {
     const safeMetadata =
-        metadata != null && isSafeGenericCitationMetadata(metadata)
+        metadata != null &&
+        isSafeGenericCitationMetadata(metadata, templateNameContext)
             ? metadata
             : undefined;
     const name =
-        safeMetadata?.canonicalName ?? getCanonicalTemplateName(citation.name);
+        safeMetadata?.canonicalName ??
+        getCanonicalTemplateName(citation.name, templateNameContext);
     const canonicalNames =
         safeMetadata == null
             ? new Map<string, string>()
@@ -193,10 +209,11 @@ function sortGenericParams(
 
 function isSafeGenericCitationMetadata(
     metadata: CitationTemplateData,
+    templateNameContext: TemplateNameContext,
 ): boolean {
     if (
         metadata.canonicalName != null &&
-        !isSafeTemplateName(metadata.canonicalName)
+        !isSafeTemplateName(metadata.canonicalName, templateNameContext)
     ) {
         return false;
     }
@@ -209,8 +226,14 @@ function isSafeGenericCitationMetadata(
     );
 }
 
-function isSafeTemplateName(value: string): boolean {
-    return isCitePrefixedTemplate(value) && !/[#<>\[\]|{}\r\n]/u.test(value);
+function isSafeTemplateName(
+    value: string,
+    templateNameContext: TemplateNameContext,
+): boolean {
+    return (
+        isCitePrefixedTemplate(value, templateNameContext) &&
+        !/[#<>\[\]|{}\r\n]/u.test(value)
+    );
 }
 
 function isSafeParameterName(value: string): boolean {
@@ -224,8 +247,12 @@ function isSafeParameterName(value: string): boolean {
 function formatCitationWithPositionals(
     citation: CitationTemplate,
     layout: CitationLayout,
+    templateNameContext: TemplateNameContext,
 ): string {
-    let result = `{{${getCanonicalTemplateName(citation.name)}`;
+    let result = `{{${getCanonicalTemplateName(
+        citation.name,
+        templateNameContext,
+    )}`;
     let previousWasPositional = false;
     for (const param of citation.params) {
         if (param.positional) {

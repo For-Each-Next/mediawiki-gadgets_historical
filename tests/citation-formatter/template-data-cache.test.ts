@@ -117,6 +117,37 @@ async function assertFreshCacheHit(
     assert.deepEqual(cached, expected);
 }
 
+test("normalizes localized API template namespaces", async () => {
+    const result = await loadCitationTemplateData(["Cite Alias Guide"], {
+        api: {
+            async get() {
+                return {
+                    normalized: [
+                        {
+                            from: "Template:Cite Alias Guide",
+                            to: "Vorlage:Cite Alias Guide",
+                        },
+                    ],
+                    pages: [
+                        {
+                            ns: 10,
+                            paramOrder: ["title"],
+                            params: { title: { aliases: [] } },
+                            title: "Vorlage:Cite Alias Guide",
+                        },
+                    ],
+                };
+            },
+        },
+        wikiId: "dewiki",
+    });
+
+    assert.equal(
+        result["Cite Alias Guide"]?.canonicalName,
+        "Cite Alias Guide",
+    );
+});
+
 test(
     "indexes redirect names and refreshes stale entries safely",
     testRedirectCache,

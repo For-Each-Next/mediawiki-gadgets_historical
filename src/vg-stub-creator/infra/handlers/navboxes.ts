@@ -2,12 +2,12 @@ import { formatText } from "#gadget/domain/wiki.ts";
 import {
     normalizeTitleKey,
     resolvePageTitles,
-    stripNamespace,
 } from "#gadget/infra/handlers/title-resolver.ts";
 import { wikitext } from "#shared/citation";
+import { stripNamespacePrefix } from "#shared/wikitext";
 const { splitLookupFieldValues, trimValue, uniqueValues } = wikitext;
 
-const TEMPLATE_NAMESPACE = "Template";
+const TEMPLATE_NAMESPACE = 10;
 
 /**
  * Resolves the first existing navbox title for each series value.
@@ -109,7 +109,7 @@ function createReviewedNavboxRow(value: any | string): any {
  * @returns Template title without namespace.
  */
 function getTemplateCallTitle(text: string): string {
-    const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
+    const match = text.match(/^\{\{\s*([^|}]+).*?\}\}$/u);
 
     return normalizeTemplateTitle(match?.[1] || text);
 }
@@ -126,7 +126,7 @@ function replaceTemplateTitle(text: string, title: string): string {
         return title;
     }
 
-    return text.replace(/^(\{\{\s*)(?:Template:)?([^|}]+)/iu, `$1${title}`);
+    return text.replace(/^(\{\{\s*)([^|}]+)/u, `$1${title}`);
 }
 
 /**
@@ -257,7 +257,7 @@ async function resolveTemplates(
  * @returns Template title without namespace.
  */
 function normalizeTemplateTitle(template: string): string {
-    return stripNamespace(template, TEMPLATE_NAMESPACE);
+    return stripNamespacePrefix(template, "zhwiki", TEMPLATE_NAMESPACE);
 }
 
 /**

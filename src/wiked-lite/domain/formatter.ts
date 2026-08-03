@@ -11,7 +11,6 @@ export interface FormatterOptions {
     fullWidthRatio?: number;
     indentPipes?: boolean;
     normalizeConversion?: boolean;
-    sortCategories?: boolean;
 }
 
 export interface FormatterResult {
@@ -47,9 +46,8 @@ interface FormatterNestingState {
 
 type FormatterVariableConstruct = "parameter" | "template";
 
-const CATEGORY_LINE_PATTERN =
-    /^(\s*\[\[(?:category|分类|分類)\s*:[^\n]+\]\]\s*)$/gimu;
 const EXPLANATORY_FOOTNOTE_PATTERN = /^efn(?:$|[- /])/u;
+const NORMALIZED_HEADING_PATTERN = /^(={1,6}) .* \1$/u;
 
 /**
  * Applies basic fixes and explicitly selected layout changes.
@@ -71,15 +69,12 @@ export function formatWikitext(
     if (options.indentPipes === true || options.alignEquals === true) {
         text = formatBlockTemplates(text, options);
     }
-    if (options.sortCategories === true) {
-        text = sortCategoryRuns(text);
-    }
     text = protectedSource.restore(text);
     return { changed: text !== source, text };
 }
 
 function normalizeBasicLayout(source: string): string {
-    return source
+    const normalized = source
         .replaceAll("\r\n", "\n")
         .replaceAll("\r", "\n")
         .replace(/[ \t]+$/gmu, "")
@@ -88,6 +83,39 @@ function normalizeBasicLayout(source: string): string {
         .replace(/^----+\s*$/gmu, "----")
         .replace(/\[\[\s*([^\]|]+?)\s*\|\s*([^\]]+?)\s*\]\]/gu, "[[$1|$2]]")
         .replace(/\[\[\s*([^\]]+?)\s*\]\]/gu, "[[$1]]");
+    return ensureBlankLineAfterHeadings(normalized);
+}
+
+/**
+ * Separates every normalized heading from following content.
+ *
+ * Only headings trigger insertion, so DEFAULTSORT and other magic words
+ * keep their following line. Existing empty lines retain idempotence.
+ *
+ * @param source - Normalized wikitext.
+ * @returns Wikitext with headings separated from following content.
+ */
+function ensureBlankLineAfterHeadings(source: string): string {
+    const lines = source.split("\n");
+    const separated: string[] = [];
+    for (const [index, line] of lines.entries()) {
+        separated.push(line);
+        const nextLine = lines[index + 1];
+        if (!NORMALIZED_HEADING_PATTERN.test(line)) {
+            continue;
+        }
+        if (nextLine === "") {
+            if (index + 1 === lines.length - 1) {
+                separated.push("");
+            }
+            continue;
+        }
+        separated.push("");
+        if (nextLine == null) {
+            separated.push("");
+        }
+    }
+    return separated.join("\n");
 }
 
 /**
@@ -386,34 +414,6 @@ function getDisplayWidth(value: string, ratio: number): number {
         const codePoint = character.codePointAt(0) ?? 0;
         return total + (codePoint <= 0x7f ? 1 : ratio);
     }, 0);
-}
-
-function sortCategoryRuns(source: string): string {
-    const lines = source.split("\n");
-    let start = 0;
-    while (start < lines.length) {
-        if (!isCategoryLine(lines[start])) {
-            start += 1;
-            continue;
-        }
-        let end = start + 1;
-        while (end < lines.length && isCategoryLine(lines[end])) {
-            end += 1;
-        }
-        const sorted = lines.slice(start, end).sort(categoryComparator);
-        lines.splice(start, sorted.length, ...sorted);
-        start = end;
-    }
-    return lines.join("\n");
-}
-
-function isCategoryLine(line: string): boolean {
-    CATEGORY_LINE_PATTERN.lastIndex = 0;
-    return CATEGORY_LINE_PATTERN.test(line);
-}
-
-function categoryComparator(left: string, right: string): number {
-    return left.localeCompare(right, undefined, { sensitivity: "base" });
 }
 
 function protectOpaqueSource(source: string): {

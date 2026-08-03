@@ -54,6 +54,8 @@ Citation Formatter:
 - edits and formats every `Cite`-prefixed template, using browser-cached
   local-wiki TemplateData names, order, and aliases when available while
   preserving duplicate and empty fields and avoiding CS1-only checks;
+- recognizes bundled English and Chinese Wikipedia Template namespace aliases,
+  and loads local namespace siteinfo when opened on another wiki;
 - normalizes unambiguous English citation dates and single-digit ISO date
   components to zero-padded ISO dates;
 - replaces a focused set of common English language names with compact ISO
@@ -116,6 +118,8 @@ validation rules.
 Tests use local fixtures. In the browser, formatting an otherwise unknown
 `Cite`-prefixed template may query the local wiki's TemplateData API and falls
 back to preservation-only formatting when the API or storage is unavailable.
+Opening the dialog on a wiki other than English or Chinese Wikipedia also
+requests namespace siteinfo and retains a canonical-only fallback if it fails.
 The reusable shared loader accepts one template or a large iterable, resolving
 redirects through bounded serial requests before citation-specific filtering.
 
@@ -143,7 +147,7 @@ api.ts / index.ts
 - `main.ts` wires UI, workflows, and infrastructure through explicit contracts.
 - `ui/` owns Codex rendering, editor adapters, and user interaction;
   `workflows/` coordinates live review operations; and `infra/` isolates
-  Citoid, archive, TemplateData-cache, and wiki integrations.
+  Citoid, archive, namespace, TemplateData-cache, and wiki integrations.
 - `domain/` contains deterministic citation metadata mapping and wikitext
   rules, using lazy shared construct queries, language normalization, citation
   TemplateData, and short-footnote matching. The queries retain source ranges

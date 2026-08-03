@@ -12,7 +12,9 @@ import {
 } from "citation-formatter/domain/templates.ts";
 
 test("covers every supported citation template title exactly once", () => {
-    const expected = SUPPORTED_CITATION_TEMPLATES.map(normalizeTemplateName);
+    const expected = SUPPORTED_CITATION_TEMPLATES.map((name) =>
+        normalizeTemplateName(name),
+    );
 
     assert.deepEqual(
         Object.keys(templateData).toSorted(),

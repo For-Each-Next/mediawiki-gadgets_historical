@@ -1,6 +1,6 @@
 {
     "name": "vg-page-assessor",
-    "version": "0.2.1-post.4",
+    "version": "0.2.1-post.7",
     "description": "Assess Chinese Wikipedia video game talk pages and register pages on the WikiProject new-page list.",
     "private": true,
     "license": "CC BY-SA 4.0",

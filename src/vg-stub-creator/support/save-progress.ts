@@ -4,6 +4,7 @@
 
 import { NEW_PAGE_LIST_TITLE } from "#gadget/config/wiki-pages.ts";
 import { msg, msgParts } from "#gadget/i18n/index.ts";
+import { formatNamespaceTitle } from "#shared/wikitext";
 
 type MessageId = Parameters<typeof msgParts>[0];
 
@@ -207,11 +208,14 @@ function getActionTargetPage(action: any, title: string): string {
     }
 
     if (action.type === "talk-banner") {
-        return `Talk:${action.pageTitle || title}`;
+        return formatNamespaceTitle(action.pageTitle || title, "zhwiki", 1);
     }
 
     if (action.type === "category") {
-        return action.pageTitle || `Category:${action.category}`;
+        return (
+            action.pageTitle ||
+            formatNamespaceTitle(String(action.category ?? ""), "zhwiki", 14)
+        );
     }
 
     if (action.type === "page-edit") {
@@ -299,7 +303,7 @@ function buildRedirectProgressParts(
  */
 function buildTalkBannerProgressParts(title: string): Array<unknown> {
     const result = buildProgressParts("progress.addTalkBanner", {
-        title: { code: `Talk:${title}` },
+        title: { code: formatNamespaceTitle(title, "zhwiki", 1) },
     });
     return result;
 }
@@ -314,7 +318,13 @@ function buildCategoryProgressParts(action: {
     category: unknown;
 }): Array<unknown> {
     const result = buildProgressParts("progress.createCategory", {
-        title: { code: `Category:${action.category}` },
+        title: {
+            code: formatNamespaceTitle(
+                String(action.category ?? ""),
+                "zhwiki",
+                14,
+            ),
+        },
     });
     return result;
 }
@@ -453,7 +463,12 @@ function buildBundledActionProgressSteps(action: any): Array<any> {
     }
 
     const categoryTitle =
-        action.pageTitle || `Category:${normalizeActionText(action.category)}`;
+        action.pageTitle ||
+        formatNamespaceTitle(
+            normalizeActionText(action.category),
+            "zhwiki",
+            14,
+        );
     const steps = [buildBundledTalkProgressStep(action, categoryTitle)];
     const wikidataId = normalizeActionText(action.wikidataId);
     const englishName = normalizeActionText(action.englishName);
@@ -480,7 +495,11 @@ function buildBundledTalkProgressStep(
     action: { category: unknown; id: unknown },
     categoryTitle: unknown,
 ): unknown {
-    const title = `Category talk:${normalizeActionText(action.category)}`;
+    const title = formatNamespaceTitle(
+        normalizeActionText(action.category),
+        "zhwiki",
+        15,
+    );
     const result = {
         id: `${action.id}:talk-banner`,
         label: msg("progress.addTalkBanner", { title }),
@@ -608,11 +627,15 @@ function getStoredStepTargetPage(step: any, progress: any): string {
     }
 
     if (step.id === "talk-banner") {
-        return `Talk:${progress.title}`;
+        return formatNamespaceTitle(progress.title, "zhwiki", 1);
     }
 
     if (step.id?.startsWith("category:")) {
-        return `Category:${step.id.slice("category:".length)}`;
+        return formatNamespaceTitle(
+            step.id.slice("category:".length),
+            "zhwiki",
+            14,
+        );
     }
 
     if (step.id?.startsWith("redirect:")) {

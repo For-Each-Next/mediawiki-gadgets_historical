@@ -17,28 +17,9 @@ import {
     getRequiredString,
     getRevisionContent,
 } from "#gadget/infra/mediawiki-response.ts";
+import { getTitleNamespaceId } from "#shared/wikitext";
 
 const MAX_TITLES_PER_QUERY = 50;
-const KNOWN_NAMESPACE_PREFIXES = new Set([
-    "category",
-    "cat",
-    "draft",
-    "module",
-    "portal",
-    "template",
-    "wikiproject",
-    "wp",
-    "分類",
-    "分类",
-    "草稿",
-    "模組",
-    "模块",
-    "模板",
-    "主題",
-    "主题",
-    "維基專題",
-    "维基专题",
-]);
 
 /**
  * Fetches the current talk-page source.
@@ -649,16 +630,8 @@ function groupTitlesByNamespace(
  * @returns Namespace key.
  */
 function getNamespaceGroupKey(title: string): string {
-    const value = String(title || "");
-    const colonIndex = value.indexOf(":");
-
-    if (colonIndex === -1) {
-        return "";
-    }
-
-    const prefix = value.slice(0, colonIndex).trim().toLowerCase();
-
-    return KNOWN_NAMESPACE_PREFIXES.has(prefix) ? prefix : "";
+    const namespaceId = getTitleNamespaceId(String(title || ""), "zhwiki");
+    return namespaceId === 0 ? "" : String(namespaceId);
 }
 
 /**

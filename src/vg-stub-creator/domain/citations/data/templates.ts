@@ -2,6 +2,8 @@
  * Citation TemplateData subsets keyed by normalized template name.
  */
 
+import { stripNamespacePrefix } from "#shared/wikitext";
+
 import citeWeb from "./cite-web.ts";
 
 export interface CitationTemplateData {
@@ -32,9 +34,7 @@ export function getCitationTemplateData(
  * @returns A citation template title for registry lookup.
  */
 function normalizeTemplateName(template: string): string {
-    const result = String(template || "")
-        .trim()
-        .replace(/^template\s*:/iu, "")
+    const result = stripNamespacePrefix(String(template || ""), "zhwiki", 10)
         .replace(/[_\s]+/gu, " ")
         .toLocaleLowerCase();
     return result;

@@ -2,6 +2,20 @@
 
 ## Until 0.3
 
+### 0.2.1-post.7 (2026-08-03 07:32 UTC)
+
+Overview: VG Page Assessor resolves Chinese Wikipedia namespace titles through
+the shared database-scoped prefix catalog.
+
+- Replaced literal template-prefix cleanup and the WikiProject page prefix with
+  namespace-ID-based helpers.
+- Grouped creation-time queries by namespace ID across every configured alias
+  instead of a partial prefix list.
+- Covered Chinese Wikipedia template aliases while keeping prefixes scoped to
+  the correct wiki.
+- Kept the zhwiki-only workflow on the immutable static catalog while shared
+  browser consumers gained validated siteinfo catalogs for other databases.
+
 ### 0.2.1-post.4 (2026-08-01 18:01 UTC)
 
 Overview: VG Page Assessor documents every authored callable contract

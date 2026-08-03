@@ -8,7 +8,7 @@ import { sortCategoryRowsByProse } from "#gadget/domain/wiki.ts";
 import { wikitext } from "#shared/citation";
 const { trimValue, uniqueValues } = wikitext;
 
-const CATEGORY_NAMESPACE = "Category";
+const CATEGORY_NAMESPACE = 14;
 const CATEGORY_REDIRECT_PROPS = [
     "category_redirect_target",
     "categoryredirect",

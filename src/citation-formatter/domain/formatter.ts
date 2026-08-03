@@ -32,11 +32,13 @@ import {
     stripOptionalReferenceNameQuotes,
 } from "./ref-attributes.ts";
 import {
+    DEFAULT_TEMPLATE_NAME_CONTEXT,
     getCanonicalTemplateName,
     isCitationTemplate,
     isEditableCitationTemplate,
     isMetadataFreeCitationTemplate,
     normalizeTemplateName,
+    type TemplateNameContext,
 } from "./templates.ts";
 import type {
     CitationLayout,
@@ -110,6 +112,7 @@ interface ReferenceDefinitionOptions {
     shortCitationSources: Map<string, CitationIdentity>;
     tag: RefTag;
     templateData: CitationTemplateDataMap;
+    templateNameContext: TemplateNameContext;
     trailingText: string;
 }
 
@@ -146,11 +149,14 @@ export interface CitationFormatResult {
  * @param text - Source wikitext.
  * @returns Used normalized template names.
  */
-export function findUsedCitationTemplates(text: string): string[] {
+export function findUsedCitationTemplates(
+    text: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string[] {
     return findUsedTemplateNames(
         text,
-        isCitationTemplate,
-        normalizeTemplateName,
+        (name) => isCitationTemplate(name, context),
+        (name) => normalizeTemplateName(name, context),
     );
 }
 
@@ -160,11 +166,14 @@ export function findUsedCitationTemplates(text: string): string[] {
  * @param text - Text to process.
  * @returns Unknown Cite-prefixed template names needing live metadata.
  */
-export function findUsedMetadataFreeCitationTemplates(text: string): string[] {
+export function findUsedMetadataFreeCitationTemplates(
+    text: string,
+    context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string[] {
     return findUsedTemplateNames(
         text,
-        isMetadataFreeCitationTemplate,
-        getCanonicalTemplateName,
+        (name) => isMetadataFreeCitationTemplate(name, context),
+        (name) => getCanonicalTemplateName(name, context),
     );
 }
 
@@ -225,18 +234,20 @@ export function formatCitationWikitext(
     templateData: CitationTemplateDataMap,
     layout: CitationLayout = "block",
     leadSectionLabel: string = "Lead",
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): CitationFormatResult {
-    const rTemplatesFound = countRUseTemplates(source);
-    const rConverted = convertRTemplates(source);
+    const rTemplatesFound = countRUseTemplates(source, templateNameContext);
+    const rConverted = convertRTemplates(source, templateNameContext);
     const protectedRanges = findCitationFormattingProtectedRanges(rConverted);
     const isUnprotectedContainer = function isUnprotectedContainer(
         container: ReferenceContainer,
     ) {
         return !isInWikitextRanges(container.start, protectedRanges);
     };
-    const containers = findReferenceContainers(rConverted).filter(
-        isUnprotectedContainer,
-    );
+    const containers = findReferenceContainers(
+        rConverted,
+        templateNameContext,
+    ).filter(isUnprotectedContainer);
     const isUnprotectedRefTag = (tag: RefTag) =>
         !isInWikitextRanges(tag.start, protectedRanges);
     const tags = findRefTags(rConverted).filter(isUnprotectedRefTag);
@@ -247,6 +258,7 @@ export function formatCitationWikitext(
         templateData,
         rConverted,
         layout,
+        templateNameContext,
     );
     assignReferenceSections(
         definitions,
@@ -256,7 +268,12 @@ export function formatCitationWikitext(
         leadSectionLabel,
     );
     assignCitationNames(definitions);
-    assignLinkedCitationNames(definitions, rConverted, templateData);
+    assignLinkedCitationNames(
+        definitions,
+        rConverted,
+        templateData,
+        templateNameContext,
+    );
     assignFallbackNames(definitions);
     ensureUniqueReferenceNames(definitions);
     const replacements = buildAllReplacements(tags, containers, definitions);
@@ -370,12 +387,14 @@ function countRenamedReferenceTags(
  * @param layout - Citation-template output layout.
  * @returns Full reference definitions.
  */
+// eslint-disable-next-line max-lines-per-function, max-params
 function buildReferenceDefinitions(
     tags: RefTag[],
     containers: ReferenceContainer[],
     templateData: CitationTemplateDataMap,
     source: string,
     layout: CitationLayout,
+    templateNameContext: TemplateNameContext,
 ): ReferenceDefinition[] {
     const hasContent = function hasContent(tag: RefTag) {
         return !tag.selfClosing && tag.content.trim() !== "";
@@ -384,6 +403,7 @@ function buildReferenceDefinitions(
     const shortCitationSources = buildShortCitationSourceMap(
         source,
         templateData,
+        templateNameContext,
     );
     const buildDefinition = function buildDefinition(
         tag: RefTag,
@@ -403,6 +423,7 @@ function buildReferenceDefinitions(
             shortCitationSources,
             tag,
             templateData,
+            templateNameContext,
             trailingText,
         });
         return result;
@@ -456,6 +477,7 @@ function createReferenceDefinition({
     shortCitationSources,
     tag,
     templateData,
+    templateNameContext,
     trailingText,
 }: ReferenceDefinitionOptions): ReferenceDefinition {
     const group = tag.attributes.group || containingGroup;
@@ -468,11 +490,15 @@ function createReferenceDefinition({
         tag,
         trailingText,
     };
-    const citationCalls = findReferenceCitationCalls(trimmed);
+    const citationCalls = findReferenceCitationCalls(
+        trimmed,
+        templateNameContext,
+    );
     const citations = formatCitationCalls(
         citationCalls.calls,
         templateData,
         layout,
+        templateNameContext,
     );
     if (citations == null || citations.length === 0) {
         const identity = getShortCitationIdentity(
@@ -569,15 +595,20 @@ function replaceCitationCalls(
  * @param layout - Citation-template output layout.
  * @returns Formatted citations, or undefined when one is unsupported.
  */
+// eslint-disable-next-line max-lines-per-function
 function formatCitationCalls(
     calls: ParsedTemplateCall[],
     templateData: CitationTemplateDataMap,
     layout: CitationLayout,
+    templateNameContext: TemplateNameContext,
 ): FormattedCitation[] | undefined {
     const result: FormattedCitation[] = [];
     for (const call of calls) {
-        if (isCitationTemplate(call.name)) {
-            const metadata = templateData[normalizeTemplateName(call.name)];
+        if (isCitationTemplate(call.name, templateNameContext)) {
+            const metadata =
+                templateData[
+                    normalizeTemplateName(call.name, templateNameContext)
+                ];
             if (metadata == null) {
                 return undefined;
             }
@@ -585,6 +616,7 @@ function formatCitationCalls(
                 call.raw,
                 metadata,
                 layout,
+                templateNameContext,
             );
             result.push({
                 ...formatted,
@@ -592,14 +624,18 @@ function formatCitationCalls(
             });
             continue;
         }
-        if (!isMetadataFreeCitationTemplate(call.name)) {
+        if (!isMetadataFreeCitationTemplate(call.name, templateNameContext)) {
             return undefined;
         }
-        const metadata = templateData[getCanonicalTemplateName(call.name)];
+        const metadata =
+            templateData[
+                getCanonicalTemplateName(call.name, templateNameContext)
+            ];
         const formatted = formatGenericCitationTemplate(
             call.raw,
             layout,
             metadata,
+            templateNameContext,
         );
         result.push(formatted);
     }
@@ -613,20 +649,25 @@ function formatCitationCalls(
  * @param templateData - Citation metadata.
  * @returns Citation identities keyed by normalized anchor.
  */
+// eslint-disable-next-line max-lines-per-function
 function buildShortCitationSourceMap(
     source: string,
     templateData: CitationTemplateDataMap,
+    templateNameContext: TemplateNameContext,
 ): Map<string, CitationIdentity> {
     const result = new Map<string, CitationIdentity>();
     const protectedRanges = findCitationFormattingProtectedRanges(source);
     for (const call of findTemplateCalls(source)) {
         if (
-            !isCitationTemplate(call.name) ||
+            !isCitationTemplate(call.name, templateNameContext) ||
             isInWikitextRanges(call.start, protectedRanges)
         ) {
             continue;
         }
-        const metadata = templateData[normalizeTemplateName(call.name)];
+        const metadata =
+            templateData[
+                normalizeTemplateName(call.name, templateNameContext)
+            ];
         if (metadata == null) {
             continue;
         }
@@ -641,7 +682,12 @@ function buildShortCitationSourceMap(
         if (!anchor.startsWith("citeref ")) {
             continue;
         }
-        const formatted = formatCitationTemplate(call.raw, metadata);
+        const formatted = formatCitationTemplate(
+            call.raw,
+            metadata,
+            "block",
+            templateNameContext,
+        );
         const identity = getCitationIdentity(formatted.citation);
         result.set(anchor, identity);
     }
@@ -980,8 +1026,13 @@ function assignLinkedCitationNames(
     definitions: ReferenceDefinition[],
     source: string,
     templateData: CitationTemplateDataMap,
+    templateNameContext: TemplateNameContext,
 ): void {
-    const identities = buildExplicitCitationRefMap(source, templateData);
+    const identities = buildExplicitCitationRefMap(
+        source,
+        templateData,
+        templateNameContext,
+    );
     for (const definition of definitions) {
         if (definition.identity != null || definition.finalName !== "") {
             continue;
@@ -1009,9 +1060,11 @@ function assignLinkedCitationNames(
  * @param templateData - Citation metadata.
  * @returns Citation identities keyed by normalized ref value.
  */
+// eslint-disable-next-line max-lines-per-function
 function buildExplicitCitationRefMap(
     source: string,
     templateData: CitationTemplateDataMap,
+    templateNameContext: TemplateNameContext,
 ): Map<string, CitationIdentity> {
     const result = new Map<string, CitationIdentity>();
     const protectedRanges = findCitationFormattingProtectedRanges(source);
@@ -1019,15 +1072,20 @@ function buildExplicitCitationRefMap(
         if (isInWikitextRanges(call.start, protectedRanges)) {
             continue;
         }
-        if (!isCitationTemplate(call.name)) {
+        if (!isCitationTemplate(call.name, templateNameContext)) {
             continue;
         }
-        const name = normalizeTemplateName(call.name);
+        const name = normalizeTemplateName(call.name, templateNameContext);
         const metadata = templateData[name];
         if (metadata == null) {
             continue;
         }
-        const formatted = formatCitationTemplate(call.raw, metadata);
+        const formatted = formatCitationTemplate(
+            call.raw,
+            metadata,
+            "block",
+            templateNameContext,
+        );
         const entries = formatted.citation.params.map((param) => [
             param.name,
             param.value,
@@ -1123,9 +1181,12 @@ function assignFallbackNames(definitions: ReferenceDefinition[]): void {
  * @param text - Trimmed ref content.
  * @returns Calls plus whole-body coverage.
  */
-function findReferenceCitationCalls(text: string): ReferenceCitationCalls {
+function findReferenceCitationCalls(
+    text: string,
+    templateNameContext: TemplateNameContext,
+): ReferenceCitationCalls {
     const isCitationCall = function isCitationCall(call: ParsedTemplateCall) {
-        return isEditableCitationTemplate(call.name);
+        return isEditableCitationTemplate(call.name, templateNameContext);
     };
     const candidates = findTemplateCalls(text).filter(isCitationCall);
     const isTopLevel = function isTopLevel(candidate: ParsedTemplateCall) {
@@ -1145,7 +1206,10 @@ function findReferenceCitationCalls(text: string): ReferenceCitationCalls {
     const isWhitespace = (gap: string) => gap.trim() === "";
     const onlyWhitespace = gaps.every(isWhitespace);
     const onlyMaintenance =
-        calls.length === 1 && gaps.every(isCitationMaintenanceText);
+        calls.length === 1 &&
+        gaps.every((gap) =>
+            isCitationMaintenanceText(gap, templateNameContext),
+        );
     return { calls, wholeBody: onlyWhitespace || onlyMaintenance };
 }
 
@@ -1155,7 +1219,10 @@ function findReferenceCitationCalls(text: string): ReferenceCitationCalls {
  * @param text - Text adjacent to a citation call.
  * @returns Whether no prose or unsupported templates are present.
  */
-function isCitationMaintenanceText(text: string): boolean {
+function isCitationMaintenanceText(
+    text: string,
+    templateNameContext: TemplateNameContext,
+): boolean {
     const allCalls = findTemplateCalls(text);
     const isTopLevel = function isTopLevel(call: ParsedTemplateCall) {
         const nested = isNestedTemplateCall(call, allCalls);
@@ -1164,7 +1231,10 @@ function isCitationMaintenanceText(text: string): boolean {
     const calls = allCalls.filter(isTopLevel);
     let cursor = 0;
     for (const call of calls) {
-        const normalizedName = normalizeTemplateName(call.name);
+        const normalizedName = normalizeTemplateName(
+            call.name,
+            templateNameContext,
+        );
         if (
             text.slice(cursor, call.start).trim() !== "" ||
             !CITATION_MAINTENANCE_TEMPLATES.has(normalizedName)
@@ -1697,7 +1767,10 @@ function appendMissingReferenceContainers(
  * @param text - Source wikitext.
  * @returns Source with native ref tags.
  */
-function convertRTemplates(text: string): string {
+function convertRTemplates(
+    text: string,
+    templateNameContext: TemplateNameContext,
+): string {
     const buildRTemplateReplacement = function buildRTemplateReplacement(
         call: ParsedTemplateCall,
     ) {
@@ -1708,7 +1781,7 @@ function convertRTemplates(text: string): string {
         };
         return result;
     };
-    const replacements = findActiveRTemplates(text).map(
+    const replacements = findActiveRTemplates(text, templateNameContext).map(
         buildRTemplateReplacement,
     );
     const outerReplacements = removeNestedReplacements(replacements);
@@ -1721,11 +1794,14 @@ function convertRTemplates(text: string): string {
  * @param text - Source wikitext.
  * @returns R calls outside protected ranges.
  */
-function findActiveRTemplates(text: string): ParsedTemplateCall[] {
+function findActiveRTemplates(
+    text: string,
+    templateNameContext: TemplateNameContext,
+): ParsedTemplateCall[] {
     const protectedRanges = findCitationFormattingProtectedRanges(text);
     const isActiveR = function isActiveR(call: ParsedTemplateCall) {
         const active =
-            normalizeTemplateName(call.name) === "r" &&
+            normalizeTemplateName(call.name, templateNameContext) === "r" &&
             !isInWikitextRanges(call.start, protectedRanges);
         return active;
     };
@@ -1739,8 +1815,11 @@ function findActiveRTemplates(text: string): ParsedTemplateCall[] {
  * @param source - Original article source.
  * @returns R call count before conversion.
  */
-function countRUseTemplates(source: string): number {
-    const containers = findReferenceContainers(source);
+function countRUseTemplates(
+    source: string,
+    templateNameContext: TemplateNameContext,
+): number {
+    const containers = findReferenceContainers(source, templateNameContext);
     const isOutsideReferenceContainer = function isOutsideReferenceContainer(
         call: ParsedTemplateCall,
     ) {
@@ -1749,7 +1828,7 @@ function countRUseTemplates(source: string): number {
         });
         return !contained;
     };
-    const result = findActiveRTemplates(source).filter(
+    const result = findActiveRTemplates(source, templateNameContext).filter(
         isOutsideReferenceContainer,
     ).length;
     return result;

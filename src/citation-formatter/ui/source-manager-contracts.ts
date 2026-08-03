@@ -7,6 +7,7 @@ import type {
     CitationLayout,
     CitationTemplateDataMap,
 } from "#gadget/domain/types.ts";
+import type { TemplateNameContext } from "#gadget/domain/templates.ts";
 import type * as editBox from "#shared/edit-box";
 
 export type ReferenceStyle = "r" | "ref";
@@ -40,6 +41,7 @@ export interface SourceManagerDependencies {
     loadCitationTemplateData: (
         names: string[],
     ) => Promise<CitationTemplateDataMap>;
+    loadTemplateNameContext: () => Promise<TemplateNameContext>;
     resolveWikiLink: (value: string) => Promise<string>;
     startExecutionTimer: (label: string) => () => void;
 }

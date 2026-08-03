@@ -10,6 +10,12 @@ export interface ShortFootnoteCitation {
     usePositions: number[];
 }
 
+/** Normalizes a transcluded template title for matching. */
+export type TemplateNameNormalizer = (value: string) => string;
+
+const DEFAULT_NORMALIZER: TemplateNameNormalizer = (value) =>
+    wikitext.template.normalizeName(value);
+
 interface TemplateCall {
     descriptor: TemplateDescriptor;
     end: number;
@@ -45,8 +51,9 @@ interface ShortFootnoteUse {
  */
 export function findShortFootnoteCitations(
     source: string,
+    normalizeTemplateName: TemplateNameNormalizer = DEFAULT_NORMALIZER,
 ): ShortFootnoteCitation[] {
-    const calls = findTemplateCalls(source);
+    const calls = findTemplateCalls(source, normalizeTemplateName);
     const uses = calls.flatMap(function parseUse(call) {
         const use = buildShortFootnoteUse(call);
         return use == null ? [] : [use];
@@ -80,16 +87,19 @@ export function findShortFootnoteCitations(
 export function resolveShortFootnoteCitation(
     source: string,
     shortFootnote: string,
+    normalizeTemplateName: TemplateNameNormalizer = DEFAULT_NORMALIZER,
 ): string {
-    const useCall = findTemplateCalls(shortFootnote)[0];
+    const useCall = findTemplateCalls(shortFootnote, normalizeTemplateName)[0];
     const use = useCall == null ? null : buildShortFootnoteUse(useCall);
     if (use == null) {
         return "";
     }
-    const citations = findTemplateCalls(source).flatMap((call) => {
-        const candidate = buildCitationCandidate(call);
-        return candidate == null ? [] : [candidate];
-    });
+    const citations = findTemplateCalls(source, normalizeTemplateName).flatMap(
+        (call) => {
+            const candidate = buildCitationCandidate(call);
+            return candidate == null ? [] : [candidate];
+        },
+    );
     return citations.find((item) => matchesCitation(use, item))?.raw ?? "";
 }
 
@@ -207,19 +217,26 @@ function normalizeValue(value: string): string {
         .toLocaleLowerCase("en-US");
 }
 
-function findTemplateCalls(source: string): TemplateCall[] {
+function findTemplateCalls(
+    source: string,
+    normalizeTemplateName: TemplateNameNormalizer,
+): TemplateCall[] {
     return wikitext(source)
         .template.getAll()
         .flatMap(function describe(call) {
-            const descriptor = createTemplateDescriptor(call);
+            const descriptor = createTemplateDescriptor(
+                call,
+                normalizeTemplateName,
+            );
             return descriptor == null ? [] : [{ ...call, descriptor }];
         });
 }
 
 function createTemplateDescriptor(
     call: ParsedTemplateCall,
+    normalizeTemplateName: TemplateNameNormalizer,
 ): TemplateDescriptor | null {
-    const name = wikitext.template.normalizeName(call.name);
+    const name = normalizeTemplateName(call.name);
     if (name === "") {
         return null;
     }
@@ -238,7 +255,6 @@ function createTemplateDescriptor(
 function normalizeName(value: string): string {
     return value
         .trim()
-        .replace(/^template\s*:/iu, "")
         .replace(/[_\s]+/gu, " ")
         .toLocaleLowerCase("en-US");
 }

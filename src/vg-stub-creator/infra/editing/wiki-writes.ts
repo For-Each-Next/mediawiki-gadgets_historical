@@ -4,6 +4,11 @@
 
 import { addEditSummarySuffix } from "#gadget/infra/editing/summary.ts";
 import { wikitext } from "#shared/citation";
+import {
+    formatNamespaceTitle,
+    hasNamespacePrefix,
+    stripNamespacePrefix,
+} from "#shared/wikitext";
 
 const { buildTemplateCall, buildTemplateText } = wikitext;
 const videoGamesBanner = buildTemplateCall("WikiProject Video games");
@@ -147,11 +152,14 @@ export async function addTalkPageBanner(
         return;
     }
 
-    const joinedText = [
-        "tagging the {{[[Template:WikiProje",
-        "ct Video games|WikiProject Video g",
-        "ames]]}} banner",
-    ].join("");
+    const bannerTitle = formatNamespaceTitle(
+        "WikiProject Video games",
+        "zhwiki",
+        10,
+    );
+    const joinedText =
+        `tagging the {{[[${bannerTitle}|` +
+        "WikiProject Video games]]}} banner";
     const params = {
         action: "edit",
         appendtext: `${text === "" ? "" : "\n\n"}${banner}`,
@@ -192,7 +200,7 @@ async function fetchTalkPageText(api: any, title: string): Promise<string> {
  * @returns Talk-page banner wikitext.
  */
 function getTalkPageBanner(title: string): string {
-    return /^Category:/iu.test(normalizeTitle(title))
+    return hasNamespacePrefix(normalizeTitle(title), "zhwiki", 14)
         ? UNASSESSED_TALK_PAGE_BANNER
         : TALK_PAGE_BANNER;
 }
@@ -205,10 +213,11 @@ function getTalkPageBanner(title: string): string {
  */
 function getTalkPageTitle(title: string): string {
     const normalized = normalizeTitle(title);
-    const categoryMatch = normalized.match(/^Category:(.+)$/iu);
-    return categoryMatch == null
-        ? `Talk:${normalized}`
-        : `Category talk:${categoryMatch[1]}`;
+    if (!hasNamespacePrefix(normalized, "zhwiki", 14)) {
+        return formatNamespaceTitle(normalized, "zhwiki", 1);
+    }
+    const category = stripNamespacePrefix(normalized, "zhwiki", 14);
+    return formatNamespaceTitle(category, "zhwiki", 15);
 }
 
 /**

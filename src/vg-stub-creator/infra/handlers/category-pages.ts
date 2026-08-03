@@ -13,8 +13,7 @@ import {
     getTextTemplate,
 } from "#gadget/domain/wiki.ts";
 import { fetchEnwikiMetadata } from "#gadget/infra/sources/crosswiki.ts";
-
-const CATEGORY_NAMESPACE = "Category:";
+import { formatNamespaceTitle } from "#shared/wikitext";
 
 interface CompanyCategoryMetadata {
     pageExists: boolean;
@@ -25,8 +24,7 @@ interface CompanyCategoryMetadata {
  * Builds the initial wikitext for a company video game category.
  *
  * @param company - Company page title.
- * @param parentCategoryExists - Whether Category:<company>
- * exists.
+ * @param parentCategoryExists - Whether the parent category exists.
  * @returns Category page wikitext.
  */
 export function buildCompanyCategoryText(
@@ -36,7 +34,7 @@ export function buildCompanyCategoryText(
     const parentCategories = [];
 
     if (parentCategoryExists) {
-        parentCategories.push(`[[Category:${company}]]`);
+        parentCategories.push(`[[${formatZhwikiCategoryTitle(company)}]]`);
     }
     const defaultSort = buildDefaultSortText({
         title: company,
@@ -54,7 +52,7 @@ export function buildCompanyCategoryText(
         "",
         defaultSort,
         ...parentCategories,
-        `[[Category:${allCompanies}]]`,
+        `[[${formatZhwikiCategoryTitle(allCompanies)}]]`,
     ].join("\n");
     return result;
 }
@@ -110,7 +108,7 @@ export async function saveCompanyCategory(
         options,
         text,
     });
-    const categoryTitle = `${CATEGORY_NAMESPACE}${category}`;
+    const categoryTitle = formatZhwikiCategoryTitle(category);
 
     await connectCompanyCategory(
         categoryTitle,
@@ -288,7 +286,7 @@ function buildCompanyCategorySummary(
         return `see ${links.map((link) => `'${link}'`).join(" and ")}`;
     }
 
-    return `create '${CATEGORY_NAMESPACE}${category}'`;
+    return `create '${formatZhwikiCategoryTitle(category)}'`;
 }
 
 /**
@@ -368,7 +366,7 @@ export async function saveCategoryPage(
     summary: string = "",
     api: any = new mw.Api(),
 ): Promise<void> {
-    const categoryTitle = `${CATEGORY_NAMESPACE}${category}`;
+    const categoryTitle = formatZhwikiCategoryTitle(category);
     const params = {
         action: "edit",
         createonly: true,
@@ -392,7 +390,7 @@ async function categoryExists(api: any, company: string): Promise<boolean> {
         const response = await api.get({
             action: "query",
             formatversion: "2",
-            titles: `${CATEGORY_NAMESPACE}${company}`,
+            titles: formatZhwikiCategoryTitle(company),
         });
         const pages = response?.query?.pages || [];
         const page = Array.isArray(pages) ? pages[0] : Object.values(pages)[0];
@@ -417,5 +415,9 @@ function normalizeEnglishCategoryTitle(title: string): string {
         return "";
     }
 
-    return /^Category:/iu.test(value) ? value : `Category:${value}`;
+    return formatNamespaceTitle(value, "enwiki", 14);
+}
+
+function formatZhwikiCategoryTitle(value: string): string {
+    return formatNamespaceTitle(value, "zhwiki", 14);
 }

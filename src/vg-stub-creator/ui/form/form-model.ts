@@ -19,6 +19,7 @@ import { sortCitationParams } from "#gadget/domain/citations/index.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import * as reviewLinkSession from "#gadget/ui/form/review-link-session.ts";
 import { wikitext } from "#shared/citation";
+import { formatNamespaceTitle, stripNamespacePrefix } from "#shared/wikitext";
 
 export {
     buildGoogleSiteSearchUrl,
@@ -139,7 +140,7 @@ export function normalizeEnglishCategoryTitle(title: string): string {
         return "";
     }
 
-    return /^Category:/iu.test(value) ? value : `Category:${value}`;
+    return formatNamespaceTitle(value, "enwiki", 14);
 }
 
 /**
@@ -1777,9 +1778,9 @@ export function shouldSkipFixedRows(
  */
 export function getNavboxTitle(value: any): string {
     const text = trimValue(value);
-    const match = text.match(/^\{\{\s*(?:Template:)?([^|}]+).*?\}\}$/iu);
+    const match = text.match(/^\{\{\s*([^|}]+).*?\}\}$/u);
 
-    return trimValue(match?.[1] || text).replace(/^Template:/iu, "");
+    return stripNamespacePrefix(trimValue(match?.[1] || text), "zhwiki", 10);
 }
 
 /**

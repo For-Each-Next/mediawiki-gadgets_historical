@@ -44,6 +44,45 @@ test("basic formatting separates headings but not DEFAULTSORT", () => {
     );
 });
 
+test("basic formatting separates every MediaWiki heading level", () => {
+    for (let level = 1; level <= 6; level += 1) {
+        const marks = "=".repeat(level);
+        const source = `${marks}Heading${marks}\nParagraph.`;
+        const expected = `${marks} Heading ${marks}\n\nParagraph.`;
+
+        assert.equal(formatWikitext(source).text, expected);
+        assert.deepEqual(formatWikitext(expected), {
+            changed: false,
+            text: expected,
+        });
+    }
+});
+
+test("heading normalization does not cross line boundaries", () => {
+    const source = "==\nHeading\n==\nParagraph.";
+
+    assert.deepEqual(formatWikitext(source), {
+        changed: false,
+        text: source,
+    });
+});
+
+test("heading normalization does not reinterpret delimiter runs", () => {
+    for (let level = 1; level <= 6; level += 1) {
+        const source = "=".repeat(level * 2);
+        assert.deepEqual(formatWikitext(source), {
+            changed: false,
+            text: source,
+        });
+    }
+
+    const levelSeven = "=======Heading=======";
+    assert.deepEqual(formatWikitext(levelSeven), {
+        changed: false,
+        text: levelSeven,
+    });
+});
+
 test("heading separation stays idempotent at end of input", () => {
     const expected = "== Heading ==\n\n";
     for (const source of ["==Heading==", "==Heading==\n", expected]) {

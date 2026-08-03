@@ -2,6 +2,35 @@
 
 ## Until 0.5
 
+### 0.4.4-dev.39 (2026-08-03 15:12 UTC)
+
+Overview: wikEd Lite keeps delimiter-only text from becoming unintended
+headings.
+
+- Kept marker-only and unsupported level-seven heading-like lines unchanged
+  instead of reinterpreting them as lower-level headings.
+
+### 0.4.4-dev.38 (2026-08-03 13:24 UTC)
+
+Overview: wikEd Lite keeps MediaWiki dimension recognition responsive on
+untrusted article text.
+
+- Replaced backtracking positive-dimension matching with linear structural
+  recognition and explicit numeric validation, including leading-zero sizes.
+
+### 0.4.4-dev.37 (2026-08-03 12:45 UTC)
+
+Overview: wikEd Lite recognizes MediaWiki file options and keeps heading
+formatting confined to actual single-line headings.
+
+- Highlighted documented image formats, horizontal and vertical alignments,
+  positive pixel dimensions, `upright` forms, named keys, English aliases, and
+  current PDF, SVG, TIFF, and timed-media handler options.
+- Kept captions, invalid spellings, whitespace before named-option equals
+  signs, and nonfunctional deprecated media flags outside the syntax-key style.
+- Verified following blank lines for heading levels one through six and stopped
+  heading normalization from consuming line breaks around heading-like text.
+
 ### 0.4.4-dev.36 (2026-08-03 12:07 UTC)
 
 Overview: wikEd Lite refines source navigation, parser-function syntax, and

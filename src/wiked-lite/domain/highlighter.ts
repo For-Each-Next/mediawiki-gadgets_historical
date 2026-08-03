@@ -121,6 +121,49 @@ const NOTE_TA_NAMES = new Set([
     "ta-lite",
     "tal",
 ]);
+const FILE_LITERAL_OPTIONS = new Set([
+    "baseline",
+    "border",
+    "bottom",
+    "center",
+    "centre",
+    "enframed",
+    "frame",
+    "framed",
+    "frameless",
+    "left",
+    "loop",
+    "middle",
+    "muted",
+    "none",
+    "right",
+    "sub",
+    "sup",
+    "super",
+    "text-bottom",
+    "text-top",
+    "thumb",
+    "thumbnail",
+    "top",
+    "upright",
+]);
+const FILE_NAMED_OPTIONS = new Set([
+    "alt",
+    "class",
+    "disablecontrols",
+    "end",
+    "lang",
+    "link",
+    "lossy",
+    "page",
+    "start",
+    "thumb",
+    "thumbnail",
+    "thumbtime",
+    "upright",
+]);
+const FILE_SPACED_OPTIONS = new Set(["page", "upright"]);
+const FILE_SIZE_OPTION_PATTERN = /^(?:(\d+)(?:x(\d+))?|x(\d+))[ \t]*px$/u;
 const EN_IMAGE_TEMPLATE_NAMES = normalizeNames([
     "Multiple image",
     "Auto images",
@@ -1275,29 +1318,60 @@ function decorateFileOption(
         contentStart + part.end,
     );
     const option = source.slice(optionRange.start, optionRange.end);
-    if (/^(?:right|thumb)$/iu.test(option)) {
+    if (FILE_LITERAL_OPTIONS.has(option) || isFileSizeOption(option)) {
         return [createParameterRange(optionRange)];
     }
-    const equals = getFirstTopLevelSeparator(part.value, "=") ?? -1;
+    const spacedKey = getFileSpacedOptionKey(option);
+    if (spacedKey != null) {
+        return [
+            createParameterRange({
+                end: optionRange.start + spacedKey.length,
+                start: optionRange.start,
+            }),
+        ];
+    }
+    return decorateNamedFileOption(option, optionRange);
+}
+
+function isFileSizeOption(option: string): boolean {
+    const match = FILE_SIZE_OPTION_PATTERN.exec(option);
+    return match != null && match.slice(1).every(isPositiveFileDimension);
+}
+
+function isPositiveFileDimension(dimension: string | undefined): boolean {
+    return dimension == null || Number(dimension) > 0;
+}
+
+function decorateNamedFileOption(
+    option: string,
+    optionRange: SourceRange,
+): DecoratedRange[] {
+    const equals = getFirstTopLevelSeparator(option, "=") ?? -1;
     if (equals < 0) {
         return [];
     }
-    const nameRange = trimSourceRange(
-        source,
-        optionStart,
-        optionStart + equals,
-    );
-    if (source.slice(nameRange.start, nameRange.end).toLowerCase() !== "alt") {
+    const name = option.slice(0, equals);
+    if (!FILE_NAMED_OPTIONS.has(name)) {
         return [];
     }
+    const nameRange = {
+        end: optionRange.start + equals,
+        start: optionRange.start,
+    };
     return [
         createParameterRange(nameRange),
         createDelimiterRange(
-            optionStart + equals,
-            optionStart + equals + 1,
+            optionRange.start + equals,
+            optionRange.start + equals + 1,
             49,
         ),
     ];
+}
+
+function getFileSpacedOptionKey(option: string): string | undefined {
+    const match = /^(\S+) (?=\S)/u.exec(option);
+    const key = match?.[1];
+    return key != null && FILE_SPACED_OPTIONS.has(key) ? key : undefined;
 }
 
 function createParameterRange(range: SourceRange): DecoratedRange {

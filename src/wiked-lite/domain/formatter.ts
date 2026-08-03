@@ -47,7 +47,8 @@ interface FormatterNestingState {
 type FormatterVariableConstruct = "parameter" | "template";
 
 const EXPLANATORY_FOOTNOTE_PATTERN = /^efn(?:$|[- /])/u;
-const NORMALIZED_HEADING_PATTERN = /^(={1,6}) .* \1$/u;
+const HEADING_PATTERN = /^(={1,6})(?![=])[ \t]*(.*?)[ \t]*\1[ \t]*$/gmu;
+const NORMALIZED_HEADING_PATTERN = /^(={1,6})(?![=]) .* \1$/u;
 
 /**
  * Applies basic fixes and explicitly selected layout changes.
@@ -78,7 +79,7 @@ function normalizeBasicLayout(source: string): string {
         .replaceAll("\r\n", "\n")
         .replaceAll("\r", "\n")
         .replace(/[ \t]+$/gmu, "")
-        .replace(/^(={1,6})\s*(.*?)\s*\1\s*$/gmu, "$1 $2 $1")
+        .replace(HEADING_PATTERN, "$1 $2 $1")
         .replace(/^([#*:;]+)[ \t]+/gmu, "$1 ")
         .replace(/^----+\s*$/gmu, "----")
         .replace(/\[\[\s*([^\]|]+?)\s*\|\s*([^\]]+?)\s*\]\]/gu, "[[$1|$2]]")

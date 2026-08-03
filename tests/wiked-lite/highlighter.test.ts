@@ -464,12 +464,14 @@ test("Arch Linux infobox links and HTML keep original token families", () => {
     );
 });
 
-test("file options distinguish keywords and named keys from values", () => {
-    const source =
-        "[[File:Example.svg|thumb|right|alt=Accessible map|Caption text]]";
+test("file options in article examples use syntax-key highlighting", () => {
+    const source = [
+        "[[File:Emperor Jimmu.jpg|thumb|upright|left|[[神武天皇]]東征]]",
+        "[[File:Emblem of the Government of Japan (yellow).svg|75px]]",
+    ].join("\n");
     const segments = highlightWikitext(source);
 
-    for (const option of ["thumb", "right", "alt"]) {
+    for (const option of ["thumb", "upright", "left", "75px"]) {
         assertHasClass(
             source,
             segments,
@@ -483,7 +485,120 @@ test("file options distinguish keywords and named keys from values", () => {
             "wiked-lite-token--file-link",
         );
     }
-    for (const value of ["Accessible map", "Caption text"]) {
+    assertLacksClass(source, segments, "東征", "wiked-lite-token--parameter");
+    assertHasClass(
+        source,
+        segments,
+        "|thumb",
+        "wiked-lite-token--wiki-markup",
+    );
+});
+
+test("file options recognize MediaWiki format and alignment keywords", () => {
+    const options = [
+        "baseline",
+        "border",
+        "bottom",
+        "center",
+        "centre",
+        "enframed",
+        "frame",
+        "framed",
+        "frameless",
+        "left",
+        "loop",
+        "middle",
+        "muted",
+        "none",
+        "right",
+        "sub",
+        "sup",
+        "super",
+        "text-bottom",
+        "text-top",
+        "thumb",
+        "thumbnail",
+        "top",
+        "upright",
+    ];
+
+    for (const option of options) {
+        const source = `[[File:Example.svg|${option}]]`;
+        assertHasClass(
+            source,
+            highlightWikitext(source),
+            option,
+            "wiked-lite-token--parameter",
+        );
+    }
+});
+
+test("file options recognize documented pixel dimensions", () => {
+    const dimensions = [
+        "75px",
+        "0075px",
+        "x75px",
+        "75x100px",
+        "75 px",
+        "x75 px",
+        "75x100 px",
+    ];
+
+    for (const dimension of dimensions) {
+        const source = `[[File:Example.svg|${dimension}]]`;
+        assertHasClass(
+            source,
+            highlightWikitext(source),
+            dimension,
+            "wiked-lite-token--parameter",
+        );
+    }
+});
+
+test("file options distinguish named keys from their values", () => {
+    const options = [
+        ["alt", "Accessible map"],
+        ["class", "skin-invert"],
+        ["disablecontrols", "fullscreen"],
+        ["end", "1:30"],
+        ["lang", "ja"],
+        ["link", "Emperor Jimmu"],
+        ["lossy", "false"],
+        ["page", "2"],
+        ["start", "1:25"],
+        ["thumb", "Poster.jpg"],
+        ["thumbnail", "Poster.jpg"],
+        ["thumbtime", "1:25"],
+        ["upright", "1.2"],
+    ] as const;
+
+    for (const [key, value] of options) {
+        const source = `[[File:Example.svg|${key}=${value}]]`;
+        const segments = highlightWikitext(source);
+        assertHasClass(source, segments, key, "wiked-lite-token--parameter");
+        assertLacksClass(
+            source,
+            segments,
+            value,
+            "wiked-lite-token--parameter",
+        );
+        assertHasClass(
+            source,
+            segments,
+            "=",
+            "wiked-lite-token--template-delimiter",
+        );
+    }
+});
+
+test("file options recognize space-argument page and upright aliases", () => {
+    for (const [key, value] of [
+        ["page", "2"],
+        ["upright", "1.2"],
+    ] as const) {
+        const source = `[[File:Example.svg|${key} ${value}]]`;
+        const segments = highlightWikitext(source);
+        assertHasClass(source, segments, key, "wiked-lite-token--parameter");
         assertLacksClass(
             source,
             segments,
@@ -491,12 +606,30 @@ test("file options distinguish keywords and named keys from values", () => {
             "wiked-lite-token--parameter",
         );
     }
-    assertHasClass(
-        source,
-        segments,
-        "|thumb",
-        "wiked-lite-token--wiki-markup",
-    );
+});
+
+test("file option captions and malformed keywords stay ordinary", () => {
+    const options = [
+        "Caption text",
+        "LEFT",
+        "0px",
+        "75.5px",
+        "75 px wide",
+        "alt =Accessible map",
+        "page  2",
+        "noicon",
+        "noplayer",
+    ];
+
+    for (const option of options) {
+        const source = `[[File:Example.svg|${option}]]`;
+        assertLacksClass(
+            source,
+            highlightWikitext(source),
+            option,
+            "wiked-lite-token--parameter",
+        );
+    }
 });
 
 test("file options ignore pipes and equals signs in tag attributes", () => {

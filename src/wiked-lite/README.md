@@ -38,9 +38,9 @@ the page.
   markup, table syntax, parameter names, and nested templates while retaining
   the source textarea's typography.
 - Resets template depth inside native and `Reflist` reference definitions, and
-  distinguishes file options, selected HTML or CSS keys, progressively nested
-  HTML tag bodies, and entered Chinese-conversion declaration keys with the
-  existing syntax palette.
+  distinguishes documented file formats, alignments, dimensions, and named
+  options; selected HTML or CSS keys; progressively nested HTML tag bodies; and
+  entered Chinese-conversion declaration keys with the existing syntax palette.
 - Opens delayed, anchored MediaWiki-style previews for plain references and
   `ref`, `r`, or `sfn` citations, with viewport-aware placement and hover-safe
   transitions that keep links usable.

@@ -1239,6 +1239,7 @@ export default [
             "XBX/S",
             "Xbox Series",
             "Xbox Series X and S",
+            "Xbox Series X and Series S",
             "Xbox Series X",
             "Xbox Series S",
             "XS",

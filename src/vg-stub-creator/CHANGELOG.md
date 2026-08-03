@@ -2,10 +2,10 @@
 
 ## Until 0.6
 
-### 0.5.1-post.8 (2026-08-03 10:49 UTC)
+### 0.5.1-post.9 (2026-08-03 15:20 UTC)
 
-Overview: VG Stub Creator uses shared wiki namespace catalogs and packages its
-two browser artifacts in a dedicated distribution directory.
+Overview: VG Stub Creator uses shared wiki namespace catalogs, normalizes Xbox
+platform naming, and packages its artifacts in a dedicated directory.
 
 - Replaced hardcoded template, category, talk, special, and WikiProject title
   construction and parsing with database-scoped namespace-ID helpers.
@@ -13,6 +13,8 @@ two browser artifacts in a dedicated distribution directory.
   treating aliases from the other wiki as local prefixes.
 - Added focused coverage for localized category inputs, navbox aliases,
   TemplateData aliases, and English-category boundaries.
+- Normalized the full `Xbox Series X and Series S` platform name to the
+  canonical `Xbox Series X/S` label, page, and categorization metadata.
 - Kept enwiki and zhwiki cross-wiki targets on immutable static catalogs while
   shared current-wiki consumers gained validated siteinfo catalogs.
 - Grouped the minified gadget and userscript under `dist/vg-stub-creator/`,

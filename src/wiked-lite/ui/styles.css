@@ -87,6 +87,52 @@
     background: rgb(255, 240, 208) !important;
 }
 
+.wiked-lite-token--html-content-0,
+.wiked-lite-token--html-content-1,
+.wiked-lite-token--html-content-2,
+.wiked-lite-token--html-content-3,
+.wiked-lite-token--html-content-4 {
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.wiked-lite-token--html-content-0 {
+    background: rgb(246, 246, 246);
+    background: color-mix(
+        in srgb,
+        var(--wiked-lite-background) 96%,
+        var(--wiked-lite-foreground)
+    );
+}
+
+.wiked-lite-token--html-content-1 {
+    background: rgb(228, 228, 228);
+    background: color-mix(
+        in srgb,
+        var(--wiked-lite-background) 88%,
+        var(--wiked-lite-foreground)
+    );
+}
+
+.wiked-lite-token--html-content-2 {
+    background: rgb(218, 218, 218);
+    background: color-mix(
+        in srgb,
+        var(--wiked-lite-background) 83.5%,
+        var(--wiked-lite-foreground)
+    );
+}
+
+.wiked-lite-token--html-content-3,
+.wiked-lite-token--html-content-4 {
+    background: rgb(208, 208, 208);
+    background: color-mix(
+        in srgb,
+        var(--wiked-lite-background) 79%,
+        var(--wiked-lite-foreground)
+    );
+}
+
 .wiked-lite-token--html-tag {
     color: var(--wiked-lite-foreground);
     background: rgb(232, 232, 232);
@@ -243,9 +289,14 @@
     -webkit-box-decoration-break: clone;
 }
 
+.wiked-lite-token--module-name,
 .wiked-lite-token--template-name {
     color: rgb(85, 0, 153);
     font-weight: bold;
+}
+
+.wiked-lite-token--parser-function {
+    color: rgb(255, 0, 0);
 }
 
 .wiked-lite-token--parameter {

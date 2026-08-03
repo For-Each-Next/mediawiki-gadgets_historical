@@ -71,6 +71,18 @@ function assertLacksClass(
     );
 }
 
+function htmlContentClassesAt(
+    source: string,
+    segments: HighlightSegment[],
+    needle: string,
+): string[] {
+    return classesAt(source, segments, needle)
+        .filter((className) =>
+            className.startsWith("wiked-lite-token--html-content-"),
+        )
+        .toSorted();
+}
+
 interface ReferenceContainerFixture {
     body: string;
     containerBody: string;
@@ -444,7 +456,12 @@ test("Arch Linux infobox links and HTML keep original token families", () => {
         "wiked-lite-token--file-link",
     );
     assertHasClass(source, segments, "code", "wiked-lite-token--html-tag");
-    assert.deepEqual(classesAt(source, segments, "PKGBUILD"), []);
+    assertHasClass(
+        source,
+        segments,
+        "PKGBUILD",
+        "wiked-lite-token--html-content-0",
+    );
 });
 
 test("file options distinguish keywords and named keys from values", () => {
@@ -527,7 +544,101 @@ test("HTML attributes and CSS properties use syntax token families", () => {
         "none",
         "wiked-lite-token--language-variant",
     );
-    assert.deepEqual(classesAt(source, segments, "本文"), []);
+    assertHasClass(
+        source,
+        segments,
+        "本文",
+        "wiked-lite-token--html-content-0",
+    );
+});
+
+test("HTML tag bodies use progressively darker nesting backgrounds", () => {
+    const source = [
+        "<div>outer",
+        "<span>middle<i>inner<b>deep<u>capped",
+        "<em>still capped</em></u></b></i></span>",
+        "</div>",
+    ].join("");
+    const segments = highlightWikitext(source);
+    const expectedClasses = [
+        ["outer", [0]],
+        ["middle", [0, 1]],
+        ["inner", [0, 1, 2]],
+        ["deep", [0, 1, 2, 3]],
+        ["capped", [0, 1, 2, 3, 4]],
+        ["still capped", [0, 1, 2, 3, 4]],
+    ] as const;
+
+    for (const [needle, depths] of expectedClasses) {
+        assert.deepEqual(
+            htmlContentClassesAt(source, segments, needle),
+            depths.map((depth) => `wiked-lite-token--html-content-${depth}`),
+        );
+    }
+    assertLacksClass(
+        source,
+        segments,
+        "still capped",
+        "wiked-lite-token--html-content-5",
+    );
+});
+
+test("HTML body depth resets for siblings and ignores void tags", () => {
+    const source = '<div lang="en">outer<br>tail</div><p>sibling</p><hr>';
+    const segments = highlightWikitext(source);
+
+    for (const text of ["outer", "tail", "sibling"]) {
+        assert.deepEqual(htmlContentClassesAt(source, segments, text), [
+            "wiked-lite-token--html-content-0",
+        ]);
+    }
+    assertHasClass(source, segments, "lang", "wiked-lite-token--parameter");
+    assertHasClass(source, segments, "br", "wiked-lite-token--html-tag");
+    assertHasClass(source, segments, "br", "wiked-lite-token--html-content-0");
+    assertHasClass(source, segments, "hr", "wiked-lite-token--html-tag");
+    assertLacksClass(
+        source,
+        segments,
+        "hr",
+        "wiked-lite-token--html-content-0",
+    );
+});
+
+test("unfinished and protected tags do not shade through their bodies", () => {
+    const source = [
+        "<nowiki>literal</nowiki>",
+        "<mapframe><span>map data</span></mapframe>",
+        "<templatestyles><b>style data</b></templatestyles>",
+        "lead<div>rest<span>nested</span>",
+    ].join(" ");
+    const segments = highlightWikitext(source);
+
+    assert.deepEqual(htmlContentClassesAt(source, segments, "literal"), []);
+    assertHasClass(source, segments, "literal", "wiked-lite-token--nowiki");
+    for (const text of ["map data", "style data"]) {
+        assert.deepEqual(htmlContentClassesAt(source, segments, text), []);
+        assertHasClass(source, segments, text, "wiked-lite-token--pre");
+    }
+    assert.deepEqual(htmlContentClassesAt(source, segments, "rest"), []);
+    assert.deepEqual(htmlContentClassesAt(source, segments, "nested"), [
+        "wiked-lite-token--html-content-0",
+    ]);
+});
+
+test("HTML body backgrounds preserve nested wikilink metadata", () => {
+    const source = '<div lang="en">.ddddddd.. [[Missing]]</div>';
+    const segments = highlightWikitext(source);
+
+    assertHasClass(
+        source,
+        segments,
+        ".ddddddd..",
+        "wiked-lite-token--html-content-0",
+    );
+    assert.equal(
+        segmentAt(source, segments, "Missing")?.missingTitle,
+        "Missing",
+    );
 });
 
 test("HTML syntax keys respect literal content and nested wikitext", () => {
@@ -592,6 +703,388 @@ test("current namespaces format template navigation titles", () => {
         segmentAt(source, segments, "Vorlage:Example")?.href,
         "/wiki/Vorlage%3AExample",
     );
+});
+
+test("template navigation applies only to the template name", () => {
+    const source = "{{ Cite web | title = Example }}";
+    const href = "/wiki/Template%3ACite_web";
+    const linkedSegments = highlightWikitext(source).filter(
+        (segment) => segment.href === href,
+    );
+
+    assert.deepEqual(
+        linkedSegments.map(({ end, start, text }) => ({ end, start, text })),
+        [
+            {
+                end: source.indexOf("Cite web") + "Cite web".length,
+                start: source.indexOf("Cite web"),
+                text: "Cite web",
+            },
+        ],
+    );
+    assert.equal(segmentAt(source, linkedSegments, "title"), undefined);
+    assert.equal(segmentAt(source, linkedSegments, "Example"), undefined);
+});
+
+const TEMPLATE_LIKE_MAGIC_SOURCE = [
+    "{{DEFAULTSORT:Trusty Bell Chopin No Yume}}",
+    "{{DEFAULTSORTKEY:Alias key}}",
+    "{{DEFAULTCATEGORYSORT:Category alias}}",
+    "{{DISPLAYTITLE:Display value}}",
+    "{{CURRENTYEAR}}",
+    "{{NUMBEROFPAGES:R}}",
+    "{{lc:LOWER ME}}",
+    "{{#if:condition|yes|no}}",
+].join("\n");
+
+test("template-like magic words use parser-function syntax", () => {
+    const segments = highlightWikitext(TEMPLATE_LIKE_MAGIC_SOURCE);
+    const heads = [
+        "DEFAULTSORT",
+        "DEFAULTSORTKEY",
+        "DEFAULTCATEGORYSORT",
+        "DISPLAYTITLE",
+        "CURRENTYEAR",
+        "NUMBEROFPAGES",
+        "lc",
+        "#if",
+    ];
+
+    for (const head of heads) {
+        assertHasClass(
+            TEMPLATE_LIKE_MAGIC_SOURCE,
+            segments,
+            head,
+            "wiked-lite-token--parser-function",
+        );
+        assertLacksClass(
+            TEMPLATE_LIKE_MAGIC_SOURCE,
+            segments,
+            head,
+            "wiked-lite-token--template-name",
+        );
+    }
+    assert.ok(segments.every((segment) => segment.href == null));
+    assertHasClass(
+        TEMPLATE_LIKE_MAGIC_SOURCE,
+        segments,
+        ":Trusty Bell Chopin No Yume",
+        "wiked-lite-token--parser-function",
+    );
+});
+
+test("colonless hash magic variables do not navigate to templates", () => {
+    const heads = [
+        "#bcp47",
+        "#dir",
+        "#contentmodel",
+        "#LANGUAGE",
+        "#interwikilink",
+        "#interlanguagelink",
+        "#isbn",
+    ];
+    const source = heads.map((head) => `{{${head}}}`).join(" ");
+    const segments = highlightWikitext(source);
+
+    for (const head of heads) {
+        assertHasClass(
+            source,
+            segments,
+            head,
+            "wiked-lite-token--parser-function",
+        );
+        assertLacksClass(
+            source,
+            segments,
+            head,
+            "wiked-lite-token--template-name",
+        );
+    }
+    assert.ok(segments.every((segment) => segment.href == null));
+});
+
+test("magic-word arguments remain ordinary editable text", () => {
+    const segments = highlightWikitext(TEMPLATE_LIKE_MAGIC_SOURCE);
+
+    for (const argument of [
+        "Trusty Bell Chopin No Yume",
+        "Alias key",
+        "Category alias",
+        "Display value",
+        "LOWER ME",
+        "condition",
+    ]) {
+        assertLacksClass(
+            TEMPLATE_LIKE_MAGIC_SOURCE,
+            segments,
+            argument,
+            "wiked-lite-token--parser-function",
+        );
+        assertLacksClass(
+            TEMPLATE_LIKE_MAGIC_SOURCE,
+            segments,
+            argument,
+            "wiked-lite-token--template-name",
+        );
+    }
+});
+
+test("localized and full-width magic-word syntax is not a template", () => {
+    const source = [
+        "{{默认排序:Trusty Bell}}",
+        "{{顯示標題：Display value}}",
+        "{{#调用：范例|main}}",
+    ].join("\n");
+    const segments = highlightWikitext(source, {
+        namespaceSource: "zhwiki",
+    });
+    const moduleHref = "/wiki/Module%3A%E8%8C%83%E4%BE%8B";
+
+    for (const head of ["默认排序", "顯示標題", "#调用"]) {
+        assertHasClass(
+            source,
+            segments,
+            head,
+            "wiked-lite-token--parser-function",
+        );
+        assertLacksClass(
+            source,
+            segments,
+            head,
+            "wiked-lite-token--template-name",
+        );
+    }
+    assertHasClass(
+        source,
+        segments,
+        "：Display value",
+        "wiked-lite-token--parser-function",
+    );
+    assert.equal(segmentAt(source, segments, "范例")?.href, moduleHref);
+    assert.ok(
+        segments
+            .filter((segment) => segment.href != null)
+            .every((segment) => segment.href === moduleHref),
+    );
+});
+
+test("common zhwiki magic-word aliases do not become templates", () => {
+    const heads = ["小写", "格式化数字", "页名", "今天", "本月", "#语言"];
+    const source = [
+        "{{小写:ABC}}",
+        "{{格式化数字:1234}}",
+        "{{页名:Foo}}",
+        "{{今天}}",
+        "{{本月}}",
+        "{{#语言}}",
+    ].join(" ");
+    const segments = highlightWikitext(source, {
+        namespaceSource: "zhwiki",
+    });
+
+    for (const head of heads) {
+        assertHasClass(
+            source,
+            segments,
+            head,
+            "wiked-lite-token--parser-function",
+        );
+        assertLacksClass(
+            source,
+            segments,
+            head,
+            "wiked-lite-token--template-name",
+        );
+    }
+    assert.ok(segments.every((segment) => segment.href == null));
+});
+
+test("magic-word collisions remain explicit template transclusions", () => {
+    const fixtures = [
+        ["{{CURRENTDAYNAME|x}}", "/wiki/Template%3ACURRENTDAYNAME"],
+        ["{{Template:CURRENTYEAR}}", "/wiki/Template%3ACURRENTYEAR"],
+        ["{{:CURRENTYEAR}}", "/wiki/CURRENTYEAR"],
+        ["{{Example:Variant|x}}", "/wiki/Template%3AExample%3AVariant"],
+        ["{{defaultsort:key}}", "/wiki/Template%3Adefaultsort%3Akey"],
+    ] as const;
+
+    for (const [source, href] of fixtures) {
+        const segments = highlightWikitext(source);
+        const linked = segments.filter((segment) => segment.href === href);
+
+        assert.ok(
+            linked.length > 0,
+            `Missing template navigation for ${source}`,
+        );
+        assert.ok(
+            linked.every((segment) =>
+                segment.classNames.includes("wiked-lite-token--template-name"),
+            ),
+        );
+        assert.ok(
+            linked.every(
+                (segment) =>
+                    !segment.classNames.includes(
+                        "wiked-lite-token--parser-function",
+                    ),
+            ),
+        );
+    }
+});
+
+test("invoke navigation links only the static module target", () => {
+    const source = "{{ safesubst: #InVoKe:Foo/bar | main | key=value }}";
+    const href = "/wiki/Module%3AFoo/bar";
+    const segments = highlightWikitext(source);
+    const linked = segments.filter((segment) => segment.href === href);
+
+    assert.deepEqual(
+        linked.map(({ end, start, text }) => ({ end, start, text })),
+        [
+            {
+                end: source.indexOf("Foo/bar") + "Foo/bar".length,
+                start: source.indexOf("Foo/bar"),
+                text: "Foo/bar",
+            },
+        ],
+    );
+    assertHasClass(
+        source,
+        segments,
+        "safesubst",
+        "wiked-lite-token--parser-function",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "#InVoKe",
+        "wiked-lite-token--parser-function",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "Foo/bar",
+        "wiked-lite-token--module-name",
+    );
+    for (const text of ["safesubst", "#InVoKe", "main", "key", "value"]) {
+        assert.notEqual(segmentAt(source, segments, text)?.href, href);
+    }
+});
+
+test("invoke forces the entered operand into the module namespace", () => {
+    const source = "{{#invoke:Module:Foo|main}}";
+    const segments = highlightWikitext(source);
+
+    assert.equal(
+        segmentAt(source, segments, "Module:Foo")?.href,
+        "/wiki/Module%3AModule%3AFoo",
+    );
+});
+
+test("message and raw prefixes retain MediaWiki classification order", () => {
+    const source = [
+        "{{msg:CURRENTYEAR}}",
+        "{{raw:DEFAULTSORT:X}}",
+        "{{msg:#invoke:Foo|main}}",
+        "{{raw:msgnw:Example}}",
+    ].join("\n");
+    const segments = highlightWikitext(source);
+
+    assert.equal(
+        segmentAt(source, segments, "CURRENTYEAR")?.href,
+        "/wiki/Template%3ACURRENTYEAR",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "DEFAULTSORT",
+        "wiked-lite-token--parser-function",
+    );
+    assert.equal(
+        segmentAt(source, segments, "Foo")?.href,
+        "/wiki/Module%3AFoo",
+    );
+    assert.equal(
+        segmentAt(source, segments, "msgnw:Example")?.href,
+        "/wiki/Template%3Amsgnw%3AExample",
+    );
+});
+
+test("whitespace before a function colon remains template syntax", () => {
+    const source = "{{DEFAULTSORT :x}} {{#invoke :Foo|main}}";
+    const segments = highlightWikitext(source);
+
+    for (const head of ["DEFAULTSORT", "#invoke"]) {
+        assertLacksClass(
+            source,
+            segments,
+            head,
+            "wiked-lite-token--parser-function",
+        );
+        assertHasClass(
+            source,
+            segments,
+            head,
+            "wiked-lite-token--template-name",
+        );
+    }
+});
+
+test("full-width colons do not activate ASCII-only modifiers", () => {
+    const source = "{{subst：CURRENTYEAR}}";
+    const segments = highlightWikitext(source);
+
+    assertLacksClass(
+        source,
+        segments,
+        "subst",
+        "wiked-lite-token--parser-function",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "subst：CURRENTYEAR",
+        "wiked-lite-token--template-name",
+    );
+});
+
+test("invoke navigation ignores dynamic or unavailable module targets", () => {
+    const dynamic = "{{#invoke:{{{module|Foo}}}|main}}";
+    const unavailable = "{{#invoke:Foo|main}}";
+
+    assert.ok(
+        highlightWikitext(dynamic).every((segment) => segment.href == null),
+    );
+    assert.ok(
+        highlightWikitext(unavailable, {
+            namespaceSource: EXAMPLE_NAMESPACE_CATALOG,
+        }).every((segment) => segment.href == null),
+    );
+});
+
+test("outer magic-word styling stops before nested arguments", () => {
+    const source = "{{DISPLAYTITLE:Foo {{PAGENAME}}}}";
+    const segments = highlightWikitext(source);
+
+    assertHasClass(
+        source,
+        segments,
+        "DISPLAYTITLE",
+        "wiked-lite-token--parser-function",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "Foo",
+        "wiked-lite-token--parser-function",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "PAGENAME",
+        "wiked-lite-token--parser-function",
+    );
+    assert.ok(segments.every((segment) => segment.href == null));
 });
 
 test("template navigation respects explicit current-wiki namespaces", () => {

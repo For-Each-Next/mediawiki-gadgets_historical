@@ -34,11 +34,13 @@ the page.
 - Renders the editable syntax highlighter in an isolated iframe while mirroring
   every edit immediately to the native submitted textarea.
 - Highlights references and short footnotes in purple, explanatory footnotes in
-  blue, bold and italic apostrophe markup, table syntax, parameter names, and
-  nested templates while retaining the source textarea's typography.
+  blue, parser-function and variable heads in red, bold and italic apostrophe
+  markup, table syntax, parameter names, and nested templates while retaining
+  the source textarea's typography.
 - Resets template depth inside native and `Reflist` reference definitions, and
-  distinguishes file options, selected HTML or CSS keys, and entered
-  Chinese-conversion declaration keys with the existing syntax palette.
+  distinguishes file options, selected HTML or CSS keys, progressively nested
+  HTML tag bodies, and entered Chinese-conversion declaration keys with the
+  existing syntax palette.
 - Opens delayed, anchored MediaWiki-style previews for plain references and
   `ref`, `r`, or `sfn` citations, with viewport-aware placement and hover-safe
   transitions that keep links usable.
@@ -47,6 +49,9 @@ the page.
   HTML.
 - Displays Chinese `link-xx` and `tsl` helpers like local wikilinks and opens
   template or link targets on Control-click or Command-click.
+- Distinguishes brace-based magic variables and parser functions from templates
+  without Template navigation, while static `#invoke` operands open their
+  Module pages.
 - Applies conservative wikEd-style basic fixes to the selection or whole page,
   with opt-in template alignment, Chinese-conversion cleanup, redirect targets
   rewritten as piped links that keep their original text, and missing-page

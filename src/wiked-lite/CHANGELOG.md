@@ -2,10 +2,10 @@
 
 ## Until 0.5
 
-### 0.4.4-dev.35 (2026-08-03 10:49 UTC)
+### 0.4.4-dev.36 (2026-08-03 12:07 UTC)
 
-Overview: wikEd Lite preserves entered wikilink text and packages its two
-browser artifacts in a dedicated distribution directory.
+Overview: wikEd Lite refines source navigation, parser-function syntax, and
+nested HTML styling while packaging two dedicated browser artifacts.
 
 - Rewrote unpiped redirect links as piped links whose labels keep the original
   title and fragment, while retaining existing explicit labels.
@@ -21,6 +21,13 @@ browser artifacts in a dedicated distribution directory.
   canonical-only fallback.
 - Preserved redirect target fragments, case-distinct page keys, and File or
   Category embedding; unsafe cross-namespace embeds remain unchanged.
+- Limited template Ctrl-click navigation to the template name instead of the
+  full invocation, leaving parameters and values directly editable.
+- Shaded paired HTML tag bodies with progressively darker nesting levels while
+  preserving fixed-gray markup, protected blocks, and nested link metadata.
+- Distinguished brace-based magic variables and parser functions from templates
+  with wikEd's red syntax color and no Template navigation, including localized
+  and full-width-colon forms; static `#invoke` operands link to Module pages.
 - Grouped the minified gadget and userscript under `dist/wiked-lite/`, removing
   retired readable and legacy flat files, and rejected linked output
   directories before cleanup.

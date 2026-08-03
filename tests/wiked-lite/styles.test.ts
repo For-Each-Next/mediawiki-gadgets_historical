@@ -53,6 +53,51 @@ test("highlight colors retain the original wikEd palette", () => {
     );
 });
 
+test("magic words and module names retain wikEd colors", () => {
+    assert.match(
+        styles,
+        /\.wiked-lite-token--parser-function\s*\{[^}]*rgb\(255, 0, 0\)/su,
+    );
+    assert.match(
+        styles,
+        /\.wiked-lite-token--module-name,[^}]*rgb\(85, 0, 153\)/su,
+    );
+});
+
+test("HTML content backgrounds darken with nesting depth", () => {
+    const depthColors = [
+        [246, "96"],
+        [228, "88"],
+        [218, "83.5"],
+    ] as const;
+    for (const [depth, [color, backgroundWeight]] of depthColors.entries()) {
+        const rule = getStyleRule(`.wiked-lite-token--html-content-${depth}`);
+        assert.match(
+            rule,
+            new RegExp(
+                `background:\\s*rgb\\(${color}, ${color}, ${color}\\)`,
+                "u",
+            ),
+        );
+        assert.ok(
+            rule.includes(`var(--wiked-lite-background) ${backgroundWeight}%`),
+        );
+        assert.match(rule, /var\(--wiked-lite-foreground\)/u);
+    }
+    const cappedRule = getStyleRule(
+        ".wiked-lite-token--html-content-3,\n" +
+            ".wiked-lite-token--html-content-4",
+        true,
+    );
+    assert.match(cappedRule, /rgb\(208, 208, 208\)/u);
+    assert.ok(cappedRule.includes("var(--wiked-lite-background) 79%"));
+    assert.match(cappedRule, /var\(--wiked-lite-foreground\)/u);
+    assert.ok(
+        styles.lastIndexOf(".wiked-lite-token--html-content-4") <
+            styles.indexOf(".wiked-lite-token--html-tag"),
+    );
+});
+
 test("heading underlines and language variants retain text styling", () => {
     const headingRules = [
         [
@@ -222,9 +267,9 @@ test("popup code preserves pending hovers and remeasures height", () => {
     assert.match(tooltipSource, /const renderedHeight = popup\.offsetHeight/u);
 });
 
-function getStyleRule(selector: string): string {
+function getStyleRule(selector: string, last = false): string {
     const opening = `${selector} {`;
-    const start = styles.indexOf(opening);
+    const start = last ? styles.lastIndexOf(opening) : styles.indexOf(opening);
     const end = styles.indexOf("}", start + opening.length);
 
     assert.notEqual(start, -1, `Missing stylesheet rule ${selector}`);

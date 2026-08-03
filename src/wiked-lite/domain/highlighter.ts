@@ -11,7 +11,12 @@ import {
     type ParsedTemplateParameter,
     type SourceRange,
     type TopLevelRange,
+    type WikitextTag,
 } from "#shared/wikitext";
+import {
+    classifyTemplateHead,
+    type TemplateHeadSyntax,
+} from "#gadget/domain/magic-words.ts";
 
 export interface HighlightSegment {
     classNames: string[];
@@ -72,6 +77,7 @@ const HIGHLIGHT_LITERAL_TAGS = [
     "chem",
     "graph",
     "hiero",
+    "mapframe",
     "math",
     "nowiki",
     "poem",
@@ -80,6 +86,7 @@ const HIGHLIGHT_LITERAL_TAGS = [
     "source",
     "syntaxhighlight",
     "templatedata",
+    "templatestyles",
     "timeline",
 ] as const;
 const LITERAL_TOKEN_CLASSES: Readonly<Record<string, string>> = {
@@ -98,6 +105,7 @@ const LITERAL_TOKEN_CLASSES: Readonly<Record<string, string>> = {
 };
 const NON_VISIBLE_LINK_TOKEN_CLASSES = new Set([
     "wiked-lite-token--html-tag",
+    "wiked-lite-token--module-name",
     "wiked-lite-token--parameter",
     "wiked-lite-token--template-delimiter",
     "wiked-lite-token--template-name",
@@ -176,8 +184,12 @@ export function highlightWikitext(
     options: HighlightOptions = {},
 ): HighlightSegment[] {
     const linkHelpers = options.linkHelpers === true;
-    const databaseName = options.databaseName ?? "";
     const namespaceSource = options.namespaceSource ?? "enwiki";
+    const databaseName =
+        options.databaseName ??
+        (typeof namespaceSource === "string"
+            ? namespaceSource
+            : namespaceSource.databaseName);
     const referenceNesting = createReferenceNestingContext(
         source,
         namespaceSource,
@@ -362,34 +374,72 @@ function isInsideRange(inner: SourceRange, ranges: SourceRange[]): boolean {
 }
 
 function createTagDecorations(source: string): DecoratedRange[] {
-    return createHighlightQuery(source)
-        .tag.getAll()
-        .flatMap(function decorate(tag) {
-            const ranges: DecoratedRange[] = [
-                {
-                    className: "wiked-lite-token--html-tag",
-                    end: tag.contentStart,
-                    priority: 40,
-                    start: tag.start,
-                },
-            ];
-            if (!tag.selfClosing && tag.contentEnd < tag.end) {
-                ranges.push({
-                    className: "wiked-lite-token--html-tag",
-                    end: tag.end,
-                    priority: 40,
-                    start: tag.contentEnd,
-                });
-            }
-            return [
-                ...ranges,
-                ...createTagAttributeDecorations(
-                    source,
-                    tag.start,
-                    tag.contentStart,
-                ),
-            ];
+    const tags = createHighlightQuery(source).tag.getAll();
+    const ancestors: SourceRange[] = [];
+    const ranges: DecoratedRange[] = [];
+    for (const tag of tags) {
+        removeCompletedTagAncestors(ancestors, tag);
+        const depth = ancestors.length;
+        ranges.push(...decorateTag(source, tag, depth));
+        if (tag.closed && !tag.selfClosing) {
+            ancestors.push(tag);
+        }
+    }
+    return ranges;
+}
+
+function removeCompletedTagAncestors(
+    ancestors: SourceRange[],
+    tag: SourceRange,
+): void {
+    while (ancestors.length > 0) {
+        const parent = ancestors.at(-1);
+        if (parent != null && containsRange(parent, tag)) {
+            return;
+        }
+        ancestors.pop();
+    }
+}
+
+function decorateTag(
+    source: string,
+    tag: WikitextTag,
+    depth: number,
+): DecoratedRange[] {
+    const visibleDepth = Math.min(depth, 4);
+    const ranges: DecoratedRange[] = [
+        {
+            className: "wiked-lite-token--html-tag",
+            end: tag.contentStart,
+            priority: 40,
+            start: tag.start,
+        },
+    ];
+    if (
+        tag.closed &&
+        !tag.protectedContent &&
+        tag.contentStart < tag.contentEnd &&
+        depth <= 4
+    ) {
+        ranges.push({
+            className: `wiked-lite-token--html-content-${visibleDepth}`,
+            end: tag.contentEnd,
+            priority: 30 + visibleDepth,
+            start: tag.contentStart,
         });
+    }
+    if (!tag.selfClosing && tag.contentEnd < tag.end) {
+        ranges.push({
+            className: "wiked-lite-token--html-tag",
+            end: tag.end,
+            priority: 40,
+            start: tag.contentEnd,
+        });
+    }
+    return [
+        ...ranges,
+        ...createTagAttributeDecorations(source, tag.start, tag.contentStart),
+    ];
 }
 
 function createTagAttributeDecorations(
@@ -605,7 +655,13 @@ function decorateTemplate(
     const ranges = [
         createTemplateMainDecoration(template, name, depth, context),
         ...createTemplateDelimiterDecorations(template, depth),
-        ...createTemplateSyntaxDecorations(source, template, depth),
+        ...createTemplateSyntaxDecorations(
+            source,
+            template,
+            depth,
+            context.databaseName,
+            context.namespaceSource,
+        ),
         ...(context.linkHelpersEnabled && isLinkHelperName(name)
             ? createLinkHelperDecorations(source, template, name)
             : []),
@@ -628,15 +684,10 @@ function createTemplateMainDecoration(
     depth: number,
     context: TemplateDecorationContext,
 ): DecoratedRange {
-    const templateTitle = getTemplateTitle(
-        template.name,
-        context.namespaceSource,
-    );
     return {
         end: template.end,
         start: template.start,
         className: getTemplateClass(name, depth, context.databaseName),
-        href: `/wiki/${encodeTitle(templateTitle)}`,
         priority: 30 + depth,
         referenceSource: REFERENCE_TEMPLATE_NAMES.has(name)
             ? template.raw
@@ -665,6 +716,13 @@ function getTemplateTitle(
         }
     }
     return formatNamespaceTitle(title, namespaceSource, 10);
+}
+
+function getTemplateHref(
+    value: string,
+    namespaceSource: NamespaceSource,
+): string {
+    return `/wiki/${encodeTitle(getTemplateTitle(value, namespaceSource))}`;
 }
 
 function normalizeCurrentTemplateName(
@@ -805,21 +863,40 @@ function createTemplateSyntaxDecorations(
     source: string,
     template: ParsedTemplateCall,
     depth: number,
+    databaseName: string,
+    namespaceSource: NamespaceSource,
 ): DecoratedRange[] {
     const priority = 50 + depth;
-    const ranges: DecoratedRange[] = [];
     const nameStart = source.indexOf(
         template.name,
         Math.min(template.start + 2, template.end),
     );
-    if (nameStart >= template.start && nameStart < template.end) {
-        ranges.push({
-            className: "wiked-lite-token--template-name",
-            end: nameStart + template.name.length,
-            priority,
-            start: nameStart,
-        });
-    }
+    const head =
+        nameStart >= template.start && nameStart < template.end
+            ? createTemplateHeadDecorations(
+                  source,
+                  classifyTemplateHead(
+                      template.name,
+                      template.params.length > 0,
+                      databaseName,
+                  ),
+                  nameStart,
+                  priority,
+                  namespaceSource,
+              )
+            : [];
+    return [
+        ...head,
+        ...createTemplateParameterNameDecorations(source, template, priority),
+    ];
+}
+
+function createTemplateParameterNameDecorations(
+    source: string,
+    template: ParsedTemplateCall,
+    priority: number,
+): DecoratedRange[] {
+    const ranges: DecoratedRange[] = [];
     for (const parameter of template.params) {
         if (parameter.positional) {
             continue;
@@ -837,6 +914,153 @@ function createTemplateSyntaxDecorations(
         });
     }
     return ranges;
+}
+
+function createTemplateHeadDecorations(
+    source: string,
+    syntax: TemplateHeadSyntax,
+    nameStart: number,
+    priority: number,
+    namespaceSource: NamespaceSource,
+): DecoratedRange[] {
+    const ranges = createTemplateModifierDecorations(
+        syntax,
+        nameStart,
+        priority,
+    );
+    if (syntax.kind === "template") {
+        return [
+            ...ranges,
+            ...createTemplateTargetDecoration(
+                source,
+                syntax.target,
+                nameStart,
+                priority,
+                namespaceSource,
+            ),
+        ];
+    }
+    return [
+        ...ranges,
+        ...createMagicWordDecorations(
+            source,
+            syntax,
+            nameStart,
+            priority,
+            namespaceSource,
+        ),
+    ];
+}
+
+function createMagicWordDecorations(
+    source: string,
+    syntax: Extract<TemplateHeadSyntax, { kind: "magic-word" }>,
+    nameStart: number,
+    priority: number,
+    namespaceSource: NamespaceSource,
+): DecoratedRange[] {
+    return [
+        createParserFunctionDecoration(syntax.magicWord, nameStart, priority),
+        ...createModuleNameDecoration(
+            source,
+            syntax.invoke ? syntax.argument : undefined,
+            nameStart,
+            priority,
+            namespaceSource,
+        ),
+    ];
+}
+
+function createTemplateModifierDecorations(
+    syntax: TemplateHeadSyntax,
+    nameStart: number,
+    priority: number,
+): DecoratedRange[] {
+    return [
+        ...syntax.modifiers.map((range) =>
+            createParserFunctionDecoration(range, nameStart, priority),
+        ),
+        ...syntax.separators.map((range) =>
+            createParserFunctionDecoration(range, nameStart, priority),
+        ),
+    ];
+}
+
+function createParserFunctionDecoration(
+    range: SourceRange,
+    offset: number,
+    priority: number,
+): DecoratedRange {
+    return {
+        className: "wiked-lite-token--parser-function",
+        end: offset + range.end,
+        priority,
+        start: offset + range.start,
+    };
+}
+
+function createTemplateTargetDecoration(
+    source: string,
+    targetRange: SourceRange,
+    nameStart: number,
+    priority: number,
+    namespaceSource: NamespaceSource,
+): DecoratedRange[] {
+    const target = source.slice(
+        nameStart + targetRange.start,
+        nameStart + targetRange.end,
+    );
+    return target === ""
+        ? []
+        : [
+              {
+                  className: "wiked-lite-token--template-name",
+                  end: nameStart + targetRange.end,
+                  href: getTemplateHref(target, namespaceSource),
+                  priority,
+                  start: nameStart + targetRange.start,
+              },
+          ];
+}
+
+function createModuleNameDecoration(
+    source: string,
+    module: SourceRange | undefined,
+    nameStart: number,
+    priority: number,
+    namespaceSource: NamespaceSource,
+): DecoratedRange[] {
+    if (module == null) {
+        return [];
+    }
+    const moduleName = source.slice(
+        nameStart + module.start,
+        nameStart + module.end,
+    );
+    const href = getModuleHref(moduleName, namespaceSource);
+    return href == null
+        ? []
+        : [
+              {
+                  className: "wiked-lite-token--module-name",
+                  end: nameStart + module.end,
+                  href,
+                  priority,
+                  start: nameStart + module.start,
+              },
+          ];
+}
+
+function getModuleHref(
+    value: string,
+    namespaceSource: NamespaceSource,
+): string | undefined {
+    const prefix = getNamespacePrefixes(namespaceSource, 828)[0];
+    if (value === "" || /[#<>{}\[\]|\n\r]/u.test(value) || prefix == null) {
+        return undefined;
+    }
+    const title = `${prefix}:${value}`;
+    return `/wiki/${encodeTitle(title)}`;
 }
 
 function getTemplateClass(

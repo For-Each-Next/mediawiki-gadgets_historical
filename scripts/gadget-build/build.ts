@@ -2,11 +2,12 @@
  * Coordinates one complete gadget and userscript build.
  */
 
-import { lstat, mkdir, rm, writeFile } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import { basename, parse, resolve } from "node:path";
 import { minify } from "terser";
 import { bundleSource } from "./bundle.ts";
 import { formatMediaWikiOutput } from "./mediawiki.ts";
+import { ensureBuildDirectory } from "./output.ts";
 import { loadGadgetBuildPlan } from "./package.ts";
 import type { GadgetBuildPlan } from "./types.ts";
 import { formatUserscript } from "./userscript.ts";
@@ -37,45 +38,6 @@ export async function buildGadget(packageRoot: string): Promise<void> {
     ]);
     const minifiedCode = await minifyBundledSource(minifiedSource);
     await writeBuildOutputs(plan, outputPaths, source, minifiedCode);
-}
-
-/**
- * Creates a build directory or rejects links and non-directory entries.
- *
- * @param path - Expected directory path.
- * @param label - Directory label for diagnostics.
- */
-async function ensureBuildDirectory(
-    path: string,
-    label: string,
-): Promise<void> {
-    try {
-        const stats = await lstat(path);
-        if (!stats.isDirectory() || stats.isSymbolicLink()) {
-            throw new Error(`${label} must be a real directory.`);
-        }
-    } catch (error) {
-        if (!hasErrorCode(error, "ENOENT")) {
-            throw error;
-        }
-        await mkdir(path);
-    }
-}
-
-/**
- * Checks an unknown error for one Node error code.
- *
- * @param error - Error value to inspect.
- * @param code - Code to compare.
- * @returns Whether the error contains the code.
- */
-function hasErrorCode(error: unknown, code: string): boolean {
-    return (
-        typeof error === "object" &&
-        error != null &&
-        "code" in error &&
-        error.code === code
-    );
 }
 
 /**

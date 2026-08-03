@@ -10,6 +10,10 @@ package changelog, builds browser artifacts, or formalizes a release.
 - Use its `package.json` version as the source of truth for all generated
   artifacts. Version changes remain scoped to affected gadget packages; the
   private root and shared workspace versions stay fixed.
+- Treat the all-gadget userscript as a derived convenience artifact rather than
+  an independent release. Its UTC build timestamp is the aggregate header
+  version; the embedded gadgets retain their package versions and release
+  cycles.
 - Classify the release from its actual effect. Material work includes features,
   fixes, behavior or MediaWiki-query changes, dependency changes, package or
   entry-point changes, public API changes, and generated browser changes.
@@ -71,6 +75,10 @@ package changelog, builds browser artifacts, or formalizes a release.
   migration, also remove its retired readable and legacy flat artifacts.
 - A successful build writes a minified `.min.js` file and a
   Greasemonkey-compatible `.user.js` file under `dist/<gadget-name>/`.
+- A complete workspace build also replaces the aggregate artifact at
+  `dist/mediawiki-gadgets/mediawiki_gadgets.user.js`. Building it directly with
+  `npm run build:all-userscript` reads current package sources and does not
+  require the individual artifacts first.
 - Publication replaces or removes only the previous artifact for the same
   gadget and form.
 - Synchronize the package version, active changelog heading, related
@@ -84,9 +92,12 @@ package changelog, builds browser artifacts, or formalizes a release.
 2. Finalize the active changelog timestamp, overview, and durable outcomes.
 3. Run `npm run check`.
 4. Build every affected gadget with `npm run build -w <gadget>`. Use
-   `npm run build` when shared work affects every gadget.
-5. Confirm the `.min.js` and `.user.js` headers contain the canonical package
-   version.
+   `npm run build` when shared work affects every gadget. Rebuild the aggregate
+   with `npm run build:all-userscript` when delivering the combined userscript
+   after a package-only build.
+5. Confirm each package artifact header contains its canonical package version.
+   When built, confirm the aggregate header contains its UTC timestamp and all
+   package authors.
 6. Inspect `git diff --check`, the complete diff, and the final worktree
    status.
 

@@ -19,14 +19,17 @@ export interface GadgetBuildConfig {
     userscript?: UserscriptConfig;
 }
 
-export interface PackageMetadata {
+export interface UserscriptMetadata {
     author: string;
-    browser?: string;
     description: string;
-    gadgetBuild: GadgetBuildConfig;
-    main?: string;
     name: string;
     version: string;
+}
+
+export interface PackageMetadata extends UserscriptMetadata {
+    browser?: string;
+    gadgetBuild: GadgetBuildConfig;
+    main?: string;
     vue?: VueConfig;
 }
 
@@ -51,6 +54,12 @@ export interface UserscriptConfig {
     namespace?: string;
     runAt?: string;
     sandbox?: string;
+}
+
+export interface UserscriptProgram {
+    matches: string[];
+    name: string;
+    source: string;
 }
 
 export interface VueConfig {

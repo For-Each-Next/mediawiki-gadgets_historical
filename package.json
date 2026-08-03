@@ -17,7 +17,9 @@
         "src/*"
     ],
     "scripts": {
-        "build": "npm run build --workspaces --if-present",
+        "build": "npm run build:packages && npm run build:all-userscript",
+        "build:all-userscript": "node scripts/gadget-build/all-cli.ts",
+        "build:packages": "npm run build --workspaces --if-present",
         "check": "npm run check:packages && npm run check:layers && npm run check:markdown && npm run typecheck && npm run lint && npm test && npm run format:check",
         "check:layers": "node scripts/check-layer-dependencies.ts",
         "check:markdown": "node scripts/check-markdown-lines.ts",

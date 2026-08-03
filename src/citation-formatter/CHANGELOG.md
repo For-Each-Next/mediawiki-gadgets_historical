@@ -2,6 +2,15 @@
 
 ## Until 0.6
 
+### 0.5.1-post.30 (2026-08-03 10:49 UTC)
+
+Overview: Citation Formatter packages its two browser artifacts in a dedicated
+distribution directory with guarded migration cleanup.
+
+- Grouped the minified gadget and userscript under `dist/citation-formatter/`,
+  removed retired readable and legacy flat files, and rejected linked output
+  directories before cleanup.
+
 ### 0.5.1-post.26 (2026-08-03 08:24 UTC)
 
 Overview: Citation Formatter resolves current-wiki Template prefixes through

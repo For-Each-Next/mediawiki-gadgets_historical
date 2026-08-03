@@ -2,10 +2,10 @@
 
 ## Until 0.6
 
-### 0.5.1-post.6 (2026-08-03 07:32 UTC)
+### 0.5.1-post.8 (2026-08-03 10:49 UTC)
 
-Overview: VG Stub Creator uses shared Chinese and English Wikipedia namespace
-catalogs instead of literal namespace names.
+Overview: VG Stub Creator uses shared wiki namespace catalogs and packages its
+two browser artifacts in a dedicated distribution directory.
 
 - Replaced hardcoded template, category, talk, special, and WikiProject title
   construction and parsing with database-scoped namespace-ID helpers.
@@ -15,6 +15,9 @@ catalogs instead of literal namespace names.
   TemplateData aliases, and English-category boundaries.
 - Kept enwiki and zhwiki cross-wiki targets on immutable static catalogs while
   shared current-wiki consumers gained validated siteinfo catalogs.
+- Grouped the minified gadget and userscript under `dist/vg-stub-creator/`,
+  removed retired readable and legacy flat files, and rejected linked output
+  directories before cleanup.
 
 ### 0.5.1-post.3 (2026-08-01 18:01 UTC)
 

@@ -4,7 +4,6 @@
 
 export interface BundleOptions {
     minifyText?: boolean;
-    preserveDocumentation?: boolean;
 }
 
 export interface DefineConfig {

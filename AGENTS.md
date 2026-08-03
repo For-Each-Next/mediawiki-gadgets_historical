@@ -42,7 +42,7 @@
   development or safety status.
 - Use `Run`, `Features`, `Development`, `Architecture`, and `License` as the
   second-level README sections.
-- In `Run`, show the exact workspace build command, name all three generated
+- In `Run`, show the exact workspace build command, name both generated
   artifacts, document each supported installation surface, and explain how to
   launch the installed gadget safely.
 - Write `Features` as concrete, present-tense user outcomes. Cover the primary

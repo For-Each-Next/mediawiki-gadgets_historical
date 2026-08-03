@@ -14,20 +14,20 @@ Build the package from the repository root:
 npm run build -w citation-formatter
 ```
 
-This writes three ignored artifacts directly to `dist/`:
+This writes two ignored artifacts to `dist/citation-formatter/`:
 
-- `citation_formatter.js` is the formatted, human-readable version.
-- `citation_formatter.min.js` is the minified version.
-- `citation_formatter.user.js` is the Greasemonkey-compatible version.
+- `dist/citation-formatter/citation_formatter.min.js` is the minified version.
+- `dist/citation-formatter/citation_formatter.user.js` is the
+  Greasemonkey-compatible version.
 
 ### MediaWiki user page
 
 On the target wiki, open `Special:MyPage/common.js`, paste the complete
-contents of `dist/citation_formatter.min.js`, and publish the page. Use
-[Meta-Wiki's `Special:MyPage/global.js`][1] instead to load Citation Formatter
-on every Wikimedia wiki where the account is active. Personal JavaScript pages
-must be enabled by the wiki; see MediaWiki's [personal-script
-documentation][2].
+contents of `dist/citation-formatter/citation_formatter.min.js`, and publish
+the page. Use [Meta-Wiki's `Special:MyPage/global.js`][1] instead to load
+Citation Formatter on every Wikimedia wiki where the account is active.
+Personal JavaScript pages must be enabled by the wiki; see MediaWiki's
+[personal-script documentation][2].
 
 After publishing, bypass the browser cache or perform a hard refresh.
 
@@ -35,10 +35,10 @@ After publishing, bypass the browser cache or perform a hard refresh.
 
 In [Tampermonkey][3], a compatible userscript manager, open the dashboard and
 select **Add a new script**. Replace the editor contents with the complete
-contents of `dist/citation_formatter.user.js`, and save it. Keep the generated
-metadata header intact and make sure the installed script is enabled.
-Chrome-based browsers may also require the extension's [userscript execution
-permission][4].
+contents of `dist/citation-formatter/citation_formatter.user.js`, and save it.
+Keep the generated metadata header intact and make sure the installed script is
+enabled. Chrome-based browsers may also require the extension's [userscript
+execution permission][4].
 
 After either installation, open a page in a supported MediaWiki source editor.
 Citation Formatter appears in the page actions or toolbox and as a floating

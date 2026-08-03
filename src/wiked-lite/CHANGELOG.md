@@ -2,10 +2,10 @@
 
 ## Until 0.5
 
-### 0.4.4-dev.30 (2026-08-03 08:24 UTC)
+### 0.4.4-dev.35 (2026-08-03 10:49 UTC)
 
-Overview: wikEd Lite preserves entered wikilink text when resolving redirects
-and recognizes database-scoped namespace aliases.
+Overview: wikEd Lite preserves entered wikilink text and packages its two
+browser artifacts in a dedicated distribution directory.
 
 - Rewrote unpiped redirect links as piped links whose labels keep the original
   title and fragment, while retaining existing explicit labels.
@@ -21,6 +21,9 @@ and recognizes database-scoped namespace aliases.
   canonical-only fallback.
 - Preserved redirect target fragments, case-distinct page keys, and File or
   Category embedding; unsafe cross-namespace embeds remain unchanged.
+- Grouped the minified gadget and userscript under `dist/wiked-lite/`, removing
+  retired readable and legacy flat files, and rejected linked output
+  directories before cleanup.
 
 ### 0.4.4-dev.26 (2026-08-02 17:45 UTC)
 

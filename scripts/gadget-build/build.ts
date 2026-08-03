@@ -2,15 +2,11 @@
  * Coordinates one complete gadget and userscript build.
  */
 
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { parse, resolve } from "node:path";
+import { lstat, mkdir, rm, writeFile } from "node:fs/promises";
+import { basename, parse, resolve } from "node:path";
 import { minify } from "terser";
-import { assertUniqueWorkspaceArtifacts } from "./artifacts.ts";
 import { bundleSource } from "./bundle.ts";
-import {
-    formatMediaWikiOutput,
-    formatReadableMediaWikiOutput,
-} from "./mediawiki.ts";
+import { formatMediaWikiOutput } from "./mediawiki.ts";
 import { loadGadgetBuildPlan } from "./package.ts";
 import type { GadgetBuildPlan } from "./types.ts";
 import { formatUserscript } from "./userscript.ts";
@@ -22,26 +18,86 @@ import { formatUserscript } from "./userscript.ts";
  */
 export async function buildGadget(packageRoot: string): Promise<void> {
     const plan = await loadGadgetBuildPlan(packageRoot);
-    await assertUniqueWorkspaceArtifacts(packageRoot);
-    const outputDirectory = resolve(packageRoot, plan.config.outputDirectory);
-    assertSharedOutputDirectory(packageRoot, outputDirectory);
-    await mkdir(outputDirectory, { recursive: true });
+    const outputRoot = resolve(packageRoot, plan.config.outputDirectory);
+    assertSharedOutputDirectory(packageRoot, outputRoot);
+    const outputDirectory = createPackageOutputDirectory(
+        packageRoot,
+        outputRoot,
+        plan.metadata.name,
+    );
+    await ensureBuildDirectory(outputRoot, "Shared output root");
+    await ensureBuildDirectory(outputDirectory, "Gadget output directory");
     const outputPaths = createOutputPaths(plan, outputDirectory);
-    await cleanBuildOutputs(outputPaths);
+    const legacyOutputPaths = createOutputPaths(plan, outputRoot);
+    await cleanBuildOutputs([outputPaths, legacyOutputPaths]);
 
-    const [documentedSource, source, minifiedSource] = await Promise.all([
-        bundleSource(plan, { preserveDocumentation: true }),
+    const [source, minifiedSource] = await Promise.all([
         bundleSource(plan),
         bundleSource(plan, { minifyText: true }),
     ]);
     const minifiedCode = await minifyBundledSource(minifiedSource);
-    await writeBuildOutputs(
-        plan,
-        outputPaths,
-        documentedSource,
-        source,
-        minifiedCode,
+    await writeBuildOutputs(plan, outputPaths, source, minifiedCode);
+}
+
+/**
+ * Creates a build directory or rejects links and non-directory entries.
+ *
+ * @param path - Expected directory path.
+ * @param label - Directory label for diagnostics.
+ */
+async function ensureBuildDirectory(
+    path: string,
+    label: string,
+): Promise<void> {
+    try {
+        const stats = await lstat(path);
+        if (!stats.isDirectory() || stats.isSymbolicLink()) {
+            throw new Error(`${label} must be a real directory.`);
+        }
+    } catch (error) {
+        if (!hasErrorCode(error, "ENOENT")) {
+            throw error;
+        }
+        await mkdir(path);
+    }
+}
+
+/**
+ * Checks an unknown error for one Node error code.
+ *
+ * @param error - Error value to inspect.
+ * @param code - Code to compare.
+ * @returns Whether the error contains the code.
+ */
+function hasErrorCode(error: unknown, code: string): boolean {
+    return (
+        typeof error === "object" &&
+        error != null &&
+        "code" in error &&
+        error.code === code
     );
+}
+
+/**
+ * Resolves the package directory below the shared distribution root.
+ *
+ * @param packageRoot - Workspace package directory.
+ * @param outputRoot - Shared workspace distribution directory.
+ * @param packageName - Declared package name.
+ * @returns Package-owned distribution directory.
+ */
+function createPackageOutputDirectory(
+    packageRoot: string,
+    outputRoot: string,
+    packageName: string,
+): string {
+    const directoryName = basename(resolve(packageRoot));
+    if (packageName !== directoryName) {
+        throw new Error(
+            "package.json name must match its package directory before build.",
+        );
+    }
+    return resolve(outputRoot, directoryName);
 }
 
 /**
@@ -67,39 +123,41 @@ function assertSharedOutputDirectory(
     }
 }
 
-interface OutputPaths {
-    formatted: string;
+interface ArtifactPaths {
     minified: string;
+    retiredReadable: string;
     userscript: string;
 }
 
 /**
- * Resolves the three exact artifact paths owned by one gadget.
+ * Resolves current and retired artifact paths owned by one gadget.
  *
  * @param plan - Plan value.
  * @param outputDirectory - Output directory value.
- * @returns Resolved the three exact artifact paths owned by one gadget.
+ * @returns Current and retired artifact paths owned by one gadget.
  */
 function createOutputPaths(
     plan: GadgetBuildPlan,
     outputDirectory: string,
-): OutputPaths {
+): ArtifactPaths {
     const outputName = plan.config.outputName;
     return {
-        formatted: resolve(outputDirectory, `${outputName}.js`),
         minified: resolve(outputDirectory, `${outputName}.min.js`),
+        retiredReadable: resolve(outputDirectory, `${outputName}.js`),
         userscript: resolve(outputDirectory, `${outputName}.user.js`),
     };
 }
 
 /**
- * Removes only the three exact outputs owned by one gadget.
+ * Removes current outputs and the retired readable artifact.
  *
- * @param paths - Paths value.
+ * @param pathSets - Current and legacy output paths.
  */
-async function cleanBuildOutputs(paths: OutputPaths): Promise<void> {
+async function cleanBuildOutputs(pathSets: ArtifactPaths[]): Promise<void> {
     await Promise.all(
-        Object.values(paths).map((path) => rm(path, { force: true })),
+        pathSets
+            .flatMap(Object.values)
+            .map((path) => rm(path, { force: true })),
     );
 }
 
@@ -122,29 +180,27 @@ async function minifyBundledSource(source: string): Promise<string> {
 }
 
 /**
- * Writes the readable, minified, and userscript outputs.
+ * Writes the minified and userscript outputs.
  *
  * @param plan - Resolved gadget build plan.
  * @param paths - Exact artifact paths owned by the gadget.
- * @param documentedSource - Bundle retaining authored documentation.
  * @param userscriptSource - Ordinary unminified bundled source.
  * @param minifiedCode - Minified bundled source.
  */
 async function writeBuildOutputs(
     plan: GadgetBuildPlan,
-    paths: OutputPaths,
-    documentedSource: string,
+    paths: ArtifactPaths,
     userscriptSource: string,
     minifiedCode: string,
 ): Promise<void> {
     const { metadata } = plan;
-    const [formattedOutput, userscript] = await Promise.all([
-        formatReadableMediaWikiOutput(documentedSource, metadata),
-        formatUserscript(userscriptSource, metadata, plan.config.userscript),
-    ]);
+    const userscript = await formatUserscript(
+        userscriptSource,
+        metadata,
+        plan.config.userscript,
+    );
     const minifiedOutput = formatMediaWikiOutput(minifiedCode, metadata);
     await Promise.all([
-        writeFile(paths.formatted, formattedOutput),
         writeFile(paths.minified, minifiedOutput),
         writeFile(paths.userscript, userscript),
     ]);

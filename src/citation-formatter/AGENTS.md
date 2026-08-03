@@ -31,9 +31,8 @@ repository instructions.
   reserve live `action=parse` CS1 validation for an explicit user action.
 - Mount only after the required MediaWiki modules and editor surface are
   available. Keep browser-independent operations usable in tests without `mw`,
-  Vue, or a browser DOM. The formatted, minified, and userscript browser
-  artifacts are the products; the private TypeScript package is not a published
-  library.
+  Vue, or a browser DOM. The minified and userscript browser artifacts are the
+  products; the private TypeScript package is not a published library.
 
 ## TemplateData and Site Validation
 

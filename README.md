@@ -25,12 +25,12 @@ npm install
 npm run build
 ```
 
-Generated files are written directly under `dist/`. Each gadget produces three
-stable, unhashed files:
+Generated files are written under `dist/<gadget-name>/`, where the directory
+uses the hyphenated package name. Each gadget produces two stable, unhashed
+files:
 
-- `<name>.js`: the formatted, human-readable version;
-- `<name>.min.js`: the minified version; and
-- `<name>.user.js`: the Greasemonkey-compatible version.
+- `dist/<gadget-name>/<name>.min.js`: the minified version; and
+- `dist/<gadget-name>/<name>.user.js`: the Greasemonkey-compatible version.
 
 Build one gadget with `npm run build -w <gadget-name>`. Its package README
 contains installation and use instructions.

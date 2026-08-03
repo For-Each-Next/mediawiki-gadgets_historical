@@ -9,6 +9,7 @@ import {
     readFile,
     readdir,
     rm,
+    symlink,
     writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,19 +26,17 @@ const EXPECTED_FIXTURE_MARKUP = [
     "</div>",
 ].join("\n");
 
-test("a build replaces only its three flat artifacts", async (context) => {
+test("a build replaces only its package artifacts", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
     await writeFixturePackage(packageRoot);
 
     await buildGadget(packageRoot);
 
-    const outputDirectory = join(workspaceRoot, "dist");
+    const outputRoot = join(workspaceRoot, "dist");
+    const outputDirectory = join(outputRoot, "fixture-gadget");
+    const rootFiles = (await readdir(outputRoot)).sort();
     const files = (await readdir(outputDirectory)).sort();
-    const formatted = await readFile(
-        join(outputDirectory, "fixture.js"),
-        "utf8",
-    );
     const minified = await readFile(
         join(outputDirectory, "fixture.min.js"),
         "utf8",
@@ -47,18 +46,23 @@ test("a build replaces only its three flat artifacts", async (context) => {
         "utf8",
     );
     const sibling = await readFile(
-        join(outputDirectory, "other_gadget.js"),
+        join(outputRoot, "other_gadget.js"),
         "utf8",
     );
     const siblingDirectoryFile = await readFile(
-        join(outputDirectory, "other-gadget", "note.txt"),
+        join(outputRoot, "other-gadget", "note.txt"),
+        "utf8",
+    );
+    const packageDirectoryFile = await readFile(
+        join(outputDirectory, "note.txt"),
         "utf8",
     );
 
     assertFixtureArtifacts({
         files,
-        formatted,
         minified,
+        packageDirectoryFile,
+        rootFiles,
         sibling,
         siblingDirectoryFile,
         userscript,
@@ -67,51 +71,44 @@ test("a build replaces only its three flat artifacts", async (context) => {
 
 interface FixtureArtifacts {
     files: string[];
-    formatted: string;
     minified: string;
+    packageDirectoryFile: string;
+    rootFiles: string[];
     sibling: string;
     siblingDirectoryFile: string;
     userscript: string;
 }
 
 /**
- * Checks the complete flat output contract of a fixture build.
+ * Checks the complete package output contract of a fixture build.
  *
  * @param artifacts - Artifacts value.
  */
 function assertFixtureArtifacts(artifacts: FixtureArtifacts): void {
     const {
         files,
-        formatted,
         minified,
+        packageDirectoryFile,
+        rootFiles,
         sibling,
         siblingDirectoryFile,
         userscript,
     } = artifacts;
-    assert.deepEqual(files, [
-        "fixture.js",
-        "fixture.min.js",
-        "fixture.user.js",
+    assert.deepEqual(rootFiles, [
+        "fixture-gadget",
         "other-gadget",
         "other_gadget.js",
     ]);
+    assert.deepEqual(files, ["fixture.min.js", "fixture.user.js", "note.txt"]);
+    assert.equal(packageDirectoryFile, "keep package directory\n");
     assert.equal(sibling, "keep\n");
     assert.equal(siblingDirectoryFile, "keep directory\n");
-    assert.match(formatted, /\/\/ @version\s+1\.2\.3/u);
-    assert.match(formatted, /\/\*\*\s*\* Reports the fixture version\./u);
-    assert.match(formatted, /\* @returns The fixture version\./u);
-    assert.match(formatted, /function getVersion\(\) \{/u);
-    assert.match(formatted, /"\/\*\* runtime text \*\/"/u);
-    assert.match(formatted, /\/\*\* runtime template \*\//u);
-    assert.match(formatted, /Returns the runtime template/u);
-    assert.match(formatted, /\/\/<nowiki>/u);
     assert.doesNotMatch(minified, /Reports the fixture version/u);
     assert.match(minified, /\/\/ @version\s+1\.2\.3/u);
     assert.match(userscript, /\/\/ @version\s+1\.2\.3/u);
     assert.match(userscript, /window\.mw/u);
     assertUserscriptCodeHasNoComments(userscript);
-    assertReadableMarkupFormatting(formatted, userscript);
-    assertBuiltMarkupValue(formatted);
+    assertUserscriptMarkupFormatting(userscript);
     assertBuiltMarkupValue(minified);
     assertBuiltMarkupValue(userscript, true);
 }
@@ -137,20 +134,13 @@ function assertUserscriptCodeHasNoComments(userscript: string): void {
 /**
  * Checks readable indentation and template newline serialization.
  *
- * @param formatted - Formatted value.
  * @param userscript - Userscript value.
  */
-function assertReadableMarkupFormatting(
-    formatted: string,
-    userscript: string,
-): void {
+function assertUserscriptMarkupFormatting(userscript: string): void {
     const encoded = '`<div id="fixture">\\n${value}\\n</div>`';
-    for (const readable of [formatted, userscript]) {
-        assert.ok(readable.includes(encoded));
-        assert.doesNotMatch(readable, /^\$\{value\}$/mu);
-        assert.doesNotMatch(readable, /^<\/div>`/mu);
-    }
-    assert.match(formatted, /^ {4}function wrapFixtureMarkup\(/mu);
+    assert.ok(userscript.includes(encoded));
+    assert.doesNotMatch(userscript, /^\$\{value\}$/mu);
+    assert.doesNotMatch(userscript, /^<\/div>`/mu);
     assert.match(userscript, /^ {4}function start\(\)/mu);
 }
 
@@ -187,11 +177,7 @@ test("a build injects Vue templates and CSS as text", async (context) => {
 
     await buildGadget(packageRoot);
 
-    const outputDirectory = join(workspaceRoot, "dist");
-    const formatted = await readFile(
-        join(outputDirectory, "fixture.js"),
-        "utf8",
-    );
+    const outputDirectory = join(workspaceRoot, "dist", "fixture-gadget");
     const minified = await readFile(
         join(outputDirectory, "fixture.min.js"),
         "utf8",
@@ -201,11 +187,9 @@ test("a build injects Vue templates and CSS as text", async (context) => {
         "utf8",
     );
 
-    for (const readable of [formatted, userscript]) {
-        assert.doesNotMatch(readable, /<template>/u);
-        assert.match(readable, /Fixture dialog/u);
-        assert.match(readable, /\.fixture-dialog \{/u);
-    }
+    assert.doesNotMatch(userscript, /<template>/u);
+    assert.match(userscript, /Fixture dialog/u);
+    assert.match(userscript, /\.fixture-dialog \{/u);
     assert.ok(
         minified.includes(
             '<cdx-dialog><p class="fixture-dialog">' +
@@ -259,21 +243,37 @@ test("a build rejects an output name that escapes", async (context) => {
     await assert.rejects(buildGadget(packageRoot), /safe file basename/u);
 });
 
-test("a build rejects collisions before cleaning outputs", async (context) => {
+test("a build rejects a mismatched package name", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
-    await writeFixturePackage(packageRoot);
-    await writeSiblingBuildPackage(workspaceRoot, "fixture.min");
+    await writeFixturePackage(packageRoot, { packageName: "other-gadget" });
 
     await assert.rejects(
         buildGadget(packageRoot),
-        /fixture\.min\.js collides/u,
+        /name must match its package directory/u,
+    );
+});
+
+test("a build rejects a linked package output directory", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot);
+    const outputDirectory = join(workspaceRoot, "dist", "fixture-gadget");
+    const externalDirectory = join(workspaceRoot, "external");
+    await mkdir(externalDirectory);
+    await writeFile(join(externalDirectory, "fixture.min.js"), "outside\n");
+    await rm(outputDirectory, { recursive: true });
+    await symlink(externalDirectory, outputDirectory, "dir");
+
+    await assert.rejects(
+        buildGadget(packageRoot),
+        /output directory must be a real directory/u,
     );
     const preserved = await readFile(
-        join(workspaceRoot, "dist", "fixture.min.js"),
+        join(externalDirectory, "fixture.min.js"),
         "utf8",
     );
-    assert.equal(preserved, "stale\n");
+    assert.equal(preserved, "outside\n");
 });
 
 /**
@@ -292,7 +292,7 @@ async function createFixtureWorkspace(): Promise<{
 }
 
 /**
- * Writes a minimal package and one stale output file.
+ * Writes a minimal package with current and legacy stale outputs.
  *
  * @param packageRoot - Temporary package directory.
  * @param options - Optional unsafe values used by negative tests.
@@ -302,14 +302,14 @@ async function writeFixturePackage(
     options: FixturePackageOptions = {},
 ): Promise<void> {
     const outputDirectory = options.outputDirectory ?? "../../dist";
-    const outputPath = join(packageRoot, outputDirectory);
-    await mkdir(outputPath, { recursive: true });
-    await mkdir(join(packageRoot, "../../dist/other-gadget"), {
-        recursive: true,
-    });
+    const outputRoot = join(packageRoot, "../../dist");
+    const packageOutputPath = join(outputRoot, "fixture-gadget");
+    await Promise.all([
+        mkdir(packageOutputPath, { recursive: true }),
+        mkdir(join(outputRoot, "other-gadget"), { recursive: true }),
+    ]);
     const files = createFixtureWrites(
-        packageRoot,
-        outputPath,
+        { outputRoot, packageOutputPath, packageRoot },
         createFixtureMetadata(options, outputDirectory),
         options.textAssets === true,
         options.outputName ?? "fixture",
@@ -320,6 +320,7 @@ async function writeFixturePackage(
 interface FixturePackageOptions {
     outputDirectory?: string;
     outputName?: string;
+    packageName?: string;
     textAssets?: boolean;
 }
 
@@ -348,7 +349,7 @@ function createFixtureMetadata(
             outputName: options.outputName ?? "fixture",
             userscript: { match: ["https://example.test/*"] },
         },
-        name: "fixture-gadget",
+        name: options.packageName ?? "fixture-gadget",
         type: "module",
         version: "1.2.3",
         vue: {
@@ -360,13 +361,19 @@ function createFixtureMetadata(
     };
 }
 
+interface FixturePaths {
+    outputRoot: string;
+    packageOutputPath: string;
+    packageRoot: string;
+}
+
 function createFixtureWrites(
-    packageRoot: string,
-    outputPath: string,
+    paths: FixturePaths,
     metadata: object,
     textAssets: boolean,
     outputName: string,
 ): Array<Promise<void>> {
+    const { outputRoot, packageOutputPath, packageRoot } = paths;
     const artifactName = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(outputName)
         ? outputName
         : "fixture";
@@ -376,46 +383,53 @@ function createFixtureWrites(
             join(packageRoot, "browser.ts"),
             createFixtureBrowser(textAssets),
         ),
-        writeFile(join(outputPath, `${artifactName}.js`), "stale\n"),
-        writeFile(join(outputPath, `${artifactName}.min.js`), "stale\n"),
-        writeFile(join(outputPath, `${artifactName}.user.js`), "stale\n"),
-        writeFile(join(outputPath, "other_gadget.js"), "keep\n"),
+        ...createStaleArtifactWrites(
+            outputRoot,
+            packageOutputPath,
+            artifactName,
+        ),
         writeFile(
-            join(packageRoot, "../../dist/other-gadget/note.txt"),
+            join(packageOutputPath, "note.txt"),
+            "keep package directory\n",
+        ),
+        writeFile(join(outputRoot, "other_gadget.js"), "keep\n"),
+        writeFile(
+            join(outputRoot, "other-gadget/note.txt"),
             "keep directory\n",
         ),
     ];
     if (textAssets) {
-        files.push(
-            writeFile(
-                join(packageRoot, "dialog.vue"),
-                createFixtureTemplate(),
-            ),
-            writeFile(join(packageRoot, "dialog.css"), createFixtureStyles()),
-        );
+        files.push(...createTextAssetWrites(packageRoot));
     }
     return files;
 }
 
-/**
- * Writes a sibling package used by collision preflight tests.
- *
- * @param workspaceRoot - Workspace root value.
- * @param outputName - Output name value.
- */
-async function writeSiblingBuildPackage(
-    workspaceRoot: string,
-    outputName: string,
-): Promise<void> {
-    const packageRoot = join(workspaceRoot, "src", "sibling-gadget");
-    await mkdir(packageRoot, { recursive: true });
-    await writeFile(
-        join(packageRoot, "package.json"),
-        JSON.stringify({
-            gadgetBuild: { outputName },
-            name: "sibling-gadget",
-        }),
-    );
+function createTextAssetWrites(packageRoot: string): Array<Promise<void>> {
+    return [
+        writeFile(join(packageRoot, "dialog.vue"), createFixtureTemplate()),
+        writeFile(join(packageRoot, "dialog.css"), createFixtureStyles()),
+    ];
+}
+
+function createStaleArtifactWrites(
+    outputRoot: string,
+    packageOutputPath: string,
+    artifactName: string,
+): Array<Promise<void>> {
+    return [
+        writeFile(join(outputRoot, `${artifactName}.js`), "legacy\n"),
+        writeFile(join(outputRoot, `${artifactName}.min.js`), "legacy\n"),
+        writeFile(join(outputRoot, `${artifactName}.user.js`), "legacy\n"),
+        writeFile(join(packageOutputPath, `${artifactName}.js`), "stale\n"),
+        writeFile(
+            join(packageOutputPath, `${artifactName}.min.js`),
+            "stale\n",
+        ),
+        writeFile(
+            join(packageOutputPath, `${artifactName}.user.js`),
+            "stale\n",
+        ),
+    ];
 }
 
 function createFixtureBrowser(textAssets: boolean): string {

@@ -16,26 +16,26 @@ Build the package from the repository root:
 npm run build -w vg-page-assessor
 ```
 
-This writes three ignored artifacts directly to `dist/`:
+This writes two ignored artifacts to `dist/vg-page-assessor/`:
 
-- `vg_page_assessor.js` is the formatted, human-readable version.
-- `vg_page_assessor.min.js` is the minified version.
-- `vg_page_assessor.user.js` is the Greasemonkey-compatible version.
+- `dist/vg-page-assessor/vg_page_assessor.min.js` is the minified version.
+- `dist/vg-page-assessor/vg_page_assessor.user.js` is the
+  Greasemonkey-compatible version.
 
 ### MediaWiki user page
 
 Open `Special:MyPage/common.js` on Chinese Wikipedia, paste the complete
-contents of `dist/vg_page_assessor.min.js`, and publish the page. Personal
-JavaScript pages must be enabled by the wiki; see MediaWiki's [personal-script
-documentation][1].
+contents of `dist/vg-page-assessor/vg_page_assessor.min.js`, and publish the
+page. Personal JavaScript pages must be enabled by the wiki; see MediaWiki's
+[personal-script documentation][1].
 
 After publishing, bypass the browser cache or perform a hard refresh.
 
 ### Userscript manager
 
 Create a script in a Greasemonkey-compatible userscript manager, replace its
-editor contents with `dist/vg_page_assessor.user.js`, and save it. Keep the
-generated metadata header intact.
+editor contents with `dist/vg-page-assessor/vg_page_assessor.user.js`, and save
+it. Keep the generated metadata header intact.
 
 After either installation, open an eligible article on Chinese Wikipedia and
 choose VG Page Assessor from the page toolbox. Select the assessment values,

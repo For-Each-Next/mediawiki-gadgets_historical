@@ -12,11 +12,11 @@ Build the package from the repository root:
 npm run build -w wiked-lite
 ```
 
-The command writes three ignored artifacts directly to `dist/`:
+The command writes two ignored artifacts to `dist/wiked-lite/`:
 
-- `wiked_lite.js` is the formatted, human-readable MediaWiki gadget.
-- `wiked_lite.min.js` is the minified MediaWiki gadget.
-- `wiked_lite.user.js` is the Greasemonkey-compatible userscript.
+- `dist/wiked-lite/wiked_lite.min.js` is the minified MediaWiki gadget.
+- `dist/wiked-lite/wiked_lite.user.js` is the Greasemonkey-compatible
+  userscript.
 
 For a personal MediaWiki installation, copy the complete minified artifact to
 `Special:MyPage/common.js`. Use [Meta-Wiki global JavaScript][1] to load it on
@@ -24,9 +24,10 @@ all Wikimedia wikis where the account is active. A site administrator may
 instead register the same file as a ResourceLoader gadget.
 
 For a userscript installation, replace a new Tampermonkey script with the
-complete contents of `wiked_lite.user.js` and keep its metadata header intact.
-After either installation, hard-refresh an edit or submit page that uses the
-wikitext content model. Review formatting changes before saving the page.
+complete contents of `dist/wiked-lite/wiked_lite.user.js` and keep its metadata
+header intact. After either installation, hard-refresh an edit or submit page
+that uses the wikitext content model. Review formatting changes before saving
+the page.
 
 ## Features
 

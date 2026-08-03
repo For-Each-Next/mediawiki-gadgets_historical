@@ -5,10 +5,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-    findArtifactCollisions,
-    type ArtifactClaim,
-} from "./gadget-build/index.ts";
 
 const REQUIRED_FILES = [
     "AGENTS.md",
@@ -106,48 +102,8 @@ export async function checkGadgetPackages(
 
     return {
         gadgetCount: gadgets.length,
-        problems: [
-            ...results.flat(),
-            ...checkGeneratedFilenameCollisions(gadgets),
-        ],
+        problems: results.flat(),
     };
-}
-
-/**
- * Rejects artifact names that collide in the shared dist directory.
- *
- * @param gadgets - Gadgets value.
- * @returns Resulting values.
- */
-function checkGeneratedFilenameCollisions(
-    gadgets: Array<{ directory: string; metadata: PackageMetadata }>,
-): string[] {
-    const claims = gadgets.flatMap(createArtifactClaim);
-    return findArtifactCollisions(claims).map(
-        ({ filename, owners }) =>
-            `${owners.join(", ")}: generated artifact ${filename} ` +
-            "collides in the shared dist directory.",
-    );
-}
-
-/**
- * Creates one package's effective artifact claim when possible.
- *
- * @param options - Operation options.
- * @returns Created package's effective artifact claim when possible.
- */
-function createArtifactClaim({
-    directory,
-    metadata,
-}: {
-    directory: string;
-    metadata: PackageMetadata;
-}): ArtifactClaim[] {
-    const outputName = metadata.gadgetBuild?.outputName;
-    if (!hasText(outputName)) {
-        return [];
-    }
-    return [{ outputName, owner: basename(directory) }];
 }
 
 /**

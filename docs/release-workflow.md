@@ -38,8 +38,8 @@ package changelog, builds browser artifacts, or formalizes a release.
   temporary scaffolding and consolidate overlapping implementation and
   documentation while preserving material behavior and decisions.
 - Documentation, comments, tests, and formatting keep the current base version
-  when the distributed browser behavior stays the same. An explicit build
-  still receives a distinct suffix.
+  when the distributed browser behavior stays the same. An explicit build still
+  receives a distinct suffix.
 
 ## Maintain the Changelog
 
@@ -66,11 +66,11 @@ package changelog, builds browser artifacts, or formalizes a release.
 
 ## Build Artifacts
 
-- Before an affected build, remove only that gadget's previous `.js`,
-  `.min.js`, and `.user.js` files from the shared `dist/` directory.
-- A successful build writes a formatted, human-readable `.js` file, a minified
-  `.min.js` file, and a Greasemonkey-compatible `.user.js` file directly under
-  `dist/`.
+- Before an affected build, remove that gadget's previous `.min.js` and
+  `.user.js` files from its hyphenated package directory under `dist/`. During
+  migration, also remove its retired readable and legacy flat artifacts.
+- A successful build writes a minified `.min.js` file and a
+  Greasemonkey-compatible `.user.js` file under `dist/<gadget-name>/`.
 - Publication replaces or removes only the previous artifact for the same
   gadget and form.
 - Synchronize the package version, active changelog heading, related
@@ -85,8 +85,8 @@ package changelog, builds browser artifacts, or formalizes a release.
 3. Run `npm run check`.
 4. Build every affected gadget with `npm run build -w <gadget>`. Use
    `npm run build` when shared work affects every gadget.
-5. Confirm the `.js`, `.min.js`, and `.user.js` headers contain the canonical
-   package version.
+5. Confirm the `.min.js` and `.user.js` headers contain the canonical package
+   version.
 6. Inspect `git diff --check`, the complete diff, and the final worktree
    status.
 

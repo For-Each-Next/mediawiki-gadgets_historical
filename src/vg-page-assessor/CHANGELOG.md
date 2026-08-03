@@ -2,10 +2,10 @@
 
 ## Until 0.3
 
-### 0.2.1-post.7 (2026-08-03 07:32 UTC)
+### 0.2.1-post.9 (2026-08-03 10:49 UTC)
 
-Overview: VG Page Assessor resolves Chinese Wikipedia namespace titles through
-the shared database-scoped prefix catalog.
+Overview: VG Page Assessor resolves Chinese Wikipedia namespace titles and
+packages its two browser artifacts in a dedicated distribution directory.
 
 - Replaced literal template-prefix cleanup and the WikiProject page prefix with
   namespace-ID-based helpers.
@@ -15,6 +15,9 @@ the shared database-scoped prefix catalog.
   the correct wiki.
 - Kept the zhwiki-only workflow on the immutable static catalog while shared
   browser consumers gained validated siteinfo catalogs for other databases.
+- Grouped the minified gadget and userscript under `dist/vg-page-assessor/`,
+  removed retired readable and legacy flat files, and rejected linked output
+  directories before cleanup.
 
 ### 0.2.1-post.4 (2026-08-01 18:01 UTC)
 

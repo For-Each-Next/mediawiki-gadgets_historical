@@ -29,22 +29,18 @@ test("a future gadget is discovered automatically", async (context) => {
     assert.deepEqual(result.problems, []);
 });
 
-test("flat gadget artifact names cannot collide", async (context) => {
+test("package directories isolate artifact names", async (context) => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-collision-"));
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
     await Promise.all([
         writeFutureGadget(workspaceRoot, "first-gadget", "shared"),
-        writeFutureGadget(workspaceRoot, "second-gadget", "shared.min"),
+        writeFutureGadget(workspaceRoot, "second-gadget", "shared"),
     ]);
 
     const result = await checkGadgetPackages(workspaceRoot);
 
     assert.equal(result.gadgetCount, 2);
-    assert.ok(
-        result.problems.some((problem) =>
-            problem.includes("shared.min.js collides"),
-        ),
-    );
+    assert.deepEqual(result.problems, []);
 });
 
 test("architecture layer imports point downward", async () => {

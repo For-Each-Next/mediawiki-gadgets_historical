@@ -10,11 +10,6 @@ import {
     extractVueTemplate,
     minifyHtmlTemplate,
 } from "./html-templates.ts";
-import {
-    assertNoDocumentationMarker,
-    createDocumentationCommentPreserver,
-    restoreDocumentationComments,
-} from "./documentation-comments.ts";
 import type { BundleOptions, DefineConfig, GadgetBuildPlan } from "./types.ts";
 
 /**
@@ -40,7 +35,6 @@ export async function bundleSource(
         entryPoints: [config.entryPoint],
         format: "iife",
         globalName: config.globalName,
-        legalComments: options.preserveDocumentation ? "inline" : undefined,
         logLevel: "silent",
         plugins: createBundlePlugins(options),
         target: config.target ?? "es2024",
@@ -51,9 +45,7 @@ export async function bundleSource(
     if (output == null) {
         throw new Error("esbuild did not return bundled JavaScript.");
     }
-    return options.preserveDocumentation
-        ? restoreDocumentationComments(output.text)
-        : output.text;
+    return output.text;
 }
 
 /**
@@ -63,18 +55,7 @@ export async function bundleSource(
  * @returns Selected source transformations for one bundle form.
  */
 function createBundlePlugins(options: BundleOptions) {
-    if (options.minifyText && options.preserveDocumentation) {
-        throw new Error(
-            "Text minification and documentation preservation are exclusive.",
-        );
-    }
-    if (options.minifyText) {
-        return [createHtmlTemplateMinifier()];
-    }
-    if (options.preserveDocumentation) {
-        return [createDocumentationCommentPreserver()];
-    }
-    return undefined;
+    return options.minifyText ? [createHtmlTemplateMinifier()] : undefined;
 }
 
 /**
@@ -132,9 +113,6 @@ async function prepareInjectedText(
     text: string,
     options: BundleOptions,
 ): Promise<string> {
-    if (options.preserveDocumentation) {
-        assertNoDocumentationMarker(path, text);
-    }
     const extension = extname(path);
     if (extension === ".vue") {
         const template = extractVueTemplate(text, path);

@@ -16,26 +16,26 @@ Build the package from the repository root:
 npm run build -w vg-stub-creator
 ```
 
-This writes three ignored artifacts directly to `dist/`:
+This writes two ignored artifacts to `dist/vg-stub-creator/`:
 
-- `vg_stub_creator.js` is the formatted, human-readable version.
-- `vg_stub_creator.min.js` is the minified version.
-- `vg_stub_creator.user.js` is the Greasemonkey-compatible version.
+- `dist/vg-stub-creator/vg_stub_creator.min.js` is the minified version.
+- `dist/vg-stub-creator/vg_stub_creator.user.js` is the Greasemonkey-compatible
+  version.
 
 ### MediaWiki user page
 
 Open `Special:MyPage/common.js` on a supported wiki, paste the complete
-contents of `dist/vg_stub_creator.min.js`, and publish the page. Use
-[Meta-Wiki's `Special:MyPage/global.js`][1] to load it across Wikimedia
-projects where the account is active.
+contents of `dist/vg-stub-creator/vg_stub_creator.min.js`, and publish the
+page. Use [Meta-Wiki's `Special:MyPage/global.js`][1] to load it across
+Wikimedia projects where the account is active.
 
 After publishing, bypass the browser cache or perform a hard refresh.
 
 ### Userscript manager
 
 Create a script in a Greasemonkey-compatible userscript manager, replace its
-editor contents with `dist/vg_stub_creator.user.js`, and save it. Keep the
-generated metadata header intact.
+editor contents with `dist/vg-stub-creator/vg_stub_creator.user.js`, and save
+it. Keep the generated metadata header intact.
 
 After either installation, use the page action on English or Chinese Wikipedia.
 Review the generated article and every related operation before confirming a

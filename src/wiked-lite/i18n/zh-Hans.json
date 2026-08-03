@@ -12,7 +12,7 @@
     "dialog.resolveRedirects": "将维基链接重定向替换为目标页面",
     "dialog.resolveDescription": "这可能不符合[[WP:NOTBROKEN]]；仅用于修复导航模板等确需直达目标页面的情况。API请求可能会减慢格式化。",
     "dialog.highlightMissing": "将不存在页面的链接标红",
-    "dialog.highlightDescription": "API请求可能会减慢格式化；仅改变链接凸显。",
+    "dialog.highlightDescription": "因请求API，可能大幅拖慢格式化速度。",
     "dialog.apply": "格式化",
     "dialog.cancel": "取消",
     "feedback.noEditor": "未找到MediaWiki源代码编辑器。",

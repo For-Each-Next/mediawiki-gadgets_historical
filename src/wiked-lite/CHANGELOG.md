@@ -9,6 +9,8 @@ headings.
 
 - Kept marker-only and unsupported level-seven heading-like lines unchanged
   instead of reinterpreting them as lower-level headings.
+- Clarified in Simplified Chinese that missing-link API requests can
+  substantially slow formatting.
 
 ### 0.4.4-dev.38 (2026-08-03 13:24 UTC)
 

@@ -124,6 +124,10 @@ test("uses concise Simplified Chinese formatting guidance", () => {
         "自动处理script-title参数",
     );
     assert.equal(
+        simplifiedChinese["tools.formatScriptTitles"],
+        "格式化并生成script-title参数",
+    );
+    assert.equal(
         simplifiedChinese["tools.scriptTitleNonLatin"],
         "仅对使用非拉丁文字的语言使用script-title",
     );
@@ -145,6 +149,15 @@ test("keeps formatting options separate from the footer action", () => {
 
     assert.equal(formatActions.length, 1);
     assert.doesNotMatch(SOURCE_MANAGER_TEMPLATE, /tools\.applyFormatting/u);
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /<cdx-checkbox[\s\S]*?:model-value="formatScriptTitles"[\s\S]*?@update:model-value="\s*setFormatScriptTitles\s*"[\s\S]*?tools\.formatScriptTitles[\s\S]*?<\/cdx-checkbox>/u,
+    );
+    assert.equal(
+        SOURCE_MANAGER_TEMPLATE.match(/:disabled="!formatScriptTitles"/gu)
+            ?.length,
+        2,
+    );
 });
 
 test("resolves MediaWiki Chinese variants and English fallback", () => {

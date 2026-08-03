@@ -58,6 +58,7 @@ export type SourceCheckerTool = Extract<SourceToolPopup, "cs1" | "non-cs1">;
 
 export interface ArticleFormatAttempt {
     citationLayout: CitationLayout;
+    formatScriptTitles: boolean;
     referenceStyle: ReferenceStyle;
     scriptTitleMode: ScriptTitleMode;
     sourceRevision: number;
@@ -105,6 +106,7 @@ export interface SourceManagerState extends SourceListDerivedState {
     existingSources: { value: ExistingSource[] };
     formatArticleAttempt: { value: ArticleFormatAttempt | null };
     formatArticleInProgress: { value: boolean };
+    formatScriptTitles: { value: boolean };
     flashingAuthorRows: { value: Set<SourceDraftRow> };
     loading: { value: boolean };
     manualTemplate: { value: string | null };
@@ -216,6 +218,7 @@ export function createSourceManagerState(
         error: Vue.ref(""),
         formatArticleAttempt: Vue.ref<ArticleFormatAttempt | null>(null),
         formatArticleInProgress: Vue.ref(false),
+        formatScriptTitles: Vue.ref(true),
         flashingAuthorRows: Vue.ref(new Set<SourceDraftRow>()),
         loading: Vue.ref(false),
         referenceStyle,

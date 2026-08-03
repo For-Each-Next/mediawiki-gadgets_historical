@@ -286,8 +286,17 @@
                                     <template #label>
                                         {{ msg("tools.scriptTitle") }}
                                     </template>
+                                    <cdx-checkbox
+                                        :model-value="formatScriptTitles"
+                                        @update:model-value="
+                                            setFormatScriptTitles
+                                        "
+                                    >
+                                        {{ msg("tools.formatScriptTitles") }}
+                                    </cdx-checkbox>
                                     <cdx-radio
                                         :model-value="scriptTitleMode"
+                                        :disabled="!formatScriptTitles"
                                         input-value="non-latin"
                                         name="script-title-mode"
                                         @update:model-value="
@@ -298,6 +307,7 @@
                                     </cdx-radio>
                                     <cdx-radio
                                         :model-value="scriptTitleMode"
+                                        :disabled="!formatScriptTitles"
                                         input-value="all-foreign"
                                         name="script-title-mode"
                                         @update:model-value="

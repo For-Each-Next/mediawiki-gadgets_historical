@@ -1049,6 +1049,52 @@ export function moveSourceDraftTitleToScriptTitle(
 }
 
 /**
+ * Formats or creates a script title.
+ *
+ * @param draft - Source draft to process.
+ * @param wikiId - Wiki id value.
+ * @param mode - Language eligibility mode.
+ * @returns Whether the draft changed.
+ */
+export function formatSourceDraftScriptTitle(
+    draft: SourceDraft,
+    wikiId: string,
+    mode: ScriptTitleMode = "non-latin",
+): boolean {
+    const normalized = normalizeSourceDraftScriptTitleLanguage(draft);
+    const moved = moveSourceDraftTitleToScriptTitle(draft, wikiId, mode);
+    return normalized || moved;
+}
+
+/**
+ * Reduces a valid script-title language prefix to its primary subtag.
+ *
+ * @param draft - Source draft to process.
+ * @returns Whether the prefix changed.
+ */
+function normalizeSourceDraftScriptTitleLanguage(draft: SourceDraft): boolean {
+    if (getTemplateMetadata(draft.template) == null) {
+        return false;
+    }
+    const scriptTitle = getDraftRow(draft, "script-title");
+    if (scriptTitle == null) {
+        return false;
+    }
+    const pattern = /^([a-z]{2,3})(?:-[a-z0-9]+)*:/iu;
+    const normalized = scriptTitle.value.replace(
+        pattern,
+        function usePrimaryLanguage(_prefix, primaryLanguage: string) {
+            return `${primaryLanguage.toLocaleLowerCase("en-US")}:`;
+        },
+    );
+    if (normalized === scriptTitle.value) {
+        return false;
+    }
+    scriptTitle.value = normalized;
+    return true;
+}
+
+/**
  * Gets the local language whose titles stay in the normal field.
  *
  * @param wikiId - Wiki id value.
@@ -1064,22 +1110,22 @@ function getCitationWikiLanguage(wikiId: string): string {
 }
 
 /**
- * Moves eligible titles before formatting all article citations.
+ * Formats script titles before formatting all article citations.
  *
  * @param text - Text to process.
  * @param wikiId - Wiki id value.
  * @param mode - Mode value.
  * @returns Operation result.
  */
-export function moveSourceTitlesToScriptTitle(
+export function formatSourceScriptTitles(
     text: string,
     wikiId: string,
     mode: ScriptTitleMode = "non-latin",
     templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
-): { moved: number; text: string } {
+): { formatted: number; text: string } {
     const replacements: TextReplacement[] = [];
     const protectedRanges = findSourceDiscoveryProtectedRanges(text);
-    let moved = 0;
+    let formatted = 0;
     for (const call of wikitext(text).template.getAll()) {
         const nestedReplacement = replacements.some(
             (replacement) =>
@@ -1093,7 +1139,7 @@ export function moveSourceTitlesToScriptTitle(
             continue;
         }
         const draft = parseSourceDraft(call.raw, templateNameContext);
-        if (!moveSourceDraftTitleToScriptTitle(draft, wikiId, mode)) {
+        if (!formatSourceDraftScriptTitle(draft, wikiId, mode)) {
             continue;
         }
         const layout = call.raw.includes("\n") ? "block" : "inline";
@@ -1102,9 +1148,9 @@ export function moveSourceTitlesToScriptTitle(
             start: call.start,
             text: serializeSourceDraft(draft, layout),
         });
-        moved += 1;
+        formatted += 1;
     }
-    return { moved, text: applyReplacements(text, replacements) };
+    return { formatted, text: applyReplacements(text, replacements) };
 }
 
 /**

@@ -68,6 +68,7 @@
     "tools.compactReferences": "儘可能使用{{r}}，而非<ref>",
     "tools.blockCitations": "將引文模板另起一行並縮排兩個空格",
     "tools.scriptTitle": "自動處理script-title參數",
+    "tools.formatScriptTitles": "格式化並產生script-title參數",
     "tools.scriptTitleNonLatin": "僅對使用非拉丁文字的語言使用script-title",
     "tools.scriptTitleAllForeign": "對所有外語使用script-title",
     "tools.checks": "引文檢查",

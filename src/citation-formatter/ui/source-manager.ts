@@ -15,14 +15,14 @@ import {
     createManualSourceDraft,
     ensureNextAuthorDraftRows,
     findExistingSources,
+    formatSourceDraftScriptTitle,
     formatSourceDraftRows,
+    formatSourceScriptTitles,
     getSourceDraftParameterAliasInfo,
     hasSourceDraftCitationIdentity,
     listExistingSourceSections,
     listExistingSources,
     listSourceDraftParameterCollisions,
-    moveSourceDraftTitleToScriptTitle,
-    moveSourceTitlesToScriptTitle,
     parseSourceDraft,
     parseSourceInput,
     parseSourceUrl,
@@ -611,6 +611,7 @@ function createFormatterActions(
     | "formatArticle"
     | "setBlockCitations"
     | "setCompactReferences"
+    | "setFormatScriptTitles"
     | "setScriptTitleMode"
 > {
     // eslint-disable-next-line max-lines-per-function
@@ -658,12 +659,14 @@ function createFormatterActions(
                 return;
             }
             const compact = state.referenceStyle.value === "r";
-            const source = moveSourceTitlesToScriptTitle(
-                beforeText,
-                getCurrentWikiId(),
-                state.scriptTitleMode.value,
-                context.templateNameContext,
-            ).text;
+            const source = state.formatScriptTitles.value
+                ? formatSourceScriptTitles(
+                      beforeText,
+                      getCurrentWikiId(),
+                      state.scriptTitleMode.value,
+                      context.templateNameContext,
+                  ).text
+                : beforeText;
             const result = manageCitationsWithResult(
                 source,
                 [],
@@ -700,6 +703,9 @@ function createFormatterActions(
     function setCompactReferences(enabled: boolean): void {
         context.state.referenceStyle.value = enabled ? "r" : "ref";
     }
+    function setFormatScriptTitles(enabled: boolean): void {
+        context.state.formatScriptTitles.value = enabled;
+    }
     function setScriptTitleMode(value: unknown): void {
         if (isScriptTitleMode(value)) {
             context.state.scriptTitleMode.value = value;
@@ -709,6 +715,7 @@ function createFormatterActions(
         formatArticle,
         setBlockCitations,
         setCompactReferences,
+        setFormatScriptTitles,
         setScriptTitleMode,
     };
 }
@@ -785,6 +792,7 @@ function buildArticleFormatAttempt(
 ): ArticleFormatAttempt {
     return {
         citationLayout: state.citationLayout.value,
+        formatScriptTitles: state.formatScriptTitles.value,
         referenceStyle: state.referenceStyle.value,
         scriptTitleMode: state.scriptTitleMode.value,
         sourceRevision: state.sourceRevision.value,
@@ -802,6 +810,7 @@ function isCurrentArticleFormatAttempt(
         attempt.sourceRevision === state.sourceRevision.value &&
         attempt.text === editor.read() &&
         attempt.citationLayout === state.citationLayout.value &&
+        attempt.formatScriptTitles === state.formatScriptTitles.value &&
         attempt.referenceStyle === state.referenceStyle.value &&
         attempt.scriptTitleMode === state.scriptTitleMode.value
     );
@@ -986,11 +995,13 @@ function createDraftActions(
         const draft = state.draft.value;
         if (draft != null) {
             const collisionNotice = formatDraftParameterCollisionNotice(draft);
-            moveSourceDraftTitleToScriptTitle(
-                draft,
-                getCurrentWikiId(),
-                state.scriptTitleMode.value,
-            );
+            if (state.formatScriptTitles.value) {
+                formatSourceDraftScriptTitle(
+                    draft,
+                    getCurrentWikiId(),
+                    state.scriptTitleMode.value,
+                );
+            }
             canonicalizeSourceDraft(draft);
             state.warning.value = appendWarning(
                 state.warning.value,
@@ -2636,8 +2647,11 @@ function writeSourceDraft(
     const previousSource = state.editingSource.value;
     const collisionNotice = formatDraftParameterCollisionNotice(draft);
     try {
-        if (state.editingSource.value == null) {
-            moveSourceDraftTitleToScriptTitle(
+        if (
+            state.editingSource.value == null &&
+            state.formatScriptTitles.value
+        ) {
+            formatSourceDraftScriptTitle(
                 draft,
                 getCurrentWikiId(),
                 state.scriptTitleMode.value,

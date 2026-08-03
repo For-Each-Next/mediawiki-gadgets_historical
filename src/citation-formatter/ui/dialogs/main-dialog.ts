@@ -20,6 +20,7 @@ type MainDialogStateKey =
     | "existingSourceQuery"
     | "existingSources"
     | "filteredExistingSources"
+    | "formatScriptTitles"
     | "keywordFilterLabel"
     | "loading"
     | "manualTemplate"
@@ -62,6 +63,7 @@ export interface MainDialogActions {
     ): void;
     setBlockCitations(enabled: boolean): void;
     setCompactReferences(enabled: boolean): void;
+    setFormatScriptTitles(enabled: boolean): void;
     setScriptTitleMode(value: unknown): void;
 }
 

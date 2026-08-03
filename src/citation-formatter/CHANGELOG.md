@@ -2,6 +2,18 @@
 
 ## Until 0.6
 
+### 0.5.1-post.31 (2026-08-03 12:20 UTC)
+
+Overview: Citation Formatter makes script-title formatting optional and
+normalizes valid language prefixes to primary codes.
+
+- Added a checkbox that gates script-title handling while retaining the
+  non-Latin and all-foreign language modes.
+- Reduced valid existing prefixes such as `en-US:` and `zh-Hant:` to `en:` and
+  `zh:` without changing the citation's `language` parameter.
+- Applied the option consistently to whole-article formatting, parameter
+  sorting, and new-source creation.
+
 ### 0.5.1-post.30 (2026-08-03 10:49 UTC)
 
 Overview: Citation Formatter packages its two browser artifacts in a dedicated

@@ -68,6 +68,7 @@
     "tools.compactReferences": "Use {{r}} instead of <ref> when possible",
     "tools.blockCitations": "Place citation templates on separate lines with a two-space indent",
     "tools.scriptTitle": "Automatic script-title handling",
+    "tools.formatScriptTitles": "Format and generate script-title parameters",
     "tools.scriptTitleNonLatin": "Use script-title only for languages written in non-Latin scripts",
     "tools.scriptTitleAllForeign": "Use script-title for every foreign language",
     "tools.checks": "Citation checks",

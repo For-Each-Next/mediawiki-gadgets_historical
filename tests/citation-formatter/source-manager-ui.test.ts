@@ -150,6 +150,7 @@ interface MountedManager extends Record<string, unknown> {
     draftCs1Checking: { value: boolean };
     existingSources: { value: ExistingSource[] };
     formatArticleDisabled: { readonly value: boolean };
+    formatScriptTitles: { value: boolean };
     getOpenableDraftUrl: (value: string) => string | null | undefined;
     isUrlDraftParameter: (name: string) => boolean;
     joinAuthorIcon: Icon;
@@ -461,6 +462,38 @@ test("summarizes one formatting attempt without switching tabs", async () => {
         callAction(manager, "setBlockCitations", true);
         assert.equal(manager.formatArticleDisabled.value, false);
         callAction(manager, "setBlockCitations", false);
+        assert.equal(manager.formatArticleDisabled.value, true);
+        callAction(manager, "close");
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("toggles script-title formatting between attempts", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor(
+            "<ref>{{cite web|script-title=en-US:TGS 2008|" +
+                "language=en-US|url=https://example.test}}</ref>",
+        );
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+
+        assert.equal(manager.formatScriptTitles.value, true);
+        callAction(manager, "setFormatScriptTitles", false);
+        assert.equal(manager.formatScriptTitles.value, false);
+        callAction(manager, "formatArticle");
+
+        assert.match(editor.read(), /\| script-title = en-US:TGS 2008/u);
+        assert.equal(manager.formatArticleDisabled.value, true);
+
+        callAction(manager, "setFormatScriptTitles", true);
+        assert.equal(manager.formatScriptTitles.value, true);
+        assert.equal(manager.formatArticleDisabled.value, false);
+        callAction(manager, "formatArticle");
+
+        assert.match(editor.read(), /\| script-title = en:TGS 2008/u);
         assert.equal(manager.formatArticleDisabled.value, true);
         callAction(manager, "close");
         await Promise.resolve();

@@ -78,8 +78,9 @@ Citation Formatter:
 - offers categorized citation-template choices with clear icons and importance
   tiers while preserving populated and custom fields;
 - preserves existing parameter spelling and values in the item editor until an
-  explicit formatting action, and lets users limit generated `script-title`
-  values to non-Latin languages or include every foreign language;
+  explicit formatting action; `script-title` formatting can be disabled, uses
+  primary language codes, and generates fields for non-Latin or every foreign
+  language;
 - checks CS1 errors and green maintenance comments in severity order, checks
   non-CS1 sources and citation-name consistency, and offers selective fixes
   with session-safe reversion; and

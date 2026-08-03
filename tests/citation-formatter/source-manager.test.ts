@@ -16,6 +16,8 @@ import {
     filterExistingSources,
     findCreatorAliasSuggestions,
     formatSourceDraftRows,
+    formatSourceDraftScriptTitle,
+    formatSourceScriptTitles,
     getSourceDraftCitationNameCells,
     getSourceDraftCitationNameParts,
     getSourceDraftParameterAliasInfo,
@@ -26,8 +28,6 @@ import {
     listExistingSources,
     listSourceDraftParameterCollisions,
     listSourceDraftParameterNames,
-    moveSourceDraftTitleToScriptTitle,
-    moveSourceTitlesToScriptTitle,
     normalizeSourceUrl,
     parseSourceDraft,
     parseSourceInput,
@@ -1164,12 +1164,12 @@ test("batches every standard source into one CS1 check payload", () => {
     assert.match(payload, /\{\{cite book\|title=Second/u);
 });
 
-test("moves single foreign-language titles to script-title", () => {
+test("formats single foreign-language titles as script-title", () => {
     const draft = parseSourceDraft(
         "{{cite web|title=記事<!-- # Kiji -->|language=ja}}",
     );
 
-    assert.equal(moveSourceDraftTitleToScriptTitle(draft, "enwiki"), true);
+    assert.equal(formatSourceDraftScriptTitle(draft, "enwiki"), true);
     assert.match(
         serializeSourceDraft(draft, "inline"),
         /script-title = ja:記事 <!-- # Kiji -->/u,
@@ -1178,33 +1178,33 @@ test("moves single foreign-language titles to script-title", () => {
     const multiple = parseSourceDraft(
         "{{cite web|title=Статья|language=ru,uk}}",
     );
-    assert.equal(moveSourceDraftTitleToScriptTitle(multiple, "enwiki"), false);
+    assert.equal(formatSourceDraftScriptTitle(multiple, "enwiki"), false);
 
     const chinese = parseSourceDraft(
         "{{cite web|title=中文標題|language=zh-Hant}}",
     );
-    assert.equal(moveSourceDraftTitleToScriptTitle(chinese, "zhwiki"), false);
+    assert.equal(formatSourceDraftScriptTitle(chinese, "zhwiki"), false);
 
     const english = parseSourceDraft(
         "{{cite web|title=English title|language=en}}",
     );
-    assert.equal(moveSourceDraftTitleToScriptTitle(english, "enwiki"), false);
+    assert.equal(formatSourceDraftScriptTitle(english, "enwiki"), false);
 });
 
-test("moves eligible article titles before formatting", () => {
-    const result = moveSourceTitlesToScriptTitle(
+test("formats eligible article titles before citation formatting", () => {
+    const result = formatSourceScriptTitles(
         "Text<ref>{{cite web|title=記事|language=ja}}</ref>",
         "enwiki",
     );
 
-    assert.equal(result.moved, 1);
+    assert.equal(result.formatted, 1);
     assert.match(result.text, /script-title = ja:記事/u);
     assert.doesNotMatch(result.text, /\| title = 記事/u);
 
     const protectedText =
         "<nowiki>{{cite web|title=記事|language=ja}}</nowiki>";
-    assert.deepEqual(moveSourceTitlesToScriptTitle(protectedText, "enwiki"), {
-        moved: 0,
+    assert.deepEqual(formatSourceScriptTitles(protectedText, "enwiki"), {
+        formatted: 0,
         text: protectedText,
     });
 });
@@ -1214,7 +1214,7 @@ test("uses primary codes and honors script-title language modes", () => {
         "{{cite web|title=記事|language=ja-Jpan-JP}}",
     );
     assert.equal(
-        moveSourceDraftTitleToScriptTitle(japanese, "enwiki", "non-latin"),
+        formatSourceDraftScriptTitle(japanese, "enwiki", "non-latin"),
         true,
     );
     assert.match(serializeSourceDraft(japanese, "inline"), /ja:記事/u);
@@ -1223,14 +1223,46 @@ test("uses primary codes and honors script-title language modes", () => {
         "{{cite web|title=Article|language=fr-CA}}",
     );
     assert.equal(
-        moveSourceDraftTitleToScriptTitle(french, "enwiki", "non-latin"),
+        formatSourceDraftScriptTitle(french, "enwiki", "non-latin"),
         false,
     );
     assert.equal(
-        moveSourceDraftTitleToScriptTitle(french, "enwiki", "all-foreign"),
+        formatSourceDraftScriptTitle(french, "enwiki", "all-foreign"),
         true,
     );
     assert.match(serializeSourceDraft(french, "inline"), /fr:Article/u);
+});
+
+test("normalizes existing script-title prefixes to primary lowercase codes", () => {
+    const english = parseSourceDraft(
+        "{{cite web|script-title=en-us:TGS 2008|language=en-US}}",
+    );
+    const chinese = parseSourceDraft(
+        "{{cite web|script-title=ZH-XX:中文標題|language=zh-XX}}",
+    );
+
+    assert.equal(formatSourceDraftScriptTitle(english, "enwiki"), true);
+    assert.equal(formatSourceDraftScriptTitle(chinese, "enwiki"), true);
+    assert.match(
+        serializeSourceDraft(english, "inline"),
+        /script-title = en:TGS 2008/u,
+    );
+    assert.match(serializeSourceDraft(english, "inline"), /language = en-US/u);
+    assert.match(
+        serializeSourceDraft(chinese, "inline"),
+        /script-title = zh:中文標題/u,
+    );
+});
+
+test("preserves malformed and unprefixed script-title values", () => {
+    for (const value of ["en_US:TGS 2008", "english:TGS 2008", "TGS 2008"]) {
+        const draft = parseSourceDraft(
+            `{{cite web|script-title=${value}|language=en-US}}`,
+        );
+
+        assert.equal(formatSourceDraftScriptTitle(draft, "enwiki"), false);
+        assert.equal(getRow(draft, "script-title").value, value);
+    }
 });
 
 test("lists and reuses bibliography citations referenced by sfn", () => {

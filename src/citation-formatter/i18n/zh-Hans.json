@@ -68,6 +68,7 @@
     "tools.compactReferences": "以{{r|source}}取代<ref name=\"source\">",
     "tools.blockCitations": "将{{cite}}按块状格式排版",
     "tools.scriptTitle": "自动处理script-title参数",
+    "tools.formatScriptTitles": "格式化并生成script-title参数",
     "tools.scriptTitleNonLatin": "仅对使用非拉丁文字的语言使用script-title",
     "tools.scriptTitleAllForeign": "对所有外语使用script-title",
     "tools.checks": "引文检查",

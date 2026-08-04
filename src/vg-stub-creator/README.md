@@ -5,8 +5,9 @@ Wikipedia. It imports and normalizes source metadata, builds reviewable article
 wikitext, and coordinates related follow-up edits.
 
 > **Status:** VG Stub Creator is under active development. This private
-> workspace package produces browser-ready MediaWiki gadget and userscript
-> artifacts rather than a published npm library.
+> workspace package produces a browser-ready MediaWiki gadget, while the
+> workspace combines every gadget into one userscript rather than publishing
+> npm libraries.
 
 ## Run
 
@@ -16,26 +17,31 @@ Build the package from the repository root:
 npm run build -w vg-stub-creator
 ```
 
-This writes two ignored artifacts to `dist/vg-stub-creator/`:
+This package-only build writes one ignored artifact directly under `dist/`:
 
-- `dist/vg-stub-creator/vg_stub_creator.min.js` is the minified version.
-- `dist/vg-stub-creator/vg_stub_creator.user.js` is the Greasemonkey-compatible
-  version.
+- `dist/vg_stub_creator.min.js` is the minified MediaWiki gadget.
+
+A complete workspace build with `npm run build` writes every gadget's minified
+file and `dist/00-mediawiki-gadgets.user.js`, the single Greasemonkey-
+compatible userscript containing all gadgets. Run `npm run build:all-userscript`
+to rebuild only `dist/00-mediawiki-gadgets.user.js` directly from the current
+sources.
 
 ### MediaWiki user page
 
 Open `Special:MyPage/common.js` on a supported wiki, paste the complete
-contents of `dist/vg-stub-creator/vg_stub_creator.min.js`, and publish the
-page. Use [Meta-Wiki's `Special:MyPage/global.js`][1] to load it across
-Wikimedia projects where the account is active.
+contents of `dist/vg_stub_creator.min.js`, and publish the page. Use
+[Meta-Wiki's `Special:MyPage/global.js`][1] to load it across Wikimedia
+projects where the account is active.
 
 After publishing, bypass the browser cache or perform a hard refresh.
 
 ### Userscript manager
 
 Create a script in a Greasemonkey-compatible userscript manager, replace its
-editor contents with `dist/vg-stub-creator/vg_stub_creator.user.js`, and save
-it. Keep the generated metadata header intact.
+editor contents with `dist/00-mediawiki-gadgets.user.js`, and save it. Keep the
+generated metadata header intact. This userscript contains every workspace
+gadget; each one starts only on its declared sites.
 
 After either installation, use the page action on English or Chinese Wikipedia.
 Review the generated article and every related operation before confirming a
@@ -104,13 +110,16 @@ See the package [changelog][3], its scoped [AGENTS.md][4], and the repository
 
 ## License
 
-VG Stub Creator is licensed under [CC BY-SA 4.0][6]. The repository license
-notice is in [LICENSE][7].
+The project-owned portions of VG Stub Creator 0.5.2 are dedicated under [CC0
+1.0 Universal][6]. The package [license][7] fixes this release's scope and
+preserves third-party terms. The repository [licensing map][8] covers the rest
+of the workspace.
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: docs/development.md
 [3]: CHANGELOG.md
 [4]: AGENTS.md
 [5]: ../../AGENTS.md
-[6]: https://creativecommons.org/licenses/by-sa/4.0/
-[7]: ../../LICENSE
+[6]: https://creativecommons.org/publicdomain/zero/1.0/
+[7]: LICENSE
+[8]: ../../LICENSE

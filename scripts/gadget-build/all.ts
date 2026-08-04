@@ -3,7 +3,11 @@
 import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { bundleSource } from "./bundle.ts";
-import { ensureBuildDirectory } from "./output.ts";
+import {
+    ensureBuildDirectory,
+    removeEmptyBuildDirectory,
+    validateRetiredBuildDirectory,
+} from "./output.ts";
 import { loadGadgetBuildPlan } from "./package.ts";
 import type {
     GadgetBuildPlan,
@@ -13,8 +17,10 @@ import type {
 } from "./types.ts";
 import { formatAllUserscript } from "./userscript.ts";
 
-const ALL_OUTPUT_DIRECTORY = "mediawiki-gadgets";
-const ALL_OUTPUT_FILENAME = "mediawiki_gadgets.user.js";
+const ALL_OUTPUT_FILENAME = "00-mediawiki-gadgets.user.js";
+const RETIRED_ALL_OUTPUT_FILENAME = "mediawiki_gadgets.user.js";
+const RETIRED_ALL_OUTPUT_DIRECTORY = "mediawiki-gadgets";
+const RETIRED_ALL_FLAT_OUTPUT_FILENAME = "user.js";
 const DEFAULT_GRANTS = ["none"];
 const DEFAULT_MATCHES = ["*://*/*"];
 
@@ -33,7 +39,13 @@ export async function buildAllUserscript(
     const config = resolveAllUserscriptConfig(plans);
     const programs = await buildPrograms(plans);
     const metadata = createAllMetadata(plans, now);
-    const userscript = await formatAllUserscript(programs, metadata, config);
+    const notices = uniqueSorted(plans.flatMap((plan) => plan.notices));
+    const userscript = await formatAllUserscript(
+        programs,
+        metadata,
+        config,
+        notices,
+    );
     await writeAllUserscript(outputRoot, userscript);
 }
 
@@ -136,9 +148,19 @@ function createAllMetadata(
             ", ",
         ),
         description: "Run every MediaWiki gadget in this workspace.",
+        license: formatAggregateLicense(plans),
         name: "mediawiki-gadgets",
         version: formatBuildVersion(now),
     };
+}
+
+/** Combines package license values for the aggregate userscript. */
+function formatAggregateLicense(plans: GadgetBuildPlan[]): string {
+    const licenses = uniqueSorted(plans.map((plan) => plan.metadata.license));
+    if (licenses.length === 1) {
+        return licenses[0]!;
+    }
+    return licenses.map((license) => `(${license})`).join(" AND ");
 }
 
 /** Resolves header settings shared by every embedded gadget. */
@@ -214,11 +236,39 @@ async function writeAllUserscript(
     outputRoot: string,
     userscript: string,
 ): Promise<void> {
-    const outputDirectory = resolve(outputRoot, ALL_OUTPUT_DIRECTORY);
-    const outputPath = resolve(outputDirectory, ALL_OUTPUT_FILENAME);
+    const outputPath = resolve(outputRoot, ALL_OUTPUT_FILENAME);
+    const retiredAggregateFlatOutputPath = resolve(
+        outputRoot,
+        RETIRED_ALL_FLAT_OUTPUT_FILENAME,
+    );
+    const retiredOutputDirectory = resolve(
+        outputRoot,
+        RETIRED_ALL_OUTPUT_DIRECTORY,
+    );
+    const retiredNestedOutputPath = resolve(
+        retiredOutputDirectory,
+        RETIRED_ALL_OUTPUT_FILENAME,
+    );
+    const retiredFlatOutputPath = resolve(
+        outputRoot,
+        RETIRED_ALL_OUTPUT_FILENAME,
+    );
     await ensureBuildDirectory(outputRoot, "Shared output root");
-    await ensureBuildDirectory(outputDirectory, "Aggregate output directory");
-    await rm(outputPath, { force: true });
+    const hasRetiredOutputDirectory = await validateRetiredBuildDirectory(
+        retiredOutputDirectory,
+        "Retired aggregate output directory",
+    );
+    await Promise.all([
+        rm(outputPath, { force: true }),
+        rm(retiredAggregateFlatOutputPath, { force: true }),
+        rm(retiredFlatOutputPath, { force: true }),
+        ...(hasRetiredOutputDirectory
+            ? [rm(retiredNestedOutputPath, { force: true })]
+            : []),
+    ]);
+    if (hasRetiredOutputDirectory) {
+        await removeEmptyBuildDirectory(retiredOutputDirectory);
+    }
     await writeFile(outputPath, userscript);
 }
 

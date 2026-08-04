@@ -7,12 +7,15 @@ import test from "node:test";
 
 import { citationTemplateData as generatedTemplateData } from "@mediawiki-gadgets/shared/citation";
 import { formatCitationWikitext } from "citation-formatter/domain/formatter.ts";
+import { createTemplateNameContext } from "citation-formatter/domain/templates.ts";
 import type { CitationTemplateDataMap } from "citation-formatter/domain/types.ts";
 
 const templateData: CitationTemplateDataMap = {
     "cite book": generatedTemplateData["cite book"],
     "cite web": generatedTemplateData["cite web"],
 };
+const englishTemplateNames = createTemplateNameContext("enwiki");
+const chineseTemplateNames = createTemplateNameContext("zhwiki");
 
 function assertReferenceMarker(text: string, label: string): void {
     const lines = text.split("\n");
@@ -337,7 +340,7 @@ const testRInvocationConversion = () => {
         openTemplate,
         "r|old}}.\n<references>",
         openTemplate,
-        "r|name=old|ref=",
+        "r|name=old|r=",
         openTemplate,
         "cite web|last=Ma|date=2006|title=X}}}}</references>",
     ].join("");
@@ -351,6 +354,228 @@ const testRInvocationConversion = () => {
     assert.equal(result.rTemplatesFound, 1);
 };
 test("converts r invocations and definitions", testRInvocationConversion);
+
+test("keeps the Arch Linux indexed zhwiki page on its reference", () => {
+    const source = [
+        "Arch began{{r|distrowatch_20030803|Dieguez_Castro_2016|p2=235}}.",
+        "<references>",
+        '<ref name="distrowatch_20030803">{{cite web|last=Vinet|' +
+            "date=2003|title=Interview}}</ref>",
+        '<ref name="Dieguez_Castro_2016">{{cite book|' +
+            "last=Dieguez Castro|date=2016|title=Introducing Linux}}</ref>",
+        "</references>",
+    ].join("\n");
+    const result = formatCitationWikitext(
+        source,
+        templateData,
+        "inline",
+        "Lead",
+        chineseTemplateNames,
+    );
+
+    assert.match(
+        result.text,
+        /Arch began<ref name="Vinet, 2003" \/><ref name="Dieguez Castro, 2016" \/>\{\{rp\|235\}\}\./u,
+    );
+    assert.equal(result.rTemplatesFound, 1);
+    const repeated = formatCitationWikitext(
+        result.text,
+        templateData,
+        "inline",
+        "Lead",
+        chineseTemplateNames,
+    );
+    assert.equal(repeated.text, result.text);
+});
+
+test("uses zhwiki locator and quote aliases for each bundled reference", () => {
+    const source = [
+        "Text{{r|one|p=24|two|page2=12|quote2=Line {{lang|de|A=B}}|" +
+            "three|pp3=21–22}}.",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(
+        source,
+        {},
+        "inline",
+        "Lead",
+        chineseTemplateNames,
+    );
+
+    assert.match(
+        result.text,
+        /<ref name="one" \/>\{\{rp\|24\}\}<ref name="two" \/>\{\{rp\|12\|quote=Line \{\{lang\|de\|A=B\}\}\}\}<ref name="three" \/>\{\{rp\|21–22\}\}/u,
+    );
+});
+
+test("preserves a zhwiki R call with a reference gap", () => {
+    const source = "Text{{r|one||three|p3=30}}.\n<references />";
+    const result = formatCitationWikitext(
+        source,
+        {},
+        "inline",
+        "Lead",
+        chineseTemplateNames,
+    );
+
+    assert.ok(result.text.includes("{{r|one||three|p3=30}}"));
+    assert.equal(result.rTemplatesFound, 0);
+});
+
+test("keeps enwiki singular and plural R locators distinct", () => {
+    const source = [
+        "Text{{r|n1=one|n2=two|page1=100|pages2=10–14|" +
+            "q1=Palabras|language1=Spanish|translation1=Words}}.",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(
+        source,
+        {},
+        "inline",
+        "Lead",
+        englishTemplateNames,
+    );
+
+    assert.match(
+        result.text,
+        /<ref name="one" \/>\{\{rp\|p=100\|quote=Palabras\|language=Spanish\|translation=Words\}\}<ref name="two" \/>\{\{rp\|pp=10–14\}\}/u,
+    );
+});
+
+test("preserves an enwiki R call with a reference gap", () => {
+    const source = "Text{{r|n1=one|n3=three|page3=30}}.\n<references />";
+    const result = formatCitationWikitext(
+        source,
+        {},
+        "inline",
+        "Lead",
+        englishTemplateNames,
+    );
+
+    assert.ok(result.text.includes("{{r|n1=one|n3=three|page3=30}}"));
+    assert.equal(result.rTemplatesFound, 0);
+});
+
+test("keeps unsupported enwiki R anchor parameters intact", () => {
+    const source = [
+        "Text{{r|name=A&B|ref=CITEREFSmith|p=5}}.",
+        '<references><ref name="A&amp;B">' +
+            "{{cite web|last=Ma|date=2006|title=X}}</ref></references>",
+    ].join("\n");
+    const result = formatCitationWikitext(
+        source,
+        templateData,
+        "inline",
+        "Lead",
+        englishTemplateNames,
+    );
+
+    assert.ok(result.text.includes("{{r|name=A&B|ref=CITEREFSmith|p=5}}"));
+    assert.match(result.text, /<ref name="A&B">\{\{Cite web /u);
+    assert.equal(result.rTemplatesFound, 0);
+});
+
+test("converts an unnamed enwiki R definition with its annotations", () => {
+    const source = [
+        "Text{{r|r={{cite web|last=Ma|date=2006|title=X}}|" +
+            "p=44|quote=Quoted text}}.",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(
+        source,
+        templateData,
+        "inline",
+        "Lead",
+        englishTemplateNames,
+    );
+
+    assert.match(
+        result.text,
+        /Text<ref name="Ma, 2006" \/>\{\{rp\|p=44\|quote=Quoted text\}\}\./u,
+    );
+});
+
+test("uses an explicit zhwiki Rp position for equals-sign locators", () => {
+    const source = [
+        "Text{{r|one|p=https://example.test/?part=2}}.",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(
+        source,
+        {},
+        "inline",
+        "Lead",
+        chineseTemplateNames,
+    );
+
+    assert.match(
+        result.text,
+        /<ref name="one" \/>\{\{rp\|1=https:\/\/example\.test\/\?part=2\}\}/u,
+    );
+});
+
+test("converts and renames an R call nested in Efn", () => {
+    const source = [
+        "Text{{efn|Nested{{r|old|p=5}}.}}.",
+        '<references><ref name="old">' +
+            "{{cite web|last=Ma|date=2006|title=X}}</ref></references>",
+    ].join("\n");
+    const result = formatCitationWikitext(
+        source,
+        templateData,
+        "inline",
+        "Lead",
+        chineseTemplateNames,
+    );
+
+    assert.ok(
+        result.text.includes('{{efn|Nested<ref name="Ma, 2006" />{{rp|5}}.}}'),
+    );
+    assert.equal(result.rTemplatesFound, 1);
+});
+
+test("keeps R calls on unconfigured wikis intact", () => {
+    const otherWikiTemplateNames = createTemplateNameContext({
+        databaseName: "examplewiki",
+        namespaceIds: { template: 10 },
+        namespacePrefixes: { 10: ["Template"] },
+    });
+    const source = "Text{{r|one|p=5}}.\n<references />";
+    const result = formatCitationWikitext(
+        source,
+        {},
+        "inline",
+        "Lead",
+        otherWikiTemplateNames,
+    );
+
+    assert.ok(result.text.includes("{{r|one|p=5}}"));
+    assert.equal(result.rTemplatesFound, 0);
+});
+
+test("keeps enwiki R definition page and quote annotations", () => {
+    const source = [
+        "Text{{r|name=old|r={{cite web|last=Ma|date=2006|title=X}}|" +
+            "p=44|quote=Quoted text}}.",
+        "<references />",
+    ].join("\n");
+    const result = formatCitationWikitext(
+        source,
+        templateData,
+        "inline",
+        "Lead",
+        englishTemplateNames,
+    );
+
+    assert.match(
+        result.text,
+        /Text<ref name="Ma, 2006" \/>\{\{rp\|p=44\|quote=Quoted text\}\}\./u,
+    );
+    assert.match(
+        result.text,
+        /<ref name="Ma, 2006">\{\{Cite web \| author = Ma \| date = 2006 \| title = X\}\}<\/ref>/u,
+    );
+});
 
 const testRepeatedReferenceCounts = () => {
     const source = [

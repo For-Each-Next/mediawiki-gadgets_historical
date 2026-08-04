@@ -119,17 +119,15 @@ test("Chinese conversion normalization is opt in", () => {
     );
 });
 
-test("numbers efn notes containing named reference tags", () => {
+test("complete reference tags remain positional in efn notes", () => {
     const source =
         '{{efn|見以下文獻：<ref name="Gould, 2026" />' +
         '<ref name="Hon, 2026" /><ref name="Meghan G, 2026" />' +
         '<ref name="Seigh, 2026" />}}';
-    const expected = source.replace("{{efn|", "{{efn|1=");
 
-    assert.equal(formatWikitext(source).text, expected);
-    assert.deepEqual(formatWikitext(expected), {
+    assert.deepEqual(formatWikitext(source), {
         changed: false,
-        text: expected,
+        text: source,
     });
     assert.equal(
         formatWikitext('{{other|Text<ref name="source" />}}').text,
@@ -140,6 +138,17 @@ test("numbers efn notes containing named reference tags", () => {
             .text,
         '{{efn|name=context|1=Text<ref name="source" />}}',
     );
+});
+
+test("numbers efn notes containing unclosed reference tags", () => {
+    const source = '{{efn|Text<ref name="source">}}';
+    const expected = source.replace("{{efn|", "{{efn|1=");
+
+    assert.equal(formatWikitext(source).text, expected);
+    assert.deepEqual(formatWikitext(expected), {
+        changed: false,
+        text: expected,
+    });
 });
 
 test("nested template pipes and closers follow structural depth", () => {

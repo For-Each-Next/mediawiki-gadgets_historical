@@ -16,7 +16,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import test, { type TestContext } from "node:test";
-import { parseForESLint } from "@typescript-eslint/parser";
 import { buildGadget } from "../../scripts/gadget-build/index.ts";
 
 const EXPECTED_FIXTURE_MARKUP = [
@@ -25,8 +24,14 @@ const EXPECTED_FIXTURE_MARKUP = [
     "second line",
     "</div>",
 ].join("\n");
+const FIXTURE_PACKAGE_NOTICE = [
+    "Fixture package legal notice.",
+    "Release-Scope: fixture-gadget@1.2.3",
+    "SPDX-License-Identifier: CC0-1.0",
+    "",
+].join("\n");
 
-test("a build replaces only its package artifacts", async (context) => {
+test("a build writes only its flat minified artifact", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
     await writeFixturePackage(packageRoot);
@@ -38,11 +43,11 @@ test("a build replaces only its package artifacts", async (context) => {
     const rootFiles = (await readdir(outputRoot)).sort();
     const files = (await readdir(outputDirectory)).sort();
     const minified = await readFile(
-        join(outputDirectory, "fixture.min.js"),
+        join(outputRoot, "fixture.min.js"),
         "utf8",
     );
-    const userscript = await readFile(
-        join(outputDirectory, "fixture.user.js"),
+    const aggregate = await readFile(
+        join(outputRoot, "00-mediawiki-gadgets.user.js"),
         "utf8",
     );
     const sibling = await readFile(
@@ -59,24 +64,24 @@ test("a build replaces only its package artifacts", async (context) => {
     );
 
     assertFixtureArtifacts({
+        aggregate,
         files,
         minified,
         packageDirectoryFile,
         rootFiles,
         sibling,
         siblingDirectoryFile,
-        userscript,
     });
 });
 
 interface FixtureArtifacts {
+    aggregate: string;
     files: string[];
     minified: string;
     packageDirectoryFile: string;
     rootFiles: string[];
     sibling: string;
     siblingDirectoryFile: string;
-    userscript: string;
 }
 
 /**
@@ -86,86 +91,42 @@ interface FixtureArtifacts {
  */
 function assertFixtureArtifacts(artifacts: FixtureArtifacts): void {
     const {
+        aggregate,
         files,
         minified,
         packageDirectoryFile,
         rootFiles,
         sibling,
         siblingDirectoryFile,
-        userscript,
     } = artifacts;
     assert.deepEqual(rootFiles, [
         "fixture-gadget",
+        "fixture.min.js",
         "other-gadget",
         "other_gadget.js",
+        "00-mediawiki-gadgets.user.js",
     ]);
-    assert.deepEqual(files, ["fixture.min.js", "fixture.user.js", "note.txt"]);
+    assert.deepEqual(files, ["note.txt"]);
+    assert.equal(aggregate, "keep aggregate\n");
     assert.equal(packageDirectoryFile, "keep package directory\n");
     assert.equal(sibling, "keep\n");
     assert.equal(siblingDirectoryFile, "keep directory\n");
     assert.doesNotMatch(minified, /Reports the fixture version/u);
     assert.match(minified, /\/\/ @version\s+1\.2\.3/u);
-    assert.match(userscript, /\/\/ @version\s+1\.2\.3/u);
-    assert.match(userscript, /window\.mw/u);
-    assertUserscriptCodeHasNoComments(userscript);
-    assertUserscriptMarkupFormatting(userscript);
+    const licenseDescription =
+        "CC0-1.0; scope and exceptions in retained legal notices";
+    assert.ok(minified.includes(licenseDescription));
+    assert.match(minified, /Fixture package legal notice\./u);
     assertBuiltMarkupValue(minified);
-    assertBuiltMarkupValue(userscript, true);
-}
-
-/**
- * Keeps metadata comments while removing executable-code comments.
- *
- * @param userscript - Userscript value.
- */
-function assertUserscriptCodeHasNoComments(userscript: string): void {
-    const headerEnd = userscript.indexOf("// ==/UserScript==");
-    assert.notEqual(headerEnd, -1);
-    const code = userscript.slice(headerEnd + "// ==/UserScript==".length);
-    const { ast } = parseForESLint(code, {
-        comment: true,
-        ecmaVersion: "latest",
-        range: true,
-        sourceType: "script",
-    });
-    assert.deepEqual(ast.comments, []);
-}
-
-/**
- * Checks readable indentation and template newline serialization.
- *
- * @param userscript - Userscript value.
- */
-function assertUserscriptMarkupFormatting(userscript: string): void {
-    const encoded = '`<div id="fixture">\\n${value}\\n</div>`';
-    assert.ok(userscript.includes(encoded));
-    assert.doesNotMatch(userscript, /^\$\{value\}$/mu);
-    assert.doesNotMatch(userscript, /^<\/div>`/mu);
-    assert.match(userscript, /^ {4}function start\(\)/mu);
 }
 
 /**
  * Executes one generated form and checks the exact markup value.
  *
  * @param source - Source text.
- * @param userscript - Userscript value.
  */
-function assertBuiltMarkupValue(
-    source: string,
-    userscript: boolean = false,
-): void {
+function assertBuiltMarkupValue(source: string): void {
     const context: Record<string, unknown> = {};
-    if (userscript) {
-        context.window = {
-            mw: {
-                config: {},
-                loader: { using(): undefined {} },
-            },
-            setTimeout(): never {
-                throw new Error("The fixture userscript did not start.");
-            },
-        };
-    }
     runInNewContext(source, context);
     assert.equal(context.fixtureMarkup, EXPECTED_FIXTURE_MARKUP);
 }
@@ -177,19 +138,13 @@ test("a build injects Vue templates and CSS as text", async (context) => {
 
     await buildGadget(packageRoot);
 
-    const outputDirectory = join(workspaceRoot, "dist", "fixture-gadget");
     const minified = await readFile(
-        join(outputDirectory, "fixture.min.js"),
-        "utf8",
-    );
-    const userscript = await readFile(
-        join(outputDirectory, "fixture.user.js"),
+        join(workspaceRoot, "dist", "fixture.min.js"),
         "utf8",
     );
 
-    assert.doesNotMatch(userscript, /<template>/u);
-    assert.match(userscript, /Fixture dialog/u);
-    assert.match(userscript, /\.fixture-dialog \{/u);
+    assert.doesNotMatch(minified, /<template>/u);
+    assert.match(minified, /Fixture dialog/u);
     assert.ok(
         minified.includes(
             '<cdx-dialog><p class="fixture-dialog">' +
@@ -197,6 +152,40 @@ test("a build injects Vue templates and CSS as text", async (context) => {
         ),
     );
     assert.ok(minified.includes(".fixture-dialog{color:red;margin:0 1rem}"));
+});
+
+test("a build removes an empty retired package directory", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot);
+    await rm(join(workspaceRoot, "dist", "fixture-gadget", "note.txt"));
+
+    await buildGadget(packageRoot);
+
+    const outputFiles = (await readdir(join(workspaceRoot, "dist"))).sort();
+    assert.deepEqual(outputFiles, [
+        "fixture.min.js",
+        "other-gadget",
+        "other_gadget.js",
+        "00-mediawiki-gadgets.user.js",
+    ]);
+});
+
+test("a build preserves a file at its retired path", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot);
+    const retiredPath = join(workspaceRoot, "dist", "fixture-gadget");
+    await rm(retiredPath, { recursive: true });
+    await writeFile(retiredPath, "keep unrelated flat output\n");
+
+    await buildGadget(packageRoot);
+
+    assert.equal(
+        await readFile(retiredPath, "utf8"),
+        "keep unrelated flat output\n",
+    );
+    await readFile(join(workspaceRoot, "dist", "fixture.min.js"), "utf8");
 });
 
 test(
@@ -243,6 +232,82 @@ test("a build rejects an output name that escapes", async (context) => {
     await assert.rejects(buildGadget(packageRoot), /safe file basename/u);
 });
 
+test("a build rejects a legal notice outside its package", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { noticeFiles: ["../LICENSE"] });
+
+    await assert.rejects(
+        buildGadget(packageRoot),
+        /remain inside the package/u,
+    );
+});
+
+test("a build rejects a linked package legal notice", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot);
+    const externalNotice = join(workspaceRoot, "outside-license");
+    await writeFile(externalNotice, "External notice.\n");
+    await rm(join(packageRoot, "LICENSE"));
+    await symlink(externalNotice, join(packageRoot, "LICENSE"), "file");
+
+    await assert.rejects(buildGadget(packageRoot), /must be real files/u);
+});
+
+test("a build rejects multiline userscript metadata", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        author: "Test\n// ==/UserScript==\nunsafe();",
+    });
+
+    await assert.rejects(buildGadget(packageRoot), /fit on one line/u);
+});
+
+test("a build requires the package LICENSE notice", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { noticeFiles: [] });
+
+    await assert.rejects(buildGadget(packageRoot), /must include LICENSE/u);
+});
+
+test("a build rejects current and retired flat output collisions", (context) =>
+    rejectFlatOutputCollision(
+        context,
+        "fixture.min",
+        /fixture\.min\.js collides/iu,
+    ));
+
+test("a build rejects case-insensitive flat output collisions", (context) =>
+    rejectFlatOutputCollision(context, "FIXTURE", /fixture\.js collides/iu));
+
+/** Builds a workspace whose second package claims a collision. */
+async function rejectFlatOutputCollision(
+    context: TestContext,
+    outputName: string,
+    expected: RegExp,
+): Promise<void> {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot);
+    await writeCollisionPackage(workspaceRoot, outputName);
+
+    await assert.rejects(buildGadget(packageRoot), expected);
+}
+
+test("a build rejects the reserved aggregate output name", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { outputName: "00-MediaWiki-Gadgets" });
+
+    await assert.rejects(
+        buildGadget(packageRoot),
+        /reserve.*00-mediawiki-gadgets\.user\.js/iu,
+    );
+});
+
 test("a build rejects a mismatched package name", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
@@ -254,7 +319,7 @@ test("a build rejects a mismatched package name", async (context) => {
     );
 });
 
-test("a build rejects a linked package output directory", async (context) => {
+test("a build rejects a linked retired package directory", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
     await writeFixturePackage(packageRoot);
@@ -267,7 +332,7 @@ test("a build rejects a linked package output directory", async (context) => {
 
     await assert.rejects(
         buildGadget(packageRoot),
-        /output directory must be a real directory/u,
+        /directory must be a real directory/u,
     );
     const preserved = await readFile(
         join(externalDirectory, "fixture.min.js"),
@@ -289,6 +354,26 @@ async function createFixtureWorkspace(): Promise<{
     const packageRoot = join(workspaceRoot, "src", "fixture-gadget");
     await mkdir(packageRoot, { recursive: true });
     return { packageRoot, workspaceRoot };
+}
+
+/** Writes a sibling package whose flat output differs only by case. */
+async function writeCollisionPackage(
+    workspaceRoot: string,
+    outputName: string,
+): Promise<void> {
+    const packageRoot = join(workspaceRoot, "src", "second-gadget");
+    await mkdir(packageRoot);
+    const metadata = createFixtureMetadata(
+        { outputName, packageName: "second-gadget" },
+        "../../dist",
+    );
+    await Promise.all([
+        writeFile(join(packageRoot, "package.json"), JSON.stringify(metadata)),
+        writeFile(
+            join(packageRoot, "browser.ts"),
+            createFixtureBrowser(false),
+        ),
+    ]);
 }
 
 /**
@@ -318,6 +403,8 @@ async function writeFixturePackage(
 }
 
 interface FixturePackageOptions {
+    author?: string;
+    noticeFiles?: string[];
     outputDirectory?: string;
     outputName?: string;
     packageName?: string;
@@ -329,7 +416,7 @@ function createFixtureMetadata(
     outputDirectory: string,
 ): object {
     return {
-        author: "Test",
+        author: options.author ?? "Test",
         browser: "browser.ts",
         description: "Temporary build fixture.",
         gadgetBuild: {
@@ -346,9 +433,11 @@ function createFixtureMetadata(
                   }
                 : {}),
             globalName: "fixtureGadget",
+            noticeFiles: options.noticeFiles ?? ["LICENSE"],
             outputName: options.outputName ?? "fixture",
             userscript: { match: ["https://example.test/*"] },
         },
+        license: "CC0-1.0",
         name: options.packageName ?? "fixture-gadget",
         type: "module",
         version: "1.2.3",
@@ -379,6 +468,7 @@ function createFixtureWrites(
         : "fixture";
     const files = [
         writeFile(join(packageRoot, "package.json"), JSON.stringify(metadata)),
+        writeFile(join(packageRoot, "LICENSE"), FIXTURE_PACKAGE_NOTICE),
         writeFile(
             join(packageRoot, "browser.ts"),
             createFixtureBrowser(textAssets),
@@ -393,6 +483,10 @@ function createFixtureWrites(
             "keep package directory\n",
         ),
         writeFile(join(outputRoot, "other_gadget.js"), "keep\n"),
+        writeFile(
+            join(outputRoot, "00-mediawiki-gadgets.user.js"),
+            "keep aggregate\n",
+        ),
         writeFile(
             join(outputRoot, "other-gadget/note.txt"),
             "keep directory\n",

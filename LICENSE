@@ -1,9 +1,43 @@
-Creative Commons Attribution-ShareAlike 4.0 International
+MediaWiki Gadgets Licensing Map
 
-The licensed material in this repository is made available under the Creative
-Commons Attribution-ShareAlike 4.0 International Public License.
+This repository contains separately licensed material. Copyright ownership and
+license scope are not necessarily the same for the workspace, each gadget, and
+the shared source package.
+
+CC0-dedicated releases
+
+The project-owned portions of these releases are dedicated under CC0 1.0
+Universal as described by their package-local LICENSE files:
+
+- Citation Formatter 0.5.2 (`citation-formatter@0.5.2`)
+- VG Page Assessor 0.2.2 (`vg-page-assessor@0.2.2`)
+- VG Stub Creator 0.5.2 (`vg-stub-creator@0.5.2`)
+- wikEd Lite 0.4.4 (`wiked-lite@0.4.4`)
+
+Those notices also cover the project-owned shared runtime incorporated into
+the named releases. Their version-specific dedications do not automatically
+apply to later releases, later contributions, or newly added gadgets.
+This list is cumulative: later releases do not revoke or replace these exact
+CC0 dedications.
+
+Repository default
+
+Unless a package-local or file-specific notice says otherwise, the
+project-owned repository material is available under the Creative Commons
+Attribution-ShareAlike 4.0 International Public License. This default includes
+the root workspace, build infrastructure, tests, configuration, and repository
+documentation.
 
 SPDX-License-Identifier: CC-BY-SA-4.0
 
-The complete legal code is available at:
 https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+Shared and third-party material
+
+The current shared-source scope is described in src/shared/LICENSE. Generated,
+extracted, dependency, and other third-party material remains under its own
+terms. Nothing in this licensing map grants rights that a repository
+maintainer does not hold. See THIRD_PARTY_NOTICES.md for provenance and notices.
+
+CC0 1.0 Universal legal code:
+https://creativecommons.org/publicdomain/zero/1.0/legalcode

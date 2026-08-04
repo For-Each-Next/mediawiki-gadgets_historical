@@ -9,8 +9,8 @@
 
 ## Gadget Package Structure
 
-- Keep `README.md`, `AGENTS.md`, `CHANGELOG.md`, and `package.json` as each
-  deployable package's entry documents.
+- Keep `README.md`, `AGENTS.md`, `CHANGELOG.md`, `LICENSE`, and `package.json`
+  as each deployable package's entry documents.
 - Keep `main.ts` as each gadget's composition root. Browser entry points invoke
   it; it wires sibling UI, workflow, service, source, publishing, support, and
   shared parts through explicit contracts.
@@ -59,8 +59,9 @@
 - Use numbered reference links, short paragraphs, and lists or definition-style
   sections in place of wide tables. Keep authored Markdown lines at 79
   characters or fewer.
-- Keep the repository license notice in the root `LICENSE` file and link to it
-  from each package README.
+- Keep the repository licensing map in the root `LICENSE` file. Keep each
+  gadget's release scope in its package-local `LICENSE` and link to both files
+  from the package README.
 
 ## Action Workflows
 

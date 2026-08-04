@@ -6,10 +6,11 @@ package changelog, builds browser artifacts, or formalizes a release.
 ## Scope a Release
 
 - Treat each package under `src/` that defines `gadgetBuild` as an
-  independently released gadget and userscript.
-- Use its `package.json` version as the source of truth for all generated
-  artifacts. Version changes remain scoped to affected gadget packages; the
-  private root and shared workspace versions stay fixed.
+  independently released gadget.
+- Use its `package.json` version as the source of truth for its minified
+  artifact and its code embedded in the aggregate userscript. Version changes
+  remain scoped to affected gadget packages; the private root and shared
+  workspace versions stay fixed.
 - Treat the all-gadget userscript as a derived convenience artifact rather than
   an independent release. Its UTC build timestamp is the aggregate header
   version; the embedded gadgets retain their package versions and release
@@ -70,17 +71,28 @@ package changelog, builds browser artifacts, or formalizes a release.
 
 ## Build Artifacts
 
-- Before an affected build, remove that gadget's previous `.min.js` and
-  `.user.js` files from its hyphenated package directory under `dist/`. During
-  migration, also remove its retired readable and legacy flat artifacts.
-- A successful build writes a minified `.min.js` file and a
-  Greasemonkey-compatible `.user.js` file under `dist/<gadget-name>/`.
-- A complete workspace build also replaces the aggregate artifact at
-  `dist/mediawiki-gadgets/mediawiki_gadgets.user.js`. Building it directly with
-  `npm run build:all-userscript` reads current package sources and does not
-  require the individual artifacts first.
-- Publication replaces or removes only the previous artifact for the same
-  gadget and form.
+- Before an affected package build, remove that gadget's previous flat
+  `.min.js` file under `dist/`. During migration, also remove its retired
+  readable and individual `.user.js` files and its former package-directory
+  artifacts.
+- A successful package-only build writes only the minified
+  `dist/<output-name>.min.js` file. Its header identifies the declared package
+  license and points to the retained legal block containing every declared
+  package notice.
+- A complete workspace build writes every gadget's flat `.min.js` file and
+  replaces the aggregate userscript at `dist/00-mediawiki-gadgets.user.js`.
+- Building the aggregate directly with `npm run build:all-userscript` reads the
+  current package sources, writes `dist/00-mediawiki-gadgets.user.js`, and does
+  not require the
+  individual minified artifacts first.
+- Combine distinct package licenses as a parenthesized `AND` expression in the
+  aggregate header, then qualify its scope by pointing to the retained legal
+  notices. Retain each distinct package notice in
+  `dist/00-mediawiki-gadgets.user.js` so dependency and source-data terms
+  travel with the bundle.
+- A package publication replaces only the previous minified artifact for that
+  gadget. Rebuilding the aggregate replaces only
+  `dist/00-mediawiki-gadgets.user.js`.
 - Synchronize the package version, active changelog heading, related
   documentation, generated metadata, and version assertions in one atomic
   change. Ignored build outputs and `package-lock.json` are verification
@@ -88,17 +100,24 @@ package changelog, builds browser artifacts, or formalizes a release.
 
 ## Formalize a Release
 
-1. Complete the cleanup pass and settle the unsuffixed package version.
-2. Finalize the active changelog timestamp, overview, and durable outcomes.
-3. Run `npm run check`.
-4. Build every affected gadget with `npm run build -w <gadget>`. Use
+1. Decide the exact release license. Synchronize `package.json`, the local
+   `LICENSE` SPDX line and `Release-Scope: <name>@<version>` marker, and the
+   README. Add every CC0 scope to the cumulative root map and, when the gadget
+   incorporates shared runtime, to `src/shared/LICENSE`; never remove an older
+   CC0 scope merely because a later release uses another license.
+2. Complete the cleanup pass and settle the unsuffixed package version.
+3. Finalize the active changelog timestamp, overview, and durable outcomes.
+4. Run `npm run check`.
+5. Build every affected gadget with `npm run build -w <gadget>`. Use
    `npm run build` when shared work affects every gadget. Rebuild the aggregate
    with `npm run build:all-userscript` when delivering the combined userscript
    after a package-only build.
-5. Confirm each package artifact header contains its canonical package version.
-   When built, confirm the aggregate header contains its UTC timestamp and all
-   package authors.
-6. Inspect `git diff --check`, the complete diff, and the final worktree
+6. Confirm each package's minified artifact header contains its canonical
+  package version and license and that its legal notice is present. When
+  built, confirm the `dist/00-mediawiki-gadgets.user.js` header contains its UTC
+  timestamp, common or combined license, all package authors, and all distinct
+  package notices.
+7. Inspect `git diff --check`, the complete diff, and the final worktree
    status.
 
 [1]: https://semver.org/

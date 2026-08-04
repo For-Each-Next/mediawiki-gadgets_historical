@@ -2,15 +2,28 @@
 
 ## Until 0.5
 
-### 0.4.4-dev.39 (2026-08-03 15:12 UTC)
+### 0.4.4 (2026-08-04 07:29 UTC)
 
-Overview: wikEd Lite keeps delimiter-only text from becoming unintended
-headings.
+Overview: wikEd Lite aligns the visible editor with browser behavior, MediaWiki
+reference parsing, and a flat distribution whose project-owned work is CC0.
 
+- Removed the hidden native textarea from browser Find-in-page after the
+  enhanced iframe becomes ready, preventing invisible matches and inflated
+  result counts while retaining form submission and teardown restoration.
+- Parsed complete `ref` and `references` extension tags before template
+  argument separators, keeping attribute equals signs and body pipes from
+  turning surrounding footnote prose into parameter names.
+- Left valid explanatory footnotes containing complete references unchanged
+  during formatting while retaining recovery for unclosed reference openings.
 - Kept marker-only and unsupported level-seven heading-like lines unchanged
   instead of reinterpreting them as lower-level headings.
 - Clarified in Simplified Chinese that missing-link API requests can
   substantially slow formatting.
+- Published the minified gadget directly under `dist/`, retired its individual
+  userscript, and joined the other gadgets in the shared `dist/user.js`.
+- Dedicated the project-owned release and incorporated shared runtime under CC0
+  1.0, retained third-party data terms and prior-work credits, and embedded the
+  package notice in generated artifacts.
 
 ### 0.4.4-dev.38 (2026-08-03 13:24 UTC)
 

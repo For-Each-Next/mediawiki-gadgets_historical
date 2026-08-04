@@ -7,6 +7,7 @@ import {
     type SourceRange,
     type WikitextOptions,
 } from "./opaque-ranges.ts";
+import { findWikitextTags, type WikitextTag } from "./tags.ts";
 
 export interface ParsedTemplateCall {
     depth: number;
@@ -58,6 +59,8 @@ interface NestingState {
     links: number;
     wikitext: Array<"parameter" | "template">;
 }
+
+const TEMPLATE_ARGUMENT_EXTENSION_TAGS = ["ref", "references"] as const;
 
 /**
  * Finds balanced template ranges, including nested calls.
@@ -171,17 +174,17 @@ export function splitTopLevelRanges(
     if (separator.length === 0) {
         throw new RangeError("The separator must not be empty.");
     }
-    const opaque = findOpaqueRanges(source, options);
+    const protectedRanges = findSeparatorProtectedRanges(source, options);
     const parts: TopLevelRange[] = [];
     const state: NestingState = { links: 0, wikitext: [] };
-    let opaqueIndex = 0;
+    let protectedIndex = 0;
     let start = 0;
 
     for (let index = 0; index < source.length; index += 1) {
-        const hidden = opaque[opaqueIndex];
+        const hidden = protectedRanges[protectedIndex];
         if (hidden?.start === index) {
             index = hidden.end - 1;
-            opaqueIndex += 1;
+            protectedIndex += 1;
             continue;
         }
         const skipped = updateNesting(source, index, state);
@@ -205,6 +208,62 @@ export function splitTopLevelRanges(
     }
     parts.push({ end: source.length, start, value: source.slice(start) });
     return parts;
+}
+
+function findSeparatorProtectedRanges(
+    source: string,
+    options: WikitextOptions,
+): SourceRange[] {
+    const opaque = findOpaqueRanges(source, options);
+    const extensions = findWikitextTags(source, {
+        ...(options.literalTags == null
+            ? {}
+            : { literalTags: options.literalTags }),
+        tagNames: TEMPLATE_ARGUMENT_EXTENSION_TAGS,
+    })
+        .filter((tag) => isCompleteExtensionTag(source, tag))
+        .map(({ end, start }) => ({ end, start }));
+    return mergeSourceRanges([...opaque, ...extensions]);
+}
+
+function isCompleteExtensionTag(source: string, tag: WikitextTag): boolean {
+    if (!tag.closed || !hasStrictOpeningTag(source, tag)) {
+        return false;
+    }
+    if (tag.selfClosing) {
+        return true;
+    }
+    const closing = source.slice(tag.contentEnd, tag.end);
+    const enteredName = closing.slice(2, 2 + tag.name.length);
+    const tail = closing.slice(2 + tag.name.length);
+    return (
+        enteredName.toLocaleLowerCase() === tag.name && /^\s*>$/u.test(tail)
+    );
+}
+
+function hasStrictOpeningTag(source: string, tag: WikitextTag): boolean {
+    const opening = source.slice(tag.start, tag.contentStart);
+    const enteredName = opening.slice(1, 1 + tag.name.length);
+    const boundary = opening[1 + tag.name.length] ?? "";
+    return (
+        enteredName.toLocaleLowerCase() === tag.name &&
+        /[\s/>]/u.test(boundary)
+    );
+}
+
+function mergeSourceRanges(ranges: SourceRange[]): SourceRange[] {
+    const merged: SourceRange[] = [];
+    for (const range of ranges.toSorted(
+        (left, right) => left.start - right.start || right.end - left.end,
+    )) {
+        const previous = merged.at(-1);
+        if (previous == null || previous.end < range.start) {
+            merged.push({ ...range });
+            continue;
+        }
+        previous.end = Math.max(previous.end, range.end);
+    }
+    return merged;
 }
 
 /**

@@ -2,6 +2,63 @@
 
 ## Until 0.6
 
+### 0.5.2 (2026-08-04 07:29 UTC)
+
+Overview: Citation Formatter preserves compact `R` annotations, parses complete
+reference tags, and publishes its project-owned work under CC0.
+
+- Folded native reuses and adjacent `Rp` annotations into one current-wiki `R`
+  call with each indexed annotation immediately following its reference name.
+- Preserved English locator and quotation metadata, and emitted plural Chinese
+  page locators for comma-separated lists and hyphen, en-dash, or em-dash
+  ranges.
+- Parsed complete `ref` and `references` extension tags before outer template
+  argument separators while leaving generic HTML and incomplete tags unchanged.
+- Published the minified gadget directly under `dist/`, retired its individual
+  userscript, and joined the other gadgets in the shared `dist/user.js`.
+- Dedicated the project-owned release and incorporated shared runtime under CC0
+  1.0, retained Wikimedia data terms, Codex icon artwork under CC BY 4.0, and
+  its package software's MIT notice in generated artifacts.
+
+### 0.5.1-post.35 (2026-08-03 18:25 UTC)
+
+Overview: Citation Formatter converts `R` calls only when every entered field
+has a lossless native representation.
+
+- Kept calls with colliding aliases or nameless indexed data unchanged and
+  preserved every reference name that those calls may address.
+- Canonicalized reference-group entities before output so converted and
+  preserved calls remain connected to their definitions and lists.
+
+### 0.5.1-post.34 (2026-08-03 16:51 UTC)
+
+Overview: Citation Formatter keeps unconvertible `R` calls and their reference
+names intact while safely converting supported edge cases.
+
+- Preserved unsupported English anchor forms and the names of their referenced
+  definitions, supported unnamed definitions, and left other-wiki calls intact.
+- Protected Chinese locators containing top-level equals signs and retained
+  nested `R` reuse renaming inside explanatory footnotes.
+
+### 0.5.1-post.33 (2026-08-03 15:37 UTC)
+
+Overview: Citation Formatter preserves quotation-language metadata while
+converting English `R` templates.
+
+- Mapped English `R` quotation language and translation aliases to matching
+  `Rp` annotations in both native and compact reference-call layouts.
+
+### 0.5.1-post.32 (2026-08-03 15:29 UTC)
+
+Overview: Citation Formatter preserves page and quotation annotations while
+converting English and Chinese `R` templates.
+
+- Converted up to nine bundled references through wiki-specific parameter
+  aliases while preserving grouped calls, calls with reference gaps, and
+  embedded English-wiki definitions.
+- Emitted matching `Rp` annotations for singular and plural pages, locations,
+  and quotations on enwiki and positional locators plus quotes on zhwiki.
+
 ### 0.5.1-post.31 (2026-08-03 12:20 UTC)
 
 Overview: Citation Formatter makes script-title formatting optional and

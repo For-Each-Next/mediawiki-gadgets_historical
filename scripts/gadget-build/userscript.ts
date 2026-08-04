@@ -1,8 +1,9 @@
 /**
- * Formats installable userscript metadata and bootstrap source.
+ * Formats aggregate userscript metadata and bootstrap source.
  */
 
-import { formatMetadata } from "./metadata.ts";
+import { describeArtifactLicense, formatMetadata } from "./metadata.ts";
+import { formatLegalNotices } from "./notices.ts";
 import {
     formatReadableJavaScript,
     stripJavaScriptComments,
@@ -55,26 +56,6 @@ const ALL_USERSCRIPT_RUNTIME = `  function matchesUrl(url, patterns) {
 `;
 
 /**
- * Adds userscript metadata and a MediaWiki-ready bootstrap.
- *
- * @param source - Bundled gadget source.
- * @param metadata - Package metadata.
- * @param config - Userscript configuration.
- * @returns Installable userscript source.
- */
-export async function formatUserscript(
-    source: string,
-    metadata: UserscriptMetadata,
-    config: UserscriptConfig = {},
-): Promise<string> {
-    const header = buildUserscriptHeader(metadata, config);
-    const bootstrap = formatUserscriptBootstrap(
-        stripJavaScriptComments(source),
-    );
-    return formatReadableJavaScript(`${header}\n\n${bootstrap}`);
-}
-
-/**
  * Adds one userscript header and scoped startup for several gadgets.
  *
  * @param programs - Independently bundled gadget programs.
@@ -86,10 +67,24 @@ export async function formatAllUserscript(
     programs: UserscriptProgram[],
     metadata: UserscriptMetadata,
     config: UserscriptConfig,
+    notices: readonly string[] = [],
 ): Promise<string> {
-    const header = buildUserscriptHeader(metadata, config);
+    const header = buildUserscriptHeader(
+        {
+            ...metadata,
+            license: describeArtifactLicense(
+                metadata.license,
+                notices.length > 0,
+            ),
+        },
+        config,
+    );
+    const legalNotices = formatLegalNotices(notices);
     const bootstrap = formatAllUserscriptBootstrap(programs);
-    return formatReadableJavaScript(`${header}\n\n${bootstrap}`);
+    const sections = [header, legalNotices, bootstrap].filter(
+        (section) => section !== "",
+    );
+    return formatReadableJavaScript(sections.join("\n\n"));
 }
 
 /**
@@ -135,6 +130,7 @@ function buildCoreMetadata(
         formatMetadata("version", metadata.version),
         formatMetadata("description", metadata.description),
         formatMetadata("author", metadata.author),
+        formatMetadata("license", metadata.license),
         formatMetadata("run-at", config.runAt ?? "document-idle"),
         formatMetadata("sandbox", config.sandbox ?? "raw"),
     ];
@@ -149,33 +145,6 @@ function buildCoreMetadata(
  */
 function buildMetadataList(key: string, values: string[]): string[] {
     return values.map((value) => formatMetadata(key, value));
-}
-
-/**
- * Waits for MediaWiki before running the bundled gadget.
- *
- * @param source - Bundled gadget source.
- * @returns Userscript bootstrap source.
- */
-function formatUserscriptBootstrap(source: string): string {
-    return `(() => {
-  function start() {
-    if (
-      window.mw?.config == null ||
-      typeof window.mw?.loader?.using !== "function"
-    ) {
-      window.setTimeout(start, 50);
-      return;
-    }
-
-    const mw = window.mw;
-
-${source.trimEnd()}
-  }
-
-  start();
-})();
-`;
 }
 
 /**

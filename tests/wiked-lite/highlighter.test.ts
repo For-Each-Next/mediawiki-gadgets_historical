@@ -228,6 +228,40 @@ test("self-closing references do not color the following article text", () => {
     );
 });
 
+test("reference attributes keep footnote prose positional", () => {
+    const source =
+        "{{efn|name=Terraria: Otherworld|" +
+        '译名取自[[游民星空]]<ref name="旧城七喜, 2018" />、' +
+        '[[触乐]]<ref name="陈祺, 2016" />、游戏大观' +
+        '<ref name="游戏大观, 2020" />等，触乐' +
+        '<ref name="刘翁婳, 2022" />和游戏茶馆' +
+        '<ref name="崴脚君, 2023" />译作「泰拉瑞亚：异界」，' +
+        '触乐又译作「泰拉瑞亚：异世界」<ref name="星咏, 2015" />。}}';
+    const segments = highlightWikitext(source);
+
+    assertHasClass(source, segments, "name", "wiked-lite-token--parameter");
+    assert.deepEqual(
+        segments
+            .filter((segment) =>
+                segment.classNames.includes("wiked-lite-token--parameter"),
+            )
+            .map((segment) => segment.text),
+        ["name"],
+    );
+    assertHasClass(
+        source,
+        segments,
+        '<ref name="旧城七喜, 2018" />',
+        "wiked-lite-token--html-tag",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        '="旧城七喜, 2018"',
+        "wiked-lite-token--template-delimiter",
+    );
+});
+
 test("reference containers use relative template nesting", () => {
     for (const fixture of REFERENCE_CONTAINER_FIXTURES) {
         assertReferenceContainerNesting(fixture);

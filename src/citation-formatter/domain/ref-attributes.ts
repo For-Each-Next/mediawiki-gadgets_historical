@@ -57,7 +57,8 @@ export function escapeReferenceName(
  * @returns Leading-space group attribute or an empty string.
  */
 export function formatReferenceGroupAttribute(value: string): string {
-    return value === "" ? "" : ` group="${escapeQuotedAttribute(value)}"`;
+    const decoded = decodeReferenceAttribute(value);
+    return decoded === "" ? "" : ` group="${escapeQuotedAttribute(decoded)}"`;
 }
 
 /**

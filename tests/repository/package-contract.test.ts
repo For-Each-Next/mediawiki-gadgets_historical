@@ -22,6 +22,9 @@ test("a future gadget is discovered automatically", async (context) => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-contract-"));
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
     await writeFutureGadget(workspaceRoot);
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "future-gadget@1.3.0-dev.1",
+    ]);
 
     const result = await checkGadgetPackages(workspaceRoot);
 
@@ -29,18 +32,144 @@ test("a future gadget is discovered automatically", async (context) => {
     assert.deepEqual(result.problems, []);
 });
 
-test("package directories isolate artifact names", async (context) => {
+test("an old package notice cannot cover a later version", async (context) => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-license-"));
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFutureGadget(workspaceRoot);
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "future-gadget@1.3.0-dev.1",
+    ]);
+    await writeFile(
+        join(workspaceRoot, "src", "future-gadget", "LICENSE"),
+        createFutureLicense("future-gadget", "1.2.9", "CC0-1.0"),
+    );
+
+    const result = await checkGadgetPackages(workspaceRoot);
+
+    assert.ok(
+        result.problems.some((problem) => /release scope/iu.test(problem)),
+    );
+});
+
+test("a package notice must match its metadata license", async (context) => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-spdx-"));
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFutureGadget(workspaceRoot);
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "future-gadget@1.3.0-dev.1",
+    ]);
+    await writeFile(
+        join(workspaceRoot, "src", "future-gadget", "LICENSE"),
+        createFutureLicense("future-gadget", "1.3.0-dev.1", "MIT"),
+    );
+
+    const result = await checkGadgetPackages(workspaceRoot);
+
+    assert.ok(
+        result.problems.some((problem) =>
+            /package\.json license/iu.test(problem),
+        ),
+    );
+});
+
+test("workspace maps include each current CC0 scope", async (context) => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-map-"));
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFutureGadget(
+        workspaceRoot,
+        "future-gadget",
+        "future_gadget",
+        true,
+    );
+    await writeWorkspaceLicenseMaps(
+        workspaceRoot,
+        ["future-gadget@1.3.0-dev.10"],
+        ["future-gadget@1.3.0-dev.10"],
+    );
+
+    const result = await checkGadgetPackages(workspaceRoot);
+
+    assert.equal(
+        result.problems.filter((problem) =>
+            /must include CC0 scope/iu.test(problem),
+        ).length,
+        2,
+    );
+});
+
+test("workspace licensing maps are required", async (context) => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-map-missing-"));
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFutureGadget(workspaceRoot);
+
+    const result = await checkGadgetPackages(workspaceRoot);
+
+    assert.equal(
+        result.problems.filter((problem) =>
+            /missing licensing map/iu.test(problem),
+        ).length,
+        2,
+    );
+});
+
+test("current and retired artifact names cannot collide", async (context) => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-collision-"));
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
     await Promise.all([
         writeFutureGadget(workspaceRoot, "first-gadget", "shared"),
-        writeFutureGadget(workspaceRoot, "second-gadget", "shared"),
+        writeFutureGadget(workspaceRoot, "second-gadget", "shared.min"),
+    ]);
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "first-gadget@1.3.0-dev.1",
+        "second-gadget@1.3.0-dev.1",
     ]);
 
     const result = await checkGadgetPackages(workspaceRoot);
 
     assert.equal(result.gadgetCount, 2);
-    assert.deepEqual(result.problems, []);
+    assert.ok(
+        result.problems.some((problem) =>
+            /shared\.min\.js collides/iu.test(problem),
+        ),
+    );
+});
+
+test("flat artifact names cannot collide by case", async (context) => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-case-"));
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await Promise.all([
+        writeFutureGadget(workspaceRoot, "first-gadget", "shared"),
+        writeFutureGadget(workspaceRoot, "second-gadget", "SHARED"),
+    ]);
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "first-gadget@1.3.0-dev.1",
+        "second-gadget@1.3.0-dev.1",
+    ]);
+
+    const result = await checkGadgetPackages(workspaceRoot);
+
+    assert.ok(
+        result.problems.some((problem) =>
+            /shared\.js collides/iu.test(problem),
+        ),
+    );
+});
+
+test("the aggregate output name is reserved by case", async (context) => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-reserved-"));
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFutureGadget(workspaceRoot, "future-gadget", "00-MediaWiki-Gadgets");
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "future-gadget@1.3.0-dev.1",
+    ]);
+
+    const result = await checkGadgetPackages(workspaceRoot);
+
+    assert.ok(
+        result.problems.some((problem) =>
+            /reserved name "00-mediawiki-gadgets\.user\.js" path/u.test(problem),
+        ),
+    );
 });
 
 test("architecture layer imports point downward", async () => {
@@ -63,23 +192,26 @@ test("authored Markdown lines fit the repository width", async () => {
  * @param workspaceRoot - Workspace root value.
  * @param packageName - Package name value.
  * @param outputName - Output name value.
+ * @param usesShared - Whether the fixture opts into shared imports.
  */
 async function writeFutureGadget(
     workspaceRoot: string,
     packageName: string = "future-gadget",
     outputName: string = "future_gadget",
+    usesShared: boolean = false,
 ): Promise<void> {
     const packageRoot = join(workspaceRoot, "src", packageName);
     await mkdir(packageRoot, { recursive: true });
     const files = {
         "AGENTS.md": "# Fixture rules\n",
         "CHANGELOG.md": createFutureChangelog(),
+        LICENSE: createFutureLicense(packageName, "1.3.0-dev.1", "CC0-1.0"),
         "README.md": createFutureReadme(packageName),
         "browser.ts": 'import { start } from "#gadget/main.ts";\nstart();\n',
         "index.ts": "export {};\n",
         "main.ts": "export function start(): void {}\n",
         "package.json": JSON.stringify(
-            createFutureMetadata(packageName, outputName),
+            createFutureMetadata(packageName, outputName, usesShared),
         ),
     };
     await Promise.all(
@@ -89,16 +221,33 @@ async function writeFutureGadget(
     );
 }
 
+/** Creates a version- and license-specific package notice fixture. */
+function createFutureLicense(
+    packageName: string,
+    version: string,
+    license: string,
+): string {
+    return [
+        `Future Gadget ${version} Licensing Notice`,
+        "",
+        `Release-Scope: ${packageName}@${version}`,
+        `SPDX-License-Identifier: ${license}`,
+        "",
+    ].join("\n");
+}
+
 /**
  * Creates the future gadget's package metadata.
  *
  * @param packageName - Package name value.
  * @param outputName - Output name value.
+ * @param usesShared - Whether the fixture opts into shared imports.
  * @returns Created the future gadget's package metadata.
  */
 function createFutureMetadata(
     packageName: string,
     outputName: string,
+    usesShared: boolean = false,
 ): Record<string, unknown> {
     return {
         author: "Test",
@@ -106,14 +255,13 @@ function createFutureMetadata(
         description: "Future package fixture.",
         gadgetBuild: {
             globalName: "futureGadget",
+            noticeFiles: ["LICENSE"],
             outputName,
         },
-        imports: {
-            "#gadget": "./index.ts",
-            "#gadget/*": "./*",
-        },
+        imports: createFutureImports(usesShared),
         main: "./index.ts",
         name: packageName,
+        license: "CC0-1.0",
         private: true,
         scripts: {
             build: "node ../../scripts/gadget-build/cli.ts",
@@ -129,6 +277,45 @@ function createFutureMetadata(
             outputDir: "../../dist",
         },
     };
+}
+
+/** Creates local and optional shared package import aliases. */
+function createFutureImports(usesShared: boolean): Record<string, string> {
+    return {
+        "#gadget": "./index.ts",
+        "#gadget/*": "./*",
+        ...(usesShared
+            ? {
+                  "#shared": "@mediawiki-gadgets/shared",
+                  "#shared/*": "@mediawiki-gadgets/shared/*",
+              }
+            : {}),
+    };
+}
+
+/** Writes the workspace maps that retain exact CC0 release scopes. */
+async function writeWorkspaceLicenseMaps(
+    workspaceRoot: string,
+    rootScopes: string[],
+    sharedScopes: string[] = [],
+): Promise<void> {
+    const sharedRoot = join(workspaceRoot, "src", "shared");
+    await mkdir(sharedRoot, { recursive: true });
+    await Promise.all([
+        writeFile(
+            join(workspaceRoot, "LICENSE"),
+            formatLicenseScopes(rootScopes),
+        ),
+        writeFile(
+            join(sharedRoot, "LICENSE"),
+            formatLicenseScopes(sharedScopes),
+        ),
+    ]);
+}
+
+/** Formats exact release-scope tokens for a fixture licensing map. */
+function formatLicenseScopes(scopes: string[]): string {
+    return scopes.map((scope) => `- \`${scope}\``).join("\n") + "\n";
 }
 
 /**
@@ -166,7 +353,8 @@ function createFutureReadme(packageName: string): string {
         "",
         "## License",
         "",
-        "Fixture.",
+        "See the [package license](LICENSE) and",
+        "[repository license](../../LICENSE).",
         "",
     ].join("\n");
 }

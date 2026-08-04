@@ -5,10 +5,15 @@
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+    findArtifactCollisions,
+    type ArtifactClaim,
+} from "./gadget-build/index.ts";
 
 const REQUIRED_FILES = [
     "AGENTS.md",
     "CHANGELOG.md",
+    "LICENSE",
     "README.md",
     "index.ts",
     "main.ts",
@@ -42,6 +47,7 @@ const START_IMPORT_PATTERN =
 interface GadgetBuildMetadata {
     entryPoint?: string;
     globalName?: string;
+    noticeFiles?: unknown;
     outputDirectory?: unknown;
     outputName?: string;
     target?: unknown;
@@ -62,6 +68,7 @@ interface PackageMetadata {
     description?: string;
     gadgetBuild?: GadgetBuildMetadata;
     imports?: Record<string, string>;
+    license?: string;
     name?: string;
     main?: string;
     private?: boolean;
@@ -69,6 +76,12 @@ interface PackageMetadata {
     type?: string;
     version?: string;
     vue?: VueMetadata;
+}
+
+interface LicenseMap {
+    content: string | null;
+    name: string;
+    sharedOnly: boolean;
 }
 
 export interface PackageContractResult {
@@ -99,11 +112,121 @@ export async function checkGadgetPackages(
             checkGadgetPackage(directory, metadata),
         ),
     );
+    const licenseMapProblems = await checkWorkspaceLicenseMaps(
+        workspaceRoot,
+        gadgets,
+    );
 
     return {
         gadgetCount: gadgets.length,
-        problems: results.flat(),
+        problems: [
+            ...results.flat(),
+            ...checkGeneratedFilenameCollisions(gadgets),
+            ...licenseMapProblems,
+        ],
     };
+}
+
+/** Checks CC0 scopes in the root and shared licensing maps. */
+async function checkWorkspaceLicenseMaps(
+    workspaceRoot: string,
+    gadgets: Array<{ directory: string; metadata: PackageMetadata }>,
+): Promise<string[]> {
+    const maps = await Promise.all([
+        readLicenseMap("root LICENSE", join(workspaceRoot, "LICENSE"), false),
+        readLicenseMap(
+            "src/shared/LICENSE",
+            join(workspaceRoot, "src", "shared", "LICENSE"),
+            true,
+        ),
+    ]);
+    return maps.flatMap((map) => checkLicenseMap(map, gadgets));
+}
+
+/** Reads one optional workspace licensing map. */
+async function readLicenseMap(
+    name: string,
+    path: string,
+    sharedOnly: boolean,
+): Promise<LicenseMap> {
+    try {
+        return { content: await readFile(path, "utf8"), name, sharedOnly };
+    } catch (error) {
+        if (hasErrorCode(error, "ENOENT")) {
+            return { content: null, name, sharedOnly };
+        }
+        throw error;
+    }
+}
+
+/** Checks one map against every currently CC0-licensed gadget. */
+function checkLicenseMap(
+    map: LicenseMap,
+    gadgets: Array<{ directory: string; metadata: PackageMetadata }>,
+): string[] {
+    if (map.content == null) {
+        return [`workspace: missing licensing map ${map.name}.`];
+    }
+    const content = map.content;
+    return gadgets.flatMap(({ metadata }) => {
+        if (
+            metadata.license !== "CC0-1.0" ||
+            !hasText(metadata.name) ||
+            !hasText(metadata.version) ||
+            (map.sharedOnly && !usesSharedRuntime(metadata))
+        ) {
+            return [];
+        }
+        const scope = `${metadata.name}@${metadata.version}`;
+        return content.includes(`\`${scope}\``)
+            ? []
+            : [`workspace: ${map.name} must include CC0 scope ${scope}.`];
+    });
+}
+
+/** Checks whether a gadget opts into the shared runtime package. */
+function usesSharedRuntime(metadata: PackageMetadata): boolean {
+    return (
+        metadata.imports?.["#shared"] === "@mediawiki-gadgets/shared" &&
+        metadata.imports["#shared/*"] === "@mediawiki-gadgets/shared/*"
+    );
+}
+
+/**
+ * Rejects artifact names that collide in the flat distribution.
+ *
+ * @param gadgets - Discovered gadget packages.
+ * @returns Artifact collision problems.
+ */
+function checkGeneratedFilenameCollisions(
+    gadgets: Array<{ directory: string; metadata: PackageMetadata }>,
+): string[] {
+    const claims = gadgets.flatMap(createArtifactClaim);
+    return findArtifactCollisions(claims).map(
+        ({ filename, owners }) =>
+            `${owners.join(", ")}: generated artifact ${filename} ` +
+            "collides in the shared dist directory.",
+    );
+}
+
+/**
+ * Creates one package's artifact claim when its output name is usable.
+ *
+ * @param candidate - Discovered gadget package.
+ * @returns Package artifact claim, when available.
+ */
+function createArtifactClaim({
+    directory,
+    metadata,
+}: {
+    directory: string;
+    metadata: PackageMetadata;
+}): ArtifactClaim[] {
+    const outputName = metadata.gadgetBuild?.outputName;
+    if (!hasText(outputName)) {
+        return [];
+    }
+    return [{ outputName, owner: basename(directory) }];
 }
 
 /**
@@ -161,8 +284,43 @@ async function checkGadgetPackage(
     await checkBrowserEntry(directory, packageName, metadata, problems);
     await checkReadme(directory, packageName, metadata, problems);
     await checkChangelog(directory, packageName, metadata, problems);
+    await checkLicense(directory, packageName, metadata, problems);
 
     return problems;
+}
+
+/** Checks the local notice's release scope and license. */
+async function checkLicense(
+    directory: string,
+    packageName: string,
+    metadata: PackageMetadata,
+    problems: string[],
+): Promise<void> {
+    let license: string;
+    try {
+        license = await readFile(join(directory, "LICENSE"), "utf8");
+    } catch (error) {
+        if (hasErrorCode(error, "ENOENT")) {
+            return;
+        }
+        throw error;
+    }
+    const lines = new Set(license.split(/\r?\n/u));
+    check(
+        !hasText(metadata.name) ||
+            !hasText(metadata.version) ||
+            lines.has(`Release-Scope: ${metadata.name}@${metadata.version}`),
+        problems,
+        packageName,
+        "LICENSE must identify the current release scope.",
+    );
+    check(
+        !hasText(metadata.license) ||
+            lines.has(`SPDX-License-Identifier: ${metadata.license}`),
+        problems,
+        packageName,
+        "LICENSE must identify the package.json license.",
+    );
 }
 
 /**
@@ -340,6 +498,12 @@ function checkGeneratedMetadata(
         "package.json description must be present for generated metadata.",
     );
     check(
+        hasText(metadata.license),
+        problems,
+        packageName,
+        "package.json license must be present for generated metadata.",
+    );
+    check(
         metadata.main === "./index.ts",
         problems,
         packageName,
@@ -412,6 +576,13 @@ function checkBuildMetadata(
 ): void {
     checkBuildOutputMetadata(packageName, metadata, problems);
     checkBuildEntryMetadata(packageName, metadata, problems);
+    check(
+        Array.isArray(metadata.gadgetBuild?.noticeFiles) &&
+            metadata.gadgetBuild.noticeFiles.includes("LICENSE"),
+        problems,
+        packageName,
+        "gadgetBuild.noticeFiles must retain the package LICENSE.",
+    );
 }
 
 /**
@@ -486,6 +657,7 @@ function checkArtifactOutputMetadata(
     metadata: PackageMetadata,
     problems: string[],
 ): void {
+    const outputName = metadata.gadgetBuild?.outputName;
     check(
         hasText(metadata.gadgetBuild?.globalName) &&
             JAVASCRIPT_IDENTIFIER_PATTERN.test(
@@ -496,11 +668,17 @@ function checkArtifactOutputMetadata(
         "gadgetBuild.globalName must be a JavaScript identifier.",
     );
     check(
-        hasText(metadata.gadgetBuild?.outputName) &&
-            OUTPUT_NAME_PATTERN.test(metadata.gadgetBuild.outputName),
+        hasText(outputName) && OUTPUT_NAME_PATTERN.test(outputName),
         problems,
         packageName,
         "gadgetBuild.outputName must be a safe file basename.",
+    );
+    check(
+        !hasText(outputName) || outputName.toLowerCase() !== "00-mediawiki-gadgets",
+        problems,
+        packageName,
+        "gadgetBuild.outputName must not reserve the aggregate " +
+            "00-mediawiki-gadgets.user.js path.",
     );
     check(
         metadata.gadgetBuild?.target == null ||
@@ -707,6 +885,12 @@ function checkReadmeLinks(
     packageName: string,
     problems: string[],
 ): void {
+    check(
+        /\]\(LICENSE\)|^\[[^\]]+\]: LICENSE$/mu.test(readme),
+        problems,
+        packageName,
+        "README.md must link to the package LICENSE.",
+    );
     for (const link of [
         "CHANGELOG.md",
         "AGENTS.md",

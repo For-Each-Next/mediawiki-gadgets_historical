@@ -1,9 +1,9 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.5.1-post.9",
+    "version": "0.5.2",
     "description": "Quickly create a video game stub on the Chinese Wikipedia.",
     "private": true,
-    "license": "CC BY-SA 4.0",
+    "license": "CC0-1.0",
     "author": "For Each ... Next",
     "type": "module",
     "imports": {
@@ -24,6 +24,9 @@
     },
     "gadgetBuild": {
         "globalName": "vgStubCreator",
+        "noticeFiles": [
+            "LICENSE"
+        ],
         "outputName": "vg_stub_creator",
         "defines": {
             "__VG_STUB_CREATOR_SHARED_DIALOG_STYLES__": {
@@ -96,6 +99,7 @@
         "README.md",
         "AGENTS.md",
         "CHANGELOG.md",
+        "LICENSE",
         "docs",
         "*.ts",
         "workflows",

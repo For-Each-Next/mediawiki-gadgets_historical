@@ -116,7 +116,7 @@ export function manageCitationsWithResult(
         templateNameContext,
     );
     formatted.text = useCompactReferences
-        ? compactReferenceCalls(formatted.text)
+        ? compactReferenceCalls(formatted.text, templateNameContext)
         : expandCompactReferenceCalls(formatted.text, templateNameContext);
     return formatted;
 }

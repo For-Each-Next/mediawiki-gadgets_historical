@@ -2,6 +2,18 @@
 
 ## Until 0.3
 
+### 0.2.2 (2026-08-04 07:29 UTC)
+
+Overview: VG Page Assessor publishes a flat all-gadget distribution and
+dedicates its project-owned release under CC0.
+
+- Published only `dist/vg_page_assessor.min.js` for the package build, included
+  it in `dist/user.js`, and retired its nested outputs and individual
+  userscript.
+- Dedicated the project-owned release and incorporated shared runtime under CC0
+  1.0, retained third-party data terms, and embedded the package notice in
+  generated artifacts.
+
 ### 0.2.1-post.9 (2026-08-03 10:49 UTC)
 
 Overview: VG Page Assessor resolves Chinese Wikipedia namespace titles and

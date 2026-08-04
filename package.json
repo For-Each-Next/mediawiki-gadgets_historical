@@ -2,6 +2,7 @@
     "name": "mediawiki-gadgets",
     "version": "0.1.0",
     "private": true,
+    "license": "SEE LICENSE IN LICENSE",
     "description": "TypeScript development workspace for MediaWiki gadgets.",
     "type": "module",
     "imports": {

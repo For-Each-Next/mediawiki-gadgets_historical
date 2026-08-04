@@ -1,9 +1,9 @@
 {
     "name": "citation-formatter",
-    "version": "0.5.1-post.31",
+    "version": "0.5.2",
     "description": "Format and manage CS1 and other Cite-prefixed citations in MediaWiki source editors.",
     "private": true,
-    "license": "CC BY-SA 4.0",
+    "license": "CC0-1.0",
     "author": "For Each ... Next",
     "type": "module",
     "imports": {
@@ -24,6 +24,9 @@
     },
     "gadgetBuild": {
         "globalName": "citationFormatter",
+        "noticeFiles": [
+            "LICENSE"
+        ],
         "outputName": "citation_formatter",
         "defines": {
             "__CITATION_FORMATTER_STYLES__": {

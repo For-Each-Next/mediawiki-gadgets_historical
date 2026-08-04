@@ -120,10 +120,11 @@ function ensureBlankLineAfterHeadings(source: string): string {
 }
 
 /**
- * Numbers an efn note with an equals sign inside a nested ref tag.
+ * Numbers an efn note with an equals sign inside an unclosed ref tag.
  *
- * MediaWiki otherwise reads the preceding text as a parameter name. An
- * explicit number preserves the intended note value.
+ * Complete ref tags are protected extension nodes. An unmatched opening
+ * can still turn the preceding text into a parameter name. An explicit
+ * number preserves the intended note value.
  */
 function numberExplanatoryFootnoteReferenceArguments(source: string): string {
     const query = wikitext(source);

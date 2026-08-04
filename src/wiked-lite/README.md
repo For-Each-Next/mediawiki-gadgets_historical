@@ -12,11 +12,15 @@ Build the package from the repository root:
 npm run build -w wiked-lite
 ```
 
-The command writes two ignored artifacts to `dist/wiked-lite/`:
+This package-only build writes one ignored artifact directly under `dist/`:
 
-- `dist/wiked-lite/wiked_lite.min.js` is the minified MediaWiki gadget.
-- `dist/wiked-lite/wiked_lite.user.js` is the Greasemonkey-compatible
-  userscript.
+- `dist/wiked_lite.min.js` is the minified MediaWiki gadget.
+
+A complete workspace build with `npm run build` writes every gadget's minified
+file and `dist/00-mediawiki-gadgets.user.js`, the single Greasemonkey-
+compatible userscript containing all gadgets. Run `npm run build:all-userscript`
+to rebuild only `dist/00-mediawiki-gadgets.user.js` directly from the current
+sources.
 
 For a personal MediaWiki installation, copy the complete minified artifact to
 `Special:MyPage/common.js`. Use [Meta-Wiki global JavaScript][1] to load it on
@@ -24,8 +28,10 @@ all Wikimedia wikis where the account is active. A site administrator may
 instead register the same file as a ResourceLoader gadget.
 
 For a userscript installation, replace a new Tampermonkey script with the
-complete contents of `dist/wiked-lite/wiked_lite.user.js` and keep its metadata
-header intact. After either installation, hard-refresh an edit or submit page
+complete contents of `dist/00-mediawiki-gadgets.user.js` and keep its metadata
+header intact. This userscript contains every workspace gadget; each one starts
+only on its
+declared sites. After either installation, hard-refresh an edit or submit page
 that uses the wikitext content model. Review formatting changes before saving
 the page.
 
@@ -114,14 +120,17 @@ index.ts
 
 ## License
 
-wikEd Lite is released under CC0 1.0. It credits Cacycle as the original author
-of wikEd and its lightweight editing ideas. The rebuild also acknowledges
-[Remember the dot's Syntax highlighter][5] as an inspiration. The repository
-license notice is in [LICENSE][6].
+The project-owned portions of wikEd Lite 0.4.4 are dedicated under [CC0 1.0
+Universal][6]. It credits Cacycle as the original author of wikEd and its
+lightweight editing ideas. The rebuild also acknowledges [Remember the dot's
+Syntax highlighter][5] as an inspiration. The package [license][7] fixes this
+release's scope; the repository [licensing map][8] covers the workspace.
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: CHANGELOG.md
 [3]: AGENTS.md
 [4]: ../../AGENTS.md
 [5]: https://www.mediawiki.org/wiki/User:Remember_the_dot/Syntax_highlighter
-[6]: ../../LICENSE
+[6]: https://creativecommons.org/publicdomain/zero/1.0/
+[7]: LICENSE
+[8]: ../../LICENSE

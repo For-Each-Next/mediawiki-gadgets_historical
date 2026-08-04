@@ -19,6 +19,11 @@ import {
     findCitationManagementProtectedRanges,
     isInWikitextRanges,
 } from "./protected-wikitext.ts";
+import {
+    buildCompactRTemplateCall,
+    canCompactRpTemplateCall,
+    type NativeRTemplateReference,
+} from "./r-template.ts";
 import { applyReplacements } from "./wikitext.ts";
 import type { CitationLayout, TextReplacement } from "./types.ts";
 
@@ -69,6 +74,16 @@ export interface NameOverrideOccurrence {
 export interface NameOverrideUpdate {
     ids: string[];
     override: string;
+}
+
+interface CompactReferenceSegment extends NativeRTemplateReference {
+    end: number;
+    tag: RefTag;
+}
+
+interface CompactReferenceParts {
+    annotations: ReadonlyMap<number, ParsedTemplateCall>;
+    tags: RefTag[];
 }
 
 /**
@@ -429,45 +444,115 @@ function buildOverrideReplacement(
 }
 
 /**
- * Compacts adjacent native reuse tags into temporary R calls.
+ * Compacts adjacent native reuse tags and Rp annotations into R calls.
  *
  * @param text - Article wikitext.
+ * @param templateNameContext - Current-wiki template-name rules.
  * @returns Wikitext with compact reuse calls.
  */
-export function compactReferenceCalls(text: string): string {
+export function compactReferenceCalls(
+    text: string,
+    templateNameContext: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
+): string {
+    const { annotations, tags } = findCompactReferenceParts(
+        text,
+        templateNameContext,
+    );
+    const replacements: TextReplacement[] = [];
+    let run: CompactReferenceSegment[] = [];
+    let consumedEnd = 0;
+    for (const tag of tags) {
+        if (tag.start < consumedEnd) {
+            continue;
+        }
+        const segment = buildCompactReferenceSegment(tag, annotations);
+        if (!isCompactableSegment(segment, templateNameContext)) {
+            appendCompactRun(replacements, run, templateNameContext);
+            run = [];
+            continue;
+        }
+        if (shouldFlushCompactRun(text, run, segment)) {
+            appendCompactRun(replacements, run, templateNameContext);
+            run = [];
+        }
+        run.push(segment);
+        consumedEnd = segment.end;
+    }
+    appendCompactRun(replacements, run, templateNameContext);
+    return applyReplacements(text, replacements);
+}
+
+function findCompactReferenceParts(
+    text: string,
+    context: TemplateNameContext,
+): CompactReferenceParts {
     const protectedRanges = findCitationManagementProtectedRanges(text);
-    const isActiveTag = (tag: RefTag) =>
-        !isInWikitextRanges(tag.start, protectedRanges);
+    const isActive = (start: number) =>
+        !isInWikitextRanges(start, protectedRanges);
+    const annotations = new Map(
+        wikitext(text)
+            .template.getAll()
+            .filter((call) => isActive(call.start))
+            .filter((call) => canCompactRpTemplateCall(call, context))
+            .map((call) => [call.start, call]),
+    );
     const tags = wikitext(text)
         .reference.getAll()
         .filter(isCompactableReuseTag)
-        .filter(isActiveTag);
-    const replacements: TextReplacement[] = [];
-    let run: typeof tags = [];
-    function flushRun(): void {
-        if (run.length === 0) {
-            return;
-        }
-        const names = run.map((tag) => tag.attributes.name);
-        const nameParams = names.join("|");
-        replacements.push({
-            end: run[run.length - 1].end,
-            start: run[0].start,
-            text: `{{r|${nameParams}}}`,
-        });
-        run = [];
+        .filter((tag) => isActive(tag.start));
+    return { annotations, tags };
+}
+
+function buildCompactReferenceSegment(
+    tag: RefTag,
+    annotations: ReadonlyMap<number, ParsedTemplateCall>,
+): CompactReferenceSegment {
+    const annotation = annotations.get(tag.end);
+    return {
+        annotation,
+        end: annotation?.end ?? tag.end,
+        name: tag.attributes.name,
+        tag,
+    };
+}
+
+function isCompactableSegment(
+    segment: CompactReferenceSegment,
+    context: TemplateNameContext,
+): boolean {
+    return buildCompactRTemplateCall([segment], context) != null;
+}
+
+function shouldFlushCompactRun(
+    text: string,
+    run: readonly CompactReferenceSegment[],
+    segment: CompactReferenceSegment,
+): boolean {
+    const previous = run[run.length - 1];
+    if (previous == null) {
+        return false;
     }
-    for (const tag of tags) {
-        const previous = run[run.length - 1];
-        const gap =
-            previous == null ? "" : text.slice(previous.end, tag.start);
-        if (previous != null && gap.trim() !== "") {
-            flushRun();
-        }
-        run.push(tag);
+    const gap = text.slice(previous.end, segment.tag.start);
+    return gap.trim() !== "" || run.length === 9;
+}
+
+function appendCompactRun(
+    replacements: TextReplacement[],
+    run: readonly CompactReferenceSegment[],
+    context: TemplateNameContext,
+): void {
+    if (run.length === 0) {
+        return;
     }
-    flushRun();
-    return applyReplacements(text, replacements);
+    const compact = buildCompactRTemplateCall(run, context);
+    if (compact == null) {
+        return;
+    }
+    replacements.push({
+        end: run[run.length - 1].end,
+        start: run[0].tag.start,
+        text: compact,
+    });
 }
 
 /**

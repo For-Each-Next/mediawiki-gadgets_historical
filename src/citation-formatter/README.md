@@ -14,20 +14,24 @@ Build the package from the repository root:
 npm run build -w citation-formatter
 ```
 
-This writes two ignored artifacts to `dist/citation-formatter/`:
+This package-only build writes one ignored artifact directly under `dist/`:
 
-- `dist/citation-formatter/citation_formatter.min.js` is the minified version.
-- `dist/citation-formatter/citation_formatter.user.js` is the
-  Greasemonkey-compatible version.
+- `dist/citation_formatter.min.js` is the minified MediaWiki gadget.
+
+A complete workspace build with `npm run build` writes every gadget's minified
+file and `dist/00-mediawiki-gadgets.user.js`, the single
+Greasemonkey-compatible userscript containing all gadgets. Run
+`npm run build:all-userscript` to rebuild only
+`dist/00-mediawiki-gadgets.user.js` directly from the current sources.
 
 ### MediaWiki user page
 
 On the target wiki, open `Special:MyPage/common.js`, paste the complete
-contents of `dist/citation-formatter/citation_formatter.min.js`, and publish
-the page. Use [Meta-Wiki's `Special:MyPage/global.js`][1] instead to load
-Citation Formatter on every Wikimedia wiki where the account is active.
-Personal JavaScript pages must be enabled by the wiki; see MediaWiki's
-[personal-script documentation][2].
+contents of `dist/citation_formatter.min.js`, and publish the page. Use
+[Meta-Wiki's `Special:MyPage/global.js`][1] instead to load Citation Formatter
+on every Wikimedia wiki where the account is active. Personal JavaScript pages
+must be enabled by the wiki; see MediaWiki's [personal-script
+documentation][2].
 
 After publishing, bypass the browser cache or perform a hard refresh.
 
@@ -35,10 +39,12 @@ After publishing, bypass the browser cache or perform a hard refresh.
 
 In [Tampermonkey][3], a compatible userscript manager, open the dashboard and
 select **Add a new script**. Replace the editor contents with the complete
-contents of `dist/citation-formatter/citation_formatter.user.js`, and save it.
-Keep the generated metadata header intact and make sure the installed script is
-enabled. Chrome-based browsers may also require the extension's [userscript
-execution permission][4].
+contents of `dist/00-mediawiki-gadgets.user.js`, and save it. Keep the
+generated metadata header
+intact and make sure the installed script is enabled. This userscript contains
+every workspace gadget; each one starts only on its declared sites.
+Chrome-based browsers may also require the extension's [userscript execution
+permission][4].
 
 After either installation, open a page in a supported MediaWiki source editor.
 Citation Formatter appears in the page actions or toolbox and as a floating
@@ -159,8 +165,10 @@ api.ts / index.ts
 
 ## License
 
-Citation Formatter is licensed under [CC BY-SA 4.0][12]. The repository license
-notice is in [LICENSE][13].
+The project-owned portions of Citation Formatter 0.5.2 are dedicated under [CC0
+1.0 Universal][12]. The package [license][13] fixes this release's scope and
+preserves third-party terms. The repository [licensing map][14] covers the rest
+of the workspace.
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: https://www.mediawiki.org/wiki/Manual:Interface/JavaScript
@@ -173,5 +181,6 @@ notice is in [LICENSE][13].
 [9]: CHANGELOG.md
 [10]: AGENTS.md
 [11]: ../../AGENTS.md
-[12]: https://creativecommons.org/licenses/by-sa/4.0/
-[13]: ../../LICENSE
+[12]: https://creativecommons.org/publicdomain/zero/1.0/
+[13]: LICENSE
+[14]: ../../LICENSE

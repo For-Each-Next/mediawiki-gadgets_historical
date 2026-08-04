@@ -2,6 +2,18 @@
 
 ## Until 0.6
 
+### 0.5.2 (2026-08-04 07:29 UTC)
+
+Overview: VG Stub Creator publishes a flat all-gadget distribution and
+dedicates its project-owned release under CC0.
+
+- Published only `dist/vg_stub_creator.min.js` for the package build, included
+  it in `dist/user.js`, and retired its nested outputs and individual
+  userscript.
+- Dedicated the project-owned release and incorporated shared runtime under CC0
+  1.0, retained third-party data terms, and embedded the package notice in
+  generated artifacts.
+
 ### 0.5.1-post.9 (2026-08-03 15:20 UTC)
 
 Overview: VG Stub Creator uses shared wiki namespace catalogs, normalizes Xbox

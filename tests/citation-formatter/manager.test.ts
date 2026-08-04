@@ -15,6 +15,8 @@ import {
     manageCitationsWithResult,
 } from "citation-formatter/api.ts";
 
+const chineseTemplateNames = { namespaceSource: "zhwiki" } as const;
+
 const testNonLatinNameOverrides = () => {
     const source = [
         "{{Cite web",
@@ -91,6 +93,62 @@ test(
     testNativeReuseRoundTrip,
 );
 
+test("leaves template-opening reference names native", () => {
+    const source = '<ref name="a{{" />';
+
+    assert.equal(compactReferenceCalls(source), source);
+});
+
+test("folds wiki-specific Rp annotations into indexed R parameters", () => {
+    const chineseFirst = [
+        '<ref name="Cameron, 2011" />{{rp|2}}',
+        '<ref name="崴脚君, 2023" />',
+    ].join("");
+    assert.equal(
+        compactReferenceCalls(chineseFirst, chineseTemplateNames),
+        "{{r|Cameron, 2011|p1=2|崴脚君, 2023}}",
+    );
+
+    const chinese = [
+        '<ref name="one" />',
+        '<ref name="two" />{{rp|235|quote=Quoted text}}',
+    ].join("");
+    assert.equal(
+        compactReferenceCalls(chinese, chineseTemplateNames),
+        "{{r|one|two|p2=235|q2=Quoted text}}",
+    );
+
+    const english = [
+        '<ref name="one" />',
+        "{{rp|p=100|quote=Palabras|language=Spanish|translation=Words}}",
+        '<ref name="two" />',
+        '<ref name="three" />{{rp|pp=10–14}}',
+    ].join("");
+    assert.equal(
+        compactReferenceCalls(english),
+        "{{r|one|p1=100|q1=Palabras|language1=Spanish|" +
+            "translation1=Words|two|three|pp3=10–14}}",
+    );
+});
+
+test("uses plural zhwiki R locators for page lists and ranges", () => {
+    const singular = '<ref name="晶合实验室Oracle, 2011" />{{rp|111}}';
+    assert.equal(
+        compactReferenceCalls(singular, chineseTemplateNames),
+        "{{r|晶合实验室Oracle, 2011|p1=111}}",
+    );
+
+    for (const locator of ["111,113", "111-113", "111–113", "111—113"]) {
+        const source =
+            '<ref name="晶合实验室Oracle, 2011" />' + `{{rp|${locator}}}`;
+
+        assert.equal(
+            compactReferenceCalls(source, chineseTemplateNames),
+            `{{r|晶合实验室Oracle, 2011|pp1=${locator}}}`,
+        );
+    }
+});
+
 const testAttributedReusePreservation = () => {
     const source = [
         '<ref name="note" group="note" />',
@@ -166,6 +224,42 @@ test(
     "applies reference-call and citation-layout styles independently",
     testCitationManagementStyles,
 );
+
+test("round trips the Terraria zhwiki locator and quotation", () => {
+    const quote = [
+        "但本作对于家用机的操作优化还是不太到位，道具界面的使用和",
+        "项目调换比较繁琐，用摇杆代替鼠标移动光标时也不太便利，",
+        "有待改进。",
+    ].join("");
+    const rCall = `{{r|ign_20130404|UCG_20130501|p2=17|q2=${quote}}}`;
+    const source = [`Text${rCall}.`, "<references />"].join("\n");
+    const context = { templateNameContext: chineseTemplateNames };
+
+    const native = manageCitationsWithResult(
+        source,
+        [],
+        false,
+        "inline",
+        context,
+    ).text;
+    const nativeReuse =
+        '<ref name="ign_20130404" /><ref name="UCG_20130501" />' +
+        `{{rp|17|quote=${quote}}}`;
+    assert.ok(native.includes(nativeReuse));
+    assert.ok(
+        compactReferenceCalls(native, chineseTemplateNames).includes(rCall),
+    );
+
+    const compact = manageCitationsWithResult(
+        source,
+        [],
+        true,
+        "inline",
+        context,
+    ).text;
+    assert.ok(compact.includes(rCall));
+    assert.doesNotMatch(compact, /\{\{rp\|/u);
+});
 
 test("retains formatting counts while applying manager styles", () => {
     const source = ["Text.<ref>Plain note</ref>", "<references />"].join("\n");

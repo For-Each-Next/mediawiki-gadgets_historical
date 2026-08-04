@@ -1,0 +1,31 @@
+Shared Runtime Licensing Notice
+
+To the extent possible under law, the repository maintainer dedicates the
+copyright and related rights it owns in the project-authored shared runtime
+incorporated into the following releases to the public domain under CC0 1.0
+Universal:
+
+- Citation Formatter 0.5.2 (`citation-formatter@0.5.2`)
+- VG Page Assessor 0.2.2 (`vg-page-assessor@0.2.2`)
+- VG Stub Creator 0.5.2 (`vg-stub-creator@0.5.2`)
+- wikEd Lite 0.4.4 (`wiked-lite@0.4.4`)
+
+SPDX-License-Identifier: CC0-1.0
+
+This dedication is limited to the shared material incorporated into those
+named releases. It does not apply by directory inheritance to later changes or
+later releases unless they carry their own licensing statement.
+The list is cumulative because a later release does not revoke the dedication
+of the shared material incorporated into an earlier named release.
+
+The dedication covers only rights held by the repository maintainer. It does
+not relicense generated English Wikipedia TemplateData, Wikimedia siteinfo
+values, third-party dependencies, or other externally sourced material. Those
+items retain their original status and terms as described in the root
+THIRD_PARTY_NOTICES.md.
+
+Applicable Wikimedia project terms:
+https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
+
+CC0 1.0 Universal legal code:
+https://creativecommons.org/publicdomain/zero/1.0/legalcode

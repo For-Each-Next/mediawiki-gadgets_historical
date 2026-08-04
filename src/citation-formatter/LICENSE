@@ -1,0 +1,60 @@
+Citation Formatter 0.5.2 Licensing Notice
+
+Release-Scope: citation-formatter@0.5.2
+
+To the extent possible under law, the repository maintainer dedicates the
+copyright and related rights it owns in the project-authored portions of
+Citation Formatter 0.5.2, including project-owned shared runtime incorporated
+into the release, to the public domain under CC0 1.0 Universal.
+
+SPDX-License-Identifier: CC0-1.0
+
+This dedication is fixed to version 0.5.2. It does not automatically apply to
+later releases or later contributions. It grants only rights held by the
+repository maintainer and does not relicense generated Wikipedia TemplateData,
+Wikimedia siteinfo values, dependencies, or other third-party material.
+
+Generated English Wikipedia citation TemplateData snapshots and English and
+Chinese Wikipedia namespace names and aliases retain their applicable
+Wikimedia project status and terms.
+
+Applicable Wikimedia project terms:
+https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
+
+CC0 1.0 Universal legal code:
+https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+This release bundles selected Codex icon artwork and vector path data.
+
+Creator and attribution: Wikimedia Foundation Design System Team and
+contributors
+Source: https://doc.wikimedia.org/codex/latest/icons/overview.html
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+Changes: selected icon data is bundled and minified; the artwork is otherwise
+unmodified.
+
+The @wikimedia/codex-icons package software is available under the following
+MIT License:
+
+MIT License
+
+Copyright (c) 2011-2022 Wikimedia Design & OOUI team and other contributors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

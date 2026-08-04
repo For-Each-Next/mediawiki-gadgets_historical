@@ -3,7 +3,15 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+    mkdir,
+    mkdtemp,
+    readFile,
+    readdir,
+    rm,
+    symlink,
+    writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -11,11 +19,7 @@ import { runInNewContext } from "node:vm";
 import { buildAllUserscript } from "../../scripts/gadget-build/index.ts";
 
 const BUILD_TIME = new Date("2026-08-03T05:06:07.008Z");
-const OUTPUT_PARTS = [
-    "dist",
-    "mediawiki-gadgets",
-    "mediawiki_gadgets.user.js",
-];
+const OUTPUT_PARTS = ["dist", "00-mediawiki-gadgets.user.js"];
 
 test("an all-userscript build combines gadgets", async (context) => {
     const workspaceRoot = await createAggregateWorkspace();
@@ -23,22 +27,113 @@ test("an all-userscript build combines gadgets", async (context) => {
 
     await buildAllUserscript(workspaceRoot, BUILD_TIME);
 
-    const outputPath = join(workspaceRoot, ...OUTPUT_PARTS);
-    const source = await readFile(outputPath, "utf8");
+    const source = await assertAggregateOutputs(workspaceRoot);
+    assertAggregateHeader(source);
+    assertDiscoveredPrograms(source);
+    assert.doesNotMatch(source, /stale aggregate/u);
+    assertAggregateRuntime(source);
+});
+
+/** Checks flat output, cleanup, and unrelated-file preservation. */
+async function assertAggregateOutputs(workspaceRoot: string): Promise<string> {
+    const outputRoot = join(workspaceRoot, "dist");
+    const source = await readFile(
+        join(workspaceRoot, ...OUTPUT_PARTS),
+        "utf8",
+    );
+    const rootFiles = (await readdir(outputRoot)).sort();
+    const retiredFiles = (
+        await readdir(join(outputRoot, "mediawiki-gadgets"))
+    ).sort();
     const note = await readFile(
         join(workspaceRoot, "dist/mediawiki-gadgets/note.txt"),
         "utf8",
     );
-    const legacy = await readFile(
-        join(workspaceRoot, "dist/mediawiki_gadgets.user.js"),
+    const unrelated = await readFile(
+        join(workspaceRoot, "dist/other.min.js"),
         "utf8",
     );
-    assertAggregateHeader(source);
-    assertDiscoveredPrograms(source);
+    await assertRetiredAggregateOutputsMissing(workspaceRoot);
+    assert.deepEqual(rootFiles, [
+        "00-mediawiki-gadgets.user.js",
+        "mediawiki-gadgets",
+        "other.min.js",
+    ]);
+    assert.deepEqual(retiredFiles, ["note.txt"]);
     assert.equal(note, "keep aggregate sibling\n");
-    assert.equal(legacy, "keep legacy-like output\n");
-    assert.doesNotMatch(source, /stale aggregate/u);
-    assertAggregateRuntime(source);
+    assert.equal(unrelated, "keep unrelated output\n");
+    return source;
+}
+
+/** Checks that previous aggregate locations were retired. */
+async function assertRetiredAggregateOutputsMissing(
+    workspaceRoot: string,
+): Promise<void> {
+    await assert.rejects(
+        readFile(
+            join(
+                workspaceRoot,
+                "dist/mediawiki-gadgets/mediawiki_gadgets.user.js",
+            ),
+            "utf8",
+        ),
+        { code: "ENOENT" },
+    );
+    await assert.rejects(
+        readFile(
+            join(workspaceRoot, "dist/mediawiki_gadgets.user.js"),
+            "utf8",
+        ),
+        { code: "ENOENT" },
+    );
+    await assert.rejects(
+        readFile(join(workspaceRoot, "dist/user.js"), "utf8"),
+        { code: "ENOENT" },
+    );
+}
+
+test("aggregate removes an empty retired directory", async (context) => {
+    const workspaceRoot = await createWorkspaceRoot("gadget-all-empty-");
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeGadgetPackage(
+        workspaceRoot,
+        createGadgetFixture("alpha-gadget", "1.0.0"),
+    );
+    await writeAggregateOutputs(workspaceRoot, false);
+
+    await buildAllUserscript(workspaceRoot, BUILD_TIME);
+
+    assert.deepEqual(await readdir(join(workspaceRoot, "dist")), [
+        "00-mediawiki-gadgets.user.js",
+    ]);
+});
+
+test("aggregate rejects a linked retired directory", async (context) => {
+    const workspaceRoot = await createWorkspaceRoot("gadget-all-linked-");
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeGadgetPackage(
+        workspaceRoot,
+        createGadgetFixture("alpha-gadget", "1.0.0"),
+    );
+    const outputRoot = join(workspaceRoot, "dist");
+    const externalDirectory = join(workspaceRoot, "external");
+    await Promise.all([mkdir(outputRoot), mkdir(externalDirectory)]);
+    const externalOutput = join(
+        externalDirectory,
+        "mediawiki_gadgets.user.js",
+    );
+    await writeFile(externalOutput, "outside\n");
+    await symlink(
+        externalDirectory,
+        join(outputRoot, "mediawiki-gadgets"),
+        "dir",
+    );
+
+    await assert.rejects(
+        buildAllUserscript(workspaceRoot, BUILD_TIME),
+        /retired aggregate output directory must be a real directory/iu,
+    );
+    assert.equal(await readFile(externalOutput, "utf8"), "outside\n");
 });
 
 /** Checks the single combined metadata header. */
@@ -50,6 +145,9 @@ function assertAggregateHeader(source: string): void {
         "2026.8.3.050607.008",
     ]);
     assert.deepEqual(metadataValues(source, "author"), ["Amy, Zoe"]);
+    assert.deepEqual(metadataValues(source, "license"), [
+        "CC0-1.0; scope and exceptions in retained legal notices",
+    ]);
     assert.deepEqual(metadataValues(source, "match"), [
         "*://*/*",
         "http://beta.example/*",
@@ -61,6 +159,9 @@ function assertAggregateHeader(source: string): void {
     ]);
     assert.deepEqual(metadataValues(source, "run-at"), ["document-idle"]);
     assert.deepEqual(metadataValues(source, "sandbox"), ["raw"]);
+    for (const name of ["alpha-gadget", "beta-gadget", "zeta-gadget"]) {
+        assert.match(source, new RegExp(`${name} legal notice\\.`, "u"));
+    }
 }
 
 /** Checks package filtering, ordering, and version-specific bundles. */
@@ -195,6 +296,31 @@ test("an all-userscript build rejects config conflicts", async (context) => {
     }
 });
 
+test("an aggregate combines distinct package licenses", async (context) => {
+    const workspaceRoot = await createWorkspaceRoot("gadget-all-license-");
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await Promise.all([
+        writeGadgetPackage(
+            workspaceRoot,
+            createGadgetFixture("alpha-gadget", "1.0.0"),
+        ),
+        writeGadgetPackage(workspaceRoot, {
+            ...createGadgetFixture("beta-gadget", "2.0.0"),
+            license: "MIT",
+        }),
+    ]);
+
+    await buildAllUserscript(workspaceRoot, BUILD_TIME);
+
+    const source = await readFile(
+        join(workspaceRoot, ...OUTPUT_PARTS),
+        "utf8",
+    );
+    assert.deepEqual(metadataValues(source, "license"), [
+        "(CC0-1.0) AND (MIT); scope and exceptions in retained legal notices",
+    ]);
+});
+
 interface IncompatibilityCase {
     expected: RegExp;
     first: UserscriptFixture;
@@ -226,6 +352,7 @@ async function rejectIncompatibleConfig(
 
 interface GadgetFixture {
     author: string;
+    license?: string;
     matches?: string[];
     name: string;
     throws?: boolean;
@@ -276,20 +403,37 @@ async function createWorkspaceRoot(prefix: string): Promise<string> {
 }
 
 /** Writes stale output and unrelated files that must survive. */
-async function writeAggregateOutputs(workspaceRoot: string): Promise<void> {
+async function writeAggregateOutputs(
+    workspaceRoot: string,
+    preserveUnrelated: boolean = true,
+): Promise<void> {
     const outputDirectory = join(workspaceRoot, "dist/mediawiki-gadgets");
     await mkdir(outputDirectory, { recursive: true });
-    await Promise.all([
+    const writes = [
         writeFile(join(workspaceRoot, ...OUTPUT_PARTS), "stale aggregate\n"),
-        writeFile(
-            join(outputDirectory, "note.txt"),
-            "keep aggregate sibling\n",
-        ),
+        writeFile(join(workspaceRoot, "dist/user.js"), "legacy aggregate\n"),
         writeFile(
             join(workspaceRoot, "dist/mediawiki_gadgets.user.js"),
-            "keep legacy-like output\n",
+            "retired flat aggregate\n",
         ),
-    ]);
+        writeFile(
+            join(outputDirectory, "mediawiki_gadgets.user.js"),
+            "retired nested aggregate\n",
+        ),
+    ];
+    if (preserveUnrelated) {
+        writes.push(
+            writeFile(
+                join(outputDirectory, "note.txt"),
+                "keep aggregate sibling\n",
+            ),
+            writeFile(
+                join(workspaceRoot, "dist/other.min.js"),
+                "keep unrelated output\n",
+            ),
+        );
+    }
+    await Promise.all(writes);
 }
 
 /** Writes one complete gadget package and its entry point. */
@@ -304,8 +448,18 @@ async function writeGadgetPackage(
         ...(fixture.matches == null ? {} : { match: fixture.matches }),
     };
     const metadata = createPackageMetadata(fixture, userscript);
+    const license = fixture.license ?? "CC0-1.0";
     await Promise.all([
         writeFile(join(packageRoot, "package.json"), JSON.stringify(metadata)),
+        writeFile(
+            join(packageRoot, "LICENSE"),
+            [
+                `${fixture.name} legal notice.`,
+                `Release-Scope: ${fixture.name}@${fixture.version}`,
+                `SPDX-License-Identifier: ${license}`,
+                "",
+            ].join("\n"),
+        ),
         writeFile(join(packageRoot, "browser.ts"), createEntryPoint(fixture)),
     ]);
 }
@@ -321,9 +475,11 @@ function createPackageMetadata(
         description: `${fixture.name} fixture.`,
         gadgetBuild: {
             globalName: `${fixture.name.replaceAll("-", "_")}Build`,
+            noticeFiles: ["LICENSE"],
             outputName: fixture.name,
             userscript,
         },
+        license: fixture.license ?? "CC0-1.0",
         name: fixture.name,
         type: "module",
         version: fixture.version,

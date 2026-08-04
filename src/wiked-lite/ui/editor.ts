@@ -97,7 +97,7 @@ function installEditor(services: EditorServices): void {
     }
     const existing = controllers.get(textarea);
     if (existing != null) {
-        if (existing.isAttached() && !isIncompatibleEditor(textarea)) {
+        if (existing.isAttached() && !isIncompatibleEditor(textarea, true)) {
             return;
         }
         existing.destroy();
@@ -116,7 +116,7 @@ function installEditor(services: EditorServices): void {
             if (
                 !controller.isAttached() ||
                 controllers.has(textarea) ||
-                isIncompatibleEditor(textarea)
+                isIncompatibleEditor(textarea, true)
             ) {
                 controller.destroy();
                 return;
@@ -131,12 +131,27 @@ function installEditor(services: EditorServices): void {
     );
 }
 
-function isIncompatibleEditor(textarea: HTMLTextAreaElement): boolean {
+function isIncompatibleEditor(
+    textarea: HTMLTextAreaElement,
+    ignoreWikEdLiteClass = false,
+): boolean {
     if (window.wikEd?.useWikEd === true) {
         return true;
     }
-    const style = window.getComputedStyle(textarea);
-    return style.display === "none" || style.visibility === "hidden";
+    const hadWikEdLiteClass =
+        ignoreWikEdLiteClass &&
+        textarea.classList.contains("wiked-lite-native");
+    if (hadWikEdLiteClass) {
+        textarea.classList.remove("wiked-lite-native");
+    }
+    try {
+        const style = window.getComputedStyle(textarea);
+        return style.display === "none" || style.visibility === "hidden";
+    } finally {
+        if (hadWikEdLiteClass) {
+            textarea.classList.add("wiked-lite-native");
+        }
+    }
 }
 
 async function createEditorController(
@@ -634,7 +649,7 @@ function markMissingLink(
 }
 
 function readEditableText(editor: HTMLElement): string {
-    return readNodeText(editor).replace(/\n$/u, "");
+    return readNodeText(editor);
 }
 
 function readNodeText(node: Node): string {

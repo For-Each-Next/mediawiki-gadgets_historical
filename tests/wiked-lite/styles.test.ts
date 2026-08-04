@@ -191,6 +191,32 @@ test("the enhanced editing surface is an iframe-owned document", () => {
     );
 });
 
+test("the ready iframe removes the native editor from Find-in-page", () => {
+    const nativeRule = getStyleRule(".wiked-lite-native");
+    assert.match(nativeRule, /display:\s*none\s*!important/u);
+    assert.match(
+        editorSource,
+        /textarea\.classList\.remove\("wiked-lite-native"\)/u,
+    );
+    assert.match(
+        editorSource,
+        /textarea\.classList\.add\("wiked-lite-native"\)/u,
+    );
+    const managedChecks = editorSource.match(
+        /isIncompatibleEditor\(textarea, true\)/gu,
+    );
+    const readyIndex = editorSource.indexOf(
+        'frame.dataset.wikedReady = "true";',
+    );
+    const concealIndex = editorSource.indexOf(
+        'textarea.classList.add("wiked-lite-native");',
+        readyIndex,
+    );
+    assert.equal(managedChecks?.length, 2);
+    assert.ok(readyIndex !== -1);
+    assert.ok(concealIndex > readyIndex);
+});
+
 test("iframe teardown restores the native source editor", () => {
     assert.match(editorSource, /pendingEditors\.has\(textarea\)/u);
     assert.match(

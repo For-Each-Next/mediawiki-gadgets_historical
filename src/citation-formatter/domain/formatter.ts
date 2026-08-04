@@ -27,10 +27,15 @@ import {
     type ReferenceContainer,
 } from "./reference-containers.ts";
 import {
+    decodeReferenceAttribute,
     escapeReferenceName,
     formatReferenceGroupAttribute,
-    stripOptionalReferenceNameQuotes,
 } from "./ref-attributes.ts";
+import {
+    canConvertRTemplateCall,
+    convertRTemplateCall,
+    getRTemplateReferenceKeys,
+} from "./r-template.ts";
 import {
     DEFAULT_TEMPLATE_NAME_CONTEXT,
     getCanonicalTemplateName,
@@ -238,6 +243,10 @@ export function formatCitationWikitext(
 ): CitationFormatResult {
     const rTemplatesFound = countRUseTemplates(source, templateNameContext);
     const rConverted = convertRTemplates(source, templateNameContext);
+    const preservedRNames = findPreservedRReferenceNames(
+        rConverted,
+        templateNameContext,
+    );
     const protectedRanges = findCitationFormattingProtectedRanges(rConverted);
     const isUnprotectedContainer = function isUnprotectedContainer(
         container: ReferenceContainer,
@@ -275,7 +284,8 @@ export function formatCitationWikitext(
         templateNameContext,
     );
     assignFallbackNames(definitions);
-    ensureUniqueReferenceNames(definitions);
+    preserveUnconvertedRNames(definitions, preservedRNames);
+    ensureUniqueReferenceNames(definitions, preservedRNames);
     const replacements = buildAllReplacements(tags, containers, definitions);
     let text = applyReplacements(rConverted, replacements);
     text = appendMissingReferenceContainers(text, containers, definitions);
@@ -1379,11 +1389,23 @@ function alphabeticSuffix(index: number): string {
  * Disambiguates equal names that have different content.
  *
  * @param definitions - Mutable reference definitions.
+ * @param preservedRNames - Names still used by unconverted R calls.
  */
-function ensureUniqueReferenceNames(definitions: ReferenceDefinition[]): void {
+function ensureUniqueReferenceNames(
+    definitions: ReferenceDefinition[],
+    preservedRNames: ReadonlySet<string>,
+): void {
     const seen = new Map<string, string>();
     const counters = new Map<string, number>();
-    for (const definition of definitions) {
+    const isPreserved = (definition: ReferenceDefinition) =>
+        preservedRNames.has(
+            buildReferenceNameKey(definition.group, definition.oldName),
+        );
+    const ordered = definitions.toSorted(
+        (left, right) =>
+            Number(isPreserved(right)) - Number(isPreserved(left)),
+    );
+    for (const definition of ordered) {
         const key = `${definition.group}\u0000${definition.finalName}`;
         const priorContent = seen.get(key);
         if (
@@ -1400,6 +1422,22 @@ function ensureUniqueReferenceNames(definitions: ReferenceDefinition[]): void {
             `${definition.group}\u0000${definition.finalName}`,
             definition.formattedContent,
         );
+    }
+}
+
+/** Keeps list definitions addressable from unconverted R calls. */
+function preserveUnconvertedRNames(
+    definitions: ReferenceDefinition[],
+    preservedRNames: ReadonlySet<string>,
+): void {
+    for (const definition of definitions) {
+        const key = buildReferenceNameKey(
+            definition.group,
+            definition.oldName,
+        );
+        if (definition.oldName !== "" && preservedRNames.has(key)) {
+            definition.finalName = definition.oldName;
+        }
     }
 }
 
@@ -1777,7 +1815,7 @@ function convertRTemplates(
         const result = {
             end: call.end,
             start: call.start,
-            text: convertRTemplate(call),
+            text: convertRTemplateCall(call, templateNameContext),
         };
         return result;
     };
@@ -1799,10 +1837,15 @@ function findActiveRTemplates(
     templateNameContext: TemplateNameContext,
 ): ParsedTemplateCall[] {
     const protectedRanges = findCitationFormattingProtectedRanges(text);
+    const referenceRanges = findRefTags(text)
+        .filter((tag) => !tag.selfClosing)
+        .map((tag) => [tag.contentStart, tag.contentEnd] as const);
     const isActiveR = function isActiveR(call: ParsedTemplateCall) {
         const active =
             normalizeTemplateName(call.name, templateNameContext) === "r" &&
-            !isInWikitextRanges(call.start, protectedRanges);
+            canConvertRTemplateCall(call, templateNameContext) &&
+            !isInWikitextRanges(call.start, protectedRanges) &&
+            !isInWikitextRanges(call.start, referenceRanges);
         return active;
     };
     const result = findTemplateCalls(text).filter(isActiveR);
@@ -1834,44 +1877,31 @@ function countRUseTemplates(
     return result;
 }
 
-/**
- * Converts one r invocation or definition.
- *
- * @param call - Parsed r template.
- * @returns Native ref tags.
- */
-function convertRTemplate(call: ParsedTemplateCall): string {
-    const normalizeNamedParam = function normalizeNamedParam(
-        param: ParsedTemplateCall["params"][number],
-    ) {
-        return [param.name.toLocaleLowerCase("en-US"), param.value];
+/** Finds names still referenced through unconverted R calls. */
+function findPreservedRReferenceNames(
+    text: string,
+    templateNameContext: TemplateNameContext,
+): Set<string> {
+    const protectedRanges = findCitationFormattingProtectedRanges(text);
+    const isUnprotectedR = function isUnprotectedR(call: ParsedTemplateCall) {
+        return (
+            normalizeTemplateName(call.name, templateNameContext) === "r" &&
+            !isInWikitextRanges(call.start, protectedRanges)
+        );
     };
-    const namedEntries = call.params
-        .filter(function isNamedParam(param) {
-            return !param.positional;
-        })
-        .map(normalizeNamedParam);
-    const named = Object.fromEntries(namedEntries);
-    const positional = call.params
-        .filter((param) => param.positional)
-        .map((param) => param.value)
-        .filter(Boolean);
-    const group = named.group || named.g || "";
-    const content = named.ref || named.r;
-    const namedName = named.name || named.n;
-    const enteredName = namedName || positional[0] || "";
-    const definitionName = stripOptionalReferenceNameQuotes(enteredName);
-    if (content != null) {
-        const groupAttribute = formatReferenceGroupAttribute(group);
-        const name = escapeReferenceName(definitionName);
-        return `<ref name="${name}"${groupAttribute}>${content}</ref>`;
-    }
-    const buildPositionalReuse = function buildPositionalReuse(name: string) {
-        const normalizedName = stripOptionalReferenceNameQuotes(name);
-        return buildReuseTag(normalizedName, group);
-    };
-    const result = positional.map(buildPositionalReuse).join("");
-    return result;
+    const calls = findTemplateCalls(text).filter(isUnprotectedR);
+    const keys = calls.flatMap((call) =>
+        getRTemplateReferenceKeys(call, templateNameContext),
+    );
+    return new Set(
+        keys.map(([group, name]) => buildReferenceNameKey(group, name)),
+    );
+}
+
+function buildReferenceNameKey(group: string, name: string): string {
+    const decodedGroup = decodeReferenceAttribute(group);
+    const decodedName = decodeReferenceAttribute(name);
+    return `${decodedGroup}\u0000${decodedName}`;
 }
 
 /**

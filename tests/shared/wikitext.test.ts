@@ -177,6 +177,71 @@ test("template parsing keeps raw values and absolute offsets", () => {
     assert.equal(empty.value, "");
 });
 
+test("template parsing protects complete reference extension tags", () => {
+    const source =
+        "{{efn|name=Terraria: Otherworld|" +
+        '译名取自[[游民星空]]<ref name="旧城七喜, 2018" />、' +
+        '[[触乐]]<ref name="陈祺, 2016" />、游戏大观' +
+        '<ref name="游戏大观, 2020" />等，触乐' +
+        '<ref name="刘翁婳, 2022" />和游戏茶馆' +
+        '<ref name="崴脚君, 2023" />译作「泰拉瑞亚：异界」，' +
+        '触乐又译作「泰拉瑞亚：异世界」<ref name="星咏, 2015" />。}}';
+    const [name, note] = wikitext.template.parse(source).params;
+
+    assert.equal(name.name, "name");
+    assert.equal(name.value, "Terraria: Otherworld");
+    assert.equal(note.name, "1");
+    assert.equal(note.positional, true);
+    assert.match(
+        note.value,
+        /^\u8bd1\u540d\u53d6\u81ea\[\[\u6e38\u6c11\u661f\u7a7a\]\]<ref name=/u,
+    );
+    assert.match(note.value, /<ref name="\u661f\u548f, 2015" \/>\u3002$/u);
+});
+
+test("only complete reference tags protect template separators", () => {
+    assert.deepEqual(
+        wikitext('<ref name="source">a|b=c</ref>|tail').split("|"),
+        ['<ref name="source">a|b=c</ref>', "tail"],
+    );
+    assert.deepEqual(
+        wikitext('<span title="source">a|b</span>|tail').split("|"),
+        ['<span title="source">a', "b</span>", "tail"],
+    );
+    assert.deepEqual(wikitext('<ref name="source">a|b').split("|"), [
+        '<ref name="source">a',
+        "b",
+    ]);
+    assert.equal(
+        wikitext('<references group="notes" />').findTopLevelEquals(),
+        -1,
+    );
+    const malformed = '< ref name="source" />';
+    assert.equal(
+        wikitext(malformed).findTopLevelEquals(),
+        malformed.indexOf("="),
+    );
+});
+
+test("reference protection preserves surrounding template structure", () => {
+    const uppercase = wikitext.template.parse(
+        '{{T|lead<REF NAME="source" />}}',
+    ).params[0];
+    const laterEquals = wikitext.template.parse(
+        '{{T|lead<ref name="source" />=value}}',
+    ).params[0];
+    const nestedSource = "{{outer|<ref>{{inner|key=value}}</ref>}}";
+    const [outer, inner] = wikitext(nestedSource).template.getAll();
+
+    assert.equal(uppercase.name, "1");
+    assert.equal(uppercase.positional, true);
+    assert.equal(laterEquals.name, 'lead<ref name="source" />');
+    assert.equal(laterEquals.value, "value");
+    assert.equal(outer.params[0].positional, true);
+    assert.equal(inner.name, "inner");
+    assert.equal(inner.params[0].name, "key");
+});
+
 test("template build supports inline and two block styles", () => {
     const parameters = [
         { value: "Lead" },

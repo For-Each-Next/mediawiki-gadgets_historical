@@ -258,6 +258,12 @@
     background: rgb(243, 225, 247) !important;
 }
 
+/* Flat highlight spans keep overlapping note syntax at one small level. */
+.wiked-lite-token--reference,
+.wiked-lite-token--footnote {
+    font-size: 0.9em;
+}
+
 .wiked-lite-token--template-0 {
     background: rgb(246, 246, 246);
     box-decoration-break: clone;
@@ -323,9 +329,9 @@
 }
 
 .wiked-lite-token--list {
-    color: rgb(0, 0, 0);
+    color: rgb(255, 0, 0);
     font-weight: bold;
-    background: rgb(232, 232, 232);
+    background: rgb(246, 246, 246);
 }
 
 .wiked-lite-tooltip {

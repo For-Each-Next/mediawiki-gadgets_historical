@@ -18,9 +18,9 @@ This package-only build writes one ignored artifact directly under `dist/`:
 
 A complete workspace build with `npm run build` writes every gadget's minified
 file and `dist/00-mediawiki-gadgets.user.js`, the single Greasemonkey-
-compatible userscript containing all gadgets. Run `npm run build:all-userscript`
-to rebuild only `dist/00-mediawiki-gadgets.user.js` directly from the current
-sources.
+compatible userscript containing all gadgets. Run
+`npm run build:all-userscript` to rebuild only
+`dist/00-mediawiki-gadgets.user.js` directly from the current sources.
 
 For a personal MediaWiki installation, copy the complete minified artifact to
 `Special:MyPage/common.js`. Use [Meta-Wiki global JavaScript][1] to load it on
@@ -30,19 +30,22 @@ instead register the same file as a ResourceLoader gadget.
 For a userscript installation, replace a new Tampermonkey script with the
 complete contents of `dist/00-mediawiki-gadgets.user.js` and keep its metadata
 header intact. This userscript contains every workspace gadget; each one starts
-only on its
-declared sites. After either installation, hard-refresh an edit or submit page
-that uses the wikitext content model. Review formatting changes before saving
-the page.
+only on its declared sites. After either installation, hard-refresh an edit or
+submit page that uses the wikitext content model. Review formatting changes
+before saving the page.
 
 ## Features
 
 - Renders the editable syntax highlighter in an isolated iframe while mirroring
   every edit immediately to the native submitted textarea.
-- Highlights references and short footnotes in purple, explanatory footnotes in
-  blue, parser-function and variable heads in red, bold and italic apostrophe
-  markup, table syntax, parameter names, and nested templates while retaining
-  the source textarea's typography.
+- Preserves Undo and Redo across live highlighting refreshes while excluding
+  the hidden native textarea from duplicate browser Find results.
+- Highlights references and short footnotes in small purple text, explanatory
+  footnotes in small blue text, parser-function and variable heads in red, bold
+  and italic apostrophe markup, table syntax, parameter names, and nested
+  templates; nested notes keep one small-text level.
+- Colors protocol-relative external-link targets and labels and recognizes
+  inline definition-list separators inside multiline template data.
 - Resets template depth inside native and `Reflist` reference definitions, and
   distinguishes documented file formats, alignments, dimensions, and named
   options; selected HTML or CSS keys; progressively nested HTML tag bodies; and
@@ -53,20 +56,23 @@ the page.
 - Pairs matching prefixed `last` and `first` citation fields on one row and
   preserves separate original and archived links without rendering untrusted
   HTML.
-- Displays Chinese `link-xx` and `tsl` helpers like local wikilinks and opens
-  template or link targets on Control-click or Command-click.
+- Displays Chinese `link-xx` and `tsl` helpers like local wikilinks, checks
+  their local page operands for missing targets, and opens template or link
+  targets on Control-click or Command-click.
 - Distinguishes brace-based magic variables and parser functions from templates
   without Template navigation, while static `#invoke` operands open their
   Module pages.
 - Applies conservative wikEd-style basic fixes to the selection or whole page,
   with opt-in template alignment, Chinese-conversion cleanup, redirect targets
-  rewritten as piped links that keep their original text, and missing-page
-  highlighting; headings gain a following blank line without separating
-  `DEFAULTSORT` from later content.
+  rewritten as piped links that keep their original text, and target-only
+  missing-page highlighting; headings gain a following blank line without
+  separating `DEFAULTSORT` from later content.
 - Recognizes every English and Chinese Wikipedia namespace alias from bundled
   catalogs, and loads local namespace siteinfo in the background on other
   wikis.
 - Supports English, Simplified Chinese, and Traditional Chinese interfaces.
+- Activates only for wikitext pages; every other editable content model uses a
+  single CodeMirror editor with the available language-specific mode.
 
 The enhanced editor does not replace the submitted textarea. It avoids pages
 where another editor has hidden that textarea. Network-backed redirect
@@ -120,8 +126,8 @@ index.ts
 
 ## License
 
-The project-owned portions of wikEd Lite 0.4.4 are dedicated under [CC0 1.0
-Universal][6]. It credits Cacycle as the original author of wikEd and its
+The project-owned portions of wikEd Lite 0.4.5 are dedicated under [CC0
+1.0 Universal][6]. It credits Cacycle as the original author of wikEd and its
 lightweight editing ideas. The rebuild also acknowledges [Remember the dot's
 Syntax highlighter][5] as an inspiration. The package [license][7] fixes this
 release's scope; the repository [licensing map][8] covers the workspace.

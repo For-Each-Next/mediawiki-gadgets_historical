@@ -257,6 +257,34 @@ export function highlightWikitext(
     return partitionRanges(source, ranges);
 }
 
+/**
+ * Collects local targets from supported interlanguage-link helpers.
+ *
+ * @param source - Source text.
+ * @param namespaceSource - Database-scoped namespace data.
+ * @returns Unique local page targets.
+ */
+export function collectLinkHelperTitles(
+    source: string,
+    namespaceSource: NamespaceSource = "enwiki",
+): string[] {
+    const titles = createHighlightQuery(source)
+        .template.getAll()
+        .flatMap(function getTarget(template) {
+            const name = normalizeCurrentTemplateName(
+                template.name,
+                namespaceSource,
+            );
+            const parameters = indexTemplateParameters(template);
+            const descriptor = getLinkHelperDescriptor(name, parameters);
+            const target = parameters.get(descriptor?.targetKey ?? "")?.value;
+            const title =
+                target == null ? undefined : normalizeMissingTitle(target);
+            return title == null ? [] : [title.replaceAll("_", " ")];
+        });
+    return [...new Set(titles)];
+}
+
 function createReferenceNestingContext(
     source: string,
     namespaceSource: NamespaceSource,
@@ -1154,6 +1182,7 @@ function createLinkHelperDecorations(
         target,
         targetClass,
         href,
+        normalizeMissingTitle(target.value),
     );
     const display = parameters.get(descriptor.displayKey);
     const displayRange =
@@ -1223,6 +1252,7 @@ function decorateParameterValue(
     parameter: ParsedTemplateParameter,
     className: string,
     href?: string,
+    missingTitle?: string,
 ): DecoratedRange | null {
     if (parameter.value === "") {
         return null;
@@ -1235,6 +1265,7 @@ function decorateParameterValue(
         className,
         end: start + parameter.value.length,
         href,
+        missingTitle,
         priority: 45,
         start,
     };
@@ -1271,29 +1302,74 @@ function decorateLink(
     const ranges: DecoratedRange[] = [
         { ...range, className, href, priority: 20 },
         ...createLinkMarkupDecorations(contentStart, contentEnd, range, parts),
+        ...createLinkTargetDecorations(
+            source,
+            contentStart,
+            parts,
+            target,
+            className,
+        ),
+        ...createEmbeddedLinkDecorations(
+            source,
+            contentStart,
+            parts,
+            namespaceId,
+        ),
     ];
+    ranges.push(
+        createLinkTextDecoration(contentStart, contentEnd, parts, namespaceId),
+    );
+    return ranges;
+}
+
+function createLinkTargetDecorations(
+    source: string,
+    contentStart: number,
+    parts: ReturnType<ReturnType<typeof createHighlightQuery>["splitRanges"]>,
+    target: string,
+    className: string,
+): DecoratedRange[] {
     const targetRange = parts[0];
-    if (namespaceId === 6 && targetRange != null) {
-        ranges.push({
+    const missingTitle = normalizeMissingTitle(target);
+    if (targetRange == null || missingTitle == null) {
+        return [];
+    }
+    const range = trimSourceRange(
+        source,
+        contentStart + targetRange.start,
+        contentStart + targetRange.end,
+    );
+    return range.start === range.end
+        ? []
+        : [
+              {
+                  ...range,
+                  className,
+                  missingTitle,
+                  priority: 22,
+              },
+          ];
+}
+
+function createEmbeddedLinkDecorations(
+    source: string,
+    contentStart: number,
+    parts: ReturnType<ReturnType<typeof createHighlightQuery>["splitRanges"]>,
+    namespaceId: number | undefined,
+): DecoratedRange[] {
+    const targetRange = parts[0];
+    if (namespaceId !== 6 || targetRange == null) {
+        return [];
+    }
+    return [
+        {
             className: "wiked-lite-token--file",
             end: contentStart + targetRange.end,
             priority: 25,
             start: contentStart + targetRange.start,
-        });
-        ranges.push(
-            ...createFileOptionDecorations(source, contentStart, parts),
-        );
-    }
-    ranges.push(
-        createLinkTextDecoration(
-            contentStart,
-            contentEnd,
-            parts,
-            target,
-            namespaceId,
-        ),
-    );
-    return ranges;
+        },
+        ...createFileOptionDecorations(source, contentStart, parts),
+    ];
 }
 
 function createFileOptionDecorations(
@@ -1411,7 +1487,6 @@ function createLinkTextDecoration(
     contentStart: number,
     contentEnd: number,
     parts: ReturnType<ReturnType<typeof createHighlightQuery>["splitRanges"]>,
-    target: string,
     namespaceId: number | undefined,
 ): DecoratedRange {
     const targetRange = parts[0];
@@ -1427,7 +1502,6 @@ function createLinkTextDecoration(
             displayRange == null
                 ? contentEnd
                 : contentStart + displayRange.end,
-        missingTitle: normalizeMissingTitle(target),
         priority: 21,
         start:
             displayRange == null
@@ -1698,10 +1772,11 @@ function isNoteTAName(name: string): boolean {
 
 function createPatternDecorations(source: string): DecoratedRange[] {
     const patterns: Array<[RegExp, string, number]> = [
-        [/^\s*[#*:;]+/gmu, "wiked-lite-token--list", 10],
         [/https?:\/\/[^\s<>\]}|]+/giu, "wiked-lite-token--url", 5],
     ];
     return [
+        ...createListDecorations(source),
+        ...createExternalLinkDecorations(source),
         ...patterns.flatMap(([pattern, className, priority]) =>
             [...source.matchAll(pattern)].map(function decorate(match) {
                 const start = match.index;
@@ -1721,6 +1796,163 @@ function createPatternDecorations(source: string): DecoratedRange[] {
         ...createTableDecorations(source),
         ...createHeadingDecorations(source),
     ];
+}
+
+function createExternalLinkDecorations(source: string): DecoratedRange[] {
+    return findBracketedExternalLinks(source).flatMap(function decorate(link) {
+        const ranges: DecoratedRange[] = [
+            {
+                ...link.target,
+                className: "wiked-lite-token--url",
+                href: link.href,
+                priority: 5,
+            },
+        ];
+        if (link.label.start < link.label.end) {
+            ranges.push({
+                ...link.label,
+                className: "wiked-lite-token--url",
+                href: link.href,
+                priority: 5,
+            });
+        }
+        return ranges;
+    });
+}
+
+function findBracketedExternalLinks(source: string): Array<{
+    end: number;
+    href: string;
+    label: SourceRange;
+    start: number;
+    target: SourceRange;
+}> {
+    const pattern = /\[(?:https?:)?\/\/[^\s<>\]]+(?:[^\S\n]+[^\]\n]*)?\]/giu;
+    return [...source.matchAll(pattern)].map(function parse(match) {
+        const start = match.index ?? 0;
+        const end = start + match[0].length;
+        const targetStart = start + 1;
+        const targetEnd = findExternalLinkTargetEnd(source, targetStart, end);
+        return {
+            end,
+            href: source.slice(targetStart, targetEnd),
+            label: trimSourceRange(source, targetEnd, end - 1),
+            start,
+            target: { end: targetEnd, start: targetStart },
+        };
+    });
+}
+
+function findExternalLinkTargetEnd(
+    source: string,
+    start: number,
+    end: number,
+): number {
+    let cursor = start;
+    while (cursor < end - 1 && !/\s/u.test(source[cursor] ?? "")) {
+        cursor += 1;
+    }
+    return cursor;
+}
+
+function createListDecorations(source: string): DecoratedRange[] {
+    const markers = findListMarkers(source);
+    const ranges: DecoratedRange[] = markers.map(function decorate(match) {
+        const start = match.index ?? 0;
+        return {
+            className: "wiked-lite-token--list",
+            end: start + match[0].length,
+            priority: 10,
+            start,
+        };
+    });
+    const scanSource = createListScanSource(source, markers);
+    for (const marker of markers) {
+        if (!marker[0].includes(";")) {
+            continue;
+        }
+        const markerEnd = (marker.index ?? 0) + marker[0].length;
+        const lineEnd = scanSource.indexOf("\n", markerEnd);
+        const end = lineEnd < 0 ? scanSource.length : lineEnd;
+        const separator = findDefinitionSeparator(scanSource, markerEnd, end);
+        if (separator != null) {
+            ranges.push({
+                className: "wiked-lite-token--list",
+                end: separator + 1,
+                priority: 10,
+                start: separator,
+            });
+        }
+    }
+    return ranges;
+}
+
+function findListMarkers(source: string): RegExpMatchArray[] {
+    return [...source.matchAll(/^[^\S\n]*[#*:;]+/gmu)];
+}
+
+function createListScanSource(
+    source: string,
+    markers: RegExpMatchArray[],
+): string {
+    const query = createHighlightQuery(source);
+    const markerStarts = markers.map((marker) => marker.index ?? 0);
+    const nestedTemplates = query.template
+        .getAll()
+        .filter(
+            (template) =>
+                !markerStarts.some(
+                    (start) => template.start < start && start < template.end,
+                ),
+        );
+    return maskSourceRanges(source, [
+        ...query.comment.getAll(),
+        ...query.opaque.getAll(),
+        ...nestedTemplates,
+        ...query.link.getAll(),
+        ...query.tag.getAll(),
+        ...findBracketedExternalLinks(source),
+    ]);
+}
+
+function findDefinitionSeparator(
+    source: string,
+    start: number,
+    end: number,
+): number | undefined {
+    let fallback: number | undefined;
+    let separator = source.indexOf(":", start);
+    while (separator >= 0 && separator < end) {
+        if (isUrlSchemeColon(source, start, separator)) {
+            separator = source.indexOf(":", separator + 1);
+            continue;
+        }
+        if (isSpacedDefinitionSeparator(source, separator)) {
+            return separator;
+        }
+        fallback ??= separator;
+        separator = source.indexOf(":", separator + 1);
+    }
+    return fallback;
+}
+
+function isSpacedDefinitionSeparator(source: string, colon: number): boolean {
+    return (
+        /[^\S\n]/u.test(source[colon - 1] ?? "") ||
+        /[^\S\n]/u.test(source[colon + 1] ?? "")
+    );
+}
+
+function isUrlSchemeColon(
+    source: string,
+    lineStart: number,
+    colon: number,
+): boolean {
+    if (source.slice(colon + 1, colon + 3) !== "//") {
+        return false;
+    }
+    const before = source.slice(lineStart, colon);
+    return /(?:^|\s)[a-z][a-z\d+.-]*$/iu.test(before);
 }
 
 function createTableDecorations(source: string): DecoratedRange[] {

@@ -40,11 +40,10 @@ After publishing, bypass the browser cache or perform a hard refresh.
 In [Tampermonkey][3], a compatible userscript manager, open the dashboard and
 select **Add a new script**. Replace the editor contents with the complete
 contents of `dist/00-mediawiki-gadgets.user.js`, and save it. Keep the
-generated metadata header
-intact and make sure the installed script is enabled. This userscript contains
-every workspace gadget; each one starts only on its declared sites.
-Chrome-based browsers may also require the extension's [userscript execution
-permission][4].
+generated metadata header intact and make sure the installed script is enabled.
+This userscript contains every workspace gadget; each one starts only on its
+declared sites. Chrome-based browsers may also require the extension's
+[userscript execution permission][4].
 
 After either installation, open a page in a supported MediaWiki source editor.
 Citation Formatter appears in the page actions or toolbox and as a floating
@@ -54,6 +53,7 @@ launcher at the bottom right. Review all transformed wikitext before saving.
 
 Citation Formatter:
 
+- starts only on pages whose MediaWiki content model is wikitext;
 - formats supported English Wikipedia CS1 templates in inline or block style;
 - resolves parameter aliases and order from generated English Wikipedia
   TemplateData;
@@ -165,10 +165,10 @@ api.ts / index.ts
 
 ## License
 
-The project-owned portions of Citation Formatter 0.5.2 are dedicated under [CC0
-1.0 Universal][12]. The package [license][13] fixes this release's scope and
-preserves third-party terms. The repository [licensing map][14] covers the rest
-of the workspace.
+The project-owned portions of Citation Formatter 0.5.3 are dedicated
+under [CC0 1.0 Universal][12]. The package [license][13] fixes this release's
+scope and preserves third-party terms. The repository [licensing map][14]
+covers the rest of the workspace.
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: https://www.mediawiki.org/wiki/Manual:Interface/JavaScript

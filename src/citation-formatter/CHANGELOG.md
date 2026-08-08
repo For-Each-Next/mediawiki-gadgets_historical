@@ -2,6 +2,13 @@
 
 ## Until 0.6
 
+### 0.5.3 (2026-08-08 17:37 UTC)
+
+Overview: Citation Formatter now starts only for the wikitext content model.
+
+- Gated browser startup and UI mounting on MediaWiki's exact wikitext page
+  model, including delayed VisualEditor source-mode hooks.
+
 ### 0.5.2 (2026-08-04 07:29 UTC)
 
 Overview: Citation Formatter preserves compact `R` annotations, parses complete

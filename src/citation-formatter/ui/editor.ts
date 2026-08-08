@@ -18,7 +18,10 @@ const FLOATING_LAUNCHER_ID = "citation-formatter-quick-launch";
 export function mountCitationFormatter(
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,
 ): void {
-    if (typeof mw === "undefined") {
+    if (
+        typeof mw === "undefined" ||
+        mw.config.get("wgPageContentModel") !== "wikitext"
+    ) {
         return;
     }
     const editor = editBox.getEditBox();

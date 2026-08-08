@@ -1,6 +1,11 @@
 /** MediaWiki source-editor integration for wikEd Lite. */
 
 import { normalizeWikitextTitleKey } from "#shared/wikitext";
+import {
+    selectSourceEditor,
+    type CodeMirrorMode,
+    type SourceEditorSelection,
+} from "#gadget/domain/editor-selection.ts";
 import { formatWikitext } from "#gadget/domain/formatter.ts";
 import {
     highlightWikitext,
@@ -16,6 +21,11 @@ import {
     type ResourceLoaderRequire,
     type VueApp,
 } from "#gadget/ui/codex.ts";
+import {
+    EditorHistory,
+    getHistoryDirection,
+    type EditorSnapshot,
+} from "#gadget/ui/editor-history.ts";
 import { attachReferenceTooltips } from "#gadget/ui/reference-tooltip.ts";
 import {
     installWikEdLiteFrameStyles,
@@ -56,6 +66,32 @@ interface EditorSurface {
     overlay: HTMLElement;
 }
 
+interface CodeMirrorEditor {
+    initialize(): void;
+    textarea: HTMLTextAreaElement;
+    toggle(force?: boolean): void;
+}
+
+interface CodeMirrorConstructor {
+    new (
+        textarea: HTMLTextAreaElement,
+        languageSupport?: unknown,
+    ): CodeMirrorEditor;
+}
+
+interface CodeMirrorModes {
+    css?(): unknown;
+    javascript?(): unknown;
+    json?(): unknown;
+    lua?(): unknown;
+    vue?(): unknown;
+}
+
+interface CodeMirrorRequire {
+    (module: "ext.CodeMirror"): CodeMirrorConstructor;
+    (module: "ext.CodeMirror.modes"): CodeMirrorModes;
+}
+
 const controllers = new WeakMap<HTMLTextAreaElement, EditorController>();
 const pendingEditors = new WeakSet<HTMLTextAreaElement>();
 let activeDialogCleanup: (() => void) | null = null;
@@ -73,6 +109,14 @@ export function startEditorIntegration(services: EditorServices): void {
 
 async function initialize(services: EditorServices): Promise<void> {
     await waitForDocument();
+    const selection = getSourceEditorSelection();
+    if (selection.editor === "none") {
+        return;
+    }
+    if (selection.editor === "codemirror") {
+        await installCodeMirror(selection.mode);
+        return;
+    }
     await mw.loader.using(["mediawiki.api", "mediawiki.util"]);
     installWikEdLiteStyles();
     const namespaceLoad = services.loadNamespaces();
@@ -96,17 +140,7 @@ function installEditor(services: EditorServices): void {
         return;
     }
     const existing = controllers.get(textarea);
-    if (existing != null) {
-        if (existing.isAttached() && !isIncompatibleEditor(textarea, true)) {
-            return;
-        }
-        existing.destroy();
-        controllers.delete(textarea);
-    }
-    if (isIncompatibleEditor(textarea)) {
-        return;
-    }
-    if (pendingEditors.has(textarea)) {
+    if (shouldSkipEditorInstall(textarea, existing)) {
         return;
     }
     pendingEditors.add(textarea);
@@ -116,6 +150,7 @@ function installEditor(services: EditorServices): void {
             if (
                 !controller.isAttached() ||
                 controllers.has(textarea) ||
+                !isWikitextSourcePage() ||
                 isIncompatibleEditor(textarea, true)
             ) {
                 controller.destroy();
@@ -129,6 +164,25 @@ function installEditor(services: EditorServices): void {
             console.error("wikEd Lite could not initialize its editor", error);
         },
     );
+}
+
+function shouldSkipEditorInstall(
+    textarea: HTMLTextAreaElement,
+    existing: EditorController | undefined,
+): boolean {
+    if (!isWikitextSourcePage()) {
+        existing?.destroy();
+        controllers.delete(textarea);
+        return true;
+    }
+    if (existing != null) {
+        if (existing.isAttached() && !isIncompatibleEditor(textarea, true)) {
+            return true;
+        }
+        existing.destroy();
+        controllers.delete(textarea);
+    }
+    return isIncompatibleEditor(textarea) || pendingEditors.has(textarea);
 }
 
 function isIncompatibleEditor(
@@ -152,6 +206,73 @@ function isIncompatibleEditor(
             textarea.classList.add("wiked-lite-native");
         }
     }
+}
+
+async function installCodeMirror(mode: CodeMirrorMode | null): Promise<void> {
+    const element = document.getElementById(TEXTAREA_ID);
+    if (!(element instanceof HTMLTextAreaElement)) {
+        return;
+    }
+    const textarea: HTMLTextAreaElement = element;
+    if (isIncompatibleEditor(textarea)) {
+        return;
+    }
+    const readyHook = mw.hook("ext.CodeMirror.ready");
+    const existing = { editor: null as CodeMirrorEditor | null };
+    function observeEditor(candidate: unknown): void {
+        if (isCodeMirrorForTextarea(candidate, textarea)) {
+            existing.editor = candidate;
+        }
+    }
+    readyHook.add(observeEditor);
+    try {
+        const modules = getCodeMirrorModules(mode);
+        const require = (await mw.loader.using(modules)) as CodeMirrorRequire;
+        if (isIncompatibleEditor(textarea)) {
+            return;
+        }
+        if (existing.editor != null) {
+            existing.editor.toggle(true);
+            return;
+        }
+        const CodeMirror = require("ext.CodeMirror");
+        const modeFactory =
+            mode == null ? undefined : require("ext.CodeMirror.modes")[mode];
+        const languageSupport = modeFactory?.();
+        const editor =
+            languageSupport == null
+                ? new CodeMirror(textarea)
+                : new CodeMirror(textarea, languageSupport);
+        editor.initialize();
+    } finally {
+        readyHook.remove(observeEditor);
+    }
+}
+
+function getCodeMirrorModules(mode: CodeMirrorMode | null): string[] {
+    return mode == null
+        ? ["ext.CodeMirror"]
+        : ["ext.CodeMirror", "ext.CodeMirror.modes"];
+}
+
+function isCodeMirrorForTextarea(
+    candidate: unknown,
+    textarea: HTMLTextAreaElement,
+): candidate is CodeMirrorEditor {
+    return (
+        typeof candidate === "object" &&
+        candidate != null &&
+        "textarea" in candidate &&
+        candidate.textarea === textarea
+    );
+}
+
+function getSourceEditorSelection(): SourceEditorSelection {
+    return selectSourceEditor(
+        String(mw.config.get("wgPageContentModel") ?? ""),
+        String(mw.config.get("wgAction") ?? ""),
+        String(mw.config.get("cmMode") ?? ""),
+    );
 }
 
 async function createEditorController(
@@ -182,9 +303,16 @@ function initializeEditorController(
     const form = textarea.form;
     let rendering = false;
     let composing = false;
+    let applyingHistory = false;
+    let dispatchingEditorInput = false;
     let timer = 0;
     let destroyed = false;
     let controller: EditorController | null = null;
+    const history = new EditorHistory({
+        end: textarea.selectionEnd,
+        source: textarea.value,
+        start: textarea.selectionStart,
+    });
     const referenceTooltips = attachReferenceTooltips({
         delay: window.wikEdLiteConfig?.referenceTooltipDelay,
         editor,
@@ -232,6 +360,13 @@ function initializeEditorController(
         timer = window.setTimeout(render, delay);
     }
 
+    editor.addEventListener("beforeinput", function preserveSelection(): void {
+        if (rendering || composing || applyingHistory) {
+            return;
+        }
+        const selection = getSelectionOffsets(editor);
+        history.setSelection(selection.start, selection.end);
+    });
     editor.addEventListener("input", function synchronize(): void {
         if (rendering) {
             return;
@@ -241,25 +376,37 @@ function initializeEditorController(
             return;
         }
         textarea.value = readEditableText(editor);
-        dispatchNativeInput(textarea);
+        history.record(createEditorSnapshot(editor, textarea.value));
+        dispatchEditorInput();
         scheduleRender();
     });
     editor.addEventListener("compositionstart", function begin(): void {
         window.clearTimeout(timer);
         timer = 0;
         referenceTooltips.dismiss();
+        const selection = getSelectionOffsets(editor);
+        history.setSelection(selection.start, selection.end);
         composing = true;
     });
     editor.addEventListener("compositionend", function finish(): void {
         composing = false;
         referenceTooltips.dismiss();
         textarea.value = readEditableText(editor);
-        dispatchNativeInput(textarea);
+        history.record(createEditorSnapshot(editor, textarea.value));
+        dispatchEditorInput();
         scheduleRender();
     });
+    editor.addEventListener("keydown", handleHistoryShortcut);
     function updateFromNative(): void {
-        if (rendering) {
+        if (rendering || applyingHistory) {
             return;
+        }
+        if (!dispatchingEditorInput) {
+            history.record({
+                end: textarea.selectionEnd,
+                source: textarea.value,
+                start: textarea.selectionStart,
+            });
         }
         referenceTooltips.dismiss();
         if (!composing) {
@@ -272,7 +419,49 @@ function initializeEditorController(
             return;
         }
         textarea.value = readEditableText(editor);
-        dispatchNativeInput(textarea);
+        history.record(createEditorSnapshot(editor, textarea.value));
+        dispatchEditorInput();
+    }
+
+    function dispatchEditorInput(): void {
+        dispatchingEditorInput = true;
+        try {
+            dispatchNativeInput(textarea);
+        } finally {
+            dispatchingEditorInput = false;
+        }
+    }
+
+    function handleHistoryShortcut(event: KeyboardEvent): void {
+        const direction = getHistoryDirection(event);
+        if (
+            direction == null ||
+            event.isComposing ||
+            composing ||
+            editor.ownerDocument.activeElement !== editor
+        ) {
+            return;
+        }
+        const snapshot =
+            direction === "undo" ? history.undo() : history.redo();
+        if (snapshot == null) {
+            return;
+        }
+        event.preventDefault();
+        applyHistorySnapshot(snapshot);
+    }
+
+    function applyHistorySnapshot(snapshot: EditorSnapshot): void {
+        applyingHistory = true;
+        try {
+            textarea.value = snapshot.source;
+            textarea.setSelectionRange(snapshot.start, snapshot.end);
+            dispatchEditorInput();
+            render(false);
+            editor.focus({ preventScroll: true });
+        } finally {
+            applyingHistory = false;
+        }
     }
 
     function destroy(): void {
@@ -319,9 +508,16 @@ function initializeEditorController(
             }
         },
         replace(start, end, value) {
+            const selection = getSelectionOffsets(editor);
+            history.setSelection(selection.start, selection.end);
             textarea.setRangeText(value, start, end, "select");
             textarea.setSelectionRange(start, start + value.length);
-            dispatchNativeInput(textarea);
+            history.record({
+                end: textarea.selectionEnd,
+                source: textarea.value,
+                start: textarea.selectionStart,
+            });
+            dispatchEditorInput();
             render(false);
             editor.focus({ preventScroll: true });
         },
@@ -691,6 +887,13 @@ function getSelectionOffsets(editor: HTMLElement): {
     };
 }
 
+function createEditorSnapshot(
+    editor: HTMLElement,
+    source: string,
+): EditorSnapshot {
+    return { ...getSelectionOffsets(editor), source };
+}
+
 function measureOffset(root: Node, node: Node, offset: number): number {
     const range = root.ownerDocument?.createRange();
     if (range == null) {
@@ -766,7 +969,7 @@ function eventElement(target: EventTarget | null): Element | null {
 }
 
 function installTool(services: EditorServices): void {
-    if (document.getElementById(TOOL_ID) != null || !isSourcePage()) {
+    if (document.getElementById(TOOL_ID) != null || !isWikitextSourcePage()) {
         return;
     }
     const item = addToolToPortlet("p-cactions") ?? addToolToPortlet("p-tb");
@@ -787,10 +990,8 @@ function addToolToPortlet(portlet: string): HTMLElement | null {
     );
 }
 
-function isSourcePage(): boolean {
-    const model = mw.config.get("wgPageContentModel");
-    const action = mw.config.get("wgAction");
-    return model === "wikitext" && (action === "edit" || action === "submit");
+function isWikitextSourcePage(): boolean {
+    return getSourceEditorSelection().editor === "wiked-lite";
 }
 
 async function openFormatter(services: EditorServices): Promise<void> {

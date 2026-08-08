@@ -2,6 +2,27 @@
 
 ## Until 0.5
 
+### 0.4.5 (2026-08-08 17:37 UTC)
+
+Overview: wikEd Lite restores source editing behavior, selects editors by
+content model, and refines wikitext syntax presentation.
+
+- Restored Undo and Redo across live syntax-highlight DOM replacement, limited
+  shortcut handling to the active iframe textbox, and left browser Find
+  behavior untouched.
+- Activated wikEd Lite only for the wikitext content model and initialized one
+  official CodeMirror editor, with Lua, CSS, JavaScript, JSON, or Vue language
+  support when available, for every other editable content model.
+- Highlighted both the leading semicolon and inline colon in definition-list
+  shorthand, including userbox-style metadata inside multiline template data,
+  while ignoring protected link syntax, page-title prefixes, and URL schemes.
+- Styled list markers with the magic-word red and first-depth grey, and
+  highlighted both protocol-relative external-link targets and their labels.
+- Applied missing-page color to entered wikilink targets instead of piped
+  labels and checked local page operands in supported Chinese link helpers.
+- Rendered references and explanatory footnotes one font level smaller without
+  compounding the reduction when note syntax overlaps or nests.
+
 ### 0.4.4 (2026-08-04 07:29 UTC)
 
 Overview: wikEd Lite aligns the visible editor with browser behavior, MediaWiki

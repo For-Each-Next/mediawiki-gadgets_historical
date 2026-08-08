@@ -5,6 +5,7 @@ import {
     collectWikiLinkTitles,
     lookupWikiLinks,
 } from "#gadget/infra/wiki-links.ts";
+import { collectLinkHelperTitles } from "#gadget/domain/highlighter.ts";
 import {
     createWikiNamespaceResolver,
     type WikiNamespaceResolver,
@@ -28,7 +29,8 @@ function createEditorServices(
     namespaces: WikiNamespaceResolver,
 ): EditorServices {
     return {
-        findMissingLinks,
+        findMissingLinks: (source) =>
+            findMissingLinks(source, databaseName, namespaces),
         getHighlightOptions() {
             return {
                 databaseName,
@@ -43,14 +45,21 @@ function createEditorServices(
     };
 }
 
-async function findMissingLinks(source: string): Promise<{
+async function findMissingLinks(
+    source: string,
+    databaseName: string,
+    namespaces: WikiNamespaceResolver,
+): Promise<{
     linkClasses: string[];
     titles: Set<string>;
 }> {
-    const result = await lookupWikiLinks(
-        new mw.Api(),
-        collectWikiLinkTitles(source),
-    );
+    const titles = collectWikiLinkTitles(source);
+    if (databaseName === "zhwiki") {
+        titles.push(
+            ...collectLinkHelperTitles(source, namespaces.current().source),
+        );
+    }
+    const result = await lookupWikiLinks(new mw.Api(), [...new Set(titles)]);
     return {
         linkClasses: result.missingLinkClasses,
         titles: result.missing,

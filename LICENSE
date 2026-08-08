@@ -9,16 +9,16 @@ CC0-dedicated releases
 The project-owned portions of these releases are dedicated under CC0 1.0
 Universal as described by their package-local LICENSE files:
 
-- Citation Formatter 0.5.2 (`citation-formatter@0.5.2`)
+- Citation Formatter 0.5.3 (`citation-formatter@0.5.3`)
 - VG Page Assessor 0.2.2 (`vg-page-assessor@0.2.2`)
 - VG Stub Creator 0.5.2 (`vg-stub-creator@0.5.2`)
-- wikEd Lite 0.4.4 (`wiked-lite@0.4.4`)
+- wikEd Lite 0.4.5 (`wiked-lite@0.4.5`)
 
 Those notices also cover the project-owned shared runtime incorporated into
 the named releases. Their version-specific dedications do not automatically
-apply to later releases, later contributions, or newly added gadgets.
-This list is cumulative: later releases do not revoke or replace these exact
-CC0 dedications.
+apply to later releases, later contributions, or newly added gadgets. This map
+lists only the latest dedicated release of each gadget; historical scopes
+remain recorded in repository history.
 
 Repository default
 

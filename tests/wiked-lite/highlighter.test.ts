@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wikitext";
 import {
+    collectLinkHelperTitles,
     highlightWikitext,
     type HighlightSegment,
 } from "../../src/wiked-lite/domain/highlighter.ts";
@@ -201,6 +202,16 @@ test("reference and nested-template classes differ", () => {
     assert.ok(classes.includes("wiked-lite-token--reference"));
     assert.ok(classes.includes("wiked-lite-token--footnote"));
     assert.ok(classes.includes("wiked-lite-token--template-1"));
+});
+
+test("nested references and explanatory footnotes share one small token", () => {
+    const source = "<ref>Outer {{efn|Inner <ref>source</ref>}}</ref>";
+    const segments = highlightWikitext(source);
+
+    assertHasClass(source, segments, "Outer", "wiked-lite-token--reference");
+    assertHasClass(source, segments, "Inner", "wiked-lite-token--footnote");
+    assertHasClass(source, segments, "source", "wiked-lite-token--reference");
+    assertHasClass(source, segments, "source", "wiked-lite-token--footnote");
 });
 
 test("self-closing references do not color the following article text", () => {
@@ -1286,15 +1297,23 @@ test("template navigation respects explicit current-wiki namespaces", () => {
 });
 
 test("Chinese interlanguage helpers expose local navigation", () => {
-    const segment = highlightWikitext("{{link-ja|東京|Tokyo}}", {
+    const source = "{{link-ja|東京|Tokyo}}";
+    const segments = highlightWikitext(source, {
         linkHelpers: true,
-    })
+    });
+    const segment = segments
         .filter((item) =>
             item.classNames.includes("wiked-lite-token--link-helper"),
         )
         .at(0);
 
     assert.equal(segment?.href, "/wiki/%E6%9D%B1%E4%BA%AC");
+    assert.equal(segmentAt(source, segments, "東京")?.missingTitle, "東京");
+    assert.equal(
+        segmentAt(source, segments, "Tokyo")?.missingTitle,
+        undefined,
+    );
+    assert.deepEqual(collectLinkHelperTitles(source), ["東京"]);
 });
 
 test("comments are opaque to template highlighting", () => {
@@ -1319,6 +1338,102 @@ test("template syntax and headings receive wikEd-style tokens", () => {
         classesFor("Cite web").includes("wiked-lite-token--template-name"),
     );
     assert.ok(classesFor("URL").includes("wiked-lite-token--parameter"));
+});
+
+test("inline definition-list separators receive list syntax styling", () => {
+    const source = "; site : zh\n; [[Project:Site]] : linked";
+    const segments = highlightWikitext(source);
+
+    assertHasClass(source, segments, ";", "wiked-lite-token--list");
+    assertHasClass(source, segments, ":", "wiked-lite-token--list");
+    assertLacksClass(source, segments, "Project:", "wiked-lite-token--list");
+    assertHasClass(source, segments, ":", "wiked-lite-token--list", 2);
+});
+
+test("userbox metadata colons remain inline definition-list markers", () => {
+    const source = [
+        "; badge : js",
+        "; level : 0",
+        "; text : This user can not program in " +
+            "{{/|wd|Q2005|'''JavaScript'''}}.",
+        "; tip : knowing of it's crucial importance for Wikipedia, " +
+            "but I really can't understand it",
+    ].join("\n");
+    const segments = highlightWikitext(source);
+    const separators = [...source.matchAll(/:/gu)];
+
+    assert.equal(separators.length, 4);
+    for (const [occurrence] of separators.entries()) {
+        assertHasClass(
+            source,
+            segments,
+            ":",
+            "wiked-lite-token--list",
+            occurrence,
+        );
+    }
+});
+
+test("list metadata remains visible inside multiline template data", () => {
+    const source = [
+        "{{/|contributions|category=review|data=",
+        "; site : zh",
+        "; title : Talk:超执刀2#For Each ... Next的意見",
+        "; status : pr",
+        "; note : possibly this wiki's first A-Class review",
+        "}}",
+    ].join("\n");
+    const segments = highlightWikitext(source);
+
+    for (const occurrence of [0, 1, 3, 4]) {
+        assertHasClass(
+            source,
+            segments,
+            ":",
+            "wiked-lite-token--list",
+            occurrence,
+        );
+    }
+    assertLacksClass(source, segments, "Talk:", "wiked-lite-token--list");
+});
+
+test("URL schemes do not become definition-list separators", () => {
+    const source = "; https://example.test : website";
+    const segments = highlightWikitext(source);
+
+    assertLacksClass(source, segments, "https:", "wiked-lite-token--list");
+    assertHasClass(source, segments, ":", "wiked-lite-token--list", 1);
+});
+
+test("protocol-relative external links color their target and label", () => {
+    const source =
+        "[//dictionary.cambridge.org/us/dictionary/" +
+        "english-chinese-traditional/ Cambridge English–Chinese]";
+    const segments = highlightWikitext(source);
+    const href =
+        "//dictionary.cambridge.org/us/dictionary/" +
+        "english-chinese-traditional/";
+
+    assertHasClass(source, segments, href, "wiked-lite-token--url");
+    assertHasClass(
+        source,
+        segments,
+        "Cambridge English–Chinese",
+        "wiked-lite-token--url",
+    );
+    assert.equal(segmentAt(source, segments, href)?.href, href);
+    assert.equal(
+        segmentAt(source, segments, "Cambridge English–Chinese")?.href,
+        href,
+    );
+});
+
+test("external-link colons do not split inline definitions", () => {
+    const source = "; [//example.test:8080 label] : definition";
+    const segments = highlightWikitext(source);
+
+    assertLacksClass(source, segments, ":8080", "wiked-lite-token--list");
+    assertHasClass(source, segments, ":", "wiked-lite-token--list", 1);
 });
 
 test("heading underlines contain only trimmed level 2 and 3 text", () => {
@@ -1495,7 +1610,7 @@ test("template parameters nested in tables remain parameter tokens", () => {
     assert.ok(!parameterClasses.includes("wiked-lite-token--table"));
 });
 
-test("missing-link metadata covers only visible wikilink text", () => {
+test("missing-link metadata covers only wikilink target text", () => {
     const source = "[[品田昭子]] [[Target|label]]";
     const segments = highlightWikitext(source);
 
@@ -1507,10 +1622,13 @@ test("missing-link metadata covers only visible wikilink text", () => {
     assert.equal(segmentAt(source, segments, "]] ")?.missingTitle, undefined);
     assert.equal(
         segmentAt(source, segments, "Target")?.missingTitle,
-        undefined,
+        "Target",
     );
     assert.equal(segmentAt(source, segments, "|")?.missingTitle, undefined);
-    assert.equal(segmentAt(source, segments, "label")?.missingTitle, "Target");
+    assert.equal(
+        segmentAt(source, segments, "label")?.missingTitle,
+        undefined,
+    );
 });
 
 test("missing-link metadata ignores fragments and leading colons", () => {
@@ -1518,9 +1636,10 @@ test("missing-link metadata ignores fragments and leading colons", () => {
     const segments = highlightWikitext(source);
 
     assert.equal(
-        segmentAt(source, segments, "人物")?.missingTitle,
+        segmentAt(source, segments, "品田昭子#生平")?.missingTitle,
         "品田昭子",
     );
+    assert.equal(segmentAt(source, segments, "人物")?.missingTitle, undefined);
 });
 
 test("missing links exclude label markup and non-label options", () => {
@@ -1533,8 +1652,12 @@ test("missing links exclude label markup and non-label options", () => {
 
     assert.equal(segmentAt(source, segments, "'''")?.missingTitle, undefined);
     assert.equal(
-        segmentAt(source, segments, "label")?.missingTitle,
+        segmentAt(source, segments, "Missing")?.missingTitle,
         "Missing",
+    );
+    assert.equal(
+        segmentAt(source, segments, "label")?.missingTitle,
+        undefined,
     );
     assert.equal(
         segmentAt(source, segments, "File:Missing.svg")?.missingTitle,

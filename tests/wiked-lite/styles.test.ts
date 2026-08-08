@@ -53,6 +53,17 @@ test("highlight colors retain the original wikEd palette", () => {
     );
 });
 
+test("references and explanatory footnotes use one small font level", () => {
+    const rule = getStyleRule(
+        ".wiked-lite-token--reference,\n.wiked-lite-token--footnote",
+        true,
+    );
+
+    assert.match(rule, /font-size:\s*0\.9em/u);
+    assert.doesNotMatch(styles, /--reference\s+\.wiked-lite-token--footnote/u);
+    assert.doesNotMatch(styles, /--footnote\s+\.wiked-lite-token--reference/u);
+});
+
 test("magic words and module names retain wikEd colors", () => {
     assert.match(
         styles,
@@ -62,6 +73,13 @@ test("magic words and module names retain wikEd colors", () => {
         styles,
         /\.wiked-lite-token--module-name,[^}]*rgb\(85, 0, 153\)/su,
     );
+});
+
+test("list markers use magic-word red on the first depth grey", () => {
+    const rule = getStyleRule(".wiked-lite-token--list");
+
+    assert.match(rule, /color:\s*rgb\(255, 0, 0\)/u);
+    assert.match(rule, /background:\s*rgb\(246, 246, 246\)/u);
 });
 
 test("HTML content backgrounds darken with nesting depth", () => {
@@ -215,6 +233,27 @@ test("the ready iframe removes the native editor from Find-in-page", () => {
     assert.equal(managedChecks?.length, 2);
     assert.ok(readyIndex !== -1);
     assert.ok(concealIndex > readyIndex);
+});
+
+test("undo handling is limited to the active enhanced textbox", () => {
+    assert.match(
+        editorSource,
+        /editor\.addEventListener\("keydown", handleHistoryShortcut\)/u,
+    );
+    assert.match(editorSource, /getHistoryDirection\(event\)/u);
+    assert.match(
+        editorSource,
+        /editor\.ownerDocument\.activeElement !== editor/u,
+    );
+    assert.doesNotMatch(editorSource, /event\.key\s*===\s*["']f["']/iu);
+});
+
+test("content-model selection initializes only one editor", () => {
+    assert.match(editorSource, /selection\.editor === "codemirror"/u);
+    assert.match(editorSource, /await installCodeMirror\(selection\.mode\)/u);
+    assert.match(editorSource, /!isWikitextSourcePage\(\)/u);
+    assert.match(editorSource, /"ext\.CodeMirror\.modes"/u);
+    assert.match(editorSource, /existing\.editor\.toggle\(true\)/u);
 });
 
 test("iframe teardown restores the native source editor", () => {

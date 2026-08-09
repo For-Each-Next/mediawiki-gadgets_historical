@@ -194,10 +194,10 @@ function buildReflistContainer(
     );
     const namedParams = namedArguments.map(
         (argument) =>
-            [
-                argument.name.toLocaleLowerCase("en-US"),
-                argument.value.trim(),
-            ] as [string, string],
+            [argument.name.toLowerCase(), argument.value.trim()] as [
+                string,
+                string,
+            ],
     );
     const values = Object.fromEntries(namedParams);
     const listValue = values.list || values.refs || "";

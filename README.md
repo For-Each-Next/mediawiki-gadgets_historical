@@ -30,16 +30,25 @@ Each gadget produces one stable, unhashed minified file directly under `dist/`:
 
 - `dist/<output-name>.min.js`: the MediaWiki-ready minified version.
 
+Each minified gadget starts with one file-docstring header. Its first prose
+line is a summary of at most 75 characters, followed by one to three longer
+description paragraphs and then the name, version, optional outside author, and
+license metadata. The minified file does not copy the full license notice or
+use a userscript metadata block. Its ES2024 program runs in a strict async
+anonymous function and keeps the generated bundle in a `const` binding inside
+that function.
+
 The same build also writes every gadget into one installable userscript at
-`dist/00-mediawiki-gadgets.user.js`. Its header uses a UTC build timestamp as
-the aggregate version and retains the independent package authors. Each embedded
-gadget still runs only on its own declared sites.
+`dist/00-mediawiki-gadgets.user.js`.
+
+The aggregate header uses a UTC build timestamp as the aggregate version and
+retains the independent package authors. Each embedded gadget still runs only
+on its own declared sites.
 
 Build one gadget with `npm run build -w <gadget-name>`; that package-only build
 writes only its minified file. Its package README contains installation and use
-instructions. Build only `dist/00-mediawiki-gadgets.user.js` directly from
-the current sources with
-`npm run build:all-userscript`.
+instructions. Build only `dist/00-mediawiki-gadgets.user.js` directly from the
+current sources with `npm run build:all-userscript`.
 
 ## Development
 

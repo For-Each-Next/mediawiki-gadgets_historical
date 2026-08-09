@@ -16,8 +16,10 @@ export const CLASS_VALUES = [
 
 export const IMPORTANCE_VALUES = ["", "Low", "Mid", "High", "Top"] as const;
 
-export type AssessmentClass = (typeof CLASS_VALUES)[number];
-export type AssessmentImportance = (typeof IMPORTANCE_VALUES)[number];
+export type KnownAssessmentClass = (typeof CLASS_VALUES)[number];
+export type KnownAssessmentImportance = (typeof IMPORTANCE_VALUES)[number];
+export type AssessmentClass = string;
+export type AssessmentImportance = string;
 export type SelectionMap = Record<string, boolean>;
 
 export interface AssessmentMaintenance {
@@ -33,6 +35,11 @@ export interface Assessment {
     maintenance: AssessmentMaintenance;
     otherProjects: SelectionMap;
     taskForces: SelectionMap;
+}
+
+export interface AssessmentProjectOption {
+    readonly id: string;
+    readonly label: string;
 }
 
 export interface ProjectBannerConfig {
@@ -70,6 +77,11 @@ export interface NewPageListSnapshot {
     basetimestamp: string;
     starttimestamp: string;
     text: string;
+}
+
+export interface AssessmentPageSnapshots {
+    newPageList: NewPageListSnapshot;
+    talkPage: PageSnapshot;
 }
 
 export interface SubjectPageInfo {

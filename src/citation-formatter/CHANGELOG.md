@@ -2,6 +2,21 @@
 
 ## Until 0.6
 
+### 0.5.4 (2026-08-09 13:30 UTC)
+
+Overview: Citation Formatter publishes a concise modern artifact, uses
+locale-independent casing, and shows its version without build-time details.
+
+- Published readable summary and behavior prose before the minified artifact's
+  name, version, and license in place of userscript metadata and copied
+  notices.
+- Wrapped the artifact in a strict async anonymous ES2024 function with a
+  `const` bundle binding.
+- Replaced fixed `en-US` case-conversion arguments with locale-independent
+  casing while retaining generic language-tag parsing and citation values.
+- Simplified the main dialog subtitle to its localized version number and
+  removed build-time formatting and messages from the browser bundle.
+
 ### 0.5.3 (2026-08-08 17:37 UTC)
 
 Overview: Citation Formatter now starts only for the wikitext content model.

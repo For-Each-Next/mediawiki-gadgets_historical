@@ -322,39 +322,6 @@ export function buildNewPageListSummary(
 }
 
 /**
- * Builds before/after source snippets around the changed line range.
- *
- * @param oldText - Current source.
- * @param newText - Proposed source.
- * @param contextLines - Number of surrounding unchanged lines.
- * @returns Before/after snippets.
- */
-export function buildLineComparison(
-    oldText: string,
-    newText: string,
-    contextLines: number = 1,
-): { after: string; before: string } {
-    const oldLines = String(oldText || "").split("\n");
-    const newLines = String(newText || "").split("\n");
-    const prefix = countCommonPrefix(oldLines, newLines);
-    const suffix = countCommonSuffix(oldLines, newLines, prefix);
-
-    if (oldText === newText) {
-        const result = {
-            after: "No changes.",
-            before: "No changes.",
-        };
-        return result;
-    }
-
-    const result = {
-        after: sliceChangedLines(newLines, prefix, suffix, contextLines),
-        before: sliceChangedLines(oldLines, prefix, suffix, contextLines),
-    };
-    return result;
-}
-
-/**
  * Parses year sections and date blocks.
  *
  * @param text - New-page-list source.
@@ -1083,73 +1050,4 @@ function startOfUtcDay(date: Date): Date {
     const timestamp = Date.UTC(year, month, day);
     const result = new Date(timestamp);
     return result;
-}
-
-/**
- * Counts common prefix lines.
- *
- * @param left - Left lines.
- * @param right - Right lines.
- * @returns Prefix count.
- */
-function countCommonPrefix(left: Array<string>, right: Array<string>): number {
-    let index = 0;
-
-    while (
-        index < left.length &&
-        index < right.length &&
-        left[index] === right[index]
-    ) {
-        index += 1;
-    }
-
-    return index;
-}
-
-/**
- * Counts common suffix lines.
- *
- * @param left - Left lines.
- * @param right - Right lines.
- * @param prefix - Common prefix count.
- * @returns Suffix count.
- */
-function countCommonSuffix(
-    left: Array<string>,
-    right: Array<string>,
-    prefix: number,
-): number {
-    let count = 0;
-
-    while (
-        count < left.length - prefix &&
-        count < right.length - prefix &&
-        left[left.length - count - 1] === right[right.length - count - 1]
-    ) {
-        count += 1;
-    }
-
-    return count;
-}
-
-/**
- * Slices lines around a changed range.
- *
- * @param lines - Source lines.
- * @param prefix - Common prefix line count.
- * @param suffix - Common suffix line count.
- * @param contextLines - Surrounding unchanged line count.
- * @returns Source snippet.
- */
-function sliceChangedLines(
-    lines: Array<string>,
-    prefix: number,
-    suffix: number,
-    contextLines: number,
-): string {
-    const changeEnd = lines.length - suffix;
-    const start = Math.max(0, prefix - contextLines);
-    const end = Math.min(lines.length, changeEnd + contextLines);
-
-    return lines.slice(start, end).join("\n");
 }

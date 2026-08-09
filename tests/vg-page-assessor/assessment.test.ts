@@ -8,11 +8,27 @@ import test from "node:test";
 import projectConfig from "vg-page-assessor/config/project-config.ts";
 import {
     createDefaultAssessment,
+    getExistingOtherProjectOptions,
     getTalkPageTopSection,
+    parseAssessment,
     previewTalkPageTopSection,
     updateTalkPageAssessment,
     updateTalkPageTopSection,
 } from "vg-page-assessor/domain/assessment.ts";
+
+test("preserves custom assessment values from recognizable source", () => {
+    const source = [
+        "{{WikiProject banner shell|class=Future|1=",
+        "{{WikiProject Video games|importance=Critical}}",
+        "}}",
+    ].join("\n");
+    const parsed = parseAssessment(projectConfig, source);
+
+    assert.ok(parsed);
+    assert.equal(parsed.className, "Future");
+    assert.equal(parsed.importance, "Critical");
+    assert.equal(parseAssessment(projectConfig, "{{Unmanaged}}"), null);
+});
 
 test("preserves unmanaged banners and talk-page discussion content", () => {
     const source = [
@@ -65,6 +81,68 @@ test("recognizes zhwiki template namespace aliases", () => {
     assert.match(result, /\{\{樣板:WikiProject Anime\}\}/u);
     assert.match(result, /\{\{WikiProject Video games\|importance=High\}\}/u);
     assert.doesNotMatch(result, /Sega=yes/u);
+});
+
+test("reassesses a shell after unmanaged lead templates in place", () => {
+    const source = [
+        "{{DYKtalk|date=2026-07-26}}",
+        "{{WikiProject banner shell|class=Unassessed|1=",
+        "{{WikiProject Electronic games|MiHoYo=yes|importance=low}}",
+        "{{WikiProject Fictional characters}}",
+        "}}",
+        "{{Refideas|{{cite web|title=Source|url=https://example.com}}}}",
+    ].join("\n");
+    const assessment = createDefaultAssessment(projectConfig, source);
+
+    assert.equal(assessment.className, "Unassessed");
+    assert.equal(assessment.importance, "Low");
+    assert.equal(assessment.taskForces.mihoyo, true);
+    assert.equal(assessment.otherProjects.fictionalCharacters, true);
+
+    assessment.className = "B";
+
+    assert.equal(
+        updateTalkPageAssessment(source, assessment, projectConfig),
+        source.replace("class=Unassessed", "class=B"),
+    );
+});
+
+test("adds controls for other conventional banners inside the shell", () => {
+    const source = [
+        "{{WikiProject banner shell|class=Start|1=",
+        "{{WikiProject Video games|importance=Low}}",
+        "{{WikiProject Role-playing games|importance=Low|custom=yes}}",
+        "{{某某專題|foo=yes}}",
+        "}}",
+    ].join("\n");
+    const options = getExistingOtherProjectOptions(source, projectConfig);
+    const assessment = createDefaultAssessment(projectConfig, source);
+
+    assert.deepEqual(
+        options.map((option) => option.label),
+        ["Role-playing games", "某某"],
+    );
+    assert.ok(options.every((option) => option.id.startsWith("existing:")));
+    assert.ok(options.every((option) => assessment.otherProjects[option.id]));
+    assert.equal(
+        updateTalkPageAssessment(source, assessment, projectConfig),
+        source,
+    );
+
+    assessment.otherProjects[options[0].id] = false;
+    const result = updateTalkPageAssessment(source, assessment, projectConfig);
+
+    assert.doesNotMatch(result, /WikiProject Role-playing games/u);
+    assert.match(result, /\{\{某某專題\|foo=yes\}\}/u);
+});
+
+test("does not create dynamic controls for standalone templates", () => {
+    const source = "{{WikiProject Role-playing games|importance=Low}}";
+
+    assert.deepEqual(
+        getExistingOtherProjectOptions(source, projectConfig),
+        [],
+    );
 });
 
 test("preview is exactly the transformed talk-page top section", () => {

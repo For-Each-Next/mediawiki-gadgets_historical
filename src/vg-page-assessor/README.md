@@ -22,9 +22,9 @@ This package-only build writes one ignored artifact directly under `dist/`:
 
 A complete workspace build with `npm run build` writes every gadget's minified
 file and `dist/00-mediawiki-gadgets.user.js`, the single Greasemonkey-
-compatible userscript containing all gadgets. Run `npm run build:all-userscript`
-to rebuild only `dist/00-mediawiki-gadgets.user.js` directly from the current
-sources.
+compatible userscript containing all gadgets. Run
+`npm run build:all-userscript` to rebuild only
+`dist/00-mediawiki-gadgets.user.js` directly from the current sources.
 
 ### MediaWiki user page
 
@@ -38,8 +38,8 @@ After publishing, bypass the browser cache or perform a hard refresh.
 ### Userscript manager
 
 Create a script in a Greasemonkey-compatible userscript manager, replace its
-editor contents with `dist/00-mediawiki-gadgets.user.js`, and save it. Keep
-the generated metadata header intact. This userscript contains every workspace
+editor contents with `dist/00-mediawiki-gadgets.user.js`, and save it. Keep the
+generated metadata header intact. This userscript contains every workspace
 gadget; each one starts only on its declared sites.
 
 After either installation, open an eligible article on Chinese Wikipedia and
@@ -52,23 +52,33 @@ confirming the proposed changes.
 VG Page Assessor:
 
 - reads the subject page, resolves redirects and creation dates, and loads its
-  associated talk page;
-- manages nine assessment classes, five importance levels, six task forces,
-  four maintenance flags, and six related-project banners;
-- recognizes configured banner aliases while preserving unmanaged lead content
-  and unrelated projects inside a banner shell;
-- presents editable, exact talk-page lead wikitext and edit summaries beside
-  the current source before saving;
+  associated talk page and WikiProject new-page log in one batched API query;
+- manages nine localized assessment classes, five localized importance levels,
+  six task forces, four maintenance flags, and related-project banners while
+  retaining their English wikitext codes;
+- initializes those controls from existing banners and recognizes configured
+  aliases while preserving unmanaged lead content and unchanged nested banner
+  source;
+- adds checked controls named from unconfigured `WikiProject ...` and `...專題`
+  templates already inside a banner shell;
+- reflects recognizable manual source edits into the assessment controls and
+  adds an exact radio choice for an unconfigured class or importance value;
+- applies subsequent control selections back to that current manual source
+  while preserving recognizable unchanged wikitext where possible;
+- presents one editable, exact talk-page lead source above a two-card Codex
+  comparison that wraps long source, highlights changed words, and leaves
+  context plain;
 - uses timestamp-protected writes, skips no-op changes, and refetches and
   reapplies reviewed changes only for confirmed edit conflicts;
-- detects pages that are already registered or outside the eligible age range;
+- labels new-page registration eligibility and shows no checkbox when a page is
+  already registered or outside the eligible age range;
 - creates missing year and date groups, handles namespace subgroups, and orders
   same-day registrations by creation time;
-- previews focused before-and-after new-page-list snippets with an editable
-  edit summary; and
-- opens promptly with progress for assessment and new-page-list loading,
-  reports visible progress and failures for each requested save, and refreshes
-  the completed page so its updated state is visible.
+- previews focused new-page-list differences with aligned line and word changes
+  plus an editable edit summary; and
+- prepares assessment and new-page-list registration during the opening
+  progress phase, then reports visible progress and failures for each requested
+  save and refreshes the completed page so its updated state is visible.
 
 The interface uses English, Simplified Chinese, or Traditional Chinese
 according to the MediaWiki interface language.
@@ -116,7 +126,7 @@ See the package [changelog][2], its scoped [AGENTS.md][3], and the repository
 
 ## License
 
-The project-owned portions of VG Page Assessor 0.2.2 are dedicated under [CC0
+The project-owned portions of VG Page Assessor 0.2.3 are dedicated under [CC0
 1.0 Universal][5]. The package [license][6] fixes this release's scope and
 preserves third-party terms. The repository [licensing map][7] covers the rest
 of the workspace.

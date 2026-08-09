@@ -113,7 +113,6 @@ function createDialogState(topSection: string): DialogState {
         },
         previewDirty: false,
         registration: createRegistrationResult(),
-        registrationLoading: false,
         subjectInfo: createSubjectInfo(),
         subjectTitle: "Example game",
         summaryDirty: false,

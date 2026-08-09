@@ -49,7 +49,7 @@ function applyHandler(
  * @returns Migrated or unchanged parameter.
  */
 function migrateDeadUrlParameter(param: CitationParam): CitationParam {
-    const name = param.name.trim().toLocaleLowerCase("en-US");
+    const name = param.name.trim().toLowerCase();
     if (!["dead-url", "deadlink", "deadurl"].includes(name)) {
         return param;
     }
@@ -68,7 +68,7 @@ function migrateDeadUrlParameter(param: CitationParam): CitationParam {
  */
 function normalizeDeadUrlStatus(value: string): string {
     const trimmed = value.trim();
-    const normalized = trimmed.toLocaleLowerCase("en-US");
+    const normalized = trimmed.toLowerCase();
     if (["no", "false", "0"].includes(normalized)) {
         return "live";
     }
@@ -85,7 +85,7 @@ function normalizeDeadUrlStatus(value: string): string {
  * @returns Parameter with a formatted time value when recognized.
  */
 function formatTimeParameter(param: CitationParam): CitationParam {
-    if (param.name.trim().toLocaleLowerCase("en-US") !== "time") {
+    if (param.name.trim().toLowerCase() !== "time") {
         return param;
     }
     const value = param.value.trim();

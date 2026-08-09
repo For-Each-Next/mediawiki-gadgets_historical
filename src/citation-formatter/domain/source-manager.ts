@@ -580,7 +580,7 @@ export function joinAuthorDraftRow(
  * @returns Parsed unstructured author parameter and its numeric slot.
  */
 function parseDraftAuthorParameter(name: string): DraftAuthorParameter | null {
-    const normalized = name.trim().toLocaleLowerCase("en-US");
+    const normalized = name.trim().toLowerCase();
     if (normalized === "author") {
         return { index: 1, suffix: "" };
     }
@@ -600,7 +600,7 @@ function parseDraftAuthorParameter(name: string): DraftAuthorParameter | null {
 function parseStructuredAuthorParameter(
     name: string,
 ): StructuredAuthorParameter | null {
-    const normalized = name.trim().toLocaleLowerCase("en-US");
+    const normalized = name.trim().toLowerCase();
     const match = normalized.match(/^(first|last)([1-9]\d*)?$/u);
     if (match == null) {
         return null;
@@ -754,7 +754,7 @@ function isMatchingCreatorAliasCandidate(
  * @returns Whether a field contains a creator display or family name.
  */
 export function isCreatorAliasDraftParameter(name: string): boolean {
-    const normalized = name.trim().toLocaleLowerCase("en-US");
+    const normalized = name.trim().toLowerCase();
     return CREATOR_ALIAS_PARAMETER_PATTERNS.some((pattern) =>
         pattern.test(normalized),
     );
@@ -967,7 +967,7 @@ export function getSourceDraftParameterAliasInfo(
     enteredName: string,
 ): SourceDraftParameterAliasInfo | null {
     const enteredValue = enteredName.trim();
-    const entered = enteredValue.toLocaleLowerCase("en-US");
+    const entered = enteredValue.toLowerCase();
     if (entered === "") {
         return null;
     }
@@ -976,10 +976,8 @@ export function getSourceDraftParameterAliasInfo(
         return null;
     }
     for (const [canonical, aliases] of Object.entries(metadata.aliases)) {
-        const normalizedCanonical = canonical.toLocaleLowerCase("en-US");
-        const normalizedAliases = aliases.map((alias) =>
-            alias.toLocaleLowerCase("en-US"),
-        );
+        const normalizedCanonical = canonical.toLowerCase();
+        const normalizedAliases = aliases.map((alias) => alias.toLowerCase());
         const matchesAlias = normalizedAliases.includes(entered);
         if (entered !== normalizedCanonical && !matchesAlias) {
             continue;
@@ -1013,8 +1011,7 @@ export function moveSourceDraftTitleToScriptTitle(
     const language = getDraftValue(draft, "language").trim();
     const codePattern = /^([a-z]{2,3})(?:-[a-z0-9]+)*$/iu;
     const languageMatch = language.match(codePattern);
-    const primaryLanguage =
-        languageMatch?.[1].toLocaleLowerCase("en-US") ?? "";
+    const primaryLanguage = languageMatch?.[1].toLowerCase() ?? "";
     const localLanguage = getCitationWikiLanguage(wikiId);
     if (
         languageMatch == null ||
@@ -1084,7 +1081,7 @@ function normalizeSourceDraftScriptTitleLanguage(draft: SourceDraft): boolean {
     const normalized = scriptTitle.value.replace(
         pattern,
         function usePrimaryLanguage(_prefix, primaryLanguage: string) {
-            return `${primaryLanguage.toLocaleLowerCase("en-US")}:`;
+            return `${primaryLanguage.toLowerCase()}:`;
         },
     );
     if (normalized === scriptTitle.value) {
@@ -1345,7 +1342,7 @@ export function filterExistingSources(
             : sources.filter(function matchesSection(source) {
                   return matchesSourceSection(source, sectionId);
               });
-    const normalizedQuery = query.trim().toLocaleLowerCase("en-US");
+    const normalizedQuery = query.trim().toLowerCase();
     if (normalizedQuery === "") {
         return inSection;
     }
@@ -1382,7 +1379,7 @@ function matchesCreatorAliasKeyword(
         if (!isCreatorAliasDraftParameter(row.name)) {
             return false;
         }
-        const normalized = row.alias.toLocaleLowerCase("en-US");
+        const normalized = row.alias.toLowerCase();
         const tokens = normalized.match(/[\p{L}\p{N}]+/gu) ?? [];
         return tokens.some((token) => isNearbySearchToken(keyword, token));
     });
@@ -1591,7 +1588,7 @@ function buildExistingSourceSearchText(source: ExistingSource): string {
         ...draftText,
     ]
         .join("\n")
-        .toLocaleLowerCase("en-US");
+        .toLowerCase();
 }
 
 /**
@@ -1601,7 +1598,7 @@ function buildExistingSourceSearchText(source: ExistingSource): string {
  * @returns Creator display value for exact suggestion matching.
  */
 function normalizeCreatorAliasValue(value: string): string {
-    return cleanValue(value).normalize("NFC").toLocaleLowerCase("en-US");
+    return cleanValue(value).normalize("NFC").toLowerCase();
 }
 
 /**
@@ -1700,7 +1697,7 @@ function addCompactReferenceUsages(
         if (param.positional) {
             positional.push(param.value);
         } else {
-            named.set(param.name.toLocaleLowerCase("en-US"), param.value);
+            named.set(param.name.toLowerCase(), param.value);
         }
     }
     const enteredName = named.get("name") ?? named.get("n");
@@ -1944,13 +1941,11 @@ function indexSourceDraftRows(
                   metadata,
               );
     for (const [index, row] of entered.entries()) {
-        const name = row.name.toLocaleLowerCase("en-US");
+        const name = row.name.toLowerCase();
         const matches = byName.get(name) ?? [];
         matches.push(row);
         byName.set(name, matches);
-        const canonicalName = (
-            groupNames[index] ?? row.name
-        ).toLocaleLowerCase("en-US");
+        const canonicalName = (groupNames[index] ?? row.name).toLowerCase();
         const canonicalMatches = byCanonicalName.get(canonicalName) ?? [];
         canonicalMatches.push(row);
         byCanonicalName.set(canonicalName, canonicalMatches);
@@ -2098,7 +2093,7 @@ function getSupportedDraftFieldNames(template: string): Set<string> {
             names.add(alias);
         }
     }
-    return new Set([...names].map((name) => name.toLocaleLowerCase("en-US")));
+    return new Set([...names].map((name) => name.toLowerCase()));
 }
 
 /**
@@ -2152,7 +2147,7 @@ function takeFirstAuthorRows(
     if (last == null) {
         return [];
     }
-    const suffix = last.name.toLocaleLowerCase("en-US") === "last1" ? "1" : "";
+    const suffix = last.name.toLowerCase() === "last1" ? "1" : "";
     const first = takeDraftRows(byName, `first${suffix}`, 1)[0];
     return first == null ? [last] : [last, first];
 }
@@ -2193,7 +2188,7 @@ function migrateSourceContainer(
     template: string,
 ): void {
     const populated = rows.filter(function isPopulatedContainer(row) {
-        const name = row.name.toLocaleLowerCase("en-US");
+        const name = row.name.toLowerCase();
         return SOURCE_CONTAINER_FIELDS.has(name) && hasDraftRowContent(row);
     });
     if (populated.length !== 1) {
@@ -2491,7 +2486,7 @@ function parseCompactDefinition(
         if (param.positional) {
             positional.push(param.value);
         } else {
-            named.set(param.name.toLocaleLowerCase("en-US"), param.value);
+            named.set(param.name.toLowerCase(), param.value);
         }
     }
     const content = named.get("ref") ?? named.get("r");
@@ -2692,16 +2687,14 @@ function buildReflistContainer(
     call: ParsedTemplateCall,
 ): ReferenceContainer | null {
     const list = call.params.find(function isListParam(param) {
-        const name = param.name.toLocaleLowerCase("en-US");
+        const name = param.name.toLowerCase();
         return !param.positional && ["list", "refs"].includes(name);
     });
     if (list == null || list.value === "") {
         return null;
     }
     const group = call.params.find(
-        (param) =>
-            !param.positional &&
-            param.name.toLocaleLowerCase("en-US") === "group",
+        (param) => !param.positional && param.name.toLowerCase() === "group",
     );
     const valueOffset = call.raw.indexOf(list.value);
     const start = call.start + valueOffset;
@@ -2737,9 +2730,9 @@ function getDraftRow(
     draft: SourceDraft,
     name: string,
 ): SourceDraftRow | undefined {
-    const normalized = name.toLocaleLowerCase("en-US");
+    const normalized = name.toLowerCase();
     return draft.rows.find(function hasName(candidate) {
-        return candidate.name.toLocaleLowerCase("en-US") === normalized;
+        return candidate.name.toLowerCase() === normalized;
     });
 }
 

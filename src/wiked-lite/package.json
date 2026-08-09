@@ -1,6 +1,6 @@
 {
     "name": "wiked-lite",
-    "version": "0.4.5",
+    "version": "0.4.6",
     "description": "Format and highlight wikitext in MediaWiki source editors.",
     "private": true,
     "license": "CC0-1.0",
@@ -27,6 +27,12 @@
     },
     "gadgetBuild": {
         "globalName": "wikEdLite",
+        "headerAuthor": true,
+        "headerDescription": [
+            "Provides synchronized live syntax highlighting, deterministic wikitext formatting, and citation-preview tooltips that show citation parameters. For non-wikitext page models, the gadget uses CodeMirror instead.",
+            "This rebuild is based on [[w:User:Cacycle/wikEd|Cacycle's wikEd]], which was kindly shared under the public domain.",
+            "Special thanks for the inspiration behind this rebuild go to [[mw:User:Remember_the_dot/Syntax_highlighter|Remember the dot's gadget]]."
+        ],
         "noticeFiles": [
             "LICENSE"
         ],

@@ -76,15 +76,18 @@ package changelog, builds browser artifacts, or formalizes a release.
   readable and individual `.user.js` files and its former package-directory
   artifacts.
 - A successful package-only build writes only the minified
-  `dist/<output-name>.min.js` file. Its header identifies the declared package
-  license and points to the retained legal block containing every declared
-  package notice.
+  `dist/<output-name>.min.js` file. Its file-docstring header begins with a
+  summary of at most 75 characters and one to three longer description
+  paragraphs, followed by the declared package name, version, optional outside
+  author, and license identifier. It does not copy the full package notices.
+  Its ES2024 program runs in a strict async anonymous function with a `const`
+  bundle binding. Userscript metadata is reserved for the aggregate `.user.js`
+  artifact.
 - A complete workspace build writes every gadget's flat `.min.js` file and
   replaces the aggregate userscript at `dist/00-mediawiki-gadgets.user.js`.
 - Building the aggregate directly with `npm run build:all-userscript` reads the
   current package sources, writes `dist/00-mediawiki-gadgets.user.js`, and does
-  not require the
-  individual minified artifacts first.
+  not require the individual minified artifacts first.
 - Combine distinct package licenses as a parenthesized `AND` expression in the
   aggregate header, then qualify its scope by pointing to the retained legal
   notices. Retain each distinct package notice in
@@ -113,10 +116,10 @@ package changelog, builds browser artifacts, or formalizes a release.
    with `npm run build:all-userscript` when delivering the combined userscript
    after a package-only build.
 6. Confirm each package's minified artifact header contains its canonical
-  package version and license and that its legal notice is present. When
-  built, confirm the `dist/00-mediawiki-gadgets.user.js` header contains its UTC
-  timestamp, common or combined license, all package authors, and all distinct
-  package notices.
+   package version and license, plus an author when outside work is credited.
+   When built, confirm the `dist/00-mediawiki-gadgets.user.js` header contains
+   its UTC timestamp, common or combined license, all package authors, and all
+   distinct package notices.
 7. Inspect `git diff --check`, the complete diff, and the final worktree
    status.
 

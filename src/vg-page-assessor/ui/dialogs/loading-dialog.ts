@@ -1,4 +1,4 @@
-/** Loading dialog for the two assessment data phases. */
+/** Loading dialog shown while complete initial state is prepared. */
 
 import { interfaceLocale, msg } from "#gadget/i18n/index.ts";
 import type { VueModule, VueRef } from "#gadget/ui/codex.ts";

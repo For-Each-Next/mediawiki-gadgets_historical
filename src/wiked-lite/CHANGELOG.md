@@ -2,6 +2,23 @@
 
 ## Until 0.5
 
+### 0.4.6 (2026-08-09 13:30 UTC)
+
+Overview: wikEd Lite publishes a credited modern artifact and keeps
+short-footnote matching independent of the browser's locale.
+
+- Published readable feature prose before the minified artifact's name,
+  version, author, and license instead of userscript metadata and copied
+  notices.
+- Distinguished the primary wikitext highlighting, formatting, and citation
+  previews from the CodeMirror fallback for non-wikitext page models.
+- Credited Cacycle's public-domain wikEd basis and Remember the dot's Syntax
+  highlighter inspiration through intact canonical interwiki links.
+- Wrapped the artifact in a strict async anonymous ES2024 function with a
+  `const` bundle binding.
+- Replaced fixed `en-US` casing in shared short-footnote matching with
+  locale-independent conversion.
+
 ### 0.4.5 (2026-08-08 17:37 UTC)
 
 Overview: wikEd Lite restores source editing behavior, selects editors by

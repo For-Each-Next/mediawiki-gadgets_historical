@@ -389,6 +389,17 @@ function parseTagSource(
 }
 
 export type { WikitextComment } from "./comments.ts";
+export {
+    compareWikitext,
+    type WikitextComparison,
+    type WikitextComparisonOptions,
+    type WikitextDiffLine,
+    type WikitextDiffLineKind,
+    type WikitextDiffRow,
+    type WikitextDiffRowKind,
+    type WikitextDiffSegment,
+    type WikitextDiffSegmentKind,
+} from "./comparison.ts";
 export type { WikilinkRange } from "./links.ts";
 export {
     WIKI_NAMESPACE_PREFIXES,

@@ -1,0 +1,40 @@
+/** Codex-styled rendering for structured wikitext comparisons. */
+
+import type { VueModule } from "#gadget/ui/codex.ts";
+import type { WikitextComparison } from "#shared/wikitext";
+
+export interface WikitextComparisonProps {
+    afterLabel: string;
+    beforeLabel: string;
+    comparison: WikitextComparison;
+    noChangesLabel: string;
+}
+
+export const WIKITEXT_COMPARISON_TEMPLATE =
+    typeof __VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_TEMPLATE__ === "undefined"
+        ? ""
+        : __VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_TEMPLATE__;
+
+export const WIKITEXT_COMPARISON_STYLES =
+    typeof __VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_STYLES__ === "undefined"
+        ? ""
+        : __VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_STYLES__;
+
+/**
+ * Creates a reusable Codex Card comparison component.
+ *
+ * @param Vue - Vue value.
+ * @returns Codex-styled wikitext comparison component.
+ */
+export function createWikitextComparisonComponent(Vue: VueModule): unknown {
+    return Vue.defineComponent({
+        name: "VgPageAssessorWikitextComparison",
+        props: {
+            afterLabel: { required: true, type: String },
+            beforeLabel: { required: true, type: String },
+            comparison: { required: true, type: Object },
+            noChangesLabel: { required: true, type: String },
+        },
+        template: WIKITEXT_COMPARISON_TEMPLATE,
+    });
+}

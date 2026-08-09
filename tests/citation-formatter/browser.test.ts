@@ -17,10 +17,12 @@ test("browser startup is restricted to the wikitext content model", () => {
         browserSource,
         /mw\.config\.get\("wgPageContentModel"\) === "wikitext"/u,
     );
-    assert.match(
-        browserSource,
-        /function mountWhenMediaWikiIsReady\(\): void \{\s*if \(!isWikitextPage\(\)\)/su,
+    const startupGuard = new RegExp(
+        "function mountWhenMediaWikiIsReady\\(\\): void \\{\\s*" +
+            "if \\(!isWikitextPage\\(\\)\\)",
+        "su",
     );
+    assert.match(browserSource, startupGuard);
     assert.match(
         editorSource,
         /mw\.config\.get\("wgPageContentModel"\) !== "wikitext"/u,

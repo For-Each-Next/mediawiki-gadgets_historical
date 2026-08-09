@@ -394,9 +394,7 @@ function resolveCitationParams(
         getCanonicalCitationParamName(param.name, canonicalNames),
     );
     const presentNames = new Map(
-        normalNames.map(
-            (name) => [name.toLocaleLowerCase("en-US"), name] as const,
-        ),
+        normalNames.map((name) => [name.toLowerCase(), name] as const),
     );
     const resolved = migrated.map(function resolveParam(param, sourceIndex) {
         const enteredName = citation.params[sourceIndex].name.trim();
@@ -451,8 +449,7 @@ function resolveCitationOutputParamGroups(
     for (const [index, param] of representatives.entries()) {
         const outputName = output[index]?.name ?? param.name;
         const canonicalOutput =
-            canonicalNames.get(outputName.toLocaleLowerCase("en-US")) ??
-            outputName;
+            canonicalNames.get(outputName.toLowerCase()) ?? outputName;
         outputGroupByName.set(param.name, canonicalOutput);
     }
     return params.map(function useOutputGroup(param) {
@@ -468,7 +465,7 @@ function getCanonicalCitationParamName(
     canonicalNames: Map<string, string>,
 ): string {
     const trimmed = enteredName.trim();
-    return canonicalNames.get(trimmed.toLocaleLowerCase("en-US")) ?? trimmed;
+    return canonicalNames.get(trimmed.toLowerCase()) ?? trimmed;
 }
 
 function getRepeatedMarkerBase(
@@ -477,7 +474,7 @@ function getRepeatedMarkerBase(
     canonicalNames: Map<string, string>,
     presentNames: Map<string, string>,
 ): string {
-    const lookupName = enteredName.trim().toLocaleLowerCase("en-US");
+    const lookupName = enteredName.trim().toLowerCase();
     if (canonicalNames.has(lookupName)) {
         return normalName;
     }
@@ -486,7 +483,7 @@ function getRepeatedMarkerBase(
         return normalName;
     }
     const base = canonicalNames.get(match[1]) ?? match[1];
-    return presentNames.get(base.toLocaleLowerCase("en-US")) ?? normalName;
+    return presentNames.get(base.toLowerCase()) ?? normalName;
 }
 
 function countCitationParamNames(
@@ -588,7 +585,7 @@ function getUnusedRepeatMarkerName(
 }
 
 function normalizeParamKey(name: string): string {
-    return name.toLocaleLowerCase("en-US");
+    return name.toLowerCase();
 }
 
 function buildRepeatedCitationParamName(base: string, suffix: number): string {
@@ -765,7 +762,7 @@ export function normalizeEnglishDate(value: string): string {
     }
     const monthYear = date.match(/^([A-Za-z]+)\s+(\d{4})$/u);
     if (monthYear != null) {
-        const month = ENGLISH_MONTHS[monthYear[1].toLocaleLowerCase("en-US")];
+        const month = ENGLISH_MONTHS[monthYear[1].toLowerCase()];
         return month == null ? trimmed : `${monthYear[2]}-${month}${suffix}`;
     }
 
@@ -801,7 +798,7 @@ function buildIsoDate(
     enteredDay: string,
     suffix: string,
 ): string {
-    const month = ENGLISH_MONTHS[enteredMonth.toLocaleLowerCase("en-US")];
+    const month = ENGLISH_MONTHS[enteredMonth.toLowerCase()];
     const day = Number(enteredDay);
     if (month == null || !isGregorianCalendarDate(year, month, day)) {
         return `${enteredMonth} ${enteredDay}, ${year}${suffix}`;
@@ -1278,7 +1275,7 @@ function canonicalizeSourceUrl(value: string): string {
         const url = new URL(clean);
         url.hash = "";
         for (const name of [...url.searchParams.keys()]) {
-            const normalizedName = name.toLocaleLowerCase("en-US");
+            const normalizedName = name.toLowerCase();
             if (POSITION_QUERY_PARAMS.has(normalizedName)) {
                 url.searchParams.delete(name);
             }
@@ -1369,7 +1366,7 @@ function buildCanonicalNameMap(
     const aliasNames = Object.keys(metadata.aliases);
     const canonicalNames = new Set([...metadata.paramOrder, ...aliasNames]);
     for (const canonical of canonicalNames) {
-        const normalizedCanonical = canonical.toLocaleLowerCase("en-US");
+        const normalizedCanonical = canonical.toLowerCase();
         const representative = result.get(normalizedCanonical) ?? canonical;
         if (!result.has(normalizedCanonical)) {
             result.set(normalizedCanonical, representative);
@@ -1423,7 +1420,7 @@ function addCanonicalAliases(
     aliases: string[] | undefined,
 ): void {
     for (const alias of aliases || []) {
-        const normalizedAlias = alias.toLocaleLowerCase("en-US");
+        const normalizedAlias = alias.toLowerCase();
         if (!names.has(normalizedAlias)) {
             names.set(normalizedAlias, canonical);
         }

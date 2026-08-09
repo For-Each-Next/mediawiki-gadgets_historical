@@ -41,12 +41,15 @@ const CHANGELOG_HEADING_PATTERN =
     /^### (\S+) \(\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\)$/mu;
 const JAVASCRIPT_IDENTIFIER_PATTERN = /^[A-Za-z_$][\w$]*$/u;
 const OUTPUT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
+const HEADER_SUMMARY_MAX_LENGTH = 75;
+const HEADER_DESCRIPTION_MAX_PARAGRAPHS = 3;
 const START_IMPORT_PATTERN =
     /import\s*\{\s*start\s*\}\s*from\s*["']#gadget\/main\.ts["']/su;
 
 interface GadgetBuildMetadata {
     entryPoint?: string;
     globalName?: string;
+    headerDescription?: unknown;
     noticeFiles?: unknown;
     outputDirectory?: unknown;
     outputName?: string;
@@ -497,6 +500,7 @@ function checkGeneratedMetadata(
         packageName,
         "package.json description must be present for generated metadata.",
     );
+    checkHeaderMetadata(packageName, metadata, problems);
     check(
         hasText(metadata.license),
         problems,
@@ -514,6 +518,42 @@ function checkGeneratedMetadata(
         problems,
         packageName,
         "package.json browser must identify the browser entry.",
+    );
+}
+
+/** Checks the prose fields used in a generated file header. */
+function checkHeaderMetadata(
+    packageName: string,
+    metadata: PackageMetadata,
+    problems: string[],
+): void {
+    check(
+        hasText(metadata.description) &&
+            [...metadata.description].length <= HEADER_SUMMARY_MAX_LENGTH,
+        problems,
+        packageName,
+        "package.json description must not exceed 75 characters.",
+    );
+    check(
+        isHeaderDescription(metadata.gadgetBuild?.headerDescription),
+        problems,
+        packageName,
+        "gadgetBuild.headerDescription must contain 1 to 3 safe paragraphs.",
+    );
+}
+
+/** Checks configured long-description paragraphs for a file header. */
+function isHeaderDescription(value: unknown): boolean {
+    return (
+        Array.isArray(value) &&
+        value.length >= 1 &&
+        value.length <= HEADER_DESCRIPTION_MAX_PARAGRAPHS &&
+        value.every(
+            (paragraph) =>
+                hasText(paragraph) &&
+                !/[\r\n\u2028\u2029]/u.test(paragraph) &&
+                !paragraph.includes("*/"),
+        )
     );
 }
 
@@ -674,7 +714,8 @@ function checkArtifactOutputMetadata(
         "gadgetBuild.outputName must be a safe file basename.",
     );
     check(
-        !hasText(outputName) || outputName.toLowerCase() !== "00-mediawiki-gadgets",
+        !hasText(outputName) ||
+            outputName.toLowerCase() !== "00-mediawiki-gadgets",
         problems,
         packageName,
         "gadgetBuild.outputName must not reserve the aggregate " +

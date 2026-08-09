@@ -30,6 +30,8 @@ const FIXTURE_PACKAGE_NOTICE = [
     "SPDX-License-Identifier: CC0-1.0",
     "",
 ].join("\n");
+const FIXTURE_HEADER_DESCRIPTION =
+    "Builds a temporary artifact through the shared gadget workflow.";
 
 test("a build writes only its flat minified artifact", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
@@ -100,24 +102,40 @@ function assertFixtureArtifacts(artifacts: FixtureArtifacts): void {
         siblingDirectoryFile,
     } = artifacts;
     assert.deepEqual(rootFiles, [
+        "00-mediawiki-gadgets.user.js",
         "fixture-gadget",
         "fixture.min.js",
         "other-gadget",
         "other_gadget.js",
-        "00-mediawiki-gadgets.user.js",
     ]);
     assert.deepEqual(files, ["note.txt"]);
     assert.equal(aggregate, "keep aggregate\n");
     assert.equal(packageDirectoryFile, "keep package directory\n");
     assert.equal(sibling, "keep\n");
     assert.equal(siblingDirectoryFile, "keep directory\n");
-    assert.doesNotMatch(minified, /Reports the fixture version/u);
-    assert.match(minified, /\/\/ @version\s+1\.2\.3/u);
-    const licenseDescription =
-        "CC0-1.0; scope and exceptions in retained legal notices";
-    assert.ok(minified.includes(licenseDescription));
-    assert.match(minified, /Fixture package legal notice\./u);
+    assertFixtureHeader(minified);
     assertBuiltMarkupValue(minified);
+}
+
+/** Checks the file header and executable wrapper in a built fixture. */
+function assertFixtureHeader(minified: string): void {
+    assert.doesNotMatch(minified, /Reports the fixture version/u);
+    assert.doesNotMatch(minified, /^\/\/ ==UserScript==$/gmu);
+    assert.equal(minified.match(/^\/\*\*$/gmu)?.length, 1);
+    assert.match(minified, /^ \* Temporary build fixture\.$/mu);
+    assert.ok(minified.includes(` * ${FIXTURE_HEADER_DESCRIPTION}\n`));
+    assert.doesNotMatch(minified, /^ \* @description /mu);
+    assert.match(minified, /^ \* @name fixture-gadget$/mu);
+    assert.match(minified, /^ \* @version 1\.2\.3$/mu);
+    assert.doesNotMatch(minified, /^ \* @author /mu);
+    assert.match(minified, /^ \* @license CC0-1\.0$/mu);
+    assert.doesNotMatch(minified, /Fixture package legal notice\./u);
+    const modernWrapper = [
+        "//<nowiki>",
+        '(async function(){"use strict";const fixtureGadget=',
+    ].join("\n");
+    assert.ok(minified.includes(modernWrapper));
+    assert.doesNotMatch(minified, /\bvar fixtureGadget\b/u);
 }
 
 /**
@@ -154,6 +172,45 @@ test("a build injects Vue templates and CSS as text", async (context) => {
     assert.ok(minified.includes(".fixture-dialog{color:red;margin:0 1rem}"));
 });
 
+test("a build includes an opted-in author in its header", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { headerAuthor: true });
+
+    await buildGadget(packageRoot);
+
+    const minified = await readFile(
+        join(workspaceRoot, "dist", "fixture.min.js"),
+        "utf8",
+    );
+    assert.match(minified, /^ \* @author Test$/mu);
+});
+
+test("a build preserves wikilinks while wrapping prose", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    const wikilink =
+        "[[mw:User:Remember_the_dot/Syntax_highlighter|" +
+        "Remember the dot's gadget]]";
+    const paragraph = `Special thanks to ${wikilink}, which inspired this.`;
+    await writeFixturePackage(packageRoot, {
+        headerDescription: [paragraph],
+    });
+
+    await buildGadget(packageRoot);
+
+    const minified = await readFile(
+        join(workspaceRoot, "dist", "fixture.min.js"),
+        "utf8",
+    );
+    const wrapped = [
+        " * Special thanks to",
+        ` * ${wikilink},`,
+        " * which inspired this.",
+    ].join("\n");
+    assert.ok(minified.includes(wrapped));
+});
+
 test("a build removes an empty retired package directory", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
@@ -164,10 +221,10 @@ test("a build removes an empty retired package directory", async (context) => {
 
     const outputFiles = (await readdir(join(workspaceRoot, "dist"))).sort();
     assert.deepEqual(outputFiles, [
+        "00-mediawiki-gadgets.user.js",
         "fixture.min.js",
         "other-gadget",
         "other_gadget.js",
-        "00-mediawiki-gadgets.user.js",
     ]);
 });
 
@@ -255,14 +312,48 @@ test("a build rejects a linked package legal notice", async (context) => {
     await assert.rejects(buildGadget(packageRoot), /must be real files/u);
 });
 
-test("a build rejects multiline userscript metadata", async (context) => {
+test("a build rejects multiline package metadata", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
     await writeFixturePackage(packageRoot, {
-        author: "Test\n// ==/UserScript==\nunsafe();",
+        author: "Test\nunsafe();",
     });
 
     await assert.rejects(buildGadget(packageRoot), /fit on one line/u);
+});
+
+test("a build rejects block terminators in metadata", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { author: "Test */ unsafe();" });
+
+    await assert.rejects(buildGadget(packageRoot), /JavaScript-comment-safe/u);
+});
+
+test("rejects a header summary longer than 75 chars", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { description: "x".repeat(76) });
+
+    await assert.rejects(buildGadget(packageRoot), /must not exceed 75/u);
+});
+
+test("a build rejects unsafe header paragraphs", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        headerDescription: ["Unsafe */ paragraph."],
+    });
+
+    await assert.rejects(buildGadget(packageRoot), /1 to 3 safe paragraphs/u);
+});
+
+test("a build rejects a non-boolean header-author flag", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { headerAuthor: "yes" });
+
+    await assert.rejects(buildGadget(packageRoot), /must be a boolean/u);
 });
 
 test("a build requires the package LICENSE notice", async (context) => {
@@ -300,7 +391,9 @@ async function rejectFlatOutputCollision(
 test("a build rejects the reserved aggregate output name", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
-    await writeFixturePackage(packageRoot, { outputName: "00-MediaWiki-Gadgets" });
+    await writeFixturePackage(packageRoot, {
+        outputName: "00-MediaWiki-Gadgets",
+    });
 
     await assert.rejects(
         buildGadget(packageRoot),
@@ -404,6 +497,9 @@ async function writeFixturePackage(
 
 interface FixturePackageOptions {
     author?: string;
+    description?: string;
+    headerAuthor?: unknown;
+    headerDescription?: unknown;
     noticeFiles?: string[];
     outputDirectory?: string;
     outputName?: string;
@@ -418,25 +514,8 @@ function createFixtureMetadata(
     return {
         author: options.author ?? "Test",
         browser: "browser.ts",
-        description: "Temporary build fixture.",
-        gadgetBuild: {
-            ...(options.textAssets
-                ? {
-                      defines: {
-                          __FIXTURE_STYLES__: {
-                              textFile: "dialog.css",
-                          },
-                          __FIXTURE_TEMPLATE__: {
-                              textFile: "dialog.vue",
-                          },
-                      },
-                  }
-                : {}),
-            globalName: "fixtureGadget",
-            noticeFiles: options.noticeFiles ?? ["LICENSE"],
-            outputName: options.outputName ?? "fixture",
-            userscript: { match: ["https://example.test/*"] },
-        },
+        description: options.description ?? "Temporary build fixture.",
+        gadgetBuild: createFixtureBuildMetadata(options),
         license: "CC0-1.0",
         name: options.packageName ?? "fixture-gadget",
         type: "module",
@@ -447,6 +526,28 @@ function createFixtureMetadata(
             filenameHashing: false,
             outputDir: outputDirectory,
         },
+    };
+}
+
+/** Creates build metadata for one fixture package. */
+function createFixtureBuildMetadata(options: FixturePackageOptions): object {
+    return {
+        ...(options.textAssets
+            ? {
+                  defines: {
+                      __FIXTURE_STYLES__: { textFile: "dialog.css" },
+                      __FIXTURE_TEMPLATE__: { textFile: "dialog.vue" },
+                  },
+              }
+            : {}),
+        globalName: "fixtureGadget",
+        headerAuthor: options.headerAuthor,
+        headerDescription: options.headerDescription ?? [
+            FIXTURE_HEADER_DESCRIPTION,
+        ],
+        noticeFiles: options.noticeFiles ?? ["LICENSE"],
+        outputName: options.outputName ?? "fixture",
+        userscript: { match: ["https://example.test/*"] },
     };
 }
 
@@ -492,10 +593,9 @@ function createFixtureWrites(
             "keep directory\n",
         ),
     ];
-    if (textAssets) {
-        files.push(...createTextAssetWrites(packageRoot));
-    }
-    return files;
+    return textAssets
+        ? [...files, ...createTextAssetWrites(packageRoot)]
+        : files;
 }
 
 function createTextAssetWrites(packageRoot: string): Array<Promise<void>> {

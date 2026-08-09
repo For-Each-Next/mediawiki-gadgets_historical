@@ -25,6 +25,7 @@ import {
     addEnwikiCreateTrigger,
     addMissingPageEditTrigger,
     addViewPageTrigger,
+    canShowZhwikiLauncher,
 } from "#gadget/ui/page-trigger.ts";
 import type {
     BrowserApplication,
@@ -172,6 +173,20 @@ export function createBrowserApplication(
      */
     function isZhwiki(): boolean {
         return mw.config.get("wgDBname") === "zhwiki";
+    }
+
+    /**
+     * Checks whether the Chinese Wikipedia launcher supports this page.
+     *
+     * @returns Whether the page is an article, draft, or the current
+     * user's own user-space page.
+     */
+    function isZhwikiLauncherPage(): boolean {
+        return canShowZhwikiLauncher({
+            namespaceNumber: mw.config.get("wgNamespaceNumber"),
+            pageTitle: mw.config.get("wgTitle") || "",
+            userName: mw.config.get("wgUserName"),
+        });
     }
 
     /**
@@ -2111,6 +2126,7 @@ export function createBrowserApplication(
                 .then(runPendingSaveActions);
         } else if (
             isZhwiki() &&
+            isZhwikiLauncherPage() &&
             (isEditAction(currentAction) || isMissingPageView())
         ) {
             loadDialogApplication();

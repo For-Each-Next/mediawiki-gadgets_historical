@@ -477,5 +477,5 @@ function buildAliasSuggestionKey(
 }
 
 function normalizeDraftName(name: string): string {
-    return name.trim().toLocaleLowerCase("en-US").replaceAll("_", "-");
+    return name.trim().toLowerCase().replaceAll("_", "-");
 }

@@ -271,7 +271,7 @@ function extractCs1HtmlIssues(
     for (const match of html.matchAll(CS1_MESSAGE_SPAN_PATTERN)) {
         const classNames = new Set(
             (match[1] ?? match[2] ?? "")
-                .toLocaleLowerCase("en-US")
+                .toLowerCase()
                 .split(/\s+/gu)
                 .filter(Boolean),
         );
@@ -368,7 +368,7 @@ function decodeHtmlEntities(value: string): string {
             if (hexadecimal != null) {
                 return String.fromCodePoint(Number.parseInt(hexadecimal, 16));
             }
-            return named[String(name).toLocaleLowerCase("en-US")] ?? _entity;
+            return named[String(name).toLowerCase()] ?? _entity;
         },
     );
 }
@@ -387,7 +387,7 @@ function findMessageRowIndexes(draft: SourceDraft, message: string): number[] {
     if (direct.length > 0) {
         return direct;
     }
-    const normalizedMessage = message.toLocaleLowerCase("en-US");
+    const normalizedMessage = message.toLowerCase();
     if (normalizedMessage.includes("author-name-list parameters")) {
         return findNameListRows(draft, "author");
     }
@@ -463,7 +463,7 @@ function getMessageCell(message: string): keyof SourceDraftRowErrors {
 }
 
 function normalizeName(name: string): string {
-    return name.trim().toLocaleLowerCase("en-US");
+    return name.trim().toLowerCase();
 }
 
 function normalizeComparableName(name: string): string {

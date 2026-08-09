@@ -23,9 +23,9 @@ This package-only build writes one ignored artifact directly under `dist/`:
 
 A complete workspace build with `npm run build` writes every gadget's minified
 file and `dist/00-mediawiki-gadgets.user.js`, the single Greasemonkey-
-compatible userscript containing all gadgets. Run `npm run build:all-userscript`
-to rebuild only `dist/00-mediawiki-gadgets.user.js` directly from the current
-sources.
+compatible userscript containing all gadgets. Run
+`npm run build:all-userscript` to rebuild only
+`dist/00-mediawiki-gadgets.user.js` directly from the current sources.
 
 ### MediaWiki user page
 
@@ -110,7 +110,7 @@ See the package [changelog][3], its scoped [AGENTS.md][4], and the repository
 
 ## License
 
-The project-owned portions of VG Stub Creator 0.5.2 are dedicated under [CC0
+The project-owned portions of VG Stub Creator 0.5.3 are dedicated under [CC0
 1.0 Universal][6]. The package [license][7] fixes this release's scope and
 preserves third-party terms. The repository [licensing map][8] covers the rest
 of the workspace.

@@ -14,6 +14,8 @@ import type {
 const JAVASCRIPT_IDENTIFIER_PATTERN = /^[A-Za-z_$][\w$]*$/u;
 const OUTPUT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
 const AGGREGATE_OUTPUT_NAME = "00-mediawiki-gadgets";
+const HEADER_SUMMARY_MAX_LENGTH = 75;
+const HEADER_DESCRIPTION_MAX_PARAGRAPHS = 3;
 
 /**
  * Loads a package and resolves the values needed for one build.
@@ -79,6 +81,11 @@ function parsePackageMetadata(value: unknown): PackageMetadata {
         }
         if (/[\r\n\u2028\u2029]/u.test(fieldValue)) {
             throw new TypeError(`package.json ${field} must fit on one line.`);
+        }
+        if (fieldValue.includes("*/")) {
+            throw new TypeError(
+                `package.json ${field} must be JavaScript-comment-safe.`,
+            );
         }
     }
     if (!isRecord(value.gadgetBuild)) {
@@ -186,17 +193,57 @@ function resolveBuildConfig(
     if (config.target != null && config.target !== "es2024") {
         throw new Error("gadgetBuild.target must be es2024.");
     }
+    if (
+        config.headerAuthor != null &&
+        typeof config.headerAuthor !== "boolean"
+    ) {
+        throw new Error("gadgetBuild.headerAuthor must be a boolean.");
+    }
     const entryPoint = requireEntryPoint(config, metadata);
     const globalName = requireGlobalName(config);
+    const headerDescription = requireHeaderDescription(config, metadata);
     const outputName = requireOutputName(config);
     const outputDirectory = requireOutputDirectory(metadata);
     return {
         ...config,
         entryPoint,
         globalName,
+        headerDescription,
         outputDirectory,
         outputName,
     };
+}
+
+/** Requires a short summary and one to three safe detail paragraphs. */
+function requireHeaderDescription(
+    config: GadgetBuildConfig,
+    metadata: PackageMetadata,
+): string[] {
+    if ([...metadata.description].length > HEADER_SUMMARY_MAX_LENGTH) {
+        throw new Error("package.json description must not exceed 75 chars.");
+    }
+    const paragraphs = config.headerDescription;
+    if (
+        !Array.isArray(paragraphs) ||
+        paragraphs.length < 1 ||
+        paragraphs.length > HEADER_DESCRIPTION_MAX_PARAGRAPHS ||
+        !paragraphs.every(isSafeHeaderParagraph)
+    ) {
+        const message =
+            "gadgetBuild.headerDescription must contain " +
+            "1 to 3 safe paragraphs.";
+        throw new Error(message);
+    }
+    return paragraphs;
+}
+
+/** Checks one configured header paragraph. */
+function isSafeHeaderParagraph(value: unknown): value is string {
+    return (
+        hasText(value) &&
+        !/[\r\n\u2028\u2029]/u.test(value) &&
+        !value.includes("*/")
+    );
 }
 
 /**

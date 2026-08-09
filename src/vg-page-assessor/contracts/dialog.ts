@@ -15,11 +15,10 @@ export interface DialogState {
     api: mw.Api;
     assessment: Assessment;
     creationTimes: Map<string, Date>;
-    newPageList: NewPageListSnapshot | null;
+    newPageList: NewPageListSnapshot;
     page: PageSnapshot;
     previewDirty: boolean;
-    registration: RegistrationResult | null;
-    registrationLoading: boolean;
+    registration: RegistrationResult;
     subjectInfo: SubjectPageInfo;
     subjectTitle: string;
     summaryDirty: boolean;
@@ -33,10 +32,6 @@ export interface RegistrationSave {
 
 export interface DialogStateWorkflow {
     loadDialogState(api: mw.Api, currentTitle: mw.Title): Promise<DialogState>;
-    loadRegistrationState(
-        state: DialogState,
-        currentNamespace: number,
-    ): Promise<void>;
 }
 
 export interface DialogWorkflow extends DialogStateWorkflow {

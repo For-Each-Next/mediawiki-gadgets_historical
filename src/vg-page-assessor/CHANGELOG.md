@@ -2,6 +2,30 @@
 
 ## Until 0.3
 
+### 0.2.3 (2026-08-09 13:30 UTC)
+
+Overview: VG Page Assessor preserves reviewed banner source, opens with
+prepared data, and presents aligned editable comparisons before saving.
+
+- Loaded the talk page and WikiProject new-page log in one MediaWiki API query,
+  then prepared registration before opening the main form.
+- Read existing class, importance, task forces, maintenance flags, configured
+  projects, and unconfigured project banners into the assessment controls.
+- Preserved exact aliases, parameters, nesting, unmanaged templates, and manual
+  edits until the user explicitly changed a recognizable corresponding control.
+- Added exact options for unconfigured class and importance values, localized
+  controls and edit summaries, and reported expiration with the creation date.
+- Presented an editable proposed lead followed by reusable two-card Codex
+  comparisons with aligned lines, Chinese-aware word changes, and plain
+  context.
+- Kept related changed lines together by similarity, rendered source as safe
+  text, removed nested line framing, and wrapped long wikitext within each
+  card.
+- Explained ineligible registration in place of its checkbox and aligned the
+  registration comparison panes on wide screens.
+- Published readable artifact prose and identity in a strict async anonymous
+  ES2024 wrapper, replacing userscript metadata and copied notices.
+
 ### 0.2.2 (2026-08-04 07:29 UTC)
 
 Overview: VG Page Assessor publishes a flat all-gadget distribution and

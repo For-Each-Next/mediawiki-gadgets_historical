@@ -3,7 +3,7 @@
         v-model:open="open"
         class="cf-source-manager"
         :title="msg('tool.name')"
-        :subtitle="toolBuildLabel"
+        :subtitle="toolVersionLabel"
         :lang="interfaceLocale"
         @update:open="onOpenChange"
     >

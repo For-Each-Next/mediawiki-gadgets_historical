@@ -187,6 +187,10 @@ test("interpolates UI and domain messages in the selected locale", () => {
         "檢視來源（3）",
     );
     assert.equal(
+        translator.msg("tool.versionLabel", { version: "0.5.3" }),
+        "版本0.5.3",
+    );
+    assert.equal(
         validation.unsupportedParameter("example"),
         "CS1不支援example參數。",
     );
@@ -446,7 +450,7 @@ test("references only defined messages from the Vue template", () => {
         SOURCE_MANAGER_TEMPLATE,
         /class="cf-source-manager__filter-field"\s+:is-fieldset/u,
     );
-    assert.match(SOURCE_MANAGER_TEMPLATE, /:subtitle="toolBuildLabel"/u);
+    assert.match(SOURCE_MANAGER_TEMPLATE, /:subtitle="toolVersionLabel"/u);
     assert.doesNotMatch(
         SOURCE_MANAGER_TEMPLATE,
         /cf-source-manager__gadget-info/u,

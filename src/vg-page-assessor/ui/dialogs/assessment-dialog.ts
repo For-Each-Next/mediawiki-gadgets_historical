@@ -10,16 +10,13 @@ import type {
     PageAssessorRuntime,
 } from "#gadget/contracts/dialog.ts";
 import {
-    CLASS_VALUES,
-    IMPORTANCE_VALUES,
+    getExistingOtherProjectOptions,
     getTalkPageTopSection,
+    parseAssessment,
     previewTalkPageTopSection,
     shouldRegisterByDefault,
 } from "#gadget/domain/assessment.ts";
-import {
-    buildLineComparison,
-    buildNewPageListSummary,
-} from "#gadget/domain/new-page-list.ts";
+import { buildNewPageListSummary } from "#gadget/domain/new-page-list.ts";
 import type {
     Assessment,
     AssessmentClass,
@@ -29,12 +26,19 @@ import type {
 } from "#gadget/domain/types.ts";
 import { interfaceLocale, msg } from "#gadget/i18n/index.ts";
 import {
+    CLASS_OPTIONS,
+    IMPORTANCE_OPTIONS,
     MAINTENANCE_OPTIONS,
     OTHER_PROJECT_OPTIONS,
     TASK_FORCE_OPTIONS,
+    includeAssessmentValue,
+    type LabelledAssessmentOption,
+    type LabelledAssessmentValue,
 } from "#gadget/ui/assessment-options.ts";
 import { buildEditSummary } from "#gadget/ui/assessment-summary.ts";
 import type { VueModule, VueRef } from "#gadget/ui/codex.ts";
+import * as Comparison from "#gadget/ui/components/wikitext-comparison.ts";
+import { compareWikitext, type WikitextComparison } from "#shared/wikitext";
 
 const DIALOG_CLOSE_DELAY_MS = 600;
 
@@ -61,13 +65,12 @@ export interface AssessmentDialogOptions {
 
 interface DialogBindings {
     assessment: Assessment;
-    classValues: typeof CLASS_VALUES;
+    classOptions: VueRef<Array<LabelledAssessmentValue<string>>>;
     currentSource: VueRef<string>;
-    importanceValues: typeof IMPORTANCE_VALUES;
+    importanceOptions: VueRef<Array<LabelledAssessmentValue<string>>>;
     interfaceLocale: string;
-    listComparison: VueRef<{ after: string; before: string }>;
+    listComparison: VueRef<WikitextComparison>;
     listSummary: VueRef<string>;
-    loadRegistration: () => Promise<void>;
     maintenanceOptions: typeof MAINTENANCE_OPTIONS;
     msg: typeof msg;
     onCancel: () => void;
@@ -76,11 +79,11 @@ interface DialogBindings {
     onSave: () => Promise<void>;
     onSummaryInput: (value: string) => void;
     open: VueRef<boolean>;
-    otherProjectOptions: typeof OTHER_PROJECT_OPTIONS;
+    otherProjectOptions: ReadonlyArray<LabelledAssessmentOption>;
     previewText: VueRef<string>;
     registrationDisabled: VueRef<boolean>;
+    registrationEligible: VueRef<boolean>;
     registrationLabel: VueRef<string>;
-    registrationLoading: VueRef<boolean>;
     saving: VueRef<boolean>;
     setClassName: (value: unknown) => void;
     setImportance: (value: unknown) => void;
@@ -93,6 +96,7 @@ interface DialogBindings {
     statusType: VueRef<MessageType>;
     subjectTitle: string;
     summary: VueRef<string>;
+    talkComparison: VueRef<WikitextComparison>;
     taskForceOptions: typeof TASK_FORCE_OPTIONS;
 }
 
@@ -108,15 +112,14 @@ export function createAssessmentDialogComponent(
     options: AssessmentDialogOptions,
 ): unknown {
     function setup(): DialogBindings {
-        const bindings = createAssessmentDialogBindings(Vue, options);
-
-        Vue.onMounted(function loadRegistration(): void {
-            void bindings.loadRegistration();
-        });
-        return bindings;
+        return createAssessmentDialogBindings(Vue, options);
     }
 
     return Vue.defineComponent({
+        components: {
+            WikitextComparison:
+                Comparison.createWikitextComparisonComponent(Vue),
+        },
         name: "VgPageAssessmentDialog",
         setup,
         template: ASSESSMENT_DIALOG_TEMPLATE,
@@ -137,23 +140,31 @@ export function createAssessmentDialogBindings(
 ): DialogBindings {
     const { runtime, state } = options;
     const assessment = Vue.reactive(state.assessment);
+    const classOptions = Vue.computed(function getClassOptions() {
+        return includeAssessmentValue(CLASS_OPTIONS, assessment.className);
+    });
+    const importanceOptions = Vue.computed(function getImportanceOptions() {
+        return includeAssessmentValue(
+            IMPORTANCE_OPTIONS,
+            assessment.importance,
+        );
+    });
+    const otherProjectOptions = [
+        ...OTHER_PROJECT_OPTIONS,
+        ...getExistingOtherProjectOptions(state.page.text, projectConfig),
+    ];
     const open = Vue.ref(true);
     const previewText = Vue.ref(createAssessmentPreview(state));
     const currentSource = Vue.ref(getTalkPageTopSection(state.page.text));
-    const summary = Vue.ref(buildEditSummary(assessment));
+    const summary = Vue.ref(buildEditSummary(assessment, otherProjectOptions));
     const listSummary = Vue.ref(buildRegistrationSummary(state));
-    const shouldRegister = Vue.ref(false);
+    const shouldRegister = Vue.ref(
+        getDefaultRegistration(state, options.currentNamespace),
+    );
     const registration = Vue.ref(state.registration);
-    const registrationLoading = Vue.ref(state.registrationLoading);
     const saving = Vue.ref(false);
     const status = Vue.ref("");
     const statusType = Vue.ref<MessageType>("notice");
-    let active = true;
-
-    Vue.onUnmounted(function deactivateDialog(): void {
-        active = false;
-    });
-
     function setStatus(text: string, isError: boolean): void {
         status.value = text;
         statusType.value = isError ? "error" : "notice";
@@ -163,20 +174,24 @@ export function createAssessmentDialogBindings(
     function refreshAssessment(): void {
         runtime.logStep("dialog change");
         runtime.logStep("readAssessment", assessment);
-        if (!state.previewDirty) {
-            previewText.value = createAssessmentPreview(state);
-            runtime.logStep("updateAssessmentPreview done", {
-                length: previewText.value.length,
-            });
-        } else {
-            runtime.logStep("updateAssessmentPreview skipped: dirty");
-        }
+        const previewSource = state.previewDirty
+            ? previewText.value
+            : state.page.text;
+        previewText.value = previewTalkPageTopSection(
+            previewSource,
+            assessment,
+            projectConfig,
+        );
+        runtime.logStep("updateAssessmentPreview done", {
+            fromManualSource: state.previewDirty,
+            length: previewText.value.length,
+        });
         currentSource.value = getTalkPageTopSection(state.page.text);
         runtime.logStep("updateTalkDiff done", {
             length: currentSource.value.length,
         });
         if (!state.summaryDirty) {
-            summary.value = buildEditSummary(assessment);
+            summary.value = buildEditSummary(assessment, otherProjectOptions);
             runtime.logStep("updateAssessmentSummary done", {
                 summary: summary.value,
             });
@@ -216,6 +231,16 @@ export function createAssessmentDialogBindings(
     function onPreviewInput(value: string): void {
         previewText.value = value;
         state.previewDirty = true;
+        const parsed = parseAssessment(projectConfig, value);
+        if (parsed != null) {
+            Object.assign(assessment, parsed);
+            if (!state.summaryDirty) {
+                summary.value = buildEditSummary(
+                    assessment,
+                    otherProjectOptions,
+                );
+            }
+        }
         runtime.logStep("lead source edited");
         runtime.logStep("updateTalkDiff done", {
             length: currentSource.value.length,
@@ -234,7 +259,8 @@ export function createAssessmentDialogBindings(
 
     function setRegister(value: boolean): void {
         shouldRegister.value = value;
-        refreshAssessment();
+        runtime.logStep("dialog change");
+        logRegistrationPreview(runtime, registration.value, shouldRegister);
     }
 
     function close(): void {
@@ -252,32 +278,6 @@ export function createAssessmentDialogBindings(
         if (!value) {
             queueMicrotask(options.onClose);
         }
-    }
-
-    async function loadRegistration(): Promise<void> {
-        runtime.logStep("loadNewPageListState start");
-        setStatus(msg("registration.loadingList"), false);
-        try {
-            await runtime.loadRegistrationState(
-                state,
-                options.currentNamespace,
-            );
-        } catch (error) {
-            runtime.logStep("loadNewPageListState failed", { error });
-            setStatus(getErrorMessage(error), true);
-            return;
-        }
-        if (!active) {
-            return;
-        }
-        registration.value = state.registration;
-        registrationLoading.value = state.registrationLoading;
-        shouldRegister.value = getDefaultRegistration(
-            state,
-            options.currentNamespace,
-        );
-        setStatus("", false);
-        logLoadedRegistration(runtime, state);
     }
 
     async function onSave(): Promise<void> {
@@ -319,16 +319,13 @@ export function createAssessmentDialogBindings(
     }
 
     const registrationDisabled = Vue.computed(function isDisabled(): boolean {
-        return isRegistrationDisabled(
-            registration.value,
-            registrationLoading.value,
-        );
+        return isRegistrationDisabled(registration.value);
+    });
+    const registrationEligible = Vue.computed(function isEligible(): boolean {
+        return registration.value.eligible;
     });
     const showRegistrationPreview = Vue.computed(function canPreview() {
-        return canShowRegistrationPreview(
-            registration.value,
-            registrationLoading.value,
-        );
+        return canShowRegistrationPreview(registration.value);
     });
     const registrationLabel = Vue.computed(function getLabel() {
         return getRegistrationLabel(
@@ -343,16 +340,18 @@ export function createAssessmentDialogBindings(
             shouldRegister.value,
         );
     });
+    const talkComparison = Vue.computed(function getTalkComparison() {
+        return compareWikitext(currentSource.value, previewText.value);
+    });
 
     return {
         assessment,
-        classValues: CLASS_VALUES,
+        classOptions,
         currentSource,
-        importanceValues: IMPORTANCE_VALUES,
+        importanceOptions,
         interfaceLocale,
         listComparison,
         listSummary,
-        loadRegistration,
         maintenanceOptions: MAINTENANCE_OPTIONS,
         msg,
         onCancel,
@@ -361,11 +360,11 @@ export function createAssessmentDialogBindings(
         onSave,
         onSummaryInput,
         open,
-        otherProjectOptions: OTHER_PROJECT_OPTIONS,
+        otherProjectOptions,
         previewText,
         registrationDisabled,
+        registrationEligible,
         registrationLabel,
-        registrationLoading,
         saving,
         setClassName,
         setImportance,
@@ -378,6 +377,7 @@ export function createAssessmentDialogBindings(
         statusType,
         subjectTitle: state.subjectTitle,
         summary,
+        talkComparison,
         taskForceOptions: TASK_FORCE_OPTIONS,
     };
 }
@@ -415,63 +415,37 @@ function buildRegistrationSummary(state: DialogState): string {
 
 function buildRegistrationComparison(
     state: DialogState,
-    registration: RegistrationResult | null,
+    registration: RegistrationResult,
     shouldRegister: boolean,
-): { after: string; before: string } {
-    if (
-        !shouldRegister ||
-        registration == null ||
-        state.newPageList == null ||
-        !registration.changed
-    ) {
-        return {
-            after: msg("registration.noChanges"),
-            before: msg("registration.noChanges"),
-        };
+): WikitextComparison {
+    if (!shouldRegister || !registration.changed) {
+        return { changed: false, rows: [] };
     }
-    return buildLineComparison(
-        state.newPageList.text,
-        registration.proposedText,
-        1,
-    );
+    return compareWikitext(state.newPageList.text, registration.proposedText);
 }
 
 function canShowRegistrationPreview(
-    registration: RegistrationResult | null,
-    loading: boolean,
+    registration: RegistrationResult,
 ): boolean {
-    return (
-        !loading &&
-        registration?.eligible === true &&
-        !registration.alreadyRegistered
-    );
+    return registration.eligible && !registration.alreadyRegistered;
 }
 
-function isRegistrationDisabled(
-    registration: RegistrationResult | null,
-    loading: boolean,
-): boolean {
-    return (
-        loading ||
-        registration == null ||
-        !registration.eligible ||
-        registration.alreadyRegistered
-    );
+function isRegistrationDisabled(registration: RegistrationResult): boolean {
+    return !registration.eligible || registration.alreadyRegistered;
 }
 
 function getRegistrationLabel(
-    registration: RegistrationResult | null,
+    registration: RegistrationResult,
     creationDate: Date,
 ): string {
-    if (registration == null) {
-        return msg("registration.loading");
+    if (!registration.eligible) {
+        return msg("registration.ineligible", {
+            date: formatInterfaceDate(creationDate, true),
+        });
     }
     const created = msg("registration.createdOn", {
         date: formatInterfaceDate(creationDate),
     });
-    if (!registration.eligible) {
-        return msg("registration.ineligible", { created });
-    }
     if (
         registration.existing?.date != null &&
         registration.existing.listedTitle
@@ -487,11 +461,12 @@ function getRegistrationLabel(
     return msg("registration.register", { created });
 }
 
-function formatInterfaceDate(date: Date): string {
+function formatInterfaceDate(date: Date, includeYear = false): string {
     return new Intl.DateTimeFormat(interfaceLocale, {
         day: "numeric",
         month: "long",
         timeZone: "UTC",
+        ...(includeYear ? { year: "numeric" } : {}),
     }).format(date);
 }
 
@@ -501,7 +476,6 @@ function getDefaultRegistration(
 ): boolean {
     const registration = state.registration;
     return (
-        registration != null &&
         shouldRegisterByDefault(currentNamespace, state.subjectTitle) &&
         registration.eligible &&
         !registration.alreadyRegistered
@@ -521,11 +495,11 @@ function reportSavePhase(
 
 function logRegistrationPreview(
     runtime: PageAssessorRuntime,
-    registration: RegistrationResult | null,
+    registration: RegistrationResult,
     shouldRegister: VueRef<boolean>,
 ): void {
     runtime.logStep(
-        canShowRegistrationPreview(registration, false)
+        canShowRegistrationPreview(registration)
             ? "updateRegistrationPreview done"
             : "updateRegistrationPreview hidden",
         {
@@ -535,23 +509,8 @@ function logRegistrationPreview(
     );
 }
 
-function logLoadedRegistration(
-    runtime: PageAssessorRuntime,
-    state: DialogState,
-): void {
-    const creationTimes = [...state.creationTimes].map(
-        function serialize(entry): [string, string] {
-            return [entry[0], entry[1].toISOString()];
-        },
-    );
-    runtime.logStep("loadNewPageListState done", {
-        creationTimes,
-        registration: summarizeRegistration(state.registration),
-    });
-}
-
 function summarizeRegistration(
-    registration: RegistrationResult | null,
+    registration: RegistrationResult,
 ): Record<string, unknown> {
     return {
         alreadyRegistered: registration?.alreadyRegistered,
@@ -564,17 +523,13 @@ function summarizeRegistration(
 }
 
 function isAssessmentClass(value: unknown): value is AssessmentClass {
-    return CLASS_VALUES.some(function matches(candidate) {
-        return candidate === value;
-    });
+    return typeof value === "string" && value.trim() !== "";
 }
 
 function isAssessmentImportance(
     value: unknown,
 ): value is AssessmentImportance {
-    return IMPORTANCE_VALUES.some(function matches(candidate) {
-        return candidate === value;
-    });
+    return typeof value === "string";
 }
 
 function getErrorMessage(error: unknown): string {

@@ -9,10 +9,13 @@ import type {
     SelectionMap,
 } from "#gadget/domain/types.ts";
 import {
+    CLASS_OPTIONS,
+    IMPORTANCE_OPTIONS,
     MAINTENANCE_OPTIONS,
     OTHER_PROJECT_OPTIONS,
     TASK_FORCE_OPTIONS,
     type LabelledAssessmentOption,
+    type LabelledAssessmentValue,
 } from "#gadget/ui/assessment-options.ts";
 
 const SUMMARY_LINK = ":m:User:For Each ... Next/global.js/vg page assessor.js";
@@ -23,14 +26,21 @@ const SUMMARY_SOURCE_LINK = `[[${SUMMARY_LINK}|${SUMMARY_TEXT}]]`;
  * Builds the default edit summary for the selected assessment.
  *
  * @param assessment - Assessment value.
+ * @param otherProjectOptions - Available secondary project labels.
  * @returns Built the default edit summary for the selected assessment.
  */
-export function buildEditSummary(assessment: Assessment): string {
+export function buildEditSummary(
+    assessment: Assessment,
+    otherProjectOptions?: ReadonlyArray<LabelledAssessmentOption>,
+): string {
+    const availableProjects = otherProjectOptions ?? OTHER_PROJECT_OPTIONS;
     const banners = [
         buildVideoGamesSummary(assessment),
-        ...getSelectedLabels(OTHER_PROJECT_OPTIONS, assessment.otherProjects),
+        ...getSelectedLabels(availableProjects, assessment.otherProjects),
     ];
-    const className = `${assessment.className || "Unassessed"}-Class`;
+    const className = msg("summary.class", {
+        className: getValueLabel(CLASS_OPTIONS, assessment.className),
+    });
     let summary;
 
     if (banners.length === 0) {
@@ -83,7 +93,10 @@ function buildVideoGamesSummaryDetails(assessment: Assessment): Array<string> {
     if (assessment.importance) {
         details.push(
             msg("summary.importance", {
-                importance: assessment.importance,
+                importance: getValueLabel(
+                    IMPORTANCE_OPTIONS,
+                    assessment.importance,
+                ),
             }),
         );
     }
@@ -97,6 +110,20 @@ function buildVideoGamesSummaryDetails(assessment: Assessment): Array<string> {
     }
 
     return details;
+}
+
+/**
+ * Gets the localized label for an assessment code.
+ *
+ * @param options - Localized value options.
+ * @param value - Stored wikitext code.
+ * @returns Localized display label.
+ */
+function getValueLabel<Value extends string>(
+    options: ReadonlyArray<LabelledAssessmentValue<Value>>,
+    value: Value,
+): string {
+    return options.find((option) => option.value === value)?.label ?? value;
 }
 
 /**

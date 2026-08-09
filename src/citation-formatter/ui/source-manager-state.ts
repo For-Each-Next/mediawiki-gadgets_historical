@@ -385,7 +385,7 @@ function omitCollisionMarkerNameErrors(
 ): SourceDraftErrors {
     const markers = new Set(
         listSourceDraftParameterCollisions(draft).map((collision) =>
-            collision.renamedParameter.toLocaleLowerCase("en-US"),
+            collision.renamedParameter.toLowerCase(),
         ),
     );
     if (markers.size === 0) {
@@ -393,9 +393,7 @@ function omitCollisionMarkerNameErrors(
     }
     const result = new Map(errors);
     for (const [index, rowErrors] of result) {
-        const entered = draft.rows[index]?.name
-            .trim()
-            .toLocaleLowerCase("en-US");
+        const entered = draft.rows[index]?.name.trim().toLowerCase();
         if (entered == null || !markers.has(entered)) {
             continue;
         }

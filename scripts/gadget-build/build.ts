@@ -47,7 +47,10 @@ export async function buildGadget(packageRoot: string): Promise<void> {
     }
 
     const minifiedSource = await bundleSource(plan, { minifyText: true });
-    const minifiedCode = await minifyBundledSource(minifiedSource);
+    const minifiedCode = await minifyBundledSource(
+        minifiedSource,
+        plan.config.globalName,
+    );
     await writeBuildOutput(plan, outputPaths.minified, minifiedCode);
 }
 
@@ -138,18 +141,46 @@ async function cleanBuildOutputs(pathSets: ArtifactPaths[]): Promise<void> {
  * Minifies bundled JavaScript for on-wiki publication.
  *
  * @param source - Bundled source.
- * @returns Minified JavaScript.
+ * @param globalName - Generated bundle binding.
+ * @returns Minified JavaScript in an async anonymous function.
  */
-async function minifyBundledSource(source: string): Promise<string> {
+async function minifyBundledSource(
+    source: string,
+    globalName: string,
+): Promise<string> {
     const result = await minify(source, {
-        compress: { passes: 2 },
-        format: { comments: false },
+        ecma: 2024,
+        compress: { ecma: 2024, passes: 2 },
+        format: { comments: false, ecma: 2024 },
         mangle: true,
     });
     if (result.code == null) {
         throw new Error("Terser did not return minified code.");
     }
-    return result.code;
+    return wrapModernGadgetProgram(result.code, globalName);
+}
+
+/**
+ * Places strict mode and a modern binding inside an async IIFE.
+ *
+ * @param source - Minified esbuild IIFE.
+ * @param globalName - Generated bundle binding.
+ * @returns Scoped modern gadget program.
+ */
+function wrapModernGadgetProgram(source: string, globalName: string): string {
+    const strictDirective = `"use strict";`;
+    const unscopedSource = source.startsWith(strictDirective)
+        ? source.slice(strictDirective.length)
+        : source;
+    const generatedPrefix = `var ${globalName}=`;
+    if (!unscopedSource.startsWith(generatedPrefix)) {
+        throw new Error("Minified bundle did not use the expected IIFE form.");
+    }
+    const bundleExpression = unscopedSource.slice(generatedPrefix.length);
+    return (
+        `(async function(){"use strict";const ${globalName}=` +
+        `${bundleExpression}})();`
+    );
 }
 
 /**
@@ -168,7 +199,8 @@ async function writeBuildOutput(
     const minifiedOutput = formatMediaWikiOutput(
         minifiedCode,
         metadata,
-        plan.notices,
+        plan.config.headerDescription,
+        plan.config.headerAuthor === true,
     );
     await writeFile(outputPath, minifiedOutput);
 }

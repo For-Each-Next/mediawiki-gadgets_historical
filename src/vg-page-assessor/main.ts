@@ -3,6 +3,7 @@
  */
 
 import projectConfig from "#gadget/config/project-config.ts";
+import { fetchAssessmentPages } from "#gadget/infra/assessment-page-api.ts";
 import {
     fetchPageCreationTimes,
     fetchPageText,
@@ -12,10 +13,7 @@ import {
     getSubjectPageTitle,
     getTalkPageTitle,
 } from "#gadget/infra/mediawiki-title.ts";
-import {
-    fetchNewPageList,
-    savePreparedNewPageList,
-} from "#gadget/infra/new-page-list-api.ts";
+import { savePreparedNewPageList } from "#gadget/infra/new-page-list-api.ts";
 import { logStep } from "#gadget/infra/logger.ts";
 import { postTalkPageEdit } from "#gadget/infra/talk-page-api.ts";
 import { startPageAssessor } from "#gadget/ui/app.ts";
@@ -29,9 +27,8 @@ import * as talk from "#gadget/workflows/save-talk-assessment.ts";
 export function start(): void {
     const dialogWorkflow = createDialogWorkflow(
         {
-            fetchNewPageList,
+            fetchAssessmentPages,
             fetchPageCreationTimes,
-            fetchPageText,
             fetchSubjectPageInfo,
             getSubjectPageTitle,
             getTalkPageTitle,
@@ -53,7 +50,6 @@ export function start(): void {
 
     startPageAssessor({
         loadDialogState: dialogWorkflow.loadDialogState,
-        loadRegistrationState: dialogWorkflow.loadRegistrationState,
         logStep,
         saveReviewedDialog,
     });

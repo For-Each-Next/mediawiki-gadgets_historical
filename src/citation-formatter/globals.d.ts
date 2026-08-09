@@ -28,7 +28,6 @@ declare global {
     const __CITATION_FORMATTER_TOOL_DIALOG_STYLES__: string;
     const __CITATION_FORMATTER_CLOSE_DIALOG_TEMPLATE__: string;
     const __CITATION_FORMATTER_CLOSE_DIALOG_STYLES__: string;
-    const __GADGET_BUILD_TIME__: string;
     const __GADGET_VERSION__: string;
 }
 

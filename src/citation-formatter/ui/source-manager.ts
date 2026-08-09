@@ -167,12 +167,7 @@ const GADGET_VERSION =
     typeof __GADGET_VERSION__ === "undefined"
         ? msg("tools.development")
         : __GADGET_VERSION__;
-const GADGET_BUILD_TIME =
-    typeof __GADGET_BUILD_TIME__ === "undefined"
-        ? msg("tools.development")
-        : formatUtcBuildTime(__GADGET_BUILD_TIME__);
-const TOOL_BUILD_LABEL = msg("tool.buildLabel", {
-    buildTime: GADGET_BUILD_TIME,
+const TOOL_VERSION_LABEL = msg("tool.versionLabel", {
     version: GADGET_VERSION,
 });
 const URL_STATUSES = ["live", "dead", "unfit"] as const;
@@ -450,7 +445,7 @@ function createSourceManagerComponent(
                     state.draft.value?.template,
                 ),
             ),
-            toolBuildLabel: TOOL_BUILD_LABEL,
+            toolVersionLabel: TOOL_VERSION_LABEL,
             useSourceIcon: cdxIconReferenceExisting,
             ...actions,
             ...state,
@@ -555,18 +550,6 @@ function getCurrentPageTitle(): string {
  */
 function getCurrentCs1CheckOptions(): { pageTitle: string } {
     return { pageTitle: getCurrentPageTitle() };
-}
-
-function formatUtcBuildTime(value: string): string {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return msg("tools.unknownBuildTime");
-    }
-    return new Intl.DateTimeFormat(interfaceLocale, {
-        dateStyle: "medium",
-        timeStyle: "medium",
-        timeZone: "UTC",
-    }).format(date);
 }
 
 /**
@@ -2137,7 +2120,7 @@ function getDraftRowValue(draft: SourceDraft, name: string): string {
 }
 
 function normalizeDraftName(name: string): string {
-    return name.trim().toLocaleLowerCase("en-US");
+    return name.trim().toLowerCase();
 }
 
 /**
@@ -2263,7 +2246,7 @@ function partitionCollisionMarkerCs1Issues(
 ): PartitionedCs1Issues {
     const markers = new Set(
         listSourceDraftParameterCollisions(draft).map((collision) =>
-            collision.renamedParameter.toLocaleLowerCase("en-US"),
+            collision.renamedParameter.toLowerCase(),
         ),
     );
     if (markers.size === 0) {

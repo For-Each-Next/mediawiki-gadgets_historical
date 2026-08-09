@@ -31,14 +31,14 @@
                             </template>
                             <div class="avgp-button-group">
                                 <cdx-radio
-                                    v-for="value in classValues"
-                                    :key="value"
+                                    v-for="option in classOptions"
+                                    :key="option.value"
                                     :model-value="assessment.className"
-                                    :input-value="value"
+                                    :input-value="option.value"
                                     name="className"
                                     @update:model-value="setClassName"
                                 >
-                                    {{ value }}
+                                    {{ option.label }}
                                 </cdx-radio>
                             </div>
                         </cdx-field>
@@ -49,14 +49,14 @@
                             </template>
                             <div class="avgp-button-group">
                                 <cdx-radio
-                                    v-for="value in importanceValues"
-                                    :key="value || '__empty__'"
+                                    v-for="option in importanceOptions"
+                                    :key="option.value || '__empty__'"
                                     :model-value="assessment.importance"
-                                    :input-value="value"
+                                    :input-value="option.value"
                                     name="importance"
                                     @update:model-value="setImportance"
                                 >
-                                    {{ value || msg("common.empty") }}
+                                    {{ option.label }}
                                 </cdx-radio>
                             </div>
                         </cdx-field>
@@ -146,21 +146,25 @@
                                 {{ msg("dialog.readySource") }}
                             </template>
                             <cdx-text-area
-                                class="avgp-source-textarea"
+                                class="avgp-compare-textarea"
                                 :model-value="previewText"
                                 rows="8"
                                 @update:model-value="onPreviewInput"
                             />
                         </cdx-field>
-                        <cdx-field class="avgp-section avgp-source-field">
+                        <cdx-field
+                            class="avgp-section avgp-source-field avgp-comparison-field"
+                        >
                             <template #label>
-                                {{ msg("dialog.currentSource") }}
+                                {{ msg("dialog.leadDiff") }}
                             </template>
-                            <cdx-text-area
-                                class="avgp-source-textarea"
-                                :model-value="currentSource"
-                                :readonly="true"
-                                rows="8"
+                            <wikitext-comparison
+                                :after-label="msg('dialog.after')"
+                                :before-label="msg('dialog.currentSource')"
+                                :comparison="talkComparison"
+                                :no-changes-label="
+                                    msg('registration.noChanges')
+                                "
                             />
                         </cdx-field>
                     </section>
@@ -182,16 +186,12 @@
                     {{ msg("dialog.newPageList") }}
                 </legend>
                 <cdx-field class="avgp-section">
-                    <div
-                        v-if="registrationLoading"
-                        class="avgp-register-loading"
-                        aria-live="polite"
+                    <p
+                        v-if="!registrationEligible"
+                        class="avgp-registration-message"
                     >
-                        <span>{{ msg("registration.loading") }}</span>
-                        <cdx-progress-bar
-                            :aria-label="msg('registration.loading')"
-                        />
-                    </div>
+                        {{ registrationLabel }}
+                    </p>
                     <cdx-checkbox
                         v-else
                         :model-value="shouldRegister"
@@ -206,34 +206,12 @@
                     v-if="showRegistrationPreview"
                     class="avgp-section avgp-list-preview"
                 >
-                    <div class="avgp-compare-grid">
-                        <cdx-field
-                            class="avgp-compare-field avgp-compare-field--removed"
-                        >
-                            <template #label>
-                                {{ msg("dialog.before") }}
-                            </template>
-                            <cdx-text-area
-                                class="avgp-compare-textarea"
-                                :model-value="listComparison.before"
-                                :readonly="true"
-                                rows="8"
-                            />
-                        </cdx-field>
-                        <cdx-field
-                            class="avgp-compare-field avgp-compare-field--added"
-                        >
-                            <template #label>
-                                {{ msg("dialog.after") }}
-                            </template>
-                            <cdx-text-area
-                                class="avgp-compare-textarea"
-                                :model-value="listComparison.after"
-                                :readonly="true"
-                                rows="8"
-                            />
-                        </cdx-field>
-                    </div>
+                    <wikitext-comparison
+                        :after-label="msg('dialog.after')"
+                        :before-label="msg('dialog.before')"
+                        :comparison="listComparison"
+                        :no-changes-label="msg('registration.noChanges')"
+                    />
                 </div>
 
                 <cdx-field

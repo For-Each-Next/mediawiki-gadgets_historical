@@ -14,6 +14,8 @@ export interface GadgetBuildConfig {
     defines?: Record<string, DefineConfig>;
     entryPoint?: string;
     globalName?: string;
+    headerAuthor?: boolean;
+    headerDescription?: string[];
     noticeFiles?: string[];
     outputName?: string;
     target?: "es2024";
@@ -38,6 +40,7 @@ export interface PackageMetadata extends UserscriptMetadata {
 export interface ResolvedGadgetBuildConfig extends GadgetBuildConfig {
     entryPoint: string;
     globalName: string;
+    headerDescription: string[];
     outputDirectory: string;
     outputName: string;
 }

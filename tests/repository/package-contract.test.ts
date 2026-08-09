@@ -158,7 +158,11 @@ test("flat artifact names cannot collide by case", async (context) => {
 test("the aggregate output name is reserved by case", async (context) => {
     const workspaceRoot = await mkdtemp(join(tmpdir(), "gadget-reserved-"));
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
-    await writeFutureGadget(workspaceRoot, "future-gadget", "00-MediaWiki-Gadgets");
+    await writeFutureGadget(
+        workspaceRoot,
+        "future-gadget",
+        "00-MediaWiki-Gadgets",
+    );
     await writeWorkspaceLicenseMaps(workspaceRoot, [
         "future-gadget@1.3.0-dev.1",
     ]);
@@ -167,7 +171,10 @@ test("the aggregate output name is reserved by case", async (context) => {
 
     assert.ok(
         result.problems.some((problem) =>
-            /reserved name "00-mediawiki-gadgets\.user\.js" path/u.test(problem),
+            problem.includes(
+                "must not reserve the aggregate " +
+                    "00-mediawiki-gadgets.user.js path",
+            ),
         ),
     );
 });
@@ -255,6 +262,9 @@ function createFutureMetadata(
         description: "Future package fixture.",
         gadgetBuild: {
             globalName: "futureGadget",
+            headerDescription: [
+                "Exercises discovery through the shared package contract.",
+            ],
             noticeFiles: ["LICENSE"],
             outputName,
         },

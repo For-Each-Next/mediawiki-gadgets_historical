@@ -475,6 +475,9 @@ function createPackageMetadata(
         description: `${fixture.name} fixture.`,
         gadgetBuild: {
             globalName: `${fixture.name.replaceAll("-", "_")}Build`,
+            headerDescription: [
+                `Exercises ${fixture.name} in the aggregate build fixture.`,
+            ],
             noticeFiles: ["LICENSE"],
             outputName: fixture.name,
             userscript,

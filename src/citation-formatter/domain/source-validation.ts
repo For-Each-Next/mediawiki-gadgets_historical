@@ -366,7 +366,7 @@ function buildGlobalCanonicalNames(): Map<string, string> {
 }
 
 function normalizeParameterName(name: string): string {
-    return name.trim().toLocaleLowerCase("en-US");
+    return name.trim().toLowerCase();
 }
 
 /** Validates the paired archive fields and marks the missing field. */
@@ -630,6 +630,6 @@ function isValidNamedMonthDate(
     monthName: string,
     day: string,
 ): boolean {
-    const month = ENGLISH_MONTHS.get(monthName.toLocaleLowerCase("en-US"));
+    const month = ENGLISH_MONTHS.get(monthName.toLowerCase());
     return month != null && isCalendarDayWithinUtcMonth(year, month, day);
 }

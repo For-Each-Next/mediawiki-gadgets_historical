@@ -126,8 +126,8 @@ index.ts
 
 ## License
 
-The project-owned portions of wikEd Lite 0.4.5 are dedicated under [CC0
-1.0 Universal][6]. It credits Cacycle as the original author of wikEd and its
+The project-owned portions of wikEd Lite 0.4.6 are dedicated under [CC0 1.0
+Universal][6]. It credits Cacycle as the original author of wikEd and its
 lightweight editing ideas. The rebuild also acknowledges [Remember the dot's
 Syntax highlighter][5] as an inspiration. The package [license][7] fixes this
 release's scope; the repository [licensing map][8] covers the workspace.

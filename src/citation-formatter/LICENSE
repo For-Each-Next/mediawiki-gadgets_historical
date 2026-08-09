@@ -1,15 +1,15 @@
-Citation Formatter 0.5.3 Licensing Notice
+Citation Formatter 0.5.4 Licensing Notice
 
-Release-Scope: citation-formatter@0.5.3
+Release-Scope: citation-formatter@0.5.4
 
 To the extent possible under law, the repository maintainer dedicates the
 copyright and related rights it owns in the project-authored portions of
-Citation Formatter 0.5.3, including project-owned shared runtime incorporated
+Citation Formatter 0.5.4, including project-owned shared runtime incorporated
 into the release, to the public domain under CC0 1.0 Universal.
 
 SPDX-License-Identifier: CC0-1.0
 
-This dedication is fixed to version 0.5.3. It does not automatically
+This dedication is fixed to version 0.5.4. It does not automatically
 apply to later releases or later contributions. It grants only rights held by
 the repository maintainer and does not relicense generated Wikipedia
 TemplateData, Wikimedia siteinfo values, dependencies, or other third-party

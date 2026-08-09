@@ -2,6 +2,20 @@
 
 ## Until 0.6
 
+### 0.5.3 (2026-08-09 13:30 UTC)
+
+Overview: VG Stub Creator limits its launcher to supported creation contexts
+and publishes a readable, scoped modern artifact.
+
+- Limited the Chinese Wikipedia launcher to the main and Draft namespaces plus
+  the current editor's own User page and subpages.
+- Covered supported pages, other users' pages, anonymous sessions, talk pages,
+  and project pages with focused eligibility tests.
+- Published readable summary and workflow prose before the minified artifact's
+  identity fields instead of userscript metadata and copied notices.
+- Wrapped the artifact in a strict async anonymous ES2024 function with a
+  `const` bundle binding.
+
 ### 0.5.2 (2026-08-04 07:29 UTC)
 
 Overview: VG Stub Creator publishes a flat all-gadget distribution and

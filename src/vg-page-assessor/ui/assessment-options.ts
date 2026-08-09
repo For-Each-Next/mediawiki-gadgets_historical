@@ -3,6 +3,12 @@
  */
 
 import projectConfig from "#gadget/config/project-config.ts";
+import {
+    CLASS_VALUES,
+    IMPORTANCE_VALUES,
+    type KnownAssessmentClass,
+    type KnownAssessmentImportance,
+} from "#gadget/domain/types.ts";
 import { msg, type MessageId } from "#gadget/i18n/index.ts";
 
 export interface LabelledAssessmentOption {
@@ -10,8 +16,33 @@ export interface LabelledAssessmentOption {
     readonly label: string;
 }
 
+export interface LabelledAssessmentValue<Value extends string> {
+    readonly label: string;
+    readonly value: Value;
+}
+
 type OtherProjectId = (typeof projectConfig.otherProjects)[number]["id"];
 type TaskForceId = (typeof projectConfig.videoGames.taskForces)[number]["id"];
+
+const CLASS_MESSAGE_IDS = {
+    "Unassessed": "assessmentClass.unassessed",
+    "Stub": "assessmentClass.stub",
+    "Start": "assessmentClass.start",
+    "C": "assessmentClass.c",
+    "B": "assessmentClass.b",
+    "SL": "assessmentClass.sl",
+    "List": "assessmentClass.list",
+    "CL": "assessmentClass.cl",
+    "BL": "assessmentClass.bl",
+} as const satisfies Record<KnownAssessmentClass, MessageId>;
+
+const IMPORTANCE_MESSAGE_IDS = {
+    "": "common.empty",
+    "Low": "assessmentImportance.low",
+    "Mid": "assessmentImportance.mid",
+    "High": "assessmentImportance.high",
+    "Top": "assessmentImportance.top",
+} as const satisfies Record<KnownAssessmentImportance, MessageId>;
 
 const OTHER_PROJECT_MESSAGE_IDS = {
     fictionalCharacters: "project.fictionalCharacters",
@@ -36,6 +67,13 @@ export const OTHER_PROJECT_OPTIONS = localizeOptions(
     OTHER_PROJECT_MESSAGE_IDS,
 );
 
+export const CLASS_OPTIONS = localizeValues(CLASS_VALUES, CLASS_MESSAGE_IDS);
+
+export const IMPORTANCE_OPTIONS = localizeValues(
+    IMPORTANCE_VALUES,
+    IMPORTANCE_MESSAGE_IDS,
+);
+
 export const TASK_FORCE_OPTIONS = localizeOptions(
     projectConfig.videoGames.taskForces,
     TASK_FORCE_MESSAGE_IDS,
@@ -48,6 +86,23 @@ export const MAINTENANCE_OPTIONS = [
     { id: "screenshot", label: msg("maintenance.needsScreenshot") },
 ] as const;
 
+/**
+ * Adds an exact source value when it is outside the configured choices.
+ *
+ * @param options - Configured localized options.
+ * @param value - Current wikitext value.
+ * @returns Options containing the current value.
+ */
+export function includeAssessmentValue(
+    options: ReadonlyArray<LabelledAssessmentValue<string>>,
+    value: string,
+): Array<LabelledAssessmentValue<string>> {
+    if (options.some((option) => option.value === value)) {
+        return [...options];
+    }
+    return [...options, { label: value, value }];
+}
+
 function localizeOptions<Id extends string>(
     items: ReadonlyArray<{ readonly id: Id }>,
     messageIds: Readonly<Record<Id, MessageId>>,
@@ -56,6 +111,18 @@ function localizeOptions<Id extends string>(
         return {
             id: item.id,
             label: msg(messageIds[item.id]),
+        };
+    });
+}
+
+function localizeValues<Value extends string>(
+    values: readonly Value[],
+    messageIds: Readonly<Record<Value, MessageId>>,
+): Array<LabelledAssessmentValue<Value>> {
+    return values.map(function localizeValue(value) {
+        return {
+            label: msg(messageIds[value]),
+            value,
         };
     });
 }

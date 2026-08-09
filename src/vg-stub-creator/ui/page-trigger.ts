@@ -1,8 +1,45 @@
 import { msg } from "#gadget/i18n/index.ts";
 
+const MAIN_NAMESPACE = 0;
+const USER_NAMESPACE = 2;
+const DRAFT_NAMESPACE = 118;
+
+export interface LauncherPageContext {
+    namespaceNumber: number;
+    pageTitle: string;
+    userName: string | null;
+}
+
 /**
  * Adds gadget triggers to MediaWiki page actions.
  */
+
+/**
+ * Checks whether a Chinese Wikipedia page can show the launcher.
+ *
+ * @param context - Current page namespace, title, and user.
+ * @returns Whether the launcher belongs on the current page.
+ */
+export function canShowZhwikiLauncher(context: LauncherPageContext): boolean {
+    if (
+        context.namespaceNumber === MAIN_NAMESPACE ||
+        context.namespaceNumber === DRAFT_NAMESPACE
+    ) {
+        return true;
+    }
+
+    if (
+        context.namespaceNumber !== USER_NAMESPACE ||
+        context.userName == null
+    ) {
+        return false;
+    }
+
+    const pageTitle = context.pageTitle.replace(/_/gu, " ");
+    const userName = context.userName.replace(/_/gu, " ");
+
+    return pageTitle === userName || pageTitle.startsWith(`${userName}/`);
+}
 
 /**
  * Adds a gadget trigger to the page views portlet on missing pages.

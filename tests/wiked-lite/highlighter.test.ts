@@ -204,7 +204,7 @@ test("reference and nested-template classes differ", () => {
     assert.ok(classes.includes("wiked-lite-token--template-1"));
 });
 
-test("nested references and explanatory footnotes share one small token", () => {
+test("nested references and footnotes share one small token", () => {
     const source = "<ref>Outer {{efn|Inner <ref>source</ref>}}</ref>";
     const segments = highlightWikitext(source);
 

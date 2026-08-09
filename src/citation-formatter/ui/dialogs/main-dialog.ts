@@ -76,7 +76,7 @@ export type MainDialogContext = MainDialogActions &
         formatArticleDisabled: boolean;
         manualTemplateOptions: MenuItemData[];
         sourceTableColumns: TableColumn[];
-        toolBuildLabel: string;
+        toolVersionLabel: string;
         useSourceIcon: CodexIcons["cdxIconReferenceExisting"];
     };
 

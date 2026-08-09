@@ -13,20 +13,30 @@ export function asRecord(value: unknown): UnknownRecord | null {
 }
 
 export function getFirstQueryPage(response: unknown): UnknownRecord | null {
+    return getQueryPages(response)[0] ?? null;
+}
+
+export function getQueryPages(response: unknown): Array<UnknownRecord> {
     const responseRecord = asRecord(response);
     const query = asRecord(responseRecord?.query);
     const pages = query?.pages;
 
     if (Array.isArray(pages)) {
-        return asRecord(pages[0]);
+        return pages.flatMap(function readPage(page) {
+            const record = asRecord(page);
+            return record == null ? [] : [record];
+        });
     }
 
     const pageRecord = asRecord(pages);
     if (pageRecord == null) {
-        return null;
+        return [];
     }
 
-    return asRecord(Object.values(pageRecord)[0]);
+    return Object.values(pageRecord).flatMap(function readPage(page) {
+        const record = asRecord(page);
+        return record == null ? [] : [record];
+    });
 }
 
 export function getFirstRevision(

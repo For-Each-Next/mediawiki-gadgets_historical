@@ -682,7 +682,7 @@ function buildShortCitationSourceMap(
             continue;
         }
         const refParam = call.params.find(function isRefParam(param) {
-            const name = param.name.toLocaleLowerCase("en-US");
+            const name = param.name.toLowerCase();
             return !param.positional && name === "ref";
         });
         if (refParam == null) {
@@ -742,7 +742,7 @@ function normalizeShortCitationAnchor(value: string): string {
         .replace(/_/gu, " ")
         .replace(/\s+/gu, " ")
         .trim()
-        .toLocaleLowerCase("en-US");
+        .toLowerCase();
 }
 
 /**
@@ -1143,7 +1143,7 @@ function normalizeCitationRefKey(value: string): string {
         .trim()
         .replace(/^#/u, "")
         .replace(/[\s_]+/gu, "_")
-        .toLocaleLowerCase("en-US");
+        .toLowerCase();
 }
 
 /**

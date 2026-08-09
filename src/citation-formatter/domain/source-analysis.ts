@@ -562,7 +562,7 @@ function buildAnalysisOccurrence(
 function getSourceDomain(source: ExistingSource): string {
     try {
         const hostname = new URL(source.url).hostname
-            .toLocaleLowerCase("en-US")
+            .toLowerCase()
             .replace(/\.$/u, "");
         return hostname.replace(/^www\./u, "");
     } catch {
@@ -605,13 +605,13 @@ function countAnalysisValues(values: string[]): SourceAnalysisValue[] {
 function normalizeDisplayValue(value: string): string {
     return cleanValue(value)
         .normalize("NFC")
-        .toLocaleLowerCase("en-US")
+        .toLowerCase()
         .replace(/\s+/gu, " ")
         .trim();
 }
 
 function normalizeParameterName(name: string): string {
-    return name.trim().toLocaleLowerCase("en-US");
+    return name.trim().toLowerCase();
 }
 
 function groupSourceAnalysisReplacements(

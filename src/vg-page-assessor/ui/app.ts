@@ -7,6 +7,7 @@ import {
     ASSESSMENT_DIALOG_STYLES,
     createAssessmentDialogComponent,
 } from "#gadget/ui/dialogs/assessment-dialog.ts";
+import * as Comparison from "#gadget/ui/components/wikitext-comparison.ts";
 import {
     LOADING_DIALOG_STYLES,
     createLoadingDialogComponent,
@@ -210,9 +211,11 @@ function installDialogStyles(): void {
     const style = document.createElement("style");
 
     style.id = STYLE_ID;
-    style.textContent = [ASSESSMENT_DIALOG_STYLES, LOADING_DIALOG_STYLES].join(
-        "\n",
-    );
+    style.textContent = [
+        ASSESSMENT_DIALOG_STYLES,
+        LOADING_DIALOG_STYLES,
+        Comparison.WIKITEXT_COMPARISON_STYLES,
+    ].join("\n");
     document.head.append(style);
     logStep("addStyles done");
 }

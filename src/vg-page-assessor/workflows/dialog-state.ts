@@ -13,19 +13,27 @@ import {
     prepareNewPageListRegistration,
 } from "#gadget/domain/new-page-list.ts";
 import type {
+    AssessmentPageSnapshots,
     NewPageListSnapshot,
-    PageSnapshot,
     ProjectConfig,
+    RegistrationResult,
     SubjectPageInfo,
 } from "#gadget/domain/types.ts";
 
+interface PreparedRegistrationState {
+    creationTimes: Map<string, Date>;
+    registration: RegistrationResult;
+}
+
 export interface DialogWorkflowAdapters {
-    fetchNewPageList(api: mw.Api): Promise<NewPageListSnapshot>;
+    fetchAssessmentPages(
+        api: mw.Api,
+        talkTitle: string,
+    ): Promise<AssessmentPageSnapshots>;
     fetchPageCreationTimes(
         api: mw.Api,
         titles: Array<string>,
     ): Promise<Map<string, Date>>;
-    fetchPageText(api: mw.Api, title: string): Promise<PageSnapshot>;
     fetchSubjectPageInfo(api: mw.Api, title: string): Promise<SubjectPageInfo>;
     getSubjectPageTitle(title: mw.Title): string;
     getTalkPageTitle(title: mw.Title): string;
@@ -51,7 +59,6 @@ export function createDialogWorkflow(
     return {
         getRegistrationSave,
         loadDialogState: loadDialogState.bind(null, adapters, projectConfig),
-        loadRegistrationState: loadRegistrationState.bind(null, adapters),
         saveRegistration: saveRegistration.bind(null, adapters),
     };
 }
@@ -64,20 +71,29 @@ async function loadDialogState(
 ): Promise<DialogState> {
     const talkTitle = adapters.getTalkPageTitle(currentTitle);
     const subjectTitle = adapters.getSubjectPageTitle(currentTitle);
-    const [page, subjectInfo] = await Promise.all([
-        adapters.fetchPageText(api, talkTitle),
+    const [pages, subjectInfo] = await Promise.all([
+        adapters.fetchAssessmentPages(api, talkTitle),
         adapters.fetchSubjectPageInfo(api, subjectTitle),
     ]);
+    const prepared = await prepareRegistrationState(
+        adapters,
+        api,
+        pages.newPageList,
+        subjectInfo,
+        subjectTitle,
+    );
 
     return {
         api,
-        assessment: createDefaultAssessment(projectConfig),
-        creationTimes: new Map(),
-        newPageList: null,
-        page,
+        assessment: createDefaultAssessment(
+            projectConfig,
+            pages.talkPage.text,
+        ),
+        creationTimes: prepared.creationTimes,
+        newPageList: pages.newPageList,
+        page: pages.talkPage,
         previewDirty: false,
-        registration: null,
-        registrationLoading: true,
+        registration: prepared.registration,
         subjectInfo,
         subjectTitle,
         summaryDirty: false,
@@ -85,46 +101,33 @@ async function loadDialogState(
     };
 }
 
-async function loadRegistrationState(
+async function prepareRegistrationState(
     adapters: DialogWorkflowAdapters,
-    state: DialogState,
-    currentNamespace: number,
-): Promise<void> {
-    const newPageList = await adapters.fetchNewPageList(state.api);
-    const title = state.subjectInfo.listedTitle || state.subjectTitle;
+    api: mw.Api,
+    newPageList: NewPageListSnapshot,
+    subjectInfo: SubjectPageInfo,
+    subjectTitle: string,
+): Promise<PreparedRegistrationState> {
+    const title = subjectInfo.listedTitle || subjectTitle;
     const titles = [
-        ...getTitlesForDate(newPageList.text, state.subjectInfo.creationDate),
+        ...getTitlesForDate(newPageList.text, subjectInfo.creationDate),
         title,
     ];
-    const creationTimes = await adapters.fetchPageCreationTimes(
-        state.api,
-        titles,
-    );
+    const creationTimes = await adapters.fetchPageCreationTimes(api, titles);
 
-    creationTimes.set(title, state.subjectInfo.creationDate);
-    const namespaceNumber =
-        currentNamespace % 2 === 0
-            ? currentNamespace
-            : state.subjectInfo.namespaceNumber;
-
-    state.creationTimes = creationTimes;
-    state.newPageList = newPageList;
-    state.registration = prepareNewPageListRegistration({
-        creationDate: state.subjectInfo.creationDate,
+    creationTimes.set(title, subjectInfo.creationDate);
+    const registration = prepareNewPageListRegistration({
+        creationDate: subjectInfo.creationDate,
         creationTimes,
-        namespaceNumber,
+        namespaceNumber: subjectInfo.namespaceNumber,
         text: newPageList.text,
         title,
     });
-    state.registrationLoading = false;
+    return { creationTimes, registration };
 }
 
 function getRegistrationSave(state: DialogState): RegistrationSave | null {
-    if (
-        state.newPageList == null ||
-        state.registration == null ||
-        !state.registration.changed
-    ) {
+    if (!state.registration.changed) {
         return null;
     }
 

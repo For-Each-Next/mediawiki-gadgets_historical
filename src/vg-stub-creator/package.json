@@ -1,7 +1,7 @@
 {
     "name": "vg-stub-creator",
-    "version": "0.5.2",
-    "description": "Quickly create a video game stub on the Chinese Wikipedia.",
+    "version": "0.5.3",
+    "description": "Create and review Chinese Wikipedia video game stubs.",
     "private": true,
     "license": "CC0-1.0",
     "author": "For Each ... Next",
@@ -24,6 +24,9 @@
     },
     "gadgetBuild": {
         "globalName": "vgStubCreator",
+        "headerDescription": [
+            "Builds Chinese Wikipedia video game stubs, previews the article and related edits, and preserves recovery state throughout the workflow."
+        ],
         "noticeFiles": [
             "LICENSE"
         ],

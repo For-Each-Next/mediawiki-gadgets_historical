@@ -16,7 +16,7 @@ const CITATION_VALIDATION_CONFIGS = [
 export function getCitationValidationConfig(
     wikiId: string,
 ): CitationValidationConfig {
-    const normalized = wikiId.toLocaleLowerCase("en-US");
+    const normalized = wikiId.toLowerCase();
     return (
         CITATION_VALIDATION_CONFIGS.find((config) =>
             config.wikiIds.includes(normalized),

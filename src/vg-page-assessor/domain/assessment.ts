@@ -8,6 +8,9 @@ import {
     CLASS_VALUES,
     IMPORTANCE_VALUES,
     type Assessment,
+    type AssessmentClass,
+    type AssessmentImportance,
+    type AssessmentProjectOption,
     type ProjectBannerConfig,
     type ProjectConfig,
     type VideoGamesProjectConfig,
@@ -33,15 +36,18 @@ const BANNER_SHELL_ALIASES = [
     "[專专][題题][橫横]幅",
     "[維维]基[專专][題题][橫横]幅",
 ];
+const EXISTING_PROJECT_ID_PREFIX = "existing:";
 
 /**
  * Creates initial form data for the assessment dialog.
  *
  * @param projectConfig - Assessment project configuration.
+ * @param text - Existing talk-page wikitext.
  * @returns Default assessment values.
  */
 export function createDefaultAssessment(
     projectConfig: ProjectConfig,
+    text = "",
 ): Assessment {
     const otherProjectEntries = projectConfig.otherProjects.map(
         function callback(project: { id: string }): [string, false] {
@@ -65,7 +71,337 @@ export function createDefaultAssessment(
         otherProjects: Object.fromEntries(otherProjectEntries),
         taskForces: Object.fromEntries(taskForceEntries),
     };
+    return readExistingAssessment(result, text, projectConfig);
+}
+
+/**
+ * Parses controls from recognizable assessment wikitext.
+ *
+ * @param projectConfig - Assessment project configuration.
+ * @param text - Manually edited talk-page lead source.
+ * @returns Parsed controls, or null without a managed banner.
+ */
+export function parseAssessment(
+    projectConfig: ProjectConfig,
+    text: string,
+): Assessment | null {
+    const templates = readLeadingTemplates(String(text || ""));
+    const shell = templates.find((template) =>
+        isBannerShellName(template.name),
+    );
+    const banners = collectExistingProjectBanners(templates);
+    const videoGamesBanner = findProjectBanner(
+        banners,
+        projectConfig.videoGames,
+    );
+
+    if (shell == null && videoGamesBanner == null) {
+        return null;
+    }
+    return createDefaultAssessment(projectConfig, text);
+}
+
+/**
+ * Applies recognizable values from existing assessment banners.
+ *
+ * @param assessment - Initialized assessment values.
+ * @param text - Existing talk-page source.
+ * @param projectConfig - Project banner configuration.
+ * @returns Assessment values populated from the current page.
+ */
+function readExistingAssessment(
+    assessment: Assessment,
+    text: string,
+    projectConfig: ProjectConfig,
+): Assessment {
+    const templates = readLeadingTemplates(String(text || ""));
+    const shell = templates.find((template) =>
+        isBannerShellName(template.name),
+    );
+    const banners = collectExistingProjectBanners(templates);
+    const videoGamesBanner = findProjectBanner(
+        banners,
+        projectConfig.videoGames,
+    );
+
+    applyExistingClass(
+        assessment,
+        shell?.source,
+        videoGamesBanner,
+        projectConfig.videoGames,
+    );
+    applyExistingVideoGames(
+        assessment,
+        videoGamesBanner,
+        projectConfig.videoGames,
+    );
+    applyExistingOtherProjects(
+        assessment,
+        banners,
+        extractExistingShellBanners(text),
+        projectConfig,
+    );
+    return assessment;
+}
+
+/**
+ * Collects nested project banners and standalone leading templates.
+ *
+ * @param templates - Leading top-level templates.
+ * @returns Sources that may represent configured project banners.
+ */
+function collectExistingProjectBanners(
+    templates: Array<TemplateToken>,
+): Array<string> {
+    const result = [];
+
+    for (const template of templates) {
+        if (isBannerShellName(template.name)) {
+            result.push(...readNestedBannersFromShell(template.source));
+        } else {
+            result.push(template.source);
+        }
+    }
+
     return result;
+}
+
+/**
+ * Finds the first banner matching a configured project.
+ *
+ * @param banners - Candidate banner sources.
+ * @param project - Project configuration.
+ * @returns Matching banner source, when present.
+ */
+function findProjectBanner(
+    banners: Array<string>,
+    project: ProjectBannerConfig | VideoGamesProjectConfig,
+): string | undefined {
+    return banners.find(function matchesConfiguredProject(banner) {
+        const name = readLeadingTemplate(banner, 0)?.name;
+        return name != null && matchesProject(name, project);
+    });
+}
+
+/**
+ * Finds template-derived options for unconfigured project banners.
+ *
+ * @param banners - Existing banner sources.
+ * @param projectConfig - Project banner configuration.
+ * @returns Unique template-derived project options.
+ */
+function findExistingOtherProjectOptions(
+    banners: Array<string>,
+    projectConfig: ProjectConfig,
+): Array<AssessmentProjectOption> {
+    const result = [];
+    const seen = new Set<string>();
+
+    for (const banner of banners) {
+        const name = readLeadingTemplate(banner, 0)?.name;
+        const label = readExistingProjectLabel(name);
+
+        if (
+            name == null ||
+            label == null ||
+            isConfiguredProjectName(name, projectConfig)
+        ) {
+            continue;
+        }
+        const id = buildExistingProjectId(name);
+        if (!seen.has(id)) {
+            seen.add(id);
+            result.push({ id, label });
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Checks whether a banner name belongs to a configured project.
+ *
+ * @param name - Existing template name.
+ * @param projectConfig - Project banner configuration.
+ * @returns Whether the name matches a configured project.
+ */
+function isConfiguredProjectName(
+    name: string,
+    projectConfig: ProjectConfig,
+): boolean {
+    return [projectConfig.videoGames, ...projectConfig.otherProjects].some(
+        (project) => matchesProject(name, project),
+    );
+}
+
+/**
+ * Extracts a display label from a conventional project template name.
+ *
+ * @param name - Existing template name.
+ * @returns Captured project label, when the name is conventional.
+ */
+function readExistingProjectLabel(name: string | undefined): string | null {
+    const enteredName = stripNamespacePrefix(name ?? "", "zhwiki", 10)
+        .replace(/_/gu, " ")
+        .replace(/\s+/gu, " ")
+        .trim();
+    const match =
+        /^WikiProject\s+(.+)$/iu.exec(enteredName) ??
+        /^(.+?)[專专][題题]$/u.exec(enteredName);
+    return match?.[1]?.trim() || null;
+}
+
+/**
+ * Builds a stable selection ID from an existing project template name.
+ *
+ * @param name - Existing template name.
+ * @returns Dynamic project selection ID.
+ */
+function buildExistingProjectId(name: string): string {
+    return `${EXISTING_PROJECT_ID_PREFIX}${normalizeTemplateName(name)}`;
+}
+
+/**
+ * Checks whether an existing secondary banner should remain selected.
+ *
+ * @param name - Existing template name.
+ * @param assessment - Current assessment selections.
+ * @param projectConfig - Project banner configuration.
+ * @returns Whether the existing banner should be preserved.
+ */
+function isExistingOtherProjectSelected(
+    name: string,
+    assessment: Assessment,
+    projectConfig: ProjectConfig,
+): boolean {
+    const configured = projectConfig.otherProjects.some((project) =>
+        matchesProject(name, project),
+    );
+    if (configured || readExistingProjectLabel(name) == null) {
+        return true;
+    }
+    const id = buildExistingProjectId(name);
+    return assessment.otherProjects[id] !== false;
+}
+
+/**
+ * Applies the existing shared or per-banner class.
+ *
+ * @param assessment - Mutable assessment values.
+ * @param shell - Existing banner-shell source.
+ * @param banner - Existing primary project banner.
+ * @param config - Primary project configuration.
+ */
+function applyExistingClass(
+    assessment: Assessment,
+    shell: string | undefined,
+    banner: string | undefined,
+    config: VideoGamesProjectConfig,
+): void {
+    const shellClass = readTemplateParameter(shell, "class");
+    const bannerClass = readTemplateParameter(banner, config.classParameter);
+    const className = readAssessmentClass(shellClass ?? bannerClass);
+
+    if (className != null) {
+        assessment.className = className;
+    }
+}
+
+/**
+ * Applies primary-project importance, task-force, and maintenance
+ * values.
+ *
+ * @param assessment - Mutable assessment values.
+ * @param banner - Existing primary project banner.
+ * @param config - Primary project configuration.
+ */
+function applyExistingVideoGames(
+    assessment: Assessment,
+    banner: string | undefined,
+    config: VideoGamesProjectConfig,
+): void {
+    if (banner == null) {
+        return;
+    }
+
+    const importance = readAssessmentImportance(
+        readTemplateParameter(banner, config.importanceParameter),
+    );
+    if (importance != null) {
+        assessment.importance = importance;
+    }
+    for (const taskForce of config.taskForces) {
+        assessment.taskForces[taskForce.id] = readBooleanParameter(
+            banner,
+            taskForce.parameter,
+        );
+    }
+    applyExistingMaintenance(assessment, banner);
+}
+
+/**
+ * Applies existing primary-project maintenance flags.
+ *
+ * @param assessment - Mutable assessment values.
+ * @param banner - Existing primary project banner.
+ */
+function applyExistingMaintenance(
+    assessment: Assessment,
+    banner: string,
+): void {
+    assessment.maintenance.reassess = readBooleanParameter(banner, "reassess");
+    assessment.maintenance.needsInfobox = readBooleanParameter(
+        banner,
+        "needs-infobox",
+    );
+    assessment.maintenance.cover = readBooleanParameter(banner, "cover");
+    assessment.maintenance.screenshot = readBooleanParameter(
+        banner,
+        "screenshot",
+    );
+}
+
+/**
+ * Marks configured secondary projects already present on the page.
+ *
+ * @param assessment - Mutable assessment values.
+ * @param banners - Existing project banner sources.
+ * @param shellBanners - Existing banners nested inside banner shells.
+ * @param projectConfig - Project banner configuration.
+ */
+function applyExistingOtherProjects(
+    assessment: Assessment,
+    banners: Array<string>,
+    shellBanners: Array<string>,
+    projectConfig: ProjectConfig,
+): void {
+    for (const project of projectConfig.otherProjects) {
+        assessment.otherProjects[project.id] =
+            findProjectBanner(banners, project) != null;
+    }
+    for (const project of findExistingOtherProjectOptions(
+        shellBanners,
+        projectConfig,
+    )) {
+        assessment.otherProjects[project.id] = true;
+    }
+}
+
+/**
+ * Lists unconfigured WikiProject banners that can be toggled in the UI.
+ *
+ * @param text - Existing talk-page source.
+ * @param projectConfig - Project banner configuration.
+ * @returns Template-derived project labels and selection IDs.
+ */
+export function getExistingOtherProjectOptions(
+    text: string,
+    projectConfig: ProjectConfig,
+): Array<AssessmentProjectOption> {
+    return findExistingOtherProjectOptions(
+        extractExistingShellBanners(text),
+        projectConfig,
+    );
 }
 
 /**
@@ -136,10 +472,23 @@ function replaceManagedTopTemplates(
 ): string {
     const source = String(text || "");
     const replacement = String(banners || "").trim();
-    const cleaned = removeManagedTopTemplates(source, projectConfig).replace(
-        /^\s+/u,
-        "",
-    );
+    const templates = readLeadingTemplates(source);
+    const patterns = buildManagedTemplatePatterns(projectConfig);
+    const managed = templates.filter(function isManaged(template) {
+        return isManagedTemplate(template.name, patterns);
+    });
+
+    if (managed.length > 0) {
+        return replaceLeadingManagedTemplates(
+            source,
+            templates,
+            managed[0],
+            replacement,
+            patterns,
+        );
+    }
+
+    const cleaned = source.replace(/^\s+/u, "");
 
     if (cleaned === "") {
         return `${replacement}\n`;
@@ -162,46 +511,99 @@ export function buildAssessmentBanners(
     text = "",
 ): string {
     const existingBanners = extractExistingShellBanners(text);
-    const preservedBanners = [];
-
-    for (const banner of existingBanners) {
-        const selected = isSelectedProjectBanner(
-            banner,
-            assessment,
-            projectConfig,
-        );
-
-        if (!selected) {
-            preservedBanners.push(banner);
-        }
-    }
-
+    const existingVideoGamesBanner = findProjectBanner(
+        existingBanners,
+        projectConfig.videoGames,
+    );
     const videoGamesBanner = buildVideoGamesBanner(
         assessment,
         projectConfig.videoGames,
+        existingVideoGamesBanner,
     );
-    const selectedProjects = [];
+    const banners = replaceExistingVideoGamesBanners(
+        existingBanners,
+        videoGamesBanner,
+        assessment,
+        projectConfig,
+    );
+    const otherProjectBanners = buildSelectedOtherProjectBanners(
+        assessment,
+        projectConfig,
+        existingBanners,
+    );
+    banners.push(...otherProjectBanners);
 
-    for (const project of projectConfig.otherProjects) {
-        if (assessment.otherProjects?.[project.id]) {
-            selectedProjects.push(project);
+    return buildBannerShell(assessment.className, banners);
+}
+
+/**
+ * Replaces primary-project banners without reordering nested projects.
+ *
+ * @param banners - Existing nested banners.
+ * @param replacement - Updated primary project banner.
+ * @param assessment - Current assessment selections.
+ * @param projectConfig - Project banner configuration.
+ * @returns Existing banner order with exactly one primary banner.
+ */
+function replaceExistingVideoGamesBanners(
+    banners: Array<string>,
+    replacement: string,
+    assessment: Assessment,
+    projectConfig: ProjectConfig,
+): Array<string> {
+    const result = [];
+    let replaced = false;
+
+    for (const banner of banners) {
+        const name = readLeadingTemplate(banner, 0)?.name;
+        const matches =
+            name != null && matchesProject(name, projectConfig.videoGames);
+        if (matches) {
+            if (!replaced) {
+                result.push(replacement);
+                replaced = true;
+            }
+            continue;
+        }
+
+        const selected =
+            name == null ||
+            isExistingOtherProjectSelected(name, assessment, projectConfig);
+        if (selected) {
+            result.push(banner);
         }
     }
 
-    const otherProjectBanners = [];
-
-    for (const project of selectedProjects) {
-        const banner = buildSimpleProjectBanner(project);
-        otherProjectBanners.push(banner);
+    if (!replaced) {
+        result.push(replacement);
     }
 
-    const banners = [
-        ...preservedBanners,
-        videoGamesBanner,
-        ...otherProjectBanners,
-    ];
+    return result;
+}
 
-    return buildBannerShell(assessment.className, banners);
+/**
+ * Builds every selected secondary WikiProject banner.
+ *
+ * @param assessment - Selected assessment values.
+ * @param projectConfig - Project banner configuration.
+ * @param existingBanners - Current nested banner sources.
+ * @returns Selected secondary project banner calls.
+ */
+function buildSelectedOtherProjectBanners(
+    assessment: Assessment,
+    projectConfig: ProjectConfig,
+    existingBanners: Array<string>,
+): Array<string> {
+    return projectConfig.otherProjects.flatMap(
+        function buildSelected(project) {
+            const selected = assessment.otherProjects?.[project.id];
+            const exists = findProjectBanner(existingBanners, project) != null;
+
+            return selected && !exists
+                ? [buildSimpleProjectBanner(project)]
+                : [];
+        },
+    );
 }
 
 /**
@@ -275,26 +677,47 @@ export function shouldRegisterByDefault(
 }
 
 /**
- * Removes the configured managed project banners from the page top.
+ * Replaces managed templates within the leading template sequence.
  *
- * @param text - Existing page text.
- * @param projectConfig - Assessment project configuration.
- * @returns Text without managed top banners.
+ * @param source - Existing page source.
+ * @param templates - Leading top-level templates.
+ * @param firstManaged - First managed template to replace.
+ * @param replacement - Replacement banner shell.
+ * @param patterns - Managed template matchers.
+ * @returns Source with one replacement at the original assessment
+ * position.
  */
-function removeManagedTopTemplates(
-    text: string,
-    projectConfig: ProjectConfig,
+function replaceLeadingManagedTemplates(
+    source: string,
+    templates: Array<TemplateToken>,
+    firstManaged: TemplateToken,
+    replacement: string,
+    patterns: Array<RegExp>,
 ): string {
-    const patterns = buildManagedTemplatePatterns(projectConfig);
-    let offset = 0;
-    let next = readLeadingTemplate(text, offset);
+    const first = templates[0];
+    const last = templates.at(-1);
 
-    while (next != null && isManagedTemplate(next.name, patterns)) {
-        offset = next.end;
-        next = readLeadingTemplate(text, offset);
+    if (first == null || last == null) {
+        return source;
     }
 
-    return text.slice(offset);
+    let result = source.slice(0, first.start);
+
+    for (let index = 0; index < templates.length; index += 1) {
+        const template = templates[index];
+        const previous = templates[index - 1];
+        const separatorStart = previous?.end ?? template.start;
+        const separator = source.slice(separatorStart, template.start);
+        const managed = isManagedTemplate(template.name, patterns);
+
+        if (template === firstManaged) {
+            result += `${separator}${replacement}`;
+        } else if (!managed) {
+            result += `${separator}${template.source}`;
+        }
+    }
+
+    return result + source.slice(last.end);
 }
 
 /**
@@ -423,6 +846,26 @@ function readLeadingTemplate(
 }
 
 /**
+ * Reads the uninterrupted leading sequence of top-level templates.
+ *
+ * @param text - Talk-page source.
+ * @returns Leading template tokens, including unmanaged templates.
+ */
+function readLeadingTemplates(text: string): Array<TemplateToken> {
+    const result = [];
+    let offset = 0;
+    let next = readLeadingTemplate(text, offset);
+
+    while (next != null) {
+        result.push(next);
+        offset = next.end;
+        next = readLeadingTemplate(text, offset);
+    }
+
+    return result;
+}
+
+/**
  * Extracts existing WPBS nested banners for preservation.
  *
  * @param text - Existing talk-page source.
@@ -430,28 +873,22 @@ function readLeadingTemplate(
  */
 function extractExistingShellBanners(text: string): Array<string> {
     const source = String(text || "");
-    const leading = readLeadingTemplate(source, 0);
-
-    if (leading == null) {
-        return [];
-    }
-
-    const normalizedName = normalizeTemplateName(leading.name);
     const patterns = buildBannerShellPatterns();
-    const isBannerShell = matchesAnyPattern(patterns, normalizedName);
-
-    if (!isBannerShell) {
-        return [];
-    }
-
-    const nestedBanners = readNestedBannersFromShell(leading.source);
     const result = [];
 
-    for (const banner of nestedBanners) {
-        const name = readLeadingTemplate(banner, 0)?.name;
+    for (const template of readLeadingTemplates(source)) {
+        const normalizedName = normalizeTemplateName(template.name);
 
-        if (name != null && !isBannerShellName(name)) {
-            result.push(banner);
+        if (!matchesAnyPattern(patterns, normalizedName)) {
+            continue;
+        }
+
+        for (const banner of readNestedBannersFromShell(template.source)) {
+            const name = readLeadingTemplate(banner, 0)?.name;
+
+            if (name != null && !isBannerShellName(name)) {
+                result.push(banner);
+            }
         }
     }
 
@@ -582,46 +1019,113 @@ function findTopLevelEquals(parameter: string): number {
 }
 
 /**
- * Handles is selected project banner.
+ * Reads a named top-level template parameter.
  *
- * Checks whether a preserved banner should be replaced by the selected
- * output.
- *
- * @param banner - Existing banner source.
- * @param assessment - Selected assessment.
- * @param projectConfig - Project configuration.
- * @returns Whether this selected project will be rebuilt.
+ * @param template - Template source, when available.
+ * @param name - Parameter name.
+ * @returns Trimmed value, or null when the parameter is absent.
  */
-function isSelectedProjectBanner(
-    banner: string,
-    assessment: Assessment,
-    projectConfig: ProjectConfig,
-): boolean {
-    const name = readLeadingTemplate(banner, 0)?.name;
-
-    if (name == null) {
-        return false;
+function readTemplateParameter(
+    template: string | undefined,
+    name: string,
+): string | null {
+    if (template == null) {
+        return null;
     }
 
-    if (matchesProject(name, projectConfig.videoGames)) {
-        return true;
-    }
+    const expectedName = normalizeParameterName(name);
+    for (const parameter of splitTemplateParts(template).slice(1)) {
+        const equals = findTopLevelEquals(parameter);
+        const parameterName = parameter.slice(0, equals);
 
-    let result = false;
-
-    for (
-        let index = 0;
-        index < projectConfig.otherProjects.length && !result;
-        index += 1
-    ) {
-        const project = projectConfig.otherProjects[index];
-
-        if (assessment.otherProjects?.[project.id]) {
-            result = matchesProject(name, project);
+        if (
+            equals !== -1 &&
+            normalizeParameterName(parameterName) === expectedName
+        ) {
+            return parameter.slice(equals + 1).trim();
         }
     }
 
-    return result;
+    return null;
+}
+
+/**
+ * Normalizes a template parameter name for matching.
+ *
+ * @param name - Raw parameter name.
+ * @returns Case- and spacing-normalized name.
+ */
+function normalizeParameterName(name: string): string {
+    return String(name || "")
+        .replace(/_/gu, " ")
+        .replace(/\s+/gu, " ")
+        .trim()
+        .toLowerCase();
+}
+
+/**
+ * Interprets a conventional truthy template parameter.
+ *
+ * @param template - Template source.
+ * @param name - Parameter name.
+ * @returns Whether the parameter is enabled.
+ */
+function readBooleanParameter(template: string, name: string): boolean {
+    const value = readTemplateParameter(template, name);
+
+    return (
+        value != null && value !== "" && !/^(?:0|false|n|no)$/iu.test(value)
+    );
+}
+
+/**
+ * Reads an assessment class, canonicalizing known values.
+ *
+ * @param value - Existing parameter value.
+ * @returns Known canonical or exact custom class, or null when empty.
+ */
+function readAssessmentClass(value: string | null): AssessmentClass | null {
+    if (value?.trim() === "") {
+        return null;
+    }
+    return readAssessmentChoice(value, CLASS_VALUES);
+}
+
+/**
+ * Reads an importance value, canonicalizing known values.
+ *
+ * @param value - Existing parameter value.
+ * @returns Known canonical or exact custom importance, or null when
+ * absent.
+ */
+function readAssessmentImportance(
+    value: string | null,
+): AssessmentImportance | null {
+    return readAssessmentChoice(value, IMPORTANCE_VALUES);
+}
+
+/**
+ * Finds a case-insensitive canonical value or preserves the entered
+ * value.
+ *
+ * @param value - Existing parameter value.
+ * @param choices - Supported canonical values.
+ * @returns Canonical matching or trimmed custom value, or null.
+ */
+function readAssessmentChoice(
+    value: string | null,
+    choices: readonly string[],
+): string | null {
+    if (value == null) {
+        return null;
+    }
+
+    const enteredValue = value.trim();
+    const normalizedValue = enteredValue.toLowerCase();
+    return (
+        choices.find((choice) => choice.toLowerCase() === normalizedValue) ??
+        enteredValue
+    );
 }
 
 /**
@@ -736,12 +1240,21 @@ function skipWhitespace(text: string, start: number): number {
  *
  * @param assessment - Selected assessment values.
  * @param config - Video games project configuration.
+ * @param existing - Existing matching banner source.
  * @returns Video games banner call.
  */
 function buildVideoGamesBanner(
     assessment: Assessment,
     config: VideoGamesProjectConfig,
+    existing?: string,
 ): string {
+    if (
+        existing != null &&
+        hasSameVideoGamesSelections(existing, assessment, config)
+    ) {
+        return existing;
+    }
+
     const params = [
         [
             "|",
@@ -771,6 +1284,73 @@ function buildVideoGamesBanner(
     }
 
     return `{{${config.template}${params.join("")}}}`;
+}
+
+/**
+ * Checks whether rebuilding would only normalize unchanged source.
+ *
+ * @param banner - Existing matching banner.
+ * @param assessment - Selected assessment values.
+ * @param config - Video games project configuration.
+ * @returns Whether every managed banner parameter is unchanged.
+ */
+function hasSameVideoGamesSelections(
+    banner: string,
+    assessment: Assessment,
+    config: VideoGamesProjectConfig,
+): boolean {
+    const bannerClass = readTemplateParameter(banner, config.classParameter);
+    const importance = readAssessmentImportance(
+        readTemplateParameter(banner, config.importanceParameter),
+    );
+
+    return (
+        (bannerClass == null || bannerClass === "") &&
+        importance === assessment.importance &&
+        hasSameTaskForces(banner, assessment, config) &&
+        hasSameMaintenance(banner, assessment)
+    );
+}
+
+/**
+ * Checks configured task-force parameters against the selection.
+ *
+ * @param banner - Existing matching banner.
+ * @param assessment - Selected assessment values.
+ * @param config - Video games project configuration.
+ * @returns Whether all task-force selections match.
+ */
+function hasSameTaskForces(
+    banner: string,
+    assessment: Assessment,
+    config: VideoGamesProjectConfig,
+): boolean {
+    return config.taskForces.every(function isUnchanged(taskForce) {
+        return (
+            readBooleanParameter(banner, taskForce.parameter) ===
+            Boolean(assessment.taskForces?.[taskForce.id])
+        );
+    });
+}
+
+/**
+ * Checks maintenance parameters against the selection.
+ *
+ * @param banner - Existing matching banner.
+ * @param assessment - Selected assessment values.
+ * @returns Whether every maintenance selection matches.
+ */
+function hasSameMaintenance(banner: string, assessment: Assessment): boolean {
+    return (
+        readBooleanParameter(banner, "reassess") ===
+            Boolean(assessment.maintenance?.reassess) &&
+        readBooleanParameter(banner, "needs-infobox") ===
+            Boolean(assessment.maintenance?.needsInfobox) &&
+        readBooleanParameter(banner, "cover") ===
+            Boolean(assessment.maintenance?.cover) &&
+        readBooleanParameter(banner, "screenshot") ===
+            Boolean(assessment.maintenance?.screenshot)
+    );
 }
 
 /**

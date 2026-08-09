@@ -66,6 +66,6 @@ function normalizeLanguageValue(value: string): string {
     if (LANGUAGE_CODE_PATTERN.test(value)) {
         return value;
     }
-    const lookup = value.toLocaleLowerCase("en-US");
+    const lookup = value.toLowerCase();
     return LANGUAGE_CODES_BY_ENGLISH_NAME.get(lookup) ?? value;
 }

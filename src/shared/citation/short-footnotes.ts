@@ -194,9 +194,7 @@ function matchesCitation(
 
 function getYear(value: string): string {
     return (
-        value
-            .match(/(?:^|\D)(\d{4}[a-z]?)(?:\D|$)/iu)?.[1]
-            .toLocaleLowerCase("en-US") ?? ""
+        value.match(/(?:^|\D)(\d{4}[a-z]?)(?:\D|$)/iu)?.[1].toLowerCase() ?? ""
     );
 }
 
@@ -214,7 +212,7 @@ function normalizeValue(value: string): string {
         .replace(/_/gu, " ")
         .replace(/\s+/gu, " ")
         .trim()
-        .toLocaleLowerCase("en-US");
+        .toLowerCase();
 }
 
 function findTemplateCalls(
@@ -256,5 +254,5 @@ function normalizeName(value: string): string {
     return value
         .trim()
         .replace(/[_\s]+/gu, " ")
-        .toLocaleLowerCase("en-US");
+        .toLowerCase();
 }

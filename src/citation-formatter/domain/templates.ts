@@ -91,9 +91,7 @@ export function normalizeTemplateName(
     value: string,
     context: TemplateNameContext = DEFAULT_TEMPLATE_NAME_CONTEXT,
 ): string {
-    return normalizeTemplateDisplayName(value, context).toLocaleLowerCase(
-        "en-US",
-    );
+    return normalizeTemplateDisplayName(value, context).toLowerCase();
 }
 
 /**
@@ -152,7 +150,7 @@ function normalizeTemplateIdentity(
     if (entered === "") {
         return "";
     }
-    return entered[0].toLocaleUpperCase("en-US") + entered.slice(1);
+    return entered[0].toUpperCase() + entered.slice(1);
 }
 
 /**

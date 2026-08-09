@@ -111,7 +111,7 @@ export const CITATION_TEMPLATE_OPTIONS = CITATION_TEMPLATE_DEFINITIONS.map(
         return {
             icon: definition.icon,
             label: definition.name,
-            value: definition.name.toLocaleLowerCase("en-US"),
+            value: definition.name.toLowerCase(),
         };
     },
 );
@@ -202,7 +202,7 @@ function isDefinitionGroupAlphabetical(
     return (
         previous == null ||
         getTemplateTierRank(previous) !== getTemplateTierRank(definition) ||
-        previous.name.localeCompare(definition.name, "en-US") <= 0
+        previous.name.toLowerCase() <= definition.name.toLowerCase()
     );
 }
 

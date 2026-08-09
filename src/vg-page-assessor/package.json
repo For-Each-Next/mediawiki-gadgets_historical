@@ -1,7 +1,7 @@
 {
     "name": "vg-page-assessor",
-    "version": "0.2.2",
-    "description": "Assess Chinese Wikipedia video game talk pages and register pages on the WikiProject new-page list.",
+    "version": "0.2.3",
+    "description": "Assess video game talk pages and register new articles.",
     "private": true,
     "license": "CC0-1.0",
     "author": "For Each ... Next",
@@ -24,6 +24,9 @@
     },
     "gadgetBuild": {
         "globalName": "vgPageAssessor",
+        "headerDescription": [
+            "Reviews existing WikiProject banners, previews talk-page changes, and registers eligible articles on the Chinese Wikipedia video game new-page list."
+        ],
         "noticeFiles": [
             "LICENSE"
         ],
@@ -40,6 +43,12 @@
             },
             "__VG_PAGE_ASSESSOR_LOADING_DIALOG_STYLES__": {
                 "textFile": "ui/dialogs/loading-dialog.css"
+            },
+            "__VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_TEMPLATE__": {
+                "textFile": "ui/components/wikitext-comparison.vue"
+            },
+            "__VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_STYLES__": {
+                "textFile": "ui/components/wikitext-comparison.css"
             }
         },
         "userscript": {

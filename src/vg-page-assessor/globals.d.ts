@@ -3,6 +3,7 @@
  */
 
 import type * as Dialog from "./ui/dialogs/assessment-dialog.ts";
+import type * as Comparison from "./ui/components/wikitext-comparison.ts";
 
 type RawTemplateContext = ReturnType<
     typeof Dialog.createAssessmentDialogBindings
@@ -20,10 +21,13 @@ declare global {
     const __VG_PAGE_ASSESSOR_DIALOG_STYLES__: string;
     const __VG_PAGE_ASSESSOR_LOADING_DIALOG_TEMPLATE__: string;
     const __VG_PAGE_ASSESSOR_LOADING_DIALOG_STYLES__: string;
+    const __VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_TEMPLATE__: string;
+    const __VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_STYLES__: string;
 }
 
 declare module "@vue/runtime-core" {
-    interface ComponentCustomProperties extends TemplateContext {}
+    interface ComponentCustomProperties
+        extends TemplateContext, Comparison.WikitextComparisonProps {}
 }
 
 export {};

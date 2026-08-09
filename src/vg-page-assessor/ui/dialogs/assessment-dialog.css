@@ -26,7 +26,7 @@
 .avgp-assessment-grid {
     display: grid;
     gap: 1rem;
-    grid-template-columns: minmax(20rem, 61.8fr) minmax(0, 38.2fr);
+    grid-template-columns: minmax(20rem, 38.2fr) minmax(0, 61.8fr);
 }
 
 .avgp-controls,
@@ -64,54 +64,15 @@
     align-items: flex-start;
 }
 
-.avgp-source-textarea,
-.avgp-source-textarea .cdx-text-area__textarea {
-    max-width: none;
-    width: 100%;
-}
-
-.avgp-source-textarea .cdx-text-area__textarea {
-    box-sizing: border-box;
-    font-family: var(--font-family-monospace, monospace), monospace;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    min-height: 7.5em;
-    resize: vertical;
-}
-
-.avgp-register-loading {
+.avgp-registration-message {
     color: var(--color-subtle, #54595d);
-    display: grid;
-    gap: 0.5rem;
-}
-
-.avgp-register-loading .cdx-progress-bar {
-    max-width: none;
-    width: 100%;
+    margin: 0;
 }
 
 .avgp-summary .cdx-text-input,
 .avgp-list-summary .cdx-text-input {
     max-width: none;
     width: 100%;
-}
-
-.avgp-compare-grid {
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-.avgp-compare-field {
-    min-width: 0;
-}
-
-.avgp-compare-field--removed .cdx-text-area__textarea {
-    background-color: var(--background-color-error-subtle, #fee7e6);
-}
-
-.avgp-compare-field--added .cdx-text-area__textarea {
-    background-color: var(--background-color-success-subtle, #d5fdf4);
 }
 
 .avgp-compare-textarea,
@@ -144,8 +105,7 @@
 }
 
 @media (max-width: 61.25rem) {
-    .avgp-assessment-grid,
-    .avgp-compare-grid {
+    .avgp-assessment-grid {
         grid-template-columns: 1fr;
     }
 }

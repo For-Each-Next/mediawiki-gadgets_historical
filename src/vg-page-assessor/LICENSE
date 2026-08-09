@@ -1,15 +1,15 @@
-VG Page Assessor 0.2.2 Licensing Notice
+VG Page Assessor 0.2.3 Licensing Notice
 
-Release-Scope: vg-page-assessor@0.2.2
+Release-Scope: vg-page-assessor@0.2.3
 
 To the extent possible under law, the repository maintainer dedicates the
 copyright and related rights it owns in the project-authored portions of VG
-Page Assessor 0.2.2, including project-owned shared runtime incorporated into
+Page Assessor 0.2.3, including project-owned shared runtime incorporated into
 the release, to the public domain under CC0 1.0 Universal.
 
 SPDX-License-Identifier: CC0-1.0
 
-This dedication is fixed to version 0.2.2. It does not automatically apply to
+This dedication is fixed to version 0.2.3. It does not automatically apply to
 later releases or later contributions. It grants only rights held by the
 repository maintainer and does not relicense Wikimedia siteinfo values,
 dependencies, or other third-party material.

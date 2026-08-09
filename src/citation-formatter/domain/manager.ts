@@ -370,7 +370,7 @@ function getSharedOverride(occurrences: NameOverrideOccurrence[]): string {
  * @returns Normalized parameter family.
  */
 function normalizeUsageParameter(parameter: string): string {
-    return parameter.trim().toLocaleLowerCase("en-US").replace(/\d+$/u, "");
+    return parameter.trim().toLowerCase().replace(/\d+$/u, "");
 }
 
 /**
@@ -382,7 +382,7 @@ function normalizeUsageParameter(parameter: string): string {
 function normalizeUsageTemplate(template: string): string {
     const result = template
         .trim()
-        .toLocaleLowerCase("en-US")
+        .toLowerCase()
         .replace(/^cite\s+/u, "");
     return result;
 }
@@ -672,7 +672,7 @@ function hasBoundaryLineBreak(part: string): boolean {
  * @returns Whether the parameter supports an override.
  */
 function isNameParam(name: string): boolean {
-    const normalized = name.trim().toLocaleLowerCase("en-US");
+    const normalized = name.trim().toLowerCase();
     return NAME_PARAM.test(normalized) || NAME_FALLBACK_PARAMS.has(normalized);
 }
 

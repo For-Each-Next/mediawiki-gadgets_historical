@@ -122,7 +122,7 @@ function parseWaybackUrl(parsed: URL): ParsedSourceUrl | null {
 }
 
 function isWaybackHost(hostname: string): boolean {
-    const normalized = hostname.toLocaleLowerCase("en-US");
+    const normalized = hostname.toLowerCase();
     return normalized === "archive.org" || normalized.endsWith(".archive.org");
 }
 

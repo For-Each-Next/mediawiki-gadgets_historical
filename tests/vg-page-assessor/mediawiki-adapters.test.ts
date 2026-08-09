@@ -5,6 +5,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+// eslint-disable-next-line max-len
+import * as assessmentPageApi from "vg-page-assessor/infra/assessment-page-api.ts";
 import * as pageApi from "vg-page-assessor/infra/mediawiki-api.ts";
 import * as listApi from "vg-page-assessor/infra/new-page-list-api.ts";
 import { postTalkPageEdit } from "vg-page-assessor/infra/talk-page-api.ts";
@@ -95,6 +97,75 @@ test("decodes current slot revision content", () => {
         text: "array text",
     });
 });
+
+test("loads the talk page and assessment log in one query", loadPageBatch);
+
+async function loadPageBatch(): Promise<void> {
+    const requests: Array<Record<string, unknown>> = [];
+    const api = createPageBatchApi(requests);
+    const result = await assessmentPageApi.fetchAssessmentPages(
+        api,
+        "Talk:Example",
+    );
+
+    assert.equal(requests.length, 1);
+    assert.equal(
+        requests[0]?.titles,
+        `Talk:Example|${listApi.NEW_PAGE_LIST_TITLE}`,
+    );
+    assert.deepEqual(result, {
+        newPageList: {
+            basetimestamp: "log-base",
+            starttimestamp: "query-time",
+            text: "Log text",
+        },
+        talkPage: {
+            basetimestamp: "talk-base",
+            exists: true,
+            starttimestamp: "query-time",
+            text: "Talk text",
+        },
+    });
+}
+
+function createPageBatchApi(requests: Array<Record<string, unknown>>): mw.Api {
+    return {
+        async get(params: Record<string, unknown>): Promise<unknown> {
+            requests.push(params);
+            return createPageBatchResponse();
+        },
+    } as unknown as mw.Api;
+}
+
+function createPageBatchResponse(): unknown {
+    return {
+        curtimestamp: "query-time",
+        query: {
+            pages: [
+                {
+                    ns: 102,
+                    revisions: [
+                        {
+                            slots: { main: { content: "Log text" } },
+                            timestamp: "log-base",
+                        },
+                    ],
+                    title: listApi.NEW_PAGE_LIST_TITLE,
+                },
+                {
+                    ns: 1,
+                    revisions: [
+                        {
+                            slots: { main: { content: "Talk text" } },
+                            timestamp: "talk-base",
+                        },
+                    ],
+                    title: "Talk:Example",
+                },
+            ],
+        },
+    };
+}
 
 test("decodes keyed and legacy revision content", () => {
     const keyedResult = pageApi.decodePageTextResponse({

@@ -3,12 +3,13 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { discoverGadgetPackages } from "../../../scripts/workspace/index.ts";
 
-const sourceRoot = fileURLToPath(new URL("../../src/", import.meta.url));
+const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const LOCALES = ["en", "zh-Hans", "zh-Hant"] as const;
 const CHINESE_LOCALES = ["zh-Hans", "zh-Hant"] as const;
 const spacedChineseWesternBoundary =
@@ -16,34 +17,17 @@ const spacedChineseWesternBoundary =
 
 type MessageCatalog = Record<string, string>;
 
-test("stores every gadget locale catalog as flat JSON", () => {
-    for (const packageRoot of listGadgetPackageRoots()) {
-        assertJsonCatalogs(packageRoot);
+test("stores every gadget locale catalog as flat JSON", async () => {
+    for (const gadget of await discoverGadgetPackages(repositoryRoot)) {
+        assertJsonCatalogs(gadget.directory);
     }
 });
 
-test("omits spaces at Chinese and Western message boundaries", () => {
-    for (const packageRoot of listGadgetPackageRoots()) {
-        assertChineseCatalogSpacing(packageRoot);
+test("omits spaces at Chinese and Western message boundaries", async () => {
+    for (const gadget of await discoverGadgetPackages(repositoryRoot)) {
+        assertChineseCatalogSpacing(gadget.directory);
     }
 });
-
-function listGadgetPackageRoots(): string[] {
-    return readdirSync(sourceRoot)
-        .map((name) => join(sourceRoot, name))
-        .filter(isGadgetPackage);
-}
-
-function isGadgetPackage(packageRoot: string): boolean {
-    if (!statSync(packageRoot).isDirectory()) {
-        return false;
-    }
-    const metadataPath = join(packageRoot, "package.json");
-    const metadata = JSON.parse(readFileSync(metadataPath, "utf8")) as {
-        gadgetBuild?: unknown;
-    };
-    return metadata.gadgetBuild != null;
-}
 
 function assertJsonCatalogs(packageRoot: string): void {
     const i18nRoot = join(packageRoot, "i18n");

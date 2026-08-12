@@ -10,7 +10,7 @@ import {
     escapeOrdinaryTemplateLineBreaks,
     formatReadableJavaScript,
     stripJavaScriptComments,
-} from "../../scripts/gadget-build/readable-javascript.ts";
+} from "../../../scripts/gadget-build/readable-javascript.ts";
 
 test("escapes ordinary template lines without changing their values", () => {
     const source = [

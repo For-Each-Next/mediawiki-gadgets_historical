@@ -101,15 +101,18 @@ and exclusion directives.
 
 ## Development
 
-Citation Formatter requires Node.js 22.18 or newer. From the repository root,
+Citation Formatter requires Node.js 24.14.1 or newer. From the repository root,
 run:
 
 ```shell
-npm install
+npm ci
 npm run check -w citation-formatter
 npm test -w citation-formatter
 npm run build -w citation-formatter
 ```
+
+The repository [development workflow][15] explains the complete verification
+gate and when live-service access is appropriate.
 
 Refresh every supported template from English Wikipedia's live TemplateData API
 with:
@@ -184,3 +187,4 @@ covers the rest of the workspace.
 [12]: https://creativecommons.org/publicdomain/zero/1.0/
 [13]: LICENSE
 [14]: ../../LICENSE
+[15]: ../../docs/development-workflow.md

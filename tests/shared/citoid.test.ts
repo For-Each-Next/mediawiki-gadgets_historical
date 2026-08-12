@@ -5,7 +5,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CitoidRequestError, fetchCitationMetadata } from "#shared/citation";
+import {
+    CitoidRequestError,
+    fetchCitationMetadata,
+} from "@mediawiki-gadgets/shared/citation";
 
 const CITOID_ENDPOINT = "/api/rest_v1/data/citation/zotero/";
 

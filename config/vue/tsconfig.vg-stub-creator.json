@@ -1,14 +1,8 @@
 {
-    "extends": "../../tsconfig.json",
+    "extends": "./tsconfig.base.json",
     "compilerOptions": {
-        "composite": true,
-        "declaration": true,
-        "emitDeclarationOnly": true,
-        "noEmit": false,
         "outDir": "../../node_modules/.cache/vue-tsc/vg-stub-creator",
-        "rootDir": "../../",
-        "tsBuildInfoFile": "../../node_modules/.cache/vue-tsc/vg-stub-creator.tsbuildinfo",
-        "types": ["node", "types-mediawiki"]
+        "tsBuildInfoFile": "../../node_modules/.cache/vue-tsc/vg-stub-creator.tsbuildinfo"
     },
     "include": [
         "codex-components.d.ts",

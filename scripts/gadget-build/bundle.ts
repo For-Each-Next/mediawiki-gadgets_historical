@@ -2,14 +2,11 @@
  * Bundles gadget browser source and build-time text definitions.
  */
 
-import { readFile } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { build, transform, type BuildOptions } from "esbuild";
-import {
-    createHtmlTemplateMinifier,
-    extractVueTemplate,
-    minifyHtmlTemplate,
-} from "./html-templates.ts";
+import { extractVueTemplate, minifyHtmlTemplate } from "./html-templates.ts";
+import { requireContainedPath } from "../workspace/index.ts";
 import type { BundleOptions, DefineConfig, GadgetBuildPlan } from "./types.ts";
 
 /**
@@ -36,7 +33,6 @@ export async function bundleSource(
         format: "iife",
         globalName: config.globalName,
         logLevel: "silent",
-        plugins: createBundlePlugins(options),
         target: config.target ?? "es2024",
         write: false,
     };
@@ -46,16 +42,6 @@ export async function bundleSource(
         throw new Error("esbuild did not return bundled JavaScript.");
     }
     return output.text;
-}
-
-/**
- * Selects source transformations for one bundle form.
- *
- * @param options - Operation options.
- * @returns Selected source transformations for one bundle form.
- */
-function createBundlePlugins(options: BundleOptions) {
-    return options.minifyText ? [createHtmlTemplateMinifier()] : undefined;
 }
 
 /**
@@ -94,7 +80,23 @@ async function buildDefineEntry(
     definition: DefineConfig,
     options: BundleOptions,
 ): Promise<[string, string]> {
-    const path = resolve(plan.packageRoot, definition.textFile);
+    if (typeof definition.textFile !== "string") {
+        throw new TypeError("gadgetBuild define textFile must be a string.");
+    }
+    const path = requireContainedPath(
+        plan.packageRoot,
+        resolve(plan.packageRoot, definition.textFile),
+        "Build-injected text file",
+    );
+    const [entry, realRoot, realPath] = await Promise.all([
+        lstat(path),
+        realpath(plan.packageRoot),
+        realpath(path),
+    ]);
+    requireContainedPath(realRoot, realPath, "Build-injected text file");
+    if (!entry.isFile() || entry.isSymbolicLink()) {
+        throw new Error("Build-injected text must be a real package file.");
+    }
     const text = await readFile(path, "utf8");
     const value = await prepareInjectedText(path, text, options);
     return [placeholder, JSON.stringify(value)];

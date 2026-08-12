@@ -10,13 +10,10 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import postcss, { type Declaration } from "postcss";
-
-interface PackageMetadata {
-    gadgetBuild?: unknown;
-}
+import { discoverGadgetPackages } from "../../../scripts/workspace/index.ts";
 
 const require = createRequire(import.meta.url);
-const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
+const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const sourceRoot = join(repositoryRoot, "src");
 const declarationPath = join(sourceRoot, "shared", "mediawiki-codex.d.css");
 const tokenPackagePath =
@@ -31,41 +28,16 @@ test("loads official Codex tokens for stylesheet tooling", () => {
     assert.deepEqual(collectDeclaredTokens([declarationPath]), new Set());
 });
 
-test("uses only official or locally declared CSS custom properties", () => {
+test("uses only known CSS custom properties", async () => {
     const officialTokens = collectDeclaredTokens([tokenStylesheetPath]);
-    const findings = discoverGadgetRoots().flatMap(
-        function inspectGadget(gadgetRoot) {
-            return findUnknownTokens(gadgetRoot, officialTokens);
-        },
-    );
+    const gadgets = await discoverGadgetPackages(repositoryRoot);
+    const findings = gadgets.flatMap(function inspectGadget(gadgetRoot) {
+        return findUnknownTokens(gadgetRoot.directory, officialTokens);
+    });
 
     assert.ok(officialTokens.size > 0);
     assert.deepEqual(findings.toSorted(), []);
 });
-
-function discoverGadgetRoots(): string[] {
-    return readdirSync(sourceRoot, { withFileTypes: true }).flatMap(
-        function selectGadget(entry) {
-            if (!entry.isDirectory()) {
-                return [];
-            }
-
-            const gadgetRoot = join(sourceRoot, entry.name);
-            const packagePath = join(gadgetRoot, "package.json");
-            let metadata: PackageMetadata;
-
-            try {
-                metadata = JSON.parse(
-                    readFileSync(packagePath, "utf8"),
-                ) as PackageMetadata;
-            } catch {
-                return [];
-            }
-
-            return metadata.gadgetBuild == null ? [] : [gadgetRoot];
-        },
-    );
-}
 
 function findUnknownTokens(
     gadgetRoot: string,

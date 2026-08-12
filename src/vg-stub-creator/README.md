@@ -71,10 +71,10 @@ catalogs. Live-wiki writes occur only after the review and confirmation steps.
 
 ## Development
 
-The workspace requires Node.js 22.18 or later. From the repository root, run:
+The workspace requires Node.js 24.14.1 or later. From the repository root, run:
 
 ```shell
-npm install
+npm ci
 npm run check -w vg-stub-creator
 npm test -w vg-stub-creator
 npm run build -w vg-stub-creator
@@ -83,8 +83,9 @@ npm run build -w vg-stub-creator
 Tests use local fixtures and mocked external services for editing, page moves,
 and Wikidata updates.
 
-See the [development guide][2] for architecture, data flow, terminology,
-citations, and localization guidance.
+See the package [development guide][2] for architecture, data flow,
+terminology, citations, and localization guidance. The repository [development
+workflow][9] explains the complete verification gate and live-service policy.
 
 ## Architecture
 
@@ -123,3 +124,4 @@ of the workspace.
 [6]: https://creativecommons.org/publicdomain/zero/1.0/
 [7]: LICENSE
 [8]: ../../LICENSE
+[9]: ../../docs/development-workflow.md

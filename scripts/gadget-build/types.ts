@@ -6,6 +6,17 @@ export interface BundleOptions {
     minifyText?: boolean;
 }
 
+export interface BuildContextOptions {
+    now?: Date;
+    outputRoot?: string;
+}
+
+export interface BuildContext {
+    buildTime: string;
+    now: Date;
+    outputRoot?: string;
+}
+
 export interface DefineConfig {
     textFile: string;
 }
@@ -19,7 +30,7 @@ export interface GadgetBuildConfig {
     noticeFiles?: string[];
     outputName?: string;
     target?: "es2024";
-    userscript?: UserscriptConfig;
+    userscript?: GadgetUserscriptConfig;
 }
 
 export interface UserscriptMetadata {
@@ -53,13 +64,28 @@ export interface GadgetBuildPlan {
     packageRoot: string;
 }
 
-export interface UserscriptConfig {
+export interface WorkspaceBuildPlan {
+    context: BuildContext;
+    gadgets: GadgetBuildPlan[];
+    outputRoot: string;
+    workspaceRoot: string;
+}
+
+export interface WorkspaceBuildResult {
+    artifactPaths: string[];
+    outputRoot: string;
+}
+
+export interface GadgetUserscriptConfig {
     grant?: string[];
     match?: string[];
-    name?: string;
-    namespace?: string;
     runAt?: string;
     sandbox?: string;
+}
+
+export interface AggregateUserscriptConfig extends GadgetUserscriptConfig {
+    name?: string;
+    namespace?: string;
 }
 
 export interface UserscriptProgram {

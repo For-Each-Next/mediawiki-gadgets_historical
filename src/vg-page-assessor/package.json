@@ -9,7 +9,6 @@
     "imports": {
         "#gadget": "./index.ts",
         "#gadget/*": "./*",
-        "#shared": "@mediawiki-gadgets/shared",
         "#shared/*": "@mediawiki-gadgets/shared/*"
     },
     "main": "./index.ts",
@@ -86,7 +85,10 @@
         "test": "node --test ../../tests/vg-page-assessor/*.test.ts",
         "prepublishOnly": "npm run check"
     },
+    "dependencies": {
+        "@mediawiki-gadgets/shared": "*"
+    },
     "engines": {
-        "node": ">=22.18"
+        "node": ">=24.14.1"
     }
 }

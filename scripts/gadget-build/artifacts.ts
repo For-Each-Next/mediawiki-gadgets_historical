@@ -2,8 +2,15 @@
  * Protects the shared distribution directory from artifact collisions.
  */
 
-import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import {
+    discoverGadgetPackages,
+    type GadgetPackage,
+} from "../workspace/index.ts";
+import {
+    AGGREGATE_OUTPUT_FILENAME,
+    createGadgetArtifactFilenames,
+} from "./artifact-names.ts";
 
 export interface ArtifactClaim {
     outputName: string;
@@ -13,20 +20,6 @@ export interface ArtifactClaim {
 export interface ArtifactCollision {
     filename: string;
     owners: string[];
-}
-
-/**
- * Lists the flat paths owned by one gadget basename.
- *
- * @param outputName - Output name value.
- * @returns Flat artifact names owned by one gadget basename.
- */
-export function createArtifactNames(outputName: string): string[] {
-    return [
-        `${outputName}.js`,
-        `${outputName}.min.js`,
-        `${outputName}.user.js`,
-    ];
 }
 
 /**
@@ -40,7 +33,8 @@ export function findArtifactCollisions(
 ): ArtifactCollision[] {
     const ownersByFilename = new Map<string, Set<string>>();
     for (const claim of claims) {
-        for (const filename of createArtifactNames(claim.outputName)) {
+        const filenames = createGadgetArtifactFilenames(claim.outputName);
+        for (const filename of Object.values(filenames)) {
             const key = filename.toLowerCase();
             const owners = ownersByFilename.get(key) ?? new Set<string>();
             owners.add(claim.owner);
@@ -55,15 +49,25 @@ export function findArtifactCollisions(
         }));
 }
 
-/**
- * Rejects workspace collisions before a build removes any output.
- *
- * @param packageRoot - Workspace gadget package directory.
- */
-export async function assertUniqueWorkspaceArtifacts(
-    packageRoot: string,
-): Promise<void> {
-    const claims = await readWorkspaceArtifactClaims(packageRoot);
+/** Checks whether a gadget basename claims the aggregate path. */
+export function reservesAggregateArtifact(outputName: string): boolean {
+    const filenames = createGadgetArtifactFilenames(outputName);
+    return Object.values(filenames).some(
+        (filename) => filename.toLowerCase() === AGGREGATE_OUTPUT_FILENAME,
+    );
+}
+
+/** Rejects the first collision in a collection of artifact claims. */
+export function assertUniqueArtifactClaims(claims: ArtifactClaim[]): void {
+    const reserved = claims.find((claim) =>
+        reservesAggregateArtifact(claim.outputName),
+    );
+    if (reserved != null) {
+        throw new Error(
+            `Generated artifact ${AGGREGATE_OUTPUT_FILENAME} collides ` +
+                `between aggregate userscript, ${reserved.owner}.`,
+        );
+    }
     const collision = findArtifactCollisions(claims)[0];
     if (collision == null) {
         return;
@@ -74,65 +78,38 @@ export async function assertUniqueWorkspaceArtifacts(
     );
 }
 
+/**
+ * Rejects workspace collisions before a build removes any output.
+ *
+ * @param packageRoot - Workspace gadget package directory.
+ */
+export async function assertUniqueWorkspaceArtifacts(
+    packageRoot: string,
+): Promise<void> {
+    const claims = await readWorkspaceArtifactClaims(packageRoot);
+    assertUniqueArtifactClaims(claims);
+}
+
 /** Reads artifact claims from every deployable sibling package. */
 async function readWorkspaceArtifactClaims(
     packageRoot: string,
 ): Promise<ArtifactClaim[]> {
-    const sourceRoot = resolve(packageRoot, "..");
-    const entries = await readdir(sourceRoot, { withFileTypes: true });
-    const claims = await Promise.all(
-        entries
-            .filter((entry) => entry.isDirectory())
-            .map((entry) =>
-                readArtifactClaim(resolve(sourceRoot, entry.name), entry.name),
-            ),
-    );
-    return claims.filter((claim) => claim != null);
+    const workspaceRoot = resolve(packageRoot, "../..");
+    const gadgets = await discoverGadgetPackages(workspaceRoot);
+    return gadgets.map((gadget) => ({
+        outputName: requireOutputName(gadget),
+        owner: gadget.directoryName,
+    }));
 }
 
-/** Reads one sibling package's effective artifact claim. */
-async function readArtifactClaim(
-    packageRoot: string,
-    packageName: string,
-): Promise<ArtifactClaim | null> {
-    let source: string;
-    try {
-        source = await readFile(resolve(packageRoot, "package.json"), "utf8");
-    } catch (error) {
-        if (hasErrorCode(error, "ENOENT")) {
-            return null;
-        }
-        throw error;
+/** Requires one discovered gadget to claim a concrete artifact name. */
+function requireOutputName(gadget: GadgetPackage): string {
+    const outputName = gadget.metadata.gadgetBuild.outputName;
+    if (typeof outputName === "string" && outputName.trim() !== "") {
+        return outputName;
     }
-    const metadata = JSON.parse(source) as unknown;
-    if (!isRecord(metadata) || !isRecord(metadata.gadgetBuild)) {
-        return null;
-    }
-    const outputName = metadata.gadgetBuild.outputName;
-    if (!hasText(outputName)) {
-        throw new Error(
-            `${packageName} must define gadgetBuild.outputName before build.`,
-        );
-    }
-    return { outputName, owner: packageName };
-}
-
-/** Checks whether a value is an object record. */
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value != null && !Array.isArray(value);
-}
-
-/** Checks whether a value contains non-whitespace text. */
-function hasText(value: unknown): value is string {
-    return typeof value === "string" && value.trim() !== "";
-}
-
-/** Checks an unknown error for one Node error code. */
-function hasErrorCode(error: unknown, code: string): boolean {
-    return (
-        typeof error === "object" &&
-        error != null &&
-        "code" in error &&
-        error.code === code
+    throw new Error(
+        `${gadget.directoryName} must define gadgetBuild.outputName before ` +
+            "build.",
     );
 }

@@ -9,7 +9,7 @@ import {
     stripJavaScriptComments,
 } from "./readable-javascript.ts";
 import type {
-    UserscriptConfig,
+    AggregateUserscriptConfig,
     UserscriptMetadata,
     UserscriptProgram,
 } from "./types.ts";
@@ -66,7 +66,7 @@ const ALL_USERSCRIPT_RUNTIME = `  function matchesUrl(url, patterns) {
 export async function formatAllUserscript(
     programs: UserscriptProgram[],
     metadata: UserscriptMetadata,
-    config: UserscriptConfig,
+    config: AggregateUserscriptConfig,
     notices: readonly string[] = [],
 ): Promise<string> {
     const header = buildUserscriptHeader(
@@ -96,7 +96,7 @@ export async function formatAllUserscript(
  */
 function buildUserscriptHeader(
     metadata: UserscriptMetadata,
-    config: UserscriptConfig,
+    config: AggregateUserscriptConfig,
 ): string {
     const matches = buildMetadataList("match", config.match ?? []);
     const grants = buildMetadataList("grant", config.grant ?? ["none"]);
@@ -118,7 +118,7 @@ function buildUserscriptHeader(
  */
 function buildCoreMetadata(
     metadata: UserscriptMetadata,
-    config: UserscriptConfig,
+    config: AggregateUserscriptConfig,
 ): string[] {
     return [
         formatMetadata("name", config.name ?? metadata.name),
@@ -253,7 +253,7 @@ function formatMatchPattern(pattern: string, packageName: string): string {
  * @param packageName - Owning gadget package name.
  * @returns Parsed pattern parts.
  */
-function parseMatchPattern(
+export function parseMatchPattern(
     pattern: string,
     packageName: string,
 ): ParsedMatchPattern {

@@ -5,10 +5,9 @@ node_modules/
 *.tgz
 .npm/
 .pnpm-store/
-/package-lock.json
 
 # Build and coverage output
-build/
+/build/
 coverage/
 dist/
 

@@ -87,16 +87,19 @@ according to the MediaWiki interface language.
 
 ## Development
 
-The repository requires Node.js 22.18 or later. From the repository root, run:
+The repository requires Node.js 24.14.1 or later. From the repository root,
+run:
 
 ```shell
-npm install
+npm ci
 npm run check -w vg-page-assessor
 npm test -w vg-page-assessor
 npm run build -w vg-page-assessor
 ```
 
 Tests use local fixtures and mocked MediaWiki clients for all save behavior.
+See the repository [development workflow][8] for the complete verification gate
+and live-service policy.
 
 ## Architecture
 
@@ -140,3 +143,4 @@ of the workspace.
 [5]: https://creativecommons.org/publicdomain/zero/1.0/
 [6]: LICENSE
 [7]: ../../LICENSE
+[8]: ../../docs/development-workflow.md

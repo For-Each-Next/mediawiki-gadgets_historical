@@ -81,9 +81,10 @@ requests may slow the action.
 
 ## Development
 
-wikEd Lite requires Node.js 22.18 or newer. From the repository root, run:
+wikEd Lite requires Node.js 24.14.1 or newer. From the repository root, run:
 
 ```shell
+npm ci
 npm run check -w wiked-lite
 npm test -w wiked-lite
 npm run build -w wiked-lite
@@ -93,6 +94,9 @@ Pure formatter, scanner, highlighter, and reference tests use local fixtures.
 Redirect and missing-page checks require a live MediaWiki API only in the
 browser. Other wikis also request namespace siteinfo in the background;
 formatting and editing continue when that optional request fails.
+
+See the repository [development workflow][10] for the complete verification
+gate and live-service policy.
 
 Completed work is recorded in the package [changelog][2]. Development follows
 the package [instructions][3] and repository [instructions][4].
@@ -141,3 +145,4 @@ this release's scope; the repository [licensing map][9] covers the workspace.
 [7]: https://creativecommons.org/publicdomain/zero/1.0/
 [8]: LICENSE
 [9]: ../../LICENSE
+[10]: ../../docs/development-workflow.md

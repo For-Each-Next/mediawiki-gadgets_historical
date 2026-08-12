@@ -4,23 +4,36 @@ This repository contains separately licensed material. Copyright ownership and
 license scope are not necessarily the same for the workspace, each gadget, and
 the shared source package.
 
-CC0-dedicated releases
+CC0-dedicated release scopes
 
-The project-owned portions of these releases are dedicated under CC0 1.0
-Universal as described by their package-local LICENSE files:
+The project-owned portions of the following releases are dedicated under CC0
+1.0 Universal by their version-specific package license notices:
 
+- Citation Formatter 0.5.2 (`citation-formatter@0.5.2`)
+- Citation Formatter 0.5.3 (`citation-formatter@0.5.3`)
+- Citation Formatter 0.5.4 (`citation-formatter@0.5.4`)
 - Citation Formatter 0.5.4-post.1 (`citation-formatter@0.5.4-post.1`)
 - Citation Formatter 0.5.4-post.2 (`citation-formatter@0.5.4-post.2`)
+- VG Page Assessor 0.2.2 (`vg-page-assessor@0.2.2`)
+- VG Page Assessor 0.2.3 (`vg-page-assessor@0.2.3`)
 - VG Page Assessor 0.2.3-post.5 (`vg-page-assessor@0.2.3-post.5`)
+- VG Stub Creator 0.5.2 (`vg-stub-creator@0.5.2`)
+- VG Stub Creator 0.5.3 (`vg-stub-creator@0.5.3`)
 - VG Stub Creator 0.5.3-post.1 (`vg-stub-creator@0.5.3-post.1`)
+- wikEd Lite 0.4.4 (`wiked-lite@0.4.4`)
+- wikEd Lite 0.4.5 (`wiked-lite@0.4.5`)
+- wikEd Lite 0.4.6 (`wiked-lite@0.4.6`)
 - wikEd Lite 0.4.6-post.2 (`wiked-lite@0.4.6-post.2`)
 - wikEd Lite 0.4.6-post.3 (`wiked-lite@0.4.6-post.3`)
 
-Those notices also cover the project-owned shared runtime incorporated into
-the named releases. Their version-specific dedications do not automatically
-apply to later releases, later contributions, or newly added gadgets. This map
-lists only the latest dedicated release of each gadget; historical scopes
-remain recorded in repository history.
+This is the cumulative record of every release scope named in the repository
+licensing map. Its entries are append-only; a later release or license change
+does not remove an earlier dedication. A machine-readable ledger for this map
+and the shared notice is kept in config/licensing/cc0-release-scopes.json.
+
+Those notices also cover the project-owned shared runtime incorporated into the
+named releases. A version-specific dedication does not automatically apply to
+later releases, later contributions, or newly added gadgets.
 
 Repository default
 
@@ -36,10 +49,11 @@ https://creativecommons.org/licenses/by-sa/4.0/legalcode
 
 Shared and third-party material
 
-The current shared-source scope is described in src/shared/LICENSE. Generated,
-extracted, dependency, and other third-party material remains under its own
-terms. Nothing in this licensing map grants rights that a repository
-maintainer does not hold. See THIRD_PARTY_NOTICES.md for provenance and notices.
+The cumulative shared-source scopes are described in src/shared/LICENSE.
+Generated, extracted, dependency, and other third-party material remains under
+its own terms. Nothing in this licensing map grants rights that a repository
+maintainer does not hold. See THIRD_PARTY_NOTICES.md for provenance and
+notices.
 
 CC0 1.0 Universal legal code:
 https://creativecommons.org/publicdomain/zero/1.0/legalcode

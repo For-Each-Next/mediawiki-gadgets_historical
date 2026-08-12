@@ -1,0 +1,13 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "erasableSyntaxOnly": true,
+        "types": ["node", "types-mediawiki"]
+    },
+    "include": [
+        "../*.config.ts",
+        "../scripts/**/*.ts",
+        "../src/*/globals.d.ts",
+        "../tests/**/*.ts"
+    ]
+}

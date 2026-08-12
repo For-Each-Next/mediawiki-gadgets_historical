@@ -4,6 +4,15 @@
 
 import tsParser from "@typescript-eslint/parser";
 
+const typescriptFiles = [
+    "config/**/*.ts",
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+];
+const browserFiles = ["src/**/*.ts"];
+const nodeFiles = ["config/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"];
+
 const browserGlobals = {
     AbortController: "readonly",
     Blob: "readonly",
@@ -45,23 +54,24 @@ const mediaWikiGlobals = {
     mw: "readonly",
 };
 
+const nodeGlobals = {
+    Buffer: "readonly",
+    console: "readonly",
+    fetch: "readonly",
+    globalThis: "readonly",
+    process: "readonly",
+    structuredClone: "readonly",
+};
+
 export default [
     {
         ignores: ["**/node_modules/**", "**/dist/**", "**/.cache/**"],
     },
     {
-        files: [
-            "config/**/*.ts",
-            "src/**/*.ts",
-            "scripts/**/*.ts",
-            "tests/**/*.ts",
-        ],
+        files: typescriptFiles,
         languageOptions: {
             ecmaVersion: "latest",
-            globals: {
-                ...browserGlobals,
-                ...mediaWikiGlobals,
-            },
+            parser: tsParser,
             sourceType: "module",
         },
         linterOptions: {
@@ -82,31 +92,22 @@ export default [
         },
     },
     {
-        files: ["config/**/*.ts", "src/**/*.ts", "scripts/**/*.ts"],
-        ignores: ["src/**/tests/**/*.ts"],
+        files: browserFiles,
         languageOptions: {
-            parser: tsParser,
+            globals: {
+                ...browserGlobals,
+                ...mediaWikiGlobals,
+            },
         },
     },
     {
-        files: ["src/**/config/locales/*.ts"],
-        rules: {
-            "quote-props": ["error", "always"],
-        },
-    },
-    {
-        files: ["tests/**/*.ts"],
+        files: nodeFiles,
         languageOptions: {
-            parser: tsParser,
+            globals: nodeGlobals,
         },
     },
     {
-        files: [
-            "config/**/*.ts",
-            "src/**/*.ts",
-            "scripts/**/*.ts",
-            "tests/**/*.ts",
-        ],
+        files: typescriptFiles,
         rules: {
             "max-depth": ["error", 4],
             "max-len": [

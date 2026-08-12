@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
 import { runInNewContext } from "node:vm";
-import { buildAllUserscript } from "../../scripts/gadget-build/index.ts";
+import { buildAllUserscript } from "../../../scripts/gadget-build/index.ts";
 
 const BUILD_TIME = new Date("2026-08-03T05:06:07.008Z");
 const OUTPUT_PARTS = ["dist", "00-mediawiki-gadgets.user.js"];

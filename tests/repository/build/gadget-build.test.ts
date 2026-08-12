@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import test, { type TestContext } from "node:test";
-import { buildGadget } from "../../scripts/gadget-build/index.ts";
+import { buildGadget } from "../../../scripts/gadget-build/index.ts";
 
 const EXPECTED_FIXTURE_MARKUP = [
     '<div id="fixture">',
@@ -268,6 +268,19 @@ async function rejectNonTemplateVueBlocks(
     );
 }
 
+test("a failed bundle preserves the last good artifact", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot);
+    const outputPath = join(workspaceRoot, "dist", "fixture.min.js");
+    await writeFile(outputPath, "last good artifact\n");
+    await writeFile(join(packageRoot, "browser.ts"), "const = ;\n");
+
+    await assert.rejects(buildGadget(packageRoot));
+
+    assert.equal(await readFile(outputPath, "utf8"), "last good artifact\n");
+});
+
 test("a build rejects a nested output directory", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
@@ -312,6 +325,44 @@ test("a build rejects a linked package legal notice", async (context) => {
     await assert.rejects(buildGadget(packageRoot), /must be real files/u);
 });
 
+test("a build rejects an entry outside its package", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { browser: "../outside.ts" });
+    await writeFile(join(workspaceRoot, "src", "outside.ts"), "export {};\n");
+
+    await assert.rejects(buildGadget(packageRoot), /entry point must remain/u);
+});
+
+test("a build rejects injected text outside its package", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        defineTextFile: "../outside.css",
+        textAssets: true,
+    });
+    await writeFile(join(workspaceRoot, "src", "outside.css"), "body {}\n");
+
+    await assert.rejects(buildGadget(packageRoot), /text file must remain/u);
+});
+
+test("a build rejects linked injected text", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { textAssets: true });
+    const externalPath = join(workspaceRoot, "external.css");
+    await Promise.all([
+        writeFile(externalPath, "body {}\n"),
+        rm(join(packageRoot, "dialog.css")),
+    ]);
+    await symlink(externalPath, join(packageRoot, "dialog.css"), "file");
+
+    await assert.rejects(
+        buildGadget(packageRoot),
+        /must remain inside|real package file/u,
+    );
+});
+
 test("a build rejects multiline package metadata", async (context) => {
     const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
     context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
@@ -320,6 +371,19 @@ test("a build rejects multiline package metadata", async (context) => {
     });
 
     await assert.rejects(buildGadget(packageRoot), /fit on one line/u);
+});
+
+test("a build rejects an unsupported SPDX identifier", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        license: "NOT A VALID SPDX EXPRESSION",
+    });
+
+    await assert.rejects(
+        buildGadget(packageRoot),
+        /supported SPDX identifier/u,
+    );
 });
 
 test("a build rejects block terminators in metadata", async (context) => {
@@ -354,6 +418,47 @@ test("a build rejects a non-boolean header-author flag", async (context) => {
     await writeFixturePackage(packageRoot, { headerAuthor: "yes" });
 
     await assert.rejects(buildGadget(packageRoot), /must be a boolean/u);
+});
+
+test("a build rejects reserved global binding names", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, { globalName: "class" });
+
+    await assert.rejects(buildGadget(packageRoot), /binding identifier/u);
+});
+
+test("a build rejects multiline userscript scalars", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        userscript: { runAt: "document-idle\nunsafe" },
+    });
+
+    await assert.rejects(buildGadget(packageRoot), /runAt.*single-line/u);
+});
+
+test("a build rejects multiline userscript list metadata", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        userscript: { grant: ["none\nunsafe"] },
+    });
+
+    await assert.rejects(buildGadget(packageRoot), /grant.*single-line/u);
+});
+
+test("a build rejects unused userscript metadata", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        userscript: { name: "Unused gadget name" },
+    });
+
+    await assert.rejects(
+        buildGadget(packageRoot),
+        /userscript.name.*supported/u,
+    );
 });
 
 test("a build requires the package LICENSE notice", async (context) => {
@@ -398,6 +503,34 @@ test("a build rejects the reserved aggregate output name", async (context) => {
     await assert.rejects(
         buildGadget(packageRoot),
         /reserve.*00-mediawiki-gadgets\.user\.js/iu,
+    );
+});
+
+test("a retired gadget name cannot claim the aggregate", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        outputName: "00-mediawiki-gadgets.user",
+    });
+
+    await assert.rejects(
+        buildGadget(packageRoot),
+        /reserve.*00-mediawiki-gadgets\.user\.js/iu,
+    );
+});
+
+test("a near aggregate output name remains available", async (context) => {
+    const { packageRoot, workspaceRoot } = await createFixtureWorkspace();
+    context.after(() => rm(workspaceRoot, { force: true, recursive: true }));
+    await writeFixturePackage(packageRoot, {
+        outputName: "00-mediawiki-gadgets.min",
+    });
+
+    await buildGadget(packageRoot);
+
+    await readFile(
+        join(workspaceRoot, "dist", "00-mediawiki-gadgets.min.min.js"),
+        "utf8",
     );
 });
 
@@ -497,14 +630,19 @@ async function writeFixturePackage(
 
 interface FixturePackageOptions {
     author?: string;
+    browser?: string;
+    defineTextFile?: string;
     description?: string;
+    globalName?: unknown;
     headerAuthor?: unknown;
     headerDescription?: unknown;
+    license?: string;
     noticeFiles?: string[];
     outputDirectory?: string;
     outputName?: string;
     packageName?: string;
     textAssets?: boolean;
+    userscript?: unknown;
 }
 
 function createFixtureMetadata(
@@ -513,10 +651,10 @@ function createFixtureMetadata(
 ): object {
     return {
         author: options.author ?? "Test",
-        browser: "browser.ts",
+        browser: options.browser ?? "browser.ts",
         description: options.description ?? "Temporary build fixture.",
         gadgetBuild: createFixtureBuildMetadata(options),
-        license: "CC0-1.0",
+        license: options.license ?? "CC0-1.0",
         name: options.packageName ?? "fixture-gadget",
         type: "module",
         version: "1.2.3",
@@ -535,19 +673,23 @@ function createFixtureBuildMetadata(options: FixturePackageOptions): object {
         ...(options.textAssets
             ? {
                   defines: {
-                      __FIXTURE_STYLES__: { textFile: "dialog.css" },
+                      __FIXTURE_STYLES__: {
+                          textFile: options.defineTextFile ?? "dialog.css",
+                      },
                       __FIXTURE_TEMPLATE__: { textFile: "dialog.vue" },
                   },
               }
             : {}),
-        globalName: "fixtureGadget",
+        globalName: options.globalName ?? "fixtureGadget",
         headerAuthor: options.headerAuthor,
         headerDescription: options.headerDescription ?? [
             FIXTURE_HEADER_DESCRIPTION,
         ],
         noticeFiles: options.noticeFiles ?? ["LICENSE"],
         outputName: options.outputName ?? "fixture",
-        userscript: { match: ["https://example.test/*"] },
+        userscript: options.userscript ?? {
+            match: ["https://example.test/*"],
+        },
     };
 }
 

@@ -16,5 +16,8 @@
     },
     "scripts": {
         "test": "node --test ../../tests/shared/*.test.ts"
+    },
+    "engines": {
+        "node": ">=24.14.1"
     }
 }

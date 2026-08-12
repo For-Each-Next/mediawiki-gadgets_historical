@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import * as editBox from "#shared/edit-box";
+import * as editBox from "@mediawiki-gadgets/shared/edit-box";
 
 const { createEditBox, registerEditBoxHooks, writePreservingPosition } =
     editBox;

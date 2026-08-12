@@ -9,7 +9,6 @@
     "imports": {
         "#gadget": "./index.ts",
         "#gadget/*": "./*",
-        "#shared": "@mediawiki-gadgets/shared",
         "#shared/*": "@mediawiki-gadgets/shared/*"
     },
     "main": "./index.ts",
@@ -91,7 +90,6 @@
             }
         },
         "userscript": {
-            "name": "VG Stub Creator",
             "match": [
                 "https://en.wikipedia.org/*",
                 "https://zh.wikipedia.org/*"
@@ -129,7 +127,10 @@
         "prepublishOnly": "npm run check"
     },
     "engines": {
-        "node": ">=22.18"
+        "node": ">=24.14.1"
+    },
+    "dependencies": {
+        "@mediawiki-gadgets/shared": "*"
     },
     "devDependencies": {
         "@wikimedia/codex": "^2.6.0",

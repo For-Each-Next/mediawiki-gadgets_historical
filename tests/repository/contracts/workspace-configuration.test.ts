@@ -29,12 +29,10 @@ test("the shared manifest is the only public shared API map", async () => {
     );
     assert.ok(sharedMetadata.exports);
     for (const [subpath, target] of Object.entries(sharedMetadata.exports)) {
+        assert.match(subpath, /^\.\/.+/u);
         assert.equal(typeof target, "string", subpath);
         await access(join(sharedRoot, String(target)));
-        const specifier =
-            subpath === "."
-                ? SHARED_NAME
-                : `${SHARED_NAME}/${subpath.slice(2)}`;
+        const specifier = `${SHARED_NAME}/${subpath.slice(2)}`;
         await import(specifier);
     }
 });
@@ -127,6 +125,35 @@ test("Node type stripping is isolated from browser projects", async () => {
         "../src/*/globals.d.ts",
         "../tests/**/*.ts",
     ]);
+});
+
+test("typechecking builds project references before Node source", async () => {
+    const rootManifest = await readJson(join(repositoryRoot, "package.json"));
+    const scripts = getRecord(rootManifest.scripts);
+    assert.equal(
+        scripts.typecheck,
+        "npm run typecheck:browser && npm run typecheck:node",
+    );
+    assert.equal(
+        scripts["typecheck:browser"],
+        "vue-tsc --build tsconfig.json",
+    );
+    assert.equal(
+        scripts["typecheck:node"],
+        "tsc --noEmit -p config/tsconfig.node.json",
+    );
+    assert.doesNotMatch(String(scripts.lint), /vue-tsc/u);
+
+    const gadgets = await discoverGadgetPackages(repositoryRoot);
+    for (const gadget of gadgets) {
+        const manifest = await readJson(gadget.manifestPath);
+        const packageScripts = getRecord(manifest.scripts);
+        assert.equal(
+            packageScripts.check,
+            "npm run lint && vue-tsc --build " +
+                `../../config/vue/tsconfig.${gadget.directoryName}.json`,
+        );
+    }
 });
 
 /** Checks package-specific output locations below the Vue base. */

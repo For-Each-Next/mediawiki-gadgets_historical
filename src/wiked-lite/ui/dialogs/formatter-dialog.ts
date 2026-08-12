@@ -12,6 +12,7 @@ export interface FormatterDialogSelection {
 
 export interface FormatterDialogOptions {
     onClose(): void;
+    onError(error: unknown): void;
     onSubmit(selection: FormatterDialogSelection): Promise<void>;
 }
 
@@ -100,7 +101,7 @@ export function createFormatterDialogBindings(
             });
             onCancel();
         } catch (caught) {
-            console.error("wikEd Lite formatting failed", caught);
+            options.onError(caught);
             error.value = msg("feedback.failed");
             saving.value = false;
         }

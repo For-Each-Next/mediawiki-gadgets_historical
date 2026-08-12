@@ -16,10 +16,14 @@ repository-wide `AGENTS.md`.
 
 ## Architecture
 
-- Keep `index.ts` side-effect free and MediaWiki startup in `browser.ts`.
+- Keep `index.ts` side-effect free. Let `browser.ts` only invoke `start`, and
+  keep MediaWiki startup orchestration in the `main.ts` composition root.
 - Keep assessment and wikitext rules in `domain/`, application workflows in
-  `workflows/`, MediaWiki access and logging in `infra/`, and rendering and
-  user interaction in `ui/`.
+  `workflows/`, MediaWiki and storage boundaries in `adapters/`, and rendering
+  and user interaction in `ui/`.
+- Create the package-scoped shared logger and native action notifier in
+  `main.ts`. Inject scoped loggers into workflows, adapters, and UI; never call
+  `console.*` or `mw.notify` from package implementation modules.
 - Keep project-specific constants in `config/` and all user-facing text in
   `i18n/`. Domain logic receives API results, configuration, and localized
   presentation through explicit boundaries.

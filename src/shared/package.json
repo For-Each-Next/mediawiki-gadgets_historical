@@ -4,18 +4,18 @@
     "private": true,
     "license": "SEE LICENSE IN LICENSE",
     "type": "module",
-    "main": "./index.ts",
     "exports": {
-        ".": "./index.ts",
-        "./citation": "./citation/index.ts",
-        "./citation/short-footnotes": "./citation/short-footnotes.ts",
-        "./edit-box": "./edit-box.ts",
-        "./html": "./html.ts",
-        "./i18n": "./i18n.ts",
+        "./citoid": "./citoid/index.ts",
+        "./edit-box": "./edit-box/index.ts",
+        "./i18n": "./i18n/index.ts",
+        "./logging": "./logging/index.ts",
+        "./mediawiki/notifications": "./mediawiki/notifications/index.ts",
+        "./short-footnotes": "./short-footnotes/index.ts",
+        "./wiki-titles": "./wiki-titles/index.ts",
         "./wikitext": "./wikitext/index.ts"
     },
     "scripts": {
-        "test": "node --test ../../tests/shared/*.test.ts"
+        "test": "node --test ../../tests/shared/*/*.test.ts"
     },
     "engines": {
         "node": ">=24.14.1"

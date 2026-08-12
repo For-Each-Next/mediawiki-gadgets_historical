@@ -10,19 +10,27 @@ const editorSource = await readFile(
     new URL("../../src/citation-formatter/ui/editor.ts", import.meta.url),
     "utf8",
 );
+const mainSource = await readFile(
+    new URL("../../src/citation-formatter/main.ts", import.meta.url),
+    "utf8",
+);
 
 test("browser startup is restricted to the wikitext content model", () => {
-    assert.match(browserSource, /isWikitextPage\(\)/u);
+    assert.match(mainSource, /isWikitextPage\(\)/u);
     assert.match(
-        browserSource,
+        mainSource,
         /mw\.config\.get\("wgPageContentModel"\) === "wikitext"/u,
     );
     const startupGuard = new RegExp(
-        "function mountWhenMediaWikiIsReady\\(\\): void \\{\\s*" +
+        "function mountWhenMediaWikiIsReady\\([^)]*\\): void \\{\\s*" +
             "if \\(!isWikitextPage\\(\\)\\)",
         "su",
     );
-    assert.match(browserSource, startupGuard);
+    assert.match(mainSource, startupGuard);
+    assert.match(
+        browserSource,
+        /import \{ start \} from "#gadget\/main\.ts"/u,
+    );
     assert.match(
         editorSource,
         /mw\.config\.get\("wgPageContentModel"\) !== "wikitext"/u,

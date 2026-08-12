@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import * as categories from "vg-stub-creator/infra/handlers/categories.ts";
+import * as categories from "vg-stub-creator/adapters/mediawiki/categories.ts";
 
 const resolvesMissingCategories = async function resolvesMissingCategories() {
     const options = { fetcher: createCategoryFetcher() };

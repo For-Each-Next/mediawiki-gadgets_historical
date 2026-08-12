@@ -6,7 +6,7 @@ import {
     findUsedMetadataFreeCitationTemplates,
     manageCitationsWithResult,
     type CitationFormatResult,
-} from "#gadget/api.ts";
+} from "#gadget/domain/api.ts";
 import { detectCitationLayout } from "#gadget/domain/manager.ts";
 import {
     buildExistingSourceReference,
@@ -49,12 +49,8 @@ import {
     type SourceAnalysisCell,
     type SourceAnalysisReplacement,
 } from "#gadget/domain/source-analysis.ts";
-import {
-    interfaceLocale,
-    msg,
-    sourceAnalysisMessages,
-    type MessageId,
-} from "#gadget/i18n/index.ts";
+import { interfaceLocale, msg, type MessageId } from "#gadget/i18n/index.ts";
+import { sourceAnalysisMessages } from "#gadget/ui/source-messages.ts";
 import {
     getCanonicalTemplateNameFromKey,
     type TemplateNameContext,
@@ -69,11 +65,9 @@ import {
     type Cs1ReviewWorkflow,
 } from "#gadget/contracts/cs1-review.ts";
 import {
-    createCitationFormatterToastController,
     registerCitationFormatterComponents,
     type CodexComponents,
     type ResourceLoaderRequire,
-    type ToastController,
     type VueModule,
 } from "#gadget/ui/codex.ts";
 import {
@@ -112,7 +106,7 @@ import {
     type ReferenceStyle,
     type SourceManagerDependencies,
     type SourceManagerOptions,
-} from "#gadget/ui/source-manager-contracts.ts";
+} from "#gadget/contracts/source-manager.ts";
 import {
     clearCheckedCs1Errors,
     clearDraftValidationSummary,
@@ -136,6 +130,7 @@ import {
 } from "#gadget/ui/dialogs/index.ts";
 import { installCitationFormatterStyles } from "#gadget/ui/styles.ts";
 import * as editBox from "#shared/edit-box";
+import type { ActionNotificationType } from "#shared/mediawiki/notifications";
 import {
     cdxIconEdit,
     cdxIconKey,
@@ -154,7 +149,7 @@ export type {
     ReferenceStyle,
     SourceManagerDependencies,
     SourceManagerOptions,
-} from "#gadget/ui/source-manager-contracts.ts";
+} from "#gadget/contracts/source-manager.ts";
 
 const HOST_ID = "citation-formatter-source-manager";
 const BASED_ON_TEMPLATE = "__based-on__";
@@ -215,20 +210,17 @@ interface SourceManagerActionContext extends SourceManagerDependencies {
     isActive: () => boolean;
     state: SourceManagerState;
     templateNameContext: TemplateNameContext;
-    toast: ToastController;
 }
 
 interface SourceManagerActionServices extends SourceManagerDependencies {
     cleanup: () => void;
     isActive: () => boolean;
     templateNameContext: TemplateNameContext;
-    toast: ToastController;
 }
 
 interface SourceManagerConfiguration extends SourceManagerDependencies {
     isActive: () => boolean;
     options: SourceManagerOptions;
-    registerToastCleanup: (cleanup: () => void) => void;
     sourceRevision: { value: number };
     templateNameContext: TemplateNameContext;
 }
@@ -319,7 +311,6 @@ function mountSourceManager(
         sourceRevision.value += 1;
     };
     editor.element?.addEventListener("input", recordSourceChange);
-    let clearToasts = function clearToasts(): void {};
     let cleaned = false;
     const cleanup = function cleanup(): void {
         if (cleaned) {
@@ -327,29 +318,19 @@ function mountSourceManager(
         }
         cleaned = true;
         editor.element?.removeEventListener("input", recordSourceChange);
-        clearToasts();
         application.unmount();
         host.remove();
         if (removeActiveSourceManager === cleanup) {
             removeActiveSourceManager = null;
         }
     };
-    const component = createSourceManagerComponent(
-        Vue,
-        Codex,
-        editor,
-        cleanup,
-        {
-            ...dependencies,
-            isActive: () => !cleaned,
-            options,
-            registerToastCleanup(cleanupToasts) {
-                clearToasts = cleanupToasts;
-            },
-            sourceRevision,
-            templateNameContext,
-        },
-    );
+    const component = createSourceManagerComponent(Vue, editor, cleanup, {
+        ...dependencies,
+        isActive: () => !cleaned,
+        options,
+        sourceRevision,
+        templateNameContext,
+    });
     const application = Vue.createMwApp(component);
     registerCitationFormatterComponents(application, Codex);
     application.mount(host);
@@ -367,7 +348,6 @@ function mountSourceManager(
  * Creates the source-manager Vue component.
  *
  * @param Vue - Vue value.
- * @param Codex - Codex value.
  * @param editor - Editor value.
  * @param cleanup - Cleanup value.
  * @param configuration - Operation configuration.
@@ -376,7 +356,6 @@ function mountSourceManager(
 // eslint-disable-next-line max-lines-per-function
 function createSourceManagerComponent(
     Vue: VueModule,
-    Codex: CodexComponents,
     editor: editBox.EditBox,
     cleanup: () => void,
     configuration: SourceManagerConfiguration,
@@ -395,12 +374,9 @@ function createSourceManagerComponent(
             getCurrentWikiId(),
             formatError,
         );
-        const toast = createCitationFormatterToastController(Codex.useToast());
-        configuration.registerToastCleanup(toast.clear);
         const actions = createSourceManagerActions(editor, state, {
             ...configuration,
             cleanup,
-            toast,
         });
         const draftRowKey = createDraftRowKey();
         return {
@@ -607,7 +583,7 @@ function createFormatterActions(
             return;
         }
         state.formatArticleInProgress.value = true;
-        const finishFormatting = context.startExecutionTimer("format action");
+        const finishFormatting = context.logger.startTimer("article.format");
         try {
             const initialNames = findUsedMetadataFreeCitationTemplates(
                 editor.read(),
@@ -751,22 +727,67 @@ function showArticleFormatResult(
     textChanged: boolean,
 ): void {
     if (result.parameterCollisions > 0) {
-        context.toast.warning(formatArticleSummary(result), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "article-format-result",
+            "warning",
+            formatArticleSummary(result),
+        );
     } else if (!textChanged) {
-        context.toast.info(msg("feedback.formatNoChanges"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "article-format-result",
+            "info",
+            msg("feedback.formatNoChanges"),
+        );
     } else if (result.referencesNotFormatted > 0) {
-        context.toast.warning(formatArticleSummary(result), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "article-format-result",
+            "warning",
+            formatArticleSummary(result),
+        );
     } else {
-        context.toast.success(formatArticleSummary(result), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "article-format-result",
+            "success",
+            formatArticleSummary(result),
+        );
     }
+}
+
+function showActionNotification(
+    context: Pick<SourceManagerDependencies, "notifyAction">,
+    key: string,
+    type: ActionNotificationType,
+    message: string,
+): void {
+    context.notifyAction({ key, message, type });
+}
+
+function notifyError(
+    context: Pick<SourceManagerDependencies, "notifyAction">,
+    key: string,
+    message: string,
+): void {
+    showActionNotification(context, key, "error", message);
+}
+
+function notifySuccess(
+    context: Pick<SourceManagerDependencies, "notifyAction">,
+    key: string,
+    message: string,
+): void {
+    showActionNotification(context, key, "success", message);
+}
+
+function notifyWarning(
+    context: Pick<SourceManagerDependencies, "notifyAction">,
+    key: string,
+    message: string,
+): void {
+    showActionNotification(context, key, "warning", message);
 }
 
 function buildArticleFormatAttempt(
@@ -882,15 +903,18 @@ function createManagerCloseActions(
 function cancelAllSourceManagerChanges(
     context: SourceManagerActionContext,
 ): void {
-    const { editor, state, toast } = context;
+    const { editor, state } = context;
     const snapshot = state.sessionUndo.value;
     if (
         snapshot == null ||
         getAnalysisUndoText(snapshot, editor.read()) == null
     ) {
-        toast.warning(msg("feedback.cancelUnavailable"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "cancel-unavailable",
+            "warning",
+            msg("feedback.cancelUnavailable"),
+        );
         return;
     }
     if (snapshot.beforeText !== snapshot.afterText) {
@@ -990,9 +1014,12 @@ function createDraftActions(
                 state.warning.value,
                 collisionNotice,
             );
-            context.toast.success(msg("feedback.parametersSorted"), {
-                autoDismiss: true,
-            });
+            showActionNotification(
+                context,
+                "parameters-sorted",
+                "success",
+                msg("feedback.parametersSorted"),
+            );
         }
     }
     async function autofillDate(index: number): Promise<void> {
@@ -1037,9 +1064,12 @@ function createDraftActions(
         state.editingSource.value = null;
         state.error.value = "";
         state.warning.value = msg("lookup.duplicateWarning");
-        context.toast.success(msg("feedback.sourceDuplicated"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "source-duplicated",
+            "success",
+            msg("feedback.sourceDuplicated"),
+        );
     }
     async function applyDraft(): Promise<void> {
         const reviewTool = state.draftReviewTool.value;
@@ -1367,21 +1397,28 @@ function applySelectedAnalysisFindings(
     context: SourceManagerActionContext,
     selectedFindings: SelectedAnalysisFinding[],
 ): void {
-    const { toast } = context;
     const selected = selectedFindings.filter(
         (entry) => entry.replacements.length > 0,
     );
     const replacements = selected.flatMap((entry) => entry.replacements);
     if (replacements.length === 0) {
-        toast.info(msg("analysis.selectOne"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "analysis-selection-required",
+            "info",
+            msg("analysis.selectOne"),
+        );
         return;
     }
     try {
         writeSelectedAnalysisFindings(context, selected, replacements);
     } catch (error) {
-        toast.error(formatError(error), { autoDismiss: true });
+        showActionNotification(
+            context,
+            "analysis-apply-failed",
+            "error",
+            formatError(error),
+        );
         return;
     }
     const message = formatPluralMessage(
@@ -1389,7 +1426,7 @@ function applySelectedAnalysisFindings(
         "analysis.replacedOne",
         "analysis.replacedMany",
     );
-    toast.success(message, { autoDismiss: true });
+    showActionNotification(context, "analysis-applied", "success", message);
 }
 
 function writeSelectedAnalysisFindings(
@@ -1467,7 +1504,7 @@ function revertAnalysisFinding(
     context: SourceManagerActionContext,
     changeId: number,
 ): void {
-    const { editor, state, toast } = context;
+    const { editor, state } = context;
     const applied = state.appliedAnalysisFindings.value.find(
         (entry) => entry.changeId === changeId,
     );
@@ -1493,10 +1530,25 @@ function revertAnalysisFinding(
         refreshExistingSources(editor, state);
         refreshSourceAnalysis(state);
         clearCompletedAnalysisUndo(state, afterText);
-        toast.success(msg("analysis.revertComplete"), { autoDismiss: true });
+        notifyAnalysisReverted(context);
     } catch (error) {
-        toast.error(formatError(error), { autoDismiss: true });
+        notifyAnalysisRevertFailed(context, error);
     }
+}
+
+function notifyAnalysisReverted(context: SourceManagerActionContext): void {
+    notifySuccess(
+        context,
+        "analysis-reverted",
+        msg("analysis.revertComplete"),
+    );
+}
+
+function notifyAnalysisRevertFailed(
+    context: SourceManagerActionContext,
+    error: unknown,
+): void {
+    notifyError(context, "analysis-revert-failed", formatError(error));
 }
 
 function buildReverseAnalysisReplacements(
@@ -1646,7 +1698,7 @@ function clearAnalysisUndo(state: SourceManagerState): void {
  * @returns Whether the condition is met.
  */
 function restoreAnalysisSession(context: SourceManagerActionContext): boolean {
-    const { editor, state, toast } = context;
+    const { editor, state } = context;
     const snapshot = state.analysisUndo.value;
     if (snapshot == null) {
         return true;
@@ -1654,9 +1706,12 @@ function restoreAnalysisSession(context: SourceManagerActionContext): boolean {
     const beforeText = getAnalysisUndoText(snapshot, editor.read());
     if (beforeText == null) {
         clearAnalysisUndo(state);
-        toast.warning(msg("analysis.undoUnavailable"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "analysis-undo-unavailable",
+            "warning",
+            msg("analysis.undoUnavailable"),
+        );
         return false;
     }
     const currentText = editor.read();
@@ -1665,7 +1720,12 @@ function restoreAnalysisSession(context: SourceManagerActionContext): boolean {
     clearAnalysisUndo(state);
     refreshExistingSources(editor, state);
     refreshSourceAnalysis(state);
-    toast.success(msg("analysis.undoComplete"), { autoDismiss: true });
+    showActionNotification(
+        context,
+        "analysis-undo-complete",
+        "success",
+        msg("analysis.undoComplete"),
+    );
     return true;
 }
 
@@ -1965,7 +2025,7 @@ async function autofillDraftDate(
     context: SourceManagerActionContext,
     index: number,
 ): Promise<void> {
-    const { state, toast } = context;
+    const { state } = context;
     const draft = state.draft.value;
     const row = draft?.rows[index];
     if (draft == null || row == null || state.loading.value) {
@@ -1973,9 +2033,12 @@ async function autofillDraftDate(
     }
     if (isAccessDateParameter(row.name)) {
         row.value = formatLocalIsoDate(new Date());
-        toast.success(msg("feedback.accessDateFilled"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "access-date-filled",
+            "success",
+            msg("feedback.accessDateFilled"),
+        );
         return;
     }
     await autofillArchiveDate(context, draft, row);
@@ -1993,16 +2056,14 @@ async function autofillArchiveDate(
     draft: SourceDraft,
     row: SourceDraftRow,
 ): Promise<void> {
-    const { state, toast } = context;
+    const { state } = context;
     state.loading.value = true;
     try {
         const archiveUrl = getDraftRowValue(draft, "archive-url");
         const parsed = parseSourceUrl(archiveUrl);
         if (parsed?.archiveDate) {
             row.value = parsed.archiveDate;
-            toast.success(msg("feedback.archiveDateFilled"), {
-                autoDismiss: true,
-            });
+            notifyArchiveDateFilled(context);
             return;
         }
         const sourceUrl = getDraftRowValue(draft, "url");
@@ -2011,21 +2072,43 @@ async function autofillArchiveDate(
             return;
         }
         if (archive == null) {
-            toast.error(msg("draft.noArchiveSnapshot"), {
-                autoDismiss: true,
-            });
+            notifyArchiveSnapshotUnavailable(context);
             return;
         }
         setSourceDraftValue(draft, "archive-url", archive.archiveUrl);
         row.value = archive.archiveDate;
-        toast.success(msg("feedback.archiveFieldsFilled"), {
-            autoDismiss: true,
-        });
+        notifyArchiveFieldsFilled(context);
     } catch {
         reportArchiveCheckFailure(context, draft, row);
     } finally {
         state.loading.value = false;
     }
+}
+
+function notifyArchiveDateFilled(context: SourceManagerActionContext): void {
+    notifySuccess(
+        context,
+        "archive-date-filled",
+        msg("feedback.archiveDateFilled"),
+    );
+}
+
+function notifyArchiveSnapshotUnavailable(
+    context: SourceManagerActionContext,
+): void {
+    notifyError(
+        context,
+        "archive-snapshot-unavailable",
+        msg("draft.noArchiveSnapshot"),
+    );
+}
+
+function notifyArchiveFieldsFilled(context: SourceManagerActionContext): void {
+    notifySuccess(
+        context,
+        "archive-fields-filled",
+        msg("feedback.archiveFieldsFilled"),
+    );
 }
 
 /**
@@ -2038,7 +2121,7 @@ async function linkDraftOrganization(
     context: SourceManagerActionContext,
     index: number,
 ): Promise<void> {
-    const { state, toast } = context;
+    const { state } = context;
     const draft = state.draft.value;
     const row = draft?.rows[index];
     if (draft == null || row == null || state.loading.value) {
@@ -2055,14 +2138,20 @@ async function linkDraftOrganization(
             return;
         }
         row.value = linkedValue;
-        toast.success(msg("feedback.articleLinkChecked"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "article-link-checked",
+            "success",
+            msg("feedback.articleLinkChecked"),
+        );
     } catch {
         if (isCurrentDraftRow(state, draft, row)) {
-            toast.error(msg("feedback.linkCheckFailed"), {
-                autoDismiss: true,
-            });
+            showActionNotification(
+                context,
+                "article-link-check-failed",
+                "error",
+                msg("feedback.linkCheckFailed"),
+            );
         }
     } finally {
         state.loading.value = false;
@@ -2082,9 +2171,12 @@ function reportArchiveCheckFailure(
     row: SourceDraftRow,
 ): void {
     if (isCurrentDraftRow(context.state, draft, row)) {
-        context.toast.error(msg("feedback.archiveCheckFailed"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "archive-check-failed",
+            "error",
+            msg("feedback.archiveCheckFailed"),
+        );
     }
 }
 
@@ -2163,7 +2255,7 @@ async function saveNewSourceDraft(
 async function validateNewSourceWithCs1(
     context: SourceManagerActionContext,
 ): Promise<boolean> {
-    const { cs1Review, state, toast } = context;
+    const { cs1Review, state } = context;
     const draft = getNewSourceDraftForCs1(state);
     if (draft == null) {
         return false;
@@ -2186,17 +2278,30 @@ async function validateNewSourceWithCs1(
         if (issueCount === 0) {
             return true;
         }
-        toast.warning(formatNewSourceCs1IssueMessage(issueCount), {
-            autoDismiss: true,
-        });
+        notifyNewSourceCs1Issues(context, issueCount);
         return false;
     } catch {
-        toast.error(msg("checker.unavailable"), { autoDismiss: true });
+        notifyCheckerUnavailable(context);
         return false;
     } finally {
         state.draftCs1Checking.value = false;
         state.loading.value = false;
     }
+}
+
+function notifyNewSourceCs1Issues(
+    context: SourceManagerActionContext,
+    issueCount: number,
+): void {
+    notifyWarning(
+        context,
+        "new-source-cs1-issues",
+        formatNewSourceCs1IssueMessage(issueCount),
+    );
+}
+
+function notifyCheckerUnavailable(context: SourceManagerActionContext): void {
+    notifyError(context, "checker-unavailable", msg("checker.unavailable"));
 }
 
 function getNewSourceDraftForCs1(
@@ -2405,7 +2510,7 @@ function saveSourceDraft(
     context: SourceManagerActionContext,
     closeAfterSave: boolean,
 ): boolean {
-    const { editor, state, toast } = context;
+    const { editor, state } = context;
     if (state.loading.value) {
         return false;
     }
@@ -2416,7 +2521,7 @@ function saveSourceDraft(
     const message = closeAfterSave
         ? msg("feedback.sourceSaved")
         : formatAppliedSourceFeedback(writeResult.changeSummary);
-    toast.success(message, { autoDismiss: true });
+    showActionNotification(context, "source-saved", "success", message);
     refreshExistingSources(editor, state);
     if (!closeAfterSave) {
         return finishAppliedSourceDraft(state, writeResult);
@@ -2448,7 +2553,7 @@ function finishAppliedSourceDraft(
 async function recheckAppliedCs1Draft(
     context: SourceManagerActionContext,
 ): Promise<void> {
-    const { state, toast } = context;
+    const { state } = context;
     const draft = state.draft.value;
     const source = state.editingSource.value;
     if (draft == null || source == null || state.loading.value) {
@@ -2468,16 +2573,20 @@ async function recheckAppliedCs1Draft(
             return;
         }
         if (applyCs1DraftRecheckResult(context, source, review) === 0) {
-            toast.success(msg("checker.noIssues"), { autoDismiss: true });
+            notifyCheckerNoIssues(context);
         }
     } catch {
         if (isCurrentAppliedDraft(state, draft, source)) {
-            toast.error(msg("checker.unavailable"), { autoDismiss: true });
+            notifyCheckerUnavailable(context);
         }
     } finally {
         state.draftCs1Checking.value = false;
         state.loading.value = false;
     }
+}
+
+function notifyCheckerNoIssues(context: SourceManagerActionContext): void {
+    notifySuccess(context, "checker-no-issues", msg("checker.noIssues"));
 }
 
 function applyCs1DraftRecheckResult(
@@ -2544,7 +2653,7 @@ function updateAppliedCs1BatchResult(
  * @param context - Context value.
  */
 function saveReviewedDraft(context: SourceManagerActionContext): void {
-    const { editor, state, toast } = context;
+    const { editor, state } = context;
     const reviewTool = state.draftReviewTool.value;
     const reviewQueue = state.draftReviewQueue.value;
     if (state.loading.value || reviewTool == null) {
@@ -2559,7 +2668,12 @@ function saveReviewedDraft(context: SourceManagerActionContext): void {
         syncCs1BatchResults(context, reviewQueue);
     }
     resetSourceDraft(state);
-    toast.success(msg("feedback.sourceSaved"), { autoDismiss: true });
+    showActionNotification(
+        context,
+        "source-saved",
+        "success",
+        msg("feedback.sourceSaved"),
+    );
     showCheckerResults(state, reviewTool);
 }
 
@@ -2656,7 +2770,12 @@ function writeSourceDraft(
         return null;
     }
     if (collisionNotice !== "") {
-        context.toast.warning(collisionNotice, { autoDismiss: true });
+        showActionNotification(
+            context,
+            "parameter-collision",
+            "warning",
+            collisionNotice,
+        );
     }
     const afterText = editor.read();
     return finishSourceDraftWrite(
@@ -3152,9 +3271,12 @@ function insertListedExistingSource(
         source,
         context.state.referenceStyle.value,
     );
-    context.toast.success(msg("lookup.existingInserted"), {
-        autoDismiss: true,
-    });
+    showActionNotification(
+        context,
+        "existing-source-inserted",
+        "success",
+        msg("lookup.existingInserted"),
+    );
     finishSourceManager(context);
 }
 
@@ -3194,9 +3316,12 @@ async function resolveSourceInput(
     if (existing != null) {
         clearAnalysisUndo(state);
         insertExistingSource(editor, existing, state.referenceStyle.value);
-        context.toast.success(msg("lookup.existingInserted"), {
-            autoDismiss: true,
-        });
+        showActionNotification(
+            context,
+            "existing-source-inserted",
+            "success",
+            msg("lookup.existingInserted"),
+        );
         finishSourceManager(context);
         return;
     }

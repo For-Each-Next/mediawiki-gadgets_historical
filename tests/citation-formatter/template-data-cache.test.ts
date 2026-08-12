@@ -8,7 +8,7 @@ import {
     TEMPLATE_DATA_CACHE_KEY,
     type MediaWikiTemplateDataApi,
     type TemplateDataObjectStorage,
-} from "citation-formatter/infra/template-data.ts";
+} from "citation-formatter/adapters/mediawiki/template-data.ts";
 
 class MemoryObjectStorage implements TemplateDataObjectStorage {
     value: unknown;

@@ -15,10 +15,10 @@ import {
 import type {
     AssessmentPageSnapshots,
     NewPageListSnapshot,
-    ProjectConfig,
     RegistrationResult,
     SubjectPageInfo,
 } from "#gadget/domain/types.ts";
+import type { ProjectConfig } from "#gadget/config/types.ts";
 
 interface PreparedRegistrationState {
     creationTimes: Map<string, Date>;

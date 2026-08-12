@@ -1,29 +1,49 @@
-import {
-    addTalkPageBanner,
-    connectWikidataSitelink,
-    createRedirect,
-    movePage,
-    savePageEdit,
-} from "#gadget/infra/editing/wiki-writes.ts";
-import { msg } from "#gadget/i18n/index.ts";
 import { planPreSaveExecution } from "#gadget/workflows/pre-save-plan.ts";
-import { formatNamespaceTitle } from "#shared/wikitext";
-
-export {
-    TALK_PAGE_BANNER,
-    addTalkPageBanner,
-    connectWikidataSitelink,
-    createRedirect,
-    movePage,
-} from "#gadget/infra/editing/wiki-writes.ts";
+// eslint-disable-next-line max-len
+import { assertUniqueSelectedActionIds } from "#gadget/domain/pre-save-action-identity.ts";
+import { formatNamespaceTitle } from "#shared/wiki-titles";
 
 type DynamicRecord = Record<string, any>;
+
+export type PreSaveMessageFormatter = (
+    id: PreSaveMessageId,
+    values?: Record<string, string | number>,
+) => string;
+
+export type PreSaveMessageId =
+    | "presave.connectTo"
+    | "presave.createPage"
+    | "presave.createPageSummary"
+    | "presave.editPage"
+    | "presave.tagBanner"
+    | "presave.updatePageSummary"
+    | "progress.addTalkBanner"
+    | "progress.connectTo"
+    | "progress.createCategory"
+    | "progress.createPage"
+    | "progress.editPage"
+    | "review.createCategoryPage";
+
+export interface PreSaveWritePorts {
+    addTalkPageBanner(api: mw.Api, title: string): Promise<void>;
+    connectWikidataSitelink(
+        api: mw.Api,
+        id: string,
+        title: string,
+    ): Promise<void>;
+    createRedirect(api: mw.Api, from: string, to: string): Promise<void>;
+    movePage(
+        api: mw.Api,
+        from: string,
+        to: string,
+        options: { leaveRedirect: boolean },
+    ): Promise<void>;
+    savePageEdit(api: mw.Api, action: any): Promise<void>;
+}
 
 export interface PageLookupApi {
     get(params: Record<string, string>): PromiseLike<any>;
 }
-
-const MAX_ACTION_ATTEMPTS = 3;
 
 /**
  * Builds the selectable pre-save action rows.
@@ -38,6 +58,7 @@ const MAX_ACTION_ATTEMPTS = 3;
 export function buildPreSaveActions(
     selection: any,
     existingRedirectTitles: Array<DynamicRecord | string> = [],
+    formatMessage: PreSaveMessageFormatter = fallbackMessage,
 ): Array<any> {
     const form = selection.form || {};
     const title = normalizeTitle(selection.title);
@@ -47,7 +68,12 @@ export function buildPreSaveActions(
         .filter((row) => row.exists)
         .map((row) => row.key);
     const existingKeys = new Set(existingKeyValues);
-    const actions = buildInitialPreSaveActions(form, title, finalTitle);
+    const actions = buildInitialPreSaveActions(
+        form,
+        title,
+        finalTitle,
+        formatMessage,
+    );
 
     for (const row of getPreSaveRedirectRows(form, title)) {
         const redirectActionResult = createRedirectAction(
@@ -59,11 +85,11 @@ export function buildPreSaveActions(
     }
 
     for (const row of (form.categoryRows || []).filter(isPreSaveCategoryRow)) {
-        const categoryActionResult = createCategoryAction(row);
+        const categoryActionResult = createCategoryAction(row, formatMessage);
         actions.push(categoryActionResult);
     }
 
-    const pageEditActionsResult = buildPageEditActions(form);
+    const pageEditActionsResult = buildPageEditActions(form, formatMessage);
     actions.push(...pageEditActionsResult);
 
     return actions;
@@ -81,17 +107,18 @@ function buildInitialPreSaveActions(
     form: { wikidataId: unknown },
     title: string,
     finalTitle: string,
+    formatMessage: PreSaveMessageFormatter,
 ): Array<unknown> {
-    const actions = [createTalkBannerAction(finalTitle)];
+    const actions = [createTalkBannerAction(finalTitle, formatMessage)];
     const wikidataId = normalizeTitle(form.wikidataId);
 
     if (wikidataId !== "") {
         const message = {
-            displayLabel: msg("presave.connectTo", {
+            displayLabel: formatMessage("presave.connectTo", {
                 target: `d:${wikidataId}`,
             }),
             id: "interwiki",
-            label: msg("progress.connectTo", {
+            label: formatMessage("progress.connectTo", {
                 target: wikidataId,
                 title,
             }),
@@ -112,13 +139,16 @@ function buildInitialPreSaveActions(
  * @param title - Page title.
  * @returns The article talk-banner action.
  */
-function createTalkBannerAction(title: unknown): unknown {
+function createTalkBannerAction(
+    title: unknown,
+    formatMessage: PreSaveMessageFormatter,
+): unknown {
     const talkTitle = formatNamespaceTitle(String(title ?? ""), "zhwiki", 1);
 
     const result = {
-        displayLabel: msg("presave.tagBanner", { title: talkTitle }),
+        displayLabel: formatMessage("presave.tagBanner", { title: talkTitle }),
         id: "talk-banner",
-        label: msg("progress.addTalkBanner", { title: talkTitle }),
+        label: formatMessage("progress.addTalkBanner", { title: talkTitle }),
         pageTitle: title,
         selected: true,
         type: "talk-banner",
@@ -132,12 +162,15 @@ function createTalkBannerAction(title: unknown): unknown {
  * @param form - Form values.
  * @returns Staged page-edit actions from review-row collections.
  */
-function buildPageEditActions(form: {
-    categoryRows: Array<{ pendingEdit: DynamicRecord }>;
-    redirectRows: Array<{ pendingEdit: DynamicRecord }>;
-    navboxRows: Array<{ pendingEdit: DynamicRecord }>;
-    stubTagRows: Array<{ pendingEdit: DynamicRecord }>;
-}): Array<unknown> {
+function buildPageEditActions(
+    form: {
+        categoryRows: Array<{ pendingEdit: DynamicRecord }>;
+        redirectRows: Array<{ pendingEdit: DynamicRecord }>;
+        navboxRows: Array<{ pendingEdit: DynamicRecord }>;
+        stubTagRows: Array<{ pendingEdit: DynamicRecord }>;
+    },
+    formatMessage: PreSaveMessageFormatter,
+): Array<unknown> {
     const collections = [
         form.categoryRows,
         form.redirectRows,
@@ -145,7 +178,8 @@ function buildPageEditActions(form: {
         form.stubTagRows,
     ];
 
-    const mapCallbackB = (row: any) => createPageEditAction(row.pendingEdit);
+    const mapCallbackB = (row: any) =>
+        createPageEditAction(row.pendingEdit, formatMessage);
     const result = collections
         .flatMap((rows) => rows || [])
         .filter(isPreSavePageEditRow)
@@ -207,16 +241,19 @@ function hasCompletePendingEdit(edit: any): boolean {
  * @param row - Category review row.
  * @returns Category pre-save action.
  */
-function createCategoryAction(row: any): any {
+function createCategoryAction(
+    row: any,
+    formatMessage: PreSaveMessageFormatter,
+): any {
     const category = normalizeTitle(row.category);
 
     const result = {
         category,
         company: normalizeTitle(row.company),
-        displayLabel: msg("review.createCategoryPage"),
+        displayLabel: formatMessage("review.createCategoryPage"),
         englishName: normalizeTitle(row.pendingCreation.englishName),
         id: `category:${category}`,
-        label: msg("progress.createCategory", { title: category }),
+        label: formatMessage("progress.createCategory", { title: category }),
         pageTitle: formatNamespaceTitle(category, "zhwiki", 14),
         selected: true,
         text: String(row.pendingCreation.text || ""),
@@ -232,13 +269,16 @@ function createCategoryAction(row: any): any {
  * @param edit - Staged page edit.
  * @returns Page edit pre-save action.
  */
-function createPageEditAction(edit: any): any {
+function createPageEditAction(
+    edit: any,
+    formatMessage: PreSaveMessageFormatter,
+): any {
     const title = normalizeTitle(edit.title);
     const create = edit.create === true;
     const englishName = normalizeTitle(edit.englishName);
-    let displayLabel = msg("presave.editPage");
+    let displayLabel = formatMessage("presave.editPage");
     if (create) {
-        displayLabel = msg("presave.createPage");
+        displayLabel = formatMessage("presave.createPage");
     }
 
     const result = {
@@ -246,12 +286,15 @@ function createPageEditAction(edit: any): any {
         displayLabel,
         ...(englishName === "" ? {} : { englishName }),
         id: `page-edit:${title}`,
-        label: msg(create ? "progress.createPage" : "progress.editPage", {
-            title,
-        }),
+        label: formatMessage(
+            create ? "progress.createPage" : "progress.editPage",
+            {
+                title,
+            },
+        ),
         pageTitle: title,
         selected: true,
-        summary: getPageEditSummary(edit, title, create),
+        summary: getPageEditSummary(edit, title, create, formatMessage),
         text: String(edit.text || ""),
         title,
         type: "page-edit",
@@ -271,10 +314,11 @@ function getPageEditSummary(
     edit: any,
     title: string,
     create: boolean,
+    formatMessage: PreSaveMessageFormatter,
 ): string {
     const result =
         normalizeTitle(edit.summary) ||
-        msg(
+        formatMessage(
             create ? "presave.createPageSummary" : "presave.updatePageSummary",
             { title },
         );
@@ -755,7 +799,6 @@ function createExistingPageTitleMatch(
  * @param options.onActionComplete - Action success
  * callback.
  * @param options.onActionFailed - Action failure callback.
- * @param options.onActionRetry - Action retry callback.
  * @param options.onActionSkipped - Action skipped
  * callback.
  * @param options.onActionStart - Action start callback.
@@ -772,9 +815,13 @@ function createExistingPageTitleMatch(
  */
 export async function runSelectedActions(
     actions: Array<any>,
-    options: any,
+    options: any & {
+        categoryUnavailableMessage?: string;
+        writes: PreSaveWritePorts;
+    },
 ): Promise<any> {
-    const completed: SelectedAction[] = [];
+    assertUniqueSelectedActionIds(actions);
+    const completed: SelectedAction[] = [...(options.confirmedActions ?? [])];
     const failed: SelectedAction[] = [];
     const originalTitle = normalizeTitle(options.title);
     const plan = planPreSaveExecution(
@@ -834,10 +881,11 @@ interface SelectedActionContext {
 
 interface SelectedActionOptions {
     api: mw.Api;
+    categoryUnavailableMessage?: string;
+    confirmedActions?: SelectedAction[];
     move: { leaveRedirect: boolean };
     onActionComplete?: (action: SelectedAction) => void;
     onActionFailed?: (action: SelectedAction, error?: unknown) => void;
-    onActionProgressFailed?: () => void;
     onActionSkipped?: (action: SelectedAction) => void;
     onActionStart?: (action: SelectedAction) => void;
     onBeforeWikidataActions?: (result: {
@@ -845,8 +893,13 @@ interface SelectedActionOptions {
         failed: SelectedAction[];
         title: string;
     }) => Promise<void> | void;
+    onBundledActionProgress?: (
+        action: SelectedAction,
+        status: "complete" | "failed" | "running",
+    ) => void;
     saveCategory?: CategorySaveHandler;
     saveCompanyCategory?: CategorySaveHandler;
+    writes: PreSaveWritePorts;
 }
 
 type CategorySaveHandler = (
@@ -871,6 +924,7 @@ async function runSelectedMove(
     options: SelectedActionOptions & {
         onMoveStart?: (title: string) => void;
         onMoveComplete?: (title: string) => void;
+        onMoveFailed?: (title: string, error: unknown) => void;
     },
 ): Promise<void> {
     if (!enabled) {
@@ -878,10 +932,15 @@ async function runSelectedMove(
     }
 
     options.onMoveStart?.(to);
-    await movePage(options.api, from, to, {
-        leaveRedirect: options.move.leaveRedirect,
-    });
-    options.onMoveComplete?.(to);
+    try {
+        await options.writes.movePage(options.api, from, to, {
+            leaveRedirect: options.move.leaveRedirect,
+        });
+        options.onMoveComplete?.(to);
+    } catch (error) {
+        options.onMoveFailed?.(to, error);
+        throw error;
+    }
 }
 
 /**
@@ -924,19 +983,15 @@ async function runSelectedActionRow(
     }
 
     context.options.onActionStart?.(action);
-    const progress = { failureHandled: false };
 
     try {
-        await runSelectedActionWithRetry(action, {
+        await runSelectedAction(action, {
             ...context.options,
-            onActionProgressFailed() {
-                progress.failureHandled = true;
-            },
             title: context.finalTitle,
         });
         completeSelectedAction(action, context);
     } catch (error) {
-        failSelectedAction(action, error, progress, context);
+        failSelectedAction(action, error, context);
     }
 }
 
@@ -978,20 +1033,16 @@ function completeSelectedAction(
  *
  * @param action - Action value.
  * @param error - Caught error.
- * @param progress - Progress value.
  * @param context - Operation context.
  */
 function failSelectedAction(
     action: SelectedAction,
     error: unknown,
-    progress: { failureHandled: boolean },
     context: SelectedActionContext,
 ): void {
     action.selected = false;
     context.failed.push(action);
-    if (!progress.failureHandled) {
-        context.options.onActionFailed?.(action, error);
-    }
+    context.options.onActionFailed?.(action, error);
 }
 
 /**
@@ -1006,7 +1057,7 @@ function failSelectedAction(
  */
 async function runSelectedAction(action: any, options: any): Promise<void> {
     if (action.type === "interwiki") {
-        await connectWikidataSitelink(
+        await options.writes.connectWikidataSitelink(
             options.wikidataApi || options.api,
             action.wikidataId,
             options.title,
@@ -1015,12 +1066,16 @@ async function runSelectedAction(action: any, options: any): Promise<void> {
     }
 
     if (action.type === "redirect") {
-        await createRedirect(options.api, action.redirectTitle, options.title);
+        await options.writes.createRedirect(
+            options.api,
+            action.redirectTitle,
+            options.title,
+        );
         return;
     }
 
     if (action.type === "talk-banner") {
-        await addTalkPageBanner(options.api, options.title);
+        await options.writes.addTalkPageBanner(options.api, options.title);
         return;
     }
 
@@ -1030,7 +1085,7 @@ async function runSelectedAction(action: any, options: any): Promise<void> {
     }
 
     if (action.type === "page-edit") {
-        await savePageEdit(options.api, action);
+        await options.writes.savePageEdit(options.api, action);
     }
 }
 
@@ -1051,7 +1106,9 @@ async function runCategoryAction(
     }
 
     if (save == null) {
-        const message = msg("errors.categorySaveUnavailable");
+        const message =
+            options.categoryUnavailableMessage ||
+            "Category save handler is unavailable.";
         throw new Error(message);
     }
 
@@ -1082,48 +1139,23 @@ function reportCategoryActionProgress(
     status: string,
     options: SelectedActionOptions,
 ): void {
+    // The parent category owns creation plus every bundled write.
+    // Its lifecycle is completed or failed by runSelectedActionRow.
+    if (operation === "create") {
+        return;
+    }
+
     const progressAction = {
         ...action,
-        id: operation === "create" ? action.id : `${action.id}:${operation}`,
+        id: `${action.id}:${operation}`,
     };
 
-    if (status === "running") {
-        options.onActionStart?.(progressAction);
-    } else if (status === "complete") {
-        options.onActionComplete?.(progressAction);
-    } else if (status === "failed") {
-        options.onActionProgressFailed?.();
-        options.onActionFailed?.(progressAction);
+    if (["complete", "failed", "running"].includes(status)) {
+        options.onBundledActionProgress?.(
+            progressAction,
+            status as "complete" | "failed" | "running",
+        );
     }
-}
-
-/**
- * Runs one selected follow-up action with bounded retries.
- *
- * @param action - Action row.
- * @param options - Execution options.
- * @returns Resolves after the action succeeds.
- */
-async function runSelectedActionWithRetry(
-    action: any,
-    options: any,
-): Promise<void> {
-    let lastError: unknown;
-
-    for (let attempt = 1; attempt <= MAX_ACTION_ATTEMPTS; attempt += 1) {
-        try {
-            await runSelectedAction(action, options);
-            return;
-        } catch (error) {
-            lastError = error;
-
-            if (attempt < MAX_ACTION_ATTEMPTS) {
-                options.onActionRetry?.(action, error, attempt);
-            }
-        }
-    }
-
-    throw lastError;
 }
 
 /**
@@ -1137,6 +1169,16 @@ function normalizeTitle(value: any): string {
         .trim()
         .replace(/_/gu, " ");
     return result;
+}
+
+function fallbackMessage(
+    id: PreSaveMessageId,
+    values: Record<string, string | number> = {},
+): string {
+    return Object.entries(values).reduce<string>(
+        (text, [key, value]) => text.replace(`{${key}}`, String(value)),
+        String(id),
+    );
 }
 
 /**

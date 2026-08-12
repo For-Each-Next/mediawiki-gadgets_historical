@@ -23,7 +23,92 @@ test("source boundaries reject escapes and private APIs", async (context) => {
     assertProblem(result.problems, /replace aggregate #shared/u);
     assertProblem(result.problems, /not a published shared-package subpath/u);
     assertProblem(result.problems, /shared source must not import a gadget/u);
-    assertProblem(result.problems, /domain must not import ui/u);
+    assertProblem(result.problems, /domain must not import local role ui/u);
+    assertProblem(result.problems, /must use #gadget instead of the self/u);
+});
+
+test("source roles use a default-deny dependency graph", async (context) => {
+    const workspaceRoot = await createTemporaryWorkspace(
+        context,
+        "source-roles-",
+    );
+    await writeRoleWorkspace(workspaceRoot);
+
+    const result = await repositoryCheck.checkSourceBoundaries(workspaceRoot);
+
+    assertProblem(
+        result.problems,
+        /config must not import local role domain/u,
+    );
+    assertProblem(
+        result.problems,
+        /i18n must not import local role contracts/u,
+    );
+    assertProblem(
+        result.problems,
+        /workflows must not import local role adapters/u,
+    );
+    assertProblem(result.problems, /ui must not import local role workflows/u);
+    assertProblem(result.problems, /browser must not import local role ui/u);
+    assertProblem(result.problems, /index must not import local role ui/u);
+    assertProblem(result.problems, /local role unclassified/u);
+});
+
+test("source roles allow documented inward edges", async (context) => {
+    const workspaceRoot = await createTemporaryWorkspace(
+        context,
+        "source-role-allowlist-",
+    );
+    await writeAllowedRoleWorkspace(workspaceRoot);
+
+    const result = await repositoryCheck.checkSourceBoundaries(workspaceRoot);
+
+    assert.deepEqual(result.problems, []);
+});
+
+test("type, export, and dynamic imports all create edges", async (context) => {
+    const workspaceRoot = await createTemporaryWorkspace(
+        context,
+        "source-import-kinds-",
+    );
+    await writeImportKindWorkspace(workspaceRoot);
+
+    const result = await repositoryCheck.checkSourceBoundaries(workspaceRoot);
+
+    assert.equal(
+        result.problems.filter((problem) =>
+            /domain must not import local role ui/u.test(problem),
+        ).length,
+        3,
+    );
+});
+
+test("shared exports must be focused existing files", async (context) => {
+    const workspaceRoot = await createTemporaryWorkspace(
+        context,
+        "shared-exports-",
+    );
+    await writeBoundaryWorkspace(workspaceRoot);
+    await writeManifest(
+        join(workspaceRoot, "src", "shared"),
+        "@mediawiki-gadgets/shared",
+        {
+            exports: {
+                ".": "./index.ts",
+                "./missing": "./missing.ts",
+                "./public": "./public.ts",
+            },
+        },
+    );
+    await writeFile(
+        join(workspaceRoot, "src", "shared", "public.ts"),
+        "export {};\n",
+    );
+
+    const result = await repositoryCheck.checkSourceBoundaries(workspaceRoot);
+
+    assertProblem(result.problems, /invalid package export \./u);
+    assertProblem(result.problems, /export \.\/missing does not exist/u);
 });
 
 test("source boundaries reject symbolic links", async (context) => {
@@ -92,7 +177,7 @@ test("import-shaped comments and strings create no edges", async (context) => {
                 "",
             ].join("\n"),
         ),
-        writeFile(join(sourceRoot, "shared", "index.ts"), "export {};\n"),
+        writeFile(join(sourceRoot, "shared", "public.ts"), "export {};\n"),
     ]);
 
     const result = await repositoryCheck.checkSourceBoundaries(workspaceRoot);
@@ -115,7 +200,7 @@ async function writeBoundaryWorkspace(workspaceRoot: string): Promise<void> {
         writeManifest(alphaRoot, "alpha-gadget", { gadgetBuild: {} }),
         writeManifest(betaRoot, "beta-gadget", { gadgetBuild: {} }),
         writeManifest(sharedRoot, "@mediawiki-gadgets/shared", {
-            exports: { ".": "./index.ts", "./public": "./public.ts" },
+            exports: { "./public": "./public.ts" },
         }),
         writeFile(
             join(alphaRoot, "domain", "violations.ts"),
@@ -125,11 +210,174 @@ async function writeBoundaryWorkspace(workspaceRoot: string): Promise<void> {
                 'import "#shared";',
                 'void import("#shared/private");',
                 'export * from "#gadget/ui/dialog.ts";',
+                'export * from "alpha-gadget/ui/dialog.ts";',
                 "",
             ].join("\n"),
         ),
         writeFile(join(betaRoot, "main.ts"), "export {};\n"),
-        writeFile(join(sharedRoot, "index.ts"), 'import "alpha-gadget";\n'),
+        writeFile(join(sharedRoot, "public.ts"), 'import "alpha-gadget";\n'),
+    ]);
+}
+
+/** Writes every forbidden edge in the universal source graph. */
+async function writeRoleWorkspace(workspaceRoot: string): Promise<void> {
+    const packageRoot = join(workspaceRoot, "src", "alpha-gadget");
+    const sharedRoot = join(workspaceRoot, "src", "shared");
+    await Promise.all([
+        ...[
+            "adapters",
+            "config",
+            "contracts",
+            "domain",
+            "i18n",
+            "ui",
+            "workflows",
+        ].map((name) => mkdir(join(packageRoot, name), { recursive: true })),
+        mkdir(sharedRoot, { recursive: true }),
+    ]);
+    await writeRoleFiles(packageRoot, sharedRoot);
+}
+
+/** Writes every allowed edge in the universal source graph. */
+async function writeAllowedRoleWorkspace(
+    workspaceRoot: string,
+): Promise<void> {
+    const packageRoot = join(workspaceRoot, "src", "alpha-gadget");
+    const sharedRoot = join(workspaceRoot, "src", "shared");
+    await Promise.all([
+        mkdir(packageRoot, { recursive: true }),
+        mkdir(sharedRoot, { recursive: true }),
+    ]);
+    const edges: Record<string, string[]> = {
+        adapters: ["adapters", "config", "contracts", "domain"],
+        config: ["config"],
+        contracts: ["config", "contracts", "domain"],
+        domain: ["config", "domain"],
+        i18n: ["i18n"],
+        ui: ["config", "contracts", "domain", "i18n", "ui"],
+        workflows: ["config", "contracts", "domain", "workflows"],
+    };
+    await writeAllowedRoleFiles(packageRoot, sharedRoot, edges);
+}
+
+/** Writes the manifests, roots, and allowed edge fixtures. */
+async function writeAllowedRoleFiles(
+    packageRoot: string,
+    sharedRoot: string,
+    edges: Record<string, string[]>,
+): Promise<void> {
+    await Promise.all([
+        writeManifest(packageRoot, "alpha-gadget", { gadgetBuild: {} }),
+        writeManifest(sharedRoot, "@mediawiki-gadgets/shared", {
+            exports: { "./public": "./public.ts" },
+        }),
+        writeFile(join(sharedRoot, "public.ts"), "export {};\n"),
+        ...Object.entries(edges).map(([source, targets]) =>
+            writeAllowedRoleFile(packageRoot, source, targets),
+        ),
+        writeFile(
+            join(packageRoot, "browser.ts"),
+            'import "#gadget/main.ts";\n',
+        ),
+        writeFile(
+            join(packageRoot, "index.ts"),
+            ["contracts", "domain"]
+                .map((target) => `export * from "#gadget/${target}/x.ts";`)
+                .join("\n"),
+        ),
+        writeFile(
+            join(packageRoot, "main.ts"),
+            [...Object.keys(edges), "#shared/public"]
+                .map((target) =>
+                    target.startsWith("#")
+                        ? `import "${target}";`
+                        : `import "#gadget/${target}/x.ts";`,
+                )
+                .join("\n"),
+        ),
+    ]);
+}
+
+/** Writes one source role and all of its allowed imports. */
+async function writeAllowedRoleFile(
+    packageRoot: string,
+    source: string,
+    targets: string[],
+): Promise<void> {
+    const directory = join(packageRoot, source);
+    await mkdir(directory, { recursive: true });
+    const imports = targets
+        .map((target) => `import "#gadget/${target}/x.ts";`)
+        .join("\n");
+    await writeFile(join(directory, "x.ts"), `${imports}\n`);
+}
+
+/** Writes violations after the fixture directories exist. */
+async function writeRoleFiles(
+    packageRoot: string,
+    sharedRoot: string,
+): Promise<void> {
+    await Promise.all([
+        writeManifest(packageRoot, "alpha-gadget", { gadgetBuild: {} }),
+        writeManifest(sharedRoot, "@mediawiki-gadgets/shared", {
+            exports: { "./public": "./public.ts" },
+        }),
+        writeFile(join(sharedRoot, "public.ts"), "export {};\n"),
+        writeFile(
+            join(packageRoot, "config", "invalid.ts"),
+            'import "#gadget/domain/value.ts";\n',
+        ),
+        writeFile(
+            join(packageRoot, "i18n", "invalid.ts"),
+            'import "#gadget/contracts/value.ts";\n',
+        ),
+        writeFile(
+            join(packageRoot, "workflows", "invalid.ts"),
+            'import "#gadget/adapters/value.ts";\n',
+        ),
+        writeFile(
+            join(packageRoot, "ui", "invalid.ts"),
+            'import "#gadget/workflows/value.ts";\n',
+        ),
+        writeFile(
+            join(packageRoot, "browser.ts"),
+            'import "#gadget/ui/value.ts";\n',
+        ),
+        writeFile(
+            join(packageRoot, "index.ts"),
+            'export * from "#gadget/ui/value.ts";\n',
+        ),
+        writeFile(
+            join(packageRoot, "domain", "unknown.ts"),
+            'import "#gadget/mystery/value.ts";\n',
+        ),
+    ]);
+}
+
+/** Writes equivalent forbidden imports in three syntax forms. */
+async function writeImportKindWorkspace(workspaceRoot: string): Promise<void> {
+    const packageRoot = join(workspaceRoot, "src", "alpha-gadget");
+    const sharedRoot = join(workspaceRoot, "src", "shared");
+    await Promise.all([
+        mkdir(join(packageRoot, "domain"), { recursive: true }),
+        mkdir(sharedRoot, { recursive: true }),
+    ]);
+    await Promise.all([
+        writeManifest(packageRoot, "alpha-gadget", { gadgetBuild: {} }),
+        writeManifest(sharedRoot, "@mediawiki-gadgets/shared", {
+            exports: { "./public": "./public.ts" },
+        }),
+        writeFile(join(sharedRoot, "public.ts"), "export {};\n"),
+        writeFile(
+            join(packageRoot, "domain", "invalid.ts"),
+            [
+                'type Invalid = import("#gadget/ui/types.ts").Invalid;',
+                'export * from "#gadget/ui/exported.ts";',
+                'void import("#gadget/ui/dynamic.ts");',
+                "export type { Invalid };",
+                "",
+            ].join("\n"),
+        ),
     ]);
 }
 

@@ -15,7 +15,12 @@ import { discoverGadgetPackages } from "../../../scripts/workspace/index.ts";
 const require = createRequire(import.meta.url);
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const sourceRoot = join(repositoryRoot, "src");
-const declarationPath = join(sourceRoot, "shared", "mediawiki-codex.d.css");
+const declarationPath = join(
+    sourceRoot,
+    "shared",
+    "mediawiki",
+    "codex-tokens.d.css",
+);
 const tokenPackagePath =
     "@wikimedia/codex-design-tokens/theme-wikimedia-ui.css";
 const tokenStylesheetPath = require.resolve(tokenPackagePath);

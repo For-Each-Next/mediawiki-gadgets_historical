@@ -108,9 +108,10 @@ Dependencies point inward through the composition root:
 ```text
 browser.ts
 └── main.ts
-    ├── ui ─────> domain, shared
-    ├── infra ──> MediaWiki API
-    └── domain ─> short-footnote resolver and shared wikitext queries
+    ├── contracts <── ui
+    ├── ui ─────────> contracts, domain, i18n, shared
+    ├── adapters ───> shared, MediaWiki API
+    └── domain ─────> shared wikitext, titles, and short footnotes
 
 index.ts
 └── domain
@@ -118,14 +119,17 @@ index.ts
 
 - `browser.ts` invokes `start` from the `main.ts` composition root.
 - `main.ts` wires optional MediaWiki API operations into the editor UI.
+- `contracts/` defines the injected editor, logging, and notification ports.
 - `ui/` owns iframe rendering, native-textarea synchronization, safe DOM
   highlighting, citation tooltips, styles, and the co-located Codex formatter
   dialog.
 - `domain/` contains deterministic formatting and preview logic backed by the
   lazy `wikitext(source)` facade. Its construct methods run focused scanners
   without building a document-wide syntax tree.
-- `infra/` discovers current-wiki namespaces and batches redirect and
+- `adapters/` discovers current-wiki namespaces and batches redirect and
   missing-page lookups behind UI contracts.
+- Shared logging records sanitized diagnostics, while native MediaWiki
+  notifications present short action results consistently with other gadgets.
 - `i18n/` keeps flat, typed locale catalogs.
 
 ## License

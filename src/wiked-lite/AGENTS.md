@@ -15,8 +15,12 @@ instructions.
 
 ## Architecture
 
-- Keep parsing and formatting in `domain/`, MediaWiki API access in `infra/`,
-  and editor/dialog rendering in `ui/`.
+- Keep parsing and formatting in `domain/`, MediaWiki API access in
+  `adapters/`, runtime boundaries in `contracts/`, and editor/dialog rendering
+  in `ui/`.
+- Create logging and native notification adapters in `main.ts`; inject them
+  through the editor contract instead of calling `console` or `mw.notify`
+  directly.
 - Keep `main.ts` as the composition root and `browser.ts` as the only browser
   entry that invokes `start`.
 - Preserve Cacycle's authorship credit in package metadata, documentation, and

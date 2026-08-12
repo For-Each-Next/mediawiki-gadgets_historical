@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { citationTemplateData as generatedTemplateData } from "@mediawiki-gadgets/shared/citation";
+import { citationTemplateData as generatedTemplateData } from "citation-formatter/config/citation-template-data/index.ts";
 import { formatCitationWikitext } from "citation-formatter/domain/formatter.ts";
 import { createTemplateNameContext } from "citation-formatter/domain/templates.ts";
 import type { CitationTemplateDataMap } from "citation-formatter/domain/types.ts";

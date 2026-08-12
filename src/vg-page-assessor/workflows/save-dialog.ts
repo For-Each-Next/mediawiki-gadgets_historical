@@ -15,15 +15,16 @@ import {
     getTalkPageTopSection,
     isEmptyImportanceOnlyChange,
 } from "#gadget/domain/assessment.ts";
-import { buildNewPageListSummary } from "#gadget/i18n/index.ts";
+import type { Logger } from "#shared/logging";
 
 const DEFAULT_EDIT_SUMMARY =
     "Tag project banners " +
     "[[:m:User:For Each ... Next/global.js/vg page assessor.js|🍄]]";
 
 export interface ReviewedDialogSaveOperations {
+    buildRegistrationSummary(title: string, creationDate: Date): string;
     getRegistrationSave(state: DialogState): RegistrationSave | null;
-    logStep(step: string, details?: unknown): void;
+    logger: Logger;
     saveRegistration(
         api: mw.Api,
         registration: RegistrationSave,
@@ -50,32 +51,28 @@ async function saveReviewedDialog(
     review: DialogSaveReview,
     reportPhase: ReportDialogSavePhase,
 ): Promise<DialogSaveOutcome> {
-    operations.logStep("saveDialog start");
-    operations.logStep("saveDialog options", {
-        listSummary: review.listSummary,
-        previewLength: review.previewText.length,
+    operations.logger.info("save.started");
+    operations.logger.debug("save.options", {
+        characterCount: review.previewText.length,
         registration: summarizeRegistration(state),
         shouldRegister: review.shouldRegister,
-        summary: review.summary,
     });
 
     await saveRegistration(operations, state, review, reportPhase);
 
     if (isUnchangedTalkReview(state, review.previewText)) {
-        operations.logStep(
-            "saveDialog skipping talk save: empty importance only",
-        );
+        operations.logger.info("save.talk-page.skipped");
         return "unchanged";
     }
 
     reportPhase("talk-page");
-    operations.logStep("saveDialog saving talk page");
+    operations.logger.info("save.talk-page.started");
     await operations.saveTalkAssessment(state.api, {
         summary: review.summary || DEFAULT_EDIT_SUMMARY,
         title: state.talkTitle,
         topSection: review.previewText,
     });
-    operations.logStep("saveDialog done");
+    operations.logger.info("save.completed");
 
     return "saved";
 }
@@ -93,17 +90,24 @@ async function saveRegistration(
     }
 
     reportPhase("registration");
-    operations.logStep("saveDialog saving new-page list");
+    operations.logger.info("save.registration.started");
     await operations.saveRegistration(
         state.api,
         registration,
-        review.listSummary || buildDefaultRegistrationSummary(state),
+        review.listSummary ||
+            buildDefaultRegistrationSummary(operations, state),
     );
 }
 
-function buildDefaultRegistrationSummary(state: DialogState): string {
+function buildDefaultRegistrationSummary(
+    operations: ReviewedDialogSaveOperations,
+    state: DialogState,
+): string {
     const title = state.subjectInfo.listedTitle || state.subjectTitle;
-    return buildNewPageListSummary(title, state.subjectInfo.creationDate);
+    return operations.buildRegistrationSummary(
+        title,
+        state.subjectInfo.creationDate,
+    );
 }
 
 function isUnchangedTalkReview(
@@ -123,6 +127,6 @@ function summarizeRegistration(state: DialogState): Record<string, unknown> {
         earliestDate: registration?.earliestDate?.toISOString(),
         eligible: registration?.eligible,
         existing: registration?.existing,
-        proposedLength: registration?.proposedText?.length,
+        proposedCharacterCount: registration?.proposedText?.length,
     };
 }

@@ -120,7 +120,49 @@ function checkBrowserSource(name: string, source: string): string[] {
             `${name}: browser entry must invoke the imported start function.`,
         );
     }
+    for (const specifier of collectUnexpectedImports(sourceFile)) {
+        problems.push(
+            `${name}: browser entry must not import "${specifier}"; ` +
+                'import only { start } from "#gadget/main.ts".',
+        );
+    }
     return problems;
+}
+
+/** Finds imports outside the composition-root startup import. */
+function collectUnexpectedImports(sourceFile: ts.SourceFile): string[] {
+    const imports: string[] = [];
+    function visit(node: ts.Node): void {
+        const specifier = readModuleSpecifier(node);
+        if (specifier != null && specifier !== "#gadget/main.ts") {
+            imports.push(specifier);
+        }
+        ts.forEachChild(node, visit);
+    }
+    visit(sourceFile);
+    return imports;
+}
+
+/** Reads static, type-only, exported, and dynamic module references. */
+function readModuleSpecifier(node: ts.Node): string | null {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+        return readStringLiteral(node.moduleSpecifier);
+    }
+    if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) {
+        return readStringLiteral(node.argument.literal);
+    }
+    if (
+        ts.isCallExpression(node) &&
+        node.expression.kind === ts.SyntaxKind.ImportKeyword
+    ) {
+        return readStringLiteral(node.arguments[0]);
+    }
+    return null;
+}
+
+/** Narrows one quoted module reference. */
+function readStringLiteral(node: ts.Node | undefined): string | null {
+    return node != null && ts.isStringLiteralLike(node) ? node.text : null;
 }
 
 /** Finds an actual named start import from the composition root. */

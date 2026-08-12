@@ -2,7 +2,7 @@
  * Citation TemplateData subsets keyed by normalized template name.
  */
 
-import { stripNamespacePrefix } from "#shared/wikitext";
+import { stripNamespacePrefix } from "#shared/wiki-titles";
 
 import citeWeb from "./cite-web.ts";
 

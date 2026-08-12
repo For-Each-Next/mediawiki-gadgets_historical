@@ -5,7 +5,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createCitationStore } from "vg-stub-creator/infra/sources/index.ts";
+// eslint-disable-next-line max-len
+import { createCitationStore } from "vg-stub-creator/adapters/network/index.ts";
 
 const citoidPrefix = "/api/rest_v1/data/citation/zotero/";
 const metacriticUrl = "https://www.metacritic.com/game/example/";

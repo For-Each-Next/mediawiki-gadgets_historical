@@ -11,9 +11,9 @@ Wikimedia project APIs or wiki configuration:
 
 - generated English Wikipedia TemplateData snapshot modules named
   `citation.ts`, `cite-*.ts`, or `index.ts` under
-  `src/shared/citation/citation-template-data/`;
+  `src/citation-formatter/config/citation-template-data/generated/`;
 - English and Chinese Wikipedia namespace names and aliases in
-  `src/shared/wikitext/namespace-prefixes.ts`; and
+  `src/shared/wiki-titles/index.ts`; and
 - the TemplateData-style parameter order in
   `src/vg-stub-creator/domain/citations/data/cite-web.ts`.
 

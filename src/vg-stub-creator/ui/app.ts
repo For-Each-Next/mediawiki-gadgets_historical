@@ -13,15 +13,6 @@ import {
     selectArticleSubmissionTitle,
 } from "#gadget/ui/navigation.ts";
 import {
-    clearFormHistory,
-    deleteFormHistoryEntry,
-    readFormDraftEntry,
-    readFormDraftForPage,
-    readFormHistory,
-    saveFormDraft,
-    saveFormHistory,
-} from "#gadget/ui/history.ts";
-import {
     addEnwikiCreateTrigger,
     addMissingPageEditTrigger,
     addViewPageTrigger,
@@ -33,20 +24,21 @@ import type {
     CategoryCacheStorePort,
     CategoryReviewRow,
     CitationStorePort,
-} from "#gadget/ui/ports.ts";
-import { createPreviewController } from "#gadget/ui/preview-controller.ts";
+    PendingSaveDraft,
+    PendingSaveSession,
+} from "#gadget/contracts/application.ts";
 import type {
     ArticleForm,
+    PreSaveAction,
     SaveProgressStatus,
 } from "#gadget/domain/models.ts";
 import { msg } from "#gadget/i18n/index.ts";
-import { getErrorMessage, toError } from "#gadget/support/errors.ts";
-import { wikitext } from "#shared/citation";
-import { formatNamespaceTitle } from "#shared/wikitext";
+import { getErrorMessage, toError } from "#gadget/ui/error-message.ts";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
+import { formatNamespaceTitle } from "#shared/wiki-titles";
 const { trimValue } = wikitext;
 
 const CITATION_PREFETCH_DELAY = 800;
-const WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php";
 
 /**
  * Creates an isolated browser application bound to explicit ports.
@@ -68,6 +60,7 @@ export function createBrowserApplication(
         saveCompanyCategory,
         updateCategoryRowCategory,
     } = ports.categories;
+    const { createLocalApi, createWikidataApi } = ports.clients;
     const {
         buildEditSummary,
         clearMovedEdit,
@@ -80,17 +73,34 @@ export function createBrowserApplication(
         normalizePageTitle,
         readEditSummary,
         readEditText,
+        setPendingSaveOperationStatus,
         shouldPreserveEditor,
         storeMovedEdit,
+        storePendingSaveData,
         storePreviewFormData,
         submitPreviewForm,
         updateMovedTitleText,
         writeEditSummary,
         writeEditText,
     } = ports.editing;
+    const logger = ports.feedback.logger;
+    const notifyAction = ports.feedback.notifyAction;
+    const {
+        clearFormHistory,
+        deleteFormHistoryEntry,
+        readFormDraftEntry,
+        readFormDraftForPage,
+        readFormHistory,
+        saveFormDraft,
+        saveFormHistory,
+    } = ports.history;
+    const { fetchPageText, parseArticlePreviewText, parsePreviewText } =
+        ports.preview;
+    const { createSession: createReviewLinkSession } = ports.reviewLinks;
     const {
         clearSaveProgress,
         failSaveProgress,
+        initializeSaveProgress,
         reportSaveProgressError,
         setSaveProgressStep,
     } = ports.saveProgress;
@@ -118,11 +128,10 @@ export function createBrowserApplication(
         getRedirectTitleCheckTitles,
         prepareCategoryRows,
         prepareNavboxRows,
+        preparePendingSaveResume,
         runSelectedActions,
+        saveReviewedArticle,
     } = ports.workflows;
-    const { fetchPageText, parseArticlePreviewText, parsePreviewText } =
-        createPreviewController(getPageName);
-
     /**
      * Checks whether the current view displays a missing page.
      *
@@ -319,6 +328,7 @@ export function createBrowserApplication(
     ): Promise<any | undefined> {
         sourceFetchState.error = "";
         sourceFetchState.loading = true;
+        const finishTimer = logger.startTimer("preview.build");
 
         try {
             const stub = await buildStubFromForm(form, citationStore);
@@ -334,9 +344,12 @@ export function createBrowserApplication(
                 summary,
                 text,
             };
+            finishTimer({ outcome: "success" });
             return result;
         } catch (error) {
             sourceFetchState.error = getErrorMessage(error);
+            logger.warn("preview.failed", error);
+            finishTimer({ outcome: "failure" });
             return undefined;
         } finally {
             sourceFetchState.loading = false;
@@ -361,31 +374,51 @@ export function createBrowserApplication(
         const { sourceFetchState, preSave } = context;
         sourceFetchState.error = "";
         sourceFetchState.loading = true;
+        const finishTimer = logger.startTimer("submission.run");
 
         try {
             const submission = await prepareFormSubmission(context);
-            const api = new mw.Api();
-
-            preSave.progress?.start(submission.title, submission.pending);
-            await saveSubmittedArticle(
-                api,
-                submission.title,
-                submission.text,
-                submission.summary,
-            );
-            preSave.progress?.set("save", "complete");
-            await completeSubmittedFollowUpActions(
-                api,
-                submission.pending,
-                preSave,
-                submission.title,
-            );
+            await executePreparedSubmission(submission, preSave);
+            finishTimer({ outcome: "success" });
         } catch (error) {
             preSave.progress?.fail(error);
             sourceFetchState.error = getErrorMessage(error);
+            logger.error("submission.failed", error);
+            notifyAction({
+                key: "submission-failed",
+                message: sourceFetchState.error,
+                type: "error",
+            });
+            finishTimer({ outcome: "failure" });
         } finally {
             sourceFetchState.loading = false;
         }
+    }
+
+    async function executePreparedSubmission(
+        submission: any,
+        preSave: any,
+    ): Promise<void> {
+        const api = createLocalApi();
+        preSave.progress?.start(submission.title, submission.pending);
+        const checkpoint = storePendingSaveData(submission.pending);
+        initializeSaveProgress(checkpoint);
+        await runCheckpointedOperation(
+            "save",
+            preSave.progress?.set.bind(preSave.progress),
+            saveReviewedArticle.bind(null, api, {
+                exists: submission.exists,
+                summary: submission.summary,
+                text: submission.text,
+                title: submission.title,
+            }),
+        );
+        await completeSubmittedFollowUpActions(
+            api,
+            submission.pending,
+            preSave,
+            submission.title,
+        );
     }
 
     /**
@@ -418,14 +451,21 @@ export function createBrowserApplication(
             summary = preview.summary;
         }
         const text = previewText ?? stub?.text ?? readEditText();
+        const title = getSubmissionTitle(context, shouldMove);
         const pending = createPendingSubmission(
             preSave,
             shouldMove,
             moveTitle,
+            title,
         );
-        const title = getSubmissionTitle(context, shouldMove);
 
-        return { pending, summary, text, title };
+        return {
+            exists: context.currentPageExists === true,
+            pending,
+            summary,
+            text,
+            title,
+        };
     }
 
     /**
@@ -498,13 +538,14 @@ export function createBrowserApplication(
     function createPendingSubmission(
         preSave: {
             move: { enabled: boolean; leaveRedirect?: boolean };
-            actions: unknown;
-            progressGroups: unknown;
-            registration: unknown;
+            actions: PreSaveAction[];
+            progressGroups: unknown[];
+            registration: { enabled?: boolean };
         },
         shouldMove: boolean,
         moveTitle: string,
-    ): unknown {
+        title: string,
+    ): PendingSaveDraft {
         let move: { enabled: boolean; leaveRedirect?: boolean; to?: string } =
             {
                 enabled: false,
@@ -518,6 +559,7 @@ export function createBrowserApplication(
             move,
             progressGroups: preSave.progressGroups,
             registration: preSave.registration,
+            title,
         };
         return result;
     }
@@ -551,34 +593,42 @@ export function createBrowserApplication(
                     result.failed,
                 );
                 progress.report(failureMessage);
+                notifyAction({
+                    key: "follow-up-failed",
+                    message: failureMessage,
+                    type: "warning",
+                });
             }
+            logger.warn("submission.follow-up-failed", {
+                failedCount: result.failed.length,
+            });
             return;
         }
 
+        logger.info("submission.completed");
+        clearPendingSaveData();
+        clearSaveProgress();
+        notifyAction({
+            key: "submission-completed",
+            message: msg("feedback.saveComplete"),
+            type: "success",
+        });
         navigateToWhatLinksHere(result.title);
     }
 
-    /**
-     * Saves the submitted article text through the API.
-     *
-     * @param api - MediaWiki API client.
-     * @param title - Submitted page title.
-     * @param text - Submitted article wikitext.
-     * @param summary - Edit summary.
-     * @returns Resolves after the article is saved.
-     */
-    async function saveSubmittedArticle(
-        api: any,
-        title: string,
-        text: string,
-        summary: string,
+    async function runCheckpointedOperation(
+        id: string,
+        setDialogProgress: ProgressCallback | undefined,
+        operation: () => Promise<void>,
     ): Promise<void> {
-        await api.postWithToken("csrf", {
-            action: "edit",
-            summary,
-            text,
-            title,
-        });
+        updateCheckpointProgress(id, "running", setDialogProgress);
+        try {
+            await operation();
+            updateCheckpointProgress(id, "complete", setDialogProgress);
+        } catch (error) {
+            updateCheckpointProgress(id, "failed", setDialogProgress);
+            throw error;
+        }
     }
 
     /**
@@ -596,12 +646,15 @@ export function createBrowserApplication(
         title: string,
         progress: any,
     ): Promise<any> {
-        const setProgress = progress?.set.bind(progress);
+        const setDialogProgress = progress?.set.bind(progress);
+        const setProgress =
+            createCheckpointProgressCallback(setDialogProgress);
         const actionOptions = createFollowUpActionOptions(
             api,
             pending,
             title,
             setProgress,
+            { setBundledProgress: setDialogProgress },
         );
         const actions = pending.actions || [];
         const result = await runSelectedActions(actions, actionOptions);
@@ -616,6 +669,7 @@ export function createBrowserApplication(
      * @param pending - Pending value.
      * @param title - Page title.
      * @param setProgress - Progress update callback.
+     * @param progressOptions - Resume and display-only progress state.
      * @returns Shared options for running post-save actions.
      */
     function createFollowUpActionOptions(
@@ -623,18 +677,24 @@ export function createBrowserApplication(
         pending: { move: unknown },
         title: string,
         setProgress: ProgressCallback,
+        progressOptions: FollowUpProgressOptions = {},
     ): unknown {
-        const wikidataApi = new mw.ForeignApi(WIKIDATA_API_URL);
+        const wikidataApi = createWikidataApi();
         const actionProgress = createActionProgressCallbacks(setProgress);
         const moveProgress = createMoveProgressCallbacks(setProgress);
         const result = {
             api,
+            confirmedActions: progressOptions.confirmedActions ?? [],
             move: pending.move,
             onBeforeWikidataActions: registerBeforeWikidataActions.bind(
                 null,
                 api,
                 pending,
                 setProgress,
+            ),
+            onBundledActionProgress: setBundledActionProgress.bind(
+                null,
+                progressOptions.setBundledProgress,
             ),
             saveCategory: saveCategoryWithApi.bind(null, api),
             saveCompanyCategory: saveCompanyCategoryWithApi.bind(null, api),
@@ -664,11 +724,6 @@ export function createBrowserApplication(
                 setProgress,
                 "failed",
             ),
-            onActionRetry: setActionProgress.bind(
-                null,
-                setProgress,
-                "retrying",
-            ),
             onActionSkipped: setActionProgress.bind(
                 null,
                 setProgress,
@@ -695,6 +750,7 @@ export function createBrowserApplication(
                 setProgress,
                 "complete",
             ),
+            onMoveFailed: setMoveProgress.bind(null, setProgress, "failed"),
             onMoveStart: setMoveProgress.bind(null, setProgress, "running"),
         };
     }
@@ -706,6 +762,37 @@ export function createBrowserApplication(
         id: string,
         status: SaveProgressStatus,
     ) => unknown;
+
+    function createCheckpointProgressCallback(
+        setDialogProgress?: ProgressCallback,
+    ): ProgressCallback {
+        return function updateProgress(id, status) {
+            updateCheckpointProgress(id, status, setDialogProgress);
+        };
+    }
+
+    function updateCheckpointProgress(
+        id: string,
+        status: SaveProgressStatus,
+        setDialogProgress?: ProgressCallback,
+    ): void {
+        setDialogProgress?.(id, status);
+        setSaveProgressStep(id, status);
+        setPendingSaveOperationStatus(id, toCheckpointStatus(status));
+    }
+
+    function toCheckpointStatus(status: SaveProgressStatus) {
+        if (status === "complete" || status === "skipped") {
+            return "confirmed" as const;
+        }
+        if (status === "running") {
+            return "running" as const;
+        }
+        if (status === "failed") {
+            return "uncertain" as const;
+        }
+        return "pending" as const;
+    }
 
     /**
      * Describes pending post-save work.
@@ -723,6 +810,11 @@ export function createBrowserApplication(
         company?: string;
         id: string;
         type: string;
+    }
+
+    interface FollowUpProgressOptions {
+        confirmedActions?: CompletedFollowUpAction[];
+        setBundledProgress?: ProgressCallback;
     }
 
     /**
@@ -746,6 +838,15 @@ export function createBrowserApplication(
         action: { id: string },
     ): void {
         setProgress(action.id, status);
+    }
+
+    /** Updates a bundled substep without changing its checkpoint. */
+    function setBundledActionProgress(
+        setProgress: ProgressCallback | undefined,
+        action: { id: string },
+        status: "complete" | "failed" | "running",
+    ): void {
+        setProgress?.(action.id, status);
     }
 
     /**
@@ -811,10 +912,14 @@ export function createBrowserApplication(
         category: string,
         text: string,
         englishName: string,
-    ) {
-        const wikidataApi = new mw.ForeignApi(WIKIDATA_API_URL);
+        options: {
+            onProgress: (operation: string, status: string) => void;
+        },
+    ): Promise<void> {
+        const wikidataApi = createWikidataApi();
         const result = saveCompanyCategory(category, text, englishName, {
             api,
+            onProgress: options.onProgress,
             wikidataApi,
         });
         return result;
@@ -840,11 +945,14 @@ export function createBrowserApplication(
         }
 
         setProgress("new-page-list", "running");
-        const companyCategoryActionsResult = getCompanyCategoryActions(
-            result.completed,
-        );
-        await registerNewPage(api, result.title, companyCategoryActionsResult);
-        setProgress("new-page-list", "complete");
+        try {
+            const categories = getCompanyCategoryActions(result.completed);
+            await registerNewPage(api, result.title, categories);
+            setProgress("new-page-list", "complete");
+        } catch (error) {
+            setProgress("new-page-list", "failed");
+            throw error;
+        }
     }
 
     /**
@@ -1572,6 +1680,7 @@ export function createBrowserApplication(
     }): Record<string, unknown> {
         const result = {
             citationPrefetchDelay: CITATION_PREFETCH_DELAY,
+            createReviewLinkSession,
             currentPageExists: context.currentPageExists,
             currentTitle: context.currentPageName,
             defaultName: context.defaultName,
@@ -1790,7 +1899,7 @@ export function createBrowserApplication(
      *   conversion.
      */
     async function checkDialogPageTitle(title: string): Promise<any> {
-        const api = new mw.Api();
+        const api = createLocalApi();
         const [match] = await fetchExistingPageTitles(api, [title]);
         const result = {
             exists: Boolean(match?.exists),
@@ -1814,7 +1923,7 @@ export function createBrowserApplication(
         const redirectTitles = buildRedirectTitles(form, title);
         const redirectTitleCheckTitlesResulB =
             getRedirectTitleCheckTitles(redirectTitles);
-        const api = new mw.Api();
+        const api = createLocalApi();
         const existing = await fetchExistingPageTitles(
             api,
             redirectTitleCheckTitlesResulB,
@@ -1837,7 +1946,7 @@ export function createBrowserApplication(
         const redirectTitles = rows.map((row) => row.title);
         const redirectTitleCheckTitlesResulA =
             getRedirectTitleCheckTitles(redirectTitles);
-        const api = new mw.Api();
+        const api = createLocalApi();
         const existing = await fetchExistingPageTitles(
             api,
             redirectTitleCheckTitlesResulA,
@@ -1899,7 +2008,7 @@ export function createBrowserApplication(
         }
         const redirectTitleCheckTitlesResult =
             getRedirectTitleCheckTitles(redirectTitles);
-        const api = new mw.Api();
+        const api = createLocalApi();
         const existing = await fetchExistingPageTitles(
             api,
             redirectTitleCheckTitlesResult,
@@ -2008,31 +2117,44 @@ export function createBrowserApplication(
      *   newly created article.
      */
     async function runPendingSaveActions(): Promise<void> {
-        const pageNameResult = getPageName();
-        const pending = getPendingSaveData(pageNameResult);
+        const pageName = getPageName();
+        const pending = getPendingSaveData(pageName);
 
         if (pending == null) {
             return;
         }
 
-        setSaveProgressStep("save", "complete");
+        initializeSaveProgress(pending);
+        const resume = preparePendingSaveResume(pending);
+        if (hasCriticalRecoveryBlock(resume.blockedOperationIds)) {
+            reportBlockedRecovery(resume.blockedOperationIds);
+            return;
+        }
 
         try {
-            const api = new mw.Api();
+            const api = createLocalApi();
             const options = createFollowUpActionOptions(
                 api,
-                pending,
-                pending.title,
-                setSaveProgressStep,
+                { ...pending, ...resume },
+                resume.title,
+                createCheckpointProgressCallback(),
+                { confirmedActions: resume.confirmedActions },
             );
-            const actions = pending.actions || [];
-            const result = await runSelectedActions(actions, options);
+            const result = await runSelectedActions(resume.actions, options);
 
-            clearPendingSaveData();
-            completePendingSaveProgress(result);
-            navigateToWhatLinksHere(result.title);
+            if (completePendingSaveProgress(result)) {
+                clearPendingSaveData();
+                navigateToWhatLinksHere(result.title);
+            }
         } catch (error) {
             failSaveProgress(toError(error));
+            const message = getErrorMessage(error);
+            logger.error("pending-save.failed", error);
+            notifyAction({
+                key: "pending-save-failed",
+                message,
+                type: "error",
+            });
         }
     }
 
@@ -2041,16 +2163,48 @@ export function createBrowserApplication(
      *
      * @param result - Operation result.
      */
-    function completePendingSaveProgress(result: { failed: unknown[] }): void {
+    function completePendingSaveProgress(result: {
+        failed: unknown[];
+        title: string;
+    }): boolean {
         if (result.failed.length > 0) {
             const pendingActionFailuresResult = formatPendingActionFailures(
                 result.failed,
             );
             reportSaveProgressError(pendingActionFailuresResult);
-            return;
+            return false;
         }
 
+        const pending = getPendingSaveData(result.title);
+        const incomplete = Object.values(pending?.operations ?? {}).some(
+            (status) => status !== "confirmed",
+        );
+        if (incomplete) {
+            reportBlockedRecovery(
+                preparePendingSaveResume(pending as PendingSaveSession)
+                    .blockedOperationIds,
+            );
+            return false;
+        }
         clearSaveProgress();
+        return true;
+    }
+
+    function hasCriticalRecoveryBlock(ids: string[]): boolean {
+        return ids.includes("save") || ids.includes("move");
+    }
+
+    function reportBlockedRecovery(ids: string[]): void {
+        const message = formatPendingActionFailures(ids.map((id) => ({ id })));
+        reportSaveProgressError(message);
+        logger.warn("pending-save.recovery-blocked", {
+            itemCount: ids.length,
+        });
+        notifyAction({
+            key: "pending-save-recovery-blocked",
+            message,
+            type: "warning",
+        });
     }
 
     /**
@@ -2064,7 +2218,7 @@ export function createBrowserApplication(
     }
 
     /**
-     * Formats a report for follow-up actions skipped after retries.
+     * Formats a report for follow-up actions requiring manual review.
      *
      * @param actions - Failed follow-up actions.
      * @returns Failure report.
@@ -2111,11 +2265,16 @@ export function createBrowserApplication(
     function startBrowserApplication(): void {
         const currentAction = mw.config.get("wgAction");
         const hasPendingSave = hasPendingSaveForCurrentPage(currentAction);
+        logger.debug("startup.route", {
+            action: currentAction,
+            pendingSave: hasPendingSave,
+        });
 
         if (isEnwikiArticleView()) {
             mw.loader
                 .using(["mediawiki.ForeignApi", "mediawiki.util"])
-                .then(initEnwikiLauncher);
+                .then(initEnwikiLauncher)
+                .catch(reportStartupFailure);
         } else if (hasPendingSave) {
             mw.loader
                 .using([
@@ -2123,7 +2282,8 @@ export function createBrowserApplication(
                     "mediawiki.ForeignApi",
                     "mediawiki.util",
                 ])
-                .then(runPendingSaveActions);
+                .then(runPendingSaveActions)
+                .catch(reportStartupFailure);
         } else if (
             isZhwiki() &&
             isZhwikiLauncherPage() &&
@@ -2146,7 +2306,19 @@ export function createBrowserApplication(
                 "vue",
                 "@wikimedia/codex",
             ])
-            .then(init);
+            .then(init)
+            .catch(reportStartupFailure);
+    }
+
+    /** Reports an asynchronous ResourceLoader/startup failure. */
+    function reportStartupFailure(error: unknown): void {
+        const message = getErrorMessage(error);
+        logger.error("startup.failed", error);
+        notifyAction({
+            key: "startup-failed",
+            message,
+            type: "error",
+        });
     }
 
     return {

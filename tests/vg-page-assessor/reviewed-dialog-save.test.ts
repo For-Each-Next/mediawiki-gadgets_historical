@@ -5,6 +5,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createLogger } from "@mediawiki-gadgets/shared/logging";
+
 import type {
     DialogSaveReview,
     DialogState,
@@ -13,6 +15,9 @@ import type {
 import type { PreparedTalkEdit } from "vg-page-assessor/domain/types.ts";
 import * as dialogSave from "vg-page-assessor/workflows/save-dialog.ts";
 
+const logger = createLogger("vg-page-assessor-test", { level: "silent" });
+const buildRegistrationSummary = (title: string) => `Register ${title}`;
+
 test("sequences registration before the reviewed talk source", async () => {
     const state = createDialogState("{{Old banner}}");
     const registration = createRegistrationSave();
@@ -20,10 +25,11 @@ test("sequences registration before the reviewed talk source", async () => {
     const writes: Array<string> = [];
     const savedTalkEdits: Array<PreparedTalkEdit> = [];
     const save = dialogSave.createReviewedDialogSaveWorkflow({
+        buildRegistrationSummary,
         getRegistrationSave() {
             return registration;
         },
-        logStep() {},
+        logger,
         async saveRegistration(_api, value, summary) {
             assert.equal(value, registration);
             assert.match(summary, /Example game/u);
@@ -59,8 +65,9 @@ test("registers before skipping an empty-importance-only edit", async () => {
     let registrationWrites = 0;
     let talkWrites = 0;
     const save = dialogSave.createReviewedDialogSaveWorkflow({
+        buildRegistrationSummary,
         getRegistrationSave: createRegistrationSave,
-        logStep() {},
+        logger,
         async saveRegistration() {
             registrationWrites += 1;
         },

@@ -1,39 +1,37 @@
-/** Tests browser console timing helpers. */
+/** Composition checks for Citation Formatter observability. */
 
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { startExecutionTimer } from "citation-formatter/infra/logger.ts";
+const browserSource = await readFile(
+    new URL("../../src/citation-formatter/browser.ts", import.meta.url),
+    "utf8",
+);
+const mainSource = await readFile(
+    new URL("../../src/citation-formatter/main.ts", import.meta.url),
+    "utf8",
+);
 
-test("logs a timed operation once with the citation formatter marker", () => {
-    const times = [10, 13.456];
-    const messages: Array<[string, string]> = [];
-    const finish = startExecutionTimer(
-        "format action",
-        () => times.shift() ?? 0,
-        (prefix, message) => messages.push([prefix, message]),
-    );
-
-    finish();
-    finish();
-
-    assert.deepEqual(messages, [
-        ["[citation formatter]", "format action in 3.46 ms"],
-    ]);
+test("composes the shared logger in the Citation Formatter root", () => {
+    assert.match(mainSource, /createLogger\("citation-formatter"\)/u);
+    assert.match(mainSource, /logger\.child\("ui\.source-manager"\)/u);
+    assert.match(mainSource, /logger\.child\("ui\.editor"\)/u);
+    assert.match(mainSource, /createActionNotifier\("citation-formatter"\)/u);
+    assert.match(mainSource, /key: "startup-failed"/u);
 });
 
-test("does not report a negative elapsed time", () => {
-    const times = [20, 19];
-    const messages: Array<[string, string]> = [];
-    const finish = startExecutionTimer(
-        "loaded",
-        () => times.shift() ?? 0,
-        (prefix, message) => messages.push([prefix, message]),
+test("keeps browser startup delegated to the composition root", () => {
+    assert.equal(
+        browserSource.trim(),
+        [
+            "/**",
+            " * Browser entry point for the MediaWiki gadget bundle.",
+            " */",
+            "",
+            'import { start } from "#gadget/main.ts";',
+            "",
+            "start();",
+        ].join("\n"),
     );
-
-    finish();
-
-    assert.deepEqual(messages, [
-        ["[citation formatter]", "loaded in 0.00 ms"],
-    ]);
 });

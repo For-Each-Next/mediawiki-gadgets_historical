@@ -1,10 +1,11 @@
 /** Enforces package and architecture boundaries in authored source. */
 
-import { readFile } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import ts from "typescript";
 import {
     formatWorkspacePath,
+    hasErrorCode,
     hasText,
     inspectWorkspacePackages,
     isGadgetPackage,
@@ -17,52 +18,27 @@ import {
 } from "../workspace/index.ts";
 import { SHARED_PACKAGE_NAME } from "./package-metadata.ts";
 
-const LAYER_NAMES = new Set([
+const GADGET_LAYERS = new Set([
+    "adapters",
+    "config",
     "contracts",
     "domain",
-    "infra",
-    "jobs",
-    "publishing",
-    "services",
-    "sources",
-    "support",
+    "i18n",
     "ui",
     "workflows",
 ]);
-const FORBIDDEN_IMPORTS: Record<string, ReadonlySet<string>> = {
-    contracts: new Set([
-        "infra",
-        "jobs",
-        "publishing",
-        "services",
-        "sources",
-        "ui",
-        "workflows",
-    ]),
-    domain: new Set([
-        "infra",
-        "jobs",
-        "publishing",
-        "services",
-        "sources",
-        "ui",
-        "workflows",
-    ]),
-    infra: new Set(["jobs", "services", "ui", "workflows"]),
-    jobs: new Set(["ui"]),
-    publishing: new Set(["jobs", "services", "ui", "workflows"]),
-    services: new Set(["jobs", "ui", "workflows"]),
-    sources: new Set(["jobs", "services", "ui", "workflows"]),
-    support: new Set(["jobs", "services", "ui", "workflows"]),
-    ui: new Set([
-        "infra",
-        "jobs",
-        "publishing",
-        "services",
-        "sources",
-        "workflows",
-    ]),
-    workflows: new Set(["ui"]),
+const GADGET_ROLES = new Set([...GADGET_LAYERS, "browser", "index", "main"]);
+const ALLOWED_LOCAL_IMPORTS: Record<string, ReadonlySet<string>> = {
+    adapters: new Set(["adapters", "config", "contracts", "domain"]),
+    browser: new Set(["main"]),
+    config: new Set(["config"]),
+    contracts: new Set(["config", "contracts", "domain"]),
+    domain: new Set(["config", "domain"]),
+    i18n: new Set(["i18n"]),
+    index: new Set(["contracts", "domain"]),
+    main: new Set(GADGET_LAYERS),
+    ui: new Set(["config", "contracts", "domain", "i18n", "ui"]),
+    workflows: new Set(["config", "contracts", "domain", "workflows"]),
 };
 export interface SourceBoundaryResult {
     fileCount: number;
@@ -96,7 +72,7 @@ export async function checkSourceBoundaries(
         fileCount: tree.files.length,
         problems: [
             ...(existingDiscovery == null ? discovery.problems : []),
-            ...checkSharedExportMetadata(context.shared),
+            ...(await checkSharedExportMetadata(context.shared)),
             ...tree.symbolicLinks.map(
                 (path) =>
                     `${formatWorkspacePath(workspaceRoot, path)}: authored ` +
@@ -249,7 +225,15 @@ function checkAliasConventions(
                 "shared subpath.",
         ];
     }
-    return checkSharedSubpath(context, localPath, specifier);
+    const problems = checkSharedSubpath(context, localPath, specifier);
+    if (specifier.startsWith(`${SHARED_PACKAGE_NAME}/`)) {
+        const suffix = specifier.slice(SHARED_PACKAGE_NAME.length + 1);
+        problems.unshift(
+            `${localPath}: import shared capabilities through ` +
+                `"#shared/${suffix}" instead of "${specifier}".`,
+        );
+    }
+    return problems;
 }
 
 /** Requires shared imports to name an exported subpath. */
@@ -319,8 +303,14 @@ function checkNamedPackageImport(
     const target = context.gadgetNames.find((name) =>
         isPackageSpecifier(specifier, name),
     );
-    if (target == null || target === sourcePackage.metadata.name) {
+    if (target == null) {
         return [];
+    }
+    if (target === sourcePackage.metadata.name) {
+        return [
+            `${localPath}: gadget-local imports must use #gadget instead ` +
+                `of the self-package specifier "${specifier}".`,
+        ];
     }
     const sourceKind = isGadgetPackage(sourcePackage)
         ? "gadgets must not import another gadget"
@@ -328,7 +318,7 @@ function checkNamedPackageImport(
     return [`${localPath}: ${sourceKind} through "${specifier}".`];
 }
 
-/** Checks downward dependencies between architecture layers. */
+/** Enforces the complete allowlist between local source roles. */
 function checkLayerBoundary(
     gadget: GadgetPackage,
     file: string,
@@ -336,32 +326,37 @@ function checkLayerBoundary(
     specifier: string,
 ): string[] {
     const packagePath = toPosixPath(relative(gadget.directory, file));
-    const sourceLayer = packagePath.split("/")[0]!;
-    if (!LAYER_NAMES.has(sourceLayer)) {
+    const sourceRole = classifyGadgetRole(packagePath);
+    if (sourceRole == null) {
         return [];
     }
-    const targetLayer = resolveTargetLayer(gadget, file, specifier);
+    const targetRole = resolveTargetRole(gadget, file, specifier);
     if (
-        targetLayer == null ||
-        !FORBIDDEN_IMPORTS[sourceLayer]!.has(targetLayer)
+        targetRole == null ||
+        ALLOWED_LOCAL_IMPORTS[sourceRole]!.has(targetRole)
     ) {
         return [];
     }
     return [
-        `${localPath}: ${sourceLayer} must not import ${targetLayer} ` +
-            `through "${specifier}".`,
+        `${localPath}: ${sourceRole} must not import local role ` +
+            `${targetRole} through "${specifier}".`,
     ];
 }
 
-/** Resolves a local import to a top-level layer. */
-function resolveTargetLayer(
+/** Resolves a local import to a layer or entry module. */
+function resolveTargetRole(
     gadget: GadgetPackage,
     file: string,
     specifier: string,
 ): string | null {
+    if (specifier === "#gadget") {
+        return "index";
+    }
     if (specifier.startsWith("#gadget/")) {
-        const layer = specifier.slice("#gadget/".length).split("/")[0]!;
-        return LAYER_NAMES.has(layer) ? layer : null;
+        return (
+            classifyGadgetRole(specifier.slice("#gadget/".length)) ??
+            "unclassified"
+        );
     }
     if (!specifier.startsWith(".")) {
         return null;
@@ -371,8 +366,17 @@ function resolveTargetLayer(
     if (isOutsideRoot(relative(gadget.directory, target))) {
         return null;
     }
-    const layer = localTarget.split("/")[0]!;
-    return LAYER_NAMES.has(layer) ? layer : null;
+    return classifyGadgetRole(localTarget) ?? "unclassified";
+}
+
+/** Classifies a path under the universal source tree. */
+function classifyGadgetRole(packagePath: string): string | null {
+    const first = packagePath.split("/")[0]!;
+    if (GADGET_LAYERS.has(first)) {
+        return first;
+    }
+    const rootName = first.replace(/\.ts$/u, "");
+    return GADGET_ROLES.has(rootName) ? rootName : null;
 }
 
 /** Reads the subpath keys published by the shared package manifest. */
@@ -384,7 +388,9 @@ function getSharedExports(shared: WorkspacePackage | null): Set<string> {
 }
 
 /** Validates shared export keys and local target values. */
-function checkSharedExportMetadata(shared: WorkspacePackage | null): string[] {
+async function checkSharedExportMetadata(
+    shared: WorkspacePackage | null,
+): Promise<string[]> {
     if (shared == null) {
         return ["workspace: missing the shared source package."];
     }
@@ -392,16 +398,43 @@ function checkSharedExportMetadata(shared: WorkspacePackage | null): string[] {
     if (exports == null) {
         return ["shared: package.json must define public exports."];
     }
-    return Object.entries(exports).flatMap(([key, target]) => {
-        const validKey = key === "." || key.startsWith("./");
-        const validTarget =
-            hasText(target) &&
-            target.startsWith("./") &&
-            !hasTraversal(target.slice(2));
-        return validKey && validTarget
+    const results = await Promise.all(
+        Object.entries(exports).map(([key, target]) =>
+            checkSharedExport(shared, key, target),
+        ),
+    );
+    return results.flat();
+}
+
+/** Checks one focused shared export and its target file. */
+async function checkSharedExport(
+    shared: WorkspacePackage,
+    key: string,
+    target: unknown,
+): Promise<string[]> {
+    const validKey = key.startsWith("./") && key !== "./";
+    const validTarget =
+        hasText(target) &&
+        target.startsWith("./") &&
+        !hasTraversal(target.slice(2));
+    if (!validKey || !validTarget) {
+        return [`shared: invalid package export ${key}.`];
+    }
+    const targetPath = resolve(shared.directory, target);
+    try {
+        const status = await lstat(targetPath);
+        return status.isFile() && !status.isSymbolicLink()
             ? []
-            : [`shared: invalid package export ${key}.`];
-    });
+            : [
+                  `shared: package export ${key} must target a real ` +
+                      `file: ${target}.`,
+              ];
+    } catch (error) {
+        if (!hasErrorCode(error, "ENOENT")) {
+            throw error;
+        }
+        return [`shared: package export ${key} does not exist: ${target}.`];
+    }
 }
 
 /** Checks a bare or subpath package specifier. */

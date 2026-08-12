@@ -108,6 +108,33 @@ test("a Promise chain may invoke start as its callback", async (context) => {
     assert.deepEqual(await checkFixtureBrowserEntry(workspaceRoot), []);
 });
 
+test("browser entry imports only the composition root", async (context) => {
+    const workspaceRoot = await createTemporaryWorkspace(
+        context,
+        "browser-import-role-",
+    );
+    await writeFutureGadget(workspaceRoot);
+    const browserPath = join(
+        workspaceRoot,
+        "src",
+        "future-gadget",
+        "browser.ts",
+    );
+    await writeFile(
+        browserPath,
+        [
+            'import { start } from "#gadget/main.ts";',
+            'import "#gadget/adapters/logger.ts";',
+            "start();",
+            "",
+        ].join("\n"),
+    );
+
+    const problems = await checkFixtureBrowserEntry(workspaceRoot);
+
+    assertProblem(problems, /browser entry must not import/u);
+});
+
 test("template text does not count as browser startup", async (context) => {
     const workspaceRoot = await createTemporaryWorkspace(
         context,

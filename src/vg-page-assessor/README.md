@@ -59,8 +59,8 @@ VG Page Assessor:
 - initializes those controls from existing banners and recognizes configured
   aliases while preserving unmanaged lead content and unchanged nested banner
   source;
-- adds checked controls named from unconfigured `WikiProject ...` and `...專題`
-  templates already inside a banner shell;
+- adds controls for unconfigured `WikiProject ...` and `...專題` templates
+  already inside a banner shell;
 - reflects recognizable manual source edits into the assessment controls and
   adds an exact final radio choice for a hidden or unconfigured class or
   importance value;
@@ -109,12 +109,14 @@ point remains side-effect free:
 ```text
 browser.ts
 └── main.ts
-    ├── ui/ -> contracts/, domain/, config/, i18n/
-    ├── workflows/ -> contracts/, domain/
-    ├── infra/ -> domain/
-    └── config/ -> domain/
+    ├── adapters/ -> domain/, shared logging and wiki titles
+    ├── workflows/ -> config/, contracts/, domain/, shared logging
+    ├── ui/ -> config/, contracts/, domain/, i18n/
+    ├── config/
+    └── shared logging and native notifications
 
-contracts/ -> domain/
+contracts/ -> domain/ and shared port types
+domain/ -> config/ and shared wiki-title rules
 i18n/ -> #shared/i18n
 index.ts (side-effect-free package entry)
 ```
@@ -122,9 +124,12 @@ index.ts (side-effect-free package entry)
 - `main.ts` composes UI, workflows, project configuration, and MediaWiki
   adapters. Only `browser.ts` invokes it; `index.ts` remains side-effect free.
 - `ui/` presents Codex interactions, `workflows/` coordinates use cases,
-  `infra/` accesses MediaWiki, and `domain/` holds deterministic rules.
+  `adapters/` accesses MediaWiki, and `domain/` holds deterministic rules.
   `contracts/`, `config/`, and `i18n/` provide their shared types, project
   settings, and localized text.
+- `main.ts` creates one privacy-conscious shared logger and one native
+  MediaWiki action notifier. It injects scoped diagnostics and notifications;
+  package modules do not call the console or `mw.notify` directly.
 
 See the package [changelog][2], its scoped [AGENTS.md][3], and the repository
 [AGENTS.md][4] for architecture, safety, versioning, and verification rules.

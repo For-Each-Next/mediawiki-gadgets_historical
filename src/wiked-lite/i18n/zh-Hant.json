@@ -16,9 +16,10 @@
     "dialog.apply": "格式化",
     "dialog.cancel": "取消",
     "feedback.noEditor": "未找到MediaWiki原始碼編輯器。",
+    "feedback.openFailed": "無法開啟維基文本格式化工具。請重試。",
     "feedback.noChanges": "未發現需要變更的維基文本。",
     "feedback.selection": "已格式化所選維基文本。",
     "feedback.whole": "已格式化全部維基文本。",
-    "feedback.failed": "維基文本格式化失敗。請查看瀏覽器主控台。",
+    "feedback.failed": "維基文本格式化失敗。請檢查原始碼後重試。",
     "feedback.links": "已更新不存在頁面連結的凸顯設定。"
 }

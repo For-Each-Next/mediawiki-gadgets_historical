@@ -38,7 +38,7 @@ import {
     splitAuthorDraftRow,
     type SourceDraft,
 } from "citation-formatter/domain/source-manager.ts";
-import { citationTemplateData as templateData } from "@mediawiki-gadgets/shared/citation";
+import { citationTemplateData as templateData } from "citation-formatter/config/citation-template-data/index.ts";
 import {
     createTemplateNameContext,
     normalizeTemplateName,
@@ -46,7 +46,7 @@ import {
 } from "citation-formatter/domain/templates.ts";
 import { formatSourceUsageTitle } from "citation-formatter/ui/source-list-presentation.ts";
 import { buildSourceSectionSelectors } from "citation-formatter/ui/source-manager.ts";
-import { buildCs1CheckWikitext } from "citation-formatter/infra/cs1-check.ts";
+import { buildCs1CheckWikitext } from "citation-formatter/adapters/mediawiki/cs1-check.ts";
 
 function getRow(draft: SourceDraft, name: string) {
     const row = draft.rows.find((candidate) => candidate.name === name);

@@ -9,6 +9,7 @@ import {
 } from "#gadget/domain/assessment.ts";
 import type { SaveTalkAssessment } from "#gadget/contracts/dialog.ts";
 import type { PageSnapshot, PreparedTalkEdit } from "#gadget/domain/types.ts";
+import type { Logger } from "#shared/logging";
 
 const MAX_EDIT_ATTEMPTS = 3;
 
@@ -19,7 +20,7 @@ interface TalkPageUpdate {
 
 export interface TalkSaveAdapters {
     fetchPageText(api: mw.Api, title: string): Promise<PageSnapshot>;
-    logStep(step: string, details?: unknown): void;
+    logger: Logger;
     postTalkPageEdit(
         api: mw.Api,
         page: PageSnapshot,
@@ -49,7 +50,7 @@ async function saveTalkAssessment(
                 attempt,
             );
         } catch (error) {
-            adapters.logStep("saveTalkAssessment caught error", {
+            adapters.logger.error("save-attempt.failed", {
                 attempt,
                 error,
                 title: edit.title,
@@ -69,7 +70,7 @@ async function saveTalkAssessmentAttempt(
     edit: PreparedTalkEdit,
     attempt: number,
 ): Promise<string> {
-    adapters.logStep("saveTalkAssessment attempt start", {
+    adapters.logger.info("save-attempt.started", {
         attempt,
         title: edit.title,
     });
@@ -108,7 +109,7 @@ function shouldSkipTalkAssessmentSave(
     const skip = page.exists && (update.text === page.text || emptyChange);
 
     if (skip) {
-        adapters.logStep("saveTalkAssessment skipped: no effective change", {
+        adapters.logger.info("save.skipped", {
             textChanged: update.text !== page.text,
             title,
         });

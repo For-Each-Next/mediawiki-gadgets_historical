@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { compileTemplate, parse } from "@vue/compiler-sfc";
+import { createLogger } from "@mediawiki-gadgets/shared/logging";
 
 import projectConfig from "vg-page-assessor/config/project-config.ts";
 import type {
@@ -16,6 +17,8 @@ import type {
     PageAssessorRuntime,
 } from "vg-page-assessor/contracts/dialog.ts";
 import * as assessment from "vg-page-assessor/domain/assessment.ts";
+// eslint-disable-next-line max-len
+import type { WikitextComparison } from "vg-page-assessor/domain/wikitext-comparison.ts";
 import type { VueApp, VueModule, VueRef } from "vg-page-assessor/ui/codex.ts";
 import {
     WIKITEXT_COMPARISON_STYLES,
@@ -32,7 +35,6 @@ import {
     ASSESSMENT_DIALOG_TEMPLATE,
     createAssessmentDialogBindings,
 } from "vg-page-assessor/ui/dialogs/assessment-dialog.ts";
-import type { WikitextComparison } from "@mediawiki-gadgets/shared/wikitext";
 
 const dialogPath = fileURLToPath(
     new URL(
@@ -398,10 +400,18 @@ function createRuntime(
     capture: (review: DialogSaveReview) => void = function noop() {},
 ): PageAssessorRuntime {
     return {
+        createDialogPageContext() {
+            return {
+                api: state.api,
+                pageName: state.subjectTitle,
+                title: {} as mw.Title,
+            };
+        },
         async loadDialogState() {
             return state;
         },
-        logStep() {},
+        logger: createLogger("vg-page-assessor-test", { level: "silent" }),
+        notify() {},
         async saveReviewedDialog(_state, review) {
             capture(review);
             return "saved";

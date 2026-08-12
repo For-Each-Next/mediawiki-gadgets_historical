@@ -13,8 +13,8 @@ import {
     createSaveProgress,
     getSaveProgressGroups,
     isSaveProgressComplete,
-    updateSaveProgress,
-} from "#gadget/support/save-progress.ts";
+} from "#gadget/ui/save-progress.ts";
+import { updateSaveProgress } from "#gadget/domain/save-progress.ts";
 import { sortNoteTaEntries } from "#gadget/domain/wiki.ts";
 import {
     createPreSaveGroups,
@@ -56,10 +56,7 @@ import {
     getWikidataLookupStatus,
     normalizeEnwikiTitleValue,
 } from "#gadget/ui/form/external-links.ts";
-import {
-    createReviewLinkSession,
-    type ReviewLinkSession,
-} from "#gadget/ui/form/review-link-session.ts";
+import type { ReviewLinkSession } from "#gadget/contracts/application.ts";
 import {
     findTextareaElement,
     getCodeMirrorLoader,
@@ -67,7 +64,7 @@ import {
     setCodeMirrorText,
 } from "#gadget/ui/form/source-editor.ts";
 import { msg, msgParts } from "#gadget/i18n/index.ts";
-import { getErrorMessage } from "#gadget/support/errors.ts";
+import { getErrorMessage } from "#gadget/ui/error-message.ts";
 
 /**
  * Creates the Vue component definition for the Codex dialog.
@@ -332,7 +329,7 @@ function initializeDialogState(): void {
     initializePreviewState();
     sourceEditors = new Map();
     sourceEditorLoads = new Set();
-    reviewLinkSession = createReviewLinkSession();
+    reviewLinkSession = options.createReviewLinkSession();
     componentMounted = true;
     queueCitationPrefetch = createCitationPrefetchQueue(options);
 
@@ -5391,8 +5388,8 @@ import {
     cloneValue,
     openDialog,
 } from "#gadget/ui/form/form-model.ts";
-import { wikitext } from "#shared/citation";
-import { formatNamespaceTitle } from "#shared/wikitext";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
+import { formatNamespaceTitle } from "#shared/wiki-titles";
 const {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,

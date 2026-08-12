@@ -2,8 +2,13 @@
  * Builds and updates talk-page assessment banner wikitext.
  */
 
-import { stripNamespacePrefix } from "#shared/wikitext";
+import { stripNamespacePrefix } from "#shared/wiki-titles";
 
+import type {
+    ProjectBannerConfig,
+    ProjectConfig,
+    VideoGamesProjectConfig,
+} from "#gadget/config/types.ts";
 import {
     CLASS_VALUES,
     IMPORTANCE_VALUES,
@@ -11,9 +16,6 @@ import {
     type AssessmentClass,
     type AssessmentImportance,
     type AssessmentProjectOption,
-    type ProjectBannerConfig,
-    type ProjectConfig,
-    type VideoGamesProjectConfig,
 } from "#gadget/domain/types.ts";
 
 export { CLASS_VALUES, IMPORTANCE_VALUES };

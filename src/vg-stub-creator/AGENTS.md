@@ -15,18 +15,23 @@ instructions remain in force.
 
 ## Architecture
 
-- Join UI and workflows through the typed ports in `ui/ports.ts`. Keep article
-  pipeline coordination in `workflows/article.ts`.
+- Present runtime capabilities to the UI through the typed ports in
+  `contracts/application.ts`. Keep article pipeline coordination in
+  `workflows/article.ts`.
 
 ## Domain Invariants
 
 - Normalize raw source data into the named `ArticleDataRecord` contracts before
-  rendering or saving it. Keep handlers responsible for page resolution and
-  review state, and keep wikitext builders responsible for article text.
+  rendering or saving it. Keep MediaWiki adapters responsible for page
+  resolution, UI responsible for review state, and wikitext builders
+  responsible for article text.
 - Keep canonical terminology identities first in `aliases`; omit `page` when a
   term must remain unlinked. Keep VG citation formatting and cleanup in
-  `domain/`, HTML fallback requests in `infra/sources/`, and raw Citoid
-  acquisition behind `#shared/citation`.
+  `domain/`, HTML fallback requests in `adapters/network/`, and raw Citoid
+  acquisition behind `#shared/citoid`.
+- Keep `domain/wikitext/index.ts` as a thin facade. Put output construction in
+  `builders.ts`, form-value parsing in `field-values.ts`, and terminology
+  reference lookup in `reference-data.ts`.
 - Keep generated article-language text in `domain/wiki.ts`, separate from
   interface messages. Update fixtures and focused tests with data or
   normalization changes.

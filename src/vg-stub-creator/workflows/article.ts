@@ -4,15 +4,6 @@
 
 import * as processor from "#gadget/domain/processor.ts";
 import {
-    buildCategoryRows,
-    buildFallbackCategoryRows,
-} from "#gadget/infra/handlers/categories.ts";
-import {
-    resolveNavboxTitles,
-    resolveReviewedNavboxRows,
-} from "#gadget/infra/handlers/navboxes.ts";
-import { fetchSourceReferences } from "#gadget/infra/sources/index.ts";
-import {
     buildArticleWikitext,
     buildDefaultSortKey,
     buildNavboxText,
@@ -22,9 +13,75 @@ import {
     formatText,
     sortCategoryRowsByProse,
 } from "#gadget/domain/wiki.ts";
-import { msg } from "#gadget/i18n/index.ts";
-import { wikitext } from "#shared/citation";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
 const { trimValue } = wikitext;
+
+export interface ArticleWorkflowPorts {
+    buildCategoryRows(
+        articleData: any,
+        previousRows: Array<any>,
+        options: any,
+    ): Promise<Array<any>>;
+    buildFallbackCategoryRows(articleData: any): Array<any>;
+    fetchSourceReferences(form: any, citationStore: any): Promise<any>;
+    resolveNavboxTitles(series: string, options?: any): Promise<Array<string>>;
+    resolveReviewedNavboxRows(
+        values: Array<any>,
+        options?: any,
+    ): Promise<Array<any>>;
+}
+
+export interface ArticleWorkflowMessages {
+    enterEnwikiTitle: string;
+    noWikidataItem: string;
+}
+
+export interface ArticleWorkflow {
+    buildStubFromForm(
+        form: any,
+        citationStore: any,
+        options?: any,
+    ): Promise<any>;
+    buildStubTextFromForm(
+        form: any,
+        citationStore: any,
+        options?: any,
+    ): Promise<string>;
+    getArticleFieldPlaceholder(
+        form: any,
+        field: any,
+        options?: any,
+    ): string | undefined;
+    prepareCategoryRows(
+        form: any,
+        previousRows?: Array<any>,
+        options?: any,
+    ): Promise<Array<any>>;
+    prepareNavboxRows(form: any, rebuild: boolean): Promise<Array<any>>;
+}
+
+export function createArticleWorkflow(
+    ports: ArticleWorkflowPorts,
+    messages: ArticleWorkflowMessages,
+): ArticleWorkflow {
+    return {
+        buildStubFromForm(form, citationStore, options) {
+            return buildStubFromForm(form, citationStore, options, ports);
+        },
+        buildStubTextFromForm(form, citationStore, options) {
+            return buildStubTextFromForm(form, citationStore, options, ports);
+        },
+        getArticleFieldPlaceholder(form, field, options) {
+            return getArticleFieldPlaceholder(form, field, options, messages);
+        },
+        prepareCategoryRows(form, previousRows, options) {
+            return prepareCategoryRows(form, previousRows, options, ports);
+        },
+        prepareNavboxRows(form, rebuild) {
+            return prepareNavboxRows(form, rebuild, ports);
+        },
+    };
+}
 
 /**
  * Builds normalized article data from raw form values.
@@ -46,8 +103,14 @@ export function flushArticleData(form: any, options: any = {}): any {
  * @param articleData - Normalized article data.
  * @returns Generated Chinese Wikipedia wikitext.
  */
-export function buildStubText(articleData: any): string {
-    const wikitextData = prepareWikitextData(articleData);
+export function buildStubText(
+    articleData: any,
+    buildFallbackCategoryRows: (data: any) => Array<any> = () => [],
+): string {
+    const wikitextData = prepareWikitextData(
+        articleData,
+        buildFallbackCategoryRows,
+    );
     const text = buildArticleWikitext(wikitextData);
 
     return text;
@@ -66,10 +129,12 @@ export async function buildStubFromForm(
     form: any,
     citationStore: any,
     options: any = {},
+    ports?: ArticleWorkflowPorts,
 ): Promise<any> {
+    const dependencies = requireArticleWorkflowPorts(ports);
     const [sourceReferences, navboxText] = await Promise.all([
-        fetchSourceReferences(form, citationStore),
-        getFormNavboxText(form),
+        dependencies.fetchSourceReferences(form, citationStore),
+        getFormNavboxText(form, dependencies),
     ]);
     const articleData = flushArticleData(
         {
@@ -82,7 +147,10 @@ export async function buildStubFromForm(
 
     const result = {
         articleData,
-        text: buildStubText(articleData),
+        text: buildStubText(
+            articleData,
+            dependencies.buildFallbackCategoryRows,
+        ),
     };
 
     return result;
@@ -100,8 +168,9 @@ export async function buildStubTextFromForm(
     form: any,
     citationStore: any,
     options: any = {},
+    ports?: ArticleWorkflowPorts,
 ): Promise<string> {
-    return (await buildStubFromForm(form, citationStore, options)).text;
+    return (await buildStubFromForm(form, citationStore, options, ports)).text;
 }
 
 /**
@@ -115,7 +184,9 @@ export async function buildStubTextFromForm(
 export async function prepareNavboxRows(
     form: any,
     rebuild: boolean,
+    ports?: ArticleWorkflowPorts,
 ): Promise<Array<any>> {
+    const dependencies = requireArticleWorkflowPorts(ports);
     const configuredTitles = getConfiguredNavboxTitles(form);
     let shouldGenerate = rebuild;
 
@@ -128,13 +199,17 @@ export async function prepareNavboxRows(
         }
     }
     const titles = shouldGenerate
-        ? await resolveGeneratedNavboxTitles(form.series, configuredTitles)
+        ? await resolveGeneratedNavboxTitles(
+              form.series,
+              configuredTitles,
+              dependencies,
+          )
         : [];
     const values = shouldGenerate
         ? buildNavboxText(titles).split("\n").filter(Boolean)
         : form.navboxRows;
 
-    return resolveReviewedNavboxRows(values);
+    return dependencies.resolveReviewedNavboxRows(values);
 }
 
 /**
@@ -155,13 +230,15 @@ export async function prepareCategoryRows(
     form: any,
     previousRows: Array<any> = [],
     options: any = {},
+    ports?: ArticleWorkflowPorts,
 ): Promise<Array<any>> {
+    const dependencies = requireArticleWorkflowPorts(ports);
     const articleForm = {
         ...form,
         categoryRows: [],
     };
     const articleData = flushArticleData(articleForm, options.article || {});
-    const rows = await buildCategoryRows(
+    const rows = await dependencies.buildCategoryRows(
         articleData,
         previousRows,
         options.categories || {},
@@ -218,15 +295,17 @@ export function getArticleFieldPlaceholder(
     form: any,
     field: any,
     options: any = {},
+    messages?: ArticleWorkflowMessages,
 ): string | undefined {
     if (field.key === "name") {
         return options.defaultName;
     }
 
     if (field.key === "wikidataId") {
+        const labels = requireArticleWorkflowMessages(messages);
         return trimValue(form.enwikiTitle) === ""
-            ? msg("metadata.enterEnwikiTitle")
-            : msg("metadata.noWikidataItem");
+            ? labels.enterEnwikiTitle
+            : labels.noWikidataItem;
     }
 
     if (field.key !== "sortKey") {
@@ -261,12 +340,16 @@ export function getFormProseSinographs(form: any, options: any = {}): number {
  * @param form - Dialog form values.
  * @returns Navbox wikitext.
  */
-async function getFormNavboxText(form: any): Promise<string> {
+async function getFormNavboxText(
+    form: any,
+    ports: ArticleWorkflowPorts,
+): Promise<string> {
     if (!Array.isArray(form.navboxRows)) {
         const configuredNavboxTitlesResult = getConfiguredNavboxTitles(form);
         const titles = await resolveGeneratedNavboxTitles(
             form.series,
             configuredNavboxTitlesResult,
+            ports,
         );
         const text = buildNavboxText(titles);
 
@@ -322,8 +405,9 @@ function getRecordNavboxes(record: any): Array<string> {
 async function resolveGeneratedNavboxTitles(
     series: string,
     configuredTitles: Array<string>,
+    ports: ArticleWorkflowPorts,
 ): Promise<Array<string>> {
-    const seriesTitles = await resolveNavboxTitles(series);
+    const seriesTitles = await ports.resolveNavboxTitles(series);
 
     return [...new Set([...configuredTitles, ...seriesTitles])];
 }
@@ -334,7 +418,10 @@ async function resolveGeneratedNavboxTitles(
  * @param articleData - Normalized article data.
  * @returns Wikitext-ready article data.
  */
-function prepareWikitextData(articleData: any): any {
+function prepareWikitextData(
+    articleData: any,
+    buildFallbackCategoryRows: (data: any) => Array<any>,
+): any {
     const categoryRows =
         articleData.categoryRows.length > 0
             ? articleData.categoryRows
@@ -345,6 +432,24 @@ function prepareWikitextData(articleData: any): any {
     };
 
     return result;
+}
+
+function requireArticleWorkflowPorts(
+    ports?: ArticleWorkflowPorts,
+): ArticleWorkflowPorts {
+    if (ports == null) {
+        throw new Error("Article workflow ports were not composed.");
+    }
+    return ports;
+}
+
+function requireArticleWorkflowMessages(
+    messages?: ArticleWorkflowMessages,
+): ArticleWorkflowMessages {
+    if (messages == null) {
+        throw new Error("Article workflow messages were not composed.");
+    }
+    return messages;
 }
 
 /**

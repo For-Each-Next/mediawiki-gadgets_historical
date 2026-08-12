@@ -1,7 +1,7 @@
 /** MediaWiki-styled rendering for structured wikitext comparisons. */
 
 import type { VueModule } from "#gadget/ui/codex.ts";
-import type { WikitextComparison } from "#shared/wikitext";
+import type { WikitextComparison } from "../../domain/wikitext-comparison.ts";
 
 export interface WikitextComparisonProps {
     afterLabel: string;

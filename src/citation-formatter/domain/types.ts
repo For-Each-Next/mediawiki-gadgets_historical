@@ -1,7 +1,7 @@
 import type {
     CitationTemplateData,
     CitationTemplateDataMap,
-} from "#shared/citation";
+} from "#gadget/config/citation-template-data/index.ts";
 
 export type { CitationTemplateData, CitationTemplateDataMap };
 

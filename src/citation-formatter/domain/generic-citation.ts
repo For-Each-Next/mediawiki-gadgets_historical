@@ -2,9 +2,9 @@
  * Formats Cite-prefixed templates without applying CS1-only behavior.
  */
 
-import { normalizeEnglishLanguageCodes } from "#shared/citation";
 import { wikitext } from "#shared/wikitext";
 
+import { normalizeEnglishLanguageCodes } from "./citations/language-codes.ts";
 import {
     formatBlockCitation,
     formatInlineCitation,

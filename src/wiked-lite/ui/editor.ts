@@ -1,7 +1,8 @@
 /** MediaWiki source-editor integration for wikEd Lite. */
 
 import * as editBox from "#shared/edit-box";
-import { normalizeWikitextTitleKey } from "#shared/wikitext";
+import { normalizeWikitextTitleKey } from "#shared/wiki-titles";
+import type { EditorServices } from "#gadget/contracts/editor.ts";
 import {
     selectSourceEditor,
     type CodeMirrorMode,
@@ -27,6 +28,10 @@ import {
     getHistoryDirection,
     type EditorSnapshot,
 } from "#gadget/ui/editor-history.ts";
+import {
+    createCompositionSubmitHandler,
+    restoreNativeSelectionAndFocus,
+} from "#gadget/ui/editor-lifecycle.ts";
 import { attachReferenceTooltips } from "#gadget/ui/reference-tooltip.ts";
 import {
     installWikEdLiteFrameStyles,
@@ -41,16 +46,6 @@ const EDITOR_FRAME_SOURCE =
     '<!doctype html><html><head><meta charset="UTF-8">' +
     "</head><body></body></html>";
 const EDITOR_FRAME_LOAD_TIMEOUT = 5_000;
-
-export interface EditorServices {
-    findMissingLinks(source: string): Promise<{
-        linkClasses: string[];
-        titles: Set<string>;
-    }>;
-    getHighlightOptions(): HighlightOptions;
-    loadNamespaces(): Promise<void>;
-    resolveRedirects(source: string): Promise<string>;
-}
 
 interface EditorController {
     destroy(): void;
@@ -105,7 +100,7 @@ let activeDialogCleanup: (() => void) | null = null;
  */
 export function startEditorIntegration(services: EditorServices): void {
     void initialize(services).catch(function report(error) {
-        console.error("wikEd Lite could not start", error);
+        services.logger.error("start.failed", { error });
     });
 }
 
@@ -132,7 +127,7 @@ async function initialize(services: EditorServices): Promise<void> {
         installEditor(services);
     });
     void namespaceLoad.then(refreshCurrentEditor, function report(error) {
-        console.error("wikEd Lite could not load namespace data", error);
+        services.logger.warn("namespaces.load.failed", { error });
     });
 }
 
@@ -163,7 +158,7 @@ function installEditor(services: EditorServices): void {
         },
         function report(error): void {
             pendingEditors.delete(textarea);
-            console.error("wikEd Lite could not initialize its editor", error);
+            services.logger.error("editor.initialize.failed", { error });
         },
     );
 }
@@ -417,15 +412,6 @@ function initializeEditorController(
         }
     }
 
-    function flushComposition(): void {
-        if (!composing) {
-            return;
-        }
-        textarea.value = readEditableText(editor);
-        history.record(createEditorSnapshot(editor, textarea.value));
-        dispatchEditorInput();
-    }
-
     function dispatchEditorInput(): void {
         dispatchingEditorInput = true;
         try {
@@ -434,6 +420,17 @@ function initializeEditorController(
             dispatchingEditorInput = false;
         }
     }
+
+    const flushComposition = createCompositionSubmitHandler({
+        dispatchInput: dispatchEditorInput,
+        isComposing: () => composing,
+        readEditorSnapshot: () =>
+            createEditorSnapshot(editor, readEditableText(editor)),
+        recordSnapshot: (snapshot) => history.record(snapshot),
+        writeNativeSource(source) {
+            textarea.value = source;
+        },
+    });
 
     function handleHistoryShortcut(event: KeyboardEvent): void {
         const direction = getHistoryDirection(event);
@@ -490,6 +487,27 @@ function initializeEditorController(
         }
     }
 
+    function restoreNativeFocus(
+        selection: { end: number; start: number } | null,
+    ): void {
+        restoreNativeSelectionAndFocus(
+            {
+                focus() {
+                    textarea.focus({ preventScroll: true });
+                },
+                isAvailable() {
+                    return (
+                        textarea.isConnected && !isIncompatibleEditor(textarea)
+                    );
+                },
+                setSelection(start, end) {
+                    textarea.setSelectionRange(start, end);
+                },
+            },
+            selection,
+        );
+    }
+
     function destroy(): void {
         if (destroyed) {
             return;
@@ -514,7 +532,7 @@ function initializeEditorController(
                 textarea.classList.remove("wiked-lite-native");
             }
             frame.remove();
-            restoreNativeFocus(textarea, focusedSelection);
+            restoreNativeFocus(focusedSelection);
         }
     }
 
@@ -670,16 +688,24 @@ function loadFrameDocument(
 }
 
 class EditorFrameLoader {
+    private readonly frame: HTMLIFrameElement;
     private readonly observer: MutationObserver;
+    private readonly reject: (reason: unknown) => void;
+    private readonly resolve: (target: Document) => void;
     private settled = false;
+    private readonly textarea: HTMLTextAreaElement;
     private timeout = 0;
 
     constructor(
-        private readonly frame: HTMLIFrameElement,
-        private readonly textarea: HTMLTextAreaElement,
-        private readonly resolve: (target: Document) => void,
-        private readonly reject: (reason: unknown) => void,
+        frame: HTMLIFrameElement,
+        textarea: HTMLTextAreaElement,
+        resolve: (target: Document) => void,
+        reject: (reason: unknown) => void,
     ) {
+        this.frame = frame;
+        this.reject = reject;
+        this.resolve = resolve;
+        this.textarea = textarea;
         this.observer = new MutationObserver(() => this.validateAttachment());
     }
 
@@ -777,21 +803,6 @@ function restoreAttribute(
         return;
     }
     element.setAttribute(name, value);
-}
-
-function restoreNativeFocus(
-    textarea: HTMLTextAreaElement,
-    selection: { end: number; start: number } | null,
-): void {
-    if (
-        selection == null ||
-        !textarea.isConnected ||
-        isIncompatibleEditor(textarea)
-    ) {
-        return;
-    }
-    textarea.setSelectionRange(selection.start, selection.end);
-    textarea.focus({ preventScroll: true });
 }
 
 function copyTextareaPresentation(
@@ -1075,18 +1086,31 @@ function isWikitextSourcePage(): boolean {
     return getSourceEditorSelection().editor === "wiked-lite";
 }
 
-async function openFormatter(services: EditorServices): Promise<void> {
+export async function openFormatter(services: EditorServices): Promise<void> {
     const textarea = document.getElementById(TEXTAREA_ID);
     if (!(textarea instanceof HTMLTextAreaElement)) {
-        mw.notify(msg("feedback.noEditor"), { type: "warn" });
+        services.notify({
+            key: "editor-missing",
+            message: msg("feedback.noEditor"),
+            type: "warning",
+        });
         return;
     }
-    activeDialogCleanup?.();
-    const require = (await mw.loader.using([
-        "vue",
-        "@wikimedia/codex",
-    ])) as ResourceLoaderRequire;
-    mountFormatterDialog(require, textarea, services);
+    try {
+        activeDialogCleanup?.();
+        const require = (await mw.loader.using([
+            "vue",
+            "@wikimedia/codex",
+        ])) as ResourceLoaderRequire;
+        mountFormatterDialog(require, textarea, services);
+    } catch (error) {
+        services.logger.error("dialog.open.failed", { error });
+        services.notify({
+            key: "dialog-open-failed",
+            message: msg("feedback.openFailed"),
+            type: "error",
+        });
+    }
 }
 
 function mountFormatterDialog(
@@ -1107,6 +1131,9 @@ function mountFormatterDialog(
     }
     const component = createFormatterDialogComponent(Vue, {
         onClose: cleanup,
+        onError(error) {
+            services.logger.error("format.failed", { error });
+        },
         onSubmit: (selection) =>
             applyFormatting(textarea, selection, services),
     });
@@ -1146,7 +1173,7 @@ async function applyFormatting(
     } else {
         controller?.setMissingLinks(new Set());
     }
-    notifyFormattingResult(formatted !== source, selected);
+    notifyFormattingResult(services, formatted !== source, selected);
 }
 
 function siteMissingLinkColor(linkClasses: string[]): string {
@@ -1193,11 +1220,19 @@ function writeFormattedSource(
     textarea.focus({ preventScroll: true });
 }
 
-function notifyFormattingResult(changed: boolean, selected: boolean): void {
+function notifyFormattingResult(
+    services: EditorServices,
+    changed: boolean,
+    selected: boolean,
+): void {
     const message = !changed
         ? msg("feedback.noChanges")
         : msg(selected ? "feedback.selection" : "feedback.whole");
-    mw.notify(message, { type: changed ? "success" : "info" });
+    services.notify({
+        key: "format-result",
+        message,
+        type: changed ? "success" : "info",
+    });
 }
 
 function dispatchNativeInput(textarea: HTMLTextAreaElement): void {

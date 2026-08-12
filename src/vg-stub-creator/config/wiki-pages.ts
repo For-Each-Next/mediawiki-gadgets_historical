@@ -1,4 +1,4 @@
-import { formatNamespaceTitle } from "#shared/wikitext";
+import { formatNamespaceTitle } from "#shared/wiki-titles";
 
 /** Stable wiki page titles shared by workflows and adapters. */
 export const NEW_PAGE_LIST_TITLE = formatNamespaceTitle(

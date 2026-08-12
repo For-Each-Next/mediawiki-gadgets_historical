@@ -6,12 +6,14 @@ import test from "node:test";
 
 import {
     createCitationFormatterI18n,
-    createSourceAnalysisMessages,
-    createSourceValidationMessages,
     english,
     simplifiedChinese,
     traditionalChinese,
 } from "citation-formatter/i18n/index.ts";
+import {
+    createSourceAnalysisMessages,
+    createSourceValidationMessages,
+} from "citation-formatter/ui/source-messages.ts";
 
 import {
     SOURCE_MANAGER_STYLES_FIXTURE as sourceManagerStyles,

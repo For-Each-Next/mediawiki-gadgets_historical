@@ -26,8 +26,8 @@
 ## Gadget Package Structure
 
 - Keep `main.ts` as each gadget's composition root. Browser entry points invoke
-  it; it wires sibling UI, workflow, service, source, publishing, support, and
-  shared parts through explicit contracts.
+  it; it wires sibling UI, workflow, adapter, and shared parts through explicit
+  contracts.
 - Export the composition function as `start`. Browser entry points import and
   invoke it, while package operations remain private to authored modules.
 - Use `#gadget` and `#gadget/*` for gadget-local imports. Import one published
@@ -50,9 +50,18 @@
   TypeScript for state and build-injected assets, and package-scoped CSS for
   presentation. Scope selectors beneath a package-owned class and keep static
   presentation in the co-located stylesheet.
+- Keep every authored Vue single-file component template-only, including
+  components outside `ui/dialogs/`. Put executable behavior and imports in the
+  co-located TypeScript owner so source-boundary checks cover every edge.
 - Organize implementation paths by their actual domain responsibilities. Fold
   thin forwarding modules into their caller and keep only the layers that the
   gadget uses.
+- Use only the optional top-level source responsibilities `config`,
+  `contracts`, `domain`, `workflows`, `adapters`, `ui`, `i18n`, and `docs`.
+  Follow the full dependency graph in the [source architecture][6].
+- Create one shared logger and action notifier in `main.ts`, then inject scoped
+  instances. Gadget source must not call `console.*` or `mw.notify` directly
+  and must not use Codex Toast APIs. Follow the [diagnostics guide][7].
 
 ## Package Documentation
 
@@ -132,3 +141,5 @@
 [3]: docs/release-workflow.md
 [4]: docs/commit-workflow.md
 [5]: https://peps.python.org/pep-0020/
+[6]: docs/source-architecture.md
+[7]: docs/diagnostics.md

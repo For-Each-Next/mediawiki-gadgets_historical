@@ -1,5 +1,7 @@
 {
     "tool.name": "VG Page Assessor",
+    "tool.openFailed": "Unable to open VG Page Assessor: {error}",
+    "tool.startFailed": "Unable to start VG Page Assessor: {error}",
     "dialog.assessment": "Assessment",
     "dialog.assessmentControls": "Assessment controls",
     "dialog.class": "Class",

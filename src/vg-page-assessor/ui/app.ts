@@ -37,10 +37,37 @@ export function startPageAssessor(dependencies: PageAssessorRuntime): void {
     }
 
     runtime = dependencies;
-    void mw.loader.using(
-        ["mediawiki.api", "mediawiki.Title", "mediawiki.util"],
+    void initializePageAssessorRuntime(
+        dependencies,
+        () =>
+            mw.loader.using([
+                "mediawiki.api",
+                "mediawiki.Title",
+                "mediawiki.util",
+            ]),
         init,
     );
+}
+
+/** Reports ResourceLoader or initialization failures during startup. */
+export async function initializePageAssessorRuntime(
+    feedback: Pick<PageAssessorRuntime, "logger" | "notify">,
+    loadDependencies: () => PromiseLike<unknown> | unknown,
+    initialize: () => void,
+): Promise<void> {
+    try {
+        await loadDependencies();
+        initialize();
+    } catch (error) {
+        feedback.logger.error("initialize.failed", { error });
+        feedback.notify({
+            key: "initialize-failed",
+            message: msg("tool.startFailed", {
+                error: getErrorMessage(error),
+            }),
+            type: "error",
+        });
+    }
 }
 
 /**
@@ -49,11 +76,13 @@ export function startPageAssessor(dependencies: PageAssessorRuntime): void {
 function init(): void {
     const dbName = mw.config.get("wgDBname");
     const namespaceNumber = mw.config.get("wgNamespaceNumber");
-    const pageName = mw.config.get("wgPageName");
 
-    logStep("init start", { dbName, namespaceNumber, pageName });
+    getRuntime().logger.debug("initialize.started", {
+        dbName,
+        namespaceNumber,
+    });
     if (dbName !== "zhwiki" || namespaceNumber < 0) {
-        logStep("init skipped");
+        getRuntime().logger.debug("initialize.skipped");
         return;
     }
 
@@ -62,7 +91,7 @@ function init(): void {
 }
 
 function addToolboxLink(): void {
-    logStep("init adding toolbox link");
+    getRuntime().logger.debug("toolbox-link.install.started");
     const link = mw.util.addPortletLink(
         "p-tb",
         "#",
@@ -74,28 +103,26 @@ function addToolboxLink(): void {
 
 function handleToolboxClick(event: Event): void {
     event.preventDefault();
-    logStep("toolbox link clicked");
+    getRuntime().logger.info("toolbox-link.activated");
     openDialog().catch(handleOpenDialogError);
 }
 
 function handleOpenDialogError(error: unknown): void {
-    logStep("openDialog failed", { error });
-    void mw.notify(getErrorMessage(error), { type: "error" });
+    const assessorRuntime = getRuntime();
+    assessorRuntime.logger.error("dialog.open.failed", { error });
+    assessorRuntime.notify({
+        key: "dialog-open-failed",
+        message: msg("tool.openFailed", { error: getErrorMessage(error) }),
+        type: "error",
+    });
 }
 
 async function openDialog(): Promise<void> {
     const generation = ++dialogGeneration;
     const assessorRuntime = getRuntime();
-    const api = new mw.Api();
-    const pageName = mw.config.get("wgPageName");
-    const currentTitle = mw.Title.newFromText(pageName);
 
-    logStep("openDialog start");
-    if (currentTitle == null) {
-        throw new Error(`Unable to resolve the current page: ${pageName}`);
-    }
-
-    const statePromise = assessorRuntime.loadDialogState(api, currentTitle);
+    assessorRuntime.logger.info("dialog.open.started");
+    const statePromise = loadDialogStateForCurrentPage(assessorRuntime);
     const require = await loadVueAndCodex();
     if (generation !== dialogGeneration) {
         return;
@@ -118,7 +145,22 @@ async function openDialog(): Promise<void> {
     }
     activeDialogCleanup?.();
     mountAssessmentDialog(require, state, assessorRuntime);
-    logStep("openDialog shown");
+    assessorRuntime.logger.info("dialog.open.completed");
+}
+
+/** Loads state with browser values supplied by the composition root. */
+export function loadDialogStateForCurrentPage(
+    assessorRuntime: Pick<
+        PageAssessorRuntime,
+        "createDialogPageContext" | "loadDialogState"
+    >,
+): ReturnType<PageAssessorRuntime["loadDialogState"]> {
+    const { api, pageName, title } = assessorRuntime.createDialogPageContext();
+
+    if (title == null) {
+        throw new Error(`Unable to resolve the current page: ${pageName}`);
+    }
+    return assessorRuntime.loadDialogState(api, title);
 }
 
 async function loadVueAndCodex(): Promise<ResourceLoaderRequire> {
@@ -205,7 +247,7 @@ function refreshPage(): void {
 
 function installDialogStyles(): void {
     if (document.getElementById(STYLE_ID) != null) {
-        logStep("addStyles skipped: already present");
+        getRuntime().logger.debug("styles.install.skipped");
         return;
     }
 
@@ -218,7 +260,7 @@ function installDialogStyles(): void {
         Comparison.WIKITEXT_COMPARISON_STYLES,
     ].join("\n");
     document.head.append(style);
-    logStep("addStyles done");
+    getRuntime().logger.debug("styles.install.completed");
 }
 
 function getRuntime(): PageAssessorRuntime {
@@ -230,8 +272,4 @@ function getRuntime(): PageAssessorRuntime {
 
 function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
-}
-
-function logStep(step: string, details?: unknown): void {
-    getRuntime().logStep(step, details);
 }

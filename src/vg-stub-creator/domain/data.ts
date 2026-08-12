@@ -2,10 +2,10 @@
  * Article metadata builders.
  */
 
-import { get as getTerminology } from "#gadget/config/terminologies/index.ts";
+import { get as getTerminology } from "#gadget/domain/terminologies/index.ts";
 import { formatText, getTextTemplate } from "#gadget/domain/wiki.ts";
 import type { ArticleDataValue } from "#gadget/domain/models.ts";
-import { wikitext } from "#shared/citation";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
 
 const {
     buildLinkText,
@@ -26,6 +26,16 @@ const COMPLETABLE_METADATA_FIELDS: Record<string, string | null> = {
     publishers: "company",
     series: null,
 };
+
+function getRequiredWikilinkParts(value: string): wikitext.WikilinkParts {
+    const parts = getWikilinkParts(value);
+
+    if (parts == null) {
+        throw new Error("Expected a complete wikilink value.");
+    }
+
+    return parts;
+}
 
 /**
  * Checks whether a metadata field supports item completion.
@@ -376,7 +386,7 @@ function buildGenreItem(value: string): ArticleDataValue {
  * @returns A genre item from an explicit wikilink.
  */
 function buildLinkedGenreItem(value: string): ArticleDataValue {
-    const parts = getWikilinkParts(value);
+    const parts = getRequiredWikilinkParts(value);
 
     const result = {
         displayText: parts.label || parts.target,
@@ -551,7 +561,7 @@ function buildCompanyItem(references: Array<any>, value: string): any {
  * @returns A company item from an explicit wikilink.
  */
 function buildLinkedCompanyItem(value: string): ArticleDataValue {
-    const parts = getWikilinkParts(value);
+    const parts = getRequiredWikilinkParts(value);
     const item = {
         displayText: parts.label || parts.target,
         linkTarget: parts.target,
@@ -916,7 +926,7 @@ function buildPlatformItem(
  * @returns A platform item from an explicit wikilink.
  */
 function buildLinkedPlatformItem(value: string): ArticleDataValue {
-    const parts = getWikilinkParts(value);
+    const parts = getRequiredWikilinkParts(value);
 
     const result = {
         displayText: parts.label || parts.target,
@@ -1032,7 +1042,7 @@ function buildSeriesTitleItem(series: string): ArticleDataValue {
  * @returns A series-title item from an explicit wikilink.
  */
 function buildLinkedSeriesTitleItem(series: string): ArticleDataValue {
-    const parts = getWikilinkParts(series);
+    const parts = getRequiredWikilinkParts(series);
     const label = parts.label || parts.target;
     const linkTarget =
         parts.label === ""
@@ -1072,7 +1082,7 @@ function buildDerivativeWorkItem(series: string): ArticleDataValue {
         return result;
     }
 
-    const parts = getWikilinkParts(series);
+    const parts = getRequiredWikilinkParts(series);
     const label = parts.label || parts.target;
     const displayLink = buildLinkText(parts.target, label);
     const displayText = formatText("patterns.derivativeWorkDisplayTitle", {
@@ -1117,7 +1127,7 @@ function normalizeSeriesValue(series: string) {
         return addSeriesMarker(trimSeriesSuffixResult, marker);
     }
 
-    const parts = getWikilinkParts(value);
+    const parts = getRequiredWikilinkParts(value);
     const target = trimSeriesSuffix(parts.target);
     const label = trimSeriesSuffix(parts.label);
 

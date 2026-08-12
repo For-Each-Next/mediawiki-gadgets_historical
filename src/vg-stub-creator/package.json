@@ -103,12 +103,12 @@
         "LICENSE",
         "docs",
         "*.ts",
+        "contracts",
         "workflows",
         "domain",
-        "infra",
+        "adapters",
         "i18n",
         "ui",
-        "support",
         "config"
     ],
     "keywords": [
@@ -120,7 +120,7 @@
     ],
     "scripts": {
         "build": "node ../../scripts/gadget-build/cli.ts",
-        "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
+        "check": "npm run lint && vue-tsc --build ../../config/vue/tsconfig.vg-stub-creator.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "test": "node --test ../../tests/vg-stub-creator/*.test.ts",

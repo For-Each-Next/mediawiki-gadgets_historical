@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { get } from "vg-stub-creator/config/terminologies/index.ts";
+import { get } from "vg-stub-creator/domain/terminologies/index.ts";
 
 function testCompanyNavboxProjections(): void {
     const company = get("company", "Annapurna Interactive");

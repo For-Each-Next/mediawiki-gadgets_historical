@@ -1,5 +1,7 @@
 {
     "tool.name": "電子遊戲頁面評級工具",
+    "tool.openFailed": "無法開啟電子遊戲頁面評級工具：{error}",
+    "tool.startFailed": "無法啟動電子遊戲頁面評級工具：{error}",
     "dialog.assessment": "評級",
     "dialog.assessmentControls": "評級控制項",
     "dialog.class": "評級",

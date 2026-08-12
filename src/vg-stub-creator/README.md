@@ -63,7 +63,8 @@ VG Stub Creator:
   before any write;
 - prepares selectable page moves, redirects, talk-page banners, categories,
   navboxes, stub-related pages, and Wikidata sitelink updates;
-- records resumable save progress for partial failures; and
+- checkpoints each write, resumes confirmed-safe pending work, and blocks
+  uncertain writes for manual review; and
 - loads, restores, imports, exports, and deletes local draft-history entries.
 
 The interface includes English, Simplified Chinese, and Traditional Chinese
@@ -95,16 +96,25 @@ side-effect free:
 ```text
 browser.ts
 └── main.ts
-    ├── ui ─────────> domain, i18n, support
-    ├── workflows ──> domain, infra, i18n
-    └── infra ──────> domain, config, i18n, support, shared
+    ├── contracts/application.ts <── ui
+    ├── ui ─────────> domain, config, i18n, shared
+    ├── workflows ──> contracts, domain, shared
+    ├── adapters
+    │   ├── browser, mediawiki, network, storage
+    │   └── contracts, domain, config, shared
+    └── domain
+        ├── citations
+        ├── terminologies
+        └── wikitext
 
 index.ts (side-effect-free package entry)
 ```
 
-`main.ts` connects presentation, workflow, and adapter ports. Dependencies
-point toward domain and shared responsibilities. The [development guide][2]
-documents their boundaries and extension points.
+`main.ts` creates the browser, MediaWiki, network, storage, logging, and native
+notification adapters, then connects them to UI and workflow ports.
+`domain/wikitext/` separates output builders, wikilink-aware field parsing, and
+reference-data lookup behind one thin facade. The [development guide][2]
+documents every boundary and extension point.
 
 See the package [changelog][3], its scoped [AGENTS.md][4], and the repository
 [AGENTS.md][5] for architecture, safety, versioning, and verification rules.

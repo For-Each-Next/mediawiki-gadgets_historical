@@ -12,7 +12,7 @@ import { msg } from "#gadget/i18n/index.ts";
 import type {
     ResolvedSourceMetadata,
     SourceArchiveMetadata,
-} from "#gadget/ui/source-manager-contracts.ts";
+} from "#gadget/contracts/source-manager.ts";
 
 /**
  * Creates an archive seed only when the entered source is archived.

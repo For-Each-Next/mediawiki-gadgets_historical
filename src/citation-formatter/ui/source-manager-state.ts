@@ -30,7 +30,8 @@ import {
 } from "#gadget/domain/source-validation.ts";
 import type { CitationLayout } from "#gadget/domain/types.ts";
 import type { TemplateNameContext } from "#gadget/domain/templates.ts";
-import { msg, sourceValidationMessages } from "#gadget/i18n/index.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import { sourceValidationMessages } from "#gadget/ui/source-messages.ts";
 import type * as editBox from "#shared/edit-box";
 import type { AnalysisUndoSnapshot } from "#gadget/ui/analysis-session.ts";
 import {
@@ -46,7 +47,7 @@ import {
 import type {
     ReferenceStyle,
     SourceManagerOptions,
-} from "#gadget/ui/source-manager-contracts.ts";
+} from "#gadget/contracts/source-manager.ts";
 import {
     buildSourcePreview,
     type SourcePreviewPart,

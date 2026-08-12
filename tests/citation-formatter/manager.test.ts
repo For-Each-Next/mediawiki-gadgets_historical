@@ -13,7 +13,7 @@ import {
 import {
     manageCitations,
     manageCitationsWithResult,
-} from "citation-formatter/api.ts";
+} from "citation-formatter/domain/api.ts";
 
 const chineseTemplateNames = { namespaceSource: "zhwiki" } as const;
 

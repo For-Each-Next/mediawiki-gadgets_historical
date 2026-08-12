@@ -3,16 +3,32 @@
  */
 
 import {
+    buildCategoryRows,
+    buildFallbackCategoryRows,
     createManualCategoryRow,
     updateCategoryRowCategory,
-} from "#gadget/infra/handlers/categories.ts";
-import * as categoryCache from "#gadget/infra/handlers/category-cache.ts";
+} from "#gadget/adapters/mediawiki/categories.ts";
+import * as categoryCache from "#gadget/adapters/storage/category-cache.ts";
 import {
     prepareCompanyCategoryText,
     saveCategoryPage,
     saveCompanyCategory,
-} from "#gadget/infra/handlers/category-pages.ts";
-import { registerNewPage } from "#gadget/infra/handlers/new-page-list.ts";
+} from "#gadget/adapters/mediawiki/category-pages.ts";
+import {
+    NEW_PAGE_LIST_TITLE,
+    registerNewPage,
+} from "#gadget/adapters/mediawiki/new-page-list.ts";
+import {
+    addTalkPageBanner,
+    connectWikidataSitelink,
+    createRedirect,
+    movePage,
+    savePageEdit,
+} from "#gadget/adapters/mediawiki/wiki-writes.ts";
+import {
+    resolveNavboxTitles,
+    resolveReviewedNavboxRows,
+} from "#gadget/adapters/mediawiki/navboxes.ts";
 import {
     clearMovedEdit,
     clearPendingSaveData,
@@ -21,9 +37,15 @@ import {
     getPendingSaveData,
     getPreviewFormData,
     normalizePageTitle,
+    setPendingSaveOperationStatus,
     storeMovedEdit,
+    storePendingSaveData,
     storePreviewFormData,
-} from "#gadget/infra/editing/session.ts";
+} from "#gadget/adapters/storage/session.ts";
+// eslint-disable-next-line max-len
+import { createFormHistoryStore } from "#gadget/adapters/storage/form-history.ts";
+// eslint-disable-next-line max-len
+import { createReviewLinkSession } from "#gadget/adapters/storage/review-link-session.ts";
 import {
     interceptEditSave,
     readEditSummary,
@@ -32,42 +54,46 @@ import {
     submitPreviewForm,
     writeEditSummary,
     writeEditText,
-} from "#gadget/infra/editing/editor.ts";
-import { buildEditSummary } from "#gadget/infra/editing/summary.ts";
-import { updateMovedTitleText } from "#gadget/infra/editing/title-move.ts";
+} from "#gadget/adapters/browser/editor.ts";
+// eslint-disable-next-line max-len
+import { createPreviewController } from "#gadget/adapters/mediawiki/preview.ts";
+import { buildEditSummary } from "#gadget/domain/edit-summary.ts";
+import { updateMovedTitleText } from "#gadget/domain/title-move.ts";
 import {
     clearSaveProgress,
     failSaveProgress,
+    initializeSaveProgress,
     reportSaveProgressError,
     setSaveProgressStep,
-} from "#gadget/infra/save/controller.ts";
-import { fetchEnwikiMetadata } from "#gadget/infra/sources/crosswiki.ts";
+} from "#gadget/adapters/storage/save-progress-controller.ts";
+import { fetchEnwikiMetadata } from "#gadget/adapters/network/crosswiki.ts";
 import {
     createCitationStore,
+    fetchSourceReferences,
     prepareManagedCitationRows,
-} from "#gadget/infra/sources/index.ts";
-import { fetchSteamNameRows } from "#gadget/infra/sources/steam-names.ts";
+} from "#gadget/adapters/network/index.ts";
+import { fetchSteamNameRows } from "#gadget/adapters/network/steam-names.ts";
 import {
     ZHWIKI_API_URL,
     buildZhwikiCreationUrl,
     readZhwikiActivationForm,
     resolveZhwikiCreationTitle,
-} from "#gadget/infra/sources/zhwiki-activation.ts";
+} from "#gadget/adapters/network/zhwiki-activation.ts";
 import type {
     BrowserApplicationPorts,
     CategoryAdapterPorts,
     EditingAdapterPorts,
+    MediaWikiClientPorts,
+    PreviewAdapterPorts,
+    ReviewLinkAdapterPorts,
     SaveProgressAdapterPorts,
     SourceAdapterPorts,
-} from "#gadget/ui/ports.ts";
+} from "#gadget/contracts/application.ts";
 import {
-    buildStubFromForm,
+    createArticleWorkflow,
     flushArticleData,
-    getArticleFieldPlaceholder,
     getArticleFieldPreview,
     getFormProseSinographs,
-    prepareCategoryRows,
-    prepareNavboxRows,
 } from "#gadget/workflows/article.ts";
 import {
     buildPreSaveActions,
@@ -77,15 +103,32 @@ import {
     fetchExistingPageTitles,
     getRedirectTitleCheckTitles,
     runSelectedActions,
+    type PreSaveMessageId,
 } from "#gadget/workflows/pre-save.ts";
+// eslint-disable-next-line max-len
+import { preparePendingSaveResume } from "#gadget/workflows/pre-save-checkpoint.ts";
+import { saveReviewedArticle } from "#gadget/workflows/pre-save-write.ts";
 import { createBrowserApplication } from "#gadget/ui/app.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import { createLogger, type Logger } from "#shared/logging";
+import { createActionNotifier } from "#shared/mediawiki/notifications";
+
+const WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php";
 
 /**
  * Starts the composed VG Stub Creator application.
  */
 export function start(): void {
-    const application = createBrowserApplication(createBrowserPorts());
-    application.start();
+    const logger = createLogger("vg-stub-creator");
+    const ports = createBrowserPorts(logger.child("ui"));
+    const application = createBrowserApplication(ports);
+
+    try {
+        application.start();
+    } catch (error) {
+        logger.error("startup.failed", error);
+        throw error;
+    }
 }
 
 /**
@@ -93,13 +136,77 @@ export function start(): void {
  *
  * @returns Browser application ports.
  */
-function createBrowserPorts(): BrowserApplicationPorts {
+function createBrowserPorts(logger: Logger): BrowserApplicationPorts {
+    const clients = createMediaWikiClientPorts();
     return {
         categories: createCategoryPorts(),
+        clients,
         editing: createEditingPorts(),
+        feedback: {
+            logger,
+            notifyAction: createActionNotifier("vg-stub-creator"),
+        },
+        history: createFormHistoryPorts(),
+        preview: createPreviewPorts(clients),
+        reviewLinks: createReviewLinkPorts(),
         saveProgress: createSaveProgressPorts(),
         sources: createSourcePorts(),
         workflows: createWorkflowPorts(),
+    };
+}
+
+/** Creates MediaWiki API clients at the application boundary. */
+function createMediaWikiClientPorts(): MediaWikiClientPorts {
+    return {
+        createLocalApi: () => new mw.Api(),
+        createWikidataApi: () => new mw.ForeignApi(WIKIDATA_API_URL),
+    };
+}
+
+/** Creates form-history operations bound to local browser storage. */
+function createFormHistoryPorts() {
+    return createFormHistoryStore(getLocalStorage, {
+        temporaryDraft: msg("history.temporaryDraft"),
+        untitled: msg("history.untitled"),
+    });
+}
+
+/** Gets local storage without making availability a startup risk. */
+function getLocalStorage(): Storage | undefined {
+    try {
+        return typeof localStorage === "undefined" ? undefined : localStorage;
+    } catch {
+        return undefined;
+    }
+}
+
+/** Creates MediaWiki preview operations with translated failures. */
+function createPreviewPorts(
+    clients: MediaWikiClientPorts,
+): PreviewAdapterPorts {
+    return createPreviewController({
+        createApi: clients.createLocalApi,
+        getPageName: getConfiguredPageName,
+        messages: {
+            previewHttp: (status) => msg("errors.previewHttp", { status }),
+            previewMissing: msg("errors.previewMissing"),
+            unableRead: (title) => msg("errors.unableRead", { title }),
+        },
+    });
+}
+
+/** Reads the current normalized page name for preview context. */
+function getConfiguredPageName(): string {
+    return mw.config.get("wgPageName").replace(/_/gu, " ");
+}
+
+/** Creates tab-scoped review-link sessions. */
+function createReviewLinkPorts(): ReviewLinkAdapterPorts {
+    return {
+        createSession: () =>
+            createReviewLinkSession(function getSessionStorage() {
+                return sessionStorage;
+            }),
     };
 }
 
@@ -113,7 +220,15 @@ function createCategoryPorts(): CategoryAdapterPorts {
         createCategoryCacheStore: categoryCache.createCategoryCacheStore,
         createManualCategoryRow,
         prepareCompanyCategoryText,
-        registerNewPage,
+        registerNewPage(api, articleTitle, companyCategories, date) {
+            return registerNewPage(
+                api,
+                articleTitle,
+                companyCategories,
+                date,
+                msg("errors.unableRead", { title: NEW_PAGE_LIST_TITLE }),
+            );
+        },
         saveCategoryPage,
         saveCompanyCategory,
         updateCategoryRowCategory,
@@ -138,13 +253,19 @@ function createEditingPorts(): EditingAdapterPorts {
         normalizePageTitle,
         readEditSummary,
         readEditText,
+        setPendingSaveOperationStatus,
         shouldPreserveEditor,
         storeMovedEdit,
+        storePendingSaveData,
         storePreviewFormData,
-        submitPreviewForm,
+        submitPreviewForm() {
+            submitPreviewForm(msg("errors.previewFormUnavailable"));
+        },
         updateMovedTitleText,
         writeEditSummary,
-        writeEditText,
+        writeEditText(text) {
+            writeEditText(text, msg("errors.editorUnavailable"));
+        },
     };
 }
 
@@ -157,6 +278,7 @@ function createSaveProgressPorts(): SaveProgressAdapterPorts {
     return {
         clearSaveProgress,
         failSaveProgress,
+        initializeSaveProgress,
         reportSaveProgressError,
         setSaveProgressStep,
     };
@@ -173,7 +295,17 @@ function createSourcePorts(): SourceAdapterPorts {
         createCitationStore,
         createZhwikiApiClient,
         fetchEnwikiMetadata,
-        fetchSteamNameRows,
+        fetchSteamNameRows(sourceUrl, citationStore, options) {
+            return fetchSteamNameRows(sourceUrl, citationStore, {
+                ...options,
+                invalidUrlMessage: msg("errors.steamUrl"),
+                labels: {
+                    japanese: msg("names.japanese"),
+                    simplified: msg("names.simplifiedFull"),
+                    traditional: msg("names.traditionalFull"),
+                },
+            });
+        },
         prepareManagedCitationRows,
         readZhwikiActivationForm,
         resolveZhwikiCreationTitle,
@@ -186,22 +318,71 @@ function createSourcePorts(): SourceAdapterPorts {
  * @returns Workflow ports.
  */
 function createWorkflowPorts(): BrowserApplicationPorts["workflows"] {
+    const article = createComposedArticleWorkflow();
     return {
-        buildArticleStubFromForm: buildStubFromForm,
-        buildPreSaveActions,
+        buildArticleStubFromForm: article.buildStubFromForm,
+        buildPreSaveActions(selection, existingRedirectTitles) {
+            return buildPreSaveActions(
+                selection,
+                existingRedirectTitles,
+                formatPreSaveMessage,
+            );
+        },
         buildRedirectRows,
         buildRedirectRowsFromTitles,
         buildRedirectTitles,
         countFormProseSinographs: getFormProseSinographs,
         createArticleData: flushArticleData,
         fetchExistingPageTitles,
-        getArticleFieldPlaceholder,
+        getArticleFieldPlaceholder: article.getArticleFieldPlaceholder,
         getArticleFieldPreview,
         getRedirectTitleCheckTitles,
-        prepareCategoryRows,
-        prepareNavboxRows,
-        runSelectedActions,
+        prepareCategoryRows: article.prepareCategoryRows,
+        prepareNavboxRows: article.prepareNavboxRows,
+        preparePendingSaveResume,
+        runSelectedActions: runComposedSelectedActions,
+        saveReviewedArticle,
     };
+}
+
+function createComposedArticleWorkflow() {
+    return createArticleWorkflow(
+        {
+            buildCategoryRows,
+            buildFallbackCategoryRows,
+            fetchSourceReferences,
+            resolveNavboxTitles,
+            resolveReviewedNavboxRows,
+        },
+        {
+            enterEnwikiTitle: msg("metadata.enterEnwikiTitle"),
+            noWikidataItem: msg("metadata.noWikidataItem"),
+        },
+    );
+}
+
+function runComposedSelectedActions(
+    actions: Parameters<typeof runSelectedActions>[0],
+    options: unknown,
+) {
+    return runSelectedActions(actions, {
+        ...(options as Record<string, unknown>),
+        categoryUnavailableMessage: msg("errors.categorySaveUnavailable"),
+        writes: {
+            addTalkPageBanner,
+            connectWikidataSitelink,
+            createRedirect,
+            movePage,
+            savePageEdit,
+        },
+    } as Parameters<typeof runSelectedActions>[1]);
+}
+
+function formatPreSaveMessage(
+    id: PreSaveMessageId,
+    values?: Record<string, string | number>,
+): string {
+    return msg(id, values);
 }
 
 /**

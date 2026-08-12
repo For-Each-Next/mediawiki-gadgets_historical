@@ -303,42 +303,6 @@ test("iframe teardown restores the native source editor", () => {
     assert.match(editorSource, /flushComposition\(\)/u);
 });
 
-test("iframe teardown returns live focus and selection safely", () => {
-    assert.match(
-        editorSource,
-        /editor\.ownerDocument\.activeElement === editor/u,
-    );
-    assert.match(editorSource, /\? getSelectionOffsets\(editor\)/u);
-    assert.match(editorSource, /selection == null/u);
-    assert.match(editorSource, /!textarea\.isConnected/u);
-    assert.match(editorSource, /isIncompatibleEditor\(textarea\)/u);
-    const restoreAriaIndex = editorSource.indexOf(
-        'restoreAttribute(textarea, "aria-hidden", nativeAriaHidden);',
-    );
-    const restoreTabIndex = editorSource.indexOf(
-        'restoreAttribute(textarea, "tabindex", nativeTabIndex);',
-    );
-    const restoreFocusIndex = editorSource.indexOf(
-        "restoreNativeFocus(textarea, focusedSelection);",
-    );
-    assert.ok(restoreAriaIndex !== -1);
-    assert.ok(restoreTabIndex !== -1);
-    assert.ok(restoreFocusIndex !== -1);
-    assert.ok(restoreAriaIndex < restoreFocusIndex);
-    assert.ok(restoreTabIndex < restoreFocusIndex);
-    const selectionIndex = editorSource.indexOf(
-        "textarea.setSelectionRange(selection.start, selection.end);",
-        restoreFocusIndex,
-    );
-    const nativeFocusIndex = editorSource.indexOf(
-        "textarea.focus({ preventScroll: true });",
-        selectionIndex,
-    );
-    assert.ok(selectionIndex !== -1);
-    assert.ok(nativeFocusIndex !== -1);
-    assert.ok(selectionIndex < nativeFocusIndex);
-});
-
 test("popup code preserves pending hovers and remeasures height", () => {
     assert.match(
         tooltipSource,

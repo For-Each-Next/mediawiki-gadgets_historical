@@ -5,7 +5,7 @@ import {
     type ReferencePreview,
     type ReferencePreviewField,
 } from "#gadget/domain/reference-preview.ts";
-import type { NamespaceSource } from "#shared/wikitext";
+import type { NamespaceSource } from "#shared/wiki-titles";
 
 export interface ReferenceTooltipController {
     destroy(): void;

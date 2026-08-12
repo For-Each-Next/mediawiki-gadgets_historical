@@ -10,6 +10,8 @@ import type {
     RegistrationResult,
     SubjectPageInfo,
 } from "#gadget/domain/types.ts";
+import type { Logger } from "#shared/logging";
+import type { ActionNotifier } from "#shared/mediawiki/notifications";
 
 export interface DialogState {
     api: mw.Api;
@@ -24,6 +26,15 @@ export interface DialogState {
     summaryDirty: boolean;
     talkTitle: string;
 }
+
+/** Browser context created for one dialog-opening attempt. */
+export interface DialogPageContext {
+    api: mw.Api;
+    pageName: string;
+    title: mw.Title | null;
+}
+
+export type CreateDialogPageContext = () => DialogPageContext;
 
 export interface RegistrationSave {
     proposedText: string;
@@ -66,6 +77,8 @@ export type SaveReviewedDialog = (
 ) => Promise<DialogSaveOutcome>;
 
 export interface PageAssessorRuntime extends DialogStateWorkflow {
-    logStep(step: string, details?: unknown): void;
+    createDialogPageContext: CreateDialogPageContext;
+    logger: Logger;
+    notify: ActionNotifier;
     saveReviewedDialog: SaveReviewedDialog;
 }

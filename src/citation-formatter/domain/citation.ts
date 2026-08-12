@@ -5,11 +5,11 @@
 import {
     citeBookTemplateData,
     citeWebTemplateData,
-    normalizeEnglishLanguageCodes,
-} from "#shared/citation";
+} from "#gadget/config/citation-template-data/index.ts";
 import { wikitext } from "#shared/wikitext";
 
 import { isGregorianCalendarDate } from "./calendar-date.ts";
+import { normalizeEnglishLanguageCodes } from "./citations/language-codes.ts";
 import type {
     CitationLayout,
     CitationParam,

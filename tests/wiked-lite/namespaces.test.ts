@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getNamespaceId } from "@mediawiki-gadgets/shared/wikitext";
+import { createLogger } from "@mediawiki-gadgets/shared/logging";
+import { getNamespaceId } from "@mediawiki-gadgets/shared/wiki-titles";
 // eslint-disable-next-line max-len
-import { createWikiNamespaceResolver } from "../../src/wiked-lite/infra/namespaces.ts";
+import { createWikiNamespaceResolver } from "../../src/wiked-lite/adapters/mediawiki/namespaces.ts";
 
 test("English and Chinese namespaces need no API request", async () => {
     for (const databaseName of ["enwiki", "zhwiki"] as const) {
@@ -59,7 +60,9 @@ test("other wikis load and cache namespace siteinfo", async () => {
 
 test("failed namespace loads retain a retryable safe fallback", async () => {
     let requests = 0;
-    const resolver = createWikiNamespaceResolver("brokenwiki");
+    const warnings: unknown[][] = [];
+    const logger = createWarningLogger(warnings);
+    const resolver = createWikiNamespaceResolver("brokenwiki", logger);
     const api = {
         async get() {
             requests += 1;
@@ -76,7 +79,40 @@ test("failed namespace loads retain a retryable safe fallback", async () => {
     assert.equal(getNamespaceId(first.source, "TM"), undefined);
     assert.equal(second, first);
     assert.equal(resolver.current(), first);
+    assert.deepEqual(
+        warnings.map((values) => values.slice(0, 2)),
+        [
+            [
+                "[mediawiki-gadgets][wiked-lite] load.failed",
+                {
+                    databaseName: "brokenwiki",
+                    error: { message: "[redacted]", name: "Error" },
+                },
+            ],
+            [
+                "[mediawiki-gadgets][wiked-lite] load.failed",
+                {
+                    databaseName: "brokenwiki",
+                    error: { message: "[redacted]", name: "Error" },
+                },
+            ],
+        ],
+    );
 });
+
+function createWarningLogger(warnings: unknown[][]) {
+    return createLogger("wiked-lite", {
+        level: "warn",
+        output: {
+            debug() {},
+            error() {},
+            info() {},
+            warn(...values) {
+                warnings.push(values);
+            },
+        },
+    });
+}
 
 function createSiteinfo(): unknown {
     return {

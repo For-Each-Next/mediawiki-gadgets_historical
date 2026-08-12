@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wikitext";
+import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wiki-titles";
 import {
     collectLinkHelperTitles,
     highlightWikitext,

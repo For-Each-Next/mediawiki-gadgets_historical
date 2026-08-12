@@ -3,7 +3,7 @@
  */
 
 import { msg } from "#gadget/i18n/index.ts";
-import { wikitext } from "#shared/citation";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
 
 const { trimValue } = wikitext;
 

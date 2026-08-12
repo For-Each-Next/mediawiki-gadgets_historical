@@ -6,10 +6,13 @@ import type {
     AggregateScoreRecord,
     SourceTags,
 } from "#gadget/domain/models.ts";
-import { get as getTerminology } from "#gadget/config/terminologies/index.ts";
+import { get as getTerminology } from "#gadget/domain/terminologies/index.ts";
 import { buildReferencesSection } from "#gadget/domain/reference-wikitext.ts";
-import { wikitext } from "#shared/citation";
-import { formatNamespaceTitle, stripNamespacePrefix } from "#shared/wikitext";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
+import {
+    formatNamespaceTitle,
+    stripNamespacePrefix,
+} from "#shared/wiki-titles";
 
 const { buildTemplateCall, buildTemplateText, trimValue, uniqueValues } =
     wikitext;

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 // eslint-disable-next-line max-len
-import { resolveCitationWikiLink } from "citation-formatter/infra/wiki-link.ts";
+import { resolveCitationWikiLink } from "citation-formatter/adapters/mediawiki/wiki-link.ts";
 
 test("builds a piped link from the redirect target", async () => {
     const api = {

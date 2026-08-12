@@ -6,7 +6,7 @@ import test from "node:test";
 import {
     fetchAvailableArchive,
     resolveSourceMetadata,
-} from "citation-formatter/infra/source-metadata.ts";
+} from "citation-formatter/adapters/network/source-metadata.ts";
 
 const sourceUrl = "https://example.test/news?id=1";
 const archiveUrl =

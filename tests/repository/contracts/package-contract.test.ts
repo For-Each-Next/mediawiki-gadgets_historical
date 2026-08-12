@@ -318,6 +318,84 @@ test("package structure rejects emitted JavaScript", async (context) => {
     assert.ok(result.problems.some((problem) => /main\.js/iu.test(problem)));
 });
 
+test("package structure enforces the universal root", async (context) => {
+    const workspaceRoot = await createTemporaryWorkspace(
+        context,
+        "gadget-source-root-",
+    );
+    await writeFutureGadget(workspaceRoot);
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "future-gadget@1.3.0-dev.1",
+    ]);
+    const packageRoot = join(workspaceRoot, "src", "future-gadget");
+    await Promise.all([
+        mkdir(join(packageRoot, "infra")),
+        mkdir(join(packageRoot, "adapters")),
+        mkdir(join(packageRoot, "mystery")),
+        writeFile(join(packageRoot, "api.ts"), "export {};\n"),
+    ]);
+
+    const result = await packageCheck.checkGadgetPackages(workspaceRoot);
+
+    assert.ok(
+        result.problems.some((problem) => /infra\/.*adapters/iu.test(problem)),
+    );
+    assert.ok(
+        result.problems.some((problem) =>
+            /empty optional layer adapters/u.test(problem),
+        ),
+    );
+    assert.ok(
+        result.problems.some((problem) =>
+            /mystery\/ is not an allowed/u.test(problem),
+        ),
+    );
+    assert.ok(
+        result.problems.some((problem) =>
+            /api\.ts is not an allowed/u.test(problem),
+        ),
+    );
+});
+
+test("main exports start and index remains a pure facade", async (context) => {
+    const workspaceRoot = await createTemporaryWorkspace(
+        context,
+        "gadget-entry-roles-",
+    );
+    await writeFutureGadget(workspaceRoot);
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "future-gadget@1.3.0-dev.1",
+    ]);
+    const packageRoot = join(workspaceRoot, "src", "future-gadget");
+    await Promise.all([
+        writeFile(
+            join(packageRoot, "main.ts"),
+            [
+                "export const run = () => {};",
+                "export function start(value: string): void { void value; }",
+                "",
+            ].join("\n"),
+        ),
+        writeFile(join(packageRoot, "index.ts"), "start();\n"),
+    ]);
+
+    const result = await packageCheck.checkGadgetPackages(workspaceRoot);
+
+    assert.ok(
+        result.problems.some((problem) =>
+            /main\.ts must export exactly one/u.test(problem),
+        ),
+    );
+    assert.ok(
+        result.problems.some((problem) =>
+            /index\.ts:1 must remain/u.test(problem),
+        ),
+    );
+    assert.ok(
+        result.problems.some((problem) => /export only start/u.test(problem)),
+    );
+});
+
 test("package checks reject reserved build bindings", async (context) => {
     await assertInvalidBuildMetadata(
         context,

@@ -7,6 +7,7 @@ import {
 } from "../workspace/index.ts";
 import { checkArtifactCollisions } from "./artifacts.ts";
 import { checkBrowserEntry } from "./browser-entry.ts";
+import { checkEntryModules } from "./entry-modules.ts";
 import { checkCurrentLicenseMaps } from "./licensing.ts";
 import { checkPackageDocumentation } from "./package-documentation.ts";
 import { checkPackageLicense } from "./package-license.ts";
@@ -63,6 +64,7 @@ async function checkOneGadgetPackage(
         Promise.resolve(checkPackageMetadata(gadget)),
         checkPackageStructure(gadget),
         checkBrowserEntry(gadget),
+        checkEntryModules(gadget),
         checkPackageDocumentation(gadget),
         checkPackageLicense(gadget),
     ]);

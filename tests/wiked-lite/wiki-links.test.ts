@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wikitext";
+import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wiki-titles";
 import {
     applyWikiLinkRedirects,
     collectWikiLinkTitles,
     lookupWikiLinks,
-} from "../../src/wiked-lite/infra/wiki-links.ts";
+} from "../../src/wiked-lite/adapters/mediawiki/wiki-links.ts";
 
 const EXAMPLE_NAMESPACE_CATALOG = decodeNamespaceCatalog("examplewiki", {
     query: {

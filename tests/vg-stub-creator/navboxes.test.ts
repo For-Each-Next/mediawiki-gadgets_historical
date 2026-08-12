@@ -6,9 +6,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+    createArticleWorkflow,
     getConfiguredNavboxTitles,
-    prepareNavboxRows,
 } from "vg-stub-creator/workflows/article.ts";
+import {
+    buildCategoryRows,
+    buildFallbackCategoryRows,
+} from "vg-stub-creator/adapters/mediawiki/categories.ts";
+import {
+    resolveNavboxTitles,
+    resolveReviewedNavboxRows,
+} from "vg-stub-creator/adapters/mediawiki/navboxes.ts";
+// eslint-disable-next-line max-len
+import { fetchSourceReferences } from "vg-stub-creator/adapters/network/index.ts";
 import {
     getNavboxTitle,
     normalizeEnglishCategoryTitle,
@@ -43,7 +53,17 @@ const testCallback = async () => {
     globalThis.fetch = createExistingTemplateFetcher();
 
     try {
-        const rows = await prepareNavboxRows(
+        const article = createArticleWorkflow(
+            {
+                buildCategoryRows,
+                buildFallbackCategoryRows,
+                fetchSourceReferences,
+                resolveNavboxTitles,
+                resolveReviewedNavboxRows,
+            },
+            { enterEnwikiTitle: "", noWikidataItem: "" },
+        );
+        const rows = await article.prepareNavboxRows(
             {
                 ...wheelWorldEntry.data.input,
                 navboxRows: [],

@@ -3,6 +3,7 @@
  */
 
 import * as editBox from "#shared/edit-box";
+import type { EditorRuntime } from "#gadget/contracts/editor.ts";
 import { msg } from "#gadget/i18n/index.ts";
 import type * as sourceManager from "#gadget/ui/source-manager.ts";
 import { installCitationFormatterStyles } from "#gadget/ui/styles.ts";
@@ -15,9 +16,11 @@ const FLOATING_LAUNCHER_ID = "citation-formatter-quick-launch";
  * Adds the unified citation command on MediaWiki edit pages.
  *
  * @param openCitationFormatterDialog - Dialog-opening callback.
+ * @param runtime - Injected logging and notification ports.
  */
 export function mountCitationFormatter(
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,
+    runtime: EditorRuntime,
 ): void {
     if (
         typeof mw === "undefined" ||
@@ -30,32 +33,36 @@ export function mountCitationFormatter(
         return;
     }
     installCitationFormatterStyles();
-    mountCitationToolLink(openCitationFormatterDialog);
-    mountFloatingCitationLauncher(openCitationFormatterDialog);
+    mountCitationToolLink(openCitationFormatterDialog, runtime);
+    mountFloatingCitationLauncher(openCitationFormatterDialog, runtime);
 }
 
 /**
  * Adds the Citation Formatter command to a MediaWiki portlet once.
  *
  * @param openCitationFormatterDialog - Dialog-opening callback.
+ * @param runtime - Injected logging and notification ports.
  */
 function mountCitationToolLink(
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,
+    runtime: EditorRuntime,
 ): void {
     if (document.getElementById(LINK_ID) != null) {
         return;
     }
     const link = addCitationLink("p-cactions") || addCitationLink("p-tb");
-    addToolClickHandler(link, openCitationFormatterDialog);
+    addToolClickHandler(link, openCitationFormatterDialog, runtime);
 }
 
 /**
  * Adds the localized persistent citation launcher.
  *
  * @param openCitationFormatterDialog - Dialog-opening callback.
+ * @param runtime - Injected logging and notification ports.
  */
 function mountFloatingCitationLauncher(
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,
+    runtime: EditorRuntime,
 ): void {
     if (document.getElementById(FLOATING_LAUNCHER_ID) != null) {
         return;
@@ -67,7 +74,7 @@ function mountFloatingCitationLauncher(
     launcher.textContent = msg("tool.quickLaunch");
     launcher.title = msg("tool.open");
     launcher.setAttribute("aria-label", msg("tool.open"));
-    addToolClickHandler(launcher, openCitationFormatterDialog);
+    addToolClickHandler(launcher, openCitationFormatterDialog, runtime);
     (document.body || document.documentElement).append(launcher);
 }
 
@@ -76,10 +83,12 @@ function mountFloatingCitationLauncher(
  *
  * @param launcher - Launcher value.
  * @param openCitationFormatterDialog - Dialog-opening callback.
+ * @param runtime - Injected logging and notification ports.
  */
 function addToolClickHandler(
     launcher: HTMLElement | null,
     openCitationFormatterDialog: sourceManager.OpenCitationFormatterDialog,
+    runtime: EditorRuntime,
 ): void {
     const openOnClick = function openOnClick(event: Event): void {
         event.preventDefault();
@@ -88,10 +97,16 @@ function addToolClickHandler(
         }
         const editor = editBox.getEditBox();
         if (editor == null) {
-            void mw.notify(msg("tool.editorUnavailable"), { type: "error" });
+            runtime.notifyAction({
+                key: "editor-unavailable",
+                message: msg("tool.editorUnavailable"),
+                type: "error",
+            });
             return;
         }
-        void openCitationFormatterDialog(editor).catch(notifyToolFailure);
+        void openCitationFormatterDialog(editor).catch(function report(error) {
+            notifyToolFailure(error, runtime);
+        });
     };
     launcher?.addEventListener("click", openOnClick);
     if (launcher != null && !(launcher instanceof HTMLButtonElement)) {
@@ -107,10 +122,14 @@ function addToolClickHandler(
  * Reports a unified citation-tool startup failure.
  *
  * @param error - Rejected startup value.
+ * @param runtime - Injected logging and notification ports.
  */
-function notifyToolFailure(error: unknown): void {
+function notifyToolFailure(error: unknown, runtime: EditorRuntime): void {
     const message = error instanceof Error ? error.message : String(error);
-    void mw.notify(msg("tool.startupError", { error: message }), {
+    runtime.logger.error("dialog.open.failed", { error });
+    runtime.notifyAction({
+        key: "dialog-open-failed",
+        message: msg("tool.startupError", { error: message }),
         type: "error",
     });
 }

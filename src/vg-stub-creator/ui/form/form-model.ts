@@ -17,9 +17,11 @@ import {
 } from "#gadget/domain/wiki.ts";
 import { sortCitationParams } from "#gadget/domain/citations/index.ts";
 import { msg } from "#gadget/i18n/index.ts";
-import * as reviewLinkSession from "#gadget/ui/form/review-link-session.ts";
-import { wikitext } from "#shared/citation";
-import { formatNamespaceTitle, stripNamespacePrefix } from "#shared/wikitext";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
+import {
+    formatNamespaceTitle,
+    stripNamespacePrefix,
+} from "#shared/wiki-titles";
 
 export {
     buildGoogleSiteSearchUrl,
@@ -37,8 +39,6 @@ export {
     getWikidataLookupStatus,
     normalizeEnwikiTitleValue,
 } from "#gadget/ui/form/external-links.ts";
-export const { claimReviewLinksOpening } = reviewLinkSession;
-
 const {
     hasFirstLevelFieldSeparator,
     parsePrefixedValue,

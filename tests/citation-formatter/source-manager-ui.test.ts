@@ -21,24 +21,52 @@ import {
     buildCs1CheckWikitext,
     requestCs1WikitextCheck,
     splitCs1CheckHtml,
-} from "citation-formatter/infra/cs1-check.ts";
+} from "citation-formatter/adapters/mediawiki/cs1-check.ts";
 // eslint-disable-next-line max-len
 import { createCs1ReviewWorkflow } from "citation-formatter/workflows/cs1-review.ts";
 import type {
     CodexComponents,
     ResourceLoaderRequire,
-    ToastController,
     VueModule,
 } from "citation-formatter/ui/codex.ts";
 import * as editBox from "@mediawiki-gadgets/shared/edit-box";
+import type { Logger } from "@mediawiki-gadgets/shared/logging";
+import type { ActionNotification } from "@mediawiki-gadgets/shared/mediawiki/notifications"; // eslint-disable-line max-len
 import * as templateNames from "citation-formatter/domain/templates.ts";
 import { cdxIconMerge, type Icon } from "@wikimedia/codex-icons";
 
 const executionTimerFinishes: string[] = [];
 const executionTimerStarts: string[] = [];
+const actionNotifications: ActionNotification[] = [];
+const errorMessages: string[] = [];
+const infoMessages: string[] = [];
+const successMessages: string[] = [];
 const templateDataRequests: string[][] = [];
+const warningMessages: string[] = [];
 let templateDataResponse:
     CitationTemplateDataMap | Promise<CitationTemplateDataMap> = {};
+const sourceManagerLogger: Logger = {
+    child() {
+        return sourceManagerLogger;
+    },
+    debug() {},
+    error() {},
+    info() {},
+    isEnabled() {
+        return true;
+    },
+    startTimer(label: string) {
+        executionTimerStarts.push(label);
+        let finished = false;
+        return function finishExecutionTimer() {
+            if (!finished) {
+                executionTimerFinishes.push(label);
+                finished = true;
+            }
+        };
+    },
+    warn() {},
+};
 const sourceManagerDependencies = {
     cs1Review: createCs1ReviewWorkflow({
         buildCheckWikitext: buildCs1CheckWikitext,
@@ -55,6 +83,19 @@ const sourceManagerDependencies = {
     async loadTemplateNameContext() {
         return templateNames.DEFAULT_TEMPLATE_NAME_CONTEXT;
     },
+    logger: sourceManagerLogger,
+    notifyAction(notification: ActionNotification) {
+        actionNotifications.push(notification);
+        if (notification.type === "error") {
+            errorMessages.push(notification.message);
+        } else if (notification.type === "info") {
+            infoMessages.push(notification.message);
+        } else if (notification.type === "success") {
+            successMessages.push(notification.message);
+        } else {
+            warningMessages.push(notification.message);
+        }
+    },
     async resolveSourceMetadata(
         sourceInput: string,
         archiveSeed: { archiveDate: string; archiveUrl: string } | null,
@@ -70,16 +111,6 @@ const sourceManagerDependencies = {
     },
     async resolveWikiLink(value: string) {
         return value;
-    },
-    startExecutionTimer(label: string) {
-        executionTimerStarts.push(label);
-        let finished = false;
-        return function finishExecutionTimer() {
-            if (!finished) {
-                executionTimerFinishes.push(label);
-                finished = true;
-            }
-        };
     },
 };
 const openCitationFormatterDialog = createOpenCitationFormatterDialog(
@@ -206,7 +237,7 @@ const ALIAS_ONLY_CONSISTENCY_TEXT = [
 ].join("\n");
 
 // eslint-disable-next-line max-lines-per-function
-test("toasts on duplicate and rechecks only CS1 Apply", async () => {
+test("notifies on duplicate and rechecks only CS1 Apply", async () => {
     const recheck = createDeferred<unknown>();
     const harness = installSourceManagerHarness([
         { parse: { categories: [], text: CS1_ERROR_HTML } },
@@ -456,8 +487,8 @@ test("summarizes one formatting attempt without switching tabs", async () => {
         assert.equal(editor.read(), formattedText);
         assert.equal(writeCount, 1);
         assert.equal(harness.successMessages.length, 1);
-        assert.deepEqual(harness.executionTimerStarts, ["format action"]);
-        assert.deepEqual(harness.executionTimerFinishes, ["format action"]);
+        assert.deepEqual(harness.executionTimerStarts, ["article.format"]);
+        assert.deepEqual(harness.executionTimerFinishes, ["article.format"]);
 
         callAction(manager, "setBlockCitations", true);
         assert.equal(manager.formatArticleDisabled.value, false);
@@ -639,9 +670,9 @@ test(
                 ["Cite fan guide"],
                 ["Cite New Guide"],
             ]);
-            assert.deepEqual(harness.executionTimerStarts, ["format action"]);
+            assert.deepEqual(harness.executionTimerStarts, ["article.format"]);
             assert.deepEqual(harness.executionTimerFinishes, [
-                "format action",
+                "article.format",
             ]);
             callAction(manager, "close");
             await Promise.resolve();
@@ -685,7 +716,7 @@ test(
     },
 );
 
-test("uses one neutral toast for an initially formatted article", async () => {
+test("uses one neutral notification for preformatted input", async () => {
     const harness = installSourceManagerHarness([]);
     try {
         const editor = createMemoryEditor(
@@ -713,12 +744,12 @@ test("uses one neutral toast for an initially formatted article", async () => {
         callAction(manager, "formatArticle");
         assert.equal(harness.infoMessages.length, 1);
         assert.deepEqual(harness.executionTimerStarts, [
-            "format action",
-            "format action",
+            "article.format",
+            "article.format",
         ]);
         assert.deepEqual(harness.executionTimerFinishes, [
-            "format action",
-            "format action",
+            "article.format",
+            "article.format",
         ]);
         callAction(manager, "close");
         await Promise.resolve();
@@ -727,7 +758,7 @@ test("uses one neutral toast for an initially formatted article", async () => {
     }
 });
 
-test("uses four-second toasts and clears them with the dialog", async () => {
+test("keeps notification keys stable across dialog instances", async () => {
     const harness = installSourceManagerHarness([]);
     try {
         const editor = createMemoryEditor(
@@ -739,21 +770,28 @@ test("uses four-second toasts and clears them with the dialog", async () => {
         const manager = harness.getManager();
         callAction(manager, "formatArticle");
 
-        assert.deepEqual(harness.toastAutoDismissValues, [4_000]);
-        assert.deepEqual(harness.dismissedToastIds, []);
+        assert.equal(harness.actionNotifications.length, 1);
+        assert.equal(
+            harness.actionNotifications[0]?.key,
+            "article-format-result",
+        );
 
         await openCitationFormatterDialog(editor);
 
-        assert.deepEqual(harness.dismissedToastIds, ["toast-0"]);
+        assert.equal(harness.actionNotifications.length, 1);
 
         const replacement = harness.getManager();
         callAction(replacement, "formatArticle");
-        assert.deepEqual(harness.toastAutoDismissValues, [4_000, 4_000]);
+        assert.equal(harness.actionNotifications.length, 2);
+        assert.equal(
+            harness.actionNotifications[1]?.key,
+            "article-format-result",
+        );
 
         callAction(replacement, "close");
         await Promise.resolve();
 
-        assert.deepEqual(harness.dismissedToastIds, ["toast-0", "toast-1"]);
+        assert.equal(harness.actionNotifications.length, 2);
     } finally {
         harness.restore();
     }
@@ -1210,6 +1248,13 @@ function createNativeTextarea(value: string): HTMLTextAreaElement {
     return textarea;
 }
 
+const BROWSER_GLOBAL_NAMES = [
+    "DOMParser",
+    "document",
+    "mw",
+    "requestAnimationFrame",
+] as const;
+
 function installSourceManagerHarness(
     responses: unknown[],
     runtimeTemplateData:
@@ -1217,25 +1262,21 @@ function installSourceManagerHarness(
 ) {
     resetSourceManagerHarness(runtimeTemplateData);
     const globals = globalThis as unknown as Record<string, unknown>;
-    const original = snapshotGlobals(globals, [
-        "DOMParser",
-        "document",
-        "mw",
-        "requestAnimationFrame",
-    ]);
-    const toastHarness = createToastHarness();
+    const original = snapshotGlobals(globals, BROWSER_GLOBAL_NAMES);
     let manager: MountedManager | null = null;
     let apiCalls = 0;
     const Vue = createVueModule((mounted) => {
         manager = mounted;
     });
-    const Codex = createCodexComponents(toastHarness.toast);
+    const Codex = createCodexComponents();
     installBrowserGlobals(globals, Vue, Codex, responses, () => {
         apiCalls += 1;
         return apiCalls;
     });
     return {
         apiCallCount: () => apiCalls,
+        actionNotifications,
+        errorMessages,
         executionTimerFinishes,
         executionTimerStarts,
         getManager(): MountedManager {
@@ -1245,8 +1286,10 @@ function installSourceManagerHarness(
         restore() {
             restoreGlobals(globals, original);
         },
+        infoMessages,
+        successMessages,
         templateDataRequests,
-        ...toastHarness,
+        warningMessages,
     };
 }
 
@@ -1256,30 +1299,13 @@ function resetSourceManagerHarness(
 ): void {
     executionTimerFinishes.length = 0;
     executionTimerStarts.length = 0;
+    actionNotifications.length = 0;
+    errorMessages.length = 0;
+    infoMessages.length = 0;
+    successMessages.length = 0;
     templateDataRequests.length = 0;
+    warningMessages.length = 0;
     templateDataResponse = runtimeTemplateData;
-}
-
-function createToastHarness() {
-    const dismissedToastIds: string[] = [];
-    const infoMessages: string[] = [];
-    const successMessages: string[] = [];
-    const toastAutoDismissValues: Array<boolean | number | undefined> = [];
-    const warningMessages: string[] = [];
-    return {
-        dismissedToastIds,
-        infoMessages,
-        successMessages,
-        toast: createToastController(
-            infoMessages,
-            successMessages,
-            warningMessages,
-            toastAutoDismissValues,
-            dismissedToastIds,
-        ),
-        toastAutoDismissValues,
-        warningMessages,
-    };
 }
 
 function createVueModule(
@@ -1314,7 +1340,7 @@ function createVueModule(
     };
 }
 
-function createCodexComponents(toast: ToastController): CodexComponents {
+function createCodexComponents(): CodexComponents {
     return {
         CdxButton: null,
         CdxCard: null,
@@ -1332,45 +1358,6 @@ function createCodexComponents(toast: ToastController): CodexComponents {
         CdxTabs: null,
         CdxTextArea: null,
         CdxTextInput: null,
-        CdxToastContainer: null,
-        useToast: () => toast,
-    };
-}
-
-function createToastController(
-    infoMessages: string[],
-    successMessages: string[],
-    warningMessages: string[],
-    autoDismissValues: Array<boolean | number | undefined>,
-    dismissedToastIds: string[],
-): ToastController {
-    let nextToastId = 0;
-    const track = function track(
-        autoDismiss: boolean | number | undefined,
-    ): string {
-        autoDismissValues.push(autoDismiss);
-        return `toast-${nextToastId++}`;
-    };
-    return {
-        clear() {},
-        dismiss(id) {
-            dismissedToastIds.push(id);
-        },
-        error(_message, options) {
-            return track(options?.autoDismiss);
-        },
-        info(message, options) {
-            infoMessages.push(message);
-            return track(options?.autoDismiss);
-        },
-        success(message, options) {
-            successMessages.push(message);
-            return track(options?.autoDismiss);
-        },
-        warning(message, options) {
-            warningMessages.push(message);
-            return track(options?.autoDismiss);
-        },
     };
 }
 
@@ -1451,7 +1438,7 @@ class FakeDomParser {
 
 function snapshotGlobals(
     globals: Record<string, unknown>,
-    names: string[],
+    names: readonly string[],
 ): Map<string, unknown> {
     return new Map(names.map((name) => [name, globals[name]]));
 }

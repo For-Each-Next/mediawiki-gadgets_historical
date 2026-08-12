@@ -1,4 +1,4 @@
-import { formatNamespaceTitle } from "#shared/wikitext";
+import { formatNamespaceTitle } from "#shared/wiki-titles";
 
 /**
  * Builds the special-page title for backlinks to an article.

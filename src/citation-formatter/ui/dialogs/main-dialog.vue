@@ -8,7 +8,6 @@
         @update:open="onOpenChange"
     >
         <div class="cf-source-manager__dialog-body-content">
-            <cdx-toast-container />
             <cdx-message
                 v-if="error"
                 type="error"

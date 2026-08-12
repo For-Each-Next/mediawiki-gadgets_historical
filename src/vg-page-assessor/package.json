@@ -65,7 +65,7 @@
         "config",
         "contracts",
         "domain",
-        "infra",
+        "adapters",
         "i18n",
         "ui",
         "workflows"
@@ -79,7 +79,7 @@
     ],
     "scripts": {
         "build": "node ../../scripts/gadget-build/cli.ts",
-        "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
+        "check": "npm run lint && vue-tsc --build ../../config/vue/tsconfig.vg-page-assessor.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "test": "node --test ../../tests/vg-page-assessor/*.test.ts",

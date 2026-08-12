@@ -5,15 +5,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+// eslint-disable-next-line max-len
+import { normalizeListFieldValue } from "vg-stub-creator/ui/form/form-model.ts";
 import {
     claimReviewLinksOpening,
-    normalizeListFieldValue,
-} from "vg-stub-creator/ui/form/form-model.ts";
-import * as reviewLinks from "vg-stub-creator/ui/form/review-link-session.ts";
+    createReviewLinkSession,
+} from "vg-stub-creator/adapters/storage/review-link-session.ts";
 
 test("review-link sessions keep two dialog instances isolated", () => {
-    const first = reviewLinks.createReviewLinkSession(() => createStorage());
-    const second = reviewLinks.createReviewLinkSession(() => createStorage());
+    const first = createReviewLinkSession(() => createStorage());
+    const second = createReviewLinkSession(() => createStorage());
 
     assert.equal(first.claim(), true);
     assert.equal(first.claim(), false);

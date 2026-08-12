@@ -24,6 +24,10 @@ import type {
     SelectionMap,
 } from "#gadget/domain/types.ts";
 import {
+    compareWikitext,
+    type WikitextComparison,
+} from "#gadget/domain/wikitext-comparison.ts";
+import {
     buildNewPageListSummary,
     interfaceLocale,
     msg,
@@ -42,7 +46,6 @@ import {
 import { buildEditSummary } from "#gadget/ui/assessment-summary.ts";
 import type { VueModule, VueRef } from "#gadget/ui/codex.ts";
 import * as Comparison from "#gadget/ui/components/wikitext-comparison.ts";
-import { compareWikitext, type WikitextComparison } from "#shared/wikitext";
 
 const DIALOG_CLOSE_DELAY_MS = 600;
 
@@ -176,12 +179,14 @@ export function createAssessmentDialogBindings(
     function setStatus(text: string, isError: boolean): void {
         status.value = text;
         statusType.value = isError ? "error" : "notice";
-        runtime.logStep("status updated", { isError, text });
+        runtime.logger.debug("status.updated", { isError });
     }
 
     function refreshAssessment(): void {
-        runtime.logStep("dialog change");
-        runtime.logStep("readAssessment", assessment);
+        runtime.logger.debug("assessment.changed", {
+            className: assessment.className,
+            importance: assessment.importance,
+        });
         const previewSource = state.previewDirty
             ? previewText.value
             : state.page.text;
@@ -190,21 +195,21 @@ export function createAssessmentDialogBindings(
             assessment,
             projectConfig,
         );
-        runtime.logStep("updateAssessmentPreview done", {
+        runtime.logger.debug("assessment-preview.updated", {
             fromManualSource: state.previewDirty,
-            length: previewText.value.length,
+            characterCount: previewText.value.length,
         });
         currentSource.value = getTalkPageTopSection(state.page.text);
-        runtime.logStep("updateTalkDiff done", {
-            length: currentSource.value.length,
+        runtime.logger.debug("talk-diff.updated", {
+            characterCount: currentSource.value.length,
         });
         if (!state.summaryDirty) {
             summary.value = buildEditSummary(assessment, otherProjectOptions);
-            runtime.logStep("updateAssessmentSummary done", {
-                summary: summary.value,
+            runtime.logger.debug("assessment-summary.updated", {
+                characterCount: summary.value.length,
             });
         } else {
-            runtime.logStep("updateAssessmentSummary skipped: dirty");
+            runtime.logger.debug("assessment-summary.update.skipped");
         }
         logRegistrationPreview(runtime, registration.value, shouldRegister);
     }
@@ -249,16 +254,16 @@ export function createAssessmentDialogBindings(
                 );
             }
         }
-        runtime.logStep("lead source edited");
-        runtime.logStep("updateTalkDiff done", {
-            length: currentSource.value.length,
+        runtime.logger.debug("lead-source.edited");
+        runtime.logger.debug("talk-diff.updated", {
+            characterCount: currentSource.value.length,
         });
     }
 
     function onSummaryInput(value: string): void {
         summary.value = value;
         state.summaryDirty = true;
-        runtime.logStep("assessment summary edited");
+        runtime.logger.debug("assessment-summary.edited");
     }
 
     function setListSummary(value: string): void {
@@ -267,7 +272,7 @@ export function createAssessmentDialogBindings(
 
     function setRegister(value: boolean): void {
         shouldRegister.value = value;
-        runtime.logStep("dialog change");
+        runtime.logger.debug("registration-selection.changed", { value });
         logRegistrationPreview(runtime, registration.value, shouldRegister);
     }
 
@@ -277,7 +282,7 @@ export function createAssessmentDialogBindings(
     }
 
     function onCancel(): void {
-        runtime.logStep("dialog cancelled");
+        runtime.logger.info("dialog.cancelled");
         close();
     }
 
@@ -292,7 +297,7 @@ export function createAssessmentDialogBindings(
         if (saving.value) {
             return;
         }
-        runtime.logStep("save button clicked");
+        runtime.logger.info("save.activated");
         saving.value = true;
         try {
             const outcome = await runtime.saveReviewedDialog(
@@ -313,7 +318,7 @@ export function createAssessmentDialogBindings(
             setStatus(text, false);
             setTimeout(finishSave, DIALOG_CLOSE_DELAY_MS);
         } catch (error) {
-            runtime.logStep("saveDialog failed", { error });
+            runtime.logger.error("save.failed", { error });
             setStatus(getErrorMessage(error), true);
             saving.value = false;
         }
@@ -506,15 +511,14 @@ function logRegistrationPreview(
     registration: RegistrationResult,
     shouldRegister: VueRef<boolean>,
 ): void {
-    runtime.logStep(
-        canShowRegistrationPreview(registration)
-            ? "updateRegistrationPreview done"
-            : "updateRegistrationPreview hidden",
-        {
-            registration: summarizeRegistration(registration),
-            shouldRegister: shouldRegister.value,
-        },
-    );
+    const visibility = canShowRegistrationPreview(registration)
+        ? "visible"
+        : "hidden";
+    runtime.logger.debug("registration-preview.updated", {
+        registration: summarizeRegistration(registration),
+        shouldRegister: shouldRegister.value,
+        visibility,
+    });
 }
 
 function summarizeRegistration(
@@ -526,7 +530,7 @@ function summarizeRegistration(
         earliestDate: registration?.earliestDate?.toISOString(),
         eligible: registration?.eligible,
         existing: registration?.existing,
-        proposedLength: registration?.proposedText?.length,
+        proposedCharacterCount: registration?.proposedText?.length,
     };
 }
 

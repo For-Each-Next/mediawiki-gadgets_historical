@@ -2,4 +2,4 @@
  * Side-effect-free package entry point.
  */
 
-export * from "#gadget/api.ts";
+export * from "#gadget/domain/api.ts";

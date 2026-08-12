@@ -14,10 +14,9 @@ import {
     suffixCitationParameterCollisions,
     type CitationParameterCollision,
 } from "./citation.ts";
-import {
-    citationTemplateData as templateData,
-    findShortFootnoteCitations,
-} from "#shared/citation";
+// eslint-disable-next-line max-len
+import { citationTemplateData as templateData } from "#gadget/config/citation-template-data/index.ts";
+import { findShortFootnoteCitations } from "#shared/short-footnotes";
 import { wikitext, type ParsedTemplateCall } from "#shared/wikitext";
 import { serializeGenericCitation } from "./generic-citation.ts";
 import { getCitationOutputParams } from "./post-formatter.ts";

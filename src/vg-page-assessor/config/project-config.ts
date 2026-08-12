@@ -1,4 +1,4 @@
-import type { ProjectConfig } from "#gadget/domain/types.ts";
+import type { ProjectConfig } from "#gadget/config/types.ts";
 
 export default {
     videoGames: {

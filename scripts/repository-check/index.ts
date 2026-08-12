@@ -2,6 +2,7 @@
 
 export { checkArtifactCollisions } from "./artifacts.ts";
 export { checkBrowserEntry } from "./browser-entry.ts";
+export { checkEntryModules } from "./entry-modules.ts";
 export { checkLicensing, checkCurrentLicenseMaps } from "./licensing.ts";
 export { checkWorkspaceLockfile } from "./lockfile.ts";
 export { checkMarkdownLines } from "./markdown.ts";
@@ -25,4 +26,8 @@ export {
     checkSourceBoundaries,
     type SourceBoundaryResult,
 } from "./source-boundaries.ts";
+export {
+    checkSourcePractices,
+    type SourcePracticeResult,
+} from "./source-practices.ts";
 export type { CheckResult, PackageContractResult } from "./types.ts";

@@ -3,8 +3,8 @@
  */
 
 import { msg } from "#gadget/i18n/index.ts";
-import { wikitext } from "#shared/citation";
-import { formatNamespaceTitle } from "#shared/wikitext";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
+import { formatNamespaceTitle } from "#shared/wiki-titles";
 const { trimValue } = wikitext;
 
 interface PreSaveAction {

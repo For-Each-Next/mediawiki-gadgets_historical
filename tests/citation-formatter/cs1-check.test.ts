@@ -6,7 +6,7 @@ import test from "node:test";
 import {
     buildCs1CheckWikitext,
     requestCs1WikitextCheck,
-} from "citation-formatter/infra/cs1-check.ts";
+} from "citation-formatter/adapters/mediawiki/cs1-check.ts";
 
 test("builds isolated CS1 regions in source order", () => {
     const text = buildCs1CheckWikitext([

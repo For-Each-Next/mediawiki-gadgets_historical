@@ -5,7 +5,7 @@ import {
     normalizeNamespacePrefix,
     stripNamespacePrefix,
     type NamespaceSource,
-} from "#shared/wikitext";
+} from "#shared/wiki-titles";
 
 /** Namespace rules used while interpreting template transclusions. */
 export interface TemplateNameContext {

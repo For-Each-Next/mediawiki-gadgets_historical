@@ -3,13 +3,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import * as citation from "@mediawiki-gadgets/shared/citation";
-
-const templateData = citation.citationTemplateData;
+// eslint-disable-next-line max-len
+import { citationTemplateData } from "citation-formatter/config/citation-template-data/index.ts";
 import {
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
 } from "citation-formatter/domain/templates.ts";
+
+const templateData = citationTemplateData;
 
 test("covers every supported citation template title exactly once", () => {
     const expected = SUPPORTED_CITATION_TEMPLATES.map((name) =>

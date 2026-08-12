@@ -35,7 +35,7 @@ installation surfaces and safe launch procedure.
 
 ## Workspace
 
-Deployable gadgets and browser-independent shared code live under `src/`:
+Deployable gadgets and cross-gadget capabilities live under `src/`:
 
 ```text
 src/
@@ -55,8 +55,12 @@ for the dependency and build model.
 
 - [Development workflow][6]: installation, commands, fixtures, CI, and adding a
   gadget.
-- [Workspace architecture][5]: package discovery, source boundaries, build data
-  flow, and repository checks.
+- [Workspace architecture][5]: package discovery, package boundaries, build
+  data flow, and repository checks.
+- [Source architecture][13]: the universal gadget tree, entry modules,
+  dependency graph, and shared capability API.
+- [Diagnostics][14]: shared logging, runtime levels, redaction, and native
+  MediaWiki action notifications.
 - [Release workflow][7]: local builds, candidate publications, formal releases,
   changelogs, artifacts, and licensing.
 - [Commit workflow][8]: verification, staging, and commit messages.
@@ -90,3 +94,5 @@ authoritative distribution terms.
 [10]: LICENSE
 [11]: src/shared/LICENSE
 [12]: THIRD_PARTY_NOTICES.md
+[13]: docs/source-architecture.md
+[14]: docs/diagnostics.md

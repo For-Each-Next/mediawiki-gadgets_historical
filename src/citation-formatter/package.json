@@ -80,7 +80,7 @@
     ],
     "scripts": {
         "build": "node ../../scripts/gadget-build/cli.ts",
-        "check": "npm run lint && tsc --noEmit -p ../../tsconfig.json",
+        "check": "npm run lint && vue-tsc --build ../../config/vue/tsconfig.citation-formatter.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "test": "node --test ../../tests/citation-formatter/*.test.ts",

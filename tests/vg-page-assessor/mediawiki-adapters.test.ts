@@ -4,21 +4,34 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createLogger } from "@mediawiki-gadgets/shared/logging";
 
 // eslint-disable-next-line max-len
-import * as assessmentPageApi from "vg-page-assessor/infra/assessment-page-api.ts";
-import * as pageApi from "vg-page-assessor/infra/mediawiki-api.ts";
-import * as listApi from "vg-page-assessor/infra/new-page-list-api.ts";
-import { postTalkPageEdit } from "vg-page-assessor/infra/talk-page-api.ts";
+import * as assessmentPageApi from "vg-page-assessor/adapters/mediawiki/assessment-page-api.ts";
+import * as pageApi from "vg-page-assessor/adapters/mediawiki/page-api.ts";
+// eslint-disable-next-line max-len
+import * as listApi from "vg-page-assessor/adapters/mediawiki/new-page-list-api.ts";
+// eslint-disable-next-line max-len
+import { createTalkPageApi } from "vg-page-assessor/adapters/mediawiki/talk-page-api.ts";
 import {
     createTalkSaveWorkflow,
     isEditConflict,
 } from "vg-page-assessor/workflows/save-talk-assessment.ts";
 
+const logger = createLogger("vg-page-assessor-test", { level: "silent" });
+const creationTimeCache = {
+    read() {
+        return {};
+    },
+    write() {},
+};
+const pages = pageApi.createPageApi(logger, creationTimeCache);
+const assessmentPages = assessmentPageApi.createAssessmentPageApi(logger);
+const talkPages = createTalkPageApi(logger);
 const saveTalkAssessment = createTalkSaveWorkflow({
-    fetchPageText: pageApi.fetchPageText,
-    logStep() {},
-    postTalkPageEdit,
+    fetchPageText: pages.fetchPageText,
+    logger,
+    postTalkPageEdit: talkPages.postTalkPageEdit,
 });
 
 function pageResponse(
@@ -103,7 +116,7 @@ test("loads the talk page and assessment log in one query", loadPageBatch);
 async function loadPageBatch(): Promise<void> {
     const requests: Array<Record<string, unknown>> = [];
     const api = createPageBatchApi(requests);
-    const result = await assessmentPageApi.fetchAssessmentPages(
+    const result = await assessmentPages.fetchAssessmentPages(
         api,
         "Talk:Example",
     );
@@ -270,7 +283,7 @@ test("batches creation times across zhwiki namespace aliases", async () => {
         },
     } as unknown as mw.Api;
 
-    await pageApi.fetchPageCreationTimes(api, [
+    await pages.fetchPageCreationTimes(api, [
         "Template:Alias batch A",
         "T:Alias batch B",
         "樣板:Alias batch C",
@@ -280,6 +293,69 @@ test("batches creation times across zhwiki namespace aliases", async () => {
         "Template:Alias batch A|T:Alias batch B|樣板:Alias batch C",
     ]);
 });
+
+test("creation-time diagnostics do not include page titles", async () => {
+    const output: unknown[][] = [];
+    const diagnosticLogger = createLogger("vg-page-assessor-test", {
+        level: "debug",
+        output: {
+            debug(...values) {
+                output.push(values);
+            },
+            error() {},
+            info(...values) {
+                output.push(values);
+            },
+            warn() {},
+        },
+    });
+    const diagnosticPages = pageApi.createPageApi(
+        diagnosticLogger,
+        creationTimeCache,
+    );
+    const secretTitle = "Private Draft Title";
+
+    await diagnosticPages.fetchPageCreationTimes(
+        createCreationTimeApi(secretTitle),
+        [secretTitle],
+    );
+
+    assert.equal(JSON.stringify(output).includes(secretTitle), false);
+    assert.match(JSON.stringify(output), /itemCount/u);
+});
+
+function createCreationTimeApi(title: string): mw.Api {
+    let calls = 0;
+    return {
+        async get(): Promise<unknown> {
+            calls += 1;
+            if (calls === 1) {
+                return {
+                    query: {
+                        pages: [
+                            {
+                                revisions: [
+                                    { slots: { main: { content: "" } } },
+                                ],
+                                title,
+                            },
+                        ],
+                    },
+                };
+            }
+            return {
+                query: {
+                    pages: [
+                        {
+                            revisions: [{ timestamp: "2026-08-03T00:00:00Z" }],
+                            title,
+                        },
+                    ],
+                },
+            };
+        },
+    } as unknown as mw.Api;
+}
 
 test("recognizes direct and nested edit conflicts", () => {
     assert.equal(isEditConflict("editconflict"), true);

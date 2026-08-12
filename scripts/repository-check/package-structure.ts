@@ -12,14 +12,34 @@ import {
 
 const REQUIRED_FILES = [
     "AGENTS.md",
+    "browser.ts",
     "CHANGELOG.md",
     "LICENSE",
     "README.md",
     "index.ts",
     "main.ts",
+    "package.json",
 ];
-const FORBIDDEN_TOP_LEVEL_DIRECTORIES = new Map([
-    ["app", "use main.ts and responsibility-named modules"],
+const ALLOWED_TOP_LEVEL_DIRECTORIES = new Set([
+    "adapters",
+    "config",
+    "contracts",
+    "docs",
+    "domain",
+    "i18n",
+    "ui",
+    "workflows",
+]);
+const ALLOWED_TOP_LEVEL_FILES = new Set([...REQUIRED_FILES, "globals.d.ts"]);
+const LEGACY_TOP_LEVEL_DIRECTORIES = new Map([
+    ["app", "use main.ts as the composition root"],
+    ["handlers", "move external-system handlers below adapters/"],
+    ["infra", "rename external-system implementations to adapters/"],
+    ["jobs", "move use-case coordination below workflows/"],
+    ["publishing", "move publishing integrations below adapters/"],
+    ["services", "classify services as workflows or adapters"],
+    ["sources", "move external data sources below adapters/"],
+    ["support", "replace support/ with its concrete responsibility"],
 ]);
 const GENERIC_NAME_PATTERN = /^(?:common|helpers|utils)(?:\.ts)?$/u;
 
@@ -28,8 +48,9 @@ export async function checkPackageStructure(
     gadget: GadgetPackage,
 ): Promise<string[]> {
     const problems = await checkRequiredFiles(gadget);
-    problems.push(...(await checkTopLevelDirectories(gadget)));
-    const genericPaths = await findGenericPaths(gadget.directory);
+    const tree = await inspectAuthoredTree(gadget.directory);
+    problems.push(...checkTopLevelEntries(gadget, tree));
+    const genericPaths = findGenericPaths(gadget.directory, tree);
     for (const path of genericPaths) {
         const localPath = toPosixPath(relative(gadget.directory, path));
         problems.push(
@@ -77,29 +98,69 @@ async function checkRequiredFiles(gadget: GadgetPackage): Promise<string[]> {
     );
 }
 
-/** Rejects obsolete top-level responsibility directories. */
-async function checkTopLevelDirectories(
+/** Rejects unknown roots, legacy layers, and empty branches. */
+function checkTopLevelEntries(
     gadget: GadgetPackage,
-): Promise<string[]> {
+    tree: Awaited<ReturnType<typeof inspectAuthoredTree>>,
+): string[] {
     const problems: string[] = [];
-    for (const [name, guidance] of FORBIDDEN_TOP_LEVEL_DIRECTORIES) {
-        const status = await getPathStatus(join(gadget.directory, name));
-        if (status != null) {
+    const directories = tree.directories.filter(
+        (path) => !toPosixPath(relative(gadget.directory, path)).includes("/"),
+    );
+    const files = tree.files.filter(
+        (path) => !toPosixPath(relative(gadget.directory, path)).includes("/"),
+    );
+    for (const path of directories) {
+        const name = basename(path);
+        const guidance = LEGACY_TOP_LEVEL_DIRECTORIES.get(name);
+        if (guidance != null) {
             problems.push(
                 `${gadget.directoryName}: ${name}/ is not a package ` +
                     `responsibility; ${guidance}.`,
             );
+        } else if (!ALLOWED_TOP_LEVEL_DIRECTORIES.has(name)) {
+            problems.push(
+                `${gadget.directoryName}: ${name}/ is not an allowed ` +
+                    "top-level source responsibility.",
+            );
+        } else if (!hasAuthoredFile(path, tree.files)) {
+            problems.push(
+                `${gadget.directoryName}: remove empty optional layer ` +
+                    `${name}/.`,
+            );
         }
     }
+    problems.push(...checkTopLevelFiles(gadget, files));
     return problems;
 }
 
+/** Rejects files outside the small package-root contract. */
+function checkTopLevelFiles(gadget: GadgetPackage, files: string[]): string[] {
+    return files.flatMap((path) => {
+        const name = basename(path);
+        return ALLOWED_TOP_LEVEL_FILES.has(name)
+            ? []
+            : [
+                  `${gadget.directoryName}: ${name} is not an allowed ` +
+                      "package-root file.",
+              ];
+    });
+}
+
 /** Finds generic names through the shared authored-tree inventory. */
-async function findGenericPaths(directory: string): Promise<string[]> {
-    const tree = await inspectAuthoredTree(directory);
+function findGenericPaths(
+    directory: string,
+    tree: Awaited<ReturnType<typeof inspectAuthoredTree>>,
+): string[] {
     return [...tree.directories, ...tree.files, ...tree.symbolicLinks]
         .filter((path) => GENERIC_NAME_PATTERN.test(basename(path)))
         .toSorted(compareText);
+}
+
+/** Checks whether one branch contains an authored file. */
+function hasAuthoredFile(directory: string, files: string[]): boolean {
+    const prefix = `${directory}/`;
+    return files.some((file) => file.startsWith(prefix));
 }
 
 /** Classifies a path without treating symlinks as required files. */

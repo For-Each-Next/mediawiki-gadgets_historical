@@ -130,8 +130,9 @@ Tests use local fixtures. In the browser, formatting an otherwise unknown
 back to preservation-only formatting when the API or storage is unavailable.
 Opening the dialog on a wiki other than English or Chinese Wikipedia also
 requests namespace siteinfo and retains a canonical-only fallback if it fails.
-The reusable shared loader accepts one template or a large iterable, resolving
-redirects through bounded serial requests before citation-specific filtering.
+The package-owned MediaWiki adapter accepts one template or a large iterable,
+resolving redirects through bounded serial requests before citation-specific
+filtering.
 
 Completed work is recorded in the package [changelog][9]. Development follows
 the package [instructions][10] together with the repository [instructions][11].
@@ -143,27 +144,27 @@ Dependencies follow a downward orchestration model:
 ```text
 browser.ts
 └── main.ts
-    ├── ui ──────────> domain, contracts, shared
-    ├── workflows ───> domain, contracts
-    ├── infra ───────> domain, shared
-    └── domain ──────> shared
+    ├── ui ──────────> config, domain, contracts, i18n, shared
+    ├── workflows ───> config, domain, contracts
+    ├── adapters ────> config, domain, contracts, shared
+    └── domain ──────> config, shared
 
-api.ts / index.ts
+domain/api.ts / index.ts
 └── domain
 ```
 
-- `browser.ts` handles MediaWiki startup and invokes `start` from the `main.ts`
-  composition root.
-- `main.ts` wires UI, workflows, and infrastructure through explicit contracts.
+- `browser.ts` only invokes `start`; the `main.ts` composition root handles
+  MediaWiki readiness and startup orchestration.
+- `main.ts` wires UI, workflows, and adapters through explicit contracts.
 - `ui/` owns Codex rendering, editor adapters, and user interaction;
-  `workflows/` coordinates live review operations; and `infra/` isolates
+  `workflows/` coordinates live review operations; and `adapters/` isolates
   Citoid, archive, namespace, TemplateData-cache, and wiki integrations.
-- `domain/` contains deterministic citation metadata mapping and wikitext
-  rules, using lazy shared construct queries, language normalization, citation
-  TemplateData, and short-footnote matching. The queries retain source ranges
-  without building a document-wide syntax tree. `api.ts` and `index.ts` expose
-  browser-independent operations for tests without adding them to the generated
-  gadget global.
+- `config/` owns generated English Wikipedia citation TemplateData. `domain/`
+  contains deterministic citation metadata mapping, language normalization, and
+  wikitext rules, using shared construct queries and short-footnote matching.
+  The queries retain source ranges without building a document-wide syntax
+  tree. `domain/api.ts` and `index.ts` expose browser-independent operations
+  for tests without adding them to the generated gadget global.
 - `i18n/` stores flat JSON locale catalogs behind a typed registry.
 
 ## License

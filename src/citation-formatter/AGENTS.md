@@ -5,14 +5,14 @@ repository instructions.
 
 ## Architecture
 
-- Keep `index.ts`, `api.ts`, and `main.ts` side-effect free. Let `browser.ts`
-  invoke `main.ts`, and keep MediaWiki startup and editor mounting in
-  `browser.ts` and `ui/`.
+- Keep `index.ts` and `domain/api.ts` side-effect free. Let `browser.ts` only
+  invoke `start` from `main.ts`; keep MediaWiki startup orchestration in the
+  composition root and editor mounting in `ui/`.
 - Keep citation parsing, validation, analysis, and wikitext transformations in
   `domain/` deterministic and independent of MediaWiki globals, the DOM, and
   network access.
-- Keep Citoid, archive, and wiki integrations in `infra/`. Keep Codex and Vue
-  rendering, editor adapters, and user interaction in `ui/`.
+- Keep Citoid, archive, and wiki integrations in `adapters/`. Keep Codex and
+  Vue rendering, editor adapters, and user interaction in `ui/`.
 - Source authored CSS custom properties from the documented
   `@wikimedia/codex-design-tokens` catalog and use only its declared token
   names.
@@ -36,9 +36,9 @@ repository instructions.
 
 ## TemplateData and Site Validation
 
-- Treat `#shared/citation` as the shared citation capability and its committed
-  `citation-template-data/` branch as generated English Wikipedia TemplateData.
-  The maintenance guide defines its reproducible refresh workflow.
+- Treat `config/citation-template-data/generated/` as product-owned generated
+  English Wikipedia TemplateData. The maintenance guide defines its
+  reproducible refresh workflow; do not edit generated modules manually.
 - Follow `docs/cs1-maintenance.md` and the relevant English or Chinese site
   guide for safe downloads, supported-title checks, and Lua-rule review.
 - Keep the supported template set aligned with `domain/templates.ts`. Review

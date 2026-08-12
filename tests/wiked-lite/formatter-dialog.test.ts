@@ -48,6 +48,9 @@ test("maps each character-width choice to its formatter ratio", async () => {
             onClose() {
                 closed = true;
             },
+            onError(error) {
+                assert.fail(`Unexpected formatter error: ${String(error)}`);
+            },
             onSubmit(selection) {
                 submissions.push(selection);
                 return Promise.resolve();
@@ -72,6 +75,33 @@ test("maps each character-width choice to its formatter ratio", async () => {
             },
         ]);
     }
+});
+
+test("reports formatter failures through the diagnostic port", async () => {
+    const failure = new Error("formatter failed");
+    const reported: unknown[] = [];
+    let closed = false;
+    const bindings = createFormatterDialogBindings(createVueHarness(), {
+        onClose() {
+            closed = true;
+        },
+        onError(error) {
+            reported.push(error);
+        },
+        async onSubmit() {
+            throw failure;
+        },
+    });
+
+    await bindings.apply();
+
+    assert.deepEqual(reported, [failure]);
+    assert.equal(
+        bindings.error.value,
+        "Wikitext formatting failed. Review the source and try again.",
+    );
+    assert.equal(bindings.saving.value, false);
+    assert.equal(closed, false);
 });
 
 function createVueHarness(): VueModule {

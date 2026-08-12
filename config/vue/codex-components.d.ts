@@ -35,7 +35,6 @@ declare module "@vue/runtime-core" {
         CdxTabs: CodexModule["CdxTabs"];
         CdxTextArea: CodexModule["CdxTextArea"];
         CdxTextInput: CodexModule["CdxTextInput"];
-        CdxToastContainer: CodexModule["CdxToastContainer"];
     }
 }
 

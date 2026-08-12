@@ -9,7 +9,7 @@ import type {
     ArticleModuleContext,
     ArticleModuleDefinition,
 } from "#gadget/domain/models.ts";
-import { wikitext } from "#shared/citation";
+import * as wikitext from "#gadget/domain/wikitext/index.ts";
 
 const { trimValue } = wikitext;
 

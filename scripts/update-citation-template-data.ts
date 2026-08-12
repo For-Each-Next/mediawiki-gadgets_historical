@@ -17,17 +17,17 @@ import {
 import type {
     CitationTemplateData,
     CitationTemplateDataMap,
-} from "../src/shared/citation/citation-template-data/types.ts";
-import { formatNamespaceTitle } from "../src/shared/wikitext/index.ts";
+} from "../src/citation-formatter/config/citation-template-data/types.ts";
+import { formatNamespaceTitle } from "../src/shared/wiki-titles/index.ts";
 
 const API_ENDPOINT = "https://en.wikipedia.org/w/api.php";
 const BATCH_SIZE = 20;
-const SHARED_CITATION_DIRECTORY = fileURLToPath(
-    new URL("../src/shared/citation/", import.meta.url),
-);
-const OUTPUT_DIRECTORY = resolve(
-    SHARED_CITATION_DIRECTORY,
-    "citation-template-data",
+const OUTPUT_DIRECTORY = fileURLToPath(
+    new URL(
+        "../src/citation-formatter/config/" +
+            "citation-template-data/generated/",
+        import.meta.url,
+    ),
 );
 const OUTPUT_INDEX = resolve(OUTPUT_DIRECTORY, "index.ts");
 const execFileAsync = promisify(execFile);
@@ -234,7 +234,7 @@ async function formatTemplateModule(
         " * Run the workspace update:template-data script to refresh it.",
         " */",
         "",
-        'import type { CitationTemplateData } from "./types.ts";',
+        'import type { CitationTemplateData } from "../types.ts";',
         "",
         `const templateData: CitationTemplateData = ${json};`,
         "",
@@ -266,7 +266,7 @@ async function formatTemplateDataIndex(
         " * Generated citation TemplateData index.",
         " */",
         "",
-        'import type { CitationTemplateDataMap } from "./types.ts";',
+        'import type { CitationTemplateDataMap } from "../types.ts";',
         ...imports,
         "",
         "const templateData: CitationTemplateDataMap = {",

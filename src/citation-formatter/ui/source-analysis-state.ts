@@ -11,7 +11,8 @@ import {
     type SourceAnalysisReplacement,
 } from "#gadget/domain/source-analysis.ts";
 import type { ExistingSource } from "#gadget/domain/source-manager.ts";
-import { msg, sourceAnalysisMessages } from "#gadget/i18n/index.ts";
+import { msg } from "#gadget/i18n/index.ts";
+import { sourceAnalysisMessages } from "#gadget/ui/source-messages.ts";
 
 export type SelectableSourceAnalysisOccurrence = SourceAnalysisOccurrence & {
     selected: boolean;

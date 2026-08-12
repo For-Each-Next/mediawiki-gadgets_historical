@@ -10,7 +10,7 @@ import {
     getCitationIdentity,
     normalizeEnglishDate,
 } from "citation-formatter/domain/citation.ts";
-import { citationTemplateData as generatedTemplateData } from "@mediawiki-gadgets/shared/citation";
+import { citationTemplateData as generatedTemplateData } from "citation-formatter/config/citation-template-data/index.ts";
 import {
     createTemplateNameContext,
     getCanonicalTemplateName,

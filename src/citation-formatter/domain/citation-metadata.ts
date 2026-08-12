@@ -7,7 +7,8 @@ import {
     formatBlockCitation,
     formatInlineCitation,
 } from "./citation.ts";
-import { citationTemplateData as templateData } from "#shared/citation";
+// eslint-disable-next-line max-len
+import { citationTemplateData as templateData } from "#gadget/config/citation-template-data/index.ts";
 import type { CitationParam, CitationTemplate } from "./types.ts";
 
 const ACCESS_DATE_LENGTH = 10;

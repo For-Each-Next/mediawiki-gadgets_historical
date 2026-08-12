@@ -1,12 +1,11 @@
 /** Resolves highlighted references into compact citation previews. */
 
-import * as shortFootnotes from "#shared/citation/short-footnotes";
+import * as shortFootnotes from "#shared/short-footnotes";
 import {
     stripNamespacePrefix,
-    wikitext,
     type NamespaceSource,
-    type ParsedTemplateCall,
-} from "#shared/wikitext";
+} from "#shared/wiki-titles";
+import { wikitext, type ParsedTemplateCall } from "#shared/wikitext";
 
 export interface ReferencePreview {
     noteText?: string;

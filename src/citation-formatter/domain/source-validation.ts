@@ -3,7 +3,8 @@
  */
 
 import { isCalendarDayWithinUtcMonth } from "./calendar-date.ts";
-import { citationTemplateData as templateData } from "#shared/citation";
+// eslint-disable-next-line max-len
+import { citationTemplateData as templateData } from "#gadget/config/citation-template-data/index.ts";
 import { getCitationValidationConfig } from "./validation/index.ts";
 
 interface SourceDraftLike {

@@ -5,35 +5,34 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { readFormHistory } from "vg-stub-creator/ui/history.ts";
+// eslint-disable-next-line max-len
+import { createFormHistoryStore } from "vg-stub-creator/adapters/storage/form-history.ts";
 import { wheelWorldEntry } from "./wheel-world.fixture.ts";
 
 const HISTORY_STORAGE_KEY = "vg-stub-creator-form-history";
 
 const testCallback = () => {
-    const originalStorage = globalThis.localStorage;
     const stored = JSON.stringify([{ ...wheelWorldEntry, id: 18726 }]);
-    globalThis.localStorage = createStorage(stored);
+    const storage = createStorage(stored);
+    const history = createFormHistoryStore(() => storage, {
+        temporaryDraft: "Temporary draft",
+        untitled: "Untitled",
+    });
+    const [entry] = history.readFormHistory();
 
-    try {
-        const [entry] = readFormHistory();
-
-        assert.equal(entry.data.version, 1);
-        assert.equal(entry.metadata.page, "Wheel World");
-        assert.equal(entry.data.input.stubTagRows.length, 7);
-        assert.deepEqual(entry.data.patches.categories, [
-            {
-                source: { company: "Messhof" },
-                enabled: false,
-            },
-            {
-                source: { manual: true },
-                enabled: true,
-            },
-        ]);
-    } finally {
-        globalThis.localStorage = originalStorage;
-    }
+    assert.equal(entry.data.version, 1);
+    assert.equal(entry.metadata.page, "Wheel World");
+    assert.equal(entry.data.input.stubTagRows.length, 7);
+    assert.deepEqual(entry.data.patches.categories, [
+        {
+            source: { company: "Messhof" },
+            enabled: false,
+        },
+        {
+            source: { manual: true },
+            enabled: true,
+        },
+    ]);
 };
 test(
     "real version 1 history remains readable without losing patches",

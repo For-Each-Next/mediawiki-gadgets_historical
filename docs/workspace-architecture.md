@@ -8,7 +8,7 @@ build model. Each gadget README describes its own internal architecture.
 ```text
 src/
 ├── <gadget>/               independently versioned browser package
-└── shared/                 browser-independent shared package
+└── shared/                 cross-gadget capability package
 
 config/
 ├── licensing/              cumulative release-scope ledger
@@ -39,9 +39,10 @@ syntax restrictions on code emitted by esbuild.
 
 ## Dependency Boundaries
 
-Each gadget starts at `browser.ts`, which invokes `start` from the `main.ts`
-composition root. The root connects presentation, orchestration, adapters, and
-domain behavior through explicit contracts:
+Each gadget follows the universal tree defined in the [source architecture][1].
+It starts at `browser.ts`, which invokes `start` from the `main.ts` composition
+root. The root connects presentation, orchestration, adapters, and domain
+behavior through explicit contracts:
 
 ```text
 browser entry
@@ -52,14 +53,21 @@ browser entry
     └── domain ────> package-local rules and shared utilities
 ```
 
-Dependencies point inward. Domain code does not depend on UI, orchestration, or
-adapters. Adapters and orchestration do not depend on UI. A gadget cannot
-import another gadget, and shared source cannot import a gadget.
+Dependencies use a default-deny graph. Domain and configuration stay inward;
+workflows coordinate supplied ports; adapters isolate external systems; and UI
+receives supplied actions instead of importing workflows or adapters. A gadget
+cannot import another gadget, and shared source cannot import a gadget.
 
 Gadget-local imports use `#gadget` or `#gadget/*`. Shared imports use a focused
 `#shared/<name>` subpath. `src/shared/package.json#exports` is the only public
 shared API map; bare aggregate imports and unpublished shared paths are not
-allowed in gadget source. Relative paths stay within their package.
+allowed in gadget source. Each export names a coherent capability and targets a
+real file. Relative paths stay within their package.
+
+All gadgets use the same structured logger and MediaWiki action notification
+adapter. The [diagnostics guide][2] defines levels, runtime configuration,
+redaction, event names, notification lifetimes, and the boundary between brief
+notifications and persistent inline messages.
 
 ## Build Data Flow
 
@@ -91,7 +99,10 @@ artifact set without replacing normal `dist/` output.
 The repository checker coordinates focused checks for:
 
 - package metadata, required package documents, and browser entry points;
-- inward source dependencies and published shared subpaths;
+- the universal source tree, entry-module roles, inward dependencies, and
+  published shared subpaths;
+- external-system ownership, shared logging, native notification, and retired
+  Toast source practices;
 - flat, aligned locale catalogs and authored Markdown width;
 - package, shared, and cumulative licensing scopes, including retained scopes
   found in available Git history;
@@ -107,12 +118,15 @@ notices, isolated output, collisions, and deterministic aggregate output.
 
 Create an immediate package under `src/` with the standard package documents,
 side-effect-free `index.ts`, browser entry, and `main.ts` composition root. Add
-valid `gadgetBuild`, import aliases, workspace dependencies, scripts, engine,
-Vue output settings, and a referenced Vue project when the package uses Vue.
+only the responsibility branches the package uses. Then add valid
+`gadgetBuild`, import aliases, workspace dependencies, scripts, engine, Vue
+output settings, and a referenced Vue project when the package uses Vue.
 
 Publish only shared subpaths that are intended as stable contracts. Add package
 tests and any repository fixtures needed for a new contract. Then run the full
-[development workflow][1]. Package discovery, checking, and aggregate building
+[development workflow][3]. Package discovery, checking, and aggregate building
 must pick up the gadget from its manifest without a tooling source edit.
 
-[1]: development-workflow.md
+[1]: source-architecture.md
+[2]: diagnostics.md
+[3]: development-workflow.md

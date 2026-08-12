@@ -3,8 +3,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { citationTemplateData } from "@mediawiki-gadgets/shared/citation";
-import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wikitext";
+import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wiki-titles";
+// eslint-disable-next-line max-len
+import { citationTemplateData } from "citation-formatter/config/citation-template-data/index.ts";
 import {
     findUsedCitationTemplates,
     formatCitationWikitext,
@@ -19,7 +20,8 @@ import {
     isCitationTemplate,
     normalizeTemplateName,
 } from "citation-formatter/domain/templates.ts";
-import * as namespaceInfra from "citation-formatter/infra/namespaces.ts";
+// eslint-disable-next-line max-len
+import * as namespaceInfra from "citation-formatter/adapters/mediawiki/namespaces.ts";
 
 const GERMAN_SITEINFO = {
     query: {

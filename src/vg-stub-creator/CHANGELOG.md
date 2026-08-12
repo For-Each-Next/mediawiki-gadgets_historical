@@ -2,6 +2,14 @@
 
 ## Until 0.6
 
+### 0.5.3-post.1 (2026-08-11 10:41 UTC)
+
+Overview: VG Stub Creator keeps generated-source writes compatible with
+enhanced MediaWiki source editors.
+
+- Adopted shared cross-bundle editor discovery so reads, writes, and focus use
+  the visible wikEd Lite surface when both gadgets are installed.
+
 ### 0.5.3 (2026-08-09 13:30 UTC)
 
 Overview: VG Stub Creator limits its launcher to supported creation contexts

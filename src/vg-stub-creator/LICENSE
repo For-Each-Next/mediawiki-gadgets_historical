@@ -1,15 +1,15 @@
-VG Stub Creator 0.5.3 Licensing Notice
+VG Stub Creator 0.5.3-post.1 Licensing Notice
 
-Release-Scope: vg-stub-creator@0.5.3
+Release-Scope: vg-stub-creator@0.5.3-post.1
 
 To the extent possible under law, the repository maintainer dedicates the
 copyright and related rights it owns in the project-authored portions of VG
-Stub Creator 0.5.3, including project-owned shared runtime incorporated into
-the release, to the public domain under CC0 1.0 Universal.
+Stub Creator 0.5.3-post.1, including project-owned shared runtime incorporated
+into the release, to the public domain under CC0 1.0 Universal.
 
 SPDX-License-Identifier: CC0-1.0
 
-This dedication is fixed to version 0.5.3. It does not automatically
+This dedication is fixed to version 0.5.3-post.1. It does not automatically
 apply to later releases or later contributions. It grants only rights held by
 the repository maintainer and does not relicense TemplateData-derived
 parameter orders, Wikimedia siteinfo values, dependencies, or other

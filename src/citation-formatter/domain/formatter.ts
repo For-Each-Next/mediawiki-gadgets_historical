@@ -81,6 +81,7 @@ const LEGACY_REFERENCE_SECTION_COMMENT =
     /<!--\s*==\s*(?:lead|Unused refs|.*?)\s*==\s*-->/gu;
 const HTML_COMMENT = /<!--[\s\S]*?-->/gu;
 const SECTION_COMMENT_WIDTH = 79;
+const SECTION_TITLE_SEPARATOR = "    ";
 const CITATION_MAINTENANCE_TEMPLATES = new Set(["cbignore", "dead link"]);
 const LOWERCASE_ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 
@@ -969,7 +970,10 @@ function findSectionHeadings(source: string): SectionHeading[] {
         counters.fill(0, depth + 1);
         const number = counters.slice(0, depth + 1).join(".");
         const name = match[2].trim();
-        headings.push({ label: `§ ${number} ${name}`, start });
+        headings.push({
+            label: `§ ${number}${SECTION_TITLE_SEPARATOR}${name}`,
+            start,
+        });
     }
     return headings;
 }
@@ -1021,7 +1025,9 @@ function getSectionAtPosition(
     const heading = headings.findLast(
         (candidate) => candidate.start < position,
     );
-    return heading?.label || `§ 0 ${leadSectionLabel}`;
+    return (
+        heading?.label || `§ 0${SECTION_TITLE_SEPARATOR}${leadSectionLabel}`
+    );
 }
 
 /**

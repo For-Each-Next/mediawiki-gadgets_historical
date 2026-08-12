@@ -7,10 +7,6 @@ import type {
     RegistrationResult,
 } from "#gadget/domain/types.ts";
 
-const SUMMARY_SOURCE_LINK = [
-    "[[:m:User:For Each ... Next/global.js",
-    "/vg page assessor.js|🍄]]",
-].join("");
 const DATE_LINE_PATTERN = /^\* (\d{1,2})月(\d{1,2})日 -\s*(.*)$/u;
 const SUBGROUP_PATTERN = /^\*:\s*([^：:]+)[：:]\s*(.*)$/u;
 const GROUP_ORDER = [
@@ -296,29 +292,6 @@ export function getTitlesForDate(text: string, date: Date): Array<string> {
     const titles = [...block.entries, ...groupedEntries].map(extractVgcTitle);
 
     return titles;
-}
-
-/**
- * Builds an edit summary for registration.
- *
- * @param title - Registered title.
- * @param creationDate - Page creation date.
- * @returns Edit summary.
- */
-export function buildNewPageListSummary(
-    title: string,
-    creationDate: Date,
-): string {
-    const result = [
-        "Add [[",
-        title,
-        "]] to the ",
-        formatEnglishDate(creationDate),
-        " entry ",
-        SUMMARY_SOURCE_LINK,
-        "",
-    ].join("");
-    return result;
 }
 
 /**
@@ -982,21 +955,6 @@ function getNamespaceGroup(namespaceNumber: number): RegistrationGroup | null {
     }
 
     return "other";
-}
-
-/**
- * Formats a UTC date for edit summaries.
- *
- * @param date - Date.
- * @returns Month/day text.
- */
-function formatEnglishDate(date: Date): string {
-    const result = new Intl.DateTimeFormat("en", {
-        day: "numeric",
-        month: "long",
-        timeZone: "UTC",
-    }).format(date);
-    return result;
 }
 
 /**

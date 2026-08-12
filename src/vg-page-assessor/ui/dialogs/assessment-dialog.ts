@@ -16,7 +16,6 @@ import {
     previewTalkPageTopSection,
     shouldRegisterByDefault,
 } from "#gadget/domain/assessment.ts";
-import { buildNewPageListSummary } from "#gadget/domain/new-page-list.ts";
 import type {
     Assessment,
     AssessmentClass,
@@ -24,10 +23,15 @@ import type {
     RegistrationResult,
     SelectionMap,
 } from "#gadget/domain/types.ts";
-import { interfaceLocale, msg } from "#gadget/i18n/index.ts";
+import {
+    buildNewPageListSummary,
+    interfaceLocale,
+    msg,
+} from "#gadget/i18n/index.ts";
 import {
     CLASS_OPTIONS,
     IMPORTANCE_OPTIONS,
+    KNOWN_CLASS_OPTIONS,
     MAINTENANCE_OPTIONS,
     OTHER_PROJECT_OPTIONS,
     TASK_FORCE_OPTIONS,
@@ -141,7 +145,11 @@ export function createAssessmentDialogBindings(
     const { runtime, state } = options;
     const assessment = Vue.reactive(state.assessment);
     const classOptions = Vue.computed(function getClassOptions() {
-        return includeAssessmentValue(CLASS_OPTIONS, assessment.className);
+        return includeAssessmentValue(
+            CLASS_OPTIONS,
+            assessment.className,
+            KNOWN_CLASS_OPTIONS,
+        );
     });
     const importanceOptions = Vue.computed(function getImportanceOptions() {
         return includeAssessmentValue(

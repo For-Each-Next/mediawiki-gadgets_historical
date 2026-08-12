@@ -23,6 +23,11 @@ import {
 } from "vg-page-assessor/ui/components/wikitext-comparison.ts";
 import { buildEditSummary } from "vg-page-assessor/ui/assessment-summary.ts";
 import {
+    CLASS_OPTIONS,
+    KNOWN_CLASS_OPTIONS,
+    includeAssessmentValue,
+} from "vg-page-assessor/ui/assessment-options.ts";
+import {
     ASSESSMENT_DIALOG_STYLES,
     ASSESSMENT_DIALOG_TEMPLATE,
     createAssessmentDialogBindings,
@@ -87,16 +92,46 @@ test("keeps build-injected dialog assets safe in Node", () => {
     assert.equal(WIKITEXT_COMPARISON_STYLES, "");
 });
 
-test("uses Codex Cards for wikitext comparisons", () => {
+test("hides non-default assessment classes unless they are current", () => {
+    const hiddenValues = ["Substub", "D", "B+", "GA", "A", "AL", "FA", "FL"];
+
+    assert.deepEqual(
+        CLASS_OPTIONS.map((option) => option.value),
+        ["Unassessed", "Stub", "Start", "C", "B", "SL", "List", "CL", "BL"],
+    );
+
+    for (const value of hiddenValues) {
+        const options = includeAssessmentValue(
+            CLASS_OPTIONS,
+            value,
+            KNOWN_CLASS_OPTIONS,
+        );
+        const localized = KNOWN_CLASS_OPTIONS.find(
+            (option) => option.value === value,
+        );
+
+        assert.deepEqual(options.at(-1), localized);
+    }
+});
+
+test("uses MediaWiki markup for wikitext comparisons", () => {
     const source = readFileSync(comparisonPath, "utf8");
     const parsed = parse(source, { filename: comparisonPath });
     const template = parsed.descriptor.template;
 
     assert.deepEqual(parsed.errors, []);
     assert.ok(template);
-    assert.equal([...template.content.matchAll(/<cdx-card\b/gu)].length, 2);
+    assert.match(
+        template.content,
+        /<table class="diff avgp-comparison__table">/u,
+    );
+    assert.match(template.content, /'diff-deletedline':/u);
+    assert.match(template.content, /'diff-addedline':/u);
+    assert.match(template.content, /<del\b/u);
+    assert.match(template.content, /<ins\b/u);
+    assert.doesNotMatch(template.content, /<cdx-card\b/u);
     assert.match(template.content, /comparison\.rows/u);
-    assert.match(template.content, /avgp-comparison__segment--changed/u);
+    assert.match(template.content, /diffchange diffchange-inline/u);
     assert.doesNotMatch(template.content, /\bv-html\b/u);
     const compiled = compileTemplate({
         filename: comparisonPath,
@@ -106,26 +141,14 @@ test("uses Codex Cards for wikitext comparisons", () => {
     assert.deepEqual(compiled.errors, []);
 });
 
-test("wraps borderless source with plain context lines", () => {
+test("leaves changed styles to MediaWiki and keeps omissions plain", () => {
     const source = readFileSync(comparisonStylesPath, "utf8");
 
-    assert.ok(
-        source.includes(
-            ".avgp-comparison__line--removed " +
-                ".avgp-comparison__segment--changed",
-        ),
-    );
-    assert.ok(
-        source.includes(
-            ".avgp-comparison__line--added " +
-                ".avgp-comparison__segment--changed",
-        ),
-    );
-    assert.doesNotMatch(
-        source,
-        /\.avgp-comparison__line--context\s*\{[^}]*background-color/u,
-    );
-    assert.doesNotMatch(source, /\bborder(?:-[a-z-]+)?\s*:/u);
+    assert.match(source, /\.avgp-comparison__table\.diff/u);
+    assert.match(source, /overflow-x:\s*auto/u);
+    assert.match(source, /\.avgp-comparison__omitted\.diff-context\s*\{/u);
+    assert.match(source, /background-color:\s*transparent/u);
+    assert.match(source, /border:\s*0/u);
     assert.match(source, /overflow-wrap:\s*anywhere/u);
     assert.match(source, /white-space:\s*pre-wrap/u);
 });

@@ -93,6 +93,48 @@ test("preserves native selection and viewport during a full write", () => {
     assert.deepEqual(events, ["input", "change"]);
 });
 
+test("uses a registered enhanced editor backend", () => {
+    const calls: string[] = [];
+    const textarea = { value: "native source" } as HTMLTextAreaElement;
+    const backend: editBox.EditBoxBackend = {
+        focus() {
+            calls.push("focus");
+        },
+        read() {
+            calls.push("read");
+            return "enhanced source";
+        },
+        replaceSelection(value) {
+            calls.push(`replace:${value}`);
+        },
+        write(value) {
+            calls.push(`write:${value}`);
+        },
+        writePreservingPosition(value) {
+            calls.push(`preserve:${value}`);
+        },
+    };
+    const unregister = editBox.registerEditBoxBackend(textarea, backend);
+    const editor = createEditBox(textarea);
+
+    assert.equal(editor.read(), "enhanced source");
+    editor.replaceSelection("citation");
+    editor.write("updated");
+    writePreservingPosition(editor, "formatted");
+    editor.focus();
+
+    assert.deepEqual(calls, [
+        "read",
+        "replace:citation",
+        "write:updated",
+        "preserve:formatted",
+        "focus",
+    ]);
+
+    unregister();
+    assert.equal(editor.read(), "native source");
+});
+
 const testCodeMirrorBackend = () => {
     const hooks = installMediaWikiHookMock();
     registerEditBoxHooks();

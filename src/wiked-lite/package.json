@@ -1,6 +1,6 @@
 {
     "name": "wiked-lite",
-    "version": "0.4.6",
+    "version": "0.4.6-post.3",
     "description": "Format and highlight wikitext in MediaWiki source editors.",
     "private": true,
     "license": "CC0-1.0",

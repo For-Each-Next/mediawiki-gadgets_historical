@@ -2,6 +2,36 @@
 
 ## Until 0.5
 
+### 0.4.6-post.3 (2026-08-12 12:36 UTC)
+
+Overview: wikEd Lite separates headings consistently from surrounding article
+content.
+
+- Guaranteed blank lines before and after every level-one through level-six
+  heading, including source boundaries and adjacent headings.
+
+### 0.4.6-post.2 (2026-08-11 11:06 UTC)
+
+Overview: wikEd Lite exposes its live editor to compatible source tools and
+gives its formatter a recognizable wikitext action.
+
+- Registered live iframe reads, writes, focus, and selection through the shared
+  cross-bundle edit-box contract.
+- Made Citation Formatter insert sources at the visible caret and preserve the
+  live selection during whole-article formatting, with native fallback after
+  iframe teardown.
+- Added the native MediaWiki wikitext icon to the formatter's portlet link.
+
+### 0.4.6-post.1 (2026-08-10 07:52 UTC)
+
+Overview: wikEd Lite preserves intentional category sorting and makes
+highlighted references and explanatory footnotes more compact.
+
+- Reduced their single flat font level from `0.9em` to `0.86em` without
+  compounding the size change when note syntax overlaps or nests.
+- Preserved a whitespace-only category sort key during basic wikilink cleanup
+  instead of treating the piped link as an unpiped link afterward.
+
 ### 0.4.6 (2026-08-09 13:30 UTC)
 
 Overview: wikEd Lite publishes a credited modern artifact and keeps

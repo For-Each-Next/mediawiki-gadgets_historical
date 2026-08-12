@@ -1,101 +1,109 @@
 <template>
     <div class="avgp-comparison">
-        <cdx-card class="avgp-comparison__card">
-            <template #title>
-                {{ beforeLabel }}
-            </template>
-            <template #description>
-                <div class="avgp-comparison__source">
-                    <div
-                        v-if="!comparison.changed"
-                        class="avgp-comparison__message"
-                    >
+        <table class="diff avgp-comparison__table">
+            <colgroup>
+                <col class="diff-marker" />
+                <col class="diff-content" />
+                <col class="diff-marker" />
+                <col class="diff-content" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th colspan="2" class="diff-otitle">
+                        {{ beforeLabel }}
+                    </th>
+                    <th colspan="2" class="diff-ntitle">
+                        {{ afterLabel }}
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-if="!comparison.changed">
+                    <td colspan="4" class="avgp-comparison__message">
                         {{ noChangesLabel }}
-                    </div>
-                    <template
-                        v-for="(row, rowIndex) in comparison.rows"
-                        :key="rowIndex"
-                    >
-                        <div
-                            v-if="row.kind === 'omitted'"
-                            class="avgp-comparison__omitted"
+                    </td>
+                </tr>
+                <template
+                    v-for="(row, rowIndex) in comparison.rows"
+                    :key="rowIndex"
+                >
+                    <tr v-if="row.kind === 'omitted'">
+                        <td
+                            colspan="2"
+                            class="diff-context avgp-comparison__omitted"
                         >
                             ⋯
-                        </div>
-                        <div
-                            v-else
-                            class="avgp-comparison__line"
-                            :class="
-                                'avgp-comparison__line--' + row.before.kind
-                            "
+                        </td>
+                        <td
+                            colspan="2"
+                            class="diff-context avgp-comparison__omitted"
                         >
-                            <span class="avgp-comparison__marker">
-                                {{ row.before.kind === "removed" ? "−" : "" }}
-                            </span>
-                            <code class="avgp-comparison__code"
-                                ><span
+                            ⋯
+                        </td>
+                    </tr>
+                    <tr v-else>
+                        <td
+                            class="diff-marker"
+                            :data-marker="
+                                row.before.kind === 'removed' ? '−' : ''
+                            "
+                        ></td>
+                        <td
+                            class="diff-side-deleted"
+                            :class="{
+                                'diff-context': row.before.kind === 'context',
+                                'diff-deletedline':
+                                    row.before.kind === 'removed',
+                                'diff-empty': row.before.kind === 'empty',
+                            }"
+                        >
+                            <div>
+                                <template
                                     v-for="(segment, segmentIndex) in row
                                         .before.segments"
                                     :key="segmentIndex"
-                                    :class="{
-                                        'avgp-comparison__segment--changed':
-                                            segment.kind === 'changed',
-                                    }"
-                                    >{{ segment.text }}</span
-                                ></code
-                            >
-                        </div>
-                    </template>
-                </div>
-            </template>
-        </cdx-card>
-
-        <cdx-card class="avgp-comparison__card">
-            <template #title>
-                {{ afterLabel }}
-            </template>
-            <template #description>
-                <div class="avgp-comparison__source">
-                    <div
-                        v-if="!comparison.changed"
-                        class="avgp-comparison__message"
-                    >
-                        {{ noChangesLabel }}
-                    </div>
-                    <template
-                        v-for="(row, rowIndex) in comparison.rows"
-                        :key="rowIndex"
-                    >
-                        <div
-                            v-if="row.kind === 'omitted'"
-                            class="avgp-comparison__omitted"
+                                >
+                                    <del
+                                        v-if="segment.kind === 'changed'"
+                                        class="diffchange diffchange-inline"
+                                        >{{ segment.text }}</del
+                                    >
+                                    <span v-else>{{ segment.text }}</span>
+                                </template>
+                            </div>
+                        </td>
+                        <td
+                            class="diff-marker"
+                            :data-marker="
+                                row.after.kind === 'added' ? '+' : ''
+                            "
+                        ></td>
+                        <td
+                            class="diff-side-added"
+                            :class="{
+                                'diff-addedline': row.after.kind === 'added',
+                                'diff-context': row.after.kind === 'context',
+                                'diff-empty': row.after.kind === 'empty',
+                            }"
                         >
-                            ⋯
-                        </div>
-                        <div
-                            v-else
-                            class="avgp-comparison__line"
-                            :class="'avgp-comparison__line--' + row.after.kind"
-                        >
-                            <span class="avgp-comparison__marker">
-                                {{ row.after.kind === "added" ? "+" : "" }}
-                            </span>
-                            <code class="avgp-comparison__code"
-                                ><span
+                            <div>
+                                <template
                                     v-for="(segment, segmentIndex) in row.after
                                         .segments"
                                     :key="segmentIndex"
-                                    :class="{
-                                        'avgp-comparison__segment--changed':
-                                            segment.kind === 'changed',
-                                    }"
-                                    >{{ segment.text }}</span
-                                ></code
-                            >
-                        </div>
-                    </template>
-                </div>
-            </template>
-        </cdx-card>
+                                >
+                                    <ins
+                                        v-if="segment.kind === 'changed'"
+                                        class="diffchange diffchange-inline"
+                                        >{{ segment.text }}</ins
+                                    >
+                                    <span v-else>{{ segment.text }}</span>
+                                </template>
+                            </div>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
     </div>
 </template>

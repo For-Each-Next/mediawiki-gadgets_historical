@@ -9,8 +9,8 @@ import type {
     SelectionMap,
 } from "#gadget/domain/types.ts";
 import {
-    CLASS_OPTIONS,
     IMPORTANCE_OPTIONS,
+    KNOWN_CLASS_OPTIONS,
     MAINTENANCE_OPTIONS,
     OTHER_PROJECT_OPTIONS,
     TASK_FORCE_OPTIONS,
@@ -39,7 +39,7 @@ export function buildEditSummary(
         ...getSelectedLabels(availableProjects, assessment.otherProjects),
     ];
     const className = msg("summary.class", {
-        className: getValueLabel(CLASS_OPTIONS, assessment.className),
+        className: getValueLabel(KNOWN_CLASS_OPTIONS, assessment.className),
     });
     let summary;
 

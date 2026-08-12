@@ -125,6 +125,7 @@ async function loadVueAndCodex(): Promise<ResourceLoaderRequire> {
     return (await mw.loader.using([
         "vue",
         "@wikimedia/codex",
+        "mediawiki.diff.styles",
     ])) as ResourceLoaderRequire;
 }
 

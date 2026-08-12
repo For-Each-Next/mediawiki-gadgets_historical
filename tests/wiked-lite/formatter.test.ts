@@ -46,6 +46,15 @@ test("basic formatting separates headings but not DEFAULTSORT", () => {
     );
 });
 
+test("basic formatting preserves whitespace-only category sort keys", () => {
+    const source = "[[Category:电子游戏专题| ]]";
+
+    assert.deepEqual(formatWikitext(source), {
+        changed: false,
+        text: source,
+    });
+});
+
 test("basic formatting separates every MediaWiki heading level", () => {
     for (let level = 1; level <= 6; level += 1) {
         const marks = "=".repeat(level);

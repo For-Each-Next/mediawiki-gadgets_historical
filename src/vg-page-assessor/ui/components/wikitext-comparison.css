@@ -1,71 +1,34 @@
 .avgp-comparison {
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    max-width: 100%;
+    overflow-x: auto;
 }
 
-.avgp-comparison__card.cdx-card {
-    min-width: 0;
-}
-
-.avgp-comparison__card .cdx-card__text {
-    min-width: 0;
+.avgp-comparison__table.diff {
+    direction: ltr;
+    margin: 0;
+    min-width: 40rem;
+    table-layout: fixed;
     width: 100%;
 }
 
-.avgp-comparison__card .cdx-card__text__description {
+.avgp-comparison__table .diff-otitle,
+.avgp-comparison__table .diff-ntitle {
     color: var(--color-base, #202122);
-    margin-block-start: 0.5rem;
-}
-
-.avgp-comparison__line {
-    display: grid;
-    grid-template-columns: 2rem minmax(0, 1fr);
-    min-height: 1.75rem;
-}
-
-.avgp-comparison__line--removed {
-    background-color: var(--background-color-warning-subtle, #fef6e7);
-}
-
-.avgp-comparison__line--added {
-    background-color: var(--background-color-progressive-subtle, #eaf3ff);
-}
-
-.avgp-comparison__line--empty {
-    background-color: var(--background-color-neutral-subtle, #f8f9fa);
-}
-
-.avgp-comparison__marker {
-    color: var(--color-subtle, #54595d);
-    padding: 0.25rem;
+    direction: initial;
+    font-weight: 700;
+    padding-block-end: 0.25rem;
     text-align: center;
-    user-select: none;
 }
 
-.avgp-comparison__code {
-    color: var(--color-base, #202122);
+.avgp-comparison__table .diff-deletedline > div,
+.avgp-comparison__table .diff-addedline > div,
+.avgp-comparison__table .diff-context > div {
     direction: ltr;
     font-family: var(--font-family-monospace, monospace), monospace;
     font-size: 0.875rem;
     line-height: 1.5;
-    min-width: 0;
     overflow-wrap: anywhere;
-    padding: 0.25rem 0.5rem;
     white-space: pre-wrap;
-}
-
-.avgp-comparison__line--removed .avgp-comparison__segment--changed {
-    background-color: #ffe49c;
-    font-weight: 700;
-}
-
-.avgp-comparison__line--added .avgp-comparison__segment--changed {
-    background-color: var(
-        --background-color-progressive-subtle--active,
-        #a3d3ff
-    );
-    font-weight: 700;
 }
 
 .avgp-comparison__omitted,
@@ -75,12 +38,11 @@
     text-align: center;
 }
 
-.avgp-comparison__omitted {
-    background-color: var(--background-color-neutral-subtle, #f8f9fa);
+.avgp-comparison__omitted.diff-context {
+    background-color: transparent;
+    border: 0;
 }
 
-@media (max-width: 61.25rem) {
-    .avgp-comparison {
-        grid-template-columns: 1fr;
-    }
+.avgp-comparison__message {
+    direction: initial;
 }

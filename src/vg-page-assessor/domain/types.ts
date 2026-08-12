@@ -4,14 +4,22 @@
 
 export const CLASS_VALUES = [
     "Unassessed",
+    "Substub",
     "Stub",
     "Start",
+    "D",
     "C",
     "B",
+    "B+",
+    "GA",
+    "A",
+    "FA",
     "SL",
     "List",
     "CL",
     "BL",
+    "AL",
+    "FL",
 ] as const;
 
 export const IMPORTANCE_VALUES = ["", "Low", "Mid", "High", "Top"] as const;

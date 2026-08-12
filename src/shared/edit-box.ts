@@ -3,6 +3,7 @@
  */
 
 const EDIT_BOX_SELECTOR = "#wpTextbox1";
+const EDIT_BOX_BACKEND_KEY = Symbol.for("mediawiki-gadgets.edit-box-backend");
 const codeMirrorEditors = new Set<CodeMirrorEditor>();
 let hooksRegistered = false;
 
@@ -95,6 +96,47 @@ export interface EditBox {
 }
 
 /**
+ * Operations supplied by an editor backed by a native textarea.
+ */
+export interface EditBoxBackend {
+    focus(): void;
+    read(): string;
+    replaceSelection(text: string): void;
+    write(text: string): void;
+    writePreservingPosition(text: string): void;
+}
+
+/**
+ * Registers an enhanced editor for one native backing textarea.
+ *
+ * The symbol-keyed property remains discoverable when separate gadgets
+ * bundle their own copies of this shared module.
+ *
+ * @param element - Native backing textarea.
+ * @param backend - Enhanced editor operations.
+ * @returns Registration cleanup callback.
+ */
+export function registerEditBoxBackend(
+    element: HTMLTextAreaElement,
+    backend: EditBoxBackend,
+): () => void {
+    const target = element as unknown as Record<PropertyKey, unknown>;
+    const previous = target[EDIT_BOX_BACKEND_KEY];
+    target[EDIT_BOX_BACKEND_KEY] = backend;
+
+    return function unregisterEditBoxBackend(): void {
+        if (target[EDIT_BOX_BACKEND_KEY] !== backend) {
+            return;
+        }
+        if (previous == null) {
+            delete target[EDIT_BOX_BACKEND_KEY];
+            return;
+        }
+        target[EDIT_BOX_BACKEND_KEY] = previous;
+    };
+}
+
+/**
  * Starts tracking MediaWiki CodeMirror instances.
  *
  * MediaWiki hooks retain their most recent firing, so late-loaded
@@ -146,6 +188,12 @@ export function createEditBox(element: HTMLTextAreaElement | null): EditBox {
  * @param text - New document text.
  */
 export function writePreservingPosition(editor: EditBox, text: string): void {
+    const backend = getEditBoxBackend(editor.element);
+    if (backend != null) {
+        backend.writePreservingPosition(text);
+        return;
+    }
+
     const codeMirror = findCodeMirror(editor.element);
     if (codeMirror != null) {
         writeCodeMirrorPreservingPosition(codeMirror, text);
@@ -177,6 +225,12 @@ class ActiveEditBox implements EditBox {
     }
 
     public focus(): void {
+        const backend = getEditBoxBackend(this.element);
+        if (backend != null) {
+            backend.focus();
+            return;
+        }
+
         const codeMirror = findCodeMirror(this.element);
         if (codeMirror != null) {
             focusCodeMirror(codeMirror);
@@ -193,6 +247,11 @@ class ActiveEditBox implements EditBox {
     }
 
     public read(): string {
+        const backend = getEditBoxBackend(this.element);
+        if (backend != null) {
+            return backend.read();
+        }
+
         const codeMirror = findCodeMirror(this.element);
         if (codeMirror != null) {
             return readCodeMirror(codeMirror);
@@ -208,6 +267,12 @@ class ActiveEditBox implements EditBox {
     }
 
     public replaceSelection(text: string): void {
+        const backend = getEditBoxBackend(this.element);
+        if (backend != null) {
+            backend.replaceSelection(text);
+            return;
+        }
+
         const codeMirror = findCodeMirror(this.element);
         if (codeMirror != null) {
             replaceCodeMirrorSelection(codeMirror, text);
@@ -231,6 +296,12 @@ class ActiveEditBox implements EditBox {
     }
 
     public write(text: string): void {
+        const backend = getEditBoxBackend(this.element);
+        if (backend != null) {
+            backend.write(text);
+            return;
+        }
+
         const codeMirror = findCodeMirror(this.element);
         if (codeMirror != null) {
             writeCodeMirror(codeMirror, text);
@@ -248,6 +319,46 @@ class ActiveEditBox implements EditBox {
             dispatchValueEvents(this.element);
         }
     }
+}
+
+/**
+ * Gets an enhanced editor registered for a native backing textarea.
+ *
+ * @param element - Native backing textarea.
+ * @returns Registered enhanced editor operations.
+ */
+function getEditBoxBackend(
+    element: HTMLTextAreaElement | null,
+): EditBoxBackend | null {
+    if (element == null) {
+        return null;
+    }
+    const target = element as unknown as Record<PropertyKey, unknown>;
+    const backend = target[EDIT_BOX_BACKEND_KEY];
+    return isEditBoxBackend(backend) ? backend : null;
+}
+
+/**
+ * Checks a symbol-keyed enhanced-editor registration.
+ *
+ * @param value - Candidate registration.
+ * @returns Whether every edit-box operation is available.
+ */
+function isEditBoxBackend(value: unknown): value is EditBoxBackend {
+    return (
+        typeof value === "object" &&
+        value != null &&
+        "focus" in value &&
+        typeof value.focus === "function" &&
+        "read" in value &&
+        typeof value.read === "function" &&
+        "replaceSelection" in value &&
+        typeof value.replaceSelection === "function" &&
+        "write" in value &&
+        typeof value.write === "function" &&
+        "writePreservingPosition" in value &&
+        typeof value.writePreservingPosition === "function"
+    );
 }
 
 /**

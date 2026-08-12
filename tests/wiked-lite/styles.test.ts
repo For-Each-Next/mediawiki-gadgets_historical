@@ -59,7 +59,7 @@ test("references and explanatory footnotes use one small font level", () => {
         true,
     );
 
-    assert.match(rule, /font-size:\s*0\.9em/u);
+    assert.match(rule, /font-size:\s*0\.86em/u);
     assert.doesNotMatch(styles, /--reference\s+\.wiked-lite-token--footnote/u);
     assert.doesNotMatch(styles, /--footnote\s+\.wiked-lite-token--reference/u);
 });
@@ -254,6 +254,25 @@ test("content-model selection initializes only one editor", () => {
     assert.match(editorSource, /!isWikitextSourcePage\(\)/u);
     assert.match(editorSource, /"ext\.CodeMirror\.modes"/u);
     assert.match(editorSource, /existing\.editor\.toggle\(true\)/u);
+});
+
+test("the formatter portlet link uses the wikitext icon", () => {
+    assert.match(editorSource, /const TOOL_ICON = "wikiText"/u);
+    assert.match(editorSource, /icon: TOOL_ICON/u);
+});
+
+test("shared source tools use the live enhanced selection", () => {
+    assert.match(editorSource, /editBox\.registerEditBoxBackend\(textarea/u);
+    const replaceSelectionPattern = new RegExp(
+        String.raw`replaceSelection\(value\) \{\s*` +
+            String.raw`const selection = getSelectionOffsets\(editor\);\s*` +
+            String.raw`const caret = selection\.start \+ value\.length;\s*` +
+            String.raw`replaceEditorSource\(\s*selection\.start,\s*` +
+            String.raw`selection\.end,`,
+        "su",
+    );
+    assert.match(editorSource, replaceSelectionPattern);
+    assert.match(editorSource, /unregisterEditBoxBackend\(\)/u);
 });
 
 test("iframe teardown restores the native source editor", () => {

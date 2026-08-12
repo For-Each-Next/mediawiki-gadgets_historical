@@ -83,7 +83,7 @@ function normalizeBasicLayout(source: string): string {
         .replace(/^([#*:;]+)[ \t]+/gmu, "$1 ")
         .replace(/^----+\s*$/gmu, "----")
         .replace(/\[\[\s*([^\]|]+?)\s*\|\s*([^\]]+?)\s*\]\]/gu, "[[$1|$2]]")
-        .replace(/\[\[\s*([^\]]+?)\s*\]\]/gu, "[[$1]]");
+        .replace(/\[\[\s*([^\]|]+?)\s*\]\]/gu, "[[$1]]");
     return ensureBlankLinesAroundHeadings(normalized);
 }
 

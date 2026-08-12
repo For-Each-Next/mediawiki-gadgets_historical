@@ -28,3 +28,8 @@ test("browser startup is restricted to the wikitext content model", () => {
         /mw\.config\.get\("wgPageContentModel"\) !== "wikitext"/u,
     );
 });
+
+test("the formatter portlet link uses a distinct article icon", () => {
+    assert.match(editorSource, /const LINK_ICON = "article"/u);
+    assert.match(editorSource, /icon: LINK_ICON/u);
+});

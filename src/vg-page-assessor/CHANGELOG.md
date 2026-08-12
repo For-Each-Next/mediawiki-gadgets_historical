@@ -2,6 +2,21 @@
 
 ## Until 0.3
 
+### 0.2.3-post.5 (2026-08-12 07:07 UTC)
+
+Overview: VG Page Assessor presents native-style reviews, handles non-default
+classes, and localizes registration summaries.
+
+- Replaced the two-card source comparison with native MediaWiki diff-table
+  structure, markers, deleted and added lines, and inline change highlighting.
+- Loaded MediaWiki's core diff stylesheet while retaining scoped monospace
+  wrapping and horizontal overflow for long wikitext.
+- Kept omitted-context ellipses plain, transparent, and borderless.
+- Localized the non-default Substub, D, B+, GA, A, FA, AL, and FL codes, hid
+  them from the normal choices, and showed a matching code last when set.
+- Reworded new-page-list edit summaries naturally in English, Simplified
+  Chinese, and Traditional Chinese with locale-aware creation dates.
+
 ### 0.2.3 (2026-08-09 13:30 UTC)
 
 Overview: VG Page Assessor preserves reviewed banner source, opens with

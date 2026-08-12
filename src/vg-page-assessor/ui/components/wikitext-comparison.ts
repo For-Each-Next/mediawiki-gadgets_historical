@@ -1,4 +1,4 @@
-/** Codex-styled rendering for structured wikitext comparisons. */
+/** MediaWiki-styled rendering for structured wikitext comparisons. */
 
 import type { VueModule } from "#gadget/ui/codex.ts";
 import type { WikitextComparison } from "#shared/wikitext";
@@ -21,10 +21,10 @@ export const WIKITEXT_COMPARISON_STYLES =
         : __VG_PAGE_ASSESSOR_WIKITEXT_COMPARISON_STYLES__;
 
 /**
- * Creates a reusable Codex Card comparison component.
+ * Creates a reusable MediaWiki-style comparison component.
  *
  * @param Vue - Vue value.
- * @returns Codex-styled wikitext comparison component.
+ * @returns MediaWiki-style wikitext comparison component.
  */
 export function createWikitextComparisonComponent(Vue: VueModule): unknown {
     return Vue.defineComponent({

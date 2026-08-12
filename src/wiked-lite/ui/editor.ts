@@ -1,5 +1,6 @@
 /** MediaWiki source-editor integration for wikEd Lite. */
 
+import * as editBox from "#shared/edit-box";
 import { normalizeWikitextTitleKey } from "#shared/wikitext";
 import {
     selectSourceEditor,
@@ -34,6 +35,7 @@ import {
 
 const TEXTAREA_ID = "wpTextbox1";
 const TOOL_ID = "wiked-lite-format";
+const TOOL_ICON = "wikiText";
 const HOST_ID = "wiked-lite-dialog-host";
 const EDITOR_FRAME_SOURCE =
     '<!doctype html><html><head><meta charset="UTF-8">' +
@@ -308,6 +310,7 @@ function initializeEditorController(
     let timer = 0;
     let destroyed = false;
     let controller: EditorController | null = null;
+    let unregisterEditBoxBackend = function unregisterNoop(): void {};
     const history = new EditorHistory({
         end: textarea.selectionEnd,
         source: textarea.value,
@@ -464,6 +467,29 @@ function initializeEditorController(
         }
     }
 
+    function replaceEditorSource(
+        start: number,
+        end: number,
+        value: string,
+        nextSelection: { end: number; start: number },
+        focusAfter: boolean,
+    ): void {
+        const selection = getSelectionOffsets(editor);
+        history.setSelection(selection.start, selection.end);
+        textarea.setRangeText(value, start, end, "preserve");
+        textarea.setSelectionRange(nextSelection.start, nextSelection.end);
+        history.record({
+            end: textarea.selectionEnd,
+            source: textarea.value,
+            start: textarea.selectionStart,
+        });
+        dispatchEditorInput();
+        render(false);
+        if (focusAfter) {
+            editor.focus({ preventScroll: true });
+        }
+    }
+
     function destroy(): void {
         if (destroyed) {
             return;
@@ -475,6 +501,7 @@ function initializeEditorController(
         destroyed = true;
         window.clearTimeout(timer);
         connectionObserver.disconnect();
+        unregisterEditBoxBackend();
         textarea.removeEventListener("input", updateFromNative);
         form?.removeEventListener("submit", flushComposition, true);
         flushComposition();
@@ -508,18 +535,13 @@ function initializeEditorController(
             }
         },
         replace(start, end, value) {
-            const selection = getSelectionOffsets(editor);
-            history.setSelection(selection.start, selection.end);
-            textarea.setRangeText(value, start, end, "select");
-            textarea.setSelectionRange(start, start + value.length);
-            history.record({
-                end: textarea.selectionEnd,
-                source: textarea.value,
-                start: textarea.selectionStart,
-            });
-            dispatchEditorInput();
-            render(false);
-            editor.focus({ preventScroll: true });
+            replaceEditorSource(
+                start,
+                end,
+                value,
+                { end: start + value.length, start },
+                true,
+            );
         },
         setMissingLinks(titles, color = "") {
             missingTitles.clear();
@@ -548,11 +570,60 @@ function initializeEditorController(
             childList: true,
             subtree: true,
         });
+        unregisterEditBoxBackend = editBox.registerEditBoxBackend(textarea, {
+            focus() {
+                editor.focus({ preventScroll: true });
+            },
+            read() {
+                return textarea.value;
+            },
+            replaceSelection(value) {
+                const selection = getSelectionOffsets(editor);
+                const caret = selection.start + value.length;
+                replaceEditorSource(
+                    selection.start,
+                    selection.end,
+                    value,
+                    { end: caret, start: caret },
+                    false,
+                );
+            },
+            write(value) {
+                const caret = value.length;
+                replaceEditorSource(
+                    0,
+                    textarea.value.length,
+                    value,
+                    { end: caret, start: caret },
+                    false,
+                );
+            },
+            writePreservingPosition(value) {
+                const selection = getSelectionOffsets(editor);
+                replaceEditorSource(
+                    0,
+                    textarea.value.length,
+                    value,
+                    clampSelection(selection, value),
+                    false,
+                );
+            },
+        });
     } catch (error) {
         destroy();
         throw error;
     }
     return controller;
+}
+
+function clampSelection(
+    selection: { end: number; start: number },
+    source: string,
+): { end: number; start: number } {
+    return {
+        end: Math.max(0, Math.min(selection.end, source.length)),
+        start: Math.max(0, Math.min(selection.start, source.length)),
+    };
 }
 
 async function createEditorSurface(
@@ -981,13 +1052,23 @@ function installTool(services: EditorServices): void {
 }
 
 function addToolToPortlet(portlet: string): HTMLElement | null {
-    return mw.util.addPortletLink(
-        portlet,
-        "#",
-        msg("tool.name"),
-        TOOL_ID,
-        msg("tool.description"),
-    );
+    const addPortletLink = mw.util.addPortletLink as unknown as (
+        portletId: string,
+        options: {
+            href: string;
+            icon: string;
+            id: string;
+            text: string;
+            tooltip: string;
+        },
+    ) => HTMLElement | null;
+    return addPortletLink(portlet, {
+        href: "#",
+        icon: TOOL_ICON,
+        id: TOOL_ID,
+        text: msg("tool.name"),
+        tooltip: msg("tool.description"),
+    });
 }
 
 function isWikitextSourcePage(): boolean {

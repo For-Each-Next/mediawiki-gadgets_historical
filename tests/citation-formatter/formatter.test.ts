@@ -16,6 +16,7 @@ const templateData: CitationTemplateDataMap = {
 };
 const englishTemplateNames = createTemplateNameContext("enwiki");
 const chineseTemplateNames = createTemplateNameContext("zhwiki");
+const leadReferenceMarker = /<references responsive>\n\n<!-- -+ § 0 {4}Lead/u;
 
 function assertReferenceMarker(text: string, label: string): void {
     const lines = text.split("\n");
@@ -37,9 +38,9 @@ const testMovesCitationsToExistingReferences = () => {
     assert.match(result.text, /<ref name="Ma, 2006" \/>/u);
     assert.match(
         result.text,
-        /<references responsive>\n\n<!-- -+ § 0 Lead -+ -->\n\n<ref name="Ma, 2006">\{\{Cite web/u,
+        /<references responsive>\n\n<!-- -+ § 0 {4}Lead -+ -->\n\n<ref name="Ma, 2006">\{\{Cite web/u,
     );
-    assertReferenceMarker(result.text, "§ 0 Lead");
+    assertReferenceMarker(result.text, "§ 0    Lead");
     assert.match(result.text, /\| date = 2006-06-01/u);
     assert.equal(result.citationsFormatted, 1);
     assert.equal(result.referenceTagsRenamed, 1);
@@ -75,8 +76,8 @@ test("localizes the generated lead marker", () => {
         "序言",
     );
 
-    assertReferenceMarker(result.text, "§ 0 序言");
-    assert.doesNotMatch(result.text, /§ 0 Lead/u);
+    assertReferenceMarker(result.text, "§ 0    序言");
+    assert.doesNotMatch(result.text, /§ 0 {4}Lead/u);
 });
 
 const testInlineCitationLayout = () => {
@@ -152,7 +153,7 @@ const testReflistColumnWidthRemoval = () => {
 
     assert.match(
         result.text,
-        /<references responsive>\n\n<!-- -+ § 0 Lead -+ -->\n\n<ref name="Site, n\.d\.">/u,
+        /<references responsive>\n\n<!-- -+ § 0 {4}Lead -+ -->\n\n<ref name="Site, n\.d\.">/u,
     );
     assert.doesNotMatch(result.text, /\{\{reflist/iu);
     assert.doesNotMatch(result.text, /20em/u);
@@ -171,7 +172,7 @@ const testGroupedReflistReplacement = () => {
 
     assert.match(
         result.text,
-        /<references group="note" responsive>\n\n<!-- -+ § 0 Lead -+ -->/u,
+        /<references group="note" responsive>\n\n<!-- -+ § 0 {4}Lead -+ -->/u,
     );
     assert.doesNotMatch(result.text, /\{\{reflist|30em|colwidth/iu);
 };
@@ -212,20 +213,20 @@ const testDefinitionSectionGrouping = () => {
     ].join("\n");
     const result = formatCitationWikitext(source, templateData);
 
-    const lead = result.text.indexOf("§ 0 Lead");
-    const gameplay = result.text.indexOf("§ 1 Gameplay");
+    const lead = result.text.indexOf("§ 0    Lead");
+    const gameplay = result.text.indexOf("§ 1    Gameplay");
     const unused = result.text.indexOf("§ A Unused references");
     assert.ok(lead < gameplay);
     assert.ok(gameplay < unused);
     assert.match(
         result.text,
-        /§ 1 Gameplay -+ -->\n\n<ref name="Used, 2021">/u,
+        /§ 1 {4}Gameplay -+ -->\n\n<ref name="Used, 2021">/u,
     );
     assert.match(
         result.text,
         /§ A Unused references -+ -->\n\n<ref name="Unused, 2022">/u,
     );
-    assertReferenceMarker(result.text, "§ 1 Gameplay");
+    assertReferenceMarker(result.text, "§ 1    Gameplay");
 };
 test(
     "groups definitions by lead, article section, and unused status",
@@ -252,20 +253,20 @@ const testLeadSectionCommentWithoutReference = () => {
 
     assert.match(
         result.text,
-        /<references responsive>\n\n<!-- -+ § 1 內容 -+ -->\n\n<ref name="Content, 2020">/u,
+        /<references responsive>\n\n<!-- -+ § 1 {4}內容 -+ -->\n\n<ref name="Content, 2020">/u,
     );
     assert.match(
         result.text,
-        /§ 2 製作 -+ -->\n\n<ref name="Production, 2021">/u,
+        /§ 2 {4}製作 -+ -->\n\n<ref name="Production, 2021">/u,
     );
     assert.match(
         result.text,
-        /§ 3 評測 -+ -->\n\n<ref name="Reviews, 2022">/u,
+        /§ 3 {4}評測 -+ -->\n\n<ref name="Reviews, 2022">/u,
     );
-    assertReferenceMarker(result.text, "§ 1 內容");
-    assertReferenceMarker(result.text, "§ 2 製作");
-    assertReferenceMarker(result.text, "§ 3 評測");
-    assert.doesNotMatch(result.text, /§ 0 Lead/u);
+    assertReferenceMarker(result.text, "§ 1    內容");
+    assertReferenceMarker(result.text, "§ 2    製作");
+    assertReferenceMarker(result.text, "§ 3    評測");
+    assert.doesNotMatch(result.text, /§ 0 {4}Lead/u);
 };
 test(
     "emits section comments when the lead has no reference",
@@ -274,13 +275,21 @@ test(
 
 const testHierarchicalSectionMarkers = () => {
     const source = [
-        "== Gameplay ==",
-        "=== Combat ===",
+        "== Part ==",
+        "=== Chapter 1 ===",
+        "=== Chapter 2 ===",
+        "=== Chapter 3 ===",
+        "=== Chapter 4 ===",
+        "==== Date 1 ====",
+        "==== Date 2 ====",
+        "==== Date 3 ====",
+        "==== Date 4 ====",
+        "==== 10月25日 ====",
         "Text.<ref>{{cite web|author=Ma|date=2020|title=Combat}}</ref>",
         "<references />",
     ].join("\n");
     const result = formatCitationWikitext(source, templateData);
-    assert.match(result.text, /§ 1\.1 Combat -+ -->/u);
+    assertReferenceMarker(result.text, "§ 1.4.5    10月25日");
 };
 test("uses hierarchical section markers", testHierarchicalSectionMarkers);
 
@@ -1308,7 +1317,7 @@ const testEarthBoundReferencePatterns = () => {
     assert.match(result.text, /name="Life, 2009"/u);
     assert.match(result.text, /name="Itoi, 2000"/u);
     assert.match(result.text, /\[https:\/\/example\.test Translation\]/u);
-    assert.match(result.text, /<references responsive>\n\n<!-- -+ § 0 Lead/u);
+    assert.match(result.text, leadReferenceMarker);
     assert.doesNotMatch(result.text, /\{\{reflist/iu);
     assert.doesNotMatch(result.text, /25em/u);
     assert.match(result.text, /<!--<ref name="commented">/u);

@@ -2,6 +2,21 @@
 
 ## Until 0.6
 
+### 0.5.4-post.2 (2026-08-12 13:07 UTC)
+
+Overview: Citation Formatter edits through the active enhanced editor, uses a
+source-oriented action icon, and separates numbered reference-section labels.
+
+- Added a shared cross-bundle edit-box backend contract so source insertion,
+  full writes, focus restoration, and position-preserving formatting use the
+  live editor surface.
+- Covered backend routing and cleanup while retaining native textarea,
+  CodeMirror, and VisualEditor fallbacks.
+- Added a distinct native MediaWiki article icon to the formatter's portlet
+  link.
+- Separated generated reference-section numbers from their titles with four
+  spaces, including lead and nested sections.
+
 ### 0.5.4 (2026-08-09 13:30 UTC)
 
 Overview: Citation Formatter publishes a concise modern artifact, uses

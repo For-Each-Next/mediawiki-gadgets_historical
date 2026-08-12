@@ -62,7 +62,8 @@ VG Page Assessor:
 - adds checked controls named from unconfigured `WikiProject ...` and `...專題`
   templates already inside a banner shell;
 - reflects recognizable manual source edits into the assessment controls and
-  adds an exact radio choice for an unconfigured class or importance value;
+  adds an exact final radio choice for a hidden or unconfigured class or
+  importance value;
 - applies subsequent control selections back to that current manual source
   while preserving recognizable unchanged wikitext where possible;
 - presents one editable, exact talk-page lead source above a two-card Codex
@@ -71,7 +72,8 @@ VG Page Assessor:
 - uses timestamp-protected writes, skips no-op changes, and refetches and
   reapplies reviewed changes only for confirmed edit conflicts;
 - labels new-page registration eligibility and shows no checkbox when a page is
-  already registered or outside the eligible age range;
+  already registered or outside the eligible age range, and writes its edit
+  summary in the interface language;
 - creates missing year and date groups, handles namespace subgroups, and orders
   same-day registrations by creation time;
 - previews focused new-page-list differences with aligned line and word changes
@@ -126,8 +128,8 @@ See the package [changelog][2], its scoped [AGENTS.md][3], and the repository
 
 ## License
 
-The project-owned portions of VG Page Assessor 0.2.3 are dedicated under [CC0
-1.0 Universal][5]. The package [license][6] fixes this release's scope and
+The project-owned portions of VG Page Assessor 0.2.3-post.5 are dedicated under
+[CC0 1.0 Universal][5]. The package [license][6] fixes this release's scope and
 preserves third-party terms. The repository [licensing map][7] covers the rest
 of the workspace.
 

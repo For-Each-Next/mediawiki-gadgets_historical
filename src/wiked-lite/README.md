@@ -1,8 +1,8 @@
 # wikEd Lite
 
 wikEd Lite is a lightweight MediaWiki source-editor enhancement that formats
-and highlights wikitext. It is a typed rebuild of Cacycle's public-domain wikEd
-ideas and is under active development.
+and highlights wikitext. It is a typed rebuild of [Cacycle's public-domain
+wikEd][5] ideas and is under active development.
 
 ## Run
 
@@ -126,17 +126,18 @@ index.ts
 
 ## License
 
-The project-owned portions of wikEd Lite 0.4.6 are dedicated under [CC0 1.0
-Universal][6]. It credits Cacycle as the original author of wikEd and its
-lightweight editing ideas. The rebuild also acknowledges [Remember the dot's
-Syntax highlighter][5] as an inspiration. The package [license][7] fixes this
-release's scope; the repository [licensing map][8] covers the workspace.
+The project-owned portions of wikEd Lite 0.4.6-post.3 are dedicated under [CC0
+1.0 Universal][7]. It credits Cacycle as the original author of [wikEd][5] and
+its lightweight editing ideas. The rebuild also acknowledges [Remember the
+dot's Syntax highlighter][6] as an inspiration. The package [license][8] fixes
+this release's scope; the repository [licensing map][9] covers the workspace.
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: CHANGELOG.md
 [3]: AGENTS.md
 [4]: ../../AGENTS.md
-[5]: https://www.mediawiki.org/wiki/User:Remember_the_dot/Syntax_highlighter
-[6]: https://creativecommons.org/publicdomain/zero/1.0/
-[7]: LICENSE
-[8]: ../../LICENSE
+[5]: https://en.wikipedia.org/wiki/User:Cacycle/wikEd
+[6]: https://www.mediawiki.org/wiki/User:Remember_the_dot/Syntax_highlighter
+[7]: https://creativecommons.org/publicdomain/zero/1.0/
+[8]: LICENSE
+[9]: ../../LICENSE

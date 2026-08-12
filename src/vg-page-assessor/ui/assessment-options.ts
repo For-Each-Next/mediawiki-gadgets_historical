@@ -26,15 +26,34 @@ type TaskForceId = (typeof projectConfig.videoGames.taskForces)[number]["id"];
 
 const CLASS_MESSAGE_IDS = {
     "Unassessed": "assessmentClass.unassessed",
+    "Substub": "assessmentClass.substub",
     "Stub": "assessmentClass.stub",
     "Start": "assessmentClass.start",
+    "D": "assessmentClass.d",
     "C": "assessmentClass.c",
     "B": "assessmentClass.b",
+    "B+": "assessmentClass.bPlus",
+    "GA": "assessmentClass.ga",
+    "A": "assessmentClass.a",
+    "FA": "assessmentClass.fa",
     "SL": "assessmentClass.sl",
     "List": "assessmentClass.list",
     "CL": "assessmentClass.cl",
     "BL": "assessmentClass.bl",
+    "AL": "assessmentClass.al",
+    "FL": "assessmentClass.fl",
 } as const satisfies Record<KnownAssessmentClass, MessageId>;
+
+const HIDDEN_CLASS_VALUES = new Set<KnownAssessmentClass>([
+    "Substub",
+    "D",
+    "B+",
+    "GA",
+    "A",
+    "AL",
+    "FA",
+    "FL",
+]);
 
 const IMPORTANCE_MESSAGE_IDS = {
     "": "common.empty",
@@ -67,7 +86,16 @@ export const OTHER_PROJECT_OPTIONS = localizeOptions(
     OTHER_PROJECT_MESSAGE_IDS,
 );
 
-export const CLASS_OPTIONS = localizeValues(CLASS_VALUES, CLASS_MESSAGE_IDS);
+export const KNOWN_CLASS_OPTIONS = localizeValues(
+    CLASS_VALUES,
+    CLASS_MESSAGE_IDS,
+);
+
+export const CLASS_OPTIONS = KNOWN_CLASS_OPTIONS.filter(
+    function isVisibleClass(option) {
+        return !HIDDEN_CLASS_VALUES.has(option.value);
+    },
+);
 
 export const IMPORTANCE_OPTIONS = localizeValues(
     IMPORTANCE_VALUES,
@@ -91,16 +119,19 @@ export const MAINTENANCE_OPTIONS = [
  *
  * @param options - Configured localized options.
  * @param value - Current wikitext value.
+ * @param knownOptions - Labels for values outside the choices.
  * @returns Options containing the current value.
  */
 export function includeAssessmentValue(
     options: ReadonlyArray<LabelledAssessmentValue<string>>,
     value: string,
+    knownOptions: ReadonlyArray<LabelledAssessmentValue<string>> = options,
 ): Array<LabelledAssessmentValue<string>> {
     if (options.some((option) => option.value === value)) {
         return [...options];
     }
-    return [...options, { label: value, value }];
+    const knownOption = knownOptions.find((option) => option.value === value);
+    return [...options, { label: knownOption?.label ?? value, value }];
 }
 
 function localizeOptions<Id extends string>(

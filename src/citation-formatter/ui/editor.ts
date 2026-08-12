@@ -8,6 +8,7 @@ import type * as sourceManager from "#gadget/ui/source-manager.ts";
 import { installCitationFormatterStyles } from "#gadget/ui/styles.ts";
 
 const LINK_ID = "ca-citation-formatter";
+const LINK_ICON = "article";
 const FLOATING_LAUNCHER_ID = "citation-formatter-quick-launch";
 
 /**
@@ -121,13 +122,23 @@ function notifyToolFailure(error: unknown): void {
  * @returns The actionable anchor added to the portlet.
  */
 function addCitationLink(portlet: string): HTMLElement | null {
-    const item = mw.util.addPortletLink(
-        portlet,
-        "#",
-        msg("tool.name"),
-        LINK_ID,
-        msg("tool.description"),
-    );
+    const addPortletLink = mw.util.addPortletLink as unknown as (
+        portletId: string,
+        options: {
+            href: string;
+            icon: string;
+            id: string;
+            text: string;
+            tooltip: string;
+        },
+    ) => HTMLElement | null;
+    const item = addPortletLink(portlet, {
+        href: "#",
+        icon: LINK_ICON,
+        id: LINK_ID,
+        text: msg("tool.name"),
+        tooltip: msg("tool.description"),
+    });
     const anchor =
         item?.matches("a") === true ? item : item?.querySelector("a");
     const launcher = anchor instanceof HTMLElement ? anchor : item;

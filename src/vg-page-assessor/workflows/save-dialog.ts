@@ -15,7 +15,7 @@ import {
     getTalkPageTopSection,
     isEmptyImportanceOnlyChange,
 } from "#gadget/domain/assessment.ts";
-import { buildNewPageListSummary } from "#gadget/domain/new-page-list.ts";
+import { buildNewPageListSummary } from "#gadget/i18n/index.ts";
 
 const DEFAULT_EDIT_SUMMARY =
     "Tag project banners " +

@@ -15,6 +15,7 @@ test("basic formatting protects comments and literal extension tags", () => {
     assert.equal(
         result.text,
         [
+            "",
             "== Heading ==",
             "",
             "<!-- ==  keep  ==   -->",
@@ -35,6 +36,7 @@ test("basic formatting separates headings but not DEFAULTSORT", () => {
     assert.equal(
         formatWikitext(source).text,
         [
+            "",
             "== Heading ==",
             "",
             "Paragraph.",
@@ -48,7 +50,7 @@ test("basic formatting separates every MediaWiki heading level", () => {
     for (let level = 1; level <= 6; level += 1) {
         const marks = "=".repeat(level);
         const source = `${marks}Heading${marks}\nParagraph.`;
-        const expected = `${marks} Heading ${marks}\n\nParagraph.`;
+        const expected = `\n${marks} Heading ${marks}\n\nParagraph.`;
 
         assert.equal(formatWikitext(source).text, expected);
         assert.deepEqual(formatWikitext(expected), {
@@ -56,6 +58,28 @@ test("basic formatting separates every MediaWiki heading level", () => {
             text: expected,
         });
     }
+});
+
+test("basic formatting separates headings from preceding content", () => {
+    const source = "Lead paragraph.\n==Heading==\nParagraph.";
+    const expected = "Lead paragraph.\n\n== Heading ==\n\nParagraph.";
+
+    assert.equal(formatWikitext(source).text, expected);
+    assert.deepEqual(formatWikitext(expected), {
+        changed: false,
+        text: expected,
+    });
+});
+
+test("adjacent headings share one separating blank line", () => {
+    const source = "==First==\n===Second===";
+    const expected = "\n== First ==\n\n=== Second ===\n\n";
+
+    assert.equal(formatWikitext(source).text, expected);
+    assert.deepEqual(formatWikitext(expected), {
+        changed: false,
+        text: expected,
+    });
 });
 
 test("heading normalization does not cross line boundaries", () => {
@@ -84,7 +108,7 @@ test("heading normalization does not reinterpret delimiter runs", () => {
 });
 
 test("heading separation stays idempotent at end of input", () => {
-    const expected = "== Heading ==\n\n";
+    const expected = "\n== Heading ==\n\n";
     for (const source of ["==Heading==", "==Heading==\n", expected]) {
         const once = formatWikitext(source).text;
 

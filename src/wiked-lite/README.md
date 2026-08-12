@@ -65,7 +65,7 @@ before saving the page.
 - Applies conservative wikEd-style basic fixes to the selection or whole page,
   with opt-in template alignment, Chinese-conversion cleanup, redirect targets
   rewritten as piped links that keep their original text, and target-only
-  missing-page highlighting; headings gain a following blank line without
+  missing-page highlighting; headings gain surrounding blank lines without
   separating `DEFAULTSORT` from later content.
 - Recognizes every English and Chinese Wikipedia namespace alias from bundled
   catalogs, and loads local namespace siteinfo in the background on other

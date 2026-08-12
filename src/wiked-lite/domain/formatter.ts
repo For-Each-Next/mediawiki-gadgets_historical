@@ -84,22 +84,26 @@ function normalizeBasicLayout(source: string): string {
         .replace(/^----+\s*$/gmu, "----")
         .replace(/\[\[\s*([^\]|]+?)\s*\|\s*([^\]]+?)\s*\]\]/gu, "[[$1|$2]]")
         .replace(/\[\[\s*([^\]]+?)\s*\]\]/gu, "[[$1]]");
-    return ensureBlankLineAfterHeadings(normalized);
+    return ensureBlankLinesAroundHeadings(normalized);
 }
 
 /**
- * Separates every normalized heading from following content.
+ * Separates every normalized heading from surrounding content.
  *
  * Only headings trigger insertion, so DEFAULTSORT and other magic words
- * keep their following line. Existing empty lines retain idempotence.
+ * keep their surrounding lines. Existing empty lines preserve
+ * idempotence.
  *
  * @param source - Normalized wikitext.
- * @returns Wikitext with headings separated from following content.
+ * @returns Wikitext with headings separated from surrounding content.
  */
-function ensureBlankLineAfterHeadings(source: string): string {
+function ensureBlankLinesAroundHeadings(source: string): string {
     const lines = source.split("\n");
     const separated: string[] = [];
     for (const [index, line] of lines.entries()) {
+        if (NORMALIZED_HEADING_PATTERN.test(line) && separated.at(-1) !== "") {
+            separated.push("");
+        }
         separated.push(line);
         const nextLine = lines[index + 1];
         if (!NORMALIZED_HEADING_PATTERN.test(line)) {

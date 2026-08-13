@@ -33,6 +33,8 @@ test("reference tooltips prefer space above their anchor", () => {
     assert.equal(placement.top, 190);
     assert.equal(placement.left, 94);
     assert.equal(placement.tailLeft, 26);
+    assert.equal(placement.bridgeLeft, 0);
+    assert.equal(placement.bridgeWidth, 200);
 });
 
 test("reference tooltips flip below near the viewport top", () => {
@@ -44,6 +46,8 @@ test("reference tooltips flip below near the viewport top", () => {
 
     assert.equal(placement.side, "below");
     assert.equal(placement.top, 50);
+    assert.equal(placement.bridgeLeft, 0);
+    assert.equal(placement.bridgeWidth, 200);
 });
 
 test("constrained tooltips use the larger side and cap their height", () => {
@@ -72,8 +76,25 @@ test("tooltip bodies and tails stay inside horizontal edges", () => {
 
     assert.equal(left.left, 12);
     assert.equal(left.tailLeft, 18);
+    assert.equal(left.bridgeLeft, -12);
+    assert.equal(left.bridgeWidth, 212);
     assert.equal(right.left, 188);
     assert.equal(right.tailLeft, 182);
+    assert.equal(right.bridgeLeft, 0);
+    assert.equal(right.bridgeWidth, 212);
+});
+
+test("tooltip hover bridges cover long reference lines", () => {
+    const placement = calculateReferenceTooltipPlacement(
+        rect(10, 300, 500, 20),
+        { height: 100, width: 200 },
+        { height: 800, width: 600 },
+    );
+
+    assert.equal(placement.side, "above");
+    assert.equal(placement.left, 234);
+    assert.equal(placement.bridgeLeft, -224);
+    assert.equal(placement.bridgeWidth, 500);
 });
 
 test("wrapped references anchor to the line under the pointer", () => {

@@ -163,9 +163,26 @@ test("iframe styles include emphasis and reference popovers", () => {
         styles,
         /\.wiked-lite-tooltip__surface\s*\{[^}]*max-height:\s*44vh/su,
     );
-    assert.match(styles, /\.wiked-lite-tooltip--above\s*\{/u);
-    assert.match(styles, /\.wiked-lite-tooltip--below\s*\{/u);
     assert.match(styles, /\.wiked-lite-tooltip__note\s*\{/u);
+});
+
+test("reference popovers bridge the anchor gap while visuals animate", () => {
+    const bridge = getStyleRule(".wiked-lite-tooltip::before");
+    const aboveBridge = getStyleRule(".wiked-lite-tooltip--above::before");
+    const belowBridge = getStyleRule(".wiked-lite-tooltip--below::before");
+    const aboveVisual = getStyleRule(
+        ".wiked-lite-tooltip--above .wiked-lite-tooltip__visual",
+    );
+    const belowVisual = getStyleRule(
+        ".wiked-lite-tooltip--below .wiked-lite-tooltip__visual",
+    );
+
+    assert.match(bridge, /height:\s*10px/u);
+    assert.match(bridge, /pointer-events:\s*auto/u);
+    assert.match(aboveBridge, /top:\s*100%/u);
+    assert.match(belowBridge, /bottom:\s*100%/u);
+    assert.match(aboveVisual, /animation:\s*wiked-lite-tooltip-in-down/u);
+    assert.match(belowVisual, /animation:\s*wiked-lite-tooltip-in-up/u);
 });
 
 test("the enhanced editing surface is an iframe-owned document", () => {
@@ -313,6 +330,8 @@ test("popup code preserves pending hovers and remeasures height", () => {
         /surface\.style\.removeProperty\("max-height"\)/u,
     );
     assert.match(tooltipSource, /const renderedHeight = popup\.offsetHeight/u);
+    assert.match(tooltipSource, /visual\.append\(tail, surface\)/u);
+    assert.match(tooltipSource, /tooltip\.append\(visual\)/u);
 });
 
 function getStyleRule(selector: string, last = false): string {

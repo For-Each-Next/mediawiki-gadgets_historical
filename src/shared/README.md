@@ -54,9 +54,9 @@ verification and build every affected gadget before handoff.
 
 ## License
 
-The current release-scoped shared-runtime dedication is recorded in
-the [shared license][1]. Earlier release notices remain available in repository
-Git history. The repository licensing map and third-party terms are in the root
+The current release-scoped shared-runtime dedication is recorded in the [shared
+license][1]. Earlier release notices remain available in repository Git
+history. The repository licensing map and third-party terms are in the root
 license and third-party notices.
 
 [1]: LICENSE

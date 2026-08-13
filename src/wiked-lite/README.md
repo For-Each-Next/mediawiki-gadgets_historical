@@ -134,11 +134,11 @@ index.ts
 
 ## License
 
-The project-owned portions of wikEd Lite 0.5.0 are dedicated under [CC0 1.0
-Universal][7]. It credits Cacycle as the original author of [wikEd][5] and its
-lightweight editing ideas. The rebuild also acknowledges [Remember the dot's
-Syntax highlighter][6] as an inspiration. The package [license][8] fixes this
-release's scope; the repository [licensing map][9] covers the workspace.
+The project-owned portions of wikEd Lite 0.5.0-post.1 are dedicated under [CC0
+1.0 Universal][7]. It credits Cacycle as the original author of [wikEd][5] and
+its lightweight editing ideas. The rebuild also acknowledges [Remember the
+dot's Syntax highlighter][6] as an inspiration. The package [license][8] fixes
+this release's scope; the repository [licensing map][9] covers the workspace.
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: CHANGELOG.md

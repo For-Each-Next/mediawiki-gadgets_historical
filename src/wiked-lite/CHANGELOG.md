@@ -2,6 +2,14 @@
 
 ## Until 0.6
 
+### 0.5.0-post.1 (2026-08-13 17:44 UTC)
+
+Overview: wikEd Lite keeps reference previews open while the pointer moves from
+highlighted references into their popups.
+
+- Bridged the anchor gap for above- and below-positioned previews while keeping
+  their animated visual content inside a stable pointer target.
+
 ### 0.5.0 (2026-08-13 11:33 UTC)
 
 Overview: wikEd Lite improves source-tool integration, compact reference

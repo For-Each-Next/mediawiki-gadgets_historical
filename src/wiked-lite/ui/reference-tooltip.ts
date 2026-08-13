@@ -30,6 +30,8 @@ export interface ReferenceTooltipRect {
 }
 
 export interface ReferenceTooltipPlacement {
+    bridgeLeft: number;
+    bridgeWidth: number;
     left: number;
     maxHeight: number;
     side: "above" | "below";
@@ -262,7 +264,9 @@ export function calculateReferenceTooltipPlacement(
         MINIMUM_TAIL_INSET,
         Math.max(MINIMUM_TAIL_INSET, tooltip.width - MINIMUM_TAIL_INSET),
     );
+    const bridge = calculateTooltipBridge(anchor, left, tooltip, viewport);
     return {
+        ...bridge,
         left,
         maxHeight,
         side,
@@ -329,6 +333,7 @@ function applyPlacement(
         "--wiked-lite-tooltip-tail-left",
         `${placement.tailLeft}px`,
     );
+    applyTooltipBridge(popup, placement);
     if (placement.maxHeight < measuredHeight) {
         surface.style.maxHeight = `${placement.maxHeight}px`;
     }
@@ -340,12 +345,40 @@ function applyPlacement(
     popup.style.top = `${top}px`;
 }
 
+function applyTooltipBridge(
+    popup: HTMLElement,
+    placement: ReferenceTooltipPlacement,
+): void {
+    popup.style.setProperty(
+        "--wiked-lite-tooltip-bridge-left",
+        `${placement.bridgeLeft}px`,
+    );
+    popup.style.setProperty(
+        "--wiked-lite-tooltip-bridge-width",
+        `${placement.bridgeWidth}px`,
+    );
+}
+
 function applyPlacementSide(
     popup: HTMLElement,
     side: ReferenceTooltipPlacement["side"],
 ): void {
     popup.classList.toggle("wiked-lite-tooltip--above", side === "above");
     popup.classList.toggle("wiked-lite-tooltip--below", side === "below");
+}
+
+function calculateTooltipBridge(
+    anchor: ReferenceTooltipRect,
+    tooltipLeft: number,
+    tooltip: TooltipSize,
+    viewport: TooltipViewport,
+): Pick<ReferenceTooltipPlacement, "bridgeLeft" | "bridgeWidth"> {
+    const left = Math.max(0, Math.min(tooltipLeft, anchor.left));
+    const right = Math.min(
+        viewport.width,
+        Math.max(tooltipLeft + tooltip.width, anchor.right),
+    );
+    return { bridgeLeft: left - tooltipLeft, bridgeWidth: right - left };
 }
 
 function createTooltip(
@@ -356,11 +389,13 @@ function createTooltip(
 ): HTMLElement {
     const target = editor.ownerDocument;
     const tooltip = target.createElement("aside");
+    const visual = target.createElement("div");
     const surface = target.createElement("div");
     const tail = target.createElement("span");
     const body = target.createElement("div");
     tooltip.className = "wiked-lite-tooltip";
     tooltip.role = "note";
+    visual.className = "wiked-lite-tooltip__visual";
     surface.className = "wiked-lite-tooltip__surface";
     tail.className = "wiked-lite-tooltip__tail";
     body.className = "wiked-lite-tooltip__body";
@@ -374,7 +409,8 @@ function createTooltip(
         }
         surface.append(body);
     }
-    tooltip.append(tail, surface);
+    visual.append(tail, surface);
+    tooltip.append(visual);
     tooltip.addEventListener("pointerenter", onEnter);
     tooltip.addEventListener("pointerleave", onLeave);
     return tooltip;

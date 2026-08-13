@@ -1,5 +1,20 @@
 # Changelog
 
+## Until 0.6
+
+### 0.5.0 (2026-08-13 11:33 UTC)
+
+Overview: wikEd Lite improves source-tool integration, compact reference
+presentation, category preservation, and heading separation.
+
+- Exposed live iframe reads, writes, focus, and selection through the shared
+  cross-bundle edit-box contract with native fallback after teardown.
+- Added the native MediaWiki wikitext icon to Citation Formatter's launcher.
+- Preserved whitespace-only category sort keys and made highlighted references
+  and explanatory footnotes more compact.
+- Guaranteed blank lines around level-one through level-six headings, including
+  source boundaries and adjacent headings.
+
 ## Until 0.5
 
 ### 0.4.6-post.3 (2026-08-12 12:36 UTC)

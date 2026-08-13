@@ -121,8 +121,8 @@ See the package [changelog][3], its scoped [AGENTS.md][4], and the repository
 
 ## License
 
-The project-owned portions of VG Stub Creator 0.5.3-post.1 are dedicated under
-[CC0 1.0 Universal][6]. The package [license][7] fixes this release's scope and
+The project-owned portions of VG Stub Creator 0.6.0 are dedicated under [CC0
+1.0 Universal][6]. The package [license][7] fixes this release's scope and
 preserves third-party terms. The repository [licensing map][8] covers the rest
 of the workspace.
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## Until 0.4
+
+### 0.3.0 (2026-08-13 11:33 UTC)
+
+Overview: VG Page Assessor presents native-style reviews, handles hidden
+assessment classes, and localizes registration summaries.
+
+- Replaced card comparisons with native MediaWiki diff structure, inline change
+  highlighting, and safe wrapping for long wikitext.
+- Preserved and presented non-default assessment classes without adding them to
+  the normal choices.
+- Localized new-page-list edit summaries in English, Simplified Chinese, and
+  Traditional Chinese with locale-aware creation dates.
+
 ## Until 0.3
 
 ### 0.2.3-post.5 (2026-08-12 07:07 UTC)

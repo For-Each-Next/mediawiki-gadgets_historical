@@ -136,8 +136,8 @@ See the package [changelog][2], its scoped [AGENTS.md][3], and the repository
 
 ## License
 
-The project-owned portions of VG Page Assessor 0.2.3-post.5 are dedicated under
-[CC0 1.0 Universal][5]. The package [license][6] fixes this release's scope and
+The project-owned portions of VG Page Assessor 0.3.0 are dedicated under [CC0
+1.0 Universal][5]. The package [license][6] fixes this release's scope and
 preserves third-party terms. The repository [licensing map][7] covers the rest
 of the workspace.
 

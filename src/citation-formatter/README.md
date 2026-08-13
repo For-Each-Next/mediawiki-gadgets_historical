@@ -169,10 +169,10 @@ domain/api.ts / index.ts
 
 ## License
 
-The project-owned portions of Citation Formatter 0.5.4-post.2 are dedicated
-under [CC0 1.0 Universal][12]. The package [license][13] fixes this release's
-scope and preserves third-party terms. The repository [licensing map][14]
-covers the rest of the workspace.
+The project-owned portions of Citation Formatter 0.6.0 are dedicated under [CC0
+1.0 Universal][12]. The package [license][13] fixes this release's scope and
+preserves third-party terms. The repository [licensing map][14] covers the rest
+of the workspace.
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: https://www.mediawiki.org/wiki/Manual:Interface/JavaScript

@@ -1,5 +1,15 @@
 # Changelog
 
+## Until 0.7
+
+### 0.6.0 (2026-08-13 11:33 UTC)
+
+Overview: VG Stub Creator writes generated source through the active enhanced
+MediaWiki editor while retaining native fallbacks.
+
+- Adopted shared cross-bundle editor discovery so reads, writes, and focus use
+  the visible wikEd Lite surface when both gadgets are installed.
+
 ## Until 0.6
 
 ### 0.5.3-post.1 (2026-08-11 10:41 UTC)

@@ -1,5 +1,18 @@
 # Changelog
 
+## Until 0.7
+
+### 0.6.0 (2026-08-13 11:33 UTC)
+
+Overview: Citation Formatter integrates with enhanced source editors and uses
+clearer launcher and reference-section presentation.
+
+- Routed source insertion, full writes, focus restoration, and formatting
+  through the live enhanced-editor surface with native fallbacks.
+- Added a native MediaWiki article icon to the formatter launcher.
+- Separated generated reference-section numbers from their titles with four
+  spaces, including lead and nested sections.
+
 ## Until 0.6
 
 ### 0.5.4-post.2 (2026-08-12 13:07 UTC)

@@ -5,10 +5,10 @@ copyright and related rights it owns in the project-authored shared runtime
 incorporated into the following releases to the public domain under CC0 1.0
 Universal:
 
-- Citation Formatter 0.5.4-post.2 (`citation-formatter@0.5.4-post.2`)
-- VG Page Assessor 0.2.3-post.5 (`vg-page-assessor@0.2.3-post.5`)
-- VG Stub Creator 0.5.3-post.1 (`vg-stub-creator@0.5.3-post.1`)
-- wikEd Lite 0.4.6-post.3 (`wiked-lite@0.4.6-post.3`)
+- Citation Formatter 0.6.0 (`citation-formatter@0.6.0`)
+- VG Page Assessor 0.3.0 (`vg-page-assessor@0.3.0`)
+- VG Stub Creator 0.6.0 (`vg-stub-creator@0.6.0`)
+- wikEd Lite 0.5.0 (`wiked-lite@0.5.0`)
 
 SPDX-License-Identifier: CC0-1.0
 

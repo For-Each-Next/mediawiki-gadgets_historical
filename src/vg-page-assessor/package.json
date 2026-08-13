@@ -1,6 +1,6 @@
 {
     "name": "vg-page-assessor",
-    "version": "0.2.3-post.5",
+    "version": "0.3.0",
     "description": "Assess video game talk pages and register new articles.",
     "private": true,
     "license": "CC0-1.0",

@@ -4,13 +4,10 @@ import { readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import { parse } from "@vue/compiler-sfc";
 import ts from "typescript";
-import {
-    inspectAuthoredTree,
-    inspectWorkspacePackages,
-    isGadgetPackage,
-    toPosixPath,
-    type WorkspaceDiscovery,
-} from "../workspace/index.ts";
+import { inspectAuthoredTree } from "#workspace/files";
+import { inspectWorkspacePackages } from "#workspace/packages";
+import { toPosixPath } from "#workspace/paths";
+import { isGadgetPackage, type WorkspaceDiscovery } from "#workspace/types";
 
 const FORBIDDEN_TOAST_IDENTIFIERS = new Set([
     "CdxToast",
@@ -182,22 +179,24 @@ function isMediaWikiApiConstructor(
 ): boolean {
     const access = readAccessPath(expression);
     const constructor = access.at(-1);
-    if (constructor == null || !MEDIAWIKI_API_CONSTRUCTORS.has(constructor)) {
+    if (constructor == null) {
         return false;
     }
-    if (access.length === 2 && access[0] === "mw") {
-        const root = readAccessRoot(expression);
-        return root != null && !localBindings.has(root.text);
-    }
-    if (
+    return (
+        MEDIAWIKI_API_CONSTRUCTORS.has(constructor) &&
+        isMediaWikiApiPath(access) &&
+        hasUnshadowedAccessRoot(expression, localBindings)
+    );
+}
+
+/** Checks a bare or explicitly global MediaWiki access path. */
+function isMediaWikiApiPath(access: string[]): boolean {
+    const isBare = access.length === 2 && access[0] === "mw";
+    const isExplicitGlobal =
         access.length === 3 &&
         GLOBAL_OBJECT_NAMES.has(access[0]!) &&
-        access[1] === "mw"
-    ) {
-        const root = readAccessRoot(expression);
-        return root != null && !localBindings.has(root.text);
-    }
-    return false;
+        access[1] === "mw";
+    return isBare || isExplicitGlobal;
 }
 
 /** Matches bare and explicitly global fetch or storage references. */
@@ -212,21 +211,38 @@ function isGlobalCapabilityReference(
             !localBindings.has(node.text)
         );
     }
-    if (
-        !ts.isPropertyAccessExpression(node) &&
-        !ts.isElementAccessExpression(node)
-    ) {
-        return false;
+    if (isCapabilityAccessExpression(node)) {
+        return (
+            isGlobalCapabilityPath(readAccessPath(node)) &&
+            hasUnshadowedAccessRoot(node, localBindings)
+        );
     }
-    const access = readAccessPath(node);
-    if (
-        access.length !== 2 ||
-        !GLOBAL_OBJECT_NAMES.has(access[0]!) ||
-        !isExternalCapabilityName(access[1]!)
-    ) {
-        return false;
-    }
-    const root = readAccessRoot(node);
+    return false;
+}
+
+/** Checks syntax that can express a dotted global capability. */
+function isCapabilityAccessExpression(node: ts.Node): node is ts.Expression {
+    return (
+        ts.isPropertyAccessExpression(node) ||
+        ts.isElementAccessExpression(node)
+    );
+}
+
+/** Checks one explicitly global two-part capability path. */
+function isGlobalCapabilityPath(access: string[]): boolean {
+    return (
+        access.length === 2 &&
+        GLOBAL_OBJECT_NAMES.has(access[0]!) &&
+        isExternalCapabilityName(access[1]!)
+    );
+}
+
+/** Checks that the left-most access binding is ambient. */
+function hasUnshadowedAccessRoot(
+    expression: ts.Expression,
+    localBindings: ReadonlySet<string>,
+): boolean {
+    const root = readAccessRoot(expression);
     return root != null && !localBindings.has(root.text);
 }
 
@@ -240,7 +256,10 @@ function collectLocalValueBindings(
             collectImportBindings(node, bindings);
             return;
         }
-        if (ts.isImportEqualsDeclaration(node) && !node.isTypeOnly) {
+        if (
+            ts.isImportEqualsDeclaration(node) &&
+            !ts.isTypeOnlyImportDeclaration(node)
+        ) {
             bindings.add(node.name.text);
         } else if (ts.isVariableDeclaration(node) || ts.isParameter(node)) {
             collectBindingNames(node.name, bindings);
@@ -267,7 +286,7 @@ function collectImportBindings(
     bindings: Set<string>,
 ): void {
     const clause = declaration.importClause;
-    if (clause == null || clause.isTypeOnly) {
+    if (clause == null || ts.isTypeOnlyImportDeclaration(clause)) {
         return;
     }
     if (clause.name != null) {
@@ -282,7 +301,7 @@ function collectImportBindings(
         return;
     }
     for (const element of named.elements) {
-        if (!element.isTypeOnly) {
+        if (!ts.isTypeOnlyImportDeclaration(element)) {
             bindings.add(element.name.text);
         }
     }

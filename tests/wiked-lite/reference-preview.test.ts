@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildReferencePreview } from "../../src/wiked-lite/index.ts";
+import { buildReferencePreview } from "wiked-lite";
 
 const ORIGINAL_URL = "https://example.test/article";
 const ARCHIVE_URL = `https://web.archive.org/web/202401/${ORIGINAL_URL}`;

@@ -2,11 +2,8 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import {
-    hasErrorCode,
-    hasText,
-    type GadgetPackage,
-} from "../workspace/index.ts";
+import { hasErrorCode, hasText } from "#workspace/metadata";
+import type { GadgetPackage } from "#workspace/types";
 import { checkPackageCondition as check } from "./problem.ts";
 
 /** Checks a package notice against its manifest identity. */
@@ -18,15 +15,21 @@ export async function checkPackageLicense(
         return [];
     }
     const { directoryName: name, metadata } = gadget;
-    const lines = new Set(license.split(/\r?\n/u));
+    const sourceLines = license.split(/\r?\n/u);
+    const lines = new Set(sourceLines);
+    const releaseScopes = sourceLines.filter((line) =>
+        /^\s*Release-Scope:/u.test(line),
+    );
     const problems: string[] = [];
     check(
         !hasText(metadata.name) ||
             !hasText(metadata.version) ||
-            lines.has(`Release-Scope: ${metadata.name}@${metadata.version}`),
+            (releaseScopes.length === 1 &&
+                releaseScopes[0] ===
+                    `Release-Scope: ${metadata.name}@${metadata.version}`),
         problems,
         name,
-        "LICENSE must identify the current release scope.",
+        "LICENSE must identify exactly one current release scope.",
     );
     check(
         !hasText(metadata.license) ||

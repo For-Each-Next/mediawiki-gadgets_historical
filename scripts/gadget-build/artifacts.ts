@@ -3,10 +3,8 @@
  */
 
 import { resolve } from "node:path";
-import {
-    discoverGadgetPackages,
-    type GadgetPackage,
-} from "../workspace/index.ts";
+import { discoverGadgetPackages } from "#workspace/packages";
+import type { GadgetPackage } from "#workspace/types";
 import {
     AGGREGATE_OUTPUT_FILENAME,
     createGadgetArtifactFilenames,

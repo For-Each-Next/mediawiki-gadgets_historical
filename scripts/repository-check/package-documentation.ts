@@ -3,14 +3,11 @@
 import { readFile, readdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import {
-    hasErrorCode,
-    hasText,
-    type GadgetPackage,
-} from "../workspace/index.ts";
-import {
     AGGREGATE_OUTPUT_FILENAME,
     createGadgetArtifactFilenames,
-} from "../gadget-build/index.ts";
+} from "#gadget-build/artifact-names";
+import { hasErrorCode, hasText } from "#workspace/metadata";
+import type { GadgetPackage } from "#workspace/types";
 import { matchesPackageVersion } from "./package-metadata.ts";
 import { checkPackageCondition as check } from "./problem.ts";
 
@@ -244,6 +241,7 @@ async function discoverInterfaceLanguages(
 /** Formats a catalog locale as its README-facing language name. */
 function formatInterfaceLanguage(filename: string): string {
     const locale = basename(filename, ".json");
+    // noinspection SpellCheckingInspection -- BCP 47 locale subtag.
     const names: Record<string, string> = {
         en: "English",
         "zh-Hans": "Simplified Chinese",

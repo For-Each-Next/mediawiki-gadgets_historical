@@ -26,6 +26,12 @@ declare global {
 }
 
 declare module "@vue/runtime-core" {
+    interface GlobalComponents {
+        WikitextComparison: new () => {
+            $props: Comparison.WikitextComparisonProps;
+        };
+    }
+
     interface ComponentCustomProperties
         extends TemplateContext, Comparison.WikitextComparisonProps {}
 }

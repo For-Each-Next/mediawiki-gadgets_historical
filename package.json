@@ -23,11 +23,13 @@
         "lint": "eslint config src scripts tests && npm run lint:css",
         "lint:css": "stylelint \"src/**/*.css\"",
         "lint:fix": "eslint config src scripts tests --fix",
-        "test": "npm run test:repository && npm run test --workspaces --if-present",
+        "test": "npm run test:repository && npm run test --workspaces --if-present && npm run test:ui",
         "test:repository": "node --test tests/repository/contracts/*.test.ts tests/repository/build/*.test.ts",
+        "test:ui": "node --test tests/ui/*.test.ts && playwright test --config config/playwright.config.ts",
         "typecheck": "npm run typecheck:browser && npm run typecheck:node",
         "typecheck:browser": "vue-tsc --build tsconfig.json",
         "typecheck:node": "tsc --noEmit -p config/tsconfig.node.json",
+        "ui:capture": "node tests/ui/capture.ts",
         "verify": "npm run check && npm run build:verify"
     },
     "stylelint": {
@@ -53,6 +55,7 @@
         "endOfLine": "lf"
     },
     "devDependencies": {
+        "@playwright/test": "^1.62.1",
         "@types/html-minifier-terser": "^7.0.2",
         "@types/node": "^24.13.3",
         "@typescript-eslint/parser": "^8.64.0",

@@ -1,20 +1,37 @@
 <template>
     <cdx-dialog
+        class="vg-stub-creator-history-json-dialog"
+        :default-action="{
+            disabled: historyLoading,
+            label: msg('common.close'),
+        }"
+        :lang="interfaceLocale"
+        :primary-action="{
+            actionType: 'progressive',
+            disabled: historyLoading,
+            label: historyLoading ? msg('form.loading') : msg('form.load'),
+        }"
         v-model:open="historyJsonOpen"
         :title="msg('form.historyData')"
+        @default="closeHistoryJsonDialog"
+        @primary="importHistoryJson"
+        @update:open="!$event &amp;&amp; closeHistoryJsonDialog()"
     >
         <p>{{ msg("form.historyHelp") }}</p>
         <cdx-progress-bar
             :aria-label="msg('form.historyLoading')"
             v-if="historyLoading"
         ></cdx-progress-bar>
-        <cdx-text-area
-            class="vg-stub-creator-history-json-text"
-            v-bind:readonly="!historyJsonEditable"
-            v-model="historyJsonText"
-            rows="12"
-            spellcheck="false"
-        ></cdx-text-area>
+        <cdx-field class="vg-stub-creator-form-field">
+            <cdx-text-area
+                class="vg-stub-creator-history-json-text"
+                :readonly="!historyJsonEditable"
+                v-model="historyJsonText"
+                rows="12"
+                spellcheck="false"
+            ></cdx-text-area>
+            <template #label>{{ msg("form.historyData") }}</template>
+        </cdx-field>
         <cdx-message
             class="vg-stub-creator-message"
             type="error"
@@ -22,34 +39,5 @@
         >
             {{ historyJsonError }}
         </cdx-message>
-        <template v-slot:footer>
-            <div class="vg-stub-creator-dialog-footer">
-                <div class="vg-stub-creator-dialog-footer-group">
-                    <cdx-button
-                        type="button"
-                        v-on:click="closeHistoryJsonDialog"
-                        v-bind:disabled="historyLoading"
-                        weight="quiet"
-                    >
-                        {{ msg("common.close") }}
-                    </cdx-button>
-                </div>
-                <div class="vg-stub-creator-dialog-footer-group">
-                    <cdx-button
-                        type="button"
-                        v-on:click="importHistoryJson"
-                        action="progressive"
-                        v-bind:disabled="historyLoading"
-                        weight="primary"
-                    >
-                        {{
-                            historyLoading
-                                ? msg("form.loading")
-                                : msg("form.load")
-                        }}
-                    </cdx-button>
-                </div>
-            </div>
-        </template>
     </cdx-dialog>
 </template>

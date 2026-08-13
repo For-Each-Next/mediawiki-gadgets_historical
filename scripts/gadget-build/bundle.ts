@@ -5,8 +5,8 @@
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { build, transform, type BuildOptions } from "esbuild";
+import { requireContainedPath } from "#workspace/paths";
 import { extractVueTemplate, minifyHtmlTemplate } from "./html-templates.ts";
-import { requireContainedPath } from "../workspace/index.ts";
 import type { BundleOptions, DefineConfig, GadgetBuildPlan } from "./types.ts";
 
 /**

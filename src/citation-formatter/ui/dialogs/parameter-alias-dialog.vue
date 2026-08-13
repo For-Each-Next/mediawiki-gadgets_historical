@@ -4,11 +4,30 @@
         class="cf-source-manager__parameter-alias-dialog"
         :title="msg('draft.alias')"
         :lang="interfaceLocale"
+        :primary-action="{
+            actionType: 'progressive',
+            disabled: loading,
+            label: msg('common.save'),
+        }"
+        :default-action="{
+            disabled: loading,
+            label: msg('common.cancel'),
+        }"
+        @primary="applyParameterAlias"
+        @default="closeParameterAliasDialog"
         @update:open="onParameterAliasDialogOpenChange"
     >
         <div class="cf-source-manager__dialog-body-content">
             <div class="cf-source-manager__parameter-alias-fields">
-                <cdx-field>
+                <cdx-field
+                    class="cf-source-manager__parameter-alias-original"
+                    :status="
+                        getParameterAliasDialogError() ? 'error' : 'default'
+                    "
+                    :messages="{
+                        error: getParameterAliasDialogError(),
+                    }"
+                >
                     <template #label>
                         {{ getParameterAliasOriginalValueLabel() }}
                     </template>
@@ -72,31 +91,6 @@
                     </cdx-checkbox>
                 </cdx-field>
             </div>
-            <small
-                v-if="getParameterAliasDialogError()"
-                class="cf-source-manager__field-error"
-            >
-                {{ getParameterAliasDialogError() }}
-            </small>
         </div>
-        <template #footer>
-            <div class="cf-source-manager__footer-actions">
-                <cdx-button
-                    action="progressive"
-                    weight="primary"
-                    :disabled="loading || !canApplyParameterAlias()"
-                    @click="applyParameterAlias"
-                >
-                    {{ msg("common.save") }}
-                </cdx-button>
-                <cdx-button
-                    action="destructive"
-                    weight="quiet"
-                    @click="closeParameterAliasDialog"
-                >
-                    {{ msg("common.cancel") }}
-                </cdx-button>
-            </div>
-        </template>
     </cdx-dialog>
 </template>

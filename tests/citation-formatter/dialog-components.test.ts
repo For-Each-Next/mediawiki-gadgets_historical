@@ -106,6 +106,121 @@ test("styles CS1 source rows by issue severity", () => {
     assert.match(styles, buildSeverityStylePattern("maintenance", "success"));
 });
 
+test("uses explicit button types and one authored Primary per dialog", () => {
+    for (const name of DIALOG_NAMES) {
+        const source = readDialogSource(name);
+        const buttons = [...source.matchAll(/<cdx-button\b[\s\S]*?>/gu)];
+        for (const button of buttons) {
+            assert.match(button[0], /\btype="(?:button|submit)"/u, name);
+        }
+        assert.ok(
+            countMatches(source, /\bweight="primary"/gu) <= 1,
+            `${name} must expose at most one authored Primary action.`,
+        );
+    }
+
+    const allDialogs = DIALOG_NAMES.map(readDialogSource).join("\n");
+    assert.equal(countMatches(allDialogs, /\btype="submit"/gu), 1);
+});
+
+test("keeps destructive styling for irreversible Citation actions", () => {
+    const main = readDialogSource("main");
+    const draft = readDialogSource("draft");
+    const tool = readDialogSource("tool");
+    const confirmation = readDialogSource("close-confirmation");
+
+    assert.match(
+        main,
+        buildPattern(
+            '<cdx-button\\b[^>]*action="destructive"',
+            '[\\s\\S]*?@click="cancelAllChanges"',
+        ),
+    );
+    assert.match(
+        confirmation,
+        buildPattern(
+            '<cdx-button\\b[^>]*action="destructive"',
+            '[\\s\\S]*?@click="undoAnalysisChangesAndClose"',
+        ),
+    );
+    assert.doesNotMatch(draft, /\baction="destructive"/u);
+    assert.doesNotMatch(tool, /\baction="destructive"/u);
+});
+
+test("uses native Codex actions for simple Citation dialog footers", () => {
+    for (const name of ["parameter-alias", "tool"] as const) {
+        const source = readDialogSource(name);
+        assert.match(source, /:primary-action=/u, name);
+        assert.match(source, /:default-action=/u, name);
+        assert.doesNotMatch(source, /<template #footer>/u, name);
+    }
+
+    const alias = readDialogSource("parameter-alias");
+    assert.match(alias, /disabled:\s*loading,/u);
+    assert.doesNotMatch(alias, /disabled:[^,]*canApplyParameterAlias/u);
+    assert.match(
+        alias,
+        buildPattern(
+            'class="cf-source-manager__parameter-alias-original"',
+            '[\\s\\S]*?:messages="\\{[\\s\\S]*?',
+            "error: getParameterAliasDialogError\\(\\)",
+        ),
+    );
+});
+
+test("groups source lookup controls and expands tab content", () => {
+    const source = readDialogSource("main");
+    const styles = readFileSync(getDialogStylesheetPath("main"), "utf8");
+    const lookupControls = source.match(
+        buildPattern(
+            '<div\\s+class="',
+            'cf-source-manager__source-lookup-controls"\\s*>',
+            "([\\s\\S]*?)</div>",
+        ),
+    )?.[1];
+
+    assert.ok(lookupControls);
+    assert.match(lookupControls, /<cdx-text-input\b/u);
+    assert.match(lookupControls, /<cdx-button\b[\s\S]*?type="submit"/u);
+    assert.doesNotMatch(
+        findRule(styles, ".cf-source-manager__source-filters"),
+        /\bmax-width\s*:/u,
+    );
+    assert.doesNotMatch(
+        findRule(styles, ".cf-source-manager__tools"),
+        /\bmax-width\s*:/u,
+    );
+});
+
+test("stacks custom Citation footer actions below 640 pixels", () => {
+    const styles = readFileSync(join(packageRoot, "ui/styles.css"), "utf8");
+    assert.match(styles, /gap:\s*0\.75rem/u);
+    assert.match(
+        styles,
+        buildPattern(
+            "@media \\(max-width: 639px\\)[\\s\\S]*?",
+            "\\.cf-source-manager__footer-actions\\s*\\{[\\s\\S]*?",
+            "flex-direction:\\s*column",
+        ),
+    );
+    assert.match(
+        styles,
+        buildPattern(
+            "\\.cf-source-manager__footer-actions > \\.cdx-button",
+            "\\s*\\{[\\s\\S]*?width:\\s*100%",
+        ),
+    );
+
+    for (const name of DIALOG_NAMES) {
+        const styles = readFileSync(getDialogStylesheetPath(name), "utf8");
+        assert.doesNotMatch(styles, /\b(?:96|98)vw\b/u, name);
+    }
+});
+
+function buildPattern(...parts: string[]): RegExp {
+    return new RegExp(parts.join(""), "u");
+}
+
 function buildSeverityStylePattern(modifier: string, token: string): RegExp {
     return new RegExp(
         String.raw`\.cf-source-manager__existing-row--${modifier}\s*\{` +
@@ -113,6 +228,10 @@ function buildSeverityStylePattern(modifier: string, token: string): RegExp {
             String.raw`[\s\S]*?border-color-${token}[\s\S]*?\}`,
         "u",
     );
+}
+
+function readDialogSource(name: (typeof DIALOG_NAMES)[number]): string {
+    return readFileSync(join(dialogDirectory, `${name}-dialog.vue`), "utf8");
 }
 
 function assertNativeUsageCountTitle(source: string, owner: string): void {
@@ -213,6 +332,17 @@ function findUnscopedSelectors(css: string): string[] {
         }
     });
     return unscoped;
+}
+
+function findRule(css: string, selector: string): string {
+    let matchingRule = "";
+    postcss.parse(css).walkRules(function inspectRule(rule) {
+        if (rule.selector === selector) {
+            matchingRule = rule.toString();
+        }
+    });
+    assert.notEqual(matchingRule, "", `${selector} must be defined.`);
+    return matchingRule;
 }
 
 function inspectSelectorRule(rule: Rule, unscoped: string[]): void {

@@ -1,5 +1,11 @@
 <template>
-    <cdx-dialog v-model:open="moveOpen" :title="msg('form.moveTitle')">
+    <cdx-dialog
+        class="vg-stub-creator-move-dialog"
+        :lang="interfaceLocale"
+        :title="msg('form.moveTitle')"
+        v-model:open="moveOpen"
+        @update:open="!$event &amp;&amp; closeMoveDialog()"
+    >
         <cdx-message
             class="vg-stub-creator-message"
             type="notice"
@@ -14,11 +20,17 @@
         >
             {{ msg("form.moveConflict") }}
         </cdx-message>
-        <cdx-field>
+        <cdx-field
+            class="vg-stub-creator-form-field"
+            :messages="{ error: moveTargetValidationError }"
+            :status="moveTargetValidationError ? 'error' : 'default'"
+        >
             <cdx-text-input
                 :placeholder="msg('text.pageNamePlaceholder')"
-                v-bind:model-value="moveTarget"
-                v-on:update:model-value="updateMoveTarget($event)"
+                ref="moveTargetInput"
+                :model-value="moveTarget"
+                :status="moveTargetValidationError ? 'error' : 'default'"
+                @update:model-value="updateMoveTarget($event)"
             ></cdx-text-input>
             <template v-slot:label>{{ msg("text.pageName") }}</template>
         </cdx-field>
@@ -29,43 +41,37 @@
         >
             {{ sourceFetchState.error }}
         </cdx-message>
-        <template v-slot:footer>
+        <template #footer>
             <div class="vg-stub-creator-dialog-footer">
-                <div class="vg-stub-creator-dialog-footer-group">
+                <div class="vg-stub-creator-dialog-footer-actions">
                     <cdx-button
                         type="button"
-                        v-on:click="closeMoveDialog"
-                        weight="quiet"
-                    >
-                        {{ msg("common.close") }}
-                    </cdx-button>
-                </div>
-                <div class="vg-stub-creator-dialog-footer-group">
-                    <cdx-button
-                        type="button"
-                        v-on:click="previewWithoutMoving"
-                        v-bind:disabled="
-                            sourceFetchState.loading || moveTargetState.loading
-                        "
-                        v-if="movePreviewConfirmation"
-                        weight="quiet"
-                    >
-                        {{ msg("text.previewWithoutMoving") }}
-                    </cdx-button>
-                    <cdx-button
-                        type="button"
-                        v-on:click="submitMoveTarget"
                         action="progressive"
-                        v-bind:disabled="
+                        :disabled="
                             sourceFetchState.loading || moveTargetState.loading
                         "
                         weight="primary"
+                        @click="submitMoveTarget"
                     >
                         {{
                             sourceFetchState.loading || moveTargetState.loading
                                 ? msg("text.opening")
                                 : msg("text.openPageName")
                         }}
+                    </cdx-button>
+                    <cdx-button
+                        type="button"
+                        action="progressive"
+                        :disabled="
+                            sourceFetchState.loading || moveTargetState.loading
+                        "
+                        v-if="movePreviewConfirmation"
+                        @click="previewWithoutMoving"
+                    >
+                        {{ msg("text.previewWithoutMoving") }}
+                    </cdx-button>
+                    <cdx-button type="button" @click="closeMoveDialog">
+                        {{ msg("common.close") }}
                     </cdx-button>
                 </div>
             </div>

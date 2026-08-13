@@ -1,5 +1,10 @@
 <template>
-    <cdx-dialog v-model:open="historyOpen" :title="msg('form.historyTitle')">
+    <cdx-dialog
+        :lang="interfaceLocale"
+        :title="msg('form.historyTitle')"
+        v-model:open="historyOpen"
+        @update:open="!$event &amp;&amp; closeHistoryDialog()"
+    >
         <cdx-progress-bar
             :aria-label="msg('form.historyLoading')"
             v-if="historyLoading"
@@ -26,8 +31,9 @@
                 </div>
                 <cdx-button
                     type="button"
-                    v-on:click="fillHistoryEntry(entry)"
-                    v-bind:disabled="historyLoading"
+                    action="progressive"
+                    :disabled="historyLoading"
+                    @click="fillHistoryEntry(entry)"
                 >
                     {{
                         historyLoading ? msg("form.loading") : msg("form.load")
@@ -35,60 +41,59 @@
                 </cdx-button>
                 <cdx-button
                     type="button"
-                    v-on:click="openHistoryJsonDialog(entry)"
-                    v-bind:disabled="historyLoading"
+                    :disabled="historyLoading"
+                    @click="openHistoryJsonDialog(entry)"
                 >
                     {{ msg("form.export") }}
                 </cdx-button>
                 <cdx-button
                     type="button"
-                    v-on:click="deleteHistoryEntry(entry.id)"
                     action="destructive"
-                    v-bind:disabled="historyLoading"
+                    :disabled="historyLoading"
                     v-if="!entry.metadata.temporary"
+                    @click="deleteHistoryEntry(entry.id)"
                 >
                     {{ msg("common.delete") }}
                 </cdx-button>
                 <cdx-button
                     type="button"
-                    v-on:click="updateTemporaryHistoryEntry"
-                    v-bind:disabled="historyLoading"
+                    :disabled="historyLoading"
                     v-if="entry.metadata.temporary"
+                    @click="updateTemporaryHistoryEntry"
                 >
                     {{ msg("form.update") }}
                 </cdx-button>
             </div>
         </div>
-        <template v-slot:footer>
+        <template #footer>
             <div class="vg-stub-creator-dialog-footer">
-                <div class="vg-stub-creator-dialog-footer-group">
+                <div class="vg-stub-creator-dialog-footer-actions">
                     <cdx-button
                         type="button"
-                        v-on:click="closeHistoryDialog"
-                        v-bind:disabled="historyLoading"
-                        weight="quiet"
+                        action="progressive"
+                        :disabled="historyLoading"
+                        @click="openHistoryImportDialog"
+                    >
+                        {{ msg("form.import") }}
+                    </cdx-button>
+                    <cdx-button
+                        type="button"
+                        :disabled="historyLoading"
+                        @click="closeHistoryDialog"
                     >
                         {{ msg("common.close") }}
                     </cdx-button>
                 </div>
-                <div class="vg-stub-creator-dialog-footer-group">
+                <div class="vg-stub-creator-dialog-footer-peer-actions">
                     <cdx-button
                         type="button"
-                        v-on:click="clearHistory"
                         action="destructive"
-                        v-bind:disabled="
+                        :disabled="
                             historyLoading || !hasPersistentHistoryEntries()
                         "
+                        @click="clearHistory"
                     >
                         {{ msg("form.clear") }}
-                    </cdx-button>
-                    <cdx-button
-                        type="button"
-                        v-on:click="openHistoryImportDialog"
-                        action="progressive"
-                        v-bind:disabled="historyLoading"
-                    >
-                        {{ msg("form.import") }}
                     </cdx-button>
                 </div>
             </div>

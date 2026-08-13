@@ -7,6 +7,7 @@ export interface WikitextComparisonProps {
     afterLabel: string;
     beforeLabel: string;
     comparison: WikitextComparison;
+    label: string;
     noChangesLabel: string;
 }
 
@@ -33,6 +34,7 @@ export function createWikitextComparisonComponent(Vue: VueModule): unknown {
             afterLabel: { required: true, type: String },
             beforeLabel: { required: true, type: String },
             comparison: { required: true, type: Object },
+            label: { required: true, type: String },
             noChangesLabel: { required: true, type: String },
         },
         template: WIKITEXT_COMPARISON_TEMPLATE,

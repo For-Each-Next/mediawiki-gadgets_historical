@@ -301,7 +301,11 @@ export const STUB_TAG_TABLE_COLUMNS = [
 export const MAIN_ACTION_MENU_ITEMS = [
     { label: msg("form.history"), value: "history" },
     { label: msg("form.reload"), value: "reload" },
-    { label: msg("form.clear"), value: "clear" },
+    {
+        action: "destructive" as const,
+        label: msg("form.clear"),
+        value: "clear",
+    },
 ];
 export const TABLE_ACTION_ICONS = {
     applyTitle: {

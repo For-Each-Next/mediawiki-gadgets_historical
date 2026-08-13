@@ -2,13 +2,10 @@
 
 import { lstat } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
-import {
-    compareText,
-    hasErrorCode,
-    inspectAuthoredTree,
-    toPosixPath,
-    type GadgetPackage,
-} from "../workspace/index.ts";
+import { compareText, inspectAuthoredTree } from "#workspace/files";
+import { hasErrorCode } from "#workspace/metadata";
+import { toPosixPath } from "#workspace/paths";
+import type { GadgetPackage } from "#workspace/types";
 
 const REQUIRED_FILES = [
     "AGENTS.md",

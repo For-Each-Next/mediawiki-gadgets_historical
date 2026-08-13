@@ -1,6 +1,5 @@
 .avgp-dialog.cdx-dialog {
-    max-width: min(96vw, 85rem);
-    width: min(96vw, 85rem);
+    max-width: 85rem;
 }
 
 .avgp-dialog__body {
@@ -70,14 +69,23 @@
 }
 
 .avgp-summary .cdx-text-input,
-.avgp-list-summary .cdx-text-input {
+.avgp-list-summary .cdx-text-input,
+.avgp-summary .cdx-text-input__input,
+.avgp-list-summary .cdx-text-input__input {
     max-width: none;
+    min-width: 0;
     width: 100%;
+}
+
+.avgp-summary.cdx-field,
+.avgp-list-summary.cdx-field {
+    max-width: 40rem;
 }
 
 .avgp-compare-textarea,
 .avgp-compare-textarea .cdx-text-area__textarea {
     max-width: none;
+    min-width: 0;
     width: 100%;
 }
 
@@ -91,13 +99,6 @@
     overflow: auto;
     resize: vertical;
     white-space: pre-wrap;
-}
-
-.avgp-actions {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-    width: 100%;
 }
 
 .avgp-status.cdx-message {

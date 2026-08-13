@@ -1,11 +1,12 @@
 /** Validates collision-free names in the flat distribution. */
 
+import { AGGREGATE_OUTPUT_FILENAME } from "#gadget-build/artifact-names";
 import {
     findArtifactCollisions,
     reservesAggregateArtifact,
-} from "../gadget-build/artifacts.ts";
-import { AGGREGATE_OUTPUT_FILENAME } from "../gadget-build/artifact-names.ts";
-import { hasText, type GadgetPackage } from "../workspace/index.ts";
+} from "#gadget-build/artifacts";
+import { hasText } from "#workspace/metadata";
+import type { GadgetPackage } from "#workspace/types";
 
 /** Rejects generated artifact names that collide by path or case. */
 export function checkArtifactCollisions(gadgets: GadgetPackage[]): string[] {

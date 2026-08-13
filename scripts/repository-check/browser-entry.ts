@@ -3,12 +3,9 @@
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import ts from "typescript";
-import {
-    hasErrorCode,
-    hasText,
-    requireContainedPath,
-    type GadgetPackage,
-} from "../workspace/index.ts";
+import { hasErrorCode, hasText } from "#workspace/metadata";
+import { requireContainedPath } from "#workspace/paths";
+import type { GadgetPackage } from "#workspace/types";
 
 /** Checks that the browser entry invokes the composition root. */
 export async function checkBrowserEntry(
@@ -50,7 +47,11 @@ async function readBrowserEntry(
         const realEntry = await realpath(path);
         requireContainedPath(realRoot, realEntry, "Browser entry");
         if (!entry.isFile() || entry.isSymbolicLink()) {
-            throw new Error("browser entry must be a real file.");
+            return recordEntryProblem(
+                gadget,
+                "browser entry must be a real file inside the package.",
+                problems,
+            );
         }
         return await readFile(path, "utf8");
     } catch (error) {
@@ -89,6 +90,15 @@ function handleEntryError(
     const message = hasErrorCode(error, "ENOENT")
         ? `browser entry does not exist: ${entryPoint}.`
         : "browser entry must be a real file inside the package.";
+    return recordEntryProblem(gadget, message, problems);
+}
+
+/** Records one browser-entry diagnostic. */
+function recordEntryProblem(
+    gadget: GadgetPackage,
+    message: string,
+    problems: string[],
+): null {
     problems.push(`${gadget.directoryName}: ${message}`);
     return null;
 }
@@ -167,24 +177,37 @@ function readStringLiteral(node: ts.Node | undefined): string | null {
 
 /** Finds an actual named start import from the composition root. */
 function hasStartImport(sourceFile: ts.SourceFile): boolean {
-    return sourceFile.statements.some((statement) => {
-        if (
-            !ts.isImportDeclaration(statement) ||
-            !ts.isStringLiteral(statement.moduleSpecifier) ||
-            statement.moduleSpecifier.text !== "#gadget/main.ts"
-        ) {
-            return false;
-        }
-        return (
-            statement.importClause?.namedBindings != null &&
-            ts.isNamedImports(statement.importClause.namedBindings) &&
-            statement.importClause.namedBindings.elements.some(
-                (element) =>
-                    (element.propertyName?.text ?? element.name.text) ===
-                        "start" && element.name.text === "start",
-            )
-        );
-    });
+    return sourceFile.statements.some(isStartImport);
+}
+
+/** Checks one statement for the required composition-root import. */
+function isStartImport(statement: ts.Statement): boolean {
+    if (!ts.isImportDeclaration(statement)) {
+        return false;
+    }
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) {
+        return false;
+    }
+    if (statement.moduleSpecifier.text === "#gadget/main.ts") {
+        return hasNamedStartBinding(statement);
+    }
+    return false;
+}
+
+/** Checks one import declaration for an unaliased start binding. */
+function hasNamedStartBinding(statement: ts.ImportDeclaration): boolean {
+    const bindings = statement.importClause?.namedBindings;
+    return (
+        bindings != null &&
+        ts.isNamedImports(bindings) &&
+        bindings.elements.some(isStartImportSpecifier)
+    );
+}
+
+/** Checks one import specifier for the required local name. */
+function isStartImportSpecifier(element: ts.ImportSpecifier): boolean {
+    const importedName = element.propertyName?.text ?? element.name.text;
+    return importedName === "start" && element.name.text === "start";
 }
 
 /** Finds a direct call or Promise callback in executable syntax. */

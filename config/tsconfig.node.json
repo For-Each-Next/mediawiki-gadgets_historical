@@ -6,6 +6,7 @@
     },
     "include": [
         "../*.config.ts",
+        "./*.ts",
         "../scripts/**/*.ts",
         "../src/*/globals.d.ts",
         "../tests/**/*.ts"

@@ -23,7 +23,6 @@ export interface VueApp {
 }
 
 export interface CodexComponents {
-    CdxButton: unknown;
     CdxCheckbox: unknown;
     CdxDialog: unknown;
     CdxField: unknown;
@@ -49,7 +48,6 @@ export function registerPageAssessorComponents(
     app: VueApp,
     Codex: CodexComponents,
 ): void {
-    app.component("CdxButton", Codex.CdxButton);
     app.component("CdxCheckbox", Codex.CdxCheckbox);
     app.component("CdxDialog", Codex.CdxDialog);
     app.component("CdxField", Codex.CdxField);

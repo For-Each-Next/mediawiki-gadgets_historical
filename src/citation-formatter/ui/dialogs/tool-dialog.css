@@ -1,6 +1,5 @@
 .cf-source-manager__tool-dialog.cdx-dialog {
-    max-width: min(96vw, 64em);
-    width: min(96vw, 64em);
+    max-width: 64em;
 }
 
 .cf-source-manager__cs1-message-frame {

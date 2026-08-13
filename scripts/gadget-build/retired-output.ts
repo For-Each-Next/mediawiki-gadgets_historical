@@ -1,8 +1,9 @@
 /** Plans and removes only explicitly owned build artifacts. */
 
+import type { Stats } from "node:fs";
 import { lstat, rm } from "node:fs/promises";
 import { resolve } from "node:path";
-import { hasErrorCode } from "../workspace/index.ts";
+import { hasErrorCode } from "#workspace/metadata";
 import {
     removeEmptyBuildDirectory,
     validateRetiredBuildDirectory,
@@ -99,15 +100,21 @@ async function validateOwnedFiles(
     label: string,
 ): Promise<void> {
     for (const filename of filenames) {
-        try {
-            const stats = await lstat(resolve(root, filename));
-            if (stats.isDirectory() && !stats.isSymbolicLink()) {
-                throw new Error(`${label} must not be a directory.`);
-            }
-        } catch (error) {
-            if (!hasErrorCode(error, "ENOENT")) {
-                throw error;
-            }
+        const stats = await readOwnedEntry(resolve(root, filename));
+        if (stats?.isDirectory() === true && !stats.isSymbolicLink()) {
+            throw new Error(`${label} must not be a directory.`);
         }
+    }
+}
+
+/** Reads a possible owned output without rejecting a missing path. */
+async function readOwnedEntry(path: string): Promise<Stats | null> {
+    try {
+        return await lstat(path);
+    } catch (error) {
+        if (hasErrorCode(error, "ENOENT")) {
+            return null;
+        }
+        throw error;
     }
 }

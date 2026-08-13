@@ -11,19 +11,22 @@ src/
 └── shared/                 cross-gadget capability package
 
 config/
-├── licensing/              cumulative release-scope ledger
+├── tsconfig.json           editor-discovered configuration project
 ├── tsconfig.node.json      directly executed Node TypeScript
 └── vue/                    common and package browser projects
 
 scripts/
+├── tsconfig.json           editor-discovered Node TypeScript project
 ├── workspace/              discovery, metadata, paths, authored files
 ├── repository-check/       structural repository contracts
 └── gadget-build/           plans, bundles, notices, and outputs
 
-tests/repository/
-├── contracts/              fixture-driven workspace rules
-├── build/                  artifact and reproducibility coverage
-└── support/                temporary-workspace helpers
+tests/
+├── tsconfig.json           editor-discovered Node test project
+└── repository/
+    ├── contracts/          fixture-driven workspace rules
+    ├── build/              artifact and reproducibility coverage
+    └── support/            temporary-workspace helpers
 ```
 
 Package manifests are the source of truth. The workspace model discovers
@@ -33,9 +36,11 @@ not. Adding a package must not require another hard-coded package list.
 
 The root TypeScript project exposes browser and MediaWiki types to source
 packages. The Node project adds Node types and erasable-syntax enforcement only
-for directly executed configuration, scripts, and tests. Referenced Vue
-projects inherit the browser configuration without imposing Node's runtime
-syntax restrictions on code emitted by esbuild.
+for directly executed configuration, scripts, and tests. The configuration,
+scripts, and tests projects inherit that configuration from their source
+directories so editors recognize Node modules and explicit `.ts` imports.
+Referenced Vue projects inherit the browser configuration without imposing
+Node's runtime syntax restrictions on code emitted by esbuild.
 
 ## Dependency Boundaries
 
@@ -104,8 +109,7 @@ The repository checker coordinates focused checks for:
 - external-system ownership, shared logging, native notification, and retired
   Toast source practices;
 - flat, aligned locale catalogs and authored Markdown width;
-- package, shared, and cumulative licensing scopes, including retained scopes
-  found in available Git history;
+- package licenses and exact current root and shared CC0 scope maps;
 - tracked lockfile workspace metadata;
 - build output names, aggregate configuration, and path safety; and
 - documentation and configuration consistency.

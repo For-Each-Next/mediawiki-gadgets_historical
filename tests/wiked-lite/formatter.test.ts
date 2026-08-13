@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatWikitext } from "../../src/wiked-lite/domain/formatter.ts";
+import { formatWikitext } from "wiked-lite/domain/formatter.ts";
 
 test("basic formatting protects comments and literal extension tags", () => {
     const source = [
@@ -139,7 +139,7 @@ test("explicit formatter options align templates", () => {
         indentPipes: true,
     });
 
-    assert.match(result.text, /  \| url\s+= https:\/\/example\.test/u);
+    assert.match(result.text, / {2}\| url\s+= https:\/\/example\.test/u);
 });
 
 test("Chinese conversion normalization is opt in", () => {

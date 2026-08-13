@@ -1,6 +1,6 @@
 /** Resolves the build configuration declared by one gadget package. */
 
-import { hasText, isRecord } from "../workspace/index.ts";
+import { hasText, isRecord } from "#workspace/metadata";
 import { AGGREGATE_OUTPUT_FILENAME } from "./artifact-names.ts";
 import { reservesAggregateArtifact } from "./artifacts.ts";
 import {
@@ -38,17 +38,24 @@ export function resolveBuildConfig(
 
 /** Validates optional settings before their defaults are applied. */
 function validateOptionalSettings(config: GadgetBuildConfig): void {
-    if (config.target != null && config.target !== "es2024") {
+    if (hasUnsupportedTarget(config.target)) {
         throw new Error("gadgetBuild.target must be es2024.");
     }
-    if (
-        config.headerAuthor != null &&
-        typeof config.headerAuthor !== "boolean"
-    ) {
+    if (hasInvalidHeaderAuthor(config.headerAuthor)) {
         throw new Error("gadgetBuild.headerAuthor must be a boolean.");
     }
     validateDefines(config.defines);
     validateUserscriptConfig(config.userscript);
+}
+
+/** Checks a declared build target before defaulting. */
+function hasUnsupportedTarget(target: unknown): boolean {
+    return target != null && target !== "es2024";
+}
+
+/** Checks a declared header-author flag before defaulting. */
+function hasInvalidHeaderAuthor(value: unknown): boolean {
+    return value != null && typeof value !== "boolean";
 }
 
 /** Validates all build-time injected-text declarations. */
@@ -79,24 +86,38 @@ function validateUserscriptConfig(value: unknown): void {
         }
     }
     for (const field of ["grant", "match"] as const) {
-        const list = value[field];
-        if (list != null && !isSafeUserscriptMetadataTextArray(list)) {
-            throw new TypeError(
-                `gadgetBuild.userscript.${field} must be a single-line ` +
-                    "text array.",
-            );
-        }
+        validateUserscriptList(value, field);
     }
     for (const field of ["runAt", "sandbox"] as const) {
-        if (
-            value[field] != null &&
-            !isSafeUserscriptMetadataText(value[field])
-        ) {
-            throw new TypeError(
-                `gadgetBuild.userscript.${field} must be nonempty ` +
-                    "single-line text.",
-            );
-        }
+        validateUserscriptText(value, field);
+    }
+}
+
+/** Validates one optional userscript list field. */
+function validateUserscriptList(
+    config: Record<string, unknown>,
+    field: "grant" | "match",
+): void {
+    const value = config[field];
+    if (value != null && !isSafeUserscriptMetadataTextArray(value)) {
+        throw new TypeError(
+            `gadgetBuild.userscript.${field} must be a single-line ` +
+                "text array.",
+        );
+    }
+}
+
+/** Validates one optional userscript scalar field. */
+function validateUserscriptText(
+    config: Record<string, unknown>,
+    field: "runAt" | "sandbox",
+): void {
+    const value = config[field];
+    if (value != null && !isSafeUserscriptMetadataText(value)) {
+        throw new TypeError(
+            `gadgetBuild.userscript.${field} must be nonempty single-line ` +
+                "text.",
+        );
     }
 }
 
@@ -135,11 +156,7 @@ function isSafeHeaderParagraph(value: unknown): value is string {
 /** Resolves the Vue-compatible shared distribution path. */
 function requireOutputDirectory(metadata: PackageMetadata): string {
     const vue = metadata.vue;
-    if (
-        vue?.assetsDir !== "" ||
-        vue.filenameHashing !== false ||
-        vue.css?.extract !== false
-    ) {
+    if (!hasFlatEmbeddedVueOutput(vue)) {
         throw new Error(
             "package.json vue settings must keep flat, embedded assets.",
         );
@@ -148,6 +165,17 @@ function requireOutputDirectory(metadata: PackageMetadata): string {
         throw new Error("package.json vue.outputDir must be defined.");
     }
     return vue.outputDir;
+}
+
+/** Checks Vue output settings shared by every gadget. */
+function hasFlatEmbeddedVueOutput(
+    vue: PackageMetadata["vue"],
+): vue is NonNullable<PackageMetadata["vue"]> {
+    return (
+        vue?.assetsDir === "" &&
+        vue.filenameHashing === false &&
+        vue.css?.extract === false
+    );
 }
 
 /** Resolves the required browser entry point. */

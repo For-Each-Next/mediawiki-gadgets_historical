@@ -1,22 +1,37 @@
 <template>
     <cdx-dialog
         class="vg-stub-creator-preview-dialog"
+        :lang="interfaceLocale"
+        :title="getArticlePreviewTitle()"
         v-if="previewOpen"
         v-model:open="previewOpen"
-        v-bind:title="getArticlePreviewTitle()"
+        @update:open="!$event &amp;&amp; closePreviewDialog()"
     >
         <div class="vg-stub-creator-preview-layout">
-            <cdx-text-area
-                class="vg-stub-creator-preview-text"
-                ref="previewTextArea"
-                v-model="previewText"
-                rows="18"
-                spellcheck="false"
-            ></cdx-text-area>
-            <div
-                class="vg-stub-creator-preview-rendered mw-parser-output"
-                v-html="previewHtml"
-            ></div>
+            <cdx-field
+                :messages="{ error: previewValidationError }"
+                :status="previewValidationError ? 'error' : 'default'"
+            >
+                <cdx-text-area
+                    class="vg-stub-creator-preview-text"
+                    ref="previewTextArea"
+                    :status="previewValidationError ? 'error' : 'default'"
+                    v-model="previewText"
+                    rows="18"
+                    spellcheck="false"
+                    @update:model-value="previewValidationError = ''"
+                ></cdx-text-area>
+                <template #label>{{ msg("preview.wikitext") }}</template>
+            </cdx-field>
+            <section class="vg-stub-creator-preview-result">
+                <h3 class="vg-stub-creator-preview-result-title">
+                    {{ msg("preview.rendered") }}
+                </h3>
+                <div
+                    class="vg-stub-creator-preview-rendered mw-parser-output"
+                    v-html="previewHtml"
+                ></div>
+            </section>
         </div>
         <cdx-field class="vg-stub-creator-preview-summary">
             <cdx-text-input
@@ -32,22 +47,22 @@
         >
             {{ sourceFetchState.error }}
         </cdx-message>
-        <template v-slot:footer>
+        <template #footer>
             <div class="vg-stub-creator-dialog-footer">
-                <div class="vg-stub-creator-dialog-footer-group">
+                <div class="vg-stub-creator-dialog-footer-actions">
                     <cdx-button
                         type="button"
-                        v-on:click="closePreviewDialog"
-                        weight="quiet"
+                        action="progressive"
+                        :disabled="sourceFetchState.loading"
+                        weight="primary"
+                        @click="submitPreviewText"
                     >
-                        {{ msg("preview.dismiss") }}
+                        {{ msg("preview.continue") }}
                     </cdx-button>
-                </div>
-                <div class="vg-stub-creator-dialog-footer-group">
                     <cdx-button
                         type="button"
-                        v-on:click="refreshParsedPreview"
-                        v-bind:disabled="sourceFetchState.loading"
+                        :disabled="sourceFetchState.loading"
+                        @click="refreshParsedPreview"
                     >
                         {{
                             sourceFetchState.loading
@@ -55,16 +70,8 @@
                                 : msg("preview.updatePreview")
                         }}
                     </cdx-button>
-                    <cdx-button
-                        type="button"
-                        v-on:click="submitPreviewText"
-                        action="progressive"
-                        v-bind:disabled="
-                            sourceFetchState.loading || !previewText.trim()
-                        "
-                        weight="primary"
-                    >
-                        {{ msg("preview.continue") }}
+                    <cdx-button type="button" @click="closePreviewDialog">
+                        {{ msg("preview.dismiss") }}
                     </cdx-button>
                 </div>
             </div>

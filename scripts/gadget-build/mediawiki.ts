@@ -4,12 +4,12 @@
 
 import type { PackageMetadata } from "./types.ts";
 
-const NOWIKI_PREFIX = "//<nowiki>";
-const NOWIKI_SUFFIX = "//</nowiki>";
+const MEDIAWIKI_GUARD_PREFIX = "//<nowiki>";
+const MEDIAWIKI_GUARD_SUFFIX = "//</nowiki>";
 const HEADER_TEXT_WIDTH = 75;
 
 /**
- * Wraps minified code with a file header and nowiki guards.
+ * Wraps minified code with a file header and MediaWiki guards.
  *
  * @param code - Minified JavaScript.
  * @param metadata - Package metadata.
@@ -26,9 +26,9 @@ export function formatMediaWikiOutput(
     return [
         formatGadgetHeader(metadata, description, includeAuthor),
         "",
-        NOWIKI_PREFIX,
+        MEDIAWIKI_GUARD_PREFIX,
         code.trim(),
-        NOWIKI_SUFFIX,
+        MEDIAWIKI_GUARD_SUFFIX,
         "",
     ].join("\n");
 }
@@ -80,7 +80,7 @@ function formatHeaderParagraph(paragraph: string): string[] {
 
 /** Splits prose without splitting complete MediaWiki wikilinks. */
 function splitHeaderWords(paragraph: string): string[] {
-    return paragraph.trim().match(/\[\[[^\]]+\]\][^\s]*|\S+/gu) ?? [];
+    return paragraph.trim().match(/\[\[[^\]]+\]\]\S*|\S+/gu) ?? [];
 }
 
 /** Formats one file-header docstring attribute. */

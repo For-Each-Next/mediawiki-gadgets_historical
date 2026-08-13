@@ -4,7 +4,7 @@ import {
     calculateReferenceTooltipPlacement,
     selectReferenceTooltipRect,
     type ReferenceTooltipRect,
-} from "../../src/wiked-lite/ui/reference-tooltip.ts";
+} from "wiked-lite/ui/reference-tooltip.ts";
 
 function rect(
     left: number,

@@ -4,6 +4,17 @@
         class="avgp-dialog"
         :title="subjectTitle"
         :lang="interfaceLocale"
+        :primary-action="{
+            actionType: 'progressive',
+            disabled: saving,
+            label: msg('dialog.save'),
+        }"
+        :default-action="{
+            disabled: saving,
+            label: msg('dialog.cancel'),
+        }"
+        @primary="onSave"
+        @default="onCancel"
         @update:open="onOpenChange"
     >
         <div class="avgp-dialog__body">
@@ -162,6 +173,7 @@
                                 :after-label="msg('dialog.after')"
                                 :before-label="msg('dialog.currentSource')"
                                 :comparison="talkComparison"
+                                :label="msg('dialog.leadDiff')"
                                 :no-changes-label="
                                     msg('registration.noChanges')
                                 "
@@ -210,6 +222,7 @@
                         :after-label="msg('dialog.after')"
                         :before-label="msg('dialog.before')"
                         :comparison="listComparison"
+                        :label="msg('dialog.newPageList')"
                         :no-changes-label="msg('registration.noChanges')"
                     />
                 </div>
@@ -228,21 +241,5 @@
                 </cdx-field>
             </fieldset>
         </div>
-
-        <template #footer>
-            <div class="avgp-actions">
-                <cdx-button :disabled="saving" @click="onCancel">
-                    {{ msg("dialog.cancel") }}
-                </cdx-button>
-                <cdx-button
-                    action="progressive"
-                    weight="primary"
-                    :disabled="saving"
-                    @click="onSave"
-                >
-                    {{ msg("dialog.save") }}
-                </cdx-button>
-            </div>
-        </template>
     </cdx-dialog>
 </template>

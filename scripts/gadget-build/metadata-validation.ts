@@ -1,6 +1,6 @@
 /** Validates JavaScript and userscript artifact metadata values. */
 
-import { hasText, isRecord } from "../workspace/index.ts";
+import { hasText, isRecord } from "#workspace/metadata";
 import type { GadgetUserscriptConfig } from "./types.ts";
 
 const JAVASCRIPT_IDENTIFIER_PATTERN = /^[A-Za-z_$][\w$]*$/u;

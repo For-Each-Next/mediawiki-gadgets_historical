@@ -238,16 +238,13 @@ test("renders safe new-tab links for openable URL fields", () => {
     );
     assert.match(openingTag, /\btarget="_blank"/u);
     assert.match(openingTag, /\brel="noopener noreferrer"/u);
-    assert.match(openingTag, /:title="msg\(\s*["']draft\.openUrl["']\s*\)"/u);
     assert.match(openingTag, /draft\.openUrlLabel/u);
-    for (const className of [
-        "cdx-button--fake-button",
-        "cdx-button--fake-button--enabled",
-        "cdx-button--weight-quiet",
-        "cdx-button--icon-only",
-    ]) {
-        assert.match(openingTag, new RegExp(`\\b${className}\\b`, "u"));
-    }
+    assert.match(openingTag, /class="cf-source-manager__external-link"/u);
+    assert.match(
+        openUrlLink,
+        /<span>\{\{ msg\("draft\.openUrl"\) \}\}<\/span>/u,
+    );
+    assert.doesNotMatch(openingTag, /\bcdx-button/u);
 });
 
 test("renders consistency values and aliases as computed tabs", () => {
@@ -288,7 +285,11 @@ test("renders progress and a whole-article CS1 recheck action", () => {
     );
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /v-if="toolPopup === 'cs1'"[\s\S]*?:disabled="cs1ToolStatus === 'checking'"[\s\S]*?@click="recheckCs1Tool"[\s\S]*?checker\.recheckArticle/u,
+        /toolPopup === 'cs1'[\s\S]*?disabled: cs1ToolStatus === 'checking'[\s\S]*?label: msg\('checker\.recheckArticle'\)/u,
+    );
+    assert.match(
+        SOURCE_MANAGER_TEMPLATE,
+        /@primary="[\s\S]*?recheckCs1Tool\(\)[\s\S]*?"/u,
     );
 });
 
@@ -338,10 +339,16 @@ test("renders the split author glyph in the reverse merge direction", () => {
 });
 
 test("references only defined messages from the Vue template", () => {
+    assertDefinedTemplateMessages();
+    assertParameterTableContract();
+    assertParameterAliasContract();
+    assertAnalysisDialogContract();
+});
+
+function assertDefinedTemplateMessages(): void {
     const referencedIds = [
         ...SOURCE_MANAGER_TEMPLATE.matchAll(/msg\(\s*(["'])([^"']+)\1/gu),
     ].map((match) => match[2]);
-
     assert.ok(referencedIds.length > 0);
     for (const messageId of referencedIds) {
         assert.ok(messageId in english, messageId);
@@ -352,6 +359,9 @@ test("references only defined messages from the Vue template", () => {
         /(?<!:)aria-label="[A-Za-z]/u,
     );
     assert.doesNotMatch(SOURCE_MANAGER_TEMPLATE, /#validation-message/u);
+}
+
+function assertParameterTableContract(): void {
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
         /<cdx-table\s+class="cf-source-manager__parameter-table"/u,
@@ -384,6 +394,9 @@ test("references only defined messages from the Vue template", () => {
         SOURCE_MANAGER_TEMPLATE,
         /cf-source-manager__parameter-cell--alias/u,
     );
+}
+
+function assertParameterAliasContract(): void {
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
         /cf-source-manager__parameter-alias-caption/u,
@@ -432,6 +445,9 @@ test("references only defined messages from the Vue template", () => {
         /cf-source-manager__parameter-grid/u,
     );
     assert.match(SOURCE_MANAGER_TEMPLATE, /cf-source-manager__field-error/u);
+}
+
+function assertAnalysisDialogContract(): void {
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
         /class="cf-source-analysis__intro" tabindex="0"/u,
@@ -460,12 +476,16 @@ test("references only defined messages from the Vue template", () => {
     assert.match(SOURCE_MANAGER_TEMPLATE, /v-model:open="draftPopupOpen"/u);
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /v-model:open="draftPopupOpen"[\s\S]*?<template #footer>[\s\S]*?cf-source-manager__draft-actions[\s\S]*?saveDraft/u,
+        /v-model:open="draftPopupOpen"[\s\S]*?cf-source-manager__parameter-table-actions[\s\S]*?<template #footer>[\s\S]*?saveDraft/u,
     );
     assert.doesNotMatch(SOURCE_MANAGER_TEMPLATE, /mode === 'draft'/u);
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /action="destructive"\s+weight="quiet"[\s\S]*common\.cancel/u,
+        /action="destructive"[\s\S]*?undoAnalysisChangesAndClose/u,
+    );
+    assert.doesNotMatch(
+        SOURCE_MANAGER_TEMPLATE,
+        /action="destructive"[\s\S]{0,200}?closeDraftPopup/u,
     );
     assert.match(SOURCE_MANAGER_TEMPLATE, /analysis\.applyCase/u);
     assert.match(SOURCE_MANAGER_TEMPLATE, /<cdx-radio/u);
@@ -490,6 +510,6 @@ test("references only defined messages from the Vue template", () => {
     assert.match(SOURCE_MANAGER_TEMPLATE, /sectionFilterLabel/u);
     assert.match(
         SOURCE_MANAGER_TEMPLATE,
-        /@click="cancelAllChanges"[\s\S]*?common\.cancelChanges/u,
+        /@click="cancelAllChanges"[\s\S]*?common\.discardChanges/u,
     );
-});
+}

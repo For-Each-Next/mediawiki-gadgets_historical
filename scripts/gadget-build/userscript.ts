@@ -61,6 +61,7 @@ const ALL_USERSCRIPT_RUNTIME = `  function matchesUrl(url, patterns) {
  * @param programs - Independently bundled gadget programs.
  * @param metadata - Combined userscript metadata.
  * @param config - Shared userscript configuration.
+ * @param notices - Retained legal notice text.
  * @returns Installable combined userscript source.
  */
 export async function formatAllUserscript(
@@ -278,20 +279,27 @@ function isValidMatchPattern(
     path: string,
     separator: number,
 ): boolean {
-    const schemeIsValid = /^(?:\*|https?)$/u.test(scheme);
-    const wildcardIsValid =
-        !host.includes("*") ||
-        host === "*" ||
-        (host.startsWith("*.") && !host.slice(2).includes("*"));
     return (
         separator > 0 &&
-        schemeIsValid &&
-        host !== "" &&
-        host !== "*." &&
-        wildcardIsValid &&
+        /^(?:\*|https?)$/u.test(scheme) &&
+        isValidMatchHost(host) &&
         path.startsWith("/") &&
         !/\s/u.test(pattern)
     );
+}
+
+/** Checks the hostname portion of a userscript match pattern. */
+function isValidMatchHost(host: string): boolean {
+    if (host === "" || host === "*.") {
+        return false;
+    }
+    if (host === "*") {
+        return true;
+    }
+    if (!host.includes("*")) {
+        return true;
+    }
+    return host.startsWith("*.") && !host.slice(2).includes("*");
 }
 
 /** Formats the protocol part of one userscript match. */

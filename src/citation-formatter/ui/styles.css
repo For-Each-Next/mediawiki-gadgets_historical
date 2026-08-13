@@ -145,10 +145,10 @@ html[dir="rtl"] .cf-citation-launcher {
     display: flex;
     flex-direction: row-reverse;
     flex-grow: 1;
-    gap: 0.75em;
+    gap: 0.75rem;
 }
 
-@media (max-width: 42em) {
+@media (max-width: 639px) {
     .cf-citation-launcher {
         inset-block-end: max(0.75rem, env(safe-area-inset-bottom));
         inset-inline-end: max(0.75rem, env(safe-area-inset-right));

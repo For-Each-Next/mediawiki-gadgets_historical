@@ -5,6 +5,7 @@ import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
+// noinspection ES6PreferShortImport -- Node ESM requires index.ts.
 import {
     discoverGadgetPackages,
     readPackageMetadata,
@@ -34,6 +35,30 @@ test("the shared manifest is the only public shared API map", async () => {
         await access(join(sharedRoot, String(target)));
         const specifier = `${SHARED_NAME}/${subpath.slice(2)}`;
         await import(specifier);
+    }
+});
+
+test("script tooling aliases target focused modules", async () => {
+    const scriptsMetadata = await readPackageMetadata(
+        join(repositoryRoot, "scripts", "package.json"),
+    );
+    const scriptImports: Record<string, unknown> =
+        scriptsMetadata.imports ?? {};
+    assert.deepEqual(scriptImports, {
+        "#gadget-build/*": "./gadget-build/*.ts",
+        "#repository-check/*": "./repository-check/*.ts",
+        "#workspace/*": "./workspace/*.ts",
+    });
+    for (const bareAlias of [
+        "#gadget-build",
+        "#repository-check",
+        "#workspace",
+    ]) {
+        assert.equal(
+            Object.hasOwn(scriptImports, bareAlias),
+            false,
+            bareAlias,
+        );
     }
 });
 
@@ -121,11 +146,40 @@ test("Node type stripping is isolated from browser projects", async () => {
     });
     assert.deepEqual(nodeProject.include, [
         "../*.config.ts",
+        "./*.ts",
         "../scripts/**/*.ts",
         "../src/*/globals.d.ts",
         "../tests/**/*.ts",
     ]);
+
+    await assertConfigurationEditorProject();
+
+    const scriptsProject = await readJson(
+        join(repositoryRoot, "scripts", "tsconfig.json"),
+    );
+    assert.deepEqual(scriptsProject, {
+        extends: "../config/tsconfig.node.json",
+        include: ["./**/*.ts"],
+    });
+
+    const testsProject = await readJson(
+        join(repositoryRoot, "tests", "tsconfig.json"),
+    );
+    assert.deepEqual(testsProject, {
+        extends: "../config/tsconfig.node.json",
+        include: ["../src/*/globals.d.ts", "./**/*.ts"],
+    });
 });
+
+async function assertConfigurationEditorProject(): Promise<void> {
+    const project = await readJson(
+        join(repositoryRoot, "config", "tsconfig.json"),
+    );
+    assert.deepEqual(project, {
+        extends: "./tsconfig.node.json",
+        include: ["./*.ts"],
+    });
+}
 
 test("typechecking builds project references before Node source", async () => {
     const rootManifest = await readJson(join(repositoryRoot, "package.json"));

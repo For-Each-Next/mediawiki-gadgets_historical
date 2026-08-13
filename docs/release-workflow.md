@@ -89,21 +89,23 @@ Deployable package manifests support the SPDX identifiers `CC0-1.0`,
 extend the shared metadata validator and its repository and build fixtures
 before selecting it for a package.
 
-For a CC0 publication, append its scope to
-`config/licensing/cc0-release-scopes.json`. Include `root` in `notices` so it
-appears in the cumulative root `LICENSE`. Also include `shared` when the
-release incorporates project-owned shared runtime, so it appears in the
-cumulative `src/shared/LICENSE` notice.
+For a CC0 publication, update the root `LICENSE` so its current scope map
+exactly matches all current CC0 deployable manifests. Update
+`src/shared/LICENSE` so its current scope map exactly matches the current CC0
+gadgets that incorporate project-owned shared runtime. Current deployable
+manifests are the source of truth; each package-local `Release-Scope` marker
+must match its manifest version.
 
-The ledger and both cumulative notices are append-only. Never remove an older
-CC0 scope because a later candidate or formal release uses another license.
-Version-specific dedications do not automatically apply to later code or
-releases. Preserve third-party status and attribution under
-`THIRD_PARTY_NOTICES.md` and package-local notices.
+Both notices contain current scopes only. When a package version changes,
+replace its earlier scope in each applicable notice. The earlier
+version-specific notice remains available in repository Git history, and its
+dedication is not revoked. Version-specific dedications do not automatically
+apply to later code or releases. Preserve third-party status and attribution
+under `THIRD_PARTY_NOTICES.md` and package-local notices.
 
-Repository verification compares the ledger with cumulative notice scopes found
-in available Git history. CI fetches complete history so coordinated deletion
-from all current files still fails the licensing contract.
+Repository verification derives the expected current root and shared scope maps
+from workspace metadata. It rejects missing, stale, or duplicate scopes, as
+well as package-local markers that do not match their manifests.
 
 ## Build Artifacts
 
@@ -137,8 +139,8 @@ metadata.
 ## Publish a Candidate
 
 1. Select the next unused `-dev.N` or `-post.N` version and update the affected
-   manifest, active changelog entry, package license, README, and cumulative
-   licensing data as one change.
+   manifest, active changelog entry, package license, README, and current root
+   and shared licensing notices as one change.
 2. Run `npm run verify` and build every affected gadget. Use `npm run build`
    when shared work affects all gadgets.
 3. Inspect each minified header for its canonical version, license, and any
@@ -153,8 +155,8 @@ metadata.
    cleanup pass and replace the candidate metadata consistently.
 2. Finalize the changelog timestamp, overview, and durable outcomes. Keep the
    candidate history needed to show published scopes.
-3. Update the package-local license and append any new CC0 scope to the ledger
-   and applicable cumulative notices.
+3. Update the package-local license and replace its scope in the applicable
+   current root and shared notices.
 4. Run `npm run verify` and `npm run build` for all affected gadgets.
 5. Confirm the individual and aggregate headers, artifact set, retained
    notices, and stable package order.

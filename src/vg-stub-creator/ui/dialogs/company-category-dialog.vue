@@ -1,9 +1,12 @@
 <template>
     <cdx-dialog
-        v-bind:title="getCompanyCategoryDialogTitle()"
+        class="vg-stub-creator-company-category-dialog"
+        :lang="interfaceLocale"
+        :title="getCompanyCategoryDialogTitle()"
         v-model:open="companyCategoryOpen"
+        @update:open="!$event &amp;&amp; closeCompanyCategory()"
     >
-        <cdx-field>
+        <cdx-field class="vg-stub-creator-form-field">
             <cdx-text-input
                 :placeholder="msg('review.companyCategoryEnglishPlaceholder')"
                 v-model="companyCategoryState.englishName"
@@ -17,21 +20,35 @@
                     {{ msg("review.companyCategoryCheckingWikidata") }}
                 </span>
                 <a
-                    v-bind:href="getCompanyCategoryWikidataUrl()"
+                    class="vg-stub-creator-external-link"
+                    :href="getCompanyCategoryWikidataUrl()"
                     v-else-if="companyCategoryState.wikidataId"
                     rel="noopener noreferrer"
                     target="_blank"
                 >
                     {{ companyCategoryState.wikidataId }}
+                    <cdx-icon
+                        aria-hidden="true"
+                        class="vg-stub-creator-external-link-icon"
+                        :icon="externalLinkIcon"
+                        size="x-small"
+                    ></cdx-icon>
                 </a>
             </template>
         </cdx-field>
-        <cdx-field>
+        <cdx-field
+            class="vg-stub-creator-form-field"
+            :messages="{ error: companyCategoryValidationError }"
+            :status="companyCategoryValidationError ? 'error' : 'default'"
+        >
             <cdx-text-area
                 class="vg-stub-creator-company-category-text"
+                ref="companyCategoryTextArea"
                 rows="10"
-                v-bind:disabled="companyCategoryState.loading"
+                :disabled="companyCategoryState.loading"
+                :status="companyCategoryValidationError ? 'error' : 'default'"
                 v-model="companyCategoryState.text"
+                @update:model-value="companyCategoryValidationError = ''"
             ></cdx-text-area>
             <template v-slot:label>
                 {{ msg("review.companyCategoryWikitext") }}
@@ -44,43 +61,39 @@
         >
             {{ companyCategoryState.error }}
         </cdx-message>
-        <template v-slot:footer>
+        <template #footer>
             <div class="vg-stub-creator-dialog-footer">
-                <div class="vg-stub-creator-dialog-footer-group">
+                <div class="vg-stub-creator-dialog-footer-actions">
                     <cdx-button
                         type="button"
-                        v-on:click="closeCompanyCategory"
-                        v-bind:disabled="companyCategoryState.loading"
-                        weight="quiet"
-                    >
-                        {{ msg("common.close") }}
-                    </cdx-button>
-                </div>
-                <div class="vg-stub-creator-dialog-footer-group">
-                    <cdx-button
-                        type="button"
-                        v-on:click="cancelCompanyCategoryCreation"
-                        action="destructive"
-                        v-bind:disabled="companyCategoryState.loading"
-                        v-if="companyCategoryState.pending"
-                    >
-                        {{ msg("common.delete") }}
-                    </cdx-button>
-                    <cdx-button
-                        type="button"
-                        v-on:click="saveCompanyCategory"
                         action="progressive"
-                        v-bind:disabled="
-                            companyCategoryState.loading ||
-                            !companyCategoryState.text.trim()
-                        "
+                        :disabled="companyCategoryState.loading"
                         weight="primary"
+                        @click="saveCompanyCategory"
                     >
                         {{
                             companyCategoryState.loading
                                 ? msg("review.saving")
                                 : msg("common.save")
                         }}
+                    </cdx-button>
+                    <cdx-button
+                        type="button"
+                        :disabled="companyCategoryState.loading"
+                        @click="closeCompanyCategory"
+                    >
+                        {{ msg("common.close") }}
+                    </cdx-button>
+                </div>
+                <div class="vg-stub-creator-dialog-footer-peer-actions">
+                    <cdx-button
+                        type="button"
+                        action="destructive"
+                        :disabled="companyCategoryState.loading"
+                        v-if="companyCategoryState.pending"
+                        @click="cancelCompanyCategoryCreation"
+                    >
+                        {{ msg("common.delete") }}
                     </cdx-button>
                 </div>
             </div>

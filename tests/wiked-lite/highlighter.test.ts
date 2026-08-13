@@ -3,9 +3,9 @@ import test from "node:test";
 import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wiki-titles";
 import {
     collectLinkHelperTitles,
-    highlightWikitext,
     type HighlightSegment,
-} from "../../src/wiked-lite/domain/highlighter.ts";
+    highlightWikitext,
+} from "wiked-lite/domain/highlighter.ts";
 
 const EXAMPLE_NAMESPACE_CATALOG = decodeNamespaceCatalog("examplewiki", {
     query: {
@@ -90,6 +90,12 @@ interface ReferenceContainerFixture {
     source: string;
 }
 
+function createNestedCitationReference(name: string, label: string): string {
+    const content =
+        `${label} definition ` + `{{cite web|title={{lang|en|${label}}}}}`;
+    return `<ref name="${name}">${content}</ref>`;
+}
+
 const REFERENCE_CONTAINER_FIXTURES: ReferenceContainerFixture[] = [
     {
         body: "Native definition",
@@ -98,8 +104,7 @@ const REFERENCE_CONTAINER_FIXTURES: ReferenceContainerFixture[] = [
             "{{outer|",
             "<references>",
             "Native container {{container template|Native}}",
-            '<ref name="native">Native definition ' +
-                "{{cite web|title={{lang|en|Native}}}}</ref>",
+            createNestedCitationReference("native", "Native"),
             "</references>",
             "}}",
         ].join("\n"),
@@ -111,8 +116,7 @@ const REFERENCE_CONTAINER_FIXTURES: ReferenceContainerFixture[] = [
             "{{outer|",
             "{{Reflist|refs=",
             "Refs container {{container template|Refs}}",
-            '<ref name="refs">Refs definition ' +
-                "{{cite web|title={{lang|en|Refs}}}}</ref>",
+            createNestedCitationReference("refs", "Refs"),
             "}}",
             "}}",
         ].join("\n"),
@@ -124,8 +128,7 @@ const REFERENCE_CONTAINER_FIXTURES: ReferenceContainerFixture[] = [
             "{{outer|",
             "{{Reflist|list=",
             "List container {{container template|List}}",
-            '<ref name="list">List definition ' +
-                "{{cite web|title={{lang|en|List}}}}</ref>",
+            createNestedCitationReference("list", "List"),
             "}}",
             "}}",
         ].join("\n"),

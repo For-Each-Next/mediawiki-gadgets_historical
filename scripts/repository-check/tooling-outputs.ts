@@ -1,10 +1,8 @@
 /** Rejects compiler output beside authored Node TypeScript. */
 
 import { extname, resolve } from "node:path";
-import {
-    formatWorkspacePath,
-    inspectAuthoredTree,
-} from "../workspace/index.ts";
+import { inspectAuthoredTree } from "#workspace/files";
+import { formatWorkspacePath } from "#workspace/paths";
 
 const TOOLING_ROOTS = ["config", "scripts", "tests"];
 

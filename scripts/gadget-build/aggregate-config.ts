@@ -1,6 +1,6 @@
 /** Resolves settings for the aggregate artifact. */
 
-import { compareText } from "../workspace/index.ts";
+import { compareText } from "#workspace/files";
 import type {
     AggregateUserscriptConfig,
     GadgetBuildPlan,

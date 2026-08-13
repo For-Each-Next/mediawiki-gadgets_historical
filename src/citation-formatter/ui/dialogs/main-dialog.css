@@ -1,21 +1,24 @@
 .cf-source-manager.cdx-dialog {
-    max-width: min(96vw, 72em);
-    width: min(96vw, 72em);
+    max-width: 72em;
 }
 
-.cf-source-manager__source-lookup,
+.cf-source-manager__source-lookup {
+    padding-top: 1em;
+}
+
+.cf-source-manager__source-lookup-controls,
 .cf-source-manager__manual-source {
     align-items: end;
     display: grid;
     gap: 0.75em;
     grid-template-columns: minmax(0, 1fr) auto;
-    padding-top: 1em;
 }
 
 .cf-source-manager__manual-source {
     border-top: 1px solid var(--border-color-subtle, #c8ccd1);
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     margin-top: 1.25em;
+    padding-top: 1em;
 }
 
 .cf-source-manager__source-lookup .cdx-field__help-text:empty,
@@ -30,46 +33,20 @@
 
 .cf-source-manager__source-filters {
     display: grid;
-    gap: 0.35em;
+    gap: 1rem;
     padding-top: 1em;
 }
 
 .cf-source-manager__filter-field {
-    align-items: center;
     display: grid;
-    gap: 0.75em;
-    grid-template-columns: 9em minmax(0, 1fr);
+    gap: 0.5rem;
     margin: 0;
     min-width: 0;
-}
-
-.cf-source-manager__filter-field > .cdx-label,
-.cf-source-manager__filter-field > .cf-source-manager__filter-label {
-    align-self: center;
-    grid-column: 1;
-    grid-row: 1;
-    justify-content: center;
-    margin: 0;
-    min-height: 2rem;
-    padding: 0;
 }
 
 .cf-source-manager__filter-label {
     font-weight: 700;
     line-height: 1.4286;
-}
-
-.cf-source-manager__filter-field > .cdx-field__control,
-.cf-source-manager__filter-field > .cf-source-manager__filter-controls {
-    align-self: center;
-    grid-column: 2;
-    grid-row: 1;
-    min-width: 0;
-}
-
-.cf-source-manager__filter-field > .cdx-field__help-text,
-.cf-source-manager__filter-field > .cdx-field__validation-message {
-    grid-column: 2;
 }
 
 .cf-source-manager__filter-controls {
@@ -142,7 +119,6 @@
 .cf-source-manager__tools {
     display: grid;
     gap: 1em;
-    max-width: 42em;
     padding-top: 1em;
 }
 
@@ -152,31 +128,8 @@
     gap: 0.5em;
 }
 
-@media (max-width: 60em) {
-    .cf-source-manager__filter-field {
-        align-items: stretch;
-        grid-template-columns: 1fr;
-    }
-
-    .cf-source-manager__filter-field > .cdx-label,
-    .cf-source-manager__filter-field > .cf-source-manager__filter-label,
-    .cf-source-manager__filter-field > .cdx-field__control,
-    .cf-source-manager__filter-field > .cf-source-manager__filter-controls,
-    .cf-source-manager__filter-field > .cdx-field__help-text,
-    .cf-source-manager__filter-field > .cdx-field__validation-message {
-        grid-column: 1;
-        grid-row: auto;
-    }
-
-    .cf-source-manager__filter-field > .cdx-label,
-    .cf-source-manager__filter-field > .cf-source-manager__filter-label {
-        justify-content: initial;
-        min-height: 0;
-    }
-}
-
-@media (max-width: 42em) {
-    .cf-source-manager__source-lookup,
+@media (max-width: 40em) {
+    .cf-source-manager__source-lookup-controls,
     .cf-source-manager__manual-source {
         align-items: stretch;
         grid-template-columns: 1fr;

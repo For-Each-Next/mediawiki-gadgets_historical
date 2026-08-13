@@ -6,6 +6,10 @@
  */
 
 import { createDialogComponent } from "#gadget/ui/form/index.ts";
+import {
+    registerCodexComponents,
+    type VgStubCreatorCodexComponents,
+} from "#gadget/ui/codex.ts";
 import { getBasePageTitle } from "#gadget/ui/form/external-links.ts";
 import { addDialogStyles } from "#gadget/ui/styles.ts";
 import {
@@ -36,6 +40,7 @@ import { msg } from "#gadget/i18n/index.ts";
 import { getErrorMessage, toError } from "#gadget/ui/error-message.ts";
 import * as wikitext from "#gadget/domain/wikitext/index.ts";
 import { formatNamespaceTitle } from "#shared/wiki-titles";
+
 const { trimValue } = wikitext;
 
 const CITATION_PREFETCH_DELAY = 800;
@@ -533,6 +538,7 @@ export function createBrowserApplication(
      * @param preSave - Pre save value.
      * @param shouldMove - Whether should move.
      * @param moveTitle - Move title value.
+     * @param title - Page title that receives the submitted text.
      * @returns Follow-up state for a submitted article.
      */
     function createPendingSubmission(
@@ -905,6 +911,7 @@ export function createBrowserApplication(
      * @param category - Company category page title.
      * @param text - Company category wikitext.
      * @param englishName - English company name.
+     * @param options - Progress reporting options.
      * @returns Resolves after the company category is saved.
      */
     function saveCompanyCategoryWithApi(
@@ -1582,7 +1589,7 @@ export function createBrowserApplication(
      * Describes dialog initialization dependencies and restored state.
      */
     interface InitContext {
-        Codex: CodexComponents;
+        Codex: VgStubCreatorCodexComponents;
         Vue: {
             createMwApp: (component: unknown) => {
                 component: (name: string, component: unknown) => void;
@@ -1606,7 +1613,7 @@ export function createBrowserApplication(
      * @returns Shared initialization dependencies and restored state.
      */
     function createInitContext(require: {
-        (module: "@wikimedia/codex"): CodexComponents;
+        (module: "@wikimedia/codex"): VgStubCreatorCodexComponents;
         (module: "vue"): InitContext["Vue"];
     }): InitContext {
         const currentPageName = getPageName();
@@ -2032,60 +2039,6 @@ export function createBrowserApplication(
         options: { includeJapanese?: boolean },
     ): Promise<unknown[]> {
         return fetchSteamNameRows(url, store, options);
-    }
-
-    /**
-     * Registers Codex components used by the dialog template.
-     *
-     * @param app - App value.
-     * @param Codex - Codex value.
-     */
-    function registerCodexComponents(
-        app: { component: (name: string, component: unknown) => void },
-        Codex: CodexComponents,
-    ): void {
-        app.component("CdxDialog", Codex.CdxDialog);
-        app.component("CdxButton", Codex.CdxButton);
-        app.component("CdxButtonGroup", Codex.CdxButtonGroup);
-        app.component("CdxCard", Codex.CdxCard);
-        app.component("CdxCheckbox", Codex.CdxCheckbox);
-        app.component("CdxField", Codex.CdxField);
-        app.component("CdxIcon", Codex.CdxIcon);
-        app.component("CdxInfoChip", Codex.CdxInfoChip);
-        app.component("CdxMenuButton", Codex.CdxMenuButton);
-        app.component("CdxMessage", Codex.CdxMessage);
-        app.component("CdxProgressBar", Codex.CdxProgressBar);
-        app.component("CdxProgressIndicator", Codex.CdxProgressIndicator);
-        app.component("CdxSelect", Codex.CdxSelect);
-        app.component("CdxTab", Codex.CdxTab);
-        app.component("CdxTabs", Codex.CdxTabs);
-        app.component("CdxTable", Codex.CdxTable);
-        app.component("CdxTextArea", Codex.CdxTextArea);
-        app.component("CdxTextInput", Codex.CdxTextInput);
-    }
-
-    /**
-     * Lists the Codex components registered by the dialog.
-     */
-    interface CodexComponents {
-        CdxButton: unknown;
-        CdxButtonGroup: unknown;
-        CdxCard: unknown;
-        CdxCheckbox: unknown;
-        CdxDialog: unknown;
-        CdxField: unknown;
-        CdxIcon: unknown;
-        CdxInfoChip: unknown;
-        CdxMenuButton: unknown;
-        CdxMessage: unknown;
-        CdxProgressBar: unknown;
-        CdxProgressIndicator: unknown;
-        CdxSelect: unknown;
-        CdxTab: unknown;
-        CdxTable: unknown;
-        CdxTabs: unknown;
-        CdxTextArea: unknown;
-        CdxTextInput: unknown;
     }
 
     /**

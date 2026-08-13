@@ -3,19 +3,20 @@
 import { lstat, readFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import ts from "typescript";
+import { inspectAuthoredTree } from "#workspace/files";
+import { hasErrorCode, hasText } from "#workspace/metadata";
+import { inspectWorkspacePackages } from "#workspace/packages";
 import {
     formatWorkspacePath,
-    hasErrorCode,
-    hasText,
-    inspectWorkspacePackages,
-    isGadgetPackage,
     isOutsideRoot,
-    inspectAuthoredTree,
     toPosixPath,
+} from "#workspace/paths";
+import {
+    isGadgetPackage,
     type GadgetPackage,
     type WorkspaceDiscovery,
     type WorkspacePackage,
-} from "../workspace/index.ts";
+} from "#workspace/types";
 import { SHARED_PACKAGE_NAME } from "./package-metadata.ts";
 
 const GADGET_LAYERS = new Set([
@@ -412,29 +413,46 @@ async function checkSharedExport(
     key: string,
     target: unknown,
 ): Promise<string[]> {
-    const validKey = key.startsWith("./") && key !== "./";
-    const validTarget =
-        hasText(target) &&
-        target.startsWith("./") &&
-        !hasTraversal(target.slice(2));
-    if (!validKey || !validTarget) {
+    if (!isValidSharedExport(key, target)) {
         return [`shared: invalid package export ${key}.`];
     }
     const targetPath = resolve(shared.directory, target);
     try {
         const status = await lstat(targetPath);
-        return status.isFile() && !status.isSymbolicLink()
-            ? []
-            : [
-                  `shared: package export ${key} must target a real ` +
-                      `file: ${target}.`,
-              ];
-    } catch (error) {
-        if (!hasErrorCode(error, "ENOENT")) {
-            throw error;
+        if (status.isFile() && !status.isSymbolicLink()) {
+            return [];
         }
-        return [`shared: package export ${key} does not exist: ${target}.`];
+        return [
+            `shared: package export ${key} must target a real ` +
+                `file: ${target}.`,
+        ];
+    } catch (error) {
+        if (hasErrorCode(error, "ENOENT")) {
+            return [
+                `shared: package export ${key} does not exist: ${target}.`,
+            ];
+        }
+        throw error;
     }
+}
+
+/** Checks one public shared export key and target pair. */
+function isValidSharedExport(key: string, target: unknown): target is string {
+    return isValidSharedExportKey(key) && isValidSharedExportTarget(target);
+}
+
+/** Checks one focused shared export subpath. */
+function isValidSharedExportKey(key: string): boolean {
+    return key.startsWith("./") && key !== "./";
+}
+
+/** Checks one local shared export target. */
+function isValidSharedExportTarget(target: unknown): target is string {
+    return (
+        hasText(target) &&
+        target.startsWith("./") &&
+        !hasTraversal(target.slice(2))
+    );
 }
 
 /** Checks a bare or subpath package specifier. */

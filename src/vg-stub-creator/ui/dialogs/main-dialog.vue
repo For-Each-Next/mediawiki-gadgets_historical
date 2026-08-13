@@ -1,8 +1,10 @@
 <template>
     <cdx-dialog
         class="vg-stub-creator-dialog"
+        :lang="interfaceLocale"
+        :title="getDialogTitle()"
         v-model:open="open"
-        v-bind:title="getDialogTitle()"
+        @update:open="!$event &amp;&amp; closeDialog()"
     >
         <div
             class="vg-stub-creator-dialog-body"
@@ -44,6 +46,7 @@
                                         >
                                             <template v-if="field.multiline">
                                                 <cdx-text-area
+                                                    :aria-label="field.label"
                                                     class="vg-stub-creator-article-field-text"
                                                     rows="1"
                                                     v-bind:placeholder="
@@ -69,6 +72,7 @@
                                             </template>
                                             <template v-else>
                                                 <cdx-text-input
+                                                    :aria-label="field.label"
                                                     v-bind:placeholder="
                                                         getFieldPlaceholder(
                                                             field,
@@ -100,8 +104,8 @@
                                                 ></cdx-text-input>
                                                 <cdx-button
                                                     type="button"
-                                                    v-on:click="openMoveDialog"
-                                                    v-bind:disabled="
+                                                    @click="openMoveDialog"
+                                                    :disabled="
                                                         sourceFetchState.loading
                                                     "
                                                     v-if="field.key === 'pageName' &amp;&amp; canMovePageName()"
@@ -111,6 +115,9 @@
                                             </template>
                                             <template v-if="field.sourceField">
                                                 <cdx-text-area
+                                                    :aria-label="
+                                                        msg('form.sourceUrls')
+                                                    "
                                                     class="vg-stub-creator-source-url"
                                                     rows="1"
                                                     v-bind:model-value="
@@ -166,6 +173,7 @@
                                         >
                                             <template v-if="field.multiline">
                                                 <cdx-text-area
+                                                    :aria-label="field.label"
                                                     class="vg-stub-creator-article-field-text"
                                                     rows="1"
                                                     v-bind:placeholder="
@@ -189,6 +197,7 @@
                                             </template>
                                             <template v-else>
                                                 <cdx-text-input
+                                                    :aria-label="field.label"
                                                     v-bind:placeholder="
                                                         field.placeholder
                                                     "
@@ -218,8 +227,8 @@
                                                 ></cdx-text-input>
                                                 <cdx-button
                                                     type="button"
-                                                    v-on:click="openMoveDialog"
-                                                    v-bind:disabled="
+                                                    @click="openMoveDialog"
+                                                    :disabled="
                                                         sourceFetchState.loading
                                                     "
                                                     v-if="field.key === 'pageName' &amp;&amp; canMovePageName()"
@@ -229,6 +238,9 @@
                                             </template>
                                             <template v-if="field.sourceField">
                                                 <cdx-text-area
+                                                    :aria-label="
+                                                        msg('form.sourceUrls')
+                                                    "
                                                     class="vg-stub-creator-source-url"
                                                     rows="1"
                                                     v-bind:model-value="
@@ -275,6 +287,7 @@
                                         >
                                             <template v-if="field.multiline">
                                                 <cdx-text-area
+                                                    :aria-label="field.label"
                                                     class="vg-stub-creator-article-field-text"
                                                     rows="1"
                                                     v-bind:placeholder="
@@ -300,6 +313,7 @@
                                             </template>
                                             <template v-else>
                                                 <cdx-text-input
+                                                    :aria-label="field.label"
                                                     v-bind:placeholder="
                                                         getFieldPlaceholder(
                                                             field,
@@ -331,8 +345,8 @@
                                                 ></cdx-text-input>
                                                 <cdx-button
                                                     type="button"
-                                                    v-on:click="openMoveDialog"
-                                                    v-bind:disabled="
+                                                    @click="openMoveDialog"
+                                                    :disabled="
                                                         sourceFetchState.loading
                                                     "
                                                     v-if="field.key === 'pageName' &amp;&amp; canMovePageName()"
@@ -342,6 +356,9 @@
                                             </template>
                                             <template v-if="field.sourceField">
                                                 <cdx-text-area
+                                                    :aria-label="
+                                                        msg('form.sourceUrls')
+                                                    "
                                                     class="vg-stub-creator-source-url"
                                                     rows="1"
                                                     v-bind:model-value="
@@ -389,6 +406,7 @@
                                                     >
                                                         {{ link.label }}
                                                         <a
+                                                            class="vg-stub-creator-external-link"
                                                             v-if="link.url"
                                                             v-bind:href="
                                                                 link.url
@@ -397,6 +415,14 @@
                                                             target="_blank"
                                                         >
                                                             {{ link.value }}
+                                                            <cdx-icon
+                                                                aria-hidden="true"
+                                                                class="vg-stub-creator-external-link-icon"
+                                                                :icon="
+                                                                    externalLinkIcon
+                                                                "
+                                                                size="x-small"
+                                                            ></cdx-icon>
                                                         </a>
                                                         <span v-else>
                                                             {{ link.value }}
@@ -423,6 +449,11 @@
                                     </template>
                                     <template v-slot:item-value="{ row }">
                                         <cdx-text-input
+                                            :aria-label="
+                                                getMetadataFieldLabel(
+                                                    row.field,
+                                                )
+                                            "
                                             v-bind:placeholder="
                                                 getFieldPlaceholder(
                                                     row.field,
@@ -453,6 +484,9 @@
                                     </template>
                                     <template v-slot:item-source="{ row }">
                                         <cdx-text-area
+                                            :aria-label="
+                                                msg('form.sourceUrls')
+                                            "
                                             class="vg-stub-creator-source-url"
                                             rows="1"
                                             v-bind:model-value="
@@ -501,6 +535,7 @@
                                         >
                                             <template v-if="field.multiline">
                                                 <cdx-text-area
+                                                    :aria-label="field.label"
                                                     class="vg-stub-creator-article-field-text"
                                                     rows="1"
                                                     v-bind:placeholder="
@@ -524,6 +559,7 @@
                                             </template>
                                             <template v-else>
                                                 <cdx-text-input
+                                                    :aria-label="field.label"
                                                     v-bind:placeholder="
                                                         field.placeholder
                                                     "
@@ -553,8 +589,8 @@
                                                 ></cdx-text-input>
                                                 <cdx-button
                                                     type="button"
-                                                    v-on:click="openMoveDialog"
-                                                    v-bind:disabled="
+                                                    @click="openMoveDialog"
+                                                    :disabled="
                                                         sourceFetchState.loading
                                                     "
                                                     v-if="field.key === 'pageName' &amp;&amp; canMovePageName()"
@@ -564,6 +600,9 @@
                                             </template>
                                             <template v-if="field.sourceField">
                                                 <cdx-text-area
+                                                    :aria-label="
+                                                        msg('form.sourceUrls')
+                                                    "
                                                     class="vg-stub-creator-source-url"
                                                     rows="1"
                                                     v-bind:model-value="
@@ -610,6 +649,7 @@
                                         >
                                             <template v-if="field.multiline">
                                                 <cdx-text-area
+                                                    :aria-label="field.label"
                                                     class="vg-stub-creator-article-field-text"
                                                     rows="1"
                                                     v-bind:placeholder="
@@ -635,6 +675,7 @@
                                             </template>
                                             <template v-else>
                                                 <cdx-text-input
+                                                    :aria-label="field.label"
                                                     v-bind:placeholder="
                                                         getFieldPlaceholder(
                                                             field,
@@ -666,8 +707,8 @@
                                                 ></cdx-text-input>
                                                 <cdx-button
                                                     type="button"
-                                                    v-on:click="openMoveDialog"
-                                                    v-bind:disabled="
+                                                    @click="openMoveDialog"
+                                                    :disabled="
                                                         sourceFetchState.loading
                                                     "
                                                     v-if="field.key === 'pageName' &amp;&amp; canMovePageName()"
@@ -677,6 +718,9 @@
                                             </template>
                                             <template v-if="field.sourceField">
                                                 <cdx-text-area
+                                                    :aria-label="
+                                                        msg('form.sourceUrls')
+                                                    "
                                                     class="vg-stub-creator-source-url"
                                                     rows="1"
                                                     v-bind:model-value="
@@ -724,6 +768,7 @@
                                                     >
                                                         {{ link.label }}
                                                         <a
+                                                            class="vg-stub-creator-external-link"
                                                             v-if="link.url"
                                                             v-bind:href="
                                                                 link.url
@@ -732,6 +777,14 @@
                                                             target="_blank"
                                                         >
                                                             {{ link.value }}
+                                                            <cdx-icon
+                                                                aria-hidden="true"
+                                                                class="vg-stub-creator-external-link-icon"
+                                                                :icon="
+                                                                    externalLinkIcon
+                                                                "
+                                                                size="x-small"
+                                                            ></cdx-icon>
                                                         </a>
                                                         <span v-else>
                                                             {{ link.value }}
@@ -784,6 +837,7 @@
                             <div class="vg-stub-creator-steam-helper">
                                 <div class="vg-stub-creator-steam-row">
                                     <cdx-text-input
+                                        :aria-label="msg('names.steamHelper')"
                                         placeholder="https://store.steampowered.com/app/..."
                                         v-bind:model-value="steamUrl"
                                         v-on:update:model-value="
@@ -792,10 +846,8 @@
                                     ></cdx-text-input>
                                     <cdx-button
                                         type="button"
-                                        v-on:click="addSteamNames"
-                                        v-bind:disabled="
-                                            sourceFetchState.loading
-                                        "
+                                        @click="addSteamNames"
+                                        :disabled="sourceFetchState.loading"
                                     >
                                         {{ msg("names.check") }}
                                     </cdx-button>
@@ -817,11 +869,18 @@
                                                 {{ suggestion.label }}
                                             </strong>
                                             <a
+                                                class="vg-stub-creator-external-link"
                                                 v-bind:href="suggestion.url"
                                                 rel="noopener noreferrer"
                                                 target="_blank"
                                             >
                                                 {{ suggestion.value }}
+                                                <cdx-icon
+                                                    aria-hidden="true"
+                                                    class="vg-stub-creator-external-link-icon"
+                                                    :icon="externalLinkIcon"
+                                                    size="x-small"
+                                                ></cdx-icon>
                                             </a>
                                         </li>
                                     </ul>
@@ -868,11 +927,20 @@
                                                 v-for="link in row.links"
                                             >
                                                 <a
+                                                    class="vg-stub-creator-external-link"
                                                     v-bind:href="link.url"
                                                     rel="noopener noreferrer"
                                                     target="_blank"
                                                 >
                                                     {{ link.label }}
+                                                    <cdx-icon
+                                                        aria-hidden="true"
+                                                        class="vg-stub-creator-external-link-icon"
+                                                        :icon="
+                                                            externalLinkIcon
+                                                        "
+                                                        size="x-small"
+                                                    ></cdx-icon>
                                                 </a>
                                             </span>
                                         </span>
@@ -908,10 +976,6 @@
                                         >
                                             {{ msg("names.official") }}
                                         </cdx-checkbox>
-                                        <span
-                                            aria-hidden="true"
-                                            class="vg-stub-creator-name-market-separator"
-                                        ></span>
                                         <cdx-checkbox
                                             v-bind:key="market.key"
                                             v-bind:model-value="
@@ -934,6 +998,7 @@
                                         class="vg-stub-creator-field-controls vg-stub-creator-field-controls--with-source"
                                     >
                                         <cdx-text-input
+                                            :aria-label="`${msg('names.localizedName')} ${index + 1}`"
                                             :placeholder="msg('names.title')"
                                             v-bind:model-value="row.name"
                                             v-on:change="
@@ -953,6 +1018,7 @@
                                             "
                                         ></cdx-text-input>
                                         <cdx-text-area
+                                            :aria-label="`${msg('names.sourceUrls')} ${index + 1}`"
                                             class="vg-stub-creator-source-url"
                                             rows="1"
                                             v-bind:model-value="row.sourceUrl"
@@ -995,7 +1061,7 @@
                                             type="button"
                                             weight="quiet"
                                             v-if="row.name.trim()"
-                                            v-on:click="
+                                            @click="
                                                 applyNameAsPageTitle(
                                                     group.nameGroupKey,
                                                     index,
@@ -1011,11 +1077,12 @@
                                         </cdx-button>
                                         <cdx-button
                                             :aria-label="msg('names.remove')"
-                                            class="vg-stub-creator-icon-button vg-stub-creator-destructive-action"
+                                            action="destructive"
+                                            class="vg-stub-creator-icon-button"
                                             :title="msg('names.remove')"
                                             type="button"
                                             weight="quiet"
-                                            v-on:click="
+                                            @click="
                                                 removeNameRow(
                                                     group.nameGroupKey,
                                                     index,
@@ -1047,7 +1114,7 @@
                                     :title="msg('noteta.sort')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:click="sortNoteTaRows"
+                                    @click="sortNoteTaRows"
                                 >
                                     <cdx-icon
                                         v-bind:icon="tableActionIcons.sort"
@@ -1060,7 +1127,7 @@
                                     :title="msg('common.reset')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:click="regenerateNoteTaRows"
+                                    @click="regenerateNoteTaRows"
                                 >
                                     <cdx-icon
                                         v-bind:icon="
@@ -1075,7 +1142,7 @@
                                     :title="msg('common.clean')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:click="cleanNoteTaRows"
+                                    @click="cleanNoteTaRows"
                                 >
                                     <cdx-icon
                                         v-bind:icon="tableActionIcons.clean"
@@ -1088,7 +1155,7 @@
                                     :title="msg('common.add')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:click="addNoteTaRow"
+                                    @click="addNoteTaRow"
                                 >
                                     <cdx-icon
                                         v-bind:icon="
@@ -1100,6 +1167,7 @@
                             </template>
                             <template v-slot:item-key="{ row }">
                                 <cdx-text-input
+                                    :aria-label="msg('noteta.rule')"
                                     :placeholder="msg('noteta.keyPlaceholder')"
                                     v-bind:model-value="row.key"
                                     v-on:update:model-value="
@@ -1113,6 +1181,7 @@
                             </template>
                             <template v-slot:item-value="{ row }">
                                 <cdx-text-input
+                                    :aria-label="msg('noteta.conversion')"
                                     :placeholder="
                                         msg('noteta.valuePlaceholder')
                                     "
@@ -1129,11 +1198,12 @@
                             <template v-slot:item-actions="{ row }">
                                 <cdx-button
                                     :aria-label="msg('common.remove')"
-                                    class="vg-stub-creator-icon-button vg-stub-creator-destructive-action"
+                                    action="destructive"
+                                    class="vg-stub-creator-icon-button"
                                     :title="msg('common.remove')"
                                     type="button"
                                     weight="quiet"
-                                    v-on:click="
+                                    @click="
                                         removeNoteTaRow(
                                             form.noteTaRows.indexOf(row),
                                         )
@@ -1181,11 +1251,11 @@
                                             :aria-label="
                                                 msg('references.refetchAction')
                                             "
-                                            class="vg-stub-creator-icon-button vg-stub-creator-destructive-action"
+                                            class="vg-stub-creator-icon-button"
                                             :title="msg('references.refetch')"
                                             type="button"
                                             weight="quiet"
-                                            v-on:click="
+                                            @click="
                                                 refetchCitation(citationIndex)
                                             "
                                         >
@@ -1202,7 +1272,7 @@
                                             :title="msg('common.clean')"
                                             type="button"
                                             weight="quiet"
-                                            v-on:click="
+                                            @click="
                                                 cleanCitationParams(
                                                     citationIndex,
                                                 )
@@ -1225,7 +1295,7 @@
                                             "
                                             type="button"
                                             weight="quiet"
-                                            v-on:click="
+                                            @click="
                                                 addCitationParam(citationIndex)
                                             "
                                         >
@@ -1239,6 +1309,9 @@
                                     </template>
                                     <template v-slot:item-name="{ row }">
                                         <cdx-text-input
+                                            :aria-label="
+                                                msg('references.parameter')
+                                            "
                                             :placeholder="
                                                 msg('references.parameterName')
                                             "
@@ -1258,6 +1331,7 @@
                                     </template>
                                     <template v-slot:item-value="{ row }">
                                         <cdx-text-input
+                                            :aria-label="msg('common.value')"
                                             :placeholder="msg('common.value')"
                                             v-bind:model-value="
                                                 row.param.value
@@ -1283,7 +1357,7 @@
                                             type="button"
                                             weight="quiet"
                                             v-if="row.index &lt; citation.params.length"
-                                            v-on:click="
+                                            @click="
                                                 resetCitationParam(
                                                     citationIndex,
                                                     row.index,
@@ -1299,12 +1373,13 @@
                                         </cdx-button>
                                         <cdx-button
                                             :aria-label="msg('common.remove')"
-                                            class="vg-stub-creator-icon-button vg-stub-creator-destructive-action"
+                                            action="destructive"
+                                            class="vg-stub-creator-icon-button"
                                             :title="msg('common.remove')"
                                             type="button"
                                             weight="quiet"
                                             v-if="row.index &lt; citation.params.length"
-                                            v-on:click="
+                                            @click="
                                                 removeCitationParam(
                                                     citationIndex,
                                                     row.index,
@@ -1319,13 +1394,20 @@
                                             ></cdx-icon>
                                         </cdx-button>
                                     </template>
-                                    <template v-slot:footer>
+                                    <template #footer>
                                         <a
+                                            class="vg-stub-creator-external-link"
                                             v-bind:href="citation.sourceUrl"
                                             rel="noopener noreferrer"
                                             target="_blank"
                                         >
                                             {{ citation.sourceUrl }}
+                                            <cdx-icon
+                                                aria-hidden="true"
+                                                class="vg-stub-creator-external-link-icon"
+                                                :icon="externalLinkIcon"
+                                                size="x-small"
+                                            ></cdx-icon>
                                         </a>
                                     </template>
                                 </cdx-table>
@@ -1354,8 +1436,8 @@
                                         :title="msg('review.resetRedirects')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="rebuildRedirectRows"
-                                        v-bind:disabled="reviewState.loading"
+                                        @click="rebuildRedirectRows"
+                                        :disabled="reviewState.loading"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1370,7 +1452,7 @@
                                         :title="msg('common.clean')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="cleanRedirectRows"
+                                        @click="cleanRedirectRows"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1385,7 +1467,7 @@
                                         :title="msg('common.add')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="addRedirectRow"
+                                        @click="addRedirectRow"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1400,8 +1482,8 @@
                                         :title="msg('review.refreshRedirects')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="checkRedirectRows"
-                                        v-bind:disabled="reviewState.loading"
+                                        @click="checkRedirectRows"
+                                        :disabled="reviewState.loading"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1418,7 +1500,13 @@
                                         "
                                         :title="msg('review.includeRedirect')"
                                         v-model="row.enabled"
-                                    ></cdx-checkbox>
+                                    >
+                                        <span
+                                            class="vg-stub-creator-visually-hidden"
+                                        >
+                                            {{ msg("review.includeRedirect") }}
+                                        </span>
+                                    </cdx-checkbox>
                                     <span
                                         aria-hidden="true"
                                         class="vg-stub-creator-review-row-marker vg-stub-creator-review-row-marker--redirect-conflict"
@@ -1437,6 +1525,7 @@
                                 </template>
                                 <template v-slot:item-title="{ row }">
                                     <cdx-text-input
+                                        :aria-label="msg('review.pageName')"
                                         v-model="row.title"
                                         v-on:blur="
                                             checkRedirectRow(
@@ -1457,18 +1546,17 @@
                                     ></cdx-text-input>
                                 </template>
                                 <template v-slot:item-page="{ row }">
-                                    <a
-                                        href="#"
-                                        v-bind:aria-label="
+                                    <cdx-button
+                                        type="button"
+                                        :aria-label="
                                             getReviewPageActionAriaLabel(
                                                 row,
                                                 row.exists,
                                             )
                                         "
                                         v-if="row.title"
-                                        v-on:click.prevent="
-                                            openRedirectEdit(row)
-                                        "
+                                        weight="quiet"
+                                        @click="openRedirectEdit(row)"
                                     >
                                         {{
                                             getReviewPageActionLabel(
@@ -1476,7 +1564,7 @@
                                                 row.exists,
                                             )
                                         }}
-                                    </a>
+                                    </cdx-button>
                                 </template>
                                 <template v-slot:item-actions="{ row }">
                                     <cdx-button
@@ -1486,7 +1574,7 @@
                                         type="button"
                                         weight="quiet"
                                         v-if="row.title"
-                                        v-on:click="
+                                        @click="
                                             checkRedirectRow(
                                                 (
                                                     form.redirectRows || []
@@ -1503,11 +1591,12 @@
                                     </cdx-button>
                                     <cdx-button
                                         :aria-label="msg('common.remove')"
-                                        class="vg-stub-creator-icon-button vg-stub-creator-destructive-action"
+                                        action="destructive"
+                                        class="vg-stub-creator-icon-button"
                                         :title="msg('common.remove')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="
+                                        @click="
                                             removeRedirectRow(
                                                 (
                                                     form.redirectRows || []
@@ -1539,8 +1628,8 @@
                                         :title="msg('common.reset')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="rebuildCategoryRows"
-                                        v-bind:disabled="categoryState.loading"
+                                        @click="rebuildCategoryRows"
+                                        :disabled="categoryState.loading"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1555,7 +1644,7 @@
                                         :title="msg('common.clean')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="cleanCategoryRows"
+                                        @click="cleanCategoryRows"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1570,7 +1659,7 @@
                                         :title="msg('common.add')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="addCategoryRow"
+                                        @click="addCategoryRow"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1587,7 +1676,13 @@
                                         "
                                         :title="msg('review.includeCategory')"
                                         v-model="row.enabled"
-                                    ></cdx-checkbox>
+                                    >
+                                        <span
+                                            class="vg-stub-creator-visually-hidden"
+                                        >
+                                            {{ msg("review.includeCategory") }}
+                                        </span>
+                                    </cdx-checkbox>
                                     <span
                                         aria-hidden="true"
                                         class="vg-stub-creator-review-row-marker vg-stub-creator-review-row-marker--category-add"
@@ -1608,6 +1703,9 @@
                                 </template>
                                 <template v-slot:item-category="{ row }">
                                     <cdx-text-input
+                                        :aria-label="
+                                            msg('review.categoryName')
+                                        "
                                         v-model="row.category"
                                         v-on:blur="
                                             checkCategoryRow(
@@ -1624,18 +1722,17 @@
                                     ></cdx-text-input>
                                 </template>
                                 <template v-slot:item-page="{ row }">
-                                    <a
-                                        href="#"
-                                        v-bind:aria-label="
+                                    <cdx-button
+                                        type="button"
+                                        :aria-label="
                                             getReviewPageActionAriaLabel(
                                                 row,
                                                 row.status === 'OK',
                                             )
                                         "
                                         v-if="row.category"
-                                        v-on:click.prevent="
-                                            openCategoryEdit(row)
-                                        "
+                                        weight="quiet"
+                                        @click="openCategoryEdit(row)"
                                     >
                                         {{
                                             getReviewPageActionLabel(
@@ -1643,7 +1740,7 @@
                                                 row.status === "OK",
                                             )
                                         }}
-                                    </a>
+                                    </cdx-button>
                                 </template>
                                 <template v-slot:item-actions="{ row }">
                                     <cdx-button
@@ -1653,7 +1750,7 @@
                                         type="button"
                                         weight="quiet"
                                         v-if="row.category"
-                                        v-on:click="
+                                        @click="
                                             checkCategoryRow(
                                                 form.categoryRows.indexOf(row),
                                             )
@@ -1668,11 +1765,12 @@
                                     </cdx-button>
                                     <cdx-button
                                         :aria-label="msg('common.remove')"
-                                        class="vg-stub-creator-icon-button vg-stub-creator-destructive-action"
+                                        action="destructive"
+                                        class="vg-stub-creator-icon-button"
                                         :title="msg('common.remove')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="
+                                        @click="
                                             removeCategoryRow(
                                                 form.categoryRows.indexOf(row),
                                             )
@@ -1709,7 +1807,7 @@
                                         :title="msg('common.reset')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="resetStubTagRows"
+                                        @click="resetStubTagRows"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1724,7 +1822,7 @@
                                         :title="msg('common.clean')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="cleanStubTagRows"
+                                        @click="cleanStubTagRows"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1739,7 +1837,7 @@
                                         :title="msg('common.add')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="addStubTagRow"
+                                        @click="addStubTagRow"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1756,7 +1854,13 @@
                                         "
                                         :title="msg('review.includeStubTag')"
                                         v-model="row.enabled"
-                                    ></cdx-checkbox>
+                                    >
+                                        <span
+                                            class="vg-stub-creator-visually-hidden"
+                                        >
+                                            {{ msg("review.includeStubTag") }}
+                                        </span>
+                                    </cdx-checkbox>
                                     <span
                                         aria-hidden="true"
                                         class="vg-stub-creator-review-row-marker vg-stub-creator-review-row-marker--stub-tag-add"
@@ -1777,6 +1881,9 @@
                                 </template>
                                 <template v-slot:item-stubTag="{ row }">
                                     <cdx-text-input
+                                        :aria-label="
+                                            msg('review.templateName')
+                                        "
                                         v-model="row.stubTag"
                                         v-on:update:model-value="
                                             updateStubTagRow(
@@ -1787,32 +1894,32 @@
                                     ></cdx-text-input>
                                 </template>
                                 <template v-slot:item-page="{ row }">
-                                    <a
-                                        href="#"
-                                        v-bind:aria-label="
+                                    <cdx-button
+                                        type="button"
+                                        :aria-label="
                                             getReviewPageActionAriaLabel(
                                                 row,
                                                 true,
                                             )
                                         "
                                         v-if="row.stubTag"
-                                        v-on:click.prevent="
-                                            openStubTagEdit(row)
-                                        "
+                                        weight="quiet"
+                                        @click="openStubTagEdit(row)"
                                     >
                                         {{
                                             getReviewPageActionLabel(row, true)
                                         }}
-                                    </a>
+                                    </cdx-button>
                                 </template>
                                 <template v-slot:item-actions="{ row }">
                                     <cdx-button
                                         :aria-label="msg('common.remove')"
-                                        class="vg-stub-creator-icon-button vg-stub-creator-destructive-action"
+                                        action="destructive"
+                                        class="vg-stub-creator-icon-button"
                                         :title="msg('common.remove')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="
+                                        @click="
                                             removeStubTagRow(
                                                 stubTagRows.indexOf(row),
                                             )
@@ -1842,8 +1949,8 @@
                                         :title="msg('common.reset')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="rebuildNavboxRows"
-                                        v-bind:disabled="reviewState.loading"
+                                        @click="rebuildNavboxRows"
+                                        :disabled="reviewState.loading"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1858,7 +1965,7 @@
                                         :title="msg('common.clean')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="cleanNavboxRows"
+                                        @click="cleanNavboxRows"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1873,7 +1980,7 @@
                                         :title="msg('common.add')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="addNavboxRow"
+                                        @click="addNavboxRow"
                                     >
                                         <cdx-icon
                                             v-bind:icon="
@@ -1890,7 +1997,13 @@
                                         "
                                         :title="msg('review.includeNavbox')"
                                         v-model="row.enabled"
-                                    ></cdx-checkbox>
+                                    >
+                                        <span
+                                            class="vg-stub-creator-visually-hidden"
+                                        >
+                                            {{ msg("review.includeNavbox") }}
+                                        </span>
+                                    </cdx-checkbox>
                                     <span
                                         aria-hidden="true"
                                         class="vg-stub-creator-review-row-marker vg-stub-creator-review-row-marker--navbox-add"
@@ -1909,6 +2022,9 @@
                                 </template>
                                 <template v-slot:item-text="{ row }">
                                     <cdx-text-input
+                                        :aria-label="
+                                            msg('review.templateName')
+                                        "
                                         v-model="row.text"
                                         v-on:blur="
                                             checkNavboxRow(
@@ -1929,18 +2045,17 @@
                                     ></cdx-text-input>
                                 </template>
                                 <template v-slot:item-page="{ row }">
-                                    <a
-                                        href="#"
-                                        v-bind:aria-label="
+                                    <cdx-button
+                                        type="button"
+                                        :aria-label="
                                             getReviewPageActionAriaLabel(
                                                 row,
                                                 row.status === 'OK',
                                             )
                                         "
                                         v-if="row.title"
-                                        v-on:click.prevent="
-                                            openNavboxEdit(row)
-                                        "
+                                        weight="quiet"
+                                        @click="openNavboxEdit(row)"
                                     >
                                         {{
                                             getReviewPageActionLabel(
@@ -1948,7 +2063,7 @@
                                                 row.status === "OK",
                                             )
                                         }}
-                                    </a>
+                                    </cdx-button>
                                 </template>
                                 <template v-slot:item-actions="{ row }">
                                     <cdx-button
@@ -1958,7 +2073,7 @@
                                         type="button"
                                         weight="quiet"
                                         v-if="row.title"
-                                        v-on:click="
+                                        @click="
                                             checkNavboxRow(
                                                 (
                                                     form.navboxRows || []
@@ -1975,11 +2090,12 @@
                                     </cdx-button>
                                     <cdx-button
                                         :aria-label="msg('common.remove')"
-                                        class="vg-stub-creator-icon-button vg-stub-creator-destructive-action"
+                                        action="destructive"
+                                        class="vg-stub-creator-icon-button"
                                         :title="msg('common.remove')"
                                         type="button"
                                         weight="quiet"
-                                        v-on:click="
+                                        @click="
                                             removeNavboxRow(
                                                 (
                                                     form.navboxRows || []
@@ -2025,34 +2141,15 @@
         >
             {{ sourceFetchState.error }}
         </cdx-message>
-        <template v-slot:footer>
+        <template #footer>
             <div class="vg-stub-creator-dialog-footer">
-                <div class="vg-stub-creator-dialog-footer-group">
+                <div class="vg-stub-creator-dialog-footer-actions">
                     <cdx-button
                         type="button"
-                        v-on:click="closeDialog"
-                        weight="quiet"
-                    >
-                        {{ msg("common.close") }}
-                    </cdx-button>
-                </div>
-                <div class="vg-stub-creator-dialog-footer-group">
-                    <cdx-menu-button
-                        v-bind:disabled="sourceFetchState.loading"
-                        v-bind:menu-items="mainActionMenuItems"
-                        v-model:selected="mainActionMenuSelection"
-                        v-on:update:selected="handleMainActionSelect"
-                    >
-                        {{ msg("form.more") }}
-                    </cdx-menu-button>
-                    <cdx-button
-                        type="button"
-                        v-on:click="submitForm"
                         action="progressive"
-                        v-bind:disabled="
-                            sourceFetchState.loading || previewLoading
-                        "
+                        :disabled="sourceFetchState.loading || previewLoading"
                         weight="primary"
+                        @click="submitForm"
                     >
                         {{
                             previewLoading
@@ -2062,6 +2159,19 @@
                                   : msg("form.review")
                         }}
                     </cdx-button>
+                    <cdx-button type="button" @click="closeDialog">
+                        {{ msg("common.close") }}
+                    </cdx-button>
+                </div>
+                <div class="vg-stub-creator-dialog-footer-peer-actions">
+                    <cdx-menu-button
+                        :disabled="sourceFetchState.loading"
+                        :menu-items="mainActionMenuItems"
+                        v-model:selected="mainActionMenuSelection"
+                        @update:selected="handleMainActionSelect"
+                    >
+                        {{ msg("form.more") }}
+                    </cdx-menu-button>
                 </div>
             </div>
         </template>

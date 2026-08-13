@@ -76,6 +76,36 @@
                     <template #header>
                         <div class="cf-source-manager__parameter-table-header">
                             <div
+                                class="cf-source-manager__parameter-table-actions"
+                            >
+                                <cdx-button
+                                    type="button"
+                                    :disabled="loading"
+                                    @click="addParameter"
+                                >
+                                    {{ msg("draft.addParameter") }}
+                                </cdx-button>
+                                <cdx-button
+                                    type="button"
+                                    :disabled="loading"
+                                    @click="sortParameters"
+                                >
+                                    {{ msg("draft.sortParameters") }}
+                                </cdx-button>
+                                <cdx-button
+                                    v-if="
+                                        editingSource &&
+                                        editingSource.status === 'standard' &&
+                                        !draftReviewTool
+                                    "
+                                    type="button"
+                                    :disabled="loading"
+                                    @click="duplicateDraft"
+                                >
+                                    {{ msg("draft.duplicate") }}
+                                </cdx-button>
+                            </div>
+                            <div
                                 v-if="hasCitationIdentity"
                                 class="cf-source-manager__reference-name-preview"
                             >
@@ -255,6 +285,7 @@
                                             <cdx-button
                                                 action="progressive"
                                                 weight="quiet"
+                                                type="button"
                                                 :disabled="loading"
                                                 @click="
                                                     useAliasSuggestion(index)
@@ -264,6 +295,7 @@
                                             </cdx-button>
                                             <cdx-button
                                                 weight="quiet"
+                                                type="button"
                                                 :disabled="loading"
                                                 @click="
                                                     dismissAliasSuggestion(
@@ -275,6 +307,24 @@
                                             </cdx-button>
                                         </div>
                                     </div>
+                                    <a
+                                        v-if="
+                                            isUrlDraftParameter(row.name) &&
+                                            getOpenableDraftUrl(row.value)
+                                        "
+                                        class="cf-source-manager__external-link"
+                                        :href="getOpenableDraftUrl(row.value)"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        :aria-label="
+                                            msg('draft.openUrlLabel', {
+                                                parameter: row.name,
+                                            })
+                                        "
+                                    >
+                                        <span>{{ msg("draft.openUrl") }}</span>
+                                        <cdx-icon :icon="openUrlIcon" />
+                                    </a>
                                 </td>
                                 <td
                                     class="cf-source-manager__parameter-cell cf-source-manager__parameter-cell--actions"
@@ -284,6 +334,7 @@
                                     >
                                         <cdx-button
                                             v-if="hasCitationIdentity"
+                                            type="button"
                                             :title="
                                                 getParameterAliasActionLabel(
                                                     row,
@@ -311,28 +362,6 @@
                                                 :icon="parameterAliasIcon"
                                             />
                                         </cdx-button>
-                                        <a
-                                            v-if="
-                                                isUrlDraftParameter(
-                                                    row.name,
-                                                ) &&
-                                                getOpenableDraftUrl(row.value)
-                                            "
-                                            :title="msg('draft.openUrl')"
-                                            class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--action-default cdx-button--icon-only"
-                                            :href="
-                                                getOpenableDraftUrl(row.value)
-                                            "
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            :aria-label="
-                                                msg('draft.openUrlLabel', {
-                                                    parameter: row.name,
-                                                })
-                                            "
-                                        >
-                                            <cdx-icon :icon="openUrlIcon" />
-                                        </a>
                                         <cdx-button
                                             v-if="
                                                 row.name
@@ -342,6 +371,7 @@
                                             "
                                             :title="msg('draft.switchStatus')"
                                             weight="quiet"
+                                            type="button"
                                             :disabled="loading"
                                             :aria-label="
                                                 msg('draft.switchStatusLabel')
@@ -364,6 +394,7 @@
                                                 )
                                             "
                                             weight="quiet"
+                                            type="button"
                                             :disabled="loading"
                                             :aria-label="
                                                 getDateAutofillTooltip(
@@ -382,6 +413,7 @@
                                             "
                                             :title="msg('draft.checkLink')"
                                             weight="quiet"
+                                            type="button"
                                             :disabled="
                                                 loading ||
                                                 row.value.trim() === ''
@@ -404,6 +436,7 @@
                                             "
                                             :title="msg('draft.splitAuthor')"
                                             weight="quiet"
+                                            type="button"
                                             :disabled="
                                                 loading ||
                                                 !canSplitAuthor(index)
@@ -429,6 +462,7 @@
                                             "
                                             :title="msg('draft.joinAuthor')"
                                             weight="quiet"
+                                            type="button"
                                             :disabled="
                                                 loading ||
                                                 !canJoinAuthor(index)
@@ -469,51 +503,31 @@
             </div>
         </div>
         <template #footer>
-            <div class="cf-source-manager__draft-footer">
-                <div class="cf-source-manager__draft-actions">
-                    <cdx-button :disabled="loading" @click="addParameter">
-                        {{ msg("draft.addParameter") }}
-                    </cdx-button>
-                    <cdx-button :disabled="loading" @click="sortParameters">
-                        {{ msg("draft.sortParameters") }}
-                    </cdx-button>
-                    <cdx-button
-                        v-if="
-                            editingSource &&
-                            editingSource.status === 'standard' &&
-                            !draftReviewTool
-                        "
-                        :disabled="loading"
-                        @click="duplicateDraft"
-                    >
-                        {{ msg("draft.duplicate") }}
-                    </cdx-button>
-                </div>
-                <div class="cf-source-manager__footer-actions">
-                    <cdx-button
-                        action="progressive"
-                        weight="primary"
-                        :disabled="loading"
-                        @click="saveDraft"
-                    >
-                        {{ msg("common.save") }}
-                    </cdx-button>
-                    <cdx-button
-                        action="progressive"
-                        :disabled="loading"
-                        @click="applyDraft"
-                    >
-                        {{ msg("common.apply") }}
-                    </cdx-button>
-                    <cdx-button
-                        action="destructive"
-                        weight="quiet"
-                        :disabled="loading"
-                        @click="closeDraftPopup"
-                    >
-                        {{ msg("common.cancel") }}
-                    </cdx-button>
-                </div>
+            <div class="cf-source-manager__footer-actions">
+                <cdx-button
+                    action="progressive"
+                    weight="primary"
+                    type="button"
+                    :disabled="loading"
+                    @click="saveDraft"
+                >
+                    {{ msg("common.save") }}
+                </cdx-button>
+                <cdx-button
+                    action="progressive"
+                    type="button"
+                    :disabled="loading"
+                    @click="applyDraft"
+                >
+                    {{ msg("common.apply") }}
+                </cdx-button>
+                <cdx-button
+                    type="button"
+                    :disabled="loading"
+                    @click="closeDraftPopup"
+                >
+                    {{ msg("common.cancel") }}
+                </cdx-button>
             </div>
         </template>
     </cdx-dialog>

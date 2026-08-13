@@ -1,15 +1,16 @@
 /** Validates deployable gadget package metadata. */
 
-import { AGGREGATE_OUTPUT_FILENAME } from "../gadget-build/artifact-names.ts";
-import { reservesAggregateArtifact } from "../gadget-build/artifacts.ts";
+import { AGGREGATE_OUTPUT_FILENAME } from "#gadget-build/artifact-names";
+import { reservesAggregateArtifact } from "#gadget-build/artifacts";
 import {
     isBuildDefineMap,
     isGadgetUserscriptConfig,
     isJavaScriptBindingIdentifier,
     isSupportedPackageLicense,
-} from "../gadget-build/metadata-validation.ts";
-import { parseMatchPattern } from "../gadget-build/userscript.ts";
-import { hasText, type GadgetPackage } from "../workspace/index.ts";
+} from "#gadget-build/metadata-validation";
+import { parseMatchPattern } from "#gadget-build/userscript";
+import { hasText } from "#workspace/metadata";
+import type { GadgetPackage } from "#workspace/types";
 import { checkPackageCondition as check } from "./problem.ts";
 
 const REQUIRED_SCRIPTS = ["build", "check", "test"];

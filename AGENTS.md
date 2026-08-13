@@ -86,9 +86,9 @@
 - Use numbered reference links, short paragraphs, and lists or definition-style
   sections in place of wide tables. Keep authored Markdown lines at 79
   characters or fewer.
-- Keep the cumulative repository licensing map in the root `LICENSE` file. Keep
-  each gadget's release scope in its package-local `LICENSE`, and link to both
-  files from the package README.
+- Keep the current repository licensing map in the root `LICENSE` file. Keep
+  each gadget's current release scope in its package-local `LICENSE`, and link
+  to both files from the package README. Prior scopes remain in Git history.
 
 ## Action Workflows
 

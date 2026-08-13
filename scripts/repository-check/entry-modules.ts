@@ -3,7 +3,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import ts from "typescript";
-import { hasErrorCode, type GadgetPackage } from "../workspace/index.ts";
+import { hasErrorCode } from "#workspace/metadata";
+import type { GadgetPackage } from "#workspace/types";
 
 /** Checks the composition-root export and package API purity. */
 export async function checkEntryModules(
@@ -153,7 +154,7 @@ function isTypeOnlyImport(statement: ts.ImportDeclaration): boolean {
     if (clause == null) {
         return false;
     }
-    if (clause.isTypeOnly) {
+    if (ts.isTypeOnlyImportDeclaration(clause)) {
         return true;
     }
     const bindings = clause.namedBindings;
@@ -162,7 +163,7 @@ function isTypeOnlyImport(statement: ts.ImportDeclaration): boolean {
         bindings != null &&
         ts.isNamedImports(bindings) &&
         bindings.elements.length > 0 &&
-        bindings.elements.every((element) => element.isTypeOnly)
+        bindings.elements.every(ts.isTypeOnlyImportDeclaration)
     );
 }
 

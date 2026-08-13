@@ -10,6 +10,28 @@
                   : msg('checker.nonCs1Title')
         "
         :lang="interfaceLocale"
+        :primary-action="
+            toolPopup === 'analysis'
+                ? {
+                      actionType: 'progressive',
+                      disabled: countSelectedAnalysisReplacements() === 0,
+                      label: msg('analysis.applySelected'),
+                  }
+                : toolPopup === 'cs1'
+                  ? {
+                        actionType: 'progressive',
+                        disabled: cs1ToolStatus === 'checking',
+                        label: msg('checker.recheckArticle'),
+                    }
+                  : undefined
+        "
+        :default-action="{ label: msg('common.close') }"
+        @primary="
+            toolPopup === 'analysis'
+                ? applyAnalysisReplacements()
+                : recheckCs1Tool()
+        "
+        @default="closeToolPopup"
         @update:open="onToolPopupOpenChange"
     >
         <div class="cf-source-manager__dialog-body-content">
@@ -181,6 +203,7 @@
                                     class="cf-source-analysis__selection-actions"
                                 >
                                     <cdx-button
+                                        type="button"
                                         @click="
                                             selectAllAnalysisOccurrences(
                                                 finding,
@@ -190,6 +213,7 @@
                                         {{ msg("analysis.selectAll") }}
                                     </cdx-button>
                                     <cdx-button
+                                        type="button"
                                         @click="
                                             clearAnalysisSelection(finding)
                                         "
@@ -198,7 +222,7 @@
                                     </cdx-button>
                                     <cdx-button
                                         action="progressive"
-                                        weight="primary"
+                                        type="button"
                                         :disabled="
                                             countSelectedFindingReplacements(
                                                 finding,
@@ -238,8 +262,7 @@
                                         </code>
                                     </span>
                                     <cdx-button
-                                        action="destructive"
-                                        weight="primary"
+                                        type="button"
                                         @click="
                                             revertAppliedAnalysisFinding(
                                                 applied.changeId,
@@ -396,6 +419,7 @@
                             <cdx-button
                                 :title="msg('lookup.editSource')"
                                 weight="quiet"
+                                type="button"
                                 :aria-label="msg('lookup.editSource')"
                                 @click="reviewCs1Source(result.source.id)"
                             >
@@ -443,7 +467,14 @@
                                     msg("common.unnamedReference")
                                 }}
                             </span>
-                            <small class="cf-source-manager__existing-meta">
+                            <small
+                                class="cf-source-manager__existing-meta"
+                                :title="
+                                    msg('checker.nonCs1Source') +
+                                    ' · ' +
+                                    formatSourceUsageTitle(source)
+                                "
+                            >
                                 <code>{{ msg("checker.nonCs1Source") }}</code>
                                 ·
                                 <span :title="formatSourceUsageTitle(source)">
@@ -455,6 +486,7 @@
                             <cdx-button
                                 :title="msg('checker.convertSource')"
                                 weight="quiet"
+                                type="button"
                                 :aria-label="msg('checker.convertSource')"
                                 @click="reviewNonCs1Source(source.id)"
                             >
@@ -465,30 +497,5 @@
                 </ol>
             </template>
         </div>
-        <template #footer>
-            <div class="cf-source-manager__footer-actions">
-                <cdx-button
-                    v-if="toolPopup === 'analysis'"
-                    :disabled="countSelectedAnalysisReplacements() === 0"
-                    action="progressive"
-                    weight="primary"
-                    @click="applyAnalysisReplacements"
-                >
-                    {{ msg("analysis.applySelected") }}
-                </cdx-button>
-                <cdx-button
-                    v-if="toolPopup === 'cs1'"
-                    :disabled="cs1ToolStatus === 'checking'"
-                    action="progressive"
-                    weight="primary"
-                    @click="recheckCs1Tool"
-                >
-                    {{ msg("checker.recheckArticle") }}
-                </cdx-button>
-                <cdx-button @click="closeToolPopup">
-                    {{ msg("common.close") }}
-                </cdx-button>
-            </div>
-        </template>
     </cdx-dialog>
 </template>

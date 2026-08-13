@@ -9,20 +9,20 @@ import {
 } from "#gadget/domain/cs1-validation.ts";
 import type { SourceAnalysisCell } from "#gadget/domain/source-analysis.ts";
 import {
+    type ExistingSource,
     getSourceDraftCitationNameCells,
     getSourceDraftCitationNameParts,
-    listExistingSourceSections,
     listExistingSources,
+    listExistingSourceSections,
     listSourceDraftParameterCollisions,
     listSourceDraftParameterNames,
+    type ScriptTitleMode,
     serializeSourceDraftForEdit,
-    type ExistingSource,
     type SourceDraft,
     type SourceDraftCitationNameCell,
     type SourceDraftCitationNameParts,
     type SourceDraftRow,
     type SourceSection,
-    type ScriptTitleMode,
 } from "#gadget/domain/source-manager.ts";
 import {
     getSourceDraftErrors,
@@ -35,8 +35,8 @@ import { sourceValidationMessages } from "#gadget/ui/source-messages.ts";
 import type * as editBox from "#shared/edit-box";
 import type { AnalysisUndoSnapshot } from "#gadget/ui/analysis-session.ts";
 import {
-    createEditableSourceAnalysis,
     type AppliedAnalysisFinding,
+    createEditableSourceAnalysis,
     type EditableCitationSourceAnalysis,
 } from "#gadget/ui/source-analysis-state.ts";
 import type { VueModule } from "#gadget/ui/codex.ts";
@@ -116,6 +116,7 @@ export interface SourceManagerState extends SourceListDerivedState {
     parameterAliasDialogOpen: { value: boolean };
     parameterAliasDialogOriginalValue: { value: string };
     parameterAliasDialogRowIndex: { value: number | null };
+    parameterAliasDialogValidationAttempted: { value: boolean };
     parameterAliasDialogValue: { value: string };
     parameterNameOptions: {
         readonly value: Array<{ label: string; value: string }>;
@@ -247,6 +248,7 @@ function createInitialInterfaceState(Vue: VueModule, initialText: string) {
         parameterAliasDialogOpen: Vue.ref(false),
         parameterAliasDialogOriginalValue: Vue.ref(""),
         parameterAliasDialogRowIndex: Vue.ref<number | null>(null),
+        parameterAliasDialogValidationAttempted: Vue.ref(false),
         parameterAliasDialogValue: Vue.ref(""),
         sessionUndo: Vue.ref<AnalysisUndoSnapshot>({
             afterText: initialText,
@@ -275,6 +277,7 @@ function createInitialCs1ToolState(Vue: VueModule) {
  *
  * @param Vue - Vue value.
  * @param text - Text to process.
+ * @param templateNameContext - Wiki-scoped template-name context.
  * @returns Reactive source-list values from current editor text.
  */
 function createInitialSourceListState(

@@ -51,6 +51,32 @@ test("an old package notice cannot cover a later version", async (context) => {
     );
 });
 
+test("a package notice has exactly one release scope", async (context) => {
+    const workspaceRoot = await createTemporaryWorkspace(
+        context,
+        "gadget-license-scope-count-",
+    );
+    await writeFutureGadget(workspaceRoot);
+    await writeWorkspaceLicenseMaps(workspaceRoot, [
+        "future-gadget@1.3.0-dev.1",
+    ]);
+    const packageRoot = join(workspaceRoot, "src", "future-gadget");
+    const licensePath = join(packageRoot, "LICENSE");
+    const license = await readFile(licensePath, "utf8");
+    await writeFile(
+        licensePath,
+        license + "Release-Scope: future-gadget@1.2.9\n",
+    );
+
+    const result = await packageCheck.checkGadgetPackages(workspaceRoot);
+
+    assert.ok(
+        result.problems.some((problem) =>
+            /exactly one current release scope/iu.test(problem),
+        ),
+    );
+});
+
 test("a package notice must match its metadata license", async (context) => {
     const workspaceRoot = await createTemporaryWorkspace(
         context,
@@ -124,7 +150,7 @@ test("workspace maps include each current CC0 scope", async (context) => {
     await writeWorkspaceLicenseMaps(
         workspaceRoot,
         ["future-gadget@1.3.0-dev.10"],
-        ["future-gadget@1.3.0-dev.10"],
+        ["future-gadget@1.3.0-dev.1"],
     );
 
     const result = await packageCheck.checkGadgetPackages(workspaceRoot);

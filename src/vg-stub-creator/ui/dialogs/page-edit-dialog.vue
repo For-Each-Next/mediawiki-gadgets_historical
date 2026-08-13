@@ -1,11 +1,14 @@
 <template>
     <cdx-dialog
         class="vg-stub-creator-preview-dialog"
-        v-bind:title="getPageEditDialogTitle()"
+        :lang="interfaceLocale"
+        :title="getPageEditDialogTitle()"
         v-if="pageEditOpen"
         v-model:open="pageEditOpen"
+        @update:open="!$event &amp;&amp; closePageEditDialog()"
     >
         <cdx-field
+            class="vg-stub-creator-form-field"
             v-if="pageEditState.create &amp;&amp; (pageEditState.kind === 'category' || pageEditState.kind === 'navbox')"
         >
             <cdx-text-input
@@ -16,18 +19,31 @@
             <template v-slot:label>{{ getPageEditEnglishLabel() }}</template>
         </cdx-field>
         <div class="vg-stub-creator-preview-layout">
-            <cdx-text-area
-                class="vg-stub-creator-preview-text"
-                ref="pageEditTextArea"
-                v-model="pageEditState.text"
-                rows="18"
-                spellcheck="false"
-                v-bind:disabled="pageEditState.loading"
-            ></cdx-text-area>
-            <div
-                class="vg-stub-creator-preview-rendered mw-parser-output"
-                v-html="pageEditState.html"
-            ></div>
+            <cdx-field
+                :messages="{ error: pageEditValidationError }"
+                :status="pageEditValidationError ? 'error' : 'default'"
+            >
+                <cdx-text-area
+                    class="vg-stub-creator-preview-text"
+                    ref="pageEditTextArea"
+                    :disabled="pageEditState.loading"
+                    :status="pageEditValidationError ? 'error' : 'default'"
+                    v-model="pageEditState.text"
+                    rows="18"
+                    spellcheck="false"
+                    @update:model-value="pageEditValidationError = ''"
+                ></cdx-text-area>
+                <template #label>{{ msg("preview.wikitext") }}</template>
+            </cdx-field>
+            <section class="vg-stub-creator-preview-result">
+                <h3 class="vg-stub-creator-preview-result-title">
+                    {{ msg("preview.rendered") }}
+                </h3>
+                <div
+                    class="vg-stub-creator-preview-rendered mw-parser-output"
+                    v-html="pageEditState.html"
+                ></div>
+            </section>
         </div>
         <cdx-message
             class="vg-stub-creator-message"
@@ -36,22 +52,22 @@
         >
             {{ pageEditState.error }}
         </cdx-message>
-        <template v-slot:footer>
+        <template #footer>
             <div class="vg-stub-creator-dialog-footer">
-                <div class="vg-stub-creator-dialog-footer-group">
+                <div class="vg-stub-creator-dialog-footer-actions">
                     <cdx-button
                         type="button"
-                        v-on:click="closePageEditDialog"
-                        weight="quiet"
+                        action="progressive"
+                        :disabled="pageEditState.loading"
+                        weight="primary"
+                        @click="stagePageEdit"
                     >
-                        {{ msg("preview.cancel") }}
+                        {{ msg("preview.stage") }}
                     </cdx-button>
-                </div>
-                <div class="vg-stub-creator-dialog-footer-group">
                     <cdx-button
                         type="button"
-                        v-on:click="refreshPageEditPreview"
-                        v-bind:disabled="pageEditState.loading"
+                        :disabled="pageEditState.loading"
+                        @click="refreshPageEditPreview"
                     >
                         {{
                             pageEditState.loading
@@ -59,25 +75,19 @@
                                 : msg("preview.updatePreview")
                         }}
                     </cdx-button>
+                    <cdx-button type="button" @click="closePageEditDialog">
+                        {{ msg("preview.cancel") }}
+                    </cdx-button>
+                </div>
+                <div class="vg-stub-creator-dialog-footer-peer-actions">
                     <cdx-button
                         type="button"
-                        v-on:click="resetPageEdit"
                         action="destructive"
-                        v-bind:disabled="pageEditState.loading"
+                        :disabled="pageEditState.loading"
                         v-if="pageEditState.pending"
+                        @click="resetPageEdit"
                     >
                         {{ msg("common.reset") }}
-                    </cdx-button>
-                    <cdx-button
-                        type="button"
-                        v-on:click="stagePageEdit"
-                        action="progressive"
-                        v-bind:disabled="
-                            pageEditState.loading || !pageEditState.text.trim()
-                        "
-                        weight="primary"
-                    >
-                        {{ msg("preview.stage") }}
                     </cdx-button>
                 </div>
             </div>

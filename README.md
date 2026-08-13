@@ -71,9 +71,10 @@ guides begin in each gadget README listed above.
 
 ## License
 
-The releases named in the cumulative root [licensing map][10] dedicate their
+The current releases named in the root [licensing map][10] dedicate their
 project-owned portions under CC0 1.0. Their incorporated project-owned shared
-runtime follows the cumulative [shared notice][11]. A dedication is limited to
+runtime follows the current [shared notice][11]. Earlier version-specific
+notices remain available in repository Git history. A dedication is limited to
 its named release and does not automatically cover later work.
 
 Other project-owned workspace material defaults to CC BY-SA 4.0. Generated,

@@ -2,15 +2,14 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { compareText } from "#workspace/files";
 import {
-    compareText,
     hasErrorCode,
     hasText,
     isRecord,
     readPackageMetadata,
-    type PackageMetadata,
-    type WorkspacePackage,
-} from "../workspace/index.ts";
+} from "#workspace/metadata";
+import type { PackageMetadata, WorkspacePackage } from "#workspace/types";
 
 interface Lockfile {
     lockfileVersion?: unknown;
@@ -196,10 +195,15 @@ function checkWorkspaceLink(
     const key = `node_modules/${name}`;
     const entry = entries[key];
     const target = `src/${workspacePackage.directoryName}`;
-    if (!isRecord(entry) || entry.link !== true || entry.resolved !== target) {
-        return [`package-lock.json: ${key} must link to ${target}.`];
+    if (isExpectedWorkspaceLink(entry, target)) {
+        return [];
     }
-    return [];
+    return [`package-lock.json: ${key} must link to ${target}.`];
+}
+
+/** Checks one npm workspace-link entry. */
+function isExpectedWorkspaceLink(entry: unknown, target: string): boolean {
+    return isRecord(entry) && entry.link === true && entry.resolved === target;
 }
 
 /** Rejects source workspace entries with no current manifest. */

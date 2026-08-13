@@ -1,10 +1,7 @@
 /** Coordinates reusable deployable-package checks. */
 
-import {
-    inspectWorkspacePackages,
-    isGadgetPackage,
-    type WorkspaceDiscovery,
-} from "../workspace/index.ts";
+import { inspectWorkspacePackages } from "#workspace/packages";
+import { isGadgetPackage, type WorkspaceDiscovery } from "#workspace/types";
 import { checkArtifactCollisions } from "./artifacts.ts";
 import { checkBrowserEntry } from "./browser-entry.ts";
 import { checkEntryModules } from "./entry-modules.ts";

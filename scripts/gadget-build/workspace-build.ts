@@ -2,7 +2,8 @@
 
 import { lstat, realpath } from "node:fs/promises";
 import { dirname, parse, relative, resolve } from "node:path";
-import { hasErrorCode, isOutsideRoot } from "../workspace/index.ts";
+import { hasErrorCode } from "#workspace/metadata";
+import { isOutsideRoot } from "#workspace/paths";
 import {
     generatePlannedAggregate,
     writePlannedAggregate,
@@ -76,13 +77,9 @@ async function assertSafeOutputRoot(plan: WorkspaceBuildPlan): Promise<void> {
     const outputRoot = resolve(plan.outputRoot);
     const workspaceRoot = resolve(plan.workspaceRoot);
     const distRoot = resolve(workspaceRoot, "dist");
-    const insideWorkspace = !isOutsideRoot(
-        relative(workspaceRoot, outputRoot),
-    );
-    const insideDist = !isOutsideRoot(relative(distRoot, outputRoot));
-    const containsWorkspace = !isOutsideRoot(
-        relative(outputRoot, workspaceRoot),
-    );
+    const insideWorkspace = isInsideRoot(workspaceRoot, outputRoot);
+    const insideDist = isInsideRoot(distRoot, outputRoot);
+    const containsWorkspace = isInsideRoot(outputRoot, workspaceRoot);
     if (
         outputRoot === parse(outputRoot).root ||
         containsWorkspace ||
@@ -115,21 +112,20 @@ async function assertRealOutputContainment(
     );
     const suffix = relative(existingAncestor, outputRoot);
     const realOutput = resolve(realAncestor, suffix);
-    const lexicalInsideWorkspace = !isOutsideRoot(
-        relative(workspaceRoot, outputRoot),
-    );
-    const realInsideWorkspace = !isOutsideRoot(
-        relative(realWorkspace, realOutput),
-    );
-    const realInsideDist = !isOutsideRoot(
-        relative(expectedRealDist, realOutput),
-    );
+    const lexicalInsideWorkspace = isInsideRoot(workspaceRoot, outputRoot);
+    const realInsideWorkspace = isInsideRoot(realWorkspace, realOutput);
+    const realInsideDist = isInsideRoot(expectedRealDist, realOutput);
     if (
         (lexicalInsideWorkspace && !realInsideDist) ||
         (!lexicalInsideWorkspace && realInsideWorkspace)
     ) {
         throwUnsafeOutputRoot();
     }
+}
+
+/** Checks whether a target remains within a root path. */
+function isInsideRoot(root: string, target: string): boolean {
+    return !isOutsideRoot(relative(root, target));
 }
 
 /** Finds the nearest existing ancestor of a new output path. */

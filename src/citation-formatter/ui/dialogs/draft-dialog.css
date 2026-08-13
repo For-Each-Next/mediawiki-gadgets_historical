@@ -1,6 +1,5 @@
 .cf-source-manager__draft-dialog.cdx-dialog {
-    max-width: min(96vw, 72em);
-    width: min(96vw, 72em);
+    max-width: 72em;
 }
 
 .cf-source-manager__draft-header {
@@ -12,26 +11,12 @@
 }
 
 .cf-source-manager__draft-header .cdx-field {
-    max-width: 32em;
-    width: min(100%, 32em);
+    max-width: 40rem;
+    width: 100%;
 }
 
 .cf-source-manager__template-field {
-    align-items: center;
-    display: grid;
-    gap: 0 0.75em;
-    grid-template-columns: auto minmax(0, 1fr);
-}
-
-.cf-source-manager__template-field > .cdx-label {
-    padding-bottom: 0;
-    white-space: nowrap;
-}
-
-.cf-source-manager__template-field > .cdx-field__control,
-.cf-source-manager__template-field > .cdx-field__help-text,
-.cf-source-manager__template-field > .cdx-field__validation-message {
-    grid-column: 2;
+    min-width: 0;
 }
 
 .cf-source-manager__template-field .cdx-select {
@@ -59,10 +44,19 @@
 }
 
 .cf-source-manager__parameter-table-header {
+    align-items: center;
     display: flex;
-    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: space-between;
     min-width: 0;
     width: 100%;
+}
+
+.cf-source-manager__parameter-table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
 .cf-source-manager__reference-name-preview {
@@ -82,10 +76,7 @@
     background-color: var(--background-color-progressive-subtle, #e8eeff);
 }
 
-.cf-source-manager__parameter-row--author-change
-    > .cf-source-manager__parameter-cell--name,
-.cf-source-manager__parameter-row--author-change
-    > .cf-source-manager__parameter-cell--value {
+.cf-source-manager__parameter-row--author-change > :not(:last-child) {
     animation: cf-author-column-flash 700ms ease-out;
 }
 
@@ -157,19 +148,6 @@
     width: 0.75rem;
 }
 
-.cf-source-manager__draft-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
-}
-
-.cf-source-manager__draft-footer {
-    align-items: center;
-    display: flex;
-    gap: 0.75em;
-    width: 100%;
-}
-
 .cf-source-manager__original-source {
     margin-bottom: 1em;
 }
@@ -232,6 +210,20 @@
     display: flex;
 }
 
+.cf-source-manager__external-link {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.25rem;
+    margin-block-start: 0.25rem;
+}
+
+.cf-source-manager__external-link > .cdx-icon {
+    height: 1rem;
+    min-height: 1rem;
+    min-width: 1rem;
+    width: 1rem;
+}
+
 .cf-source-manager__parameter-actions {
     display: flex;
     flex-wrap: wrap;
@@ -249,13 +241,8 @@
     transform: scaleX(-1);
 }
 
-@media (max-width: 42em) {
-    .cf-source-manager__draft-footer {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .cf-source-manager__draft-actions {
-        display: grid;
+@media (max-width: 40em) {
+    .cf-source-manager__parameter-table-actions {
+        width: 100%;
     }
 }

@@ -1,10 +1,8 @@
 /** Enforces the repository's authored Markdown source width. */
 
 import { readFile } from "node:fs/promises";
-import {
-    collectAuthoredFiles,
-    formatWorkspacePath,
-} from "../workspace/index.ts";
+import { collectAuthoredFiles } from "#workspace/files";
+import { formatWorkspacePath } from "#workspace/paths";
 import type { CheckResult } from "./types.ts";
 
 const MAX_MARKDOWN_LINE_LENGTH = 79;

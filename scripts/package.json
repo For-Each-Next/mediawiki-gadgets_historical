@@ -1,0 +1,9 @@
+{
+    "private": true,
+    "type": "module",
+    "imports": {
+        "#gadget-build/*": "./gadget-build/*.ts",
+        "#repository-check/*": "./repository-check/*.ts",
+        "#workspace/*": "./workspace/*.ts"
+    }
+}

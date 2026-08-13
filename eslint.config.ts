@@ -105,6 +105,21 @@ export default [
         languageOptions: {
             globals: nodeGlobals,
         },
+        rules: {
+            "no-restricted-imports": [
+                "error",
+                {
+                    patterns: [
+                        {
+                            message:
+                                "Import workspace packages through their " +
+                                "package names.",
+                            regex: "^\\.\\.(?:/\\.\\.)*/src/[^/]+/",
+                        },
+                    ],
+                },
+            ],
+        },
     },
     {
         files: typescriptFiles,

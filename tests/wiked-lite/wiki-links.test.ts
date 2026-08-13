@@ -5,7 +5,7 @@ import {
     applyWikiLinkRedirects,
     collectWikiLinkTitles,
     lookupWikiLinks,
-} from "../../src/wiked-lite/adapters/mediawiki/wiki-links.ts";
+} from "wiked-lite/adapters/mediawiki/wiki-links.ts";
 
 const EXAMPLE_NAMESPACE_CATALOG = decodeNamespaceCatalog("examplewiki", {
     query: {

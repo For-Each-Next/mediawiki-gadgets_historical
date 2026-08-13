@@ -1,6 +1,5 @@
 .cf-source-manager__parameter-alias-dialog.cdx-dialog {
-    max-width: min(96vw, 32em);
-    width: min(96vw, 32em);
+    max-width: 32em;
 }
 
 .cf-source-manager__parameter-alias-fields {

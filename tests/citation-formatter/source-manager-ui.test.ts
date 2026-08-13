@@ -187,6 +187,11 @@ interface MountedManager extends Record<string, unknown> {
     joinAuthorIcon: Icon;
     nonCs1Sources: { readonly value: ExistingSource[] };
     parameterAliasDialogDirectives: { value: string[] };
+    parameterAliasDialogOpen: { value: boolean };
+    parameterAliasDialogOriginalValue: { value: string };
+    parameterAliasDialogValue: { value: string };
+    canApplyParameterAlias: () => boolean;
+    getParameterAliasDialogError: () => string;
     splitAuthorIcon: Icon;
     sourceAnalysis: {
         value: {
@@ -236,13 +241,8 @@ const ALIAS_ONLY_CONSISTENCY_TEXT = [
     "<!-- # Jane Doe -->|title=B|url=https://two.test/b}}</ref>",
 ].join("\n");
 
-// eslint-disable-next-line max-lines-per-function
-test("notifies on duplicate and rechecks only CS1 Apply", async () => {
-    const recheck = createDeferred<unknown>();
-    const harness = installSourceManagerHarness([
-        { parse: { categories: [], text: CS1_ERROR_HTML } },
-        recheck.promise,
-    ]);
+test("notifies when duplicating a source draft", async () => {
+    const harness = installSourceManagerHarness([]);
     try {
         const initialText =
             '<ref name="Example">{{cite web|title=Example|bad=value}}</ref>';
@@ -258,34 +258,36 @@ test("notifies on duplicate and rechecks only CS1 Apply", async () => {
             harness.successMessages.includes("Citation source duplicated."),
         );
         callAction(manager, "closeDraftPopup");
+        callAction(manager, "cancelAllChanges");
+        assert.equal(editor.read(), initialText);
+        await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
 
-        await callAsyncAction(manager, "openCs1Tool");
-        callAction(manager, "reviewCs1Source", sourceId);
-        const draft = manager.draft.value;
-        assert.ok(draft);
-        const badRowIndex = draft.rows.findIndex((row) => row.name === "bad");
-        assert.notEqual(badRowIndex, -1);
-        draft.rows.splice(badRowIndex, 1);
-        const titleRow = draft.rows.find((row) => row.name === "title");
-        assert.ok(titleRow);
-        draft.rows.splice(draft.rows.indexOf(titleRow), 1);
-        draft.rows.push(titleRow);
+test("rechecks only CS1 Apply", async () => {
+    const recheck = createDeferred<unknown>();
+    const harness = installSourceManagerHarness([
+        { parse: { categories: [], text: CS1_ERROR_HTML } },
+        recheck.promise,
+    ]);
+    try {
+        const initialText =
+            '<ref name="Example">{{cite web|title=Example|bad=value}}</ref>';
+        const editor = createMemoryEditor(initialText);
+        await openCitationFormatterDialog(editor, {} as SourceManagerOptions);
+        const manager = harness.getManager();
+        const sourceId = manager.existingSources.value[0]?.id;
+        assert.ok(sourceId);
+
+        const draft = await prepareDraftForCs1Apply(manager, sourceId);
         const applyPromise = callAsyncAction(manager, "applyDraft");
         assert.equal(manager.draftCs1Checking.value, true);
         recheck.resolve({ parse: { categories: [], text: CS1_OK_HTML } });
         await applyPromise;
         assert.equal(manager.draftCs1Checking.value, false);
-        assert.ok(
-            draft.rows.findIndex((row) => row.name === "title") <
-                draft.rows.findIndex((row) => row.name === "url"),
-        );
-        assert.equal(harness.apiCallCount(), 2);
-        assert.ok(harness.successMessages.includes("No CS1 issues found."));
-        assert.ok(
-            harness.successMessages.includes(
-                "Citation changes applied: removed bad.",
-            ),
-        );
+        assertSuccessfulCs1Apply(draft, harness);
 
         callAction(manager, "saveDraft");
         assert.equal(harness.apiCallCount(), 2);
@@ -296,6 +298,41 @@ test("notifies on duplicate and rechecks only CS1 Apply", async () => {
         harness.restore();
     }
 });
+
+async function prepareDraftForCs1Apply(
+    manager: MountedManager,
+    sourceId: string,
+): Promise<SourceDraft> {
+    await callAsyncAction(manager, "openCs1Tool");
+    callAction(manager, "reviewCs1Source", sourceId);
+    const draft = manager.draft.value;
+    assert.ok(draft);
+    const badRowIndex = draft.rows.findIndex((row) => row.name === "bad");
+    assert.notEqual(badRowIndex, -1);
+    draft.rows.splice(badRowIndex, 1);
+    const titleRow = draft.rows.find((row) => row.name === "title");
+    assert.ok(titleRow);
+    draft.rows.splice(draft.rows.indexOf(titleRow), 1);
+    draft.rows.push(titleRow);
+    return draft;
+}
+
+function assertSuccessfulCs1Apply(
+    draft: SourceDraft,
+    harness: ReturnType<typeof installSourceManagerHarness>,
+): void {
+    assert.ok(
+        draft.rows.findIndex((row) => row.name === "title") <
+            draft.rows.findIndex((row) => row.name === "url"),
+    );
+    assert.equal(harness.apiCallCount(), 2);
+    assert.ok(harness.successMessages.includes("No CS1 issues found."));
+    assert.ok(
+        harness.successMessages.includes(
+            "Citation changes applied: removed bad.",
+        ),
+    );
+}
 
 test("rechecks the current article with checking progress", async () => {
     const recheck = createDeferred<unknown>();
@@ -840,6 +877,45 @@ test("edits directives without discarding unknown tags", async () => {
         );
         callAction(manager, "close");
         await Promise.resolve();
+    } finally {
+        harness.restore();
+    }
+});
+
+test("validates an alias on Save and keeps the action available", async () => {
+    const harness = installSourceManagerHarness([]);
+    try {
+        const editor = createMemoryEditor(
+            "<ref>{{cite web|title=Example}}</ref>",
+        );
+        await openCitationFormatterDialog(editor);
+        const manager = harness.getManager();
+        const sourceId = manager.existingSources.value[0]?.id;
+        assert.ok(sourceId);
+        callAction(manager, "editListedSource", sourceId);
+        const draft = manager.draft.value;
+        assert.ok(draft);
+        const titleIndex = draft.rows.findIndex((row) => row.name === "title");
+        const title = draft.rows[titleIndex];
+        assert.ok(title);
+
+        callAction(manager, "openParameterAliasDialog", titleIndex);
+        manager.parameterAliasDialogOriginalValue.value = "";
+        manager.parameterAliasDialogValue.value = "Example alias";
+        assert.equal(manager.canApplyParameterAlias(), false);
+        assert.equal(manager.getParameterAliasDialogError(), "");
+
+        callAction(manager, "applyParameterAlias");
+        assert.equal(manager.parameterAliasDialogOpen.value, true);
+        assert.match(manager.getParameterAliasDialogError(), /title/u);
+        assert.equal(title.alias, "");
+
+        manager.parameterAliasDialogOriginalValue.value = "Example";
+        assert.equal(manager.canApplyParameterAlias(), true);
+        assert.equal(manager.getParameterAliasDialogError(), "");
+        callAction(manager, "applyParameterAlias");
+        assert.equal(manager.parameterAliasDialogOpen.value, false);
+        assert.equal(title.alias, "Example alias");
     } finally {
         harness.restore();
     }

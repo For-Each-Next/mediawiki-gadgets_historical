@@ -1,7 +1,7 @@
 /** Loads and validates metadata used by the gadget builder. */
 
 import { basename, resolve } from "node:path";
-import { hasText, isRecord, readPackageMetadata } from "../workspace/index.ts";
+import { hasText, isRecord, readPackageMetadata } from "#workspace/metadata";
 import { isSupportedPackageLicense } from "./metadata-validation.ts";
 import type { PackageMetadata } from "./types.ts";
 

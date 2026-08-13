@@ -27,6 +27,7 @@ export interface SourceSectionSelector {
 export interface SourceTableRow {
     actions: string;
     details: string;
+    detailsTitle: string;
     group: string;
     id: string;
     reference: string;
@@ -181,20 +182,35 @@ function toSourceTableRow(
     source: ExistingSource,
     sections: SourceSection[],
 ): SourceTableRow {
+    const details =
+        source.status === "non-standard"
+            ? msg("lookup.nonStandard")
+            : getCanonicalTemplateNameFromKey(source.draft.template);
+    const usageTitle = formatSourceUsageTitle(source, sections);
     return {
         actions: "",
-        details:
-            source.status === "non-standard"
-                ? msg("lookup.nonStandard")
-                : getCanonicalTemplateNameFromKey(source.draft.template),
+        details,
+        detailsTitle: [
+            details,
+            source.group === ""
+                ? ""
+                : msg("lookup.group", { group: source.group }),
+            usageTitle,
+        ]
+            .filter(isNonEmpty)
+            .join(" · "),
         group: source.group,
         id: source.id,
         reference: source.referenceName || msg("common.unnamed"),
         source: source.title || source.url || msg("common.untitledSource"),
         titleLanguage: source.titleLanguage,
         usageCount: source.usageCount,
-        usageTitle: formatSourceUsageTitle(source, sections),
+        usageTitle,
     };
+}
+
+function isNonEmpty(value: string): boolean {
+    return value !== "";
 }
 
 /**

@@ -1,7 +1,8 @@
 /** Protects build output directories from unsafe entries. */
 
+import type { Stats } from "node:fs";
 import { lstat, mkdir, rmdir } from "node:fs/promises";
-import { hasErrorCode } from "../workspace/index.ts";
+import { hasErrorCode } from "#workspace/metadata";
 
 /**
  * Creates a build directory or rejects links and non-directory entries.
@@ -24,18 +25,14 @@ export async function validateBuildDirectory(
     path: string,
     label: string,
 ): Promise<boolean> {
-    try {
-        const stats = await lstat(path);
-        if (!stats.isDirectory() || stats.isSymbolicLink()) {
-            throw new Error(`${label} must be a real directory.`);
-        }
-        return true;
-    } catch (error) {
-        if (hasErrorCode(error, "ENOENT")) {
-            return false;
-        }
-        throw error;
+    const stats = await readExistingEntry(path);
+    if (stats == null) {
+        return false;
     }
+    if (!stats.isDirectory() || stats.isSymbolicLink()) {
+        throw new Error(`${label} must be a real directory.`);
+    }
+    return true;
 }
 
 /**
@@ -49,15 +46,23 @@ export async function validateRetiredBuildDirectory(
     path: string,
     label: string,
 ): Promise<boolean> {
+    const stats = await readExistingEntry(path);
+    if (stats == null) {
+        return false;
+    }
+    if (stats.isSymbolicLink()) {
+        throw new Error(`${label} must be a real directory.`);
+    }
+    return stats.isDirectory();
+}
+
+/** Reads a filesystem entry while treating a missing path as absent. */
+async function readExistingEntry(path: string): Promise<Stats | null> {
     try {
-        const stats = await lstat(path);
-        if (stats.isSymbolicLink()) {
-            throw new Error(`${label} must be a real directory.`);
-        }
-        return stats.isDirectory();
+        return await lstat(path);
     } catch (error) {
         if (hasErrorCode(error, "ENOENT")) {
-            return false;
+            return null;
         }
         throw error;
     }

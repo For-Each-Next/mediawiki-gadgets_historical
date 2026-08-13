@@ -13,12 +13,12 @@ import { format } from "prettier";
 import {
     normalizeTemplateName,
     SUPPORTED_CITATION_TEMPLATES,
-} from "../src/citation-formatter/domain/templates.ts";
+} from "citation-formatter/domain/templates.ts";
 import type {
     CitationTemplateData,
     CitationTemplateDataMap,
-} from "../src/citation-formatter/config/citation-template-data/types.ts";
-import { formatNamespaceTitle } from "../src/shared/wiki-titles/index.ts";
+} from "citation-formatter/config/citation-template-data/types.ts";
+import { formatNamespaceTitle } from "@mediawiki-gadgets/shared/wiki-titles";
 
 const API_ENDPOINT = "https://en.wikipedia.org/w/api.php";
 const BATCH_SIZE = 20;
@@ -140,6 +140,7 @@ async function downloadTemplateData(url: string): Promise<string> {
  * @returns Built English Wikipedia TemplateData API URL.
  */
 function buildTemplateDataUrl(names: string[]): string {
+    // noinspection SpellCheckingInspection -- MediaWiki API vocabulary.
     const params = new URLSearchParams({
         action: "templatedata",
         format: "json",

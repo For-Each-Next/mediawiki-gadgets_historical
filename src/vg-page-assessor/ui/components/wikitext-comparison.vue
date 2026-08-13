@@ -1,5 +1,10 @@
 <template>
-    <div class="avgp-comparison">
+    <div
+        class="avgp-comparison"
+        role="region"
+        tabindex="0"
+        :aria-label="label"
+    >
         <table class="diff avgp-comparison__table">
             <colgroup>
                 <col class="diff-marker" />

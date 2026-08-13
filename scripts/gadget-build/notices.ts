@@ -2,7 +2,8 @@
 
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
-import { hasText, requireContainedPath } from "../workspace/index.ts";
+import { hasText } from "#workspace/metadata";
+import { requireContainedPath } from "#workspace/paths";
 import type { PackageMetadata, ResolvedGadgetBuildConfig } from "./types.ts";
 
 /** Loads the validated notices declared by one gadget package. */

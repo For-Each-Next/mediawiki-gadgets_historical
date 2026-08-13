@@ -1,10 +1,8 @@
 /** Compatibility entry point for reusable gadget package contracts. */
 
 import { pathToFileURL } from "node:url";
-import {
-    checkGadgetPackageContracts,
-    type PackageContractResult,
-} from "./repository-check/index.ts";
+import { checkGadgetPackageContracts } from "#repository-check/packages";
+import type { PackageContractResult } from "#repository-check/types";
 
 export type { PackageContractResult };
 

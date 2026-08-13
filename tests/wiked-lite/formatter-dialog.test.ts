@@ -1,20 +1,23 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import type { VueApp, VueModule } from "../../src/wiked-lite/ui/codex.ts";
+import { compileTemplate, parse } from "@vue/compiler-sfc";
+
+import type { VueApp, VueModule } from "wiked-lite/ui/codex.ts";
 import {
     createFormatterDialogBindings,
     type FormatterDialogSelection,
-} from "../../src/wiked-lite/ui/dialogs/formatter-dialog.ts";
+} from "wiked-lite/ui/dialogs/formatter-dialog.ts";
 
-const template = await readFile(
+const dialogPath = fileURLToPath(
     new URL(
         "../../src/wiked-lite/ui/dialogs/formatter-dialog.vue",
         import.meta.url,
     ),
-    "utf8",
 );
+const template = await readFile(dialogPath, "utf8");
 const styles = await readFile(
     new URL(
         "../../src/wiked-lite/ui/dialogs/formatter-dialog.css",
@@ -23,14 +26,39 @@ const styles = await readFile(
     "utf8",
 );
 
+test("uses the native Codex header and responsive action footer", () => {
+    const parsed = parse(template, { filename: dialogPath });
+    const descriptor = parsed.descriptor;
+    const source = descriptor.template?.content;
+
+    assert.deepEqual(parsed.errors, []);
+    assert.ok(source);
+    assert.equal(descriptor.script, null);
+    assert.deepEqual(descriptor.styles, []);
+    assert.match(source, /^\s*<cdx-dialog\b/u);
+    assert.match(source, /:title="msg\('dialog\.title'\)"/u);
+    assert.match(source, /:lang="interfaceLocale"/u);
+    assert.equal(source.match(/:primary-action=/gu)?.length, 1);
+    assert.equal(source.match(/:default-action=/gu)?.length, 1);
+    assert.match(source, /actionType: 'progressive'/u);
+    assert.match(source, /@primary="apply"/u);
+    assert.match(source, /@default="onCancel"/u);
+    assert.doesNotMatch(source, /#footer|<cdx-button\b/u);
+    const compiled = compileTemplate({
+        filename: dialogPath,
+        id: "wiked-lite-formatter",
+        source,
+    });
+
+    assert.deepEqual(compiled.errors, []);
+});
+
 test("uses Codex-owned layout for nested character-width choices", () => {
     assert.match(template, /<template #custom-input>/u);
     assert.match(template, /:disabled="!alignEquals"/u);
     assert.match(template, /input-value="1:2"/u);
     assert.match(template, /input-value="3:5"/u);
     assert.equal(template.match(/:inline="true"/gu)?.length, 2);
-    assert.match(template, /:primary-action=/u);
-    assert.match(template, /:default-action=/u);
     assert.doesNotMatch(template, /cdx-text-input|sortCategories/u);
     assert.doesNotMatch(styles, /\b(?:gap|margin|padding)\b/u);
 });

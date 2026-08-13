@@ -3,6 +3,7 @@
  */
 
 import type { StatusType } from "@wikimedia/codex";
+import { cdxIconNewWindow } from "@wikimedia/codex-icons";
 import {
     completeMetadataFieldValue,
     formatArticleFormField,
@@ -63,7 +64,7 @@ import {
     getCodeMirrorText,
     setCodeMirrorText,
 } from "#gadget/ui/form/source-editor.ts";
-import { msg, msgParts } from "#gadget/i18n/index.ts";
+import { interfaceLocale, msg, msgParts } from "#gadget/i18n/index.ts";
 import { getErrorMessage } from "#gadget/ui/error-message.ts";
 
 /**
@@ -143,8 +144,11 @@ let companyCategoryOpen: any;
 let companyCategoryState: any;
 let companyCategoryLookupLoading: any;
 let companyCategoryLookupSerial: any;
+let companyCategoryTextArea: any;
+let companyCategoryValidationError: any;
 let pageEditOpen: any;
 let pageEditState: any;
+let pageEditValidationError: any;
 let categoryViewOpen: any;
 let categoryViewState: any;
 let historyEntries: any;
@@ -156,7 +160,9 @@ let historyLoading: any;
 let historyOpen: any;
 let mainActionMenuSelection: any;
 let moveTarget: any;
+let moveTargetInput: any;
 let moveTargetState: any;
+let moveTargetValidationError: any;
 let moveOpen: any;
 let movePreviewConfirmation: any;
 let previewWithoutMoveTitle: any;
@@ -172,6 +178,7 @@ let stubTagRows: any;
 let previewOpen: any;
 let previewTextArea: any;
 let previewText: any;
+let previewValidationError: any;
 let previewSummary: any;
 let previewHtml: any;
 let previewLoading: any;
@@ -258,9 +265,12 @@ function initializePrimaryState(): void {
     companyCategoryState = Vue.reactive(companyCategoryStateResult);
     companyCategoryLookupLoading = Vue.ref(false);
     companyCategoryLookupSerial = Vue.ref(0);
+    companyCategoryTextArea = Vue.ref(null);
+    companyCategoryValidationError = Vue.ref("");
     pageEditOpen = Vue.ref(false);
     const pageEditStateResult = createPageEditState();
     pageEditState = Vue.reactive(pageEditStateResult);
+    pageEditValidationError = Vue.ref("");
     categoryViewOpen = Vue.ref(false);
     categoryViewState = Vue.reactive({ title: "", url: "" });
 }
@@ -279,8 +289,10 @@ function initializeActionState(): void {
     historyOpen = Vue.ref(false);
     mainActionMenuSelection = Vue.ref(null);
     moveTarget = Vue.ref(currentTitle);
+    moveTargetInput = Vue.ref(null);
     const moveTargetStateResult = createMoveTargetState();
     moveTargetState = Vue.reactive(moveTargetStateResult);
+    moveTargetValidationError = Vue.ref("");
     moveOpen = Vue.ref(false);
     movePreviewConfirmation = Vue.ref(false);
     previewWithoutMoveTitle = Vue.ref("");
@@ -302,6 +314,7 @@ function initializePreviewState(): void {
     previewOpen = Vue.ref(false);
     previewTextArea = Vue.ref(null);
     previewText = Vue.ref("");
+    previewValidationError = Vue.ref("");
     previewSummary = Vue.ref("");
     previewHtml = Vue.ref("");
     previewLoading = Vue.ref(false);
@@ -813,6 +826,11 @@ const methods = {
         open.value = false;
     },
 
+    /** Closes the pre-save review without starting a write. */
+    closePreSaveDialog(): void {
+        preSaveOpen.value = false;
+    },
+
     /**
      * Gets the main dialog title.
      *
@@ -959,6 +977,7 @@ const methods = {
             previewText.value = preview.text || "";
             previewSummary.value = preview.summary || "";
             previewHtml.value = preview.html || "";
+            previewValidationError.value = "";
             previewSubmitted.value = false;
             previewOpen.value = true;
             queueSourceEditor("preview", previewTextArea, previewText);
@@ -1003,6 +1022,7 @@ const methods = {
     closePreviewDialog(): void {
         destroySourceEditor("preview");
         previewOpen.value = false;
+        previewValidationError.value = "";
         clearPreviewState();
     },
 
@@ -1014,6 +1034,17 @@ const methods = {
      */
     async submitPreviewText(): Promise<void> {
         syncSourceEditorText("preview", previewText);
+
+        if (
+            !validateRequiredField(
+                previewText.value,
+                previewValidationError,
+                previewTextArea,
+            )
+        ) {
+            return;
+        }
+
         previewSubmitted.value = true;
         destroySourceEditor("preview");
         previewOpen.value = false;
@@ -1446,6 +1477,7 @@ const methods = {
      */
     openMoveDialog(): void {
         moveTarget.value = getCurrentTitle();
+        moveTargetValidationError.value = "";
         movePreviewConfirmation.value = false;
         moveOpen.value = true;
         void this.checkMoveTarget();
@@ -1461,6 +1493,7 @@ const methods = {
      */
     openMovePreviewConfirmation(): void {
         moveTarget.value = getCurrentTitle();
+        moveTargetValidationError.value = "";
         movePreviewConfirmation.value = true;
         moveOpen.value = true;
 
@@ -1478,6 +1511,7 @@ const methods = {
     closeMoveDialog(): void {
         moveOpen.value = false;
         movePreviewConfirmation.value = false;
+        moveTargetValidationError.value = "";
     },
 
     /**
@@ -1489,6 +1523,7 @@ const methods = {
      */
     updateMoveTarget(value: string): void {
         moveTarget.value = trimValue(value);
+        moveTargetValidationError.value = "";
         moveTargetState.checkedTitle = "";
         moveTargetState.exists = false;
     },
@@ -1603,6 +1638,16 @@ const methods = {
      * @returns Resolves after navigation starts.
      */
     async submitMoveTarget(): Promise<void> {
+        if (
+            !validateRequiredField(
+                moveTarget.value,
+                moveTargetValidationError,
+                moveTargetInput,
+            )
+        ) {
+            return;
+        }
+
         await this.checkMoveTarget();
         await refreshCategoryRows();
         form.pageName = trimValue(moveTarget.value);
@@ -2703,6 +2748,7 @@ const methods = {
             wikidataId: trimValue(pendingCreation?.wikidataId),
         };
         Object.assign(companyCategoryState, trimmedValueA);
+        companyCategoryValidationError.value = "";
         companyCategoryLookupLoading.value = false;
         companyCategoryOpen.value = true;
 
@@ -2734,6 +2780,7 @@ const methods = {
      */
     closeCompanyCategory(): void {
         companyCategoryOpen.value = false;
+        companyCategoryValidationError.value = "";
     },
 
     /**
@@ -2765,6 +2812,17 @@ const methods = {
      */
     async saveCompanyCategory(): Promise<void> {
         companyCategoryState.error = "";
+
+        if (
+            !validateRequiredField(
+                companyCategoryState.text,
+                companyCategoryValidationError,
+                companyCategoryTextArea,
+            )
+        ) {
+            return;
+        }
+
         companyCategoryState.loading = true;
 
         try {
@@ -2906,6 +2964,7 @@ const methods = {
     closePageEditDialog(): void {
         destroySourceEditor("pageEdit");
         pageEditOpen.value = false;
+        pageEditValidationError.value = "";
         clearPageEditState();
     },
 
@@ -2917,6 +2976,7 @@ const methods = {
      *   review row.
      */
     resetPageEdit(): void {
+        pageEditValidationError.value = "";
         resetPageEdit();
     },
 
@@ -2936,6 +2996,17 @@ const methods = {
                 pageEditState.text = text;
             },
         });
+
+        if (
+            !validateRequiredField(
+                pageEditState.text,
+                pageEditValidationError,
+                pageEditTextArea,
+            )
+        ) {
+            return;
+        }
+
         stagePageEdit();
     },
 
@@ -3432,15 +3503,20 @@ function getCoreSetupState() {
         pageEditOpen,
         pageEditState,
         pageEditTextArea,
+        pageEditValidationError,
         categoryTableColumns: CATEGORY_TABLE_COLUMNS,
         citationTableColumns: CITATION_TABLE_COLUMNS,
         citationState,
         companyCategoryOpen,
         companyCategoryLookupLoading,
         companyCategoryState,
+        companyCategoryTextArea,
+        companyCategoryValidationError,
         groups: ARTICLE_PARAMETER_GROUPS,
         form,
         fetchedSteamNameRows,
+        externalLinkIcon: cdxIconNewWindow,
+        interfaceLocale,
         msg,
         msgParts,
     };
@@ -3495,7 +3571,9 @@ function getHistorySetupState() {
         moveOpen,
         movePreviewConfirmation,
         moveTarget,
+        moveTargetInput,
         moveTargetState,
+        moveTargetValidationError,
         metadataTableColumns: METADATA_TABLE_COLUMNS,
         nameMarkets: NAME_MARKETS,
         navboxTableColumns: NAVBOX_TABLE_COLUMNS,
@@ -3523,6 +3601,7 @@ function getPreviewSetupState() {
         preSaveProgressGroups,
         previewOpen,
         previewText,
+        previewValidationError,
         previewSummary,
         previewHtml,
         previewLoading,
@@ -3766,6 +3845,57 @@ function clearPageEditState(): void {
         text: "",
         title: "",
     });
+}
+
+/**
+ * Validates a required dialog field and focuses its control on failure.
+ *
+ * @param value - Current field value.
+ * @param errorRef - Reactive validation message.
+ * @param controlRef - Vue control reference.
+ * @returns Whether the field contains non-whitespace text.
+ */
+function validateRequiredField(
+    value: unknown,
+    errorRef: { value: string },
+    controlRef: { value: unknown },
+): boolean {
+    if (trimValue(value) !== "") {
+        errorRef.value = "";
+        return true;
+    }
+
+    errorRef.value = msg("validation.required");
+    focusDialogControl(controlRef);
+    return false;
+}
+
+/**
+ * Focuses the first native control exposed by a Codex component ref.
+ *
+ * @param controlRef - Vue control reference.
+ */
+function focusDialogControl(controlRef: { value: any }): void {
+    const focus = function focusRequiredControl() {
+        const root = controlRef.value?.$el || controlRef.value;
+        const controlSelector = [
+            "input:not([type='hidden'])",
+            "textarea",
+            "[contenteditable='true']",
+        ].join(", ");
+        const control = root?.matches?.(controlSelector)
+            ? root
+            : root?.querySelector?.(controlSelector);
+
+        control?.focus?.();
+    };
+
+    if (typeof Vue.nextTick === "function") {
+        void Vue.nextTick(focus);
+        return;
+    }
+
+    focus();
 }
 
 /**
@@ -4130,6 +4260,7 @@ function mergeCheckedRedirectRow(row: any, index: number): any {
 async function openPageEdit(params: any): Promise<void> {
     const openPageEditStateResult = createOpenPageEditState(params);
     Object.assign(pageEditState, openPageEditStateResult);
+    pageEditValidationError.value = "";
     pageEditOpen.value = true;
     queueSourceEditor("pageEdit", pageEditTextArea, pageEditTextBinding);
 

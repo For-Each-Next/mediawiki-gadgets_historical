@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// eslint-disable-next-line max-len
-import { selectSourceEditor } from "../../src/wiked-lite/domain/editor-selection.ts";
+import { selectSourceEditor } from "wiked-lite/domain/editor-selection.ts";
 
 test("wikEd Lite is selected only for wikitext edit actions", () => {
     assert.deepEqual(selectSourceEditor("wikitext", "edit"), {

@@ -2,11 +2,9 @@
 
 import { lstat, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
-import {
-    compareText,
-    discoverGadgetPackages,
-    requireContainedPath,
-} from "../workspace/index.ts";
+import { compareText } from "#workspace/files";
+import { discoverGadgetPackages } from "#workspace/packages";
+import { requireContainedPath } from "#workspace/paths";
 import { resolveBuildConfig } from "./build-config.ts";
 import { createBuildContext } from "./context.ts";
 import { loadPackageNotices } from "./notices.ts";

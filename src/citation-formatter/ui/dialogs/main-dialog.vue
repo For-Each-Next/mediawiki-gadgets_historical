@@ -39,28 +39,31 @@
                                 <template #description>
                                     {{ msg("lookup.sourceDescription") }}
                                 </template>
-                                <cdx-text-input
-                                    v-model="sourceInput"
-                                    input-type="search"
-                                    :disabled="loading"
-                                    :placeholder="
-                                        msg('lookup.sourcePlaceholder')
-                                    "
-                                    autofocus
-                                    @paste="onSourcePaste"
-                                />
+                                <div
+                                    class="cf-source-manager__source-lookup-controls"
+                                >
+                                    <cdx-text-input
+                                        v-model="sourceInput"
+                                        input-type="search"
+                                        :disabled="loading"
+                                        :placeholder="
+                                            msg('lookup.sourcePlaceholder')
+                                        "
+                                        autofocus
+                                        @paste="onSourcePaste"
+                                    />
+                                    <cdx-button
+                                        action="progressive"
+                                        :disabled="loading"
+                                        type="submit"
+                                    >
+                                        {{ msg("lookup.findSource") }}
+                                    </cdx-button>
+                                </div>
                                 <template #help-text>
                                     {{ msg("lookup.sourceHelpText") }}
                                 </template>
                             </cdx-field>
-                            <cdx-button
-                                action="progressive"
-                                weight="primary"
-                                :disabled="loading"
-                                type="submit"
-                            >
-                                {{ msg("lookup.findSource") }}
-                            </cdx-button>
                         </form>
                         <div v-if="loading" class="cf-source-manager__loading">
                             <small>{{ msg("lookup.loading") }}</small>
@@ -102,7 +105,7 @@
                             <cdx-button
                                 class="cf-source-manager__create-source"
                                 action="progressive"
-                                weight="primary"
+                                type="button"
                                 :disabled="
                                     loading ||
                                     manualTemplate == null ||
@@ -206,6 +209,7 @@
                                     </span>
                                     <small
                                         class="cf-source-manager__source-details"
+                                        :title="row.detailsTitle"
                                     >
                                         <code>{{ row.details }}</code>
                                         <template v-if="row.group">
@@ -237,6 +241,7 @@
                                     <cdx-button
                                         action="progressive"
                                         weight="quiet"
+                                        type="button"
                                         :disabled="loading"
                                         :aria-label="msg('lookup.useSource')"
                                         :title="msg('lookup.useSource')"
@@ -246,6 +251,7 @@
                                     </cdx-button>
                                     <cdx-button
                                         weight="quiet"
+                                        type="button"
                                         :disabled="loading"
                                         :aria-label="msg('lookup.editSource')"
                                         :title="msg('lookup.editSource')"
@@ -324,14 +330,14 @@
                                 <p>{{ msg("tools.checksDescription") }}</p>
                                 <div class="cf-source-manager__tool-launchers">
                                     <cdx-button
-                                        action="progressive"
+                                        type="button"
                                         @click="openAnalysisTool"
                                     >
                                         {{ msg("tools.analyze") }}
                                     </cdx-button>
                                     <cdx-button
                                         v-if="canCheckCs1Tool"
-                                        action="progressive"
+                                        type="button"
                                         :disabled="
                                             cs1ToolStatus === 'checking'
                                         "
@@ -340,7 +346,7 @@
                                         {{ msg("tools.checkCs1") }}
                                     </cdx-button>
                                     <cdx-button
-                                        action="progressive"
+                                        type="button"
                                         @click="openNonCs1Tool"
                                     >
                                         {{ msg("tools.checkNonCs1") }}
@@ -357,21 +363,23 @@
                 <cdx-button
                     action="progressive"
                     weight="primary"
+                    type="button"
                     :disabled="loading || formatArticleDisabled"
                     @click="formatArticle"
                 >
                     {{ msg("tool.formatCitations") }}
                 </cdx-button>
-                <cdx-button @click="close">
+                <cdx-button type="button" @click="close">
                     {{ msg("common.close") }}
                 </cdx-button>
                 <cdx-button
                     action="destructive"
                     weight="quiet"
+                    type="button"
                     :disabled="loading"
                     @click="cancelAllChanges"
                 >
-                    {{ msg("common.cancelChanges") }}
+                    {{ msg("common.discardChanges") }}
                 </cdx-button>
             </div>
         </template>

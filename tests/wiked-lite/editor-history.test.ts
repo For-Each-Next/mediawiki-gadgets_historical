@@ -3,7 +3,7 @@ import test from "node:test";
 import {
     EditorHistory,
     getHistoryDirection,
-} from "../../src/wiked-lite/ui/editor-history.ts";
+} from "wiked-lite/ui/editor-history.ts";
 
 test("edit history restores source and selection across rerenders", () => {
     const history = new EditorHistory({ end: 3, source: "abc", start: 3 });

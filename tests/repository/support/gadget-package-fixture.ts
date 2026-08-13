@@ -3,13 +3,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-interface LicenseScopeEntry {
-    displayName: string;
-    notices: Array<"root" | "shared">;
-    packageName: string;
-    version: string;
-}
-
 /** Writes the smallest complete future gadget package contract. */
 export async function writeFutureGadget(
     workspaceRoot: string,
@@ -53,19 +46,14 @@ export function createFutureLicense(
     ].join("\n");
 }
 
-/** Writes workspace maps and their canonical release-scope ledger. */
+/** Writes current-only workspace licensing maps. */
 export async function writeWorkspaceLicenseMaps(
     workspaceRoot: string,
     rootScopes: string[],
     sharedScopes: string[] = [],
 ): Promise<void> {
     const sharedRoot = join(workspaceRoot, "src", "shared");
-    const licensingRoot = join(workspaceRoot, "config", "licensing");
-    await Promise.all([
-        mkdir(sharedRoot, { recursive: true }),
-        mkdir(licensingRoot, { recursive: true }),
-    ]);
-    const entries = createLicenseScopeEntries(rootScopes, sharedScopes);
+    await mkdir(sharedRoot, { recursive: true });
     await Promise.all([
         writeFile(
             join(workspaceRoot, "LICENSE"),
@@ -75,37 +63,7 @@ export async function writeWorkspaceLicenseMaps(
             join(sharedRoot, "LICENSE"),
             formatLicenseScopes(sharedScopes, "CC0-1.0"),
         ),
-        writeFile(
-            join(licensingRoot, "cc0-release-scopes.json"),
-            JSON.stringify(entries),
-        ),
     ]);
-}
-
-/** Creates canonical ledger records for the fixture notices. */
-function createLicenseScopeEntries(
-    rootScopes: string[],
-    sharedScopes: string[],
-): LicenseScopeEntry[] {
-    const scopes = new Set([...rootScopes, ...sharedScopes]);
-    return [...scopes].toSorted().map(function createEntry(scope) {
-        const separator = scope.lastIndexOf("@");
-        const packageName = scope.slice(0, separator);
-        const version = scope.slice(separator + 1);
-        const notices: Array<"root" | "shared"> = [];
-        if (rootScopes.includes(scope)) {
-            notices.push("root");
-        }
-        if (sharedScopes.includes(scope)) {
-            notices.push("shared");
-        }
-        return {
-            displayName: "Future Gadget",
-            notices,
-            packageName,
-            version,
-        };
-    });
 }
 
 /** Creates the future gadget's package metadata. */

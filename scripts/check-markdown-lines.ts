@@ -1,7 +1,7 @@
 /** Compatibility entry point for authored Markdown width checks. */
 
 import { pathToFileURL } from "node:url";
-import { checkMarkdownLines as checkLines } from "./repository-check/index.ts";
+import { checkMarkdownLines as checkLines } from "#repository-check/markdown";
 
 export interface MarkdownLineCheckResult {
     fileCount: number;

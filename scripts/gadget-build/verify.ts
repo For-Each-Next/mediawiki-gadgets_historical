@@ -3,7 +3,7 @@
 import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import { compareText } from "../workspace/index.ts";
+import { compareText } from "#workspace/files";
 import { buildWorkspaceArtifacts } from "./workspace-build.ts";
 
 const VERIFICATION_TIME = new Date("2000-01-01T00:00:00.000Z");

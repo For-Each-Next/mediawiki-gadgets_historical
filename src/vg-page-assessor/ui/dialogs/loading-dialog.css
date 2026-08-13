@@ -1,6 +1,9 @@
+.avgp-loading-dialog.cdx-dialog {
+    max-width: 24rem;
+}
+
 .avgp-loading-dialog__progress {
     display: grid;
     gap: var(--spacing-50);
-    min-width: min(24rem, calc(100vw - var(--spacing-200)));
     padding-block: var(--spacing-100);
 }

@@ -1,5 +1,23 @@
 <template>
-    <cdx-dialog v-model:open="preSaveOpen" :title="msg('presave.title')">
+    <cdx-dialog
+        :default-action="{
+            disabled: sourceFetchState.loading,
+            label: msg('common.close'),
+        }"
+        :lang="interfaceLocale"
+        :primary-action="{
+            actionType: 'progressive',
+            disabled: sourceFetchState.loading || preSaveProgress != null,
+            label: sourceFetchState.loading
+                ? msg('presave.preparing')
+                : msg('common.save'),
+        }"
+        :title="msg('presave.title')"
+        v-model:open="preSaveOpen"
+        @default="closePreSaveDialog"
+        @primary="confirmSubmit"
+        @update:open="!$event &amp;&amp; closePreSaveDialog()"
+    >
         <p>
             {{
                 preSaveProgress == null
@@ -76,36 +94,5 @@
         >
             {{ preSaveProgress.error }}
         </cdx-message>
-        <template v-slot:footer>
-            <div class="vg-stub-creator-dialog-footer">
-                <div class="vg-stub-creator-dialog-footer-group">
-                    <cdx-button
-                        type="button"
-                        v-on:click="preSaveOpen = false"
-                        v-bind:disabled="sourceFetchState.loading"
-                        weight="quiet"
-                    >
-                        {{ msg("common.close") }}
-                    </cdx-button>
-                </div>
-                <div class="vg-stub-creator-dialog-footer-group">
-                    <cdx-button
-                        type="button"
-                        v-on:click="confirmSubmit"
-                        action="progressive"
-                        v-bind:disabled="
-                            sourceFetchState.loading || preSaveProgress != null
-                        "
-                        weight="primary"
-                    >
-                        {{
-                            sourceFetchState.loading
-                                ? msg("presave.preparing")
-                                : msg("common.save")
-                        }}
-                    </cdx-button>
-                </div>
-            </div>
-        </template>
     </cdx-dialog>
 </template>

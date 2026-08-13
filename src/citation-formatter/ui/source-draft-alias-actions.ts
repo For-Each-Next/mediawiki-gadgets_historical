@@ -30,6 +30,8 @@ const REFERENCE_NAME_DIRECTIVES = [
     "!no-part",
 ] as const;
 const AUTHOR_FLASH_DURATION_MS = 700;
+const PARAMETER_ALIAS_INVALID_SELECTOR =
+    ".cf-source-manager__parameter-alias-original .cdx-text-area__textarea";
 
 type AuthorDraftActions = Pick<
     DraftDialogActions,
@@ -176,6 +178,7 @@ function createParameterAliasDialogActions(
         state.parameterAliasDialogDirectives.value = [];
         state.parameterAliasDialogOriginalValue.value = "";
         state.parameterAliasDialogRowIndex.value = null;
+        state.parameterAliasDialogValidationAttempted.value = false;
         state.parameterAliasDialogValue.value = "";
     }
     function openParameterAliasDialog(index: number): void {
@@ -187,6 +190,7 @@ function createParameterAliasDialogActions(
         state.parameterAliasDialogDirectives.value =
             listSelectedReferenceNameDirectives(row.directive);
         state.parameterAliasDialogOriginalValue.value = row.value;
+        state.parameterAliasDialogValidationAttempted.value = false;
         state.parameterAliasDialogValue.value = row.alias;
         state.parameterAliasDialogOpen.value = true;
         scheduleTextAreaAutosize();
@@ -197,9 +201,12 @@ function createParameterAliasDialogActions(
         }
     }
     function applyParameterAlias(): void {
+        state.parameterAliasDialogValidationAttempted.value = true;
         if (applyParameterAliasDialogValues(state)) {
             closeParameterAliasDialog();
+            return;
         }
+        focusInvalidParameterAliasField();
     }
     return {
         applyParameterAlias,
@@ -207,6 +214,12 @@ function createParameterAliasDialogActions(
         onParameterAliasDialogOpenChange,
         openParameterAliasDialog,
     };
+}
+
+function focusInvalidParameterAliasField(): void {
+    document
+        .querySelector<HTMLTextAreaElement>(PARAMETER_ALIAS_INVALID_SELECTOR)
+        ?.focus({ preventScroll: true });
 }
 
 /**
@@ -403,6 +416,13 @@ function getParameterAliasCaption(parameter: string, alias: string): string {
  * @returns Resulting text.
  */
 function getParameterAliasDialogError(state: SourceManagerState): string {
+    if (!state.parameterAliasDialogValidationAttempted.value) {
+        return "";
+    }
+    return getParameterAliasValidationError(state);
+}
+
+function getParameterAliasValidationError(state: SourceManagerState): string {
     const row = getParameterAliasDialogRow(state);
     if (
         row == null ||
@@ -425,7 +445,7 @@ function getParameterAliasDialogError(state: SourceManagerState): string {
 function canApplyParameterAlias(state: SourceManagerState): boolean {
     return (
         getParameterAliasDialogRow(state) != null &&
-        getParameterAliasDialogError(state) === ""
+        getParameterAliasValidationError(state) === ""
     );
 }
 

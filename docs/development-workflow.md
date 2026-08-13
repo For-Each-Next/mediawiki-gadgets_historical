@@ -68,6 +68,35 @@ npm run update:template-data -w citation-formatter
 
 Review generated data and third-party provenance before committing it.
 
+## Review Dialog Layouts
+
+The browser UI gate mounts the production Vue component factories with the same
+build-injected templates and styles used by gadget builds. It uses
+deterministic fixtures, blocks live dependencies, and checks every discovered
+dialog at wide, narrow, and mobile viewport sizes:
+
+```shell
+npx playwright install chromium
+npm run test:ui
+```
+
+Failures retain a screenshot and browser trace below `.cache/playwright/`.
+These artifacts are ignored and uploaded by CI only when verification fails.
+
+For a manual before-and-after visual review, capture the committed `HEAD`
+version before capturing the working tree:
+
+```shell
+npm run ui:capture -- before
+npm run ui:capture -- after
+npm run ui:capture -- report
+```
+
+Matching captures are stored under `.cache/ui-visual/before/` and
+`.cache/ui-visual/after/`. The report is written to
+`.cache/ui-visual/report/index.html`, with a text summary beside it. These
+review images are intentionally not pixel goldens and are never committed.
+
 ## Finish a Change
 
 For a package change, update its changelog as required by the [release

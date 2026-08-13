@@ -1,6 +1,5 @@
 .vg-stub-creator-dialog.cdx-dialog {
-    max-width: min(96vw, 76em);
-    width: min(96vw, 76em);
+    max-width: 76em;
 }
 
 .vg-stub-creator-dialog-body {
@@ -210,21 +209,37 @@
 .vg-stub-creator-name-settings-row {
     align-items: center;
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 0.75em 1em;
     margin-bottom: 0.5em;
-    overflow-x: auto;
-    white-space: nowrap;
 }
 
 .vg-stub-creator-name-settings-row > .cdx-checkbox {
-    flex: 0 0 auto;
     margin-bottom: 0;
     margin-top: 0;
 }
 
+.vg-stub-creator-visually-hidden {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+.vg-stub-creator-external-link-icon.cdx-icon {
+    color: inherit;
+    margin-inline-start: 0.15em;
+    vertical-align: baseline;
+}
+
+.vg-stub-creator-review-table .cdx-button--weight-quiet {
+    min-width: 0;
+}
+
 .vg-stub-creator-name-official-checkbox {
-    margin-right: 1.5em;
+    margin-inline-end: 1.5em;
 }
 
 .vg-stub-creator-article-field-text textarea,

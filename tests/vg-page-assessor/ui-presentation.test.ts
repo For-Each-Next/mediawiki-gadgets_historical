@@ -54,6 +54,18 @@ const comparisonStylesPath = fileURLToPath(
         import.meta.url,
     ),
 );
+const dialogStylesPath = fileURLToPath(
+    new URL(
+        "../../src/vg-page-assessor/ui/dialogs/assessment-dialog.css",
+        import.meta.url,
+    ),
+);
+const loadingDialogStylesPath = fileURLToPath(
+    new URL(
+        "../../src/vg-page-assessor/ui/dialogs/loading-dialog.css",
+        import.meta.url,
+    ),
+);
 
 test("keeps the assessment dialog template-only and compilable", () => {
     const source = readFileSync(dialogPath, "utf8");
@@ -66,6 +78,13 @@ test("keeps the assessment dialog template-only and compilable", () => {
     assert.deepEqual(parsed.descriptor.styles, []);
     assert.match(template.content, /^\s*<cdx-dialog\b/u);
     assert.match(template.content, /:title="subjectTitle"/u);
+    assert.match(template.content, /:lang="interfaceLocale"/u);
+    assert.match(template.content, /:primary-action=/u);
+    assert.match(template.content, /actionType: 'progressive'/u);
+    assert.match(template.content, /:default-action=/u);
+    assert.match(template.content, /@primary="onSave"/u);
+    assert.match(template.content, /@default="onCancel"/u);
+    assert.doesNotMatch(template.content, /#footer|<cdx-button\b/u);
     assert.doesNotMatch(template.content, /\bv-html\b/u);
     assert.match(template.content, /<cdx-radio\b/u);
     assert.match(template.content, /<cdx-checkbox\b/u);
@@ -85,6 +104,26 @@ test("keeps the assessment dialog template-only and compilable", () => {
         source: template.content,
     });
     assert.deepEqual(compiled.errors, []);
+});
+
+test("uses Codex dialog sizing and caps simple form fields", () => {
+    const dialogStyles = readFileSync(dialogStylesPath, "utf8");
+    const loadingStyles = readFileSync(loadingDialogStylesPath, "utf8");
+
+    assert.match(
+        dialogStyles,
+        /\.avgp-dialog\.cdx-dialog\s*\{[^}]*max-width:\s*85rem/u,
+    );
+    assert.doesNotMatch(dialogStyles, /96vw|\.avgp-actions/u);
+    assert.match(
+        dialogStyles,
+        /\.avgp-summary\.cdx-field,[^}]*max-width:\s*40rem/su,
+    );
+    assert.match(
+        loadingStyles,
+        /\.avgp-loading-dialog\.cdx-dialog\s*\{[^}]*max-width:\s*24rem/u,
+    );
+    assert.doesNotMatch(loadingStyles, /100vw|min-width/u);
 });
 
 test("keeps build-injected dialog assets safe in Node", () => {
@@ -127,6 +166,9 @@ test("uses MediaWiki markup for wikitext comparisons", () => {
         template.content,
         /<table class="diff avgp-comparison__table">/u,
     );
+    assert.match(template.content, /role="region"/u);
+    assert.match(template.content, /tabindex="0"/u);
+    assert.match(template.content, /:aria-label="label"/u);
     assert.match(template.content, /'diff-deletedline':/u);
     assert.match(template.content, /'diff-addedline':/u);
     assert.match(template.content, /<del\b/u);

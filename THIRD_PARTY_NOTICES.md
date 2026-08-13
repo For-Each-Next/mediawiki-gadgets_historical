@@ -24,8 +24,8 @@ licenses and attribution methods for reused project content.[2]
 
 ## Wikimedia Codex icons
 
-Citation Formatter's browser bundle includes selected Codex icon artwork and
-vector path data.
+Citation Formatter and VG Stub Creator browser bundles include selected Codex
+icon artwork and vector path data.
 
 Creator and attribution: Wikimedia Foundation Design System Team and
 contributors.

@@ -3,9 +3,9 @@
  */
 
 import {
+    type CitationFormatResult,
     findUsedMetadataFreeCitationTemplates,
     manageCitationsWithResult,
-    type CitationFormatResult,
 } from "#gadget/domain/api.ts";
 import { detectCitationLayout } from "#gadget/domain/manager.ts";
 import {
@@ -14,42 +14,42 @@ import {
     changeSourceDraftTemplate,
     createManualSourceDraft,
     ensureNextAuthorDraftRows,
+    type ExistingSource,
     findExistingSources,
-    formatSourceDraftScriptTitle,
     formatSourceDraftRows,
+    formatSourceDraftScriptTitle,
     formatSourceScriptTitles,
     getSourceDraftParameterAliasInfo,
     hasSourceDraftCitationIdentity,
-    listExistingSourceSections,
     listExistingSources,
+    listExistingSourceSections,
     listSourceDraftParameterCollisions,
+    type ParsedSourceInput,
     parseSourceDraft,
     parseSourceInput,
     parseSourceUrl,
     replaceExistingSource,
+    type ScriptTitleMode,
     serializeSourceDraft,
-    StaleSourceError,
-    type ExistingSource,
-    type ParsedSourceInput,
-    type SourceSection,
     type SourceDraft,
     type SourceDraftRow,
-    type ScriptTitleMode,
+    type SourceSection,
+    StaleSourceError,
 } from "#gadget/domain/source-manager.ts";
 import type * as validation from "#gadget/domain/source-validation.ts";
 import {
+    type Cs1ValidationResult,
     getIgnoredUnknownCs1ParameterName,
     isUnsupportedParameterCs1Category,
     orderCs1ItemsBySeverity,
     parseCs1ValidationResult,
-    type Cs1ValidationResult,
 } from "#gadget/domain/cs1-validation.ts";
 import {
     applySourceAnalysisReplacements,
     type SourceAnalysisCell,
     type SourceAnalysisReplacement,
 } from "#gadget/domain/source-analysis.ts";
-import { interfaceLocale, msg, type MessageId } from "#gadget/i18n/index.ts";
+import { interfaceLocale, type MessageId, msg } from "#gadget/i18n/index.ts";
 import { sourceAnalysisMessages } from "#gadget/ui/source-messages.ts";
 import {
     getCanonicalTemplateNameFromKey,
@@ -66,7 +66,6 @@ import {
 } from "#gadget/contracts/cs1-review.ts";
 import {
     registerCitationFormatterComponents,
-    type CodexComponents,
     type ResourceLoaderRequire,
     type VueModule,
 } from "#gadget/ui/codex.ts";
@@ -75,15 +74,15 @@ import {
     getAnalysisUndoText,
 } from "#gadget/ui/analysis-session.ts";
 import {
-    buildAnalysisTabs,
-    refreshSourceAnalysis,
     type AppliedAnalysisFinding,
     type AppliedAnalysisTarget,
+    buildAnalysisTabs,
     type EditableCitationSourceAnalysis,
     type EditableSourceAnalysisFinding,
     isAnalysisFindingInTab,
-    type SelectedAnalysisFinding,
+    refreshSourceAnalysis,
     type SelectableSourceAnalysisOccurrence,
+    type SelectedAnalysisFinding,
 } from "#gadget/ui/source-analysis-state.ts";
 import {
     createAliasDraftActions,
@@ -108,11 +107,11 @@ import {
     type SourceManagerOptions,
 } from "#gadget/contracts/source-manager.ts";
 import {
+    type ArticleFormatAttempt,
     clearCheckedCs1Errors,
     clearDraftValidationSummary,
     createSourceManagerState,
     getCurrentCs1DraftFingerprint,
-    type ArticleFormatAttempt,
     type PreloadedCheckerSource,
     type SourceCheckerTool,
     type SourceManagerState,
@@ -246,6 +245,11 @@ interface LoadedCurrentCitationTemplateData {
     requestedNames: Set<string>;
 }
 
+interface ArticleFormatPreparation {
+    beforeText: string;
+    templateData: CitationTemplateDataMap;
+}
+
 /**
  * Creates a dialog opener with its review workflow injected.
  *
@@ -292,6 +296,7 @@ export function createOpenCitationFormatterDialog(
  * @param require - Require value.
  * @param options - Operation options.
  * @param dependencies - Dependencies value.
+ * @param templateNameContext - Wiki-scoped template-name context.
  */
 // eslint-disable-next-line max-lines-per-function
 function mountSourceManager(
@@ -354,7 +359,7 @@ function mountSourceManager(
  * @returns Created the source-manager Vue component.
  */
 // eslint-disable-next-line max-lines-per-function
-function createSourceManagerComponent(
+export function createSourceManagerComponent(
     Vue: VueModule,
     editor: editBox.EditBox,
     cleanup: () => void,
@@ -599,56 +604,15 @@ function createFormatterActions(
                     initialNames,
                 );
             }
-            if (!context.isActive() || !state.open.value) {
+            const preparation = prepareLoadedArticleFormat(
+                context,
+                loadedTemplateData,
+            );
+            if (preparation == null) {
                 return;
             }
-            const beforeText = editor.read();
-            const latestNames = findUsedMetadataFreeCitationTemplates(
-                beforeText,
-                context.templateNameContext,
-            );
-            if (
-                latestNames.some(
-                    (name) => !loadedTemplateData.requestedNames.has(name),
-                )
-            ) {
-                return;
-            }
-            if (isCurrentArticleFormatAttempt(editor, state)) {
-                return;
-            }
-            const compact = state.referenceStyle.value === "r";
-            const source = state.formatScriptTitles.value
-                ? formatSourceScriptTitles(
-                      beforeText,
-                      getCurrentWikiId(),
-                      state.scriptTitleMode.value,
-                      context.templateNameContext,
-                  ).text
-                : beforeText;
-            const result = manageCitationsWithResult(
-                source,
-                [],
-                compact,
-                state.citationLayout.value,
-                {
-                    leadSectionLabel: msg("sections.lead"),
-                    runtimeTemplateData: loadedTemplateData.metadata,
-                    templateNameContext: context.templateNameContext,
-                },
-            );
-            const textChanged = result.text !== beforeText;
-            if (textChanged) {
-                editBox.writePreservingPosition(editor, result.text);
-                recordSessionWrite(state, beforeText, result.text);
-                clearAnalysisUndo(state);
-            }
-            state.formatArticleAttempt.value = buildArticleFormatAttempt(
-                result.text,
-                state,
-            );
-            showArticleFormatResult(context, result, textChanged);
-            refreshExistingSources(editor, state);
+            const result = formatPreparedArticle(context, preparation);
+            applyArticleFormatResult(context, preparation.beforeText, result);
         } catch (error) {
             state.error.value = formatError(error);
         } finally {
@@ -677,6 +641,74 @@ function createFormatterActions(
         setFormatScriptTitles,
         setScriptTitleMode,
     };
+}
+
+function prepareLoadedArticleFormat(
+    context: SourceManagerActionContext,
+    loadedTemplateData: LoadedCurrentCitationTemplateData,
+): ArticleFormatPreparation | null {
+    const { editor, state } = context;
+    if (!context.isActive() || !state.open.value) {
+        return null;
+    }
+    const beforeText = editor.read();
+    const latestNames = findUsedMetadataFreeCitationTemplates(
+        beforeText,
+        context.templateNameContext,
+    );
+    const hasUnloadedTemplate = latestNames.some(
+        (name) => !loadedTemplateData.requestedNames.has(name),
+    );
+    if (hasUnloadedTemplate || isCurrentArticleFormatAttempt(editor, state)) {
+        return null;
+    }
+    return { beforeText, templateData: loadedTemplateData.metadata };
+}
+
+function formatPreparedArticle(
+    context: SourceManagerActionContext,
+    preparation: ArticleFormatPreparation,
+): CitationFormatResult {
+    const { state } = context;
+    const source = state.formatScriptTitles.value
+        ? formatSourceScriptTitles(
+              preparation.beforeText,
+              getCurrentWikiId(),
+              state.scriptTitleMode.value,
+              context.templateNameContext,
+          ).text
+        : preparation.beforeText;
+    return manageCitationsWithResult(
+        source,
+        [],
+        state.referenceStyle.value === "r",
+        state.citationLayout.value,
+        {
+            leadSectionLabel: msg("sections.lead"),
+            runtimeTemplateData: preparation.templateData,
+            templateNameContext: context.templateNameContext,
+        },
+    );
+}
+
+function applyArticleFormatResult(
+    context: SourceManagerActionContext,
+    beforeText: string,
+    result: CitationFormatResult,
+): void {
+    const { editor, state } = context;
+    const textChanged = result.text !== beforeText;
+    if (textChanged) {
+        editBox.writePreservingPosition(editor, result.text);
+        recordSessionWrite(state, beforeText, result.text);
+        clearAnalysisUndo(state);
+    }
+    state.formatArticleAttempt.value = buildArticleFormatAttempt(
+        result.text,
+        state,
+    );
+    showArticleFormatResult(context, result, textChanged);
+    refreshExistingSources(editor, state);
 }
 
 function isScriptTitleMode(value: unknown): value is ScriptTitleMode {
@@ -2990,7 +3022,9 @@ function resetSourceDraft(state: SourceManagerState): void {
     state.dismissedAliasSuggestions.value = new Set();
     state.parameterAliasDialogOpen.value = false;
     state.parameterAliasDialogDirectives.value = [];
+    state.parameterAliasDialogOriginalValue.value = "";
     state.parameterAliasDialogRowIndex.value = null;
+    state.parameterAliasDialogValidationAttempted.value = false;
     state.parameterAliasDialogValue.value = "";
     state.draft.value = null;
     state.draftReviewQueue.value = [];

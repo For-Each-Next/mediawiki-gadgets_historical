@@ -20,3 +20,4 @@ const messages = i18n.createI18n(english, {
 
 export const msg = messages.msg;
 export const msgParts = messages.msgParts;
+export const interfaceLocale = messages.interfaceLocale;

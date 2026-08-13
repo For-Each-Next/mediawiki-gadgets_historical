@@ -3,7 +3,7 @@ import test from "node:test";
 import { createLogger } from "@mediawiki-gadgets/shared/logging";
 import { getNamespaceId } from "@mediawiki-gadgets/shared/wiki-titles";
 // eslint-disable-next-line max-len
-import { createWikiNamespaceResolver } from "../../src/wiked-lite/adapters/mediawiki/namespaces.ts";
+import { createWikiNamespaceResolver } from "wiked-lite/adapters/mediawiki/namespaces.ts";
 
 test("English and Chinese namespaces need no API request", async () => {
     for (const databaseName of ["enwiki", "zhwiki"] as const) {

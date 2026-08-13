@@ -1,9 +1,7 @@
 /** Coordinates project-level repository validation. */
 
-import {
-    inspectWorkspacePackages,
-    isGadgetPackage,
-} from "../workspace/index.ts";
+import { inspectWorkspacePackages } from "#workspace/packages";
+import { isGadgetPackage } from "#workspace/types";
 import { checkLicensing } from "./licensing.ts";
 import { checkWorkspaceLockfile } from "./lockfile.ts";
 import { checkMarkdownLines } from "./markdown.ts";
@@ -37,15 +35,7 @@ export async function checkRepository(
         checkWorkspaceLockfile(workspaceRoot, discovery.packages),
         checkToolingOutputs(workspaceRoot),
     ]);
-    const [
-        packageResult,
-        boundaries,
-        practices,
-        markdown,
-        licensing,
-        lockfile,
-        outputs,
-    ] = checks;
+    const [packageResult, boundaries, , markdown] = checks;
     const problems = checks.flatMap(readProblems);
     problems.unshift(...discovery.problems);
     return {

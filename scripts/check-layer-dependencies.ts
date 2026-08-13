@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import {
     checkSourceBoundaries,
     type SourceBoundaryResult,
-} from "./repository-check/index.ts";
+} from "#repository-check/source-boundaries";
 
 export interface LayerCheckResult extends SourceBoundaryResult {}
 

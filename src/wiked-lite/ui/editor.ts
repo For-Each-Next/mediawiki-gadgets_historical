@@ -303,6 +303,7 @@ function initializeEditorController(
     services: EditorServices,
 ): EditorController {
     const { editor, frame, overlay } = surface;
+    const nativeFontSize = editor.style.fontSize || "0.875rem";
     const missingTitles = new Set<string>();
     const hadNativeClass = textarea.classList.contains("wiked-lite-native");
     const hadNativeFocus = document.activeElement === textarea;
@@ -344,8 +345,17 @@ function initializeEditorController(
         onError(error, operation) {
             services.logger.warn(`feature.${operation}.failed`, { error });
         },
+        onLargeFont(enabled) {
+            updateEditorFontSize(editor, nativeFontSize, enabled);
+        },
         onMissingLinks: updateMissingLinks,
         onReferencePreviews: referenceTooltips.setEnabled,
+        onSmallReferenceText(enabled) {
+            editor.classList.toggle(
+                "wiked-lite-editor--small-reference-text",
+                enabled,
+            );
+        },
         sectionEditing: services.isSectionEditing(),
     });
     const connectionObserver = new MutationObserver(
@@ -501,6 +511,7 @@ function initializeEditorController(
             textarea.value = snapshot.source;
             textarea.setSelectionRange(snapshot.start, snapshot.end);
             dispatchEditorInput();
+            editorFeatures?.sourceChanged();
             render(false);
             editor.focus({ preventScroll: true });
         } finally {
@@ -885,6 +896,17 @@ function copyTextareaPresentation(
     );
 }
 
+function updateEditorFontSize(
+    editor: HTMLElement,
+    nativeFontSize: string,
+    large: boolean,
+): void {
+    editor.classList.toggle("wiked-lite-editor--large-font", large);
+    editor.style.fontSize = large
+        ? `calc(${nativeFontSize} * 1.2)`
+        : nativeFontSize;
+}
+
 function findOpaqueBackground(
     element: HTMLElement,
     computedStyle: CSSStyleDeclaration,
@@ -1222,7 +1244,9 @@ async function applyFormatting(
         : textarea.value;
     let formatted = formatWikitext(source, selection.formatter).text;
     if (selection.resolveRedirects) {
-        formatted = await services.resolveRedirects(formatted);
+        formatted = await services.resolveRedirects(formatted, {
+            includeTemplates: selection.resolveTemplateRedirects,
+        });
     }
     if (formatted !== source) {
         writeFormattedSource(textarea, range, formatted, selected);

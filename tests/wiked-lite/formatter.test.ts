@@ -135,20 +135,168 @@ test("explicit formatter options align templates", () => {
     ].join("\n");
 
     const result = formatWikitext(source, {
-        firstParameterLayout: "align-separator",
-        indentPipes: true,
+        firstParameterLayout: "align-values",
+        formatFirstParameter: true,
+        indentBlockTemplates: true,
     });
 
     assert.match(result.text, / {2}\| url\s+= https:\/\/example\.test/u);
 });
 
 test("Chinese conversion normalization is opt in", () => {
-    const source = "-{zh-hans:简体 ; zh-hant:繁體;}-";
+    const source = "-{  zh-hans:简体 ;zh-hant:繁體  }-";
 
     assert.equal(formatWikitext(source).text, source);
     assert.equal(
         formatWikitext(source, { normalizeConversion: true }).text,
-        "-{zh-hans:简体; zh-hant:繁體}-",
+        "-{zh-hans:简体 ; zh-hant:繁體;}-",
+    );
+});
+
+test("conversion normalization preserves rule value bytes", () => {
+    const source =
+        "-{ zh-cn:  A<!-- x;y -->{{lang|en|B;C}}" +
+        '<span title="d;e">D</span>  ;zh-tw:C ; }-';
+    const expected =
+        "-{zh-cn:  A<!-- x;y -->{{lang|en|B;C}}" +
+        '<span title="d;e">D</span>  ; zh-tw:C ;}-';
+
+    assert.equal(
+        formatWikitext(source, { normalizeConversion: true }).text,
+        expected,
+    );
+    assert.deepEqual(formatWikitext(expected, { normalizeConversion: true }), {
+        changed: false,
+        text: expected,
+    });
+    assert.equal(
+        formatWikitext("-{  zh-cn:123<!-- 455 -->333; zh-tw:dd  }-", {
+            normalizeConversion: true,
+        }).text,
+        "-{zh-cn:123<!-- 455 -->333; zh-tw:dd;}-",
+    );
+});
+
+test("conversion normalization retains multiline separator layouts", () => {
+    const source = ["-{  zh-cn:first;", "    zh-tw:  second  ", "  }-"].join(
+        "\n",
+    );
+    const expected = ["-{zh-cn:first;", "    zh-tw:  second;", "}-"].join(
+        "\n",
+    );
+
+    assert.equal(
+        formatWikitext(source, { normalizeConversion: true }).text,
+        expected,
+    );
+});
+
+test("conversion normalization supports NoteTA aliases", () => {
+    const fixtures = [
+        [
+            "{{NoteTA|1= zh-cn:one;zh-tw:two |G1=zh-cn:no;zh-tw:change}}",
+            "{{NoteTA|1= zh-cn:one; zh-tw:two; |G1=zh-cn:no;zh-tw:change}}",
+        ],
+        [
+            "{{TA-lite|t= zh-cn:one ;zh-tw:two; }}",
+            "{{TA-lite|t= zh-cn:one ; zh-tw:two; }}",
+        ],
+        [
+            "{{全文字词转换| zh-cn:one;zh-tw:two }}",
+            "{{全文字词转换| zh-cn:one; zh-tw:two; }}",
+        ],
+    ] as const;
+
+    for (const [source, expected] of fixtures) {
+        assert.equal(
+            formatWikitext(source, { normalizeConversion: true }).text,
+            expected,
+        );
+        assert.equal(
+            formatWikitext(expected, { normalizeConversion: true }).text,
+            expected,
+        );
+    }
+});
+
+test("NoteTA preserves parameter padding and limits conversion slots", () => {
+    const exactFixtures = [
+        ["{{NoteTA|25= xxx=>zh-tw:xx }}", "{{NoteTA|25= xxx=>zh-tw:xx; }}"],
+        ["{{NoteTA|1= 种 }}", "{{NoteTA|1= 种 }}"],
+        ["{{NoteTA|1= 种; }}", "{{NoteTA|1= 种; }}"],
+    ] as const;
+    for (const [entered, expectedText] of exactFixtures) {
+        assert.equal(
+            formatWikitext(entered, { normalizeConversion: true }).text,
+            expectedText,
+        );
+    }
+    const source =
+        "{{NoteTA|25= xxx=>zh-tw:xx |30=zh-cn:a;zh-tw:b " +
+        "|31=zh-cn:no;zh-tw:no |T= zh-cn:t;zh-tw:t " +
+        "|G=zh-cn:g;zh-tw:g |d=zh-cn:d;zh-tw:d |1= 种 |2= 种; }}";
+    const expected =
+        "{{NoteTA|25= xxx=>zh-tw:xx; |30=zh-cn:a; zh-tw:b; " +
+        "|31=zh-cn:no;zh-tw:no |T= zh-cn:t; zh-tw:t; " +
+        "|G=zh-cn:g;zh-tw:g |d=zh-cn:d;zh-tw:d |1= 种 |2= 种; }}";
+
+    assert.equal(
+        formatWikitext(source, { normalizeConversion: true }).text,
+        expected,
+    );
+});
+
+test("outer rules preserve nested conversion syntax", () => {
+    const source =
+        "-{ zh-cn:outer -{  zh-cn:inner;zh-tw:nested  }-;" + "zh-tw:outer }-";
+    const expected =
+        "-{zh-cn:outer -{  zh-cn:inner;zh-tw:nested  }-; " + "zh-tw:outer;}-";
+
+    assert.equal(
+        formatWikitext(source, { normalizeConversion: true }).text,
+        expected,
+    );
+});
+
+test("recognized NoteTA rules do not normalize nested definitions", () => {
+    const source =
+        "{{NoteTA|1= zh-cn:-{  zh-cn:x;zh-tw:y  }- " +
+        "{{NoteTA|1= zh-cn:a;zh-tw:b }};zh-tw:outer }}";
+    const expected =
+        "{{NoteTA|1= zh-cn:-{  zh-cn:x;zh-tw:y  }- " +
+        "{{NoteTA|1= zh-cn:a;zh-tw:b }}; zh-tw:outer; }}";
+
+    assert.equal(
+        formatWikitext(source, { normalizeConversion: true }).text,
+        expected,
+    );
+});
+
+test("recognized language rules do not normalize a nested NoteTA", () => {
+    const source = "-{ zh-cn:{{NoteTA|1= zh-cn:a;zh-tw:b }};zh-tw:outer }-";
+    const expected = "-{zh-cn:{{NoteTA|1= zh-cn:a;zh-tw:b }}; zh-tw:outer;}-";
+
+    assert.equal(
+        formatWikitext(source, { normalizeConversion: true }).text,
+        expected,
+    );
+});
+
+test("conversion normalization ignores literals and non-rules", () => {
+    const source = [
+        "<nowiki>-{ zh-cn:one;zh-tw:two }-</nowiki>",
+        "{{NoteTA|1=H|G1= zh-cn:one;zh-tw:two }}",
+        "-{H|zh-cn:<nowiki>a;b:c</nowiki>;zh-tw:two}-",
+    ].join("\n");
+    const expected = [
+        "<nowiki>-{ zh-cn:one;zh-tw:two }-</nowiki>",
+        "{{NoteTA|1=H|G1= zh-cn:one;zh-tw:two }}",
+        "-{H|zh-cn:<nowiki>a;b:c</nowiki>; zh-tw:two;}-",
+    ].join("\n");
+
+    assert.equal(
+        formatWikitext(source, { normalizeConversion: true }).text,
+        expected,
     );
 });
 
@@ -197,7 +345,7 @@ test("nested template pipes and closers follow structural depth", () => {
         "}}",
     ].join("\n");
 
-    const result = formatWikitext(source, { indentPipes: true });
+    const result = formatWikitext(source, { indentBlockTemplates: true });
 
     assert.equal(
         result.text,
@@ -229,7 +377,7 @@ test("deeper block templates indent pipes and closers by depth", () => {
     ].join("\n");
 
     assert.equal(
-        formatWikitext(source, { indentPipes: true }).text,
+        formatWikitext(source, { indentBlockTemplates: true }).text,
         [
             "{{outer",
             "  | middle = {{middle",
@@ -244,6 +392,50 @@ test("deeper block templates indent pipes and closers by depth", () => {
     );
 });
 
+test("block template indentation accepts every supported width", () => {
+    const source = [
+        "{{outer",
+        "| nested = {{inner",
+        "| value = text",
+        "}}",
+        "}}",
+    ].join("\n");
+
+    for (const indentSpaces of [0, 1, 2, 4, 8]) {
+        const indent = " ".repeat(indentSpaces);
+        const expected = [
+            "{{outer",
+            `${indent}| nested = {{inner`,
+            `${indent}${indent}| value = text`,
+            `${indent}}}`,
+            "}}",
+        ].join("\n");
+
+        assert.equal(
+            formatWikitext(source, {
+                indentBlockTemplates: true,
+                indentSpaces,
+            }).text,
+            expected,
+        );
+    }
+});
+
+test("invalid block indentation widths fall back to two spaces", () => {
+    const source = ["{{outer", "| value = text", "}}"].join("\n");
+    const expected = ["{{outer", "  | value = text", "}}"].join("\n");
+
+    for (const indentSpaces of [-1, 1.5, 9, Number.NaN]) {
+        assert.equal(
+            formatWikitext(source, {
+                indentBlockTemplates: true,
+                indentSpaces,
+            }).text,
+            expected,
+        );
+    }
+});
+
 test("equals alignment is independent for each nested template", () => {
     const source = [
         "{{outer",
@@ -256,8 +448,9 @@ test("equals alignment is independent for each nested template", () => {
         "}}",
     ].join("\n");
     const lines = formatWikitext(source, {
-        firstParameterLayout: "align-separator",
-        indentPipes: true,
+        firstParameterLayout: "align-values",
+        formatFirstParameter: true,
+        indentBlockTemplates: true,
     }).text.split("\n");
 
     assert.equal(lines[1].indexOf("="), lines[2].indexOf("="));
@@ -278,9 +471,10 @@ test("equals alignment ignores marks and counts non-ASCII width", () => {
 
     assert.equal(
         formatWikitext(source, {
-            firstParameterLayout: "align-separator",
-            fullWidthRatio: 5 / 3,
-            indentPipes: true,
+            characterWidthRatio: "5:3",
+            firstParameterLayout: "align-values",
+            formatFirstParameter: true,
+            indentBlockTemplates: true,
         }).text,
         [
             "{{outer",
@@ -305,7 +499,7 @@ test("block formatting leaves table pipes unchanged", () => {
     ].join("\n");
 
     assert.equal(
-        formatWikitext(source, { indentPipes: true }).text,
+        formatWikitext(source, { indentBlockTemplates: true }).text,
         [
             "{{Infobox",
             "  | data = table follows",
@@ -331,8 +525,9 @@ test("block formatting leaves templates inside tables unchanged", () => {
 
     assert.equal(
         formatWikitext(source, {
-            firstParameterLayout: "align-separator",
-            indentPipes: true,
+            firstParameterLayout: "align-values",
+            formatFirstParameter: true,
+            indentBlockTemplates: true,
         }).text,
         source,
     );
@@ -352,7 +547,7 @@ test("nested template closers inside tables keep entered indentation", () => {
     ].join("\n");
 
     assert.equal(
-        formatWikitext(source, { indentPipes: true }).text,
+        formatWikitext(source, { indentBlockTemplates: true }).text,
         [
             "{{outer",
             "  | data = table",
@@ -379,7 +574,7 @@ test("block formatting preserves continuations and aligns closers", () => {
     ].join("\n");
 
     assert.equal(
-        formatWikitext(source, { indentPipes: true }).text,
+        formatWikitext(source, { indentBlockTemplates: true }).text,
         [
             "{{outer",
             "  | nested = {{inner",
@@ -410,7 +605,7 @@ test("closer indentation is limited to standalone template lines", () => {
     ].join("\n");
 
     assert.equal(
-        formatWikitext(annotatedSource, { indentPipes: true }).text,
+        formatWikitext(annotatedSource, { indentBlockTemplates: true }).text,
         [
             "{{outer",
             "  | nested = {{inner",
@@ -422,7 +617,8 @@ test("closer indentation is limited to standalone template lines", () => {
     );
     assert.equal(
         formatWikitext(alignedOnlySource, {
-            firstParameterLayout: "align-separator",
+            firstParameterLayout: "align-values",
+            formatFirstParameter: true,
         }).text.split("\n")[3],
         "\t}}",
     );
@@ -448,7 +644,9 @@ test("block indentation treats opaque fake syntax as byte-identical", () => {
         "| after = value",
         "}}",
     ].join("\n");
-    const result = formatWikitext(source, { indentPipes: true }).text;
+    const result = formatWikitext(source, {
+        indentBlockTemplates: true,
+    }).text;
 
     assert.equal(
         result,
@@ -475,7 +673,7 @@ test("templates inside variables do not close the owning template", () => {
     ].join("\n");
 
     assert.equal(
-        formatWikitext(source, { indentPipes: true }).text,
+        formatWikitext(source, { indentBlockTemplates: true }).text,
         [
             "{{outer",
             "  | value = {{{parameter|{{fake|x=y}}}}}",
@@ -498,7 +696,7 @@ test("variable defaults stay unchanged inside block templates", () => {
     ].join("\n");
 
     assert.equal(
-        formatWikitext(source, { indentPipes: true }).text,
+        formatWikitext(source, { indentBlockTemplates: true }).text,
         [
             "{{outer",
             "  | value = {{{parameter|",
@@ -523,7 +721,7 @@ test("unfinished block templates retain live nesting depth", () => {
     ].join("\n");
 
     assert.equal(
-        formatWikitext(source, { indentPipes: true }).text,
+        formatWikitext(source, { indentBlockTemplates: true }).text,
         [
             "{{outer",
             "  | first = one",
@@ -535,44 +733,50 @@ test("unfinished block templates retain live nesting depth", () => {
     );
 });
 
-test("matrix alignment is independent for each nested template call", () => {
-    const source = [
-        "{{xx",
-        "| p1 = a | p2 = {{embedded x",
-        "| pp1 = ... | pp2=..",
-        "| pp21_loooong = ... | pp22 = ..",
-        "| longxx+",
-        "}}",
-        "| longer = value | q = {{embedded x",
-        "| pp1 = ... | pp2=..",
-        "| longxx+",
-        "}}",
-        "}}",
-    ].join("\n");
-    const expected = [
-        "{{xx",
-        "  | p1     = a     | p2 = {{embedded x",
-        "    | pp1          = ... | pp2  = ..",
-        "    | pp21_loooong = ... | pp22 = ..",
-        "    | longxx+",
-        "  }}",
-        "  | longer = value | q  = {{embedded x",
-        "    | pp1 = ... | pp2 = ..",
-        "    | longxx+",
-        "  }}",
-        "}}",
-    ].join("\n");
-    const options = {
-        firstParameterLayout: "align-separator" as const,
-        fullWidthRatio: 5 / 3,
-        indentPipes: true,
-        subsequentParameterLayout: "align-columns-completely" as const,
-    };
+const nestedMatrixSource = [
+    "{{xx",
+    "| p1 = a | p2 = {{embedded x",
+    "| pp1 = ... | pp2=..",
+    "| pp21_loooong = ... | pp22 = ..",
+    "| longxx+",
+    "}}",
+    "| longer = value | q = {{embedded x",
+    "| pp1 = ... | pp2=..",
+    "| longxx+",
+    "}}",
+    "}}",
+].join("\n");
 
-    assert.equal(formatWikitext(source, options).text, expected);
-    assert.deepEqual(formatWikitext(expected, options), {
+const nestedMatrixExpected = [
+    "{{xx",
+    "  | p1     = a     | p2 = {{embedded x",
+    "    | pp1          = ... | pp2  = ..",
+    "    | pp21_loooong = ... | pp22 = ..",
+    "    | longxx+",
+    "  }}",
+    "  | longer = value | q  = {{embedded x",
+    "    | pp1 = ... | pp2 = ..",
+    "    | longxx+",
+    "  }}",
+    "}}",
+].join("\n");
+
+test("matrix alignment is independent for each nested template call", () => {
+    const options = {
+        characterWidthRatio: "5:3" as const,
+        firstParameterLayout: "align-values" as const,
+        formatFirstParameter: true,
+        formatSubsequentParameters: true,
+        indentBlockTemplates: true,
+        subsequentParameterLayout: "align-names-and-values" as const,
+    };
+    assert.equal(
+        formatWikitext(nestedMatrixSource, options).text,
+        nestedMatrixExpected,
+    );
+    assert.deepEqual(formatWikitext(nestedMatrixExpected, options), {
         changed: false,
-        text: expected,
+        text: nestedMatrixExpected,
     });
 });
 
@@ -587,8 +791,10 @@ test("parameter-column modes have distinct alignment", () => {
     assert.equal(
         formatWikitext(source, {
             firstParameterLayout: "compact",
-            indentPipes: true,
-            subsequentParameterLayout: "align-columns",
+            formatFirstParameter: true,
+            formatSubsequentParameters: true,
+            indentBlockTemplates: true,
+            subsequentParameterLayout: "align-names",
         }).text,
         [
             "{{matrix",
@@ -600,8 +806,10 @@ test("parameter-column modes have distinct alignment", () => {
     assert.equal(
         formatWikitext(source, {
             firstParameterLayout: "compact",
-            indentPipes: true,
-            subsequentParameterLayout: "align-columns-completely",
+            formatFirstParameter: true,
+            formatSubsequentParameters: true,
+            indentBlockTemplates: true,
+            subsequentParameterLayout: "align-names-and-values",
         }).text,
         [
             "{{matrix",
@@ -621,8 +829,10 @@ test("compact later parameters remove review-table matrix padding", () => {
         "}}",
     ].join("\n");
     const options = {
-        firstParameterLayout: "align-separator" as const,
-        indentPipes: true,
+        firstParameterLayout: "align-values" as const,
+        formatFirstParameter: true,
+        formatSubsequentParameters: true,
+        indentBlockTemplates: true,
         subsequentParameterLayout: "compact" as const,
     };
     const expected = [
@@ -649,9 +859,9 @@ test("preserved layouts keep entered spacing while indenting", () => {
 
     assert.equal(
         formatWikitext(source, {
-            firstParameterLayout: "preserve",
-            indentPipes: true,
-            subsequentParameterLayout: "preserve",
+            formatFirstParameter: false,
+            formatSubsequentParameters: false,
+            indentBlockTemplates: true,
         }).text,
         ["{{matrix", "  |   first=one     | second   =two", "}}"].join("\n"),
     );
@@ -667,9 +877,10 @@ test("first-parameter alignment preserves later parameters", () => {
 
     assert.equal(
         formatWikitext(source, {
-            firstParameterLayout: "align-separator",
-            indentPipes: true,
-            subsequentParameterLayout: "preserve",
+            firstParameterLayout: "align-values",
+            formatFirstParameter: true,
+            formatSubsequentParameters: false,
+            indentBlockTemplates: true,
         }).text,
         [
             "{{matrix",
@@ -690,9 +901,11 @@ test("matrix alignment keeps positional cells free of equals signs", () => {
 
     assert.equal(
         formatWikitext(source, {
-            firstParameterLayout: "align-separator",
-            indentPipes: true,
-            subsequentParameterLayout: "align-columns-completely",
+            firstParameterLayout: "align-values",
+            formatFirstParameter: true,
+            formatSubsequentParameters: true,
+            indentBlockTemplates: true,
+            subsequentParameterLayout: "align-names-and-values",
         }).text,
         [
             "{{matrix",
@@ -711,9 +924,11 @@ test("matrix alignment ignores separators in nested wikitext", () => {
         "}}",
     ].join("\n");
     const result = formatWikitext(source, {
-        firstParameterLayout: "align-separator",
-        indentPipes: true,
-        subsequentParameterLayout: "align-columns-completely",
+        firstParameterLayout: "align-values",
+        formatFirstParameter: true,
+        formatSubsequentParameters: true,
+        indentBlockTemplates: true,
+        subsequentParameterLayout: "align-names-and-values",
     }).text;
 
     assert.match(result, /\[\[A\|label\]\]/u);
@@ -722,9 +937,11 @@ test("matrix alignment ignores separators in nested wikitext", () => {
     assert.match(result, /<nowiki>a\|b=c<\/nowiki>/u);
     assert.deepEqual(
         formatWikitext(result, {
-            firstParameterLayout: "align-separator",
-            indentPipes: true,
-            subsequentParameterLayout: "align-columns-completely",
+            firstParameterLayout: "align-values",
+            formatFirstParameter: true,
+            formatSubsequentParameters: true,
+            indentBlockTemplates: true,
+            subsequentParameterLayout: "align-names-and-values",
         }),
         { changed: false, text: result },
     );

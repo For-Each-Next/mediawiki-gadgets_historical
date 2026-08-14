@@ -24,8 +24,10 @@ export interface EditorFeatureOptions {
     initialSettings: EditorFeatureSettings;
     loadPageSource(): Promise<string>;
     onError(error: unknown, operation: "links" | "page-source"): void;
+    onLargeFont(enabled: boolean): void;
     onMissingLinks(result: MissingLinkResult): void;
     onReferencePreviews(enabled: boolean): void;
+    onSmallReferenceText(enabled: boolean): void;
     sectionEditing: boolean;
     timer?: EditorFeatureTimer;
 }
@@ -58,7 +60,9 @@ class EditorFeatureCoordinator implements EditorFeatureController {
         this.options = options;
         this.timer = options.timer ?? createWindowTimer();
         this.settings = { ...options.initialSettings };
+        options.onLargeFont(this.settings.largeFont);
         options.onReferencePreviews(this.settings.referencePreviews);
+        options.onSmallReferenceText(this.settings.smallReferenceText);
         if (this.settings.highlightMissing) {
             this.scheduleLookup(0);
         }
@@ -88,8 +92,16 @@ class EditorFeatureCoordinator implements EditorFeatureController {
         }
         const previous = this.settings;
         this.settings = { ...next };
+        if (previous.largeFont !== this.settings.largeFont) {
+            this.options.onLargeFont(this.settings.largeFont);
+        }
         if (previous.referencePreviews !== this.settings.referencePreviews) {
             this.options.onReferencePreviews(this.settings.referencePreviews);
+        }
+        if (previous.smallReferenceText !== this.settings.smallReferenceText) {
+            this.options.onSmallReferenceText(
+                this.settings.smallReferenceText,
+            );
         }
         this.updateMissingLinkSetting(previous.highlightMissing);
         if (

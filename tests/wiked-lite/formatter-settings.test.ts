@@ -10,22 +10,10 @@ import {
     type FormatterSettings,
 } from "wiked-lite/domain/formatter-settings.ts";
 
-test("formatter settings round trip through versioned local storage", () => {
+test("formatter settings round trip through version-three storage", () => {
     const storage = new MemorySettingsStorage();
     const store = createFormatterSettingsStore(() => storage);
-    const settings: FormatterSettings = {
-        fullPageReferencePreviews: true,
-        formatter: {
-            firstParameterLayout: "align-separator",
-            fullWidthRatio: 2,
-            indentPipes: true,
-            normalizeConversion: true,
-            subsequentParameterLayout: "align-columns-completely",
-        },
-        highlightMissing: true,
-        referencePreviews: false,
-        resolveRedirects: true,
-    };
+    const settings = createConfiguredSettings();
 
     assert.deepEqual(store.load(), createDefaultFormatterSettings());
     store.save(settings);
@@ -33,58 +21,60 @@ test("formatter settings round trip through versioned local storage", () => {
     assert.deepEqual(store.load(), settings);
     assert.deepEqual(
         JSON.parse(storage.getItem(FORMATTER_SETTINGS_STORAGE_KEY) ?? ""),
-        { settings, version: 2 },
+        { settings, version: 3 },
     );
 });
 
-test("version-one formatter settings migrate editor defaults", () => {
+test("old storage keys and envelope versions are ignored", () => {
     const defaults = createDefaultFormatterSettings();
-    const legacy = {
-        formatter: {
-            ...defaults.formatter,
-            indentPipes: true,
-        },
-        highlightMissing: true,
-        resolveRedirects: true,
-    };
-    const storage = new MemorySettingsStorage(
-        JSON.stringify({ settings: legacy, version: 1 }),
-        "wiked-lite.formatter-settings.v1",
+    const legacy = createConfiguredSettings();
+    const oldKeyStorage = new MemorySettingsStorage(
+        JSON.stringify({ settings: legacy, version: 2 }),
+        "wiked-lite.formatter-settings.v2",
+    );
+    const oldEnvelopeStorage = new MemorySettingsStorage(
+        JSON.stringify({ settings: legacy, version: 2 }),
     );
 
-    assert.deepEqual(createFormatterSettingsStore(() => storage).load(), {
-        ...defaults,
-        formatter: legacy.formatter,
-        highlightMissing: true,
-        resolveRedirects: true,
-    });
+    assert.deepEqual(
+        createFormatterSettingsStore(() => oldKeyStorage).load(),
+        defaults,
+    );
+    assert.deepEqual(
+        createFormatterSettingsStore(() => oldEnvelopeStorage).load(),
+        defaults,
+    );
 });
 
-test("invalid formatter settings fall back to defaults", () => {
-    const validSettings = createDefaultFormatterSettings();
+test("invalid version-three settings fall back to defaults", () => {
+    const valid = createConfiguredSettings();
+    const invalidSettings = [
+        {
+            ...valid,
+            formatter: { ...valid.formatter, indentSpaces: -1 },
+        },
+        {
+            ...valid,
+            formatter: { ...valid.formatter, indentSpaces: 1.5 },
+        },
+        {
+            ...valid,
+            formatter: { ...valid.formatter, indentSpaces: 9 },
+        },
+        {
+            ...valid,
+            formatter: {
+                ...valid.formatter,
+                subsequentParameterLayout: "legacy-matrix",
+            },
+        },
+        { ...valid, smallReferenceText: undefined },
+    ];
     const invalidValues = [
         "{broken",
-        JSON.stringify({ settings: validSettings, version: 2 }),
-        JSON.stringify({
-            settings: {
-                ...validSettings,
-                formatter: {
-                    ...validSettings.formatter,
-                    subsequentParameterLayout: "legacy-matrix",
-                },
-            },
-            version: 1,
-        }),
-        JSON.stringify({
-            settings: {
-                ...validSettings,
-                formatter: {
-                    ...validSettings.formatter,
-                    fullWidthRatio: 1,
-                },
-            },
-            version: 1,
-        }),
+        ...invalidSettings.map((settings) =>
+            JSON.stringify({ settings, version: 3 }),
+        ),
     ];
 
     for (const serialized of invalidValues) {
@@ -95,7 +85,7 @@ test("invalid formatter settings fall back to defaults", () => {
     }
 });
 
-test("unavailable storage never blocks formatting defaults", () => {
+test("unavailable storage never blocks formatter defaults", () => {
     const unavailable = createFormatterSettingsStore(() => undefined);
     const inaccessible = createFormatterSettingsStore(() => {
         throw new Error("storage denied");
@@ -112,6 +102,28 @@ test("unavailable storage never blocks formatting defaults", () => {
         /storage denied/u,
     );
 });
+
+function createConfiguredSettings(): FormatterSettings {
+    return {
+        fullPageReferencePreviews: true,
+        formatter: {
+            characterWidthRatio: "2:1",
+            firstParameterLayout: "compact",
+            formatFirstParameter: true,
+            formatSubsequentParameters: true,
+            indentBlockTemplates: true,
+            indentSpaces: 4,
+            normalizeConversion: true,
+            subsequentParameterLayout: "align-names-and-values",
+        },
+        highlightMissing: true,
+        largeFont: true,
+        referencePreviews: false,
+        resolveRedirects: true,
+        resolveTemplateRedirects: true,
+        smallReferenceText: false,
+    };
+}
 
 class MemorySettingsStorage {
     private readonly values = new Map<string, string>();

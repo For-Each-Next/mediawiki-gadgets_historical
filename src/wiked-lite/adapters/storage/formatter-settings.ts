@@ -7,11 +7,9 @@ import {
 } from "#gadget/domain/formatter-settings.ts";
 
 export const FORMATTER_SETTINGS_STORAGE_KEY =
-    "wiked-lite.formatter-settings.v2";
+    "wiked-lite.formatter-settings.v3";
 
-const LEGACY_FORMATTER_SETTINGS_STORAGE_KEY =
-    "wiked-lite.formatter-settings.v1";
-const FORMATTER_SETTINGS_VERSION = 2;
+const FORMATTER_SETTINGS_VERSION = 3;
 
 type SettingsStorage = Pick<Storage, "getItem" | "setItem">;
 
@@ -32,7 +30,7 @@ export function createFormatterSettingsStore(
                     FORMATTER_SETTINGS_STORAGE_KEY,
                 );
                 if (serialized == null) {
-                    return loadLegacySettings(storage);
+                    return createDefaultFormatterSettings();
                 }
                 return (
                     parseStoredFormatterSettings(JSON.parse(serialized)) ??
@@ -62,17 +60,6 @@ export function createFormatterSettingsStore(
     };
 }
 
-function loadLegacySettings(
-    storage: SettingsStorage | undefined,
-): FormatterSettings {
-    const serialized = storage?.getItem(LEGACY_FORMATTER_SETTINGS_STORAGE_KEY);
-    if (serialized == null) {
-        return createDefaultFormatterSettings();
-    }
-    const stored = parseStoredLegacySettings(JSON.parse(serialized));
-    return stored ?? createDefaultFormatterSettings();
-}
-
 function parseStoredFormatterSettings(
     value: unknown,
 ): FormatterSettings | undefined {
@@ -86,29 +73,6 @@ function parseStoredFormatterSettings(
         return undefined;
     }
     return parseFormatterSettings(value.settings);
-}
-
-function parseStoredLegacySettings(
-    value: unknown,
-): FormatterSettings | undefined {
-    if (
-        typeof value !== "object" ||
-        value == null ||
-        !("version" in value) ||
-        value.version !== 1 ||
-        !("settings" in value)
-    ) {
-        return undefined;
-    }
-    const defaults = createDefaultFormatterSettings();
-    return parseFormatterSettings({
-        ...defaults,
-        ...(isRecord(value.settings) ? value.settings : {}),
-    });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value != null && !Array.isArray(value);
 }
 
 function getLocalStorage(): Storage | undefined {

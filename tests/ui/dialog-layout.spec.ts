@@ -105,12 +105,26 @@ test("wikEd formatter restores explicitly saved settings", async ({
 }) => {
     await loadStoryPage(page, "wiked-lite", "en");
     await mountStory(page, "wiked-formatter");
-    const compactFirst = page.locator(
+    const firstGroup = page.getByRole("group", {
+        name: "First parameter on each line",
+    });
+    const laterGroup = page.getByRole("group", {
+        name: "Subsequent parameters on the same line",
+    });
+    const formatFirst = firstGroup.getByRole("checkbox", {
+        name: "Enable custom layout",
+    });
+    const formatLater = laterGroup.getByRole("checkbox", {
+        name: "Enable custom layout",
+    });
+    const compactFirst = firstGroup.locator(
         'input[name="first-parameter-layout"][value="compact"]',
     );
-    const compactLater = page.locator(
+    const compactLater = laterGroup.locator(
         'input[name="subsequent-parameter-layout"][value="compact"]',
     );
+    await formatFirst.check();
+    await formatLater.check();
     await compactFirst.check();
     await compactLater.check();
     await page.getByRole("button", { name: "Save current settings" }).click();
@@ -120,14 +134,16 @@ test("wikEd formatter restores explicitly saved settings", async ({
 
     await mountStory(page, "wiked-formatter");
 
+    await expect(formatFirst).toBeChecked();
+    await expect(formatLater).toBeChecked();
     await expect(compactFirst).toBeChecked();
     await expect(compactLater).toBeChecked();
 });
 
-test("wikEd saves editor switches from the other tab", async ({ page }) => {
+test("wikEd saves switches from the editor-display tab", async ({ page }) => {
     await loadStoryPage(page, "wiked-lite", "en");
     await mountStory(page, "wiked-formatter");
-    await page.getByRole("tab", { name: "Other" }).click();
+    await page.getByRole("tab", { name: "Editor display" }).click();
     const missingLinks = page.getByRole("switch", {
         name: /Highlight links to nonexistent pages/u,
     });
@@ -135,9 +151,78 @@ test("wikEd saves editor switches from the other tab", async ({ page }) => {
     await page.getByRole("button", { name: "Save current settings" }).click();
 
     await mountStory(page, "wiked-formatter");
-    await page.getByRole("tab", { name: "Other" }).click();
+    await page.getByRole("tab", { name: "Editor display" }).click();
     await expect(missingLinks).toBeChecked();
 });
+
+test("wikEd enforces and remembers dependent formatter choices", async ({
+    page,
+}) => {
+    await loadStoryPage(page, "wiked-lite", "en");
+    await mountStory(page, "wiked-formatter");
+    await verifyIndentDependency(page);
+    await verifyFirstLayoutDependency(page);
+    await verifyRedirectDependency(page);
+});
+
+async function verifyIndentDependency(page: Page): Promise<void> {
+    const save = page.getByRole("button", { name: "Save current settings" });
+    const group = page.getByRole("group", { name: "Nested indentation" });
+    const indent = group.getByRole("checkbox", {
+        name: "Indent by nesting level",
+    });
+    const spaces = group.getByRole("spinbutton", { name: "Spaces per level" });
+
+    await expect(spaces).toBeDisabled();
+    await indent.check();
+    await spaces.fill("9");
+    await expect(save).toBeDisabled();
+    await indent.uncheck();
+    await expect(spaces).toBeDisabled();
+    await expect(spaces).toHaveValue("2");
+    await expect(save).toBeEnabled();
+}
+
+async function verifyFirstLayoutDependency(page: Page): Promise<void> {
+    const group = page.getByRole("group", {
+        name: "First parameter on each line",
+    });
+    const formatFirst = group.getByRole("checkbox", {
+        name: "Enable custom layout",
+    });
+    const compactFirst = group.locator(
+        'input[name="first-parameter-layout"][value="compact"]',
+    );
+    await expect(compactFirst).toBeDisabled();
+    await formatFirst.check();
+    await compactFirst.check();
+    await formatFirst.uncheck();
+    await expect(compactFirst).toBeDisabled();
+    await expect(compactFirst).toBeChecked();
+    await formatFirst.check();
+    await expect(compactFirst).toBeEnabled();
+    await expect(compactFirst).toBeChecked();
+}
+
+async function verifyRedirectDependency(page: Page): Promise<void> {
+    await page.getByRole("tab", { name: "Other formatting options" }).click();
+    const group = page.getByRole("group", { name: "Redirect scope" });
+    const redirects = group.getByRole("checkbox", {
+        name: /Replace wikilink redirects/u,
+    });
+    const templateRedirects = group.getByRole("checkbox", {
+        name: "Also replace template redirects",
+    });
+    await expect(templateRedirects).toBeDisabled();
+    await redirects.check();
+    await templateRedirects.check();
+    await redirects.uncheck();
+    await expect(templateRedirects).toBeDisabled();
+    await expect(templateRedirects).toBeChecked();
+    await redirects.check();
+    await expect(templateRedirects).toBeEnabled();
+    await expect(templateRedirects).toBeChecked();
+}
 
 async function inspectAllStories(
     context: BrowserContext,

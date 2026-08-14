@@ -7,7 +7,9 @@ import {
 } from "#shared/mediawiki/notifications";
 
 import {
+    applyTemplateRedirects,
     applyWikiLinkRedirects,
+    collectTemplateTitles,
     collectWikiLinkTitles,
     lookupWikiLinks,
 } from "#gadget/adapters/mediawiki/wiki-links.ts";
@@ -20,6 +22,7 @@ import type { EditorServices } from "#gadget/contracts/editor.ts";
 import { collectLinkHelperTitles } from "#gadget/domain/highlighter.ts";
 import {
     createWikiNamespaceResolver,
+    type WikiNamespaceState,
     type WikiNamespaceResolver,
 } from "#gadget/adapters/mediawiki/namespaces.ts";
 import { startEditorIntegration } from "#gadget/ui/editor.ts";
@@ -79,8 +82,8 @@ function createEditorServices(
         logger: uiLogger,
         loadPageSource: () => loadCurrentPageSource(mediaWikiLogger),
         notify,
-        resolveRedirects: (source) =>
-            resolveRedirects(source, namespaces, mediaWikiLogger),
+        resolveRedirects: (source, options) =>
+            resolveRedirects(source, options, namespaces, mediaWikiLogger),
         saveFormatterSettings: formatterSettings.save,
     };
 }
@@ -150,25 +153,32 @@ async function findMissingLinks(
 
 async function resolveRedirects(
     source: string,
+    options: { includeTemplates: boolean },
     namespaces: WikiNamespaceResolver,
     logger: Logger,
 ): Promise<string> {
     const api = new mw.Api();
-    const namespaceState = await namespaces.load(api);
-    if (!namespaceState.redirectsSafe) {
+    const state = await namespaces.load(api);
+    if (!state.redirectsSafe) {
         logger.info("redirects.skipped", { reason: "unsafe-namespaces" });
         return source;
     }
-    const titles = collectWikiLinkTitles(source);
+    const includeTemplates = allowTemplateRedirects(
+        options.includeTemplates,
+        state,
+        logger,
+    );
+    const titles = collectRedirectTitles(source, includeTemplates, state);
     const stopTimer = logger.startTimer("redirects.lookup", {
         itemCount: titles.length,
     });
     try {
         const result = await lookupWikiLinks(api, titles);
-        const updated = applyWikiLinkRedirects(
+        const updated = applyRedirects(
             source,
             result.redirects,
-            namespaceState.source,
+            state,
+            includeTemplates,
         );
         stopTimer({ redirectCount: result.redirects.size });
         return updated;
@@ -180,4 +190,56 @@ async function resolveRedirects(
         stopTimer({ outcome: "failed" });
         throw error;
     }
+}
+
+function allowTemplateRedirects(
+    requested: boolean,
+    state: WikiNamespaceState,
+    logger: Logger,
+): boolean {
+    if (requested && !state.templateRedirectsSafe) {
+        logger.info("redirects.templates.skipped", {
+            reason: "unsafe-magic-words",
+        });
+    }
+    return requested && state.templateRedirectsSafe;
+}
+
+function collectRedirectTitles(
+    source: string,
+    includeTemplates: boolean,
+    state: WikiNamespaceState,
+): string[] {
+    const titles = collectWikiLinkTitles(source);
+    if (includeTemplates) {
+        titles.push(
+            ...collectTemplateTitles(
+                source,
+                state.source,
+                state.templateMagicWords,
+            ),
+        );
+    }
+    return [...new Set(titles)];
+}
+
+function applyRedirects(
+    source: string,
+    redirects: ReadonlyMap<string, string>,
+    state: WikiNamespaceState,
+    includeTemplates: boolean,
+): string {
+    const linksUpdated = applyWikiLinkRedirects(
+        source,
+        redirects,
+        state.source,
+    );
+    return includeTemplates
+        ? applyTemplateRedirects(
+              linksUpdated,
+              redirects,
+              state.source,
+              state.templateMagicWords,
+          )
+        : linksUpdated;
 }

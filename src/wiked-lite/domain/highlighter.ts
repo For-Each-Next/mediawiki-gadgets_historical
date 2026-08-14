@@ -20,6 +20,12 @@ import {
     type TemplateHeadSyntax,
 } from "#gadget/domain/magic-words.ts";
 import {
+    findConversionKeyRanges,
+    findLanguageConversionRanges,
+    isNoteTAConversionParameter,
+    isNoteTAName,
+} from "#gadget/domain/conversion-rules.ts";
+import {
     partitionHighlightRanges,
     type HighlightRange as DecoratedRange,
     type HighlightSegment,
@@ -94,16 +100,6 @@ const LITERAL_TOKEN_CLASSES: Readonly<Record<string, string>> = {
     templatedata: "wiked-lite-token--pre",
     timeline: "wiked-lite-token--score",
 };
-const NOTE_TA_NAMES = new Set([
-    "noteta",
-    "ta",
-    "noteat",
-    "noteta/default",
-    "note ta",
-    "noteta-lite",
-    "ta-lite",
-    "tal",
-]);
 const FILE_LITERAL_OPTIONS = new Set([
     "baseline",
     "border",
@@ -1538,18 +1534,20 @@ function createLanguageConversionDecorations(
     if (!enabled) {
         return [];
     }
-    return [...source.matchAll(/-\{[\s\S]*?\}-/gu)].flatMap(
-        function decorate(match) {
-            const start = match.index;
-            const end = start + match[0].length;
+    return findLanguageConversionRanges(source).flatMap(
+        function decorate(range) {
             return [
                 {
                     className: "wiked-lite-token--language-conversion",
-                    end,
+                    end: range.end,
                     priority: 35,
-                    start,
+                    start: range.start,
                 },
-                ...decorateLanguageVariants(source, start + 2, end - 2),
+                ...decorateLanguageVariants(
+                    source,
+                    range.bodyStart,
+                    range.bodyEnd,
+                ),
             ];
         },
     );
@@ -1565,11 +1563,7 @@ function createNoteTAConversionDecorations(
         return [];
     }
     return template.params.flatMap(function decorate(parameter) {
-        const eligible =
-            parameter.positional ||
-            parameter.name === "t" ||
-            /^\d+$/u.test(parameter.name);
-        if (!eligible) {
+        if (!isNoteTAConversionParameter(parameter)) {
             return [];
         }
         const range = decorateParameterValue(
@@ -1599,104 +1593,6 @@ function decorateLanguageVariants(
         className: "wiked-lite-token--language-variant",
         priority: 55,
     }));
-}
-
-function findConversionKeyRanges(
-    source: string,
-    start: number,
-    end: number,
-): SourceRange[] {
-    const body = source.slice(start, end);
-    return splitHighlightRanges(body, ";").flatMap(function findKey(part) {
-        const key = findConversionDeclarationKey(part.value);
-        return key == null
-            ? []
-            : [
-                  {
-                      end: start + part.start + key.end,
-                      start: start + part.start + key.start,
-                  },
-              ];
-    });
-}
-
-function findConversionDeclarationKey(
-    declaration: string,
-): SourceRange | null {
-    const ordinary = findConversionDestinationKey(declaration, 0);
-    const arrow = findConversionArrow(declaration);
-    if (arrow == null || (ordinary != null && ordinary.colon < arrow.start)) {
-        return ordinary?.range ?? null;
-    }
-    return (
-        findConversionDestinationKey(declaration, arrow.end)?.range ??
-        ordinary?.range ??
-        null
-    );
-}
-
-function findConversionDestinationKey(
-    declaration: string,
-    destinationStart: number,
-): { colon: number; range: SourceRange } | null {
-    const destination = declaration.slice(destinationStart);
-    const colon = getFirstTopLevelSeparator(destination, ":");
-    if (colon == null) {
-        return null;
-    }
-    const keySource = destination.slice(0, colon);
-    const keyParts = splitHighlightRanges(keySource, "|");
-    const keyPart = keyParts.at(-1);
-    if (keyPart == null) {
-        return null;
-    }
-    const keyStart = destinationStart + keyPart.start;
-    const enteredKey = declaration.slice(
-        keyStart,
-        destinationStart + keyPart.end,
-    );
-    const scanKey = maskSourceRanges(
-        enteredKey,
-        createHighlightQuery(enteredKey).comment.getAll(),
-    );
-    const keyRange = trimSourceRange(scanKey, 0, scanKey.length);
-    const key = scanKey.slice(keyRange.start, keyRange.end);
-    const range = {
-        end: keyStart + keyRange.end,
-        start: keyStart + keyRange.start,
-    };
-    return /^[\p{L}\p{N}_-]+$/u.test(key)
-        ? { colon: destinationStart + colon, range }
-        : null;
-}
-
-function findConversionArrow(declaration: string): SourceRange | undefined {
-    const query = createHighlightQuery(declaration);
-    const masked = maskSourceRanges(declaration, [
-        ...query.opaque.getAll(),
-        ...createTagMarkupRanges(declaration),
-    ]);
-    const maskedQuery = createHighlightQuery(masked);
-    const equalsParts = maskedQuery.splitRanges("=");
-    const literalArrows = equalsParts
-        .slice(0, -1)
-        .flatMap((part) =>
-            declaration[part.end + 1] === ">"
-                ? [{ end: part.end + 2, start: part.end }]
-                : [],
-        );
-    const encodedArrows = maskedQuery.templates
-        .getAll()
-        .flatMap((template) =>
-            template.depth === 0 &&
-            wikitext.template.normalizeName(template.name) === "=" &&
-            declaration[template.end] === ">"
-                ? [{ end: template.end + 1, start: template.start }]
-                : [],
-        );
-    return [...literalArrows, ...encodedArrows].toSorted(
-        (left, right) => left.start - right.start,
-    )[0];
 }
 
 function getFirstTopLevelSeparator(
@@ -1747,10 +1643,6 @@ function maskSourceRanges(source: string, ranges: SourceRange[]): string {
         cursor = range.end;
     }
     return masked + source.slice(cursor);
-}
-
-function isNoteTAName(name: string): boolean {
-    return NOTE_TA_NAMES.has(name) || /^全文字[詞词][轉转][換换]$/u.test(name);
 }
 
 function createPatternDecorations(source: string): DecoratedRange[] {

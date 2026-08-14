@@ -40,10 +40,10 @@ before saving the page.
   every edit immediately to the native submitted textarea.
 - Preserves Undo and Redo across live highlighting refreshes while excluding
   the hidden native textarea from duplicate browser Find results.
-- Highlights references and short footnotes in small purple text, explanatory
-  footnotes in small blue text, parser-function and variable heads in red, bold
-  and italic apostrophe markup, table syntax, parameter names, and nested
-  templates; nested notes keep one small-text level.
+- Highlights references and short footnotes in purple, explanatory footnotes in
+  blue, parser-function and variable heads in red, bold and italic apostrophe
+  markup, table syntax, parameter names, and nested templates. References and
+  notes can use a single smaller-text level independently.
 - Colors protocol-relative external-link targets and labels and recognizes
   inline definition-list separators inside multiline template data.
 - Resets template depth inside native and `Reflist` reference definitions, and
@@ -64,16 +64,19 @@ before saving the page.
   without Template navigation, while static `#invoke` operands open their
   Module pages.
 - Applies conservative wikEd-style basic fixes to the selection or whole page,
-  with independent first-parameter and same-line parameter-column layouts.
-  Later parameters can preserve entered spacing, become compact, align by
-  column, or use complete column alignment; named and positional parameters
-  remain distinct.
-- Splits block-template layout from other settings in a tabbed formatter and
-  saves its complete configuration from the dialog footer when requested.
-  Chinese-conversion cleanup, redirect replacement, live target-only missing-
-  page highlighting, reference previews, and whole-page reference lookup remain
-  optional; headings gain surrounding blank lines without separating
-  `DEFAULTSORT` from later content.
+  with optional 0–8-space nesting indentation and independent layouts for the
+  first and later parameters on each line. Alignment can measure Chinese and
+  English characters at a 5:3 or 2:1 width ratio.
+- Organizes block templates, other formatting, and editor display into three
+  tabs, and saves the complete configuration from the dialog footer. Optional
+  conversion cleanup preserves rule values while fixing top-level semicolons in
+  recognized `{{NoteTA}}` and `-{...}-` rules, while leaving no-conversion
+  terms untouched; redirect replacement can include safe static template
+  transclusions.
+- Offers live large text, small reference and note text, target-only missing-
+  page highlighting, reference previews, and whole-page reference lookup.
+  Headings gain surrounding blank lines without separating `DEFAULTSORT` from
+  later content.
 - Recognizes every English and Chinese Wikipedia namespace alias from bundled
   catalogs, and loads local namespace siteinfo in the background on other
   wikis.
@@ -84,8 +87,9 @@ before saving the page.
 The enhanced editor does not replace the submitted textarea. It avoids pages
 where another editor has hidden that textarea. Network-backed redirect
 replacement, missing-link highlighting, and whole-page reference lookup remain
-optional. Their API requests do not block editing, and failed preview lookups
-retain section-local analysis.
+optional. Missing-link and reference lookups run without blocking editing;
+redirect lookup may delay an explicitly requested formatting run. Failed
+preview lookups retain section-local analysis.
 
 ## Development
 
@@ -144,7 +148,7 @@ index.ts
 
 ## License
 
-The project-owned portions of wikEd Lite 0.5.1 are dedicated under [CC0 1.0
+The project-owned portions of wikEd Lite 0.5.2 are dedicated under [CC0 1.0
 Universal][7]. It credits Cacycle as the original author of [wikEd][5] and its
 lightweight editing ideas. The rebuild also acknowledges [Remember the dot's
 Syntax highlighter][6] as an inspiration. The package [license][8] fixes this

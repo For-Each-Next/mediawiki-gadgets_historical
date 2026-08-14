@@ -2,21 +2,41 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { decodeNamespaceCatalog } from "@mediawiki-gadgets/shared/wiki-titles";
 import {
+    applyTemplateRedirects,
     applyWikiLinkRedirects,
+    collectTemplateTitles,
     collectWikiLinkTitles,
     lookupWikiLinks,
 } from "wiked-lite/adapters/mediawiki/wiki-links.ts";
+import type {
+    MagicWordAliases,
+    TemplateMagicWordCatalog,
+} from "wiked-lite/domain/magic-words.ts";
 
 const EXAMPLE_NAMESPACE_CATALOG = decodeNamespaceCatalog("examplewiki", {
     query: {
-        namespacealiases: [{ alias: "Image", id: 6 }],
+        namespacealiases: [
+            { alias: "Image", id: 6 },
+            { alias: "TM", id: 10 },
+        ],
         namespaces: {
             0: { id: 0, name: "" },
             6: { canonical: "File", id: 6, name: "Datei" },
             10: { canonical: "Template", id: 10, name: "Vorlage" },
+            12: { canonical: "Help", id: 12, name: "Hilfe" },
             14: { canonical: "Category", id: 14, name: "Kategorie" },
         },
     },
+});
+
+const EXAMPLE_MAGIC_WORDS: TemplateMagicWordCatalog = Object.freeze({
+    functions: aliases(["lokalfunktion"]),
+    modifiers: Object.freeze({
+        message: aliases(["nachricht", "nachrichtnw"]),
+        raw: aliases(["roh"]),
+        substitution: aliases(["ersetzen", "sicherersetzen"]),
+    }),
+    variables: aliases([], ["LOKALVARIABLE"]),
 });
 
 test("wikilink lookup input is deduplicated", () => {
@@ -48,6 +68,155 @@ test("wikilink lookup includes links nested in file captions", () => {
     assert.deepEqual(
         collectWikiLinkTitles("[[File:Old.svg|caption [[Foo]]]]"),
         ["File:Old.svg", "Foo"],
+    );
+});
+
+test("template lookup collects local static transclusions", () => {
+    assert.deepEqual(
+        collectTemplateTitles(
+            [
+                "{{Old}}",
+                "{{ Template:Second |x}}",
+                "{{Vorlage:Third}}",
+                "{{Example:Variant}}",
+                "{{Outer|nested={{Inner}}}}",
+                "{{Old}}",
+            ].join(" "),
+            EXAMPLE_NAMESPACE_CATALOG,
+            EXAMPLE_MAGIC_WORDS,
+        ),
+        [
+            "Vorlage:Old",
+            "Vorlage:Second",
+            "Vorlage:Third",
+            "Vorlage:Example:Variant",
+            "Vorlage:Outer",
+            "Vorlage:Inner",
+        ],
+    );
+});
+
+test("template lookup excludes unsafe transclusion heads", () => {
+    const source = [
+        "{{subst:Old}}",
+        "{{safesubst:Old}}",
+        "{{msg:Old}}",
+        "{{msgnw:Old}}",
+        "{{raw:Old}}",
+        "{{DEFAULTSORT:Old}}",
+        "{{CURRENTYEAR}}",
+        "{{lc:Old}}",
+        "{{#if:x|Old}}",
+        "{{{{{dynamic}}}}}",
+        "{{Foo{{{suffix}}}}}",
+        "{{:Article}}",
+        "{{Help:Old}}",
+        "{{File:Old.svg}}",
+        "{{Old#fragment}}",
+    ].join(" ");
+
+    assert.deepEqual(
+        collectTemplateTitles(
+            source,
+            EXAMPLE_NAMESPACE_CATALOG,
+            EXAMPLE_MAGIC_WORDS,
+        ),
+        [],
+    );
+});
+
+test("non-bundled wikis require a magic-word catalog", () => {
+    const source = "{{Old}} [[Old]]";
+    const redirects = new Map([
+        ["Pattern:Old", "Template:New"],
+        ["Old", "Target"],
+    ]);
+
+    assert.deepEqual(
+        collectTemplateTitles(source, EXAMPLE_NAMESPACE_CATALOG),
+        [],
+    );
+    assert.equal(
+        applyTemplateRedirects(source, redirects, EXAMPLE_NAMESPACE_CATALOG),
+        source,
+    );
+    assert.equal(
+        applyWikiLinkRedirects(source, redirects, EXAMPLE_NAMESPACE_CATALOG),
+        "{{Old}} [[Target|Old]]",
+    );
+});
+
+test("loaded aliases exclude localized template-like syntax", () => {
+    const source =
+        "{{lokalfunktion：x}} {{LOKALVARIABLE}} {{ersetzen:Old}} " +
+        "{{Ordinary}} {{lokalvariable}}";
+
+    assert.deepEqual(
+        collectTemplateTitles(
+            source,
+            EXAMPLE_NAMESPACE_CATALOG,
+            EXAMPLE_MAGIC_WORDS,
+        ),
+        ["Vorlage:Ordinary", "Vorlage:lokalvariable"],
+    );
+    const redirects = new Map([
+        ["Vorlage:lokalfunktion：x", "Template:Wrong function"],
+        ["Vorlage:LOKALVARIABLE", "Template:Wrong variable"],
+        ["Vorlage:ersetzen:Old", "Template:Wrong modifier"],
+        ["Vorlage:Ordinary", "Template:Target"],
+        ["Vorlage:lokalvariable", "Template:Lower target"],
+    ]);
+    assert.equal(
+        applyTemplateRedirects(
+            source,
+            redirects,
+            EXAMPLE_NAMESPACE_CATALOG,
+            EXAMPLE_MAGIC_WORDS,
+        ),
+        "{{lokalfunktion：x}} {{LOKALVARIABLE}} {{ersetzen:Old}} " +
+            "{{Target}} {{Lower target}}",
+    );
+});
+
+test("magic-word collisions remain ordinary template candidates", () => {
+    assert.deepEqual(
+        collectTemplateTitles(
+            "{{CURRENTDAYNAME|x}} {{Template:CURRENTYEAR}} " +
+                "{{defaultsort:key}}",
+        ),
+        [
+            "Template:CURRENTDAYNAME",
+            "Template:CURRENTYEAR",
+            "Template:defaultsort:key",
+        ],
+    );
+});
+
+test("template lookup uses current-wiki magic-word aliases", () => {
+    assert.deepEqual(
+        collectTemplateTitles(
+            "{{替換:Old}} {{訊息:Old}} {{原始:Old}} " +
+                "{{默认排序:Old}} {{页名}} {{#调用:Module|main}}",
+            "zhwiki",
+        ),
+        [],
+    );
+});
+
+test("dynamic outer heads do not hide ordinary nested calls", () => {
+    assert.deepEqual(
+        collectTemplateTitles("{{ {{Old}} }} {{Prefix {{Inner}}}}"),
+        ["Template:Old", "Template:Inner"],
+    );
+});
+
+test("template lookup ignores comments and literal tag contents", () => {
+    assert.deepEqual(
+        collectTemplateTitles(
+            "<!-- {{Comment}} --><nowiki>{{Literal}}</nowiki> " +
+                "<pre>{{Pre}}</pre> {{Visible}}",
+        ),
+        ["Template:Visible"],
     );
 });
 
@@ -120,6 +289,16 @@ test("redirect rewriting does not add labels to embedded links", () => {
     );
 });
 
+function aliases(
+    caseInsensitive: string[] = [],
+    caseSensitive: string[] = [],
+): MagicWordAliases {
+    return Object.freeze({
+        caseInsensitive: new Set(caseInsensitive),
+        caseSensitive: new Set(caseSensitive),
+    });
+}
+
 test("redirect rewriting keeps cross-namespace embeds unchanged", () => {
     const redirects = new Map([
         ["Category:Old", "Article"],
@@ -177,6 +356,63 @@ test("redirect rewriting ignores comments and literal tag contents", () => {
     );
 });
 
+test("template redirect rewriting preserves entered namespace style", () => {
+    const redirects = new Map([
+        ["Vorlage:Old", "Template:New"],
+        ["Vorlage:Second", "Template:New second"],
+        ["Vorlage:Third", "Template:New third"],
+    ]);
+
+    assert.equal(
+        applyTemplateRedirects(
+            "{{ Old }} {{ Vorlage :  Second |x}} {{TM:Third}}",
+            redirects,
+            EXAMPLE_NAMESPACE_CATALOG,
+            EXAMPLE_MAGIC_WORDS,
+        ),
+        "{{ New }} {{ Vorlage :  New second |x}} {{TM:New third}}",
+    );
+});
+
+test("template redirect rewriting handles nested ordinary calls", () => {
+    const redirects = new Map([
+        ["Template:Outer", "Template:Outer target"],
+        ["Template:Inner", "Template:Inner target"],
+    ]);
+
+    assert.equal(
+        applyTemplateRedirects("{{Outer|value={{Inner|x}}}}", redirects),
+        "{{Outer target|value={{Inner target|x}}}}",
+    );
+});
+
+test("template redirect rewriting skips cross-namespace targets", () => {
+    const redirects = new Map([
+        ["Template:Article", "Article"],
+        ["Template:Help", "Help:Target"],
+        ["Template:Category", "Category:Target"],
+        ["Template:Fragment", "Template:Target#Section"],
+    ]);
+    const source =
+        "{{Article}} {{Help}} {{Category}} {{Fragment}} " +
+        "{{:Article}} {{Help:Entered}} {{Old#Section}}";
+
+    assert.equal(applyTemplateRedirects(source, redirects), source);
+});
+
+test("template redirect rewriting leaves protected source untouched", () => {
+    const redirects = new Map([["Template:Old", "Template:New"]]);
+    const source =
+        "<!-- {{Old}} --><nowiki>{{Old}}</nowiki>" +
+        "<pre>{{Old}}</pre> {{Old}}";
+
+    assert.equal(
+        applyTemplateRedirects(source, redirects),
+        "<!-- {{Old}} --><nowiki>{{Old}}</nowiki>" +
+            "<pre>{{Old}}</pre> {{New}}",
+    );
+});
+
 test("redirect lookup retains target fragments", async () => {
     const api = {
         async get() {
@@ -199,6 +435,26 @@ test("redirect lookup retains target fragments", async () => {
 
     assert.deepEqual([...lookup.redirects], [["Foo", "Target#Default"]]);
     assert.deepEqual([...lookup.missing], []);
+});
+
+test("redirect lookup keeps the MediaWiki title batch limit", async () => {
+    const batchSizes: number[] = [];
+    const api = {
+        async get(parameters: Record<string, unknown>) {
+            const titles = String(parameters.titles).split("|");
+            batchSizes.push(titles.length);
+            return {
+                query: {
+                    pages: titles.map((title) => ({ title })),
+                },
+            };
+        },
+    };
+    const titles = Array.from({ length: 101 }, (_, index) => `Page ${index}`);
+
+    await lookupWikiLinks(api, titles);
+
+    assert.deepEqual(batchSizes, [50, 50, 1]);
 });
 
 test("API title mappings do not conflate case-distinct pages", async () => {

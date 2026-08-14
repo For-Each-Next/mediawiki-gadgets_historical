@@ -28,23 +28,21 @@ const styles = await readFile(
     "utf8",
 );
 
-test("uses two tabs and a custom responsive action footer", () => {
+test("uses three tabs and a responsive custom footer", () => {
     const parsed = parse(template, { filename: dialogPath });
-    const descriptor = parsed.descriptor;
-    const source = descriptor.template?.content;
+    const source = parsed.descriptor.template?.content;
 
     assert.deepEqual(parsed.errors, []);
     assert.ok(source);
-    assert.equal(descriptor.script, null);
-    assert.deepEqual(descriptor.styles, []);
+    assert.equal(parsed.descriptor.script, null);
+    assert.deepEqual(parsed.descriptor.styles, []);
     assert.match(source, /^\s*<cdx-dialog\b/u);
     assert.match(source, /:title="msg\('dialog\.title'\)"/u);
     assert.match(source, /:lang="interfaceLocale"/u);
-    assert.doesNotMatch(source, /:primary-action=|:default-action=/u);
-    assert.match(source, /<cdx-tabs>/u);
-    assert.equal(source.match(/<cdx-tab\b/gu)?.length, 2);
+    assert.equal(source.match(/<cdx-tab\b/gu)?.length, 3);
     assert.match(source, /name="block-templates"/u);
-    assert.match(source, /name="other"/u);
+    assert.match(source, /name="other-formatting"/u);
+    assert.match(source, /name="editor-display"/u);
     assert.match(source, /<template #footer>/u);
     assert.equal(source.match(/<cdx-button\b/gu)?.length, 3);
     assert.equal(source.match(/type="button"/gu)?.length, 3);
@@ -52,112 +50,62 @@ test("uses two tabs and a custom responsive action footer", () => {
     assert.match(source, /weight="primary"/u);
     assert.match(styles, /\.wiked-lite-dialog__footer/u);
     assert.match(styles, /max-width: 639px/u);
+
     const compiled = compileTemplate({
         filename: dialogPath,
         id: "wiked-lite-formatter",
         source,
     });
-
     assert.deepEqual(compiled.errors, []);
 });
 
-test("uses Codex controls and a real policy link", () => {
-    assert.match(template, /msg\("dialog\.layout"\)/u);
-    assert.match(template, /msg\("dialog\.advanced"\)/u);
-    assert.match(template, /msg\("dialog\.editorFeatures"\)/u);
-    assert.match(template, /input-value="5:3"/u);
-    assert.match(template, /input-value="2:1"/u);
-    assert.match(template, /input-value="align-separator"/u);
-    assert.match(template, /input-value="align-columns"/u);
-    assert.match(template, /input-value="align-columns-completely"/u);
+test("uses Codex controls with explicit dependent states", () => {
+    assert.equal(template.match(/<cdx-text-input\b/gu)?.length, 1);
+    assert.equal(template.match(/<cdx-toggle-switch\b/gu)?.length, 5);
+    assert.equal(template.match(/:is-fieldset="true"/gu)?.length, 7);
+    for (const message of [
+        "indentation",
+        "firstParameterGroup",
+        "subsequentParameterGroup",
+        "redirectScope",
+    ]) {
+        assert.match(
+            template,
+            new RegExp(`msg\\("dialog\\.${message}"\\)`, "u"),
+        );
+    }
+    assert.equal(
+        template.match(/msg\("dialog\.enableParameterLayout"\)/gu)?.length,
+        2,
+    );
+    assert.doesNotMatch(template, /dialog\.layoutMode/u);
+    assert.match(template, /input-type="number"/u);
+    assert.match(template, /min="0"/u);
+    assert.match(template, /max="8"/u);
+    assert.match(template, /:disabled="!indentBlockTemplates"/u);
+    assert.match(template, /:disabled="!formatFirstParameter"/u);
+    assert.match(template, /:disabled="!formatSubsequentParameters"/u);
+    assert.match(template, /:disabled="!resolveRedirects"/u);
+    assert.match(template, /input-value="align-values"/u);
+    assert.match(template, /input-value="align-names"/u);
+    assert.match(template, /input-value="align-names-and-values"/u);
     assert.equal(template.match(/input-value="compact"/gu)?.length, 2);
-    assert.equal(template.match(/input-value="preserve"/gu)?.length, 2);
-    assert.equal(template.match(/:inline="true"/gu)?.length, 2);
-    assert.match(template, /dialog\.alignColumnsTooltip/u);
-    assert.match(template, /dialog\.alignColumnsCompletelyTooltip/u);
-    assert.match(template, /dialog\.characterRatioFiveToThreeTooltip/u);
-    assert.match(template, /dialog\.characterRatioTwoToOneTooltip/u);
-    assert.match(template, /subsequentParameterLayout !== 'align-columns'/u);
-    assert.match(template, /:title=/u);
+    assert.doesNotMatch(template, /input-value="preserve"/u);
+    assert.match(template, /characterWidthRatio === '5:3'/u);
     assert.match(template, /<a\b[^>]*:href="notBrokenUrl"/u);
     assert.match(template, /target="_blank"/u);
     assert.match(template, /rel="noopener noreferrer"/u);
-    assert.doesNotMatch(
-        template,
-        /\[\[WP:NOTBROKEN\]\]|v-html|CdxTooltip|v-tooltip/u,
-    );
-    assert.doesNotMatch(template, /cdx-text-input|sortCategories/u);
-    assert.equal(template.match(/<cdx-toggle-switch\b/gu)?.length, 3);
-    assert.match(template, /updateHighlightMissing/u);
-    assert.match(template, /updateReferencePreviews/u);
-    assert.match(template, /updateFullPageReferencePreviews/u);
-    assert.doesNotMatch(styles, /\b(?:margin|padding)\b/u);
+    assert.doesNotMatch(template, /v-html|CdxTooltip|v-tooltip/u);
 });
 
-test("maps each character-width choice to its formatter ratio", async () => {
-    const choices = [
-        ["5:3", 5 / 3],
-        ["2:1", 2],
-    ] as const;
-
-    for (const [choice, expectedRatio] of choices) {
-        await assertCharacterWidthChoice(choice, expectedRatio);
-    }
-});
-
-async function assertCharacterWidthChoice(
-    choice: "2:1" | "5:3",
-    expectedRatio: number,
-): Promise<void> {
-    const submissions: FormatterDialogSelection[] = [];
-    let closed = false;
-    const bindings = createFormatterDialogBindings(createVueHarness(), {
-        initialSelection: createDefaultFormatterSettings(),
-        notBrokenUrl: "/wiki/WP:NOTBROKEN",
-        onClose() {
-            closed = true;
-        },
-        onError(error) {
-            assert.fail(`Unexpected formatter error: ${String(error)}`);
-        },
-        onFeatureChange() {},
-        onSave() {},
-        onSubmit(selection) {
-            submissions.push(selection);
-            return Promise.resolve();
-        },
-    });
-    bindings.firstParameterLayout.value = "align-separator";
-    bindings.subsequentParameterLayout.value = "align-columns-completely";
-    bindings.characterWidthRatio.value = choice;
-
-    await bindings.apply();
-
-    assert.equal(closed, true);
-    assert.equal(submissions[0]?.formatter.fullWidthRatio, expectedRatio);
-    assert.equal(
-        submissions[0]?.formatter.subsequentParameterLayout,
-        "align-columns-completely",
-    );
-}
-
-test(
-    "loads and saves every formatter choice without applying",
-    testConfiguredSettings,
-);
-
-async function testConfiguredSettings(): Promise<void> {
+test("loads, remembers, and saves every formatter setting", async () => {
     const settings = createConfiguredSettings();
     const saved: FormatterDialogSelection[] = [];
     const featureChanges: unknown[] = [];
-    let submitted = false;
-    let closed = false;
     const bindings = createFormatterDialogBindings(createVueHarness(), {
         initialSelection: settings,
         notBrokenUrl: "/wiki/WP:NOTBROKEN",
-        onClose() {
-            closed = true;
-        },
+        onClose() {},
         onError(error) {
             assert.fail(`Unexpected settings error: ${String(error)}`);
         },
@@ -167,99 +115,131 @@ async function testConfiguredSettings(): Promise<void> {
         onSave(selection) {
             saved.push(selection);
         },
+        async onSubmit() {},
+    });
+
+    assertConfiguredBindings(bindings);
+    changeSettings(bindings, featureChanges);
+
+    await bindings.saveCurrentSettings();
+
+    assert.equal(bindings.settingsSaved.value, true);
+    assert.deepEqual(saved, [createSavedSettings(settings)]);
+    bindings.formatFirstParameter.value = true;
+    bindings.markSettingsDirty();
+    assert.equal(bindings.settingsSaved.value, false);
+});
+
+function changeSettings(
+    bindings: ReturnType<typeof createFormatterDialogBindings>,
+    featureChanges: unknown[],
+): void {
+    bindings.formatFirstParameter.value = false;
+    bindings.formatSubsequentParameters.value = false;
+    assert.equal(bindings.firstParameterLayout.value, "compact");
+    assert.equal(
+        bindings.subsequentParameterLayout.value,
+        "align-names-and-values",
+    );
+
+    bindings.updateCharacterWidthRatio(true);
+    bindings.updateIndentSpaces(8);
+    bindings.updateLargeFont(false);
+    bindings.updateSmallReferenceText(true);
+
+    assert.deepEqual(featureChanges, [
+        expectedFeatures({ largeFont: false }),
+        expectedFeatures({ largeFont: false, smallReferenceText: true }),
+    ]);
+}
+
+function createSavedSettings(
+    settings: FormatterDialogSelection,
+): FormatterDialogSelection {
+    return {
+        ...settings,
+        formatter: {
+            ...settings.formatter,
+            characterWidthRatio: "5:3",
+            formatFirstParameter: false,
+            formatSubsequentParameters: false,
+            indentSpaces: 8,
+        },
+        largeFont: false,
+        smallReferenceText: true,
+    };
+}
+
+test("invalid indentation blocks formatting and saving", async () => {
+    let submitted = false;
+    let saved = false;
+    const bindings = createFormatterDialogBindings(createVueHarness(), {
+        initialSelection: createDefaultFormatterSettings(),
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
+        onClose() {},
+        onError() {},
+        onFeatureChange() {},
+        onSave() {
+            saved = true;
+        },
         async onSubmit() {
             submitted = true;
         },
     });
 
-    assertConfiguredBindings(bindings);
-
-    bindings.updateReferencePreviews(true);
-
-    assertFeatureChange(featureChanges);
-
-    await bindings.saveCurrentSettings();
-
+    bindings.updateIndentBlockTemplates(true);
+    for (const value of ["", -1, 1.5, 9]) {
+        bindings.updateIndentSpaces(value);
+        await bindings.apply();
+        await bindings.saveCurrentSettings();
+        assert.match(bindings.indentError.value, /integer from 0 through 8/u);
+    }
     assert.equal(submitted, false);
-    assert.equal(closed, false);
-    assert.equal(bindings.settingsSaved.value, true);
-    assert.equal(bindings.savingSettings.value, false);
-    assert.deepEqual(saved, [{ ...settings, referencePreviews: true }]);
-}
+    assert.equal(saved, false);
 
-function assertConfiguredBindings(
-    bindings: ReturnType<typeof createFormatterDialogBindings>,
-): void {
-    assert.equal(bindings.firstParameterLayout.value, "compact");
-    assert.equal(bindings.subsequentParameterLayout.value, "align-columns");
-    assert.equal(bindings.characterWidthRatio.value, "2:1");
-    assert.equal(bindings.indentPipes.value, true);
-    assert.equal(bindings.normalizeConversion.value, true);
-    assert.equal(bindings.resolveRedirects.value, true);
-    assert.equal(bindings.highlightMissing.value, true);
-    assert.equal(bindings.referencePreviews.value, false);
-    assert.equal(bindings.fullPageReferencePreviews.value, true);
-}
+    bindings.updateIndentBlockTemplates(false);
+    assert.equal(bindings.indentError.value, "");
+    assert.equal(bindings.indentSpaces.value, 2);
+    await bindings.saveCurrentSettings();
+    assert.equal(saved, true);
+});
 
-function assertFeatureChange(changes: unknown[]): void {
-    assert.deepEqual(changes, [
-        {
-            fullPageReferencePreviews: true,
-            highlightMissing: true,
-            referencePreviews: true,
-        },
-    ]);
-}
-
-function createConfiguredSettings(): FormatterDialogSelection {
-    return {
-        fullPageReferencePreviews: true,
-        formatter: {
-            firstParameterLayout: "compact",
-            fullWidthRatio: 2,
-            indentPipes: true,
-            normalizeConversion: true,
-            subsequentParameterLayout: "align-columns",
-        },
-        highlightMissing: true,
-        referencePreviews: false,
-        resolveRedirects: true,
-    };
-}
-
-test("reports formatter failures through the diagnostic port", async () => {
-    const failure = new Error("formatter failed");
-    const reported: unknown[] = [];
+test("busy formatting ignores dialog dismissal", async () => {
     let closed = false;
+    let finishFormatting = function finishNoop(): void {};
+    const formatting = new Promise<void>((resolve) => {
+        finishFormatting = resolve;
+    });
     const bindings = createFormatterDialogBindings(createVueHarness(), {
         initialSelection: createDefaultFormatterSettings(),
         notBrokenUrl: "/wiki/WP:NOTBROKEN",
         onClose() {
             closed = true;
         },
-        onError(error, operation) {
-            reported.push([error, operation]);
-        },
+        onError() {},
         onFeatureChange() {},
         onSave() {},
-        async onSubmit() {
-            throw failure;
+        onSubmit() {
+            return formatting;
         },
     });
 
-    await bindings.apply();
-
-    assert.deepEqual(reported, [[failure, "format"]]);
-    assert.equal(
-        bindings.error.value,
-        "Wikitext formatting failed. Review the source and try again.",
-    );
-    assert.equal(bindings.applying.value, false);
+    const applying = bindings.apply();
+    assert.equal(bindings.applying.value, true);
+    bindings.open.value = false;
+    bindings.onOpenChange(false);
+    assert.equal(bindings.open.value, true);
     assert.equal(closed, false);
+
+    finishFormatting();
+    await applying;
+    assert.equal(bindings.open.value, false);
+    assert.equal(closed, true);
 });
 
-test("keeps the dialog open when settings cannot be saved", async () => {
-    const failure = new Error("storage failed");
+test("reports formatter and storage failures without closing", async () => {
+    const formatFailure = new Error("formatter failed");
+    const storageFailure = new Error("storage failed");
     const reported: unknown[] = [];
     let closed = false;
     const bindings = createFormatterDialogBindings(createVueHarness(), {
@@ -273,22 +253,89 @@ test("keeps the dialog open when settings cannot be saved", async () => {
         },
         onFeatureChange() {},
         onSave() {
-            throw failure;
+            throw storageFailure;
         },
-        async onSubmit() {},
+        async onSubmit() {
+            throw formatFailure;
+        },
     });
 
-    await bindings.saveCurrentSettings();
-
-    assert.deepEqual(reported, [[failure, "save-settings"]]);
-    assert.equal(
-        bindings.error.value,
-        "Formatter settings could not be saved in this browser.",
-    );
-    assert.equal(bindings.settingsSaved.value, false);
-    assert.equal(bindings.savingSettings.value, false);
+    await bindings.apply();
+    assert.equal(bindings.applying.value, false);
     assert.equal(closed, false);
+    assert.match(bindings.error.value, /formatting failed/u);
+
+    await bindings.saveCurrentSettings();
+    assert.equal(bindings.savingSettings.value, false);
+    assert.equal(bindings.settingsSaved.value, false);
+    assert.equal(closed, false);
+    assert.match(bindings.error.value, /could not be saved/u);
+    assert.deepEqual(reported, [
+        [formatFailure, "format"],
+        [storageFailure, "save-settings"],
+    ]);
 });
+
+function assertConfiguredBindings(
+    bindings: ReturnType<typeof createFormatterDialogBindings>,
+): void {
+    assert.equal(bindings.firstParameterLayout.value, "compact");
+    assert.equal(
+        bindings.subsequentParameterLayout.value,
+        "align-names-and-values",
+    );
+    assert.equal(bindings.characterWidthRatio.value, "2:1");
+    assert.equal(bindings.formatFirstParameter.value, true);
+    assert.equal(bindings.formatSubsequentParameters.value, true);
+    assert.equal(bindings.indentBlockTemplates.value, true);
+    assert.equal(bindings.indentSpaces.value, 4);
+    assert.equal(bindings.normalizeConversion.value, true);
+    assert.equal(bindings.resolveRedirects.value, true);
+    assert.equal(bindings.resolveTemplateRedirects.value, true);
+    assert.equal(bindings.highlightMissing.value, true);
+    assert.equal(bindings.largeFont.value, true);
+    assert.equal(bindings.referencePreviews.value, false);
+    assert.equal(bindings.smallReferenceText.value, false);
+    assert.equal(bindings.fullPageReferencePreviews.value, true);
+}
+
+function createConfiguredSettings(): FormatterDialogSelection {
+    return {
+        fullPageReferencePreviews: true,
+        formatter: {
+            characterWidthRatio: "2:1",
+            firstParameterLayout: "compact",
+            formatFirstParameter: true,
+            formatSubsequentParameters: true,
+            indentBlockTemplates: true,
+            indentSpaces: 4,
+            normalizeConversion: true,
+            subsequentParameterLayout: "align-names-and-values",
+        },
+        highlightMissing: true,
+        largeFont: true,
+        referencePreviews: false,
+        resolveRedirects: true,
+        resolveTemplateRedirects: true,
+        smallReferenceText: false,
+    };
+}
+
+function expectedFeatures(
+    overrides: Partial<{
+        largeFont: boolean;
+        smallReferenceText: boolean;
+    }>,
+): unknown {
+    return {
+        fullPageReferencePreviews: true,
+        highlightMissing: true,
+        largeFont: true,
+        referencePreviews: false,
+        smallReferenceText: false,
+        ...overrides,
+    };
+}
 
 function createVueHarness(): VueModule {
     return {

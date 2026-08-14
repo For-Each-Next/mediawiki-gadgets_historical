@@ -5,18 +5,27 @@ import {
     type ParsedTemplateCall,
     type SourceRange,
 } from "#shared/wikitext";
+import {
+    findChineseConversionValueRanges,
+    normalizeChineseConversion,
+} from "#gadget/domain/conversion-rules.ts";
 
-export type FirstParameterLayout = "align-separator" | "compact" | "preserve";
+export type CharacterWidthRatio = "2:1" | "5:3";
+
+export type FirstParameterLayout = "align-values" | "compact";
 
 export type SubsequentParameterLayout =
-    "align-columns" | "align-columns-completely" | "compact" | "preserve";
+    "align-names" | "align-names-and-values" | "compact";
 
 export interface FormatterOptions {
-    firstParameterLayout?: FirstParameterLayout;
-    fullWidthRatio?: number;
-    indentPipes?: boolean;
-    normalizeConversion?: boolean;
-    subsequentParameterLayout?: SubsequentParameterLayout;
+    characterWidthRatio: CharacterWidthRatio;
+    firstParameterLayout: FirstParameterLayout;
+    formatFirstParameter: boolean;
+    formatSubsequentParameters: boolean;
+    indentBlockTemplates: boolean;
+    indentSpaces: number;
+    normalizeConversion: boolean;
+    subsequentParameterLayout: SubsequentParameterLayout;
 }
 
 export interface FormatterResult {
@@ -51,7 +60,10 @@ interface BlockTemplateColumn {
 interface BlockTemplateLayout {
     columns: Map<number, BlockTemplateColumn[]>;
     firstParameterLayout: FirstParameterLayout;
-    indentPipes: boolean;
+    formatFirstParameter: boolean;
+    formatSubsequentParameters: boolean;
+    indentBlockTemplates: boolean;
+    indentSpaces: number;
     ratio: number;
     subsequentParameterLayout: SubsequentParameterLayout;
 }
@@ -69,6 +81,16 @@ type FormatterVariableConstruct = "parameter" | "template";
 const EXPLANATORY_FOOTNOTE_PATTERN = /^efn(?:$|[- /])/u;
 const HEADING_PATTERN = /^(={1,6})(?![=])[ \t]*(.*?)[ \t]*\1[ \t]*$/gmu;
 const NORMALIZED_HEADING_PATTERN = /^(={1,6})(?![=]) .* \1$/u;
+const DEFAULT_FORMATTER_OPTIONS: FormatterOptions = {
+    characterWidthRatio: "5:3",
+    firstParameterLayout: "align-values",
+    formatFirstParameter: false,
+    formatSubsequentParameters: false,
+    indentBlockTemplates: false,
+    indentSpaces: 2,
+    normalizeConversion: false,
+    subsequentParameterLayout: "align-names",
+};
 
 /**
  * Applies basic fixes and explicitly selected layout changes.
@@ -79,29 +101,70 @@ const NORMALIZED_HEADING_PATTERN = /^(={1,6})(?![=]) .* \1$/u;
  */
 export function formatWikitext(
     source: string,
-    options: FormatterOptions = {},
+    options: Partial<FormatterOptions> = {},
 ): FormatterResult {
+    const resolved = resolveFormatterOptions(options);
     const protectedSource = protectOpaqueSource(source);
-    let text = normalizeBasicLayout(protectedSource.text);
-    text = numberExplanatoryFootnoteReferenceArguments(text);
-    if (options.normalizeConversion === true) {
+    let text = protectedSource.text;
+    if (resolved.normalizeConversion) {
         text = normalizeChineseConversion(text);
     }
-    if (shouldFormatBlockTemplates(options)) {
-        text = formatBlockTemplates(text, options);
+    const protectedConversions = protectSourceRanges(
+        text,
+        findChineseConversionValueRanges(text),
+    );
+    text = normalizeBasicLayout(protectedConversions.text);
+    text = numberExplanatoryFootnoteReferenceArguments(text);
+    if (shouldFormatBlockTemplates(resolved)) {
+        text = formatBlockTemplates(text, resolved);
     }
+    text = protectedConversions.restore(text);
     text = protectedSource.restore(text);
     return { changed: text !== source, text };
 }
 
+function resolveFormatterOptions(
+    options: Partial<FormatterOptions>,
+): FormatterOptions {
+    return {
+        characterWidthRatio:
+            options.characterWidthRatio === "2:1" ? "2:1" : "5:3",
+        firstParameterLayout:
+            options.firstParameterLayout === "compact"
+                ? "compact"
+                : "align-values",
+        formatFirstParameter: options.formatFirstParameter === true,
+        formatSubsequentParameters:
+            options.formatSubsequentParameters === true,
+        indentBlockTemplates: options.indentBlockTemplates === true,
+        indentSpaces: isValidIndentSpaces(options.indentSpaces)
+            ? options.indentSpaces
+            : DEFAULT_FORMATTER_OPTIONS.indentSpaces,
+        normalizeConversion: options.normalizeConversion === true,
+        subsequentParameterLayout: resolveSubsequentParameterLayout(
+            options.subsequentParameterLayout,
+        ),
+    };
+}
+
+function isValidIndentSpaces(value: unknown): value is number {
+    return Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 8;
+}
+
+function resolveSubsequentParameterLayout(
+    value: SubsequentParameterLayout | undefined,
+): SubsequentParameterLayout {
+    if (value === "align-names-and-values" || value === "compact") {
+        return value;
+    }
+    return DEFAULT_FORMATTER_OPTIONS.subsequentParameterLayout;
+}
+
 function shouldFormatBlockTemplates(options: FormatterOptions): boolean {
     return (
-        options.indentPipes === true ||
-        options.firstParameterLayout === "align-separator" ||
-        options.firstParameterLayout === "compact" ||
-        options.subsequentParameterLayout === "align-columns" ||
-        options.subsequentParameterLayout === "align-columns-completely" ||
-        options.subsequentParameterLayout === "compact"
+        options.indentBlockTemplates ||
+        options.formatFirstParameter ||
+        options.formatSubsequentParameters
     );
 }
 
@@ -204,28 +267,21 @@ function findFootnoteInsertionPoint(
     return argument == null ? [] : [argument.start];
 }
 
-function normalizeChineseConversion(source: string): string {
-    return source.replace(/-\{([\s\S]*?)\}-/gu, function normalize(_, body) {
-        const fixed = String(body)
-            .replace(/\s*;\s*/gu, "; ")
-            .replace(/;\s*$/u, "");
-        return `-{${fixed}}-`;
-    });
-}
-
 function formatBlockTemplates(
     source: string,
     options: FormatterOptions,
 ): string {
     const lines = scanBlockTemplateLines(source);
-    const ratio = options.fullWidthRatio ?? 5 / 3;
+    const ratio = options.characterWidthRatio === "2:1" ? 2 : 5 / 3;
     const layout: BlockTemplateLayout = {
         columns: new Map(),
-        firstParameterLayout: options.firstParameterLayout ?? "preserve",
-        indentPipes: options.indentPipes === true,
+        firstParameterLayout: options.firstParameterLayout,
+        formatFirstParameter: options.formatFirstParameter,
+        formatSubsequentParameters: options.formatSubsequentParameters,
+        indentBlockTemplates: options.indentBlockTemplates,
+        indentSpaces: options.indentSpaces,
         ratio,
-        subsequentParameterLayout:
-            options.subsequentParameterLayout ?? "preserve",
+        subsequentParameterLayout: options.subsequentParameterLayout,
     };
     layout.columns = getTemplateColumns(lines, layout);
     return lines.map((line) => formatBlockLine(line, layout)).join("\n");
@@ -374,9 +430,11 @@ function getTemplateColumns(
 
 function needsColumnMeasurements(layout: BlockTemplateLayout): boolean {
     return (
-        layout.firstParameterLayout === "align-separator" ||
-        layout.subsequentParameterLayout === "align-columns" ||
-        layout.subsequentParameterLayout === "align-columns-completely"
+        (layout.formatFirstParameter &&
+            layout.firstParameterLayout === "align-values") ||
+        (layout.formatSubsequentParameters &&
+            (layout.subsequentParameterLayout === "align-names" ||
+                layout.subsequentParameterLayout === "align-names-and-values"))
     );
 }
 
@@ -407,8 +465,10 @@ function shouldAlignCellSeparator(
     layout: BlockTemplateLayout,
 ): boolean {
     return index === 0
-        ? layout.firstParameterLayout === "align-separator"
-        : layout.subsequentParameterLayout === "align-columns-completely";
+        ? layout.formatFirstParameter &&
+              layout.firstParameterLayout === "align-values"
+        : layout.formatSubsequentParameters &&
+              layout.subsequentParameterLayout === "align-names-and-values";
 }
 
 function updateContentWidths(
@@ -417,8 +477,9 @@ function updateContentWidths(
     layout: BlockTemplateLayout,
 ): void {
     if (
-        layout.subsequentParameterLayout !== "align-columns" &&
-        layout.subsequentParameterLayout !== "align-columns-completely"
+        !layout.formatSubsequentParameters ||
+        (layout.subsequentParameterLayout !== "align-names" &&
+            layout.subsequentParameterLayout !== "align-names-and-values")
     ) {
         return;
     }
@@ -499,10 +560,10 @@ function formatBlockLine(
     line: BlockTemplateLine,
     layout: BlockTemplateLayout,
 ): string {
-    if (layout.indentPipes && line.closingDepth != null) {
+    if (layout.indentBlockTemplates && line.closingDepth != null) {
         return line.text.replace(
             /^\s*(?=\}\})/u,
-            "  ".repeat(line.closingDepth),
+            " ".repeat(layout.indentSpaces * line.closingDepth),
         );
     }
     if (line.templateId == null) {
@@ -525,15 +586,15 @@ function formatTemplateLine(
     columns: BlockTemplateColumn[],
     layout: BlockTemplateLayout,
 ): string {
-    const indentation = layout.indentPipes
-        ? "  ".repeat(templateDepth)
+    const indentation = layout.indentBlockTemplates
+        ? " ".repeat(layout.indentSpaces * templateDepth)
         : line.indentation;
     const prefix = `${indentation}|`;
     const cells = parseBlockParameterCells(line.content);
-    if (cells.length === 1 && layout.firstParameterLayout === "preserve") {
+    if (cells.length === 1 && !layout.formatFirstParameter) {
         return `${prefix}${line.content}`;
     }
-    if (layout.subsequentParameterLayout === "preserve") {
+    if (!layout.formatSubsequentParameters) {
         return formatLineWithPreservedTail(
             line.content,
             prefix,
@@ -552,7 +613,7 @@ function formatLineWithPreservedTail(
     columns: BlockTemplateColumn[],
     layout: BlockTemplateLayout,
 ): string {
-    if (layout.firstParameterLayout === "preserve") {
+    if (!layout.formatFirstParameter) {
         return `${prefix}${content}`;
     }
     const first = wikitext(content).splitRanges("|")[0];
@@ -577,8 +638,9 @@ function formatParameterLine(
     layout: BlockTemplateLayout,
 ): string {
     const alignColumns =
-        layout.subsequentParameterLayout === "align-columns" ||
-        layout.subsequentParameterLayout === "align-columns-completely";
+        layout.formatSubsequentParameters &&
+        (layout.subsequentParameterLayout === "align-names" ||
+            layout.subsequentParameterLayout === "align-names-and-values");
     const formatted = cells.map(function formatCell(cell, index) {
         const column = columns[index] ?? { contentWidth: 0, equalsWidth: 0 };
         const value = formatParameterSegment(
@@ -632,7 +694,7 @@ function formatParameterSegment(
     layout: BlockTemplateLayout,
     followedByParameter: boolean,
 ): string {
-    if (index === 0 && layout.firstParameterLayout === "preserve") {
+    if (index === 0 && !layout.formatFirstParameter) {
         return followedByParameter ? cell.raw.trimEnd() : cell.raw;
     }
     const alignSeparator = shouldAlignCellSeparator(index, layout);
@@ -674,12 +736,21 @@ function protectOpaqueSource(source: string): {
     restore(value: string): string;
     text: string;
 } {
-    const ranges = wikitext(source)
-        .opaque.getAll()
-        .sort((left, right) => right.start - left.start);
+    return protectSourceRanges(source, wikitext(source).opaque.getAll());
+}
+
+function protectSourceRanges(
+    source: string,
+    ranges: SourceRange[],
+): {
+    restore(value: string): string;
+    text: string;
+} {
     const values: string[] = [];
     let protectedText = source;
-    for (const range of ranges) {
+    for (const range of ranges.toSorted(
+        (left, right) => right.start - left.start,
+    )) {
         const placeholder = createPlaceholder(source, values.length);
         values.push(source.slice(range.start, range.end));
         protectedText =

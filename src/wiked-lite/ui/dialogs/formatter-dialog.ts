@@ -1,6 +1,7 @@
 /** Build-injected Codex formatter-dialog component. */
 
 import type {
+    CharacterWidthRatio,
     FirstParameterLayout,
     SubsequentParameterLayout,
 } from "#gadget/domain/formatter.ts";
@@ -26,7 +27,7 @@ export interface FormatterDialogOptions {
     onSubmit(selection: FormatterDialogSelection): Promise<void>;
 }
 
-type CharacterWidthRatio = "2:1" | "5:3";
+type IndentSpacesValue = number | string;
 
 interface DialogBindings {
     applying: VueRef<boolean>;
@@ -34,11 +35,18 @@ interface DialogBindings {
     characterWidthRatio: VueRef<CharacterWidthRatio>;
     error: VueRef<string>;
     firstParameterLayout: VueRef<FirstParameterLayout>;
+    formatFirstParameter: VueRef<boolean>;
+    formatSubsequentParameters: VueRef<boolean>;
     fullPageReferencePreviews: VueRef<boolean>;
     highlightMissing: VueRef<boolean>;
-    indentPipes: VueRef<boolean>;
+    indentBlockTemplates: VueRef<boolean>;
+    indentError: VueRef<string>;
+    indentSpaces: VueRef<IndentSpacesValue>;
     interfaceLocale: string;
+    largeFont: VueRef<boolean>;
+    markSettingsDirty(): void;
     msg: typeof msg;
+    notBrokenSeparator: string;
     notBrokenUrl: string;
     normalizeConversion: VueRef<boolean>;
     onCancel(): void;
@@ -46,13 +54,20 @@ interface DialogBindings {
     open: VueRef<boolean>;
     referencePreviews: VueRef<boolean>;
     resolveRedirects: VueRef<boolean>;
+    resolveTemplateRedirects: VueRef<boolean>;
     saveCurrentSettings(): Promise<void>;
     savingSettings: VueRef<boolean>;
     settingsSaved: VueRef<boolean>;
+    smallReferenceText: VueRef<boolean>;
     subsequentParameterLayout: VueRef<SubsequentParameterLayout>;
     updateFullPageReferencePreviews(value: boolean): void;
+    updateCharacterWidthRatio(value: boolean): void;
     updateHighlightMissing(value: boolean): void;
+    updateIndentBlockTemplates(value: boolean): void;
+    updateIndentSpaces(value: IndentSpacesValue): void;
+    updateLargeFont(value: boolean): void;
     updateReferencePreviews(value: boolean): void;
+    updateSmallReferenceText(value: boolean): void;
 }
 
 export const FORMATTER_DIALOG_TEMPLATE =
@@ -98,21 +113,35 @@ export function createFormatterDialogBindings(
     const error = Vue.ref("");
     const initial = options.initialSelection;
     const firstParameterLayout = Vue.ref<FirstParameterLayout>(
-        initial.formatter.firstParameterLayout ?? "preserve",
+        initial.formatter.firstParameterLayout,
     );
     const subsequentParameterLayout = Vue.ref<SubsequentParameterLayout>(
-        initial.formatter.subsequentParameterLayout ?? "preserve",
+        initial.formatter.subsequentParameterLayout,
     );
     const characterWidthRatio = Vue.ref<CharacterWidthRatio>(
-        initial.formatter.fullWidthRatio === 2 ? "2:1" : "5:3",
+        initial.formatter.characterWidthRatio,
     );
-    const indentPipes = Vue.ref(initial.formatter.indentPipes === true);
-    const normalizeConversion = Vue.ref(
-        initial.formatter.normalizeConversion === true,
+    const formatFirstParameter = Vue.ref(
+        initial.formatter.formatFirstParameter,
     );
+    const formatSubsequentParameters = Vue.ref(
+        initial.formatter.formatSubsequentParameters,
+    );
+    const indentBlockTemplates = Vue.ref(
+        initial.formatter.indentBlockTemplates,
+    );
+    const indentSpaces = Vue.ref<IndentSpacesValue>(
+        initial.formatter.indentSpaces,
+    );
+    let lastValidIndentSpaces = initial.formatter.indentSpaces;
+    const indentError = Vue.ref("");
+    const normalizeConversion = Vue.ref(initial.formatter.normalizeConversion);
     const resolveRedirects = Vue.ref(initial.resolveRedirects);
+    const resolveTemplateRedirects = Vue.ref(initial.resolveTemplateRedirects);
     const highlightMissing = Vue.ref(initial.highlightMissing);
+    const largeFont = Vue.ref(initial.largeFont);
     const referencePreviews = Vue.ref(initial.referencePreviews);
+    const smallReferenceText = Vue.ref(initial.smallReferenceText);
     const fullPageReferencePreviews = Vue.ref(
         initial.fullPageReferencePreviews,
     );
@@ -124,16 +153,21 @@ export function createFormatterDialogBindings(
         return {
             fullPageReferencePreviews: fullPageReferencePreviews.value,
             formatter: {
+                characterWidthRatio: characterWidthRatio.value,
                 firstParameterLayout: firstParameterLayout.value,
-                fullWidthRatio:
-                    characterWidthRatio.value === "5:3" ? 5 / 3 : 2,
-                indentPipes: indentPipes.value,
+                formatFirstParameter: formatFirstParameter.value,
+                formatSubsequentParameters: formatSubsequentParameters.value,
+                indentBlockTemplates: indentBlockTemplates.value,
+                indentSpaces: Number(indentSpaces.value),
                 normalizeConversion: normalizeConversion.value,
                 subsequentParameterLayout: subsequentParameterLayout.value,
             },
             highlightMissing: highlightMissing.value,
+            largeFont: largeFont.value,
             referencePreviews: referencePreviews.value,
             resolveRedirects: resolveRedirects.value,
+            resolveTemplateRedirects: resolveTemplateRedirects.value,
+            smallReferenceText: smallReferenceText.value,
         };
     }
     function updateFeature(
@@ -143,18 +177,27 @@ export function createFormatterDialogBindings(
         const target = {
             fullPageReferencePreviews,
             highlightMissing,
+            largeFont,
             referencePreviews,
+            smallReferenceText,
         }[setting];
         target.value = value;
         settingsSaved.value = false;
         options.onFeatureChange(getEditorFeatureSettings(createSelection()));
     }
+    function markSettingsDirty(): void {
+        settingsSaved.value = false;
+    }
     async function apply(): Promise<void> {
+        if (!validateIndentSpaces(indentSpaces.value, indentError)) {
+            return;
+        }
         applying.value = true;
         error.value = "";
         settingsSaved.value = false;
         try {
             await options.onSubmit(createSelection());
+            applying.value = false;
             onCancel();
         } catch (caught) {
             options.onError(caught, "format");
@@ -163,6 +206,9 @@ export function createFormatterDialogBindings(
         }
     }
     async function saveCurrentSettings(): Promise<void> {
+        if (!validateIndentSpaces(indentSpaces.value, indentError)) {
+            return;
+        }
         savingSettings.value = true;
         settingsSaved.value = false;
         error.value = "";
@@ -182,34 +228,86 @@ export function createFormatterDialogBindings(
         characterWidthRatio,
         error,
         firstParameterLayout,
+        formatFirstParameter,
+        formatSubsequentParameters,
         fullPageReferencePreviews,
         highlightMissing,
-        indentPipes,
+        indentBlockTemplates,
+        indentError,
+        indentSpaces,
         interfaceLocale,
+        largeFont,
+        markSettingsDirty,
         msg,
         notBrokenUrl: options.notBrokenUrl,
+        notBrokenSeparator: interfaceLocale === "en" ? " " : "",
         normalizeConversion,
         onCancel,
         onOpenChange(value) {
-            if (!value) {
-                onCancel();
+            if (value) {
+                return;
             }
+            if (applying.value || savingSettings.value) {
+                open.value = true;
+                return;
+            }
+            onCancel();
         },
         open,
         referencePreviews,
         resolveRedirects,
+        resolveTemplateRedirects,
         saveCurrentSettings,
         savingSettings,
         settingsSaved,
+        smallReferenceText,
         subsequentParameterLayout,
+        updateCharacterWidthRatio(value) {
+            characterWidthRatio.value = value ? "5:3" : "2:1";
+            settingsSaved.value = false;
+        },
         updateFullPageReferencePreviews(value) {
             updateFeature("fullPageReferencePreviews", value);
         },
         updateHighlightMissing(value) {
             updateFeature("highlightMissing", value);
         },
+        updateIndentBlockTemplates(value) {
+            indentBlockTemplates.value = value;
+            if (
+                !value &&
+                !validateIndentSpaces(indentSpaces.value, indentError)
+            ) {
+                indentSpaces.value = lastValidIndentSpaces;
+                indentError.value = "";
+            }
+            markSettingsDirty();
+        },
+        updateIndentSpaces(value) {
+            indentSpaces.value = value;
+            if (validateIndentSpaces(value, indentError)) {
+                lastValidIndentSpaces = Number(value);
+            }
+            markSettingsDirty();
+        },
+        updateLargeFont(value) {
+            updateFeature("largeFont", value);
+        },
         updateReferencePreviews(value) {
             updateFeature("referencePreviews", value);
         },
+        updateSmallReferenceText(value) {
+            updateFeature("smallReferenceText", value);
+        },
     };
+}
+
+function validateIndentSpaces(
+    value: IndentSpacesValue,
+    error: VueRef<string>,
+): boolean {
+    const number = value === "" ? Number.NaN : Number(value);
+    const valid = Number.isInteger(number) && number >= 0 && number <= 8;
+    error.value = valid ? "" : msg("feedback.invalidIndent");
+    return valid;
 }

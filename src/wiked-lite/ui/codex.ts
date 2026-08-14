@@ -26,6 +26,7 @@ export interface CodexComponents {
     CdxRadio: unknown;
     CdxTab: unknown;
     CdxTabs: unknown;
+    CdxTextInput: unknown;
     CdxToggleSwitch: unknown;
 }
 
@@ -53,5 +54,6 @@ export function registerFormatterComponents(
     app.component("CdxRadio", Codex.CdxRadio);
     app.component("CdxTab", Codex.CdxTab);
     app.component("CdxTabs", Codex.CdxTabs);
+    app.component("CdxTextInput", Codex.CdxTextInput);
     app.component("CdxToggleSwitch", Codex.CdxToggleSwitch);
 }

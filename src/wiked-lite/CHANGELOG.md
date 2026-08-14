@@ -2,6 +2,25 @@
 
 ## Until 0.6
 
+### 0.5.2 (2026-08-14 08:58 UTC)
+
+Overview: wikEd Lite adds grouped formatter controls, safe conversion cleanup,
+template redirect resolution, and live editor display options.
+
+- Reorganized the formatter into three tabs and grouped dependent controls,
+  with configurable nesting indentation, independent parameter layouts, and
+  selectable Chinese-to-English character-width ratios.
+- Formatted top-level semicolons in recognized `{{NoteTA}}` and `-{...}-` rules
+  without changing rule values, no-conversion terms, comments, HTML attributes,
+  literal tags, or nested syntax.
+- Added optional template redirect replacement with localized namespace and
+  magic-word safety while sharing the existing batched redirect lookup.
+- Added live large-text and reference-size controls alongside missing-link and
+  reference-preview options, and persisted the redesigned configuration in a
+  clean version-three settings schema.
+- Renamed the launcher to `wikEd Lite` or `wikEd Lite工具` according to the
+  interface language.
+
 ### 0.5.1 (2026-08-14 06:13 UTC)
 
 Overview: wikEd Lite expands template formatting controls, restores saved

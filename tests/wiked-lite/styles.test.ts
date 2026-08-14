@@ -53,15 +53,33 @@ test("highlight colors retain the original wikEd palette", () => {
     );
 });
 
-test("references and explanatory footnotes use one small font level", () => {
+test("reference text is small only in its editor state", () => {
     const rule = getStyleRule(
-        ".wiked-lite-token--reference,\n.wiked-lite-token--footnote",
+        ".wiked-lite-editor--small-reference-text " +
+            ".wiked-lite-token--reference,\n" +
+            ".wiked-lite-editor--small-reference-text " +
+            ".wiked-lite-token--footnote",
         true,
     );
 
     assert.match(rule, /font-size:\s*0\.86em/u);
+    assert.doesNotMatch(
+        styles,
+        // eslint-disable-next-line max-len
+        /(?:^|\n)\.wiked-lite-token--reference,\n\.wiked-lite-token--footnote\s*\{/u,
+    );
     assert.doesNotMatch(styles, /--reference\s+\.wiked-lite-token--footnote/u);
     assert.doesNotMatch(styles, /--footnote\s+\.wiked-lite-token--reference/u);
+});
+
+test("large-font state scales the copied native editor size", () => {
+    const baseRule = getStyleRule(".wiked-lite-editor", true);
+
+    assert.match(baseRule, /font-size:\s*0\.875rem/u);
+    assert.match(editorSource, /editor\.style\.fontSize = style\.fontSize/u);
+    assert.match(editorSource, /`calc\(\$\{nativeFontSize\} \* 1\.2\)`/u);
+    assert.match(editorSource, /"wiked-lite-editor--large-font", large/u);
+    assert.doesNotMatch(styles, /--wiked-lite-native-font-size/u);
 });
 
 test("magic words and module names retain wikEd colors", () => {
@@ -262,6 +280,13 @@ test("undo handling is limited to the active enhanced textbox", () => {
         editorSource,
         /editor\.ownerDocument\.activeElement !== editor/u,
     );
+    const historyStart = editorSource.indexOf("function applyHistorySnapshot");
+    const linkRefresh = editorSource.indexOf(
+        "editorFeatures?.sourceChanged();",
+        historyStart,
+    );
+    const rerender = editorSource.indexOf("render(false);", linkRefresh);
+    assert.ok(historyStart < linkRefresh && linkRefresh < rerender);
     assert.doesNotMatch(editorSource, /event\.key\s*===\s*["']f["']/iu);
 });
 

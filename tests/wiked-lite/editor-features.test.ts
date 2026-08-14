@@ -80,6 +80,38 @@ test(
     testReferenceSettings,
 );
 
+test(
+    "editor presentation settings apply immediately and only when changed",
+    testEditorPresentationSettings,
+);
+
+function testEditorPresentationSettings(): void {
+    const harness = new FeatureHarness();
+    const controller = createEditorFeatureController({
+        ...harness.options,
+        initialSettings: {
+            ...harness.options.initialSettings,
+            largeFont: true,
+            smallReferenceText: false,
+        },
+    });
+
+    assert.deepEqual(harness.largeFontStates, [true]);
+    assert.deepEqual(harness.smallReferenceTextStates, [false]);
+
+    controller.setSettings(controller.getSettings());
+    assert.deepEqual(harness.largeFontStates, [true]);
+    assert.deepEqual(harness.smallReferenceTextStates, [false]);
+
+    controller.setSettings({
+        ...controller.getSettings(),
+        largeFont: false,
+        smallReferenceText: true,
+    });
+    assert.deepEqual(harness.largeFontStates, [true, false]);
+    assert.deepEqual(harness.smallReferenceTextStates, [false, true]);
+}
+
 async function testReferenceSettings(): Promise<void> {
     const harness = new FeatureHarness(true);
     const controller = createEditorFeatureController(harness.options);
@@ -143,12 +175,14 @@ async function testOptionalWholePageSource(): Promise<void> {
 
 class FeatureHarness {
     readonly errors: Array<[unknown, "links" | "page-source"]> = [];
+    readonly largeFontStates: boolean[] = [];
     readonly missingResults: MissingLinkResult[] = [];
     readonly options: EditorFeatureOptions;
     readonly pageRequests: Array<Deferred<string>> = [];
     readonly previewStates: boolean[] = [];
     readonly requestedSources: string[] = [];
     readonly requests: Array<Deferred<MissingLinkResult>> = [];
+    readonly smallReferenceTextStates: boolean[] = [];
     readonly source = { value: "First" };
     readonly timer = new FakeTimer();
 
@@ -160,13 +194,18 @@ class FeatureHarness {
             initialSettings: {
                 fullPageReferencePreviews: defaults.fullPageReferencePreviews,
                 highlightMissing: defaults.highlightMissing,
+                largeFont: defaults.largeFont,
                 referencePreviews: defaults.referencePreviews,
+                smallReferenceText: defaults.smallReferenceText,
             },
             loadPageSource: () => this.loadPageSource(),
             onError: (error, operation) =>
                 this.errors.push([error, operation]),
+            onLargeFont: (value) => this.largeFontStates.push(value),
             onMissingLinks: (result) => this.missingResults.push(result),
             onReferencePreviews: (value) => this.previewStates.push(value),
+            onSmallReferenceText: (value) =>
+                this.smallReferenceTextStates.push(value),
             sectionEditing,
             timer: this.timer,
         };

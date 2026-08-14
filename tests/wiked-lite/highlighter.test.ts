@@ -385,6 +385,49 @@ test("NoteTA conversion keys retain complete declaration boundaries", () => {
     );
 });
 
+test("NoteTA highlights one-way rules only in supported slots", () => {
+    const source =
+        "{{NoteTA|25=xxx=>zh-tw:xx|31=zh-cn:no|G=zh-hk:no" +
+        "|d=zh-sg:no|T=zh-mo:yes|1=种|2=种;}}";
+    const segments = highlightWikitext(source, { linkHelpers: true });
+
+    for (const key of ["zh-tw", "zh-mo"]) {
+        assertHasClass(
+            source,
+            segments,
+            key,
+            "wiked-lite-token--language-variant",
+        );
+    }
+    for (const key of ["zh-cn", "zh-hk", "zh-sg", "种"]) {
+        assertLacksClass(
+            source,
+            segments,
+            key,
+            "wiked-lite-token--language-variant",
+        );
+    }
+});
+
+test("nested language conversion keeps the complete outer range", () => {
+    const source = "-{zh-cn:outer -{zh-cn:inner;zh-tw:nested}-;zh-tw:outer}-";
+    const segments = highlightWikitext(source, { linkHelpers: true });
+
+    assertHasClass(
+        source,
+        segments,
+        "zh-tw:outer",
+        "wiked-lite-token--language-conversion",
+    );
+    assertHasClass(
+        source,
+        segments,
+        "zh-tw",
+        "wiked-lite-token--language-variant",
+        1,
+    );
+});
+
 test("conversion separators ignore values and tag attributes", () => {
     const source =
         '-{zh-cn:A=>B; zh-tw:<span title="a:b;=>c">x</span>; a=>region:xx}-';

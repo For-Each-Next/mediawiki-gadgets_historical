@@ -11,6 +11,19 @@ interface BaseTemplateHeadSyntax {
     separators: SourceRange[];
 }
 
+export interface MagicWordAliases {
+    caseInsensitive: ReadonlySet<string>;
+    caseSensitive: ReadonlySet<string>;
+}
+
+export interface TemplateMagicWordCatalog {
+    functions: MagicWordAliases;
+    modifiers: Readonly<
+        Record<"message" | "raw" | "substitution", MagicWordAliases>
+    >;
+    variables: MagicWordAliases;
+}
+
 export type TemplateHeadSyntax =
     | (BaseTemplateHeadSyntax & {
           argument?: SourceRange;
@@ -26,6 +39,7 @@ export type TemplateHeadSyntax =
 interface TemplateModifierState extends BaseTemplateHeadSyntax {
     allowLeadingWhitespace: boolean;
     databaseName: string;
+    magicWords: TemplateMagicWordCatalog | null;
     partIndex: number;
 }
 
@@ -437,18 +451,20 @@ const ZHWIKI_INVOKE_ALIASES = normalizeNames(["invoke", "调用", "調動"]);
  * @param hasParameters - Whether pipe-delimited arguments were entered.
  * @param databaseName - Wiki database used for bundled localized
  * aliases.
+ * @param magicWords - Dynamically loaded aliases for another wiki.
  * @returns Relative syntax ranges within `name`.
  */
 export function classifyTemplateHead(
     name: string,
     hasParameters: boolean,
     databaseName = "enwiki",
+    magicWords: TemplateMagicWordCatalog | null = null,
 ): TemplateHeadSyntax {
     const parts = splitMagicWordRanges(name);
     const substitution = readTemplateModifier(
         name,
         parts,
-        emptyModifierState(databaseName),
+        emptyModifierState(databaseName, magicWords),
         "substitution",
     );
     const variable = readMagicWord(name, parts, substitution);
@@ -481,7 +497,11 @@ function classifyFunctionOrTemplate(
     const magic =
         magicWord != null &&
         hasColon &&
-        isParserFunction(magicWord.entered, state.databaseName);
+        isParserFunction(
+            magicWord.entered,
+            state.databaseName,
+            state.magicWords,
+        );
     return magic && magicWord != null
         ? createMagicWordSyntax(name, part, magicWord.range, hasColon, state)
         : createTemplateSyntax(name, part, state);
@@ -497,14 +517,22 @@ function isVariableInvocation(
         variable != null &&
         state.partIndex === parts.length - 1 &&
         !hasParameters &&
-        isParserVariable(variable.entered, state.databaseName)
+        isParserVariable(
+            variable.entered,
+            state.databaseName,
+            state.magicWords,
+        )
     );
 }
 
-function emptyModifierState(databaseName: string): TemplateModifierState {
+function emptyModifierState(
+    databaseName: string,
+    magicWords: TemplateMagicWordCatalog | null,
+): TemplateModifierState {
     return {
         allowLeadingWhitespace: false,
         databaseName,
+        magicWords,
         modifiers: [],
         partIndex: 0,
         separators: [],
@@ -521,7 +549,7 @@ function readTemplateModifier(
     if (
         part == null ||
         state.partIndex >= parts.length - 1 ||
-        name[part.end] !== ":"
+        !isModifierSeparator(name[part.end], state.magicWords)
     ) {
         return state;
     }
@@ -532,6 +560,7 @@ function readTemplateModifier(
             name.slice(range.start, range.end),
             kind,
             state.databaseName,
+            state.magicWords,
         )
     ) {
         return state;
@@ -539,6 +568,7 @@ function readTemplateModifier(
     return {
         allowLeadingWhitespace: kind === "substitution",
         databaseName: state.databaseName,
+        magicWords: state.magicWords,
         modifiers: [...state.modifiers, range],
         partIndex: state.partIndex + 1,
         separators: [
@@ -591,23 +621,33 @@ function createMagicWordSyntax(
     };
 }
 
-function isParserVariable(value: string, databaseName: string): boolean {
+function isParserVariable(
+    value: string,
+    databaseName: string,
+    magicWords: TemplateMagicWordCatalog | null,
+): boolean {
     const normalized = value.toLowerCase();
     return (
         CASE_SENSITIVE_VARIABLES.has(value) ||
         CASE_INSENSITIVE_VARIABLES.has(normalized) ||
+        matchesAliases(value, magicWords?.variables) ||
         (databaseName === "zhwiki" &&
             (ZHWIKI_CASE_SENSITIVE_VARIABLES.has(value) ||
                 ZHWIKI_CASE_INSENSITIVE_VARIABLES.has(normalized)))
     );
 }
 
-function isParserFunction(value: string, databaseName: string): boolean {
+function isParserFunction(
+    value: string,
+    databaseName: string,
+    magicWords: TemplateMagicWordCatalog | null,
+): boolean {
     const normalized = value.toLowerCase();
     return (
         value.startsWith("#") ||
         CASE_SENSITIVE_FUNCTIONS.has(value) ||
         CASE_INSENSITIVE_FUNCTIONS.has(normalized) ||
+        matchesAliases(value, magicWords?.functions) ||
         (databaseName === "zhwiki" &&
             (ZHWIKI_CASE_SENSITIVE_FUNCTIONS.has(value) ||
                 ZHWIKI_CASE_INSENSITIVE_FUNCTIONS.has(normalized)))
@@ -628,12 +668,31 @@ function isTemplateModifier(
     value: string,
     kind: TemplateModifier,
     databaseName: string,
+    magicWords: TemplateMagicWordCatalog | null,
 ): boolean {
     const normalized = value.toLowerCase();
     return (
         TEMPLATE_MODIFIERS[kind].includes(normalized) ||
+        matchesAliases(value, magicWords?.modifiers[kind]) ||
         (databaseName === "zhwiki" &&
             ZHWIKI_TEMPLATE_MODIFIERS[kind].includes(normalized))
+    );
+}
+
+function isModifierSeparator(
+    value: string | undefined,
+    magicWords: TemplateMagicWordCatalog | null,
+): boolean {
+    return value === ":" || (magicWords != null && value === "：");
+}
+
+function matchesAliases(
+    value: string,
+    aliases: MagicWordAliases | undefined,
+): boolean {
+    return (
+        aliases?.caseSensitive.has(value) === true ||
+        aliases?.caseInsensitive.has(value.toLowerCase()) === true
     );
 }
 

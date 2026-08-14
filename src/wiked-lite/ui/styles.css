@@ -259,8 +259,8 @@
 }
 
 /* Flat highlight spans keep overlapping note syntax at one small level. */
-.wiked-lite-token--reference,
-.wiked-lite-token--footnote {
+.wiked-lite-editor--small-reference-text .wiked-lite-token--reference,
+.wiked-lite-editor--small-reference-text .wiked-lite-token--footnote {
     font-size: 0.86em;
 }
 

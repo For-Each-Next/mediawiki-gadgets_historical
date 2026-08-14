@@ -18,6 +18,9 @@ export interface EditorServices {
     loadPageSource(): Promise<string>;
     logger: Logger;
     notify: ActionNotifier;
-    resolveRedirects(source: string): Promise<string>;
+    resolveRedirects(
+        source: string,
+        options: { includeTemplates: boolean },
+    ): Promise<string>;
     saveFormatterSettings(settings: FormatterSettings): void;
 }

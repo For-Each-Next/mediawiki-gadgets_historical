@@ -2,6 +2,19 @@
 
 ## Until 0.6
 
+### 0.5.1 (2026-08-14 06:13 UTC)
+
+Overview: wikEd Lite expands template formatting controls, restores saved
+formatter settings, and keeps reference previews open during pointer travel.
+
+- Added independent layout modes for first and same-line later parameters,
+  including compact, preserved, column, and complete-column alignment with
+  selectable Han-to-ASCII character-width ratios.
+- Persisted the complete formatter configuration in local storage and clarified
+  grouped controls, policy cautions, API costs, and typography tooltips.
+- Bridged the anchor gap for above- and below-positioned reference previews
+  while keeping their animated content inside a stable pointer target.
+
 ### 0.5.0-post.1 (2026-08-13 17:44 UTC)
 
 Overview: wikEd Lite keeps reference previews open while the pointer moves from

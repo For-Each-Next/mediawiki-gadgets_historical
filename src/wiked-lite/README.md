@@ -59,24 +59,27 @@ before saving the page.
   HTML.
 - Displays Chinese `link-xx` and `tsl` helpers like local wikilinks, optionally
   checks their local page operands and ordinary wikilinks for missing targets
-  while editing, and opens targets on Control-click or Command-click.
+  while editing, keeps unchecked targets in the editor foreground color until
+  the background lookup finishes, and opens targets on Control-click or
+  Command-click.
 - Distinguishes brace-based magic variables and parser functions from templates
   without Template navigation, while static `#invoke` operands open their
   Module pages.
 - Applies conservative wikEd-style basic fixes to the selection or whole page,
-  with optional 0–8-space nesting indentation and independent layouts for the
-  first and later parameters on each line. Alignment can measure Chinese and
-  English characters at a 5:3 or 2:1 width ratio.
+  with optional 0–4-space nesting indentation, a first-level indentation
+  exception, and independent layouts for the first and later parameters on each
+  line. Alignment can measure Chinese and English characters at a 5:3 or 2:1
+  width ratio.
 - Organizes block templates, other formatting, and editor display into three
   tabs, and saves the complete configuration from the dialog footer. Optional
   conversion cleanup preserves rule values while fixing top-level semicolons in
   recognized `{{NoteTA}}` and `-{...}-` rules, while leaving no-conversion
   terms untouched; redirect replacement can include safe static template
   transclusions.
-- Offers live large text, small reference and note text, target-only missing-
-  page highlighting, reference previews, and whole-page reference lookup.
-  Headings gain surrounding blank lines without separating `DEFAULTSORT` from
-  later content.
+- Applies selected large text, small reference and note text, target-only
+  missing-page highlighting, reference previews, and whole-page reference
+  lookup when the formatter dialog closes. Headings gain surrounding blank
+  lines without separating `DEFAULTSORT` from later content.
 - Recognizes every English and Chinese Wikipedia namespace alias from bundled
   catalogs, and loads local namespace siteinfo in the background on other
   wikis.
@@ -148,11 +151,11 @@ index.ts
 
 ## License
 
-The project-owned portions of wikEd Lite 0.5.2 are dedicated under [CC0 1.0
-Universal][7]. It credits Cacycle as the original author of [wikEd][5] and its
-lightweight editing ideas. The rebuild also acknowledges [Remember the dot's
-Syntax highlighter][6] as an inspiration. The package [license][8] fixes this
-release's scope; the repository [licensing map][9] covers the workspace.
+The project-owned portions of wikEd Lite 0.5.3-post.1 are dedicated under [CC0
+1.0 Universal][7]. It credits Cacycle as the original author of [wikEd][5] and
+its lightweight editing ideas. The rebuild also acknowledges [Remember the
+dot's Syntax highlighter][6] as an inspiration. The package [license][8] fixes
+this release's scope; the repository [licensing map][9] covers the workspace.
 
 [1]: https://meta.wikimedia.org/wiki/Special:MyPage/global.js
 [2]: CHANGELOG.md

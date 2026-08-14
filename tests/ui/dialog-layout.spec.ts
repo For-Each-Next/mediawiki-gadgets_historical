@@ -6,6 +6,7 @@ import { basename, join } from "node:path";
 import {
     type BrowserContext,
     expect,
+    type Locator,
     type Page,
     test,
 } from "@playwright/test";
@@ -106,16 +107,10 @@ test("wikEd formatter restores explicitly saved settings", async ({
     await loadStoryPage(page, "wiked-lite", "en");
     await mountStory(page, "wiked-formatter");
     const firstGroup = page.getByRole("group", {
-        name: "First parameter on each line",
+        name: "First parameter alignment",
     });
     const laterGroup = page.getByRole("group", {
-        name: "Subsequent parameters on the same line",
-    });
-    const formatFirst = firstGroup.getByRole("checkbox", {
-        name: "Enable custom layout",
-    });
-    const formatLater = laterGroup.getByRole("checkbox", {
-        name: "Enable custom layout",
+        name: "Following parameter alignment",
     });
     const compactFirst = firstGroup.locator(
         'input[name="first-parameter-layout"][value="compact"]',
@@ -123,8 +118,6 @@ test("wikEd formatter restores explicitly saved settings", async ({
     const compactLater = laterGroup.locator(
         'input[name="subsequent-parameter-layout"][value="compact"]',
     );
-    await formatFirst.check();
-    await formatLater.check();
     await compactFirst.check();
     await compactLater.check();
     await page.getByRole("button", { name: "Save current settings" }).click();
@@ -134,17 +127,17 @@ test("wikEd formatter restores explicitly saved settings", async ({
 
     await mountStory(page, "wiked-formatter");
 
-    await expect(formatFirst).toBeChecked();
-    await expect(formatLater).toBeChecked();
     await expect(compactFirst).toBeChecked();
     await expect(compactLater).toBeChecked();
 });
 
-test("wikEd saves switches from the editor-display tab", async ({ page }) => {
+test("wikEd saves checkboxes from the editor-display tab", async ({
+    page,
+}) => {
     await loadStoryPage(page, "wiked-lite", "en");
     await mountStory(page, "wiked-formatter");
     await page.getByRole("tab", { name: "Editor display" }).click();
-    const missingLinks = page.getByRole("switch", {
+    const missingLinks = page.getByRole("checkbox", {
         name: /Highlight links to nonexistent pages/u,
     });
     await missingLinks.check();
@@ -155,7 +148,119 @@ test("wikEd saves switches from the editor-display tab", async ({ page }) => {
     await expect(missingLinks).toBeChecked();
 });
 
-test("wikEd enforces and remembers dependent formatter choices", async ({
+test("wikEd applies display checkboxes from the close button", async ({
+    page,
+}) => {
+    await loadStoryPage(page, "wiked-lite", "en");
+    await mountStory(page, "wiked-formatter");
+    await page.getByRole("tab", { name: "Editor display" }).click();
+    const missingLinks = page.getByRole("checkbox", {
+        name: /Highlight links to nonexistent pages/u,
+    });
+    await missingLinks.check();
+    await page.getByRole("button", { name: "Close" }).click();
+
+    await mountStory(page, "wiked-formatter");
+    await page.getByRole("tab", { name: "Editor display" }).click();
+    await expect(missingLinks).toBeChecked();
+});
+
+test("wikEd associates smaller descriptions with checkboxes", async ({
+    page,
+}) => {
+    await loadStoryPage(page, "wiked-lite", "en");
+    await mountStory(page, "wiked-formatter");
+    await page.getByRole("tab", { name: "Other formatting options" }).click();
+
+    await verifyCheckboxDescription(
+        page,
+        "Format Chinese word-conversion rules",
+        "Formats conversion rules in {{NoteTA}} and -{...}-.",
+    );
+
+    await page.getByRole("tab", { name: "Editor display" }).click();
+
+    await verifyCheckboxDescription(
+        page,
+        "Show references and notes in small text",
+        "Includes <ref>, {{efn}}, and similar content.",
+    );
+    await verifyCheckboxDescription(
+        page,
+        "Highlight links to nonexistent pages in red",
+        "Checks links when enabled and after editing stops. " +
+            "API requests run in the background.",
+    );
+    await verifyCheckboxDescription(
+        page,
+        "Use whole-page source for reference previews",
+        "During section editing, loads the whole-page source " +
+            "in the background.",
+    );
+});
+
+async function verifyCheckboxDescription(
+    page: Page,
+    name: string,
+    expectedDescription: string,
+): Promise<void> {
+    const checkbox = page.getByRole("checkbox", { exact: true, name });
+    await expect(checkbox).toHaveAttribute("aria-describedby", /\S/u);
+    const relationship = await inspectCheckboxDescription(checkbox);
+    const usesSmallerText = await descriptionUsesSmallerText(checkbox);
+
+    expect(relationship.texts).toContain(expectedDescription);
+    expect(relationship.allDescriptionsInsideRoot).toBe(true);
+    expect(usesSmallerText).toBe(true);
+}
+
+async function inspectCheckboxDescription(checkbox: Locator) {
+    return checkbox.evaluate((input) => {
+        const root = input.closest(".cdx-checkbox");
+        const descriptionIds = (input.getAttribute("aria-describedby") ?? "")
+            .split(/\s+/u)
+            .filter(Boolean);
+        const descriptions = descriptionIds.map((id) =>
+            document.getElementById(id),
+        );
+        return {
+            allDescriptionsInsideRoot:
+                root !== null &&
+                descriptions.length > 0 &&
+                descriptions.every(
+                    (description) =>
+                        description !== null && root.contains(description),
+                ),
+            texts: descriptions.map(
+                (description) => description?.textContent?.trim() ?? null,
+            ),
+        };
+    });
+}
+
+async function descriptionUsesSmallerText(
+    checkbox: Locator,
+): Promise<boolean> {
+    return checkbox.evaluate((input) => {
+        const root = input.closest(".cdx-checkbox");
+        const label = root?.querySelector<HTMLElement>(
+            ".cdx-label__label__text",
+        );
+        const description = root?.querySelector<HTMLElement>(
+            ".wiked-lite-dialog__control-description",
+        );
+        if (!label || !description) {
+            return false;
+        }
+        const labelSize = Number.parseFloat(getComputedStyle(label).fontSize);
+        const descriptionSize = Number.parseFloat(
+            getComputedStyle(description).fontSize,
+        );
+        return descriptionSize < labelSize;
+    });
+}
+
+test("wikEd exposes direct choices and retains redirect dependency", async ({
     page,
 }) => {
     await loadStoryPage(page, "wiked-lite", "en");
@@ -166,52 +271,53 @@ test("wikEd enforces and remembers dependent formatter choices", async ({
 });
 
 async function verifyIndentDependency(page: Page): Promise<void> {
-    const save = page.getByRole("button", { name: "Save current settings" });
-    const group = page.getByRole("group", { name: "Nested indentation" });
-    const indent = group.getByRole("checkbox", {
-        name: "Indent by nesting level",
+    const indentation = page.getByRole("combobox", {
+        name: "Block-template indentation",
     });
-    const spaces = group.getByRole("spinbutton", { name: "Spaces per level" });
+    const skipFirst = page.getByRole("checkbox", {
+        name: "Do not indent the first level",
+    });
 
-    await expect(spaces).toBeDisabled();
-    await indent.check();
-    await spaces.fill("9");
-    await expect(save).toBeDisabled();
-    await indent.uncheck();
-    await expect(spaces).toBeDisabled();
-    await expect(spaces).toHaveValue("2");
-    await expect(save).toBeEnabled();
+    await expect(indentation).toHaveText(/Keep as is/u);
+    await expect(skipFirst).toBeDisabled();
+    await selectIndentation(page, indentation, "2");
+    await expect(skipFirst).toBeEnabled();
+    await skipFirst.check();
+    await selectIndentation(page, indentation, "0");
+    await expect(skipFirst).toBeDisabled();
+    await expect(skipFirst).toBeChecked();
+    await selectIndentation(page, indentation, "3");
+    await expect(skipFirst).toBeEnabled();
+    await expect(skipFirst).toBeChecked();
 }
 
 async function verifyFirstLayoutDependency(page: Page): Promise<void> {
     const group = page.getByRole("group", {
-        name: "First parameter on each line",
+        name: "First parameter alignment",
     });
-    const formatFirst = group.getByRole("checkbox", {
-        name: "Enable custom layout",
-    });
+    const preserveFirst = group.locator(
+        'input[name="first-parameter-layout"][value="preserve"]',
+    );
     const compactFirst = group.locator(
         'input[name="first-parameter-layout"][value="compact"]',
     );
-    await expect(compactFirst).toBeDisabled();
-    await formatFirst.check();
-    await compactFirst.check();
-    await formatFirst.uncheck();
-    await expect(compactFirst).toBeDisabled();
-    await expect(compactFirst).toBeChecked();
-    await formatFirst.check();
+
+    await expect(preserveFirst).toBeChecked();
     await expect(compactFirst).toBeEnabled();
+    await compactFirst.check();
     await expect(compactFirst).toBeChecked();
+    await preserveFirst.check();
+    await expect(preserveFirst).toBeChecked();
 }
 
 async function verifyRedirectDependency(page: Page): Promise<void> {
     await page.getByRole("tab", { name: "Other formatting options" }).click();
-    const group = page.getByRole("group", { name: "Redirect scope" });
+    const group = page.getByRole("group", { name: "Redirect tracing" });
     const redirects = group.getByRole("checkbox", {
-        name: /Replace wikilink redirects/u,
+        name: "Fix wikilink redirects",
     });
     const templateRedirects = group.getByRole("checkbox", {
-        name: "Also replace template redirects",
+        name: "Fix template redirects",
     });
     await expect(templateRedirects).toBeDisabled();
     await redirects.check();
@@ -222,6 +328,15 @@ async function verifyRedirectDependency(page: Page): Promise<void> {
     await redirects.check();
     await expect(templateRedirects).toBeEnabled();
     await expect(templateRedirects).toBeChecked();
+}
+
+async function selectIndentation(
+    page: Page,
+    indentation: Locator,
+    value: string,
+): Promise<void> {
+    await indentation.click();
+    await page.getByRole("option", { exact: true, name: value }).click();
 }
 
 async function inspectAllStories(

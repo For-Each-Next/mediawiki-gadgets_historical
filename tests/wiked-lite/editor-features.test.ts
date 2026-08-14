@@ -3,6 +3,7 @@ import test from "node:test";
 
 import * as settings from "wiked-lite/domain/formatter-settings.ts";
 import {
+    classifyLinkCheck,
     createEditorFeatureController,
     type EditorFeatureOptions,
     type EditorFeatureTimer,
@@ -23,6 +24,7 @@ async function testLiveLinkChecks(): Promise<void> {
     };
 
     controller.setSettings(enabled);
+    assert.deepEqual(harness.missingResults, [missing()]);
     assert.deepEqual(harness.timer.delays(), [0]);
     harness.timer.runNext();
     assert.deepEqual(harness.requestedSources, ["First"]);
@@ -32,17 +34,18 @@ async function testLiveLinkChecks(): Promise<void> {
     assert.deepEqual(harness.timer.delays(), [500]);
     harness.requests[0].resolve(missing("Old"));
     await settlePromises();
-    assert.deepEqual(harness.missingResults, []);
+    assert.deepEqual(harness.missingResults, [missing()]);
 
     harness.timer.runNext();
     harness.requests[1].resolve(missing("New"));
     await settlePromises();
-    assert.deepEqual(harness.missingResults, [missing("New")]);
+    assert.deepEqual(harness.missingResults, [missing(), missing("New")]);
 
     controller.setSettings({ ...enabled, highlightMissing: false });
     assert.deepEqual(harness.missingResults.at(-1), missing());
 
     controller.setSettings(enabled);
+    assert.deepEqual(harness.missingResults.at(-1), missing());
     harness.timer.runNext();
     controller.destroy();
     harness.requests[2].resolve(missing("Destroyed"));
@@ -51,6 +54,35 @@ async function testLiveLinkChecks(): Promise<void> {
     assert.deepEqual(harness.missingResults.at(-1), missing());
     assert.deepEqual(harness.timer.delays(), []);
 }
+
+test("links distinguish checked, missing, and newly entered targets", () => {
+    const acceptedState = {
+        checkedTitles: new Set(["Existing page", "Missing page"]),
+        enabled: true,
+        missingTitles: new Set(["Missing page"]),
+    };
+
+    assert.equal(
+        classifyLinkCheck(" Existing_page ", acceptedState),
+        "checked",
+    );
+    assert.equal(classifyLinkCheck("Missing_page", acceptedState), "missing");
+    assert.equal(classifyLinkCheck("New page", acceptedState), "unchecked");
+    assert.equal(
+        classifyLinkCheck("Missing page", {
+            ...acceptedState,
+            enabled: false,
+        }),
+        "disabled",
+    );
+
+    const replacedState = {
+        checkedTitles: new Set(["New page"]),
+        enabled: true,
+        missingTitles: new Set(["New page"]),
+    };
+    assert.equal(classifyLinkCheck("New page", replacedState), "missing");
+});
 
 test("only current missing-link failures are reported", async () => {
     const harness = new FeatureHarness();
@@ -65,6 +97,7 @@ test("only current missing-link failures are reported", async () => {
     harness.requests[0].reject(failure);
     await settlePromises();
     assert.deepEqual(harness.errors, [[failure, "links"]]);
+    assert.deepEqual(harness.missingResults, [missing()]);
 
     harness.source.value = "Changed";
     controller.sourceChanged();
@@ -72,6 +105,28 @@ test("only current missing-link failures are reported", async () => {
     controller.setSettings({ ...enabled, highlightMissing: false });
     harness.requests[1].reject(new Error("stale failure"));
     await settlePromises();
+    assert.deepEqual(harness.errors, [[failure, "links"]]);
+});
+
+test("a failed refresh retains the last accepted link result", async () => {
+    const harness = new FeatureHarness();
+    const controller = createEditorFeatureController(harness.options);
+    controller.setSettings({
+        ...harness.options.initialSettings,
+        highlightMissing: true,
+    });
+    harness.timer.runNext();
+    harness.requests[0].resolve(missing("Stable"));
+    await settlePromises();
+
+    harness.source.value = "Changed";
+    controller.sourceChanged();
+    harness.timer.runNext();
+    const failure = new Error("refresh failed");
+    harness.requests[1].reject(failure);
+    await settlePromises();
+
+    assert.deepEqual(harness.missingResults, [missing(), missing("Stable")]);
     assert.deepEqual(harness.errors, [[failure, "links"]]);
 });
 
@@ -244,7 +299,11 @@ function deferred<T>(): Deferred<T> {
 }
 
 function missing(...titles: string[]): MissingLinkResult {
-    return { linkClasses: [], titles: new Set(titles) };
+    return {
+        checkedTitles: new Set(titles),
+        linkClasses: [],
+        missingTitles: new Set(titles),
+    };
 }
 
 async function settlePromises(): Promise<void> {

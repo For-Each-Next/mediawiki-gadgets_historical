@@ -5,8 +5,11 @@ import test from "node:test";
 
 import { compileTemplate, parse } from "@vue/compiler-sfc";
 
-// eslint-disable-next-line max-len
-import { createDefaultFormatterSettings } from "wiked-lite/domain/formatter-settings.ts";
+import {
+    createDefaultFormatterSettings,
+    type EditorFeatureSettings,
+    type FormatterSettings,
+} from "wiked-lite/domain/formatter-settings.ts";
 import type { VueApp, VueModule } from "wiked-lite/ui/codex.ts";
 import {
     createFormatterDialogBindings,
@@ -27,6 +30,16 @@ const styles = await readFile(
     ),
     "utf8",
 );
+const indentationSelectPattern =
+    /<cdx-select[\s\S]*?:aria-label="msg\('dialog\.indentation'\)"/u;
+const controlDescriptionStylePattern = new RegExp(
+    [
+        "\\.wiked-lite-dialog ",
+        "\\.wiked-lite-dialog__control-description\\s*",
+        "\\{(?<declarations>[^}]*)\\}",
+    ].join(""),
+    "u",
+);
 
 test("uses three tabs and a responsive custom footer", () => {
     const parsed = parse(template, { filename: dialogPath });
@@ -39,6 +52,8 @@ test("uses three tabs and a responsive custom footer", () => {
     assert.match(source, /^\s*<cdx-dialog\b/u);
     assert.match(source, /:title="msg\('dialog\.title'\)"/u);
     assert.match(source, /:lang="interfaceLocale"/u);
+    assert.match(source, /:close-button-label="msg\('dialog\.close'\)"/u);
+    assert.match(source, /use-close-button/u);
     assert.equal(source.match(/<cdx-tab\b/gu)?.length, 3);
     assert.match(source, /name="block-templates"/u);
     assert.match(source, /name="other-formatting"/u);
@@ -59,14 +74,19 @@ test("uses three tabs and a responsive custom footer", () => {
     assert.deepEqual(compiled.errors, []);
 });
 
-test("uses Codex controls with explicit dependent states", () => {
-    assert.equal(template.match(/<cdx-text-input\b/gu)?.length, 1);
-    assert.equal(template.match(/<cdx-toggle-switch\b/gu)?.length, 5);
-    assert.equal(template.match(/:is-fieldset="true"/gu)?.length, 7);
+test("uses direct Codex choices with only the intended dependencies", () => {
+    assert.equal(template.match(/<cdx-select\b/gu)?.length, 1);
+    assert.match(template, indentationSelectPattern);
+    assert.equal(template.match(/<cdx-radio\b/gu)?.length, 9);
+    assert.equal(template.match(/<cdx-checkbox\b/gu)?.length, 9);
+    assert.equal(template.match(/<cdx-toggle-switch\b/gu)?.length ?? 0, 0);
+    assert.equal(template.match(/<cdx-text-input\b/gu)?.length ?? 0, 0);
+    assert.equal(template.match(/:is-fieldset="true"/gu)?.length, 5);
     for (const message of [
         "indentation",
         "firstParameterGroup",
         "subsequentParameterGroup",
+        "characterWidth",
         "redirectScope",
     ]) {
         assert.match(
@@ -74,43 +94,83 @@ test("uses Codex controls with explicit dependent states", () => {
             new RegExp(`msg\\("dialog\\.${message}"\\)`, "u"),
         );
     }
-    assert.equal(
-        template.match(/msg\("dialog\.enableParameterLayout"\)/gu)?.length,
-        2,
-    );
-    assert.doesNotMatch(template, /dialog\.layoutMode/u);
-    assert.match(template, /input-type="number"/u);
-    assert.match(template, /min="0"/u);
-    assert.match(template, /max="8"/u);
-    assert.match(template, /:disabled="!indentBlockTemplates"/u);
-    assert.match(template, /:disabled="!formatFirstParameter"/u);
-    assert.match(template, /:disabled="!formatSubsequentParameters"/u);
-    assert.match(template, /:disabled="!resolveRedirects"/u);
+    assert.equal(template.match(/input-value="preserve"/gu)?.length, 2);
+    assert.equal(template.match(/input-value="compact"/gu)?.length, 2);
     assert.match(template, /input-value="align-values"/u);
     assert.match(template, /input-value="align-names"/u);
     assert.match(template, /input-value="align-names-and-values"/u);
-    assert.equal(template.match(/input-value="compact"/gu)?.length, 2);
-    assert.doesNotMatch(template, /input-value="preserve"/u);
-    assert.match(template, /characterWidthRatio === '5:3'/u);
+    assert.match(template, /input-value="5:3"/u);
+    assert.match(template, /input-value="2:1"/u);
+    assert.match(
+        template,
+        /:disabled="indentation === 'preserve' \|\| indentation === 0"/u,
+    );
+    assert.match(template, /:disabled="!resolveRedirects"/u);
+    assert.doesNotMatch(template, /!formatFirstParameter/u);
+    assert.doesNotMatch(template, /!formatSubsequentParameters/u);
     assert.match(template, /<a\b[^>]*:href="notBrokenUrl"/u);
     assert.match(template, /target="_blank"/u);
     assert.match(template, /rel="noopener noreferrer"/u);
     assert.doesNotMatch(template, /v-html|CdxTooltip|v-tooltip/u);
 });
 
-test("loads, remembers, and saves every formatter setting", async () => {
+test("associates checkbox descriptions and keeps notes flat", () => {
+    assert.doesNotMatch(
+        template,
+        /dialog\.(?:intro|layout|advanced|enableParameterLayout)/u,
+    );
+    assert.equal(
+        template.match(/class="wiked-lite-dialog__note"/gu)?.length,
+        2,
+    );
+    assert.equal(template.match(/<template #description>/gu)?.length, 4);
+    assert.equal(
+        template.match(/class="wiked-lite-dialog__control-description"/gu)
+            ?.length,
+        4,
+    );
+    for (const [model, description] of [
+        ["normalizeConversion", "normalizeConversionDescription"],
+        ["smallReferenceText", "smallReferenceTextDescription"],
+        ["highlightMissing", "highlightMissingDescription"],
+        ["fullPageReferencePreviews", "fullPageReferencePreviewsDescription"],
+    ]) {
+        assert.match(template, describedCheckboxPattern(model, description));
+    }
+    assert.match(styles, /font-size: 0\.875em/u);
+    assert.match(styles, /margin: 4px 0 12px/u);
+    assert.doesNotMatch(styles, /margin-left|padding-left/u);
+    const declarations = styles.match(controlDescriptionStylePattern)?.groups
+        ?.declarations;
+    assert.ok(declarations);
+    assert.match(declarations, /font-size: 0\.875em;/u);
+    assert.match(declarations, /line-height: 1\.4;/u);
+});
+
+function describedCheckboxPattern(model: string, description: string): RegExp {
+    return new RegExp(
+        [
+            `<cdx-checkbox\\s+v-model="${model}"`,
+            "(?:(?!</cdx-checkbox>)[\\s\\S])*?<template #description>",
+            "\\s*<span\\s+class=",
+            '"wiked-lite-dialog__control-description"\\s*>',
+            `\\s*\\{\\{\\s*msg\\(\\s*"dialog\\.${description}"\\s*,?\\s*\\)`,
+            "\\s*\\}\\}\\s*</span>\\s*</template>",
+            "(?:(?!</cdx-checkbox>)[\\s\\S])*?</cdx-checkbox>",
+        ].join(""),
+        "u",
+    );
+}
+
+test("loads direct choices and saves their formatter mapping", async () => {
     const settings = createConfiguredSettings();
     const saved: FormatterDialogSelection[] = [];
-    const featureChanges: unknown[] = [];
     const bindings = createFormatterDialogBindings(createVueHarness(), {
         initialSelection: settings,
         notBrokenUrl: "/wiki/WP:NOTBROKEN",
         onClose() {},
         onError(error) {
             assert.fail(`Unexpected settings error: ${String(error)}`);
-        },
-        onFeatureChange(selection) {
-            featureChanges.push(selection);
         },
         onSave(selection) {
             saved.push(selection);
@@ -119,93 +179,125 @@ test("loads, remembers, and saves every formatter setting", async () => {
     });
 
     assertConfiguredBindings(bindings);
-    changeSettings(bindings, featureChanges);
+    bindings.updateFirstParameterMode("preserve");
+    bindings.updateSubsequentParameterMode("preserve");
+    bindings.updateIndentation(3);
+    bindings.updateSkipFirstLevelIndentation(false);
+    bindings.characterWidthRatio.value = "5:3";
+    bindings.largeFont.value = false;
+    bindings.smallReferenceText.value = true;
+    bindings.markSettingsDirty();
 
     await bindings.saveCurrentSettings();
 
     assert.equal(bindings.settingsSaved.value, true);
     assert.deepEqual(saved, [createSavedSettings(settings)]);
-    bindings.formatFirstParameter.value = true;
-    bindings.markSettingsDirty();
+    bindings.updateFirstParameterMode("compact");
     assert.equal(bindings.settingsSaved.value, false);
 });
 
-function changeSettings(
-    bindings: ReturnType<typeof createFormatterDialogBindings>,
-    featureChanges: unknown[],
-): void {
-    bindings.formatFirstParameter.value = false;
-    bindings.formatSubsequentParameters.value = false;
-    assert.equal(bindings.firstParameterLayout.value, "compact");
-    assert.equal(
-        bindings.subsequentParameterLayout.value,
-        "align-names-and-values",
-    );
-
-    bindings.updateCharacterWidthRatio(true);
-    bindings.updateIndentSpaces(8);
-    bindings.updateLargeFont(false);
-    bindings.updateSmallReferenceText(true);
-
-    assert.deepEqual(featureChanges, [
-        expectedFeatures({ largeFont: false }),
-        expectedFeatures({ largeFont: false, smallReferenceText: true }),
-    ]);
-}
-
-function createSavedSettings(
-    settings: FormatterDialogSelection,
-): FormatterDialogSelection {
-    return {
-        ...settings,
-        formatter: {
-            ...settings.formatter,
-            characterWidthRatio: "5:3",
-            formatFirstParameter: false,
-            formatSubsequentParameters: false,
-            indentSpaces: 8,
-        },
-        largeFont: false,
-        smallReferenceText: true,
-    };
-}
-
-test("invalid indentation blocks formatting and saving", async () => {
-    let submitted = false;
-    let saved = false;
+test("preserve modes retain their underlying formatter details", async () => {
+    const settings = createConfiguredSettings();
+    const saved: FormatterSettings[] = [];
     const bindings = createFormatterDialogBindings(createVueHarness(), {
-        initialSelection: createDefaultFormatterSettings(),
+        initialSelection: settings,
         notBrokenUrl: "/wiki/WP:NOTBROKEN",
         onClose() {},
         onError() {},
-        onFeatureChange() {},
-        onSave() {
-            saved = true;
+        onSave(selection) {
+            saved.push(selection);
         },
-        async onSubmit() {
-            submitted = true;
-        },
+        async onSubmit() {},
     });
 
-    bindings.updateIndentBlockTemplates(true);
-    for (const value of ["", -1, 1.5, 9]) {
-        bindings.updateIndentSpaces(value);
-        await bindings.apply();
-        await bindings.saveCurrentSettings();
-        assert.match(bindings.indentError.value, /integer from 0 through 8/u);
-    }
-    assert.equal(submitted, false);
-    assert.equal(saved, false);
-
-    bindings.updateIndentBlockTemplates(false);
-    assert.equal(bindings.indentError.value, "");
-    assert.equal(bindings.indentSpaces.value, 2);
+    bindings.updateIndentation("preserve");
+    bindings.updateFirstParameterMode("preserve");
+    bindings.updateSubsequentParameterMode("preserve");
     await bindings.saveCurrentSettings();
-    assert.equal(saved, true);
+
+    assert.equal(saved[0]?.formatter.indentBlockTemplates, false);
+    assert.equal(saved[0]?.formatter.indentSpaces, 4);
+    assert.equal(saved[0]?.formatter.formatFirstParameter, false);
+    assert.equal(saved[0]?.formatter.firstParameterLayout, "compact");
+    assert.equal(saved[0]?.formatter.formatSubsequentParameters, false);
+    assert.equal(
+        saved[0]?.formatter.subsequentParameterLayout,
+        "align-names-and-values",
+    );
+    assert.equal(saved[0]?.formatter.skipFirstLevelIndentation, true);
 });
 
-test("busy formatting ignores dialog dismissal", async () => {
-    let closed = false;
+// eslint-disable-next-line max-len
+test("the indentation menu is limited to preserve and zero through four", () => {
+    const settings = createConfiguredSettings();
+    settings.formatter.indentSpaces = 8;
+    const bindings = createFormatterDialogBindings(createVueHarness(), {
+        initialSelection: settings,
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
+        onClose() {},
+        onError() {},
+        onSave() {},
+        async onSubmit() {},
+    });
+
+    assert.deepEqual(
+        bindings.indentationOptions.map((item) => item.value),
+        ["preserve", 0, 1, 2, 3, 4],
+    );
+    assert.equal(bindings.indentation.value, 4);
+});
+
+test("defers display settings until cancel closes", async () => {
+    const closedWith: EditorFeatureSettings[] = [];
+    const bindings = createFormatterDialogBindings(createVueHarness(), {
+        initialSelection: createConfiguredSettings(),
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
+        onClose(settings) {
+            closedWith.push(settings);
+        },
+        onError() {},
+        onSave() {},
+        async onSubmit() {},
+    });
+
+    bindings.largeFont.value = false;
+    bindings.smallReferenceText.value = true;
+    bindings.markSettingsDirty();
+    await bindings.saveCurrentSettings();
+    assert.deepEqual(closedWith, []);
+
+    bindings.onCancel();
+    bindings.onOpenChange(false);
+    assert.equal(bindings.open.value, false);
+    assert.deepEqual(closedWith, [
+        expectedFeatures({ largeFont: false, smallReferenceText: true }),
+    ]);
+});
+
+test("a normal dialog dismissal applies display settings exactly once", () => {
+    const closedWith: EditorFeatureSettings[] = [];
+    const bindings = createFormatterDialogBindings(createVueHarness(), {
+        initialSelection: createConfiguredSettings(),
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
+        onClose(settings) {
+            closedWith.push(settings);
+        },
+        onError() {},
+        onSave() {},
+        async onSubmit() {},
+    });
+
+    bindings.referencePreviews.value = true;
+    bindings.onOpenChange(false);
+    bindings.onOpenChange(false);
+
+    assert.deepEqual(closedWith, [
+        expectedFeatures({ referencePreviews: true }),
+    ]);
+});
+
+test("ignores busy dismissal and applies after success", async () => {
+    const closedWith: EditorFeatureSettings[] = [];
     let finishFormatting = function finishNoop(): void {};
     const formatting = new Promise<void>((resolve) => {
         finishFormatting = resolve;
@@ -213,45 +305,49 @@ test("busy formatting ignores dialog dismissal", async () => {
     const bindings = createFormatterDialogBindings(createVueHarness(), {
         initialSelection: createDefaultFormatterSettings(),
         notBrokenUrl: "/wiki/WP:NOTBROKEN",
-        onClose() {
-            closed = true;
+        onClose(settings) {
+            closedWith.push(settings);
         },
         onError() {},
-        onFeatureChange() {},
         onSave() {},
         onSubmit() {
             return formatting;
         },
     });
 
+    bindings.highlightMissing.value = true;
     const applying = bindings.apply();
     assert.equal(bindings.applying.value, true);
     bindings.open.value = false;
     bindings.onOpenChange(false);
     assert.equal(bindings.open.value, true);
-    assert.equal(closed, false);
+    assert.deepEqual(closedWith, []);
 
     finishFormatting();
     await applying;
     assert.equal(bindings.open.value, false);
-    assert.equal(closed, true);
+    assert.deepEqual(closedWith, [
+        {
+            ...expectedDefaultFeatures(),
+            highlightMissing: true,
+        },
+    ]);
 });
 
-test("reports formatter and storage failures without closing", async () => {
+test("reports failures without applying display features", async () => {
     const formatFailure = new Error("formatter failed");
     const storageFailure = new Error("storage failed");
     const reported: unknown[] = [];
-    let closed = false;
+    const closedWith: EditorFeatureSettings[] = [];
     const bindings = createFormatterDialogBindings(createVueHarness(), {
         initialSelection: createDefaultFormatterSettings(),
         notBrokenUrl: "/wiki/WP:NOTBROKEN",
-        onClose() {
-            closed = true;
+        onClose(settings) {
+            closedWith.push(settings);
         },
         onError(error, operation) {
             reported.push([error, operation]);
         },
-        onFeatureChange() {},
         onSave() {
             throw storageFailure;
         },
@@ -262,13 +358,13 @@ test("reports formatter and storage failures without closing", async () => {
 
     await bindings.apply();
     assert.equal(bindings.applying.value, false);
-    assert.equal(closed, false);
+    assert.deepEqual(closedWith, []);
     assert.match(bindings.error.value, /formatting failed/u);
 
     await bindings.saveCurrentSettings();
     assert.equal(bindings.savingSettings.value, false);
     assert.equal(bindings.settingsSaved.value, false);
-    assert.equal(closed, false);
+    assert.deepEqual(closedWith, []);
     assert.match(bindings.error.value, /could not be saved/u);
     assert.deepEqual(reported, [
         [formatFailure, "format"],
@@ -279,16 +375,14 @@ test("reports formatter and storage failures without closing", async () => {
 function assertConfiguredBindings(
     bindings: ReturnType<typeof createFormatterDialogBindings>,
 ): void {
-    assert.equal(bindings.firstParameterLayout.value, "compact");
+    assert.equal(bindings.firstParameterMode.value, "compact");
     assert.equal(
-        bindings.subsequentParameterLayout.value,
+        bindings.subsequentParameterMode.value,
         "align-names-and-values",
     );
     assert.equal(bindings.characterWidthRatio.value, "2:1");
-    assert.equal(bindings.formatFirstParameter.value, true);
-    assert.equal(bindings.formatSubsequentParameters.value, true);
-    assert.equal(bindings.indentBlockTemplates.value, true);
-    assert.equal(bindings.indentSpaces.value, 4);
+    assert.equal(bindings.indentation.value, 4);
+    assert.equal(bindings.skipFirstLevelIndentation.value, true);
     assert.equal(bindings.normalizeConversion.value, true);
     assert.equal(bindings.resolveRedirects.value, true);
     assert.equal(bindings.resolveTemplateRedirects.value, true);
@@ -310,6 +404,7 @@ function createConfiguredSettings(): FormatterDialogSelection {
             indentBlockTemplates: true,
             indentSpaces: 4,
             normalizeConversion: true,
+            skipFirstLevelIndentation: true,
             subsequentParameterLayout: "align-names-and-values",
         },
         highlightMissing: true,
@@ -321,12 +416,27 @@ function createConfiguredSettings(): FormatterDialogSelection {
     };
 }
 
+function createSavedSettings(
+    settings: FormatterDialogSelection,
+): FormatterDialogSelection {
+    return {
+        ...settings,
+        formatter: {
+            ...settings.formatter,
+            characterWidthRatio: "5:3",
+            formatFirstParameter: false,
+            formatSubsequentParameters: false,
+            indentSpaces: 3,
+            skipFirstLevelIndentation: false,
+        },
+        largeFont: false,
+        smallReferenceText: true,
+    };
+}
+
 function expectedFeatures(
-    overrides: Partial<{
-        largeFont: boolean;
-        smallReferenceText: boolean;
-    }>,
-): unknown {
+    overrides: Partial<EditorFeatureSettings>,
+): EditorFeatureSettings {
     return {
         fullPageReferencePreviews: true,
         highlightMissing: true,
@@ -334,6 +444,16 @@ function expectedFeatures(
         referencePreviews: false,
         smallReferenceText: false,
         ...overrides,
+    };
+}
+
+function expectedDefaultFeatures(): EditorFeatureSettings {
+    return {
+        fullPageReferencePreviews: false,
+        highlightMissing: false,
+        largeFont: false,
+        referencePreviews: true,
+        smallReferenceText: true,
     };
 }
 

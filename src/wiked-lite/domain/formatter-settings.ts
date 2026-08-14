@@ -38,6 +38,7 @@ export function createDefaultFormatterSettings(): FormatterSettings {
             indentBlockTemplates: false,
             indentSpaces: 2,
             normalizeConversion: false,
+            skipFirstLevelIndentation: false,
             subsequentParameterLayout: "align-names",
         },
         highlightMissing: false,
@@ -97,6 +98,7 @@ function parseFormatterOptions(value: unknown): FormatterOptions | undefined {
         typeof value.indentBlockTemplates !== "boolean" ||
         !isIndentSpaces(value.indentSpaces) ||
         typeof value.normalizeConversion !== "boolean" ||
+        !isOptionalBoolean(value.skipFirstLevelIndentation) ||
         !isSubsequentParameterLayout(value.subsequentParameterLayout)
     ) {
         return undefined;
@@ -109,6 +111,7 @@ function parseFormatterOptions(value: unknown): FormatterOptions | undefined {
         indentBlockTemplates: value.indentBlockTemplates,
         indentSpaces: value.indentSpaces,
         normalizeConversion: value.normalizeConversion,
+        skipFirstLevelIndentation: value.skipFirstLevelIndentation === true,
         subsequentParameterLayout: value.subsequentParameterLayout,
     };
 }
@@ -163,5 +166,9 @@ function isCharacterWidthRatio(value: unknown): value is "2:1" | "5:3" {
 }
 
 function isIndentSpaces(value: unknown): value is number {
-    return Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 8;
+    return Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 4;
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+    return value === undefined || typeof value === "boolean";
 }

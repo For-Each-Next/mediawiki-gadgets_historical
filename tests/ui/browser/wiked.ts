@@ -1,7 +1,9 @@
 /** Production wikEd Lite formatter dialog story. */
 
-// eslint-disable-next-line max-len
-import { createDefaultFormatterSettings } from "wiked-lite/domain/formatter-settings.ts";
+import {
+    createDefaultFormatterSettings,
+    withEditorFeatureSettings,
+} from "wiked-lite/domain/formatter-settings.ts";
 import { registerFormatterComponents } from "wiked-lite/ui/codex.ts";
 import {
     FORMATTER_DIALOG_STYLES,
@@ -23,9 +25,13 @@ installStoryHost("wiked-lite", stories, function renderStory() {
     const component = createFormatterDialogComponent(getVue(), {
         initialSelection: formatterSettings,
         notBrokenUrl: "/wiki/WP:NOTBROKEN",
-        onClose() {},
+        onClose(features) {
+            formatterSettings = withEditorFeatureSettings(
+                formatterSettings,
+                features,
+            );
+        },
         onError() {},
-        onFeatureChange() {},
         onSave(selection) {
             formatterSettings = selection;
         },

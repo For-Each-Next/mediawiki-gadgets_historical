@@ -82,6 +82,17 @@ test("large-font state scales the copied native editor size", () => {
     assert.doesNotMatch(styles, /--wiked-lite-native-font-size/u);
 });
 
+test("unchecked links use the copied editor foreground color", () => {
+    const rule = getStyleRule(".wiked-lite-token--unchecked");
+
+    assert.match(rule, /color:\s*var\(--wiked-lite-foreground/u);
+    assert.match(rule, /!important/u);
+    assert.match(
+        editorSource,
+        /span\.classList\.add\("wiked-lite-token--unchecked"\)/u,
+    );
+});
+
 test("magic words and module names retain wikEd colors", () => {
     assert.match(
         styles,

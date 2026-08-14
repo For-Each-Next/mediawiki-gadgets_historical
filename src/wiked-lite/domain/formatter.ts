@@ -25,6 +25,7 @@ export interface FormatterOptions {
     indentBlockTemplates: boolean;
     indentSpaces: number;
     normalizeConversion: boolean;
+    skipFirstLevelIndentation?: boolean;
     subsequentParameterLayout: SubsequentParameterLayout;
 }
 
@@ -65,6 +66,7 @@ interface BlockTemplateLayout {
     indentBlockTemplates: boolean;
     indentSpaces: number;
     ratio: number;
+    skipFirstLevelIndentation: boolean;
     subsequentParameterLayout: SubsequentParameterLayout;
 }
 
@@ -89,6 +91,7 @@ const DEFAULT_FORMATTER_OPTIONS: FormatterOptions = {
     indentBlockTemplates: false,
     indentSpaces: 2,
     normalizeConversion: false,
+    skipFirstLevelIndentation: false,
     subsequentParameterLayout: "align-names",
 };
 
@@ -141,6 +144,7 @@ function resolveFormatterOptions(
             ? options.indentSpaces
             : DEFAULT_FORMATTER_OPTIONS.indentSpaces,
         normalizeConversion: options.normalizeConversion === true,
+        skipFirstLevelIndentation: options.skipFirstLevelIndentation === true,
         subsequentParameterLayout: resolveSubsequentParameterLayout(
             options.subsequentParameterLayout,
         ),
@@ -281,6 +285,7 @@ function formatBlockTemplates(
         indentBlockTemplates: options.indentBlockTemplates,
         indentSpaces: options.indentSpaces,
         ratio,
+        skipFirstLevelIndentation: options.skipFirstLevelIndentation === true,
         subsequentParameterLayout: options.subsequentParameterLayout,
     };
     layout.columns = getTemplateColumns(lines, layout);
@@ -563,7 +568,7 @@ function formatBlockLine(
     if (layout.indentBlockTemplates && line.closingDepth != null) {
         return line.text.replace(
             /^\s*(?=\}\})/u,
-            " ".repeat(layout.indentSpaces * line.closingDepth),
+            getBlockIndentation(line.closingDepth, layout),
         );
     }
     if (line.templateId == null) {
@@ -587,7 +592,7 @@ function formatTemplateLine(
     layout: BlockTemplateLayout,
 ): string {
     const indentation = layout.indentBlockTemplates
-        ? " ".repeat(layout.indentSpaces * templateDepth)
+        ? getBlockIndentation(templateDepth, layout)
         : line.indentation;
     const prefix = `${indentation}|`;
     const cells = parseBlockParameterCells(line.content);
@@ -604,6 +609,16 @@ function formatTemplateLine(
         );
     }
     return formatParameterLine(prefix, cells, columns, layout);
+}
+
+function getBlockIndentation(
+    depth: number,
+    layout: BlockTemplateLayout,
+): string {
+    const adjustedDepth = layout.skipFirstLevelIndentation
+        ? Math.max(depth - 1, 0)
+        : depth;
+    return " ".repeat(layout.indentSpaces * adjustedDepth);
 }
 
 function formatLineWithPreservedTail(

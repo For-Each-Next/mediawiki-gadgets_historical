@@ -15,40 +15,42 @@ import type { VueModule, VueRef } from "#gadget/ui/codex.ts";
 
 export type FormatterDialogSelection = FormatterSettings;
 
+type FirstParameterMode = FirstParameterLayout | "preserve";
 type FormatterDialogOperation = "format" | "save-settings";
+type IndentationSelection = 0 | 1 | 2 | 3 | 4 | "preserve";
+type SubsequentParameterMode = SubsequentParameterLayout | "preserve";
+
+interface SelectMenuItem {
+    label: string;
+    value: IndentationSelection;
+}
 
 export interface FormatterDialogOptions {
     initialSelection: FormatterDialogSelection;
     notBrokenUrl: string;
-    onClose(): void;
+    onClose(settings: EditorFeatureSettings): void;
     onError(error: unknown, operation: FormatterDialogOperation): void;
-    onFeatureChange(settings: EditorFeatureSettings): void;
     onSave(selection: FormatterDialogSelection): Promise<void> | void;
     onSubmit(selection: FormatterDialogSelection): Promise<void>;
 }
-
-type IndentSpacesValue = number | string;
 
 interface DialogBindings {
     applying: VueRef<boolean>;
     apply(): Promise<void>;
     characterWidthRatio: VueRef<CharacterWidthRatio>;
     error: VueRef<string>;
-    firstParameterLayout: VueRef<FirstParameterLayout>;
-    formatFirstParameter: VueRef<boolean>;
-    formatSubsequentParameters: VueRef<boolean>;
+    firstParameterMode: VueRef<FirstParameterMode>;
     fullPageReferencePreviews: VueRef<boolean>;
     highlightMissing: VueRef<boolean>;
-    indentBlockTemplates: VueRef<boolean>;
-    indentError: VueRef<string>;
-    indentSpaces: VueRef<IndentSpacesValue>;
+    indentation: VueRef<IndentationSelection>;
+    indentationOptions: SelectMenuItem[];
     interfaceLocale: string;
     largeFont: VueRef<boolean>;
     markSettingsDirty(): void;
     msg: typeof msg;
+    normalizeConversion: VueRef<boolean>;
     notBrokenSeparator: string;
     notBrokenUrl: string;
-    normalizeConversion: VueRef<boolean>;
     onCancel(): void;
     onOpenChange(value: boolean): void;
     open: VueRef<boolean>;
@@ -58,16 +60,13 @@ interface DialogBindings {
     saveCurrentSettings(): Promise<void>;
     savingSettings: VueRef<boolean>;
     settingsSaved: VueRef<boolean>;
+    skipFirstLevelIndentation: VueRef<boolean>;
     smallReferenceText: VueRef<boolean>;
-    subsequentParameterLayout: VueRef<SubsequentParameterLayout>;
-    updateFullPageReferencePreviews(value: boolean): void;
-    updateCharacterWidthRatio(value: boolean): void;
-    updateHighlightMissing(value: boolean): void;
-    updateIndentBlockTemplates(value: boolean): void;
-    updateIndentSpaces(value: IndentSpacesValue): void;
-    updateLargeFont(value: boolean): void;
-    updateReferencePreviews(value: boolean): void;
-    updateSmallReferenceText(value: boolean): void;
+    subsequentParameterMode: VueRef<SubsequentParameterMode>;
+    updateFirstParameterMode(value: FirstParameterMode): void;
+    updateIndentation(value: IndentationSelection): void;
+    updateSkipFirstLevelIndentation(value: boolean): void;
+    updateSubsequentParameterMode(value: SubsequentParameterMode): void;
 }
 
 export const FORMATTER_DIALOG_TEMPLATE =
@@ -112,29 +111,31 @@ export function createFormatterDialogBindings(
     const settingsSaved = Vue.ref(false);
     const error = Vue.ref("");
     const initial = options.initialSelection;
-    const firstParameterLayout = Vue.ref<FirstParameterLayout>(
-        initial.formatter.firstParameterLayout,
+    const indentation = Vue.ref<IndentationSelection>(
+        initial.formatter.indentBlockTemplates
+            ? normalizeIndentation(initial.formatter.indentSpaces)
+            : "preserve",
     );
-    const subsequentParameterLayout = Vue.ref<SubsequentParameterLayout>(
-        initial.formatter.subsequentParameterLayout,
+    let lastIndentation = normalizeIndentation(initial.formatter.indentSpaces);
+    const firstParameterMode = Vue.ref<FirstParameterMode>(
+        initial.formatter.formatFirstParameter
+            ? initial.formatter.firstParameterLayout
+            : "preserve",
     );
+    let lastFirstParameterLayout = initial.formatter.firstParameterLayout;
+    const subsequentParameterMode = Vue.ref<SubsequentParameterMode>(
+        initial.formatter.formatSubsequentParameters
+            ? initial.formatter.subsequentParameterLayout
+            : "preserve",
+    );
+    let lastSubsequentParameterLayout =
+        initial.formatter.subsequentParameterLayout;
     const characterWidthRatio = Vue.ref<CharacterWidthRatio>(
         initial.formatter.characterWidthRatio,
     );
-    const formatFirstParameter = Vue.ref(
-        initial.formatter.formatFirstParameter,
+    const skipFirstLevelIndentation = Vue.ref(
+        initial.formatter.skipFirstLevelIndentation === true,
     );
-    const formatSubsequentParameters = Vue.ref(
-        initial.formatter.formatSubsequentParameters,
-    );
-    const indentBlockTemplates = Vue.ref(
-        initial.formatter.indentBlockTemplates,
-    );
-    const indentSpaces = Vue.ref<IndentSpacesValue>(
-        initial.formatter.indentSpaces,
-    );
-    let lastValidIndentSpaces = initial.formatter.indentSpaces;
-    const indentError = Vue.ref("");
     const normalizeConversion = Vue.ref(initial.formatter.normalizeConversion);
     const resolveRedirects = Vue.ref(initial.resolveRedirects);
     const resolveTemplateRedirects = Vue.ref(initial.resolveTemplateRedirects);
@@ -145,22 +146,34 @@ export function createFormatterDialogBindings(
     const fullPageReferencePreviews = Vue.ref(
         initial.fullPageReferencePreviews,
     );
-    function onCancel(): void {
-        open.value = false;
-        options.onClose();
-    }
+    let closed = false;
+
     function createSelection(): FormatterDialogSelection {
+        const selectedIndentation = indentation.value;
+        const selectedFirstMode = firstParameterMode.value;
+        const selectedSubsequentMode = subsequentParameterMode.value;
         return {
             fullPageReferencePreviews: fullPageReferencePreviews.value,
             formatter: {
                 characterWidthRatio: characterWidthRatio.value,
-                firstParameterLayout: firstParameterLayout.value,
-                formatFirstParameter: formatFirstParameter.value,
-                formatSubsequentParameters: formatSubsequentParameters.value,
-                indentBlockTemplates: indentBlockTemplates.value,
-                indentSpaces: Number(indentSpaces.value),
+                firstParameterLayout:
+                    selectedFirstMode === "preserve"
+                        ? lastFirstParameterLayout
+                        : selectedFirstMode,
+                formatFirstParameter: selectedFirstMode !== "preserve",
+                formatSubsequentParameters:
+                    selectedSubsequentMode !== "preserve",
+                indentBlockTemplates: selectedIndentation !== "preserve",
+                indentSpaces:
+                    selectedIndentation === "preserve"
+                        ? lastIndentation
+                        : selectedIndentation,
                 normalizeConversion: normalizeConversion.value,
-                subsequentParameterLayout: subsequentParameterLayout.value,
+                skipFirstLevelIndentation: skipFirstLevelIndentation.value,
+                subsequentParameterLayout:
+                    selectedSubsequentMode === "preserve"
+                        ? lastSubsequentParameterLayout
+                        : selectedSubsequentMode,
             },
             highlightMissing: highlightMissing.value,
             largeFont: largeFont.value,
@@ -170,26 +183,25 @@ export function createFormatterDialogBindings(
             smallReferenceText: smallReferenceText.value,
         };
     }
-    function updateFeature(
-        setting: keyof EditorFeatureSettings,
-        value: boolean,
-    ): void {
-        const target = {
-            fullPageReferencePreviews,
-            highlightMissing,
-            largeFont,
-            referencePreviews,
-            smallReferenceText,
-        }[setting];
-        target.value = value;
-        settingsSaved.value = false;
-        options.onFeatureChange(getEditorFeatureSettings(createSelection()));
-    }
     function markSettingsDirty(): void {
         settingsSaved.value = false;
     }
+    function closeDialog(): void {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        open.value = false;
+        options.onClose(getEditorFeatureSettings(createSelection()));
+    }
+    function onCancel(): void {
+        if (applying.value || savingSettings.value) {
+            return;
+        }
+        closeDialog();
+    }
     async function apply(): Promise<void> {
-        if (!validateIndentSpaces(indentSpaces.value, indentError)) {
+        if (applying.value || savingSettings.value || closed) {
             return;
         }
         applying.value = true;
@@ -197,16 +209,17 @@ export function createFormatterDialogBindings(
         settingsSaved.value = false;
         try {
             await options.onSubmit(createSelection());
-            applying.value = false;
-            onCancel();
         } catch (caught) {
             options.onError(caught, "format");
             error.value = msg("feedback.failed");
             applying.value = false;
+            return;
         }
+        applying.value = false;
+        closeDialog();
     }
     async function saveCurrentSettings(): Promise<void> {
-        if (!validateIndentSpaces(indentSpaces.value, indentError)) {
+        if (applying.value || savingSettings.value || closed) {
             return;
         }
         savingSettings.value = true;
@@ -227,21 +240,18 @@ export function createFormatterDialogBindings(
         apply,
         characterWidthRatio,
         error,
-        firstParameterLayout,
-        formatFirstParameter,
-        formatSubsequentParameters,
+        firstParameterMode,
         fullPageReferencePreviews,
         highlightMissing,
-        indentBlockTemplates,
-        indentError,
-        indentSpaces,
+        indentation,
+        indentationOptions: createIndentationOptions(),
         interfaceLocale,
         largeFont,
         markSettingsDirty,
         msg,
+        normalizeConversion,
         notBrokenUrl: options.notBrokenUrl,
         notBrokenSeparator: interfaceLocale === "en" ? " " : "",
-        normalizeConversion,
         onCancel,
         onOpenChange(value) {
             if (value) {
@@ -251,7 +261,7 @@ export function createFormatterDialogBindings(
                 open.value = true;
                 return;
             }
-            onCancel();
+            closeDialog();
         },
         open,
         referencePreviews,
@@ -260,54 +270,48 @@ export function createFormatterDialogBindings(
         saveCurrentSettings,
         savingSettings,
         settingsSaved,
+        skipFirstLevelIndentation,
         smallReferenceText,
-        subsequentParameterLayout,
-        updateCharacterWidthRatio(value) {
-            characterWidthRatio.value = value ? "5:3" : "2:1";
-            settingsSaved.value = false;
-        },
-        updateFullPageReferencePreviews(value) {
-            updateFeature("fullPageReferencePreviews", value);
-        },
-        updateHighlightMissing(value) {
-            updateFeature("highlightMissing", value);
-        },
-        updateIndentBlockTemplates(value) {
-            indentBlockTemplates.value = value;
-            if (
-                !value &&
-                !validateIndentSpaces(indentSpaces.value, indentError)
-            ) {
-                indentSpaces.value = lastValidIndentSpaces;
-                indentError.value = "";
+        subsequentParameterMode,
+        updateFirstParameterMode(value) {
+            firstParameterMode.value = value;
+            if (value !== "preserve") {
+                lastFirstParameterLayout = value;
             }
             markSettingsDirty();
         },
-        updateIndentSpaces(value) {
-            indentSpaces.value = value;
-            if (validateIndentSpaces(value, indentError)) {
-                lastValidIndentSpaces = Number(value);
+        updateIndentation(value) {
+            indentation.value = value;
+            if (value !== "preserve") {
+                lastIndentation = value;
             }
             markSettingsDirty();
         },
-        updateLargeFont(value) {
-            updateFeature("largeFont", value);
+        updateSkipFirstLevelIndentation(value) {
+            skipFirstLevelIndentation.value = value;
+            markSettingsDirty();
         },
-        updateReferencePreviews(value) {
-            updateFeature("referencePreviews", value);
-        },
-        updateSmallReferenceText(value) {
-            updateFeature("smallReferenceText", value);
+        updateSubsequentParameterMode(value) {
+            subsequentParameterMode.value = value;
+            if (value !== "preserve") {
+                lastSubsequentParameterLayout = value;
+            }
+            markSettingsDirty();
         },
     };
 }
 
-function validateIndentSpaces(
-    value: IndentSpacesValue,
-    error: VueRef<string>,
-): boolean {
-    const number = value === "" ? Number.NaN : Number(value);
-    const valid = Number.isInteger(number) && number >= 0 && number <= 8;
-    error.value = valid ? "" : msg("feedback.invalidIndent");
-    return valid;
+function createIndentationOptions(): SelectMenuItem[] {
+    return [
+        { label: msg("dialog.preserve"), value: "preserve" },
+        { label: "0", value: 0 },
+        { label: "1", value: 1 },
+        { label: "2", value: 2 },
+        { label: "3", value: 3 },
+        { label: "4", value: 4 },
+    ];
+}
+
+function normalizeIndentation(value: number): 0 | 1 | 2 | 3 | 4 {
+    return Math.max(0, Math.min(4, value)) as 0 | 1 | 2 | 3 | 4;
 }

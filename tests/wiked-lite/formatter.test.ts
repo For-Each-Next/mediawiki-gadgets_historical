@@ -392,6 +392,63 @@ test("deeper block templates indent pipes and closers by depth", () => {
     );
 });
 
+test("block indentation can leave the first template level unindented", () => {
+    const source = [
+        "{{outer",
+        "  | middle = {{middle",
+        "| inner = {{inner",
+        "   | leaf = value",
+        "      }}",
+        "| middle_after = value",
+        "  }}",
+        "  | outer_after = value",
+        "}}",
+    ].join("\n");
+    const expected = [
+        "{{outer",
+        "| middle = {{middle",
+        "  | inner = {{inner",
+        "    | leaf = value",
+        "  }}",
+        "  | middle_after = value",
+        "}}",
+        "| outer_after = value",
+        "}}",
+    ].join("\n");
+
+    assert.equal(
+        formatWikitext(source, {
+            indentBlockTemplates: true,
+            skipFirstLevelIndentation: true,
+        }).text,
+        expected,
+    );
+    assert.deepEqual(
+        formatWikitext(expected, {
+            indentBlockTemplates: true,
+            skipFirstLevelIndentation: true,
+        }),
+        { changed: false, text: expected },
+    );
+});
+
+test("first-level indentation remains enabled by default", () => {
+    const source = ["{{outer", "| value = text", "}}"].join("\n");
+    const expected = ["{{outer", "  | value = text", "}}"].join("\n");
+
+    assert.equal(
+        formatWikitext(source, { indentBlockTemplates: true }).text,
+        expected,
+    );
+    assert.equal(
+        formatWikitext(source, {
+            indentBlockTemplates: true,
+            skipFirstLevelIndentation: false,
+        }).text,
+        expected,
+    );
+});
+
 test("block template indentation accepts every supported width", () => {
     const source = [
         "{{outer",
@@ -401,7 +458,7 @@ test("block template indentation accepts every supported width", () => {
         "}}",
     ].join("\n");
 
-    for (const indentSpaces of [0, 1, 2, 4, 8]) {
+    for (const indentSpaces of [0, 1, 2, 3, 4, 5, 6, 7, 8]) {
         const indent = " ".repeat(indentSpaces);
         const expected = [
             "{{outer",

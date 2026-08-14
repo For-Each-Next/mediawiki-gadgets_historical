@@ -121,8 +121,9 @@ async function findMissingLinks(
     namespaces: WikiNamespaceResolver,
     logger: Logger,
 ): Promise<{
+    checkedTitles: Set<string>;
     linkClasses: string[];
-    titles: Set<string>;
+    missingTitles: Set<string>;
 }> {
     const titles = collectWikiLinkTitles(source);
     if (databaseName === "zhwiki") {
@@ -138,8 +139,9 @@ async function findMissingLinks(
         const result = await lookupWikiLinks(new mw.Api(), uniqueTitles);
         stopTimer({ missingCount: result.missing.size });
         return {
+            checkedTitles: new Set(uniqueTitles),
             linkClasses: result.missingLinkClasses,
-            titles: result.missing,
+            missingTitles: result.missing,
         };
     } catch (error) {
         logger.warn("links.lookup.failed", {

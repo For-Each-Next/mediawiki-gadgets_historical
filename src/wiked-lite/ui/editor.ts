@@ -38,8 +38,10 @@ import {
     restoreNativeSelectionAndFocus,
 } from "#gadget/ui/editor-lifecycle.ts";
 import {
+    classifyLinkCheck,
     createEditorFeatureController,
     type EditorFeatureController,
+    type LinkCheckState,
     type MissingLinkResult,
 } from "#gadget/ui/editor-features.ts";
 import { attachReferenceTooltips } from "#gadget/ui/reference-tooltip.ts";
@@ -304,7 +306,12 @@ function initializeEditorController(
 ): EditorController {
     const { editor, frame, overlay } = surface;
     const nativeFontSize = editor.style.fontSize || "0.875rem";
+    const initialFeatureSettings = getEditorFeatureSettings(
+        services.loadFormatterSettings(),
+    );
+    const checkedTitles = new Set<string>();
     const missingTitles = new Set<string>();
+    let linkChecksEnabled = initialFeatureSettings.highlightMissing;
     const hadNativeClass = textarea.classList.contains("wiked-lite-native");
     const hadNativeFocus = document.activeElement === textarea;
     const nativeAriaHidden = textarea.getAttribute("aria-hidden");
@@ -338,9 +345,7 @@ function initializeEditorController(
     editorFeatures = createEditorFeatureController({
         findMissingLinks: services.findMissingLinks,
         getSource: () => textarea.value,
-        initialSettings: getEditorFeatureSettings(
-            services.loadFormatterSettings(),
-        ),
+        initialSettings: initialFeatureSettings,
         loadPageSource: services.loadPageSource,
         onError(error, operation) {
             services.logger.warn(`feature.${operation}.failed`, { error });
@@ -384,7 +389,11 @@ function initializeEditorController(
         renderSegments(
             editor,
             textarea.value,
-            missingTitles,
+            {
+                checkedTitles,
+                enabled: linkChecksEnabled,
+                missingTitles,
+            },
             services.getHighlightOptions(),
         );
         setSelectionOffsets(editor, selection.start, selection.end);
@@ -398,8 +407,12 @@ function initializeEditorController(
     }
 
     function updateMissingLinks(result: MissingLinkResult): void {
+        checkedTitles.clear();
+        result.checkedTitles.forEach((title) =>
+            checkedTitles.add(normalizeTitle(title)),
+        );
         missingTitles.clear();
-        result.titles.forEach((title) =>
+        result.missingTitles.forEach((title) =>
             missingTitles.add(normalizeTitle(title)),
         );
         if (result.linkClasses.length > 0) {
@@ -624,6 +637,7 @@ function initializeEditorController(
             );
         },
         setFeatureSettings(settings) {
+            linkChecksEnabled = settings.highlightMissing;
             editorFeatures?.setSettings(settings);
         },
     };
@@ -933,7 +947,7 @@ function findOpaqueBackground(
 function renderSegments(
     editor: HTMLElement,
     source: string,
-    missingTitles: Set<string>,
+    linkCheckState: LinkCheckState,
     options: HighlightOptions,
 ): void {
     const target = editor.ownerDocument;
@@ -944,7 +958,7 @@ function renderSegments(
         return;
     }
     const segments = highlightWikitext(source, options);
-    appendHighlightedSegments(target, fragment, segments, missingTitles);
+    appendHighlightedSegments(target, fragment, segments, linkCheckState);
     editor.replaceChildren(fragment);
 }
 
@@ -959,7 +973,7 @@ function appendHighlightedSegments(
     target: Document,
     fragment: DocumentFragment,
     segments: ReturnType<typeof highlightWikitext>,
-    missingTitles: Set<string>,
+    linkCheckState: LinkCheckState,
 ): void {
     for (const segment of segments) {
         if (segment.classNames.length === 0) {
@@ -973,7 +987,7 @@ function appendHighlightedSegments(
             span.dataset.href = segment.href;
         }
         if (segment.missingTitle != null) {
-            markMissingLink(span, segment.missingTitle, missingTitles);
+            markLinkCheck(span, segment.missingTitle, linkCheckState);
         }
         if (segment.referenceSource != null) {
             span.dataset.reference = segment.referenceSource;
@@ -982,13 +996,16 @@ function appendHighlightedSegments(
     }
 }
 
-function markMissingLink(
+function markLinkCheck(
     span: HTMLElement,
     title: string,
-    missingTitles: Set<string>,
+    state: LinkCheckState,
 ): void {
-    if (missingTitles.has(normalizeTitle(title))) {
+    const status = classifyLinkCheck(title, state);
+    if (status === "missing") {
         span.classList.add("wiked-lite-token--missing");
+    } else if (status === "unchecked") {
+        span.classList.add("wiked-lite-token--unchecked");
     }
 }
 
@@ -1198,12 +1215,12 @@ function mountFormatterDialog(
     const component = createFormatterDialogComponent(Vue, {
         initialSelection: getDialogInitialSelection(textarea, services),
         notBrokenUrl: mw.util.getUrl("WP:NOTBROKEN"),
-        onClose: cleanup,
+        onClose(settings) {
+            controllers.get(textarea)?.setFeatureSettings(settings);
+            cleanup();
+        },
         onError(error, operation) {
             services.logger.error(`${operation}.failed`, { error });
-        },
-        onFeatureChange(settings) {
-            controllers.get(textarea)?.setFeatureSettings(settings);
         },
         onSave(selection) {
             services.saveFormatterSettings(selection);

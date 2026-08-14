@@ -2,6 +2,18 @@
 
 ## Until 0.6
 
+### 0.5.3-post.1 (2026-08-14 12:54 UTC)
+
+Overview: wikEd Lite stabilizes formatter settings migration and refreshes
+editor-display controls.
+
+- Persisted and migrated formatter settings under a versioned schema while
+  preserving existing behavior where no migration was needed.
+- Refined dialog control layout and rendering behavior for missing-page and
+  reference options, including their tooltip and preview settings.
+- Updated localized labels and guard behavior for optional rendering and
+  conversion controls without changing the major editing workflow.
+
 ### 0.5.2 (2026-08-14 08:58 UTC)
 
 Overview: wikEd Lite adds grouped formatter controls, safe conversion cleanup,

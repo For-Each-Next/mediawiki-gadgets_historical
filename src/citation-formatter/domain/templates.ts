@@ -2,9 +2,9 @@
  * Supported English Wikipedia CS1/CS2 citation templates.
  */
 import {
+    type NamespaceSource,
     normalizeNamespacePrefix,
     stripNamespacePrefix,
-    type NamespaceSource,
 } from "#shared/wiki-titles";
 
 /** Namespace rules used while interpreting template transclusions. */
@@ -85,6 +85,7 @@ const SUPPORTED_TEMPLATE_SET = new Set(
  * Normalizes a template title for comparison and metadata lookup.
  *
  * @param value - Entered template title.
+ * @param context
  * @returns Normalized template name.
  */
 export function normalizeTemplateName(
@@ -98,6 +99,7 @@ export function normalizeTemplateName(
  * Normalizes title syntax while preserving meaningful letter casing.
  *
  * @param value - Value to process.
+ * @param context
  * @returns Value.
  */
 function normalizeTemplateDisplayName(
@@ -140,6 +142,7 @@ function stripCanonicalTemplatePrefix(value: string): string {
  * Normalizes syntax and MediaWiki's first-character title casing.
  *
  * @param value - Value to process.
+ * @param context
  * @returns Normalized syntax with MediaWiki title casing.
  */
 function normalizeTemplateIdentity(
@@ -157,6 +160,7 @@ function normalizeTemplateIdentity(
  * Returns the canonical display casing of an editable template name.
  *
  * @param value - Entered or normalized template title.
+ * @param context
  * @returns Canonically cased template name.
  */
 export function getCanonicalTemplateName(
@@ -175,6 +179,7 @@ export function getCanonicalTemplateName(
  * Returns a canonical display name for a stored lowercase metadata key.
  *
  * @param value - Value to process.
+ * @param context
  * @returns Canonical display name for a lowercase metadata key.
  */
 export function getCanonicalTemplateNameFromKey(
@@ -195,6 +200,7 @@ export function getCanonicalTemplateNameFromKey(
  * Returns whether a template is in the supported CS1 set.
  *
  * @param value - Entered template title.
+ * @param context
  * @returns Whether the template is supported.
  */
 export function isCitationTemplate(
@@ -210,6 +216,7 @@ export function isCitationTemplate(
  * Returns whether a citation template can be edited as a source draft.
  *
  * @param value - Value to process.
+ * @param context
  * @returns Whether a citation template can be edited as a source draft.
  */
 export function isEditableCitationTemplate(
@@ -226,6 +233,7 @@ export function isEditableCitationTemplate(
  * Returns whether an editable template lacks local TemplateData.
  *
  * @param value - Value to process.
+ * @param context
  * @returns Whether an editable template lacks local TemplateData.
  */
 export function isMetadataFreeCitationTemplate(
@@ -242,6 +250,7 @@ export function isMetadataFreeCitationTemplate(
  * Returns whether a title uses the Cite template-name family.
  *
  * @param value - Value to process.
+ * @param context
  * @returns Whether a title uses the Cite template-name family.
  */
 export function isCitePrefixedTemplate(

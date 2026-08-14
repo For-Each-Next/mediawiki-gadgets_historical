@@ -8,8 +8,9 @@ import type { FormatterSettings } from "#gadget/domain/formatter-settings.ts";
 
 export interface EditorServices {
     findMissingLinks(source: string): Promise<{
+        checkedTitles: Set<string>;
         linkClasses: string[];
-        titles: Set<string>;
+        missingTitles: Set<string>;
     }>;
     getHighlightOptions(): HighlightOptions;
     isSectionEditing(): boolean;

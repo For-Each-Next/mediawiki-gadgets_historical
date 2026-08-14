@@ -1,13 +1,24 @@
 /** Live editor behaviors controlled by persisted formatter settings. */
 
+import { normalizeWikitextTitleKey } from "#shared/wiki-titles";
+
 import type * as settings from "#gadget/domain/formatter-settings.ts";
 
 type EditorFeatureSettings = settings.EditorFeatureSettings;
 
 export interface MissingLinkResult {
+    checkedTitles: Set<string>;
     linkClasses: string[];
-    titles: Set<string>;
+    missingTitles: Set<string>;
 }
+
+export interface LinkCheckState {
+    checkedTitles: ReadonlySet<string>;
+    enabled: boolean;
+    missingTitles: ReadonlySet<string>;
+}
+
+export type LinkCheckStatus = "checked" | "disabled" | "missing" | "unchecked";
 
 export interface EditorFeatureController {
     destroy(): void;
@@ -44,6 +55,21 @@ export function createEditorFeatureController(
     options: EditorFeatureOptions,
 ): EditorFeatureController {
     return new EditorFeatureCoordinator(options);
+}
+
+/** Classifies one link against the most recently accepted lookup. */
+export function classifyLinkCheck(
+    title: string,
+    state: LinkCheckState,
+): LinkCheckStatus {
+    if (!state.enabled) {
+        return "disabled";
+    }
+    const key = normalizeWikitextTitleKey(title);
+    if (state.missingTitles.has(key)) {
+        return "missing";
+    }
+    return state.checkedTitles.has(key) ? "checked" : "unchecked";
 }
 
 class EditorFeatureCoordinator implements EditorFeatureController {
@@ -210,14 +236,20 @@ class EditorFeatureCoordinator implements EditorFeatureController {
     private updateMissingLinkSetting(wasEnabled: boolean): void {
         if (!this.settings.highlightMissing && wasEnabled) {
             this.cancelLookup();
-            this.options.onMissingLinks({
-                linkClasses: [],
-                titles: new Set(),
-            });
+            this.options.onMissingLinks(createEmptyMissingLinkResult());
         } else if (this.settings.highlightMissing && !wasEnabled) {
+            this.options.onMissingLinks(createEmptyMissingLinkResult());
             this.scheduleLookup(0);
         }
     }
+}
+
+function createEmptyMissingLinkResult(): MissingLinkResult {
+    return {
+        checkedTitles: new Set(),
+        linkClasses: [],
+        missingTitles: new Set(),
+    };
 }
 
 function createWindowTimer(): EditorFeatureTimer {

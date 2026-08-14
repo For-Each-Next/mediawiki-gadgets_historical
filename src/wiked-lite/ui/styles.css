@@ -241,6 +241,10 @@
     color: var(--wiked-lite-missing-link, rgb(186, 0, 0)) !important;
 }
 
+.wiked-lite-token--unchecked {
+    color: var(--wiked-lite-foreground, rgb(32, 33, 34)) !important;
+}
+
 .wiked-lite-token--reference {
     font-style: normal;
     background: rgb(243, 225, 247) !important;

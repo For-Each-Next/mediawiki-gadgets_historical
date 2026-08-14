@@ -1,3 +1,21 @@
+/* Dialog-specific notes stay compact without inheriting control indentation. */
+
+.wiked-lite-dialog .wiked-lite-dialog__note {
+    margin: 4px 0 12px;
+    color: var(--color-subtle, #54595d);
+    font-size: 0.875em;
+    line-height: 1.4;
+}
+
+.wiked-lite-dialog .wiked-lite-dialog__note:last-child {
+    margin-bottom: 0;
+}
+
+.wiked-lite-dialog .wiked-lite-dialog__control-description {
+    font-size: 0.875em;
+    line-height: 1.4;
+}
+
 /* Custom footer keeps persistence separate from dialog completion actions. */
 
 .wiked-lite-dialog .wiked-lite-dialog__footer {

@@ -52,7 +52,11 @@ function createServices(
 ): EditorServices {
     return {
         async findMissingLinks() {
-            return { linkClasses: [], titles: new Set() };
+            return {
+                checkedTitles: new Set(),
+                linkClasses: [],
+                missingTitles: new Set(),
+            };
         },
         getHighlightOptions() {
             return {};

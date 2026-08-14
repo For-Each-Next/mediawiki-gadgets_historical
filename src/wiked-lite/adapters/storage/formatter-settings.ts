@@ -7,9 +7,10 @@ import {
 } from "#gadget/domain/formatter-settings.ts";
 
 export const FORMATTER_SETTINGS_STORAGE_KEY =
-    "wiked-lite.formatter-settings.v3";
+    "wiked-lite.formatter-settings.v4";
 
-const FORMATTER_SETTINGS_VERSION = 3;
+const FORMATTER_SETTINGS_VERSION = 4;
+const VERSION_THREE_STORAGE_KEY = "wiked-lite.formatter-settings.v3";
 
 type SettingsStorage = Pick<Storage, "getItem" | "setItem">;
 
@@ -25,17 +26,7 @@ export function createFormatterSettingsStore(
     return {
         load() {
             try {
-                const storage = getStorage();
-                const serialized = storage?.getItem(
-                    FORMATTER_SETTINGS_STORAGE_KEY,
-                );
-                if (serialized == null) {
-                    return createDefaultFormatterSettings();
-                }
-                return (
-                    parseStoredFormatterSettings(JSON.parse(serialized)) ??
-                    createDefaultFormatterSettings()
-                );
+                return loadStoredFormatterSettings(getStorage());
             } catch {
                 return createDefaultFormatterSettings();
             }
@@ -60,19 +51,77 @@ export function createFormatterSettingsStore(
     };
 }
 
+function loadStoredFormatterSettings(
+    storage: SettingsStorage | undefined,
+): FormatterSettings {
+    const serialized = storage?.getItem(FORMATTER_SETTINGS_STORAGE_KEY);
+    if (serialized != null) {
+        return (
+            parseStoredFormatterSettings(JSON.parse(serialized)) ??
+            createDefaultFormatterSettings()
+        );
+    }
+    const legacy = storage?.getItem(VERSION_THREE_STORAGE_KEY);
+    if (legacy == null) {
+        return createDefaultFormatterSettings();
+    }
+    return (
+        parseVersionThreeFormatterSettings(JSON.parse(legacy)) ??
+        createDefaultFormatterSettings()
+    );
+}
+
 function parseStoredFormatterSettings(
     value: unknown,
 ): FormatterSettings | undefined {
     if (
-        typeof value !== "object" ||
-        value == null ||
-        !("version" in value) ||
-        value.version !== FORMATTER_SETTINGS_VERSION ||
-        !("settings" in value)
+        !isStoredSettingsEnvelope(value, FORMATTER_SETTINGS_VERSION) ||
+        !isRecord(value.settings) ||
+        !isRecord(value.settings.formatter) ||
+        typeof value.settings.formatter.skipFirstLevelIndentation !== "boolean"
     ) {
         return undefined;
     }
     return parseFormatterSettings(value.settings);
+}
+
+function parseVersionThreeFormatterSettings(
+    value: unknown,
+): FormatterSettings | undefined {
+    if (
+        !isStoredSettingsEnvelope(value, 3) ||
+        !isRecord(value.settings) ||
+        !isRecord(value.settings.formatter)
+    ) {
+        return undefined;
+    }
+    const indentSpaces = value.settings.formatter.indentSpaces;
+    if (!isVersionThreeIndentSpaces(indentSpaces)) {
+        return undefined;
+    }
+    return parseFormatterSettings({
+        ...value.settings,
+        formatter: {
+            ...value.settings.formatter,
+            indentSpaces: Math.min(indentSpaces, 4),
+            skipFirstLevelIndentation: false,
+        },
+    });
+}
+
+function isStoredSettingsEnvelope(
+    value: unknown,
+    version: number,
+): value is Record<string, unknown> & { settings: unknown } {
+    return isRecord(value) && value.version === version && "settings" in value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value != null && !Array.isArray(value);
+}
+
+function isVersionThreeIndentSpaces(value: unknown): value is number {
+    return Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 8;
 }
 
 function getLocalStorage(): Storage | undefined {

@@ -1,0 +1,10 @@
+# TODO 1: wiked add switch toggler, allowing:
+
+1. in-time enable red link check
+2. disable ref preview popup
+3. allow force try read ref, if use section editing, try load the whole
+    page source and analysis
+
+# TODO 2: spilt block template to a tab, and others on one tab
+
+see https://doc.wikimedia.org/codex/latest/components/demos/tabs.html

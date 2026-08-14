@@ -11,6 +11,10 @@ import {
     collectWikiLinkTitles,
     lookupWikiLinks,
 } from "#gadget/adapters/mediawiki/wiki-links.ts";
+import {
+    createFormatterSettingsStore,
+    type FormatterSettingsStore,
+} from "#gadget/adapters/storage/formatter-settings.ts";
 import type { EditorServices } from "#gadget/contracts/editor.ts";
 import { collectLinkHelperTitles } from "#gadget/domain/highlighter.ts";
 import {
@@ -49,6 +53,8 @@ function createEditorServices(
     uiLogger: Logger,
     notify: ActionNotifier,
 ): EditorServices {
+    const formatterSettings: FormatterSettingsStore =
+        createFormatterSettingsStore();
     return {
         findMissingLinks: (source) =>
             findMissingLinks(
@@ -64,6 +70,7 @@ function createEditorServices(
                 namespaceSource: namespaces.current().source,
             };
         },
+        loadFormatterSettings: formatterSettings.load,
         async loadNamespaces() {
             await namespaces.load(new mw.Api());
         },
@@ -71,6 +78,7 @@ function createEditorServices(
         notify,
         resolveRedirects: (source) =>
             resolveRedirects(source, namespaces, mediaWikiLogger),
+        saveFormatterSettings: formatterSettings.save,
     };
 }
 

@@ -1130,9 +1130,14 @@ function mountFormatterDialog(
         activeDialogCleanup = null;
     }
     const component = createFormatterDialogComponent(Vue, {
+        initialSelection: services.loadFormatterSettings(),
+        notBrokenUrl: mw.util.getUrl("WP:NOTBROKEN"),
         onClose: cleanup,
-        onError(error) {
-            services.logger.error("format.failed", { error });
+        onError(error, operation) {
+            services.logger.error(`${operation}.failed`, { error });
+        },
+        onSave(selection) {
+            services.saveFormatterSettings(selection);
         },
         onSubmit: (selection) =>
             applyFormatting(textarea, selection, services),

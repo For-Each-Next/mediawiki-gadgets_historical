@@ -10,6 +10,8 @@ import {
 // eslint-disable-next-line max-len
 import type { ActionNotification } from "@mediawiki-gadgets/shared/mediawiki/notifications";
 import type { EditorServices } from "wiked-lite/contracts/editor.ts";
+// eslint-disable-next-line max-len
+import { createDefaultFormatterSettings } from "wiked-lite/domain/formatter-settings.ts";
 import { openFormatter } from "wiked-lite/ui/editor.ts";
 
 test(
@@ -55,6 +57,7 @@ function createServices(
         getHighlightOptions() {
             return {};
         },
+        loadFormatterSettings: createDefaultFormatterSettings,
         async loadNamespaces() {},
         logger: createLogger("wiked-lite-test", {
             level: "error",
@@ -66,6 +69,7 @@ function createServices(
         async resolveRedirects(source) {
             return source;
         },
+        saveFormatterSettings() {},
     };
 }
 

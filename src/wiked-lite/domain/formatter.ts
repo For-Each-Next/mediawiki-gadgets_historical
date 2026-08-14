@@ -6,11 +6,17 @@ import {
     type SourceRange,
 } from "#shared/wikitext";
 
+export type FirstParameterLayout = "align-separator" | "compact" | "preserve";
+
+export type SubsequentParameterLayout =
+    "align-columns" | "align-columns-completely" | "compact" | "preserve";
+
 export interface FormatterOptions {
-    alignEquals?: boolean;
+    firstParameterLayout?: FirstParameterLayout;
     fullWidthRatio?: number;
     indentPipes?: boolean;
     normalizeConversion?: boolean;
+    subsequentParameterLayout?: SubsequentParameterLayout;
 }
 
 export interface FormatterResult {
@@ -30,10 +36,24 @@ interface BlockParameterLine {
     indentation: string;
 }
 
+interface BlockParameterCell {
+    name: string;
+    named: boolean;
+    raw: string;
+    value: string;
+}
+
+interface BlockTemplateColumn {
+    contentWidth: number;
+    equalsWidth: number;
+}
+
 interface BlockTemplateLayout {
-    equalsColumns: Map<number, number>;
-    options: FormatterOptions;
+    columns: Map<number, BlockTemplateColumn[]>;
+    firstParameterLayout: FirstParameterLayout;
+    indentPipes: boolean;
     ratio: number;
+    subsequentParameterLayout: SubsequentParameterLayout;
 }
 
 interface FormatterNestingState {
@@ -67,11 +87,22 @@ export function formatWikitext(
     if (options.normalizeConversion === true) {
         text = normalizeChineseConversion(text);
     }
-    if (options.indentPipes === true || options.alignEquals === true) {
+    if (shouldFormatBlockTemplates(options)) {
         text = formatBlockTemplates(text, options);
     }
     text = protectedSource.restore(text);
     return { changed: text !== source, text };
+}
+
+function shouldFormatBlockTemplates(options: FormatterOptions): boolean {
+    return (
+        options.indentPipes === true ||
+        options.firstParameterLayout === "align-separator" ||
+        options.firstParameterLayout === "compact" ||
+        options.subsequentParameterLayout === "align-columns" ||
+        options.subsequentParameterLayout === "align-columns-completely" ||
+        options.subsequentParameterLayout === "compact"
+    );
 }
 
 function normalizeBasicLayout(source: string): string {
@@ -187,12 +218,16 @@ function formatBlockTemplates(
     options: FormatterOptions,
 ): string {
     const lines = scanBlockTemplateLines(source);
-    const ratio = options.fullWidthRatio ?? 2;
-    const layout = {
-        equalsColumns: getEqualsColumns(lines, ratio, options),
-        options,
+    const ratio = options.fullWidthRatio ?? 5 / 3;
+    const layout: BlockTemplateLayout = {
+        columns: new Map(),
+        firstParameterLayout: options.firstParameterLayout ?? "preserve",
+        indentPipes: options.indentPipes === true,
         ratio,
+        subsequentParameterLayout:
+            options.subsequentParameterLayout ?? "preserve",
     };
+    layout.columns = getTemplateColumns(lines, layout);
     return lines.map((line) => formatBlockLine(line, layout)).join("\n");
 }
 
@@ -320,39 +355,141 @@ function consumeFormatterStructure(
     return undefined;
 }
 
-function getEqualsColumns(
+function getTemplateColumns(
     lines: BlockTemplateLine[],
-    ratio: number,
-    options: FormatterOptions,
-): Map<number, number> {
-    const columns = new Map<number, number>();
-    if (options.alignEquals !== true) {
+    layout: BlockTemplateLayout,
+): Map<number, BlockTemplateColumn[]> {
+    const columns = new Map<number, BlockTemplateColumn[]>();
+    if (!needsColumnMeasurements(layout)) {
         return columns;
     }
     for (const line of lines) {
-        if (line.templateId == null) {
-            continue;
-        }
-        const parameter = parseBlockParameterLine(line.text);
-        if (parameter == null) {
-            continue;
-        }
-        const equals = wikitext(parameter.content).findTopLevelEquals();
-        const name =
-            equals < 0 ? "" : parameter.content.slice(0, equals).trim();
-        const width = getDisplayWidth(name, ratio);
-        columns.set(
-            line.templateId,
-            Math.max(columns.get(line.templateId) ?? 0, width),
-        );
+        updateEqualsWidths(line, columns, layout);
+    }
+    for (const line of lines) {
+        updateContentWidths(line, columns, layout);
     }
     return columns;
+}
+
+function needsColumnMeasurements(layout: BlockTemplateLayout): boolean {
+    return (
+        layout.firstParameterLayout === "align-separator" ||
+        layout.subsequentParameterLayout === "align-columns" ||
+        layout.subsequentParameterLayout === "align-columns-completely"
+    );
+}
+
+function updateEqualsWidths(
+    line: BlockTemplateLine,
+    columns: Map<number, BlockTemplateColumn[]>,
+    layout: BlockTemplateLayout,
+): void {
+    const cells = getLayoutCells(line);
+    if (line.templateId == null || cells == null) {
+        return;
+    }
+    const templateColumns = getOrCreateColumns(columns, line.templateId);
+    for (const [index, cell] of cells.entries()) {
+        if (!shouldAlignCellSeparator(index, layout) || !cell.named) {
+            continue;
+        }
+        const column = getOrCreateColumn(templateColumns, index);
+        column.equalsWidth = Math.max(
+            column.equalsWidth,
+            getDisplayWidth(cell.name, layout.ratio),
+        );
+    }
+}
+
+function shouldAlignCellSeparator(
+    index: number,
+    layout: BlockTemplateLayout,
+): boolean {
+    return index === 0
+        ? layout.firstParameterLayout === "align-separator"
+        : layout.subsequentParameterLayout === "align-columns-completely";
+}
+
+function updateContentWidths(
+    line: BlockTemplateLine,
+    columns: Map<number, BlockTemplateColumn[]>,
+    layout: BlockTemplateLayout,
+): void {
+    if (
+        layout.subsequentParameterLayout !== "align-columns" &&
+        layout.subsequentParameterLayout !== "align-columns-completely"
+    ) {
+        return;
+    }
+    const cells = getLayoutCells(line);
+    const templateColumns =
+        line.templateId == null ? undefined : columns.get(line.templateId);
+    if (cells == null || templateColumns == null) {
+        return;
+    }
+    for (const [index, cell] of cells.entries()) {
+        if (index === cells.length - 1) {
+            continue;
+        }
+        const column = getOrCreateColumn(templateColumns, index);
+        const content = formatParameterSegment(
+            cell,
+            index,
+            column.equalsWidth,
+            layout,
+            true,
+        );
+        column.contentWidth = Math.max(
+            column.contentWidth,
+            getDisplayWidth(content, layout.ratio),
+        );
+    }
+}
+
+function getLayoutCells(
+    line: BlockTemplateLine,
+): BlockParameterCell[] | undefined {
+    if (line.templateId == null) {
+        return undefined;
+    }
+    const parameter = parseBlockParameterLine(line.text);
+    if (parameter == null) {
+        return undefined;
+    }
+    return parseBlockParameterCells(parameter.content);
+}
+
+function getOrCreateColumns(
+    columns: Map<number, BlockTemplateColumn[]>,
+    templateId: number,
+): BlockTemplateColumn[] {
+    const existing = columns.get(templateId);
+    if (existing != null) {
+        return existing;
+    }
+    const created: BlockTemplateColumn[] = [];
+    columns.set(templateId, created);
+    return created;
+}
+
+function getOrCreateColumn(
+    columns: BlockTemplateColumn[],
+    index: number,
+): BlockTemplateColumn {
+    const existing = columns[index];
+    if (existing != null) {
+        return existing;
+    }
+    const created = { contentWidth: 0, equalsWidth: 0 };
+    columns[index] = created;
+    return created;
 }
 
 function parseBlockParameterLine(
     text: string,
 ): BlockParameterLine | undefined {
-    const match = text.match(/^(\s*)\|\s*(.*)$/u);
+    const match = text.match(/^(\s*)\|(.*)$/u);
     return match == null
         ? undefined
         : { content: match[2], indentation: match[1] };
@@ -362,7 +499,7 @@ function formatBlockLine(
     line: BlockTemplateLine,
     layout: BlockTemplateLayout,
 ): string {
-    if (layout.options.indentPipes && line.closingDepth != null) {
+    if (layout.indentPipes && line.closingDepth != null) {
         return line.text.replace(
             /^\s*(?=\}\})/u,
             "  ".repeat(line.closingDepth),
@@ -377,7 +514,7 @@ function formatBlockLine(
         : formatTemplateLine(
               parameter,
               line.templateDepth,
-              layout.equalsColumns.get(line.templateId) ?? 0,
+              layout.columns.get(line.templateId) ?? [],
               layout,
           );
 }
@@ -385,31 +522,142 @@ function formatBlockLine(
 function formatTemplateLine(
     line: BlockParameterLine,
     templateDepth: number,
-    equalsColumn: number,
+    columns: BlockTemplateColumn[],
     layout: BlockTemplateLayout,
 ): string {
-    const content = line.content;
-    const equals = wikitext(content).findTopLevelEquals();
-    const indentation = layout.options.indentPipes
+    const indentation = layout.indentPipes
         ? "  ".repeat(templateDepth)
         : line.indentation;
     const prefix = `${indentation}|`;
-    if (equals < 0) {
-        return `${prefix} ${content.trim()}`;
+    const cells = parseBlockParameterCells(line.content);
+    if (cells.length === 1 && layout.firstParameterLayout === "preserve") {
+        return `${prefix}${line.content}`;
     }
-    const name = content.slice(0, equals).trim();
-    const value = content.slice(equals + 1).trim();
-    const padding = layout.options.alignEquals
-        ? " ".repeat(
-              Math.max(
-                  1,
-                  Math.ceil(
-                      equalsColumn - getDisplayWidth(name, layout.ratio),
-                  ) + 1,
-              ),
-          )
-        : " ";
-    return `${prefix} ${name}${padding}= ${value}`;
+    if (layout.subsequentParameterLayout === "preserve") {
+        return formatLineWithPreservedTail(
+            line.content,
+            prefix,
+            cells,
+            columns,
+            layout,
+        );
+    }
+    return formatParameterLine(prefix, cells, columns, layout);
+}
+
+function formatLineWithPreservedTail(
+    content: string,
+    prefix: string,
+    cells: BlockParameterCell[],
+    columns: BlockTemplateColumn[],
+    layout: BlockTemplateLayout,
+): string {
+    if (layout.firstParameterLayout === "preserve") {
+        return `${prefix}${content}`;
+    }
+    const first = wikitext(content).splitRanges("|")[0];
+    if (first == null) {
+        return `${prefix}${content}`;
+    }
+    const segment = formatParameterSegment(
+        cells[0],
+        0,
+        columns[0]?.equalsWidth ?? 0,
+        layout,
+        false,
+    );
+    const tail = content.slice(first.end);
+    return tail === "" ? `${prefix}${segment}` : `${prefix}${segment} ${tail}`;
+}
+
+function formatParameterLine(
+    prefix: string,
+    cells: BlockParameterCell[],
+    columns: BlockTemplateColumn[],
+    layout: BlockTemplateLayout,
+): string {
+    const alignColumns =
+        layout.subsequentParameterLayout === "align-columns" ||
+        layout.subsequentParameterLayout === "align-columns-completely";
+    const formatted = cells.map(function formatCell(cell, index) {
+        const column = columns[index] ?? { contentWidth: 0, equalsWidth: 0 };
+        const value = formatParameterSegment(
+            cell,
+            index,
+            column.equalsWidth,
+            layout,
+            index < cells.length - 1,
+        );
+        if (index === cells.length - 1) {
+            return value;
+        }
+        if (!alignColumns) {
+            return `${value} `;
+        }
+        const padding = Math.max(
+            1,
+            Math.ceil(
+                column.contentWidth - getDisplayWidth(value, layout.ratio),
+            ) + 1,
+        );
+        return `${value}${" ".repeat(padding)}`;
+    });
+    return `${prefix}${formatted.join("|")}`;
+}
+
+function parseBlockParameterCells(content: string): BlockParameterCell[] {
+    return wikitext(content)
+        .splitRanges("|")
+        .map((range) => parseBlockParameterCell(range.value));
+}
+
+function parseBlockParameterCell(content: string): BlockParameterCell {
+    const trimmed = content.trim();
+    const equals = wikitext(trimmed).findTopLevelEquals();
+    if (equals < 0) {
+        return { name: "", named: false, raw: content, value: trimmed };
+    }
+    return {
+        name: trimmed.slice(0, equals).trim(),
+        named: true,
+        raw: content,
+        value: trimmed.slice(equals + 1).trim(),
+    };
+}
+
+function formatParameterSegment(
+    cell: BlockParameterCell,
+    index: number,
+    equalsWidth: number,
+    layout: BlockTemplateLayout,
+    followedByParameter: boolean,
+): string {
+    if (index === 0 && layout.firstParameterLayout === "preserve") {
+        return followedByParameter ? cell.raw.trimEnd() : cell.raw;
+    }
+    const alignSeparator = shouldAlignCellSeparator(index, layout);
+    return ` ${formatParameterCell(
+        cell,
+        alignSeparator ? equalsWidth : 0,
+        layout.ratio,
+    )}`;
+}
+
+function formatParameterCell(
+    cell: BlockParameterCell,
+    equalsWidth: number,
+    ratio: number,
+): string {
+    if (!cell.named) {
+        return cell.value;
+    }
+    const padding = " ".repeat(
+        Math.max(
+            1,
+            Math.ceil(equalsWidth - getDisplayWidth(cell.name, ratio)) + 1,
+        ),
+    );
+    return `${cell.name}${padding}= ${cell.value}`;
 }
 
 function getDisplayWidth(value: string, ratio: number): number {

@@ -5,6 +5,8 @@ import test from "node:test";
 
 import { compileTemplate, parse } from "@vue/compiler-sfc";
 
+// eslint-disable-next-line max-len
+import { createDefaultFormatterSettings } from "wiked-lite/domain/formatter-settings.ts";
 import type { VueApp, VueModule } from "wiked-lite/ui/codex.ts";
 import {
     createFormatterDialogBindings,
@@ -43,7 +45,9 @@ test("uses the native Codex header and responsive action footer", () => {
     assert.match(source, /actionType: 'progressive'/u);
     assert.match(source, /@primary="apply"/u);
     assert.match(source, /@default="onCancel"/u);
-    assert.doesNotMatch(source, /#footer|<cdx-button\b/u);
+    assert.doesNotMatch(source, /#footer/u);
+    assert.match(source, /<cdx-button\b/u);
+    assert.match(source, /type="button"/u);
     const compiled = compileTemplate({
         filename: dialogPath,
         id: "wiked-lite-formatter",
@@ -53,69 +57,148 @@ test("uses the native Codex header and responsive action footer", () => {
     assert.deepEqual(compiled.errors, []);
 });
 
-test("uses Codex-owned layout for nested character-width choices", () => {
-    assert.match(template, /<template #custom-input>/u);
-    assert.match(template, /:disabled="!alignEquals"/u);
-    assert.match(template, /input-value="1:2"/u);
-    assert.match(template, /input-value="3:5"/u);
+test("uses three Codex-owned option groups and a real policy link", () => {
+    assert.match(template, /msg\("dialog\.layout"\)/u);
+    assert.match(template, /msg\("dialog\.advanced"\)/u);
+    assert.match(template, /msg\("dialog\.other"\)/u);
+    assert.match(template, /input-value="5:3"/u);
+    assert.match(template, /input-value="2:1"/u);
+    assert.match(template, /input-value="align-separator"/u);
+    assert.match(template, /input-value="align-columns"/u);
+    assert.match(template, /input-value="align-columns-completely"/u);
+    assert.equal(template.match(/input-value="compact"/gu)?.length, 2);
+    assert.equal(template.match(/input-value="preserve"/gu)?.length, 2);
     assert.equal(template.match(/:inline="true"/gu)?.length, 2);
+    assert.match(template, /dialog\.alignColumnsTooltip/u);
+    assert.match(template, /dialog\.alignColumnsCompletelyTooltip/u);
+    assert.match(template, /dialog\.characterRatioFiveToThreeTooltip/u);
+    assert.match(template, /dialog\.characterRatioTwoToOneTooltip/u);
+    assert.match(template, /subsequentParameterLayout !== 'align-columns'/u);
+    assert.match(template, /:title=/u);
+    assert.match(template, /<a\b[^>]*:href="notBrokenUrl"/u);
+    assert.match(template, /target="_blank"/u);
+    assert.match(template, /rel="noopener noreferrer"/u);
+    assert.doesNotMatch(
+        template,
+        /\[\[WP:NOTBROKEN\]\]|v-html|CdxTooltip|v-tooltip/u,
+    );
     assert.doesNotMatch(template, /cdx-text-input|sortCategories/u);
     assert.doesNotMatch(styles, /\b(?:gap|margin|padding)\b/u);
 });
 
 test("maps each character-width choice to its formatter ratio", async () => {
     const choices = [
-        ["1:2", 2],
-        ["3:5", 5 / 3],
+        ["5:3", 5 / 3],
+        ["2:1", 2],
     ] as const;
 
     for (const [choice, expectedRatio] of choices) {
-        const submissions: FormatterDialogSelection[] = [];
-        let closed = false;
-        const bindings = createFormatterDialogBindings(createVueHarness(), {
-            onClose() {
-                closed = true;
-            },
-            onError(error) {
-                assert.fail(`Unexpected formatter error: ${String(error)}`);
-            },
-            onSubmit(selection) {
-                submissions.push(selection);
-                return Promise.resolve();
-            },
-        });
-
-        bindings.alignEquals.value = true;
-        bindings.characterWidthRatio.value = choice;
-        await bindings.apply();
-
-        assert.equal(closed, true);
-        assert.deepEqual(submissions, [
-            {
-                formatter: {
-                    alignEquals: true,
-                    fullWidthRatio: expectedRatio,
-                    indentPipes: true,
-                    normalizeConversion: false,
-                },
-                highlightMissing: false,
-                resolveRedirects: false,
-            },
-        ]);
+        await assertCharacterWidthChoice(choice, expectedRatio);
     }
 });
+
+async function assertCharacterWidthChoice(
+    choice: "2:1" | "5:3",
+    expectedRatio: number,
+): Promise<void> {
+    const submissions: FormatterDialogSelection[] = [];
+    let closed = false;
+    const bindings = createFormatterDialogBindings(createVueHarness(), {
+        initialSelection: createDefaultFormatterSettings(),
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
+        onClose() {
+            closed = true;
+        },
+        onError(error) {
+            assert.fail(`Unexpected formatter error: ${String(error)}`);
+        },
+        onSave() {},
+        onSubmit(selection) {
+            submissions.push(selection);
+            return Promise.resolve();
+        },
+    });
+    bindings.firstParameterLayout.value = "align-separator";
+    bindings.subsequentParameterLayout.value = "align-columns-completely";
+    bindings.characterWidthRatio.value = choice;
+
+    await bindings.apply();
+
+    assert.equal(closed, true);
+    assert.equal(submissions[0]?.formatter.fullWidthRatio, expectedRatio);
+    assert.equal(
+        submissions[0]?.formatter.subsequentParameterLayout,
+        "align-columns-completely",
+    );
+}
+
+test("loads and saves every formatter choice without applying", async () => {
+    const settings = createConfiguredSettings();
+    const saved: FormatterDialogSelection[] = [];
+    let submitted = false;
+    let closed = false;
+    const bindings = createFormatterDialogBindings(createVueHarness(), {
+        initialSelection: settings,
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
+        onClose() {
+            closed = true;
+        },
+        onError(error) {
+            assert.fail(`Unexpected settings error: ${String(error)}`);
+        },
+        onSave(selection) {
+            saved.push(selection);
+        },
+        async onSubmit() {
+            submitted = true;
+        },
+    });
+
+    assert.equal(bindings.firstParameterLayout.value, "compact");
+    assert.equal(bindings.subsequentParameterLayout.value, "align-columns");
+    assert.equal(bindings.characterWidthRatio.value, "2:1");
+    assert.equal(bindings.indentPipes.value, true);
+    assert.equal(bindings.normalizeConversion.value, true);
+    assert.equal(bindings.resolveRedirects.value, true);
+    assert.equal(bindings.highlightMissing.value, true);
+
+    await bindings.saveCurrentSettings();
+
+    assert.equal(submitted, false);
+    assert.equal(closed, false);
+    assert.equal(bindings.settingsSaved.value, true);
+    assert.equal(bindings.savingSettings.value, false);
+    assert.deepEqual(saved, [settings]);
+});
+
+function createConfiguredSettings(): FormatterDialogSelection {
+    return {
+        formatter: {
+            firstParameterLayout: "compact",
+            fullWidthRatio: 2,
+            indentPipes: true,
+            normalizeConversion: true,
+            subsequentParameterLayout: "align-columns",
+        },
+        highlightMissing: true,
+        resolveRedirects: true,
+    };
+}
 
 test("reports formatter failures through the diagnostic port", async () => {
     const failure = new Error("formatter failed");
     const reported: unknown[] = [];
     let closed = false;
     const bindings = createFormatterDialogBindings(createVueHarness(), {
+        initialSelection: createDefaultFormatterSettings(),
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
         onClose() {
             closed = true;
         },
-        onError(error) {
-            reported.push(error);
+        onError(error, operation) {
+            reported.push([error, operation]);
         },
+        onSave() {},
         async onSubmit() {
             throw failure;
         },
@@ -123,12 +206,43 @@ test("reports formatter failures through the diagnostic port", async () => {
 
     await bindings.apply();
 
-    assert.deepEqual(reported, [failure]);
+    assert.deepEqual(reported, [[failure, "format"]]);
     assert.equal(
         bindings.error.value,
         "Wikitext formatting failed. Review the source and try again.",
     );
-    assert.equal(bindings.saving.value, false);
+    assert.equal(bindings.applying.value, false);
+    assert.equal(closed, false);
+});
+
+test("keeps the dialog open when settings cannot be saved", async () => {
+    const failure = new Error("storage failed");
+    const reported: unknown[] = [];
+    let closed = false;
+    const bindings = createFormatterDialogBindings(createVueHarness(), {
+        initialSelection: createDefaultFormatterSettings(),
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
+        onClose() {
+            closed = true;
+        },
+        onError(error, operation) {
+            reported.push([error, operation]);
+        },
+        onSave() {
+            throw failure;
+        },
+        async onSubmit() {},
+    });
+
+    await bindings.saveCurrentSettings();
+
+    assert.deepEqual(reported, [[failure, "save-settings"]]);
+    assert.equal(
+        bindings.error.value,
+        "Formatter settings could not be saved in this browser.",
+    );
+    assert.equal(bindings.settingsSaved.value, false);
+    assert.equal(bindings.savingSettings.value, false);
     assert.equal(closed, false);
 });
 

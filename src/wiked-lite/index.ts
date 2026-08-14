@@ -9,6 +9,8 @@ export {
     type ReferencePreviewRow,
 } from "#gadget/domain/reference-preview.ts";
 export type {
+    FirstParameterLayout,
     FormatterOptions,
     FormatterResult,
+    SubsequentParameterLayout,
 } from "#gadget/domain/formatter.ts";

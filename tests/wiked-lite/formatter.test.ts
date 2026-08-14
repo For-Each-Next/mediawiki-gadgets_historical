@@ -135,7 +135,7 @@ test("explicit formatter options align templates", () => {
     ].join("\n");
 
     const result = formatWikitext(source, {
-        alignEquals: true,
+        firstParameterLayout: "align-separator",
         indentPipes: true,
     });
 
@@ -256,7 +256,7 @@ test("equals alignment is independent for each nested template", () => {
         "}}",
     ].join("\n");
     const lines = formatWikitext(source, {
-        alignEquals: true,
+        firstParameterLayout: "align-separator",
         indentPipes: true,
     }).text.split("\n");
 
@@ -278,7 +278,7 @@ test("equals alignment ignores marks and counts non-ASCII width", () => {
 
     assert.equal(
         formatWikitext(source, {
-            alignEquals: true,
+            firstParameterLayout: "align-separator",
             fullWidthRatio: 5 / 3,
             indentPipes: true,
         }).text,
@@ -331,7 +331,7 @@ test("block formatting leaves templates inside tables unchanged", () => {
 
     assert.equal(
         formatWikitext(source, {
-            alignEquals: true,
+            firstParameterLayout: "align-separator",
             indentPipes: true,
         }).text,
         source,
@@ -421,9 +421,9 @@ test("closer indentation is limited to standalone template lines", () => {
         ].join("\n"),
     );
     assert.equal(
-        formatWikitext(alignedOnlySource, { alignEquals: true }).text.split(
-            "\n",
-        )[3],
+        formatWikitext(alignedOnlySource, {
+            firstParameterLayout: "align-separator",
+        }).text.split("\n")[3],
         "\t}}",
     );
 });
@@ -532,5 +532,200 @@ test("unfinished block templates retain live nesting depth", () => {
             "  }}",
             "  | after = three",
         ].join("\n"),
+    );
+});
+
+test("matrix alignment is independent for each nested template call", () => {
+    const source = [
+        "{{xx",
+        "| p1 = a | p2 = {{embedded x",
+        "| pp1 = ... | pp2=..",
+        "| pp21_loooong = ... | pp22 = ..",
+        "| longxx+",
+        "}}",
+        "| longer = value | q = {{embedded x",
+        "| pp1 = ... | pp2=..",
+        "| longxx+",
+        "}}",
+        "}}",
+    ].join("\n");
+    const expected = [
+        "{{xx",
+        "  | p1     = a     | p2 = {{embedded x",
+        "    | pp1          = ... | pp2  = ..",
+        "    | pp21_loooong = ... | pp22 = ..",
+        "    | longxx+",
+        "  }}",
+        "  | longer = value | q  = {{embedded x",
+        "    | pp1 = ... | pp2 = ..",
+        "    | longxx+",
+        "  }}",
+        "}}",
+    ].join("\n");
+    const options = {
+        firstParameterLayout: "align-separator" as const,
+        fullWidthRatio: 5 / 3,
+        indentPipes: true,
+        subsequentParameterLayout: "align-columns-completely" as const,
+    };
+
+    assert.equal(formatWikitext(source, options).text, expected);
+    assert.deepEqual(formatWikitext(expected, options), {
+        changed: false,
+        text: expected,
+    });
+});
+
+test("parameter-column modes have distinct alignment", () => {
+    const source = [
+        "{{matrix",
+        "| a=one | bb=two | positional",
+        "| longer=three | cccc=four | last=five",
+        "}}",
+    ].join("\n");
+
+    assert.equal(
+        formatWikitext(source, {
+            firstParameterLayout: "compact",
+            indentPipes: true,
+            subsequentParameterLayout: "align-columns",
+        }).text,
+        [
+            "{{matrix",
+            "  | a = one        | bb = two    | positional",
+            "  | longer = three | cccc = four | last = five",
+            "}}",
+        ].join("\n"),
+    );
+    assert.equal(
+        formatWikitext(source, {
+            firstParameterLayout: "compact",
+            indentPipes: true,
+            subsequentParameterLayout: "align-columns-completely",
+        }).text,
+        [
+            "{{matrix",
+            "  | a = one        | bb   = two  | positional",
+            "  | longer = three | cccc = four | last = five",
+            "}}",
+        ].join("\n"),
+    );
+});
+
+test("compact later parameters remove review-table matrix padding", () => {
+    const source = [
+        "{{VG Reviews",
+        "| na = true | X360       = yes        | PS3 = yes",
+        "| rev1 = Example | rev1_X360  = 29/30",
+        "| rev10 = Example | rev10_X360 = B",
+        "}}",
+    ].join("\n");
+    const options = {
+        firstParameterLayout: "align-separator" as const,
+        indentPipes: true,
+        subsequentParameterLayout: "compact" as const,
+    };
+    const expected = [
+        "{{VG Reviews",
+        "  | na    = true | X360 = yes | PS3 = yes",
+        "  | rev1  = Example | rev1_X360 = 29/30",
+        "  | rev10 = Example | rev10_X360 = B",
+        "}}",
+    ].join("\n");
+
+    assert.equal(formatWikitext(source, options).text, expected);
+    assert.deepEqual(formatWikitext(expected, options), {
+        changed: false,
+        text: expected,
+    });
+});
+
+test("preserved layouts keep entered spacing while indenting", () => {
+    const source = [
+        "{{matrix",
+        "     |   first=one     | second   =two",
+        "}}",
+    ].join("\n");
+
+    assert.equal(
+        formatWikitext(source, {
+            firstParameterLayout: "preserve",
+            indentPipes: true,
+            subsequentParameterLayout: "preserve",
+        }).text,
+        ["{{matrix", "  |   first=one     | second   =two", "}}"].join("\n"),
+    );
+});
+
+test("first-parameter alignment preserves later parameters", () => {
+    const source = [
+        "{{matrix",
+        "| short=a | second=entered",
+        "| much_longer = value | very_long_second=unchanged",
+        "}}",
+    ].join("\n");
+
+    assert.equal(
+        formatWikitext(source, {
+            firstParameterLayout: "align-separator",
+            indentPipes: true,
+            subsequentParameterLayout: "preserve",
+        }).text,
+        [
+            "{{matrix",
+            "  | short       = a | second=entered",
+            "  | much_longer = value | very_long_second=unchanged",
+            "}}",
+        ].join("\n"),
+    );
+});
+
+test("matrix alignment keeps positional cells free of equals signs", () => {
+    const source = [
+        "{{matrix",
+        "| a=x | second=y",
+        "| positional | longer_second=z",
+        "}}",
+    ].join("\n");
+
+    assert.equal(
+        formatWikitext(source, {
+            firstParameterLayout: "align-separator",
+            indentPipes: true,
+            subsequentParameterLayout: "align-columns-completely",
+        }).text,
+        [
+            "{{matrix",
+            "  | a = x      | second        = y",
+            "  | positional | longer_second = z",
+            "}}",
+        ].join("\n"),
+    );
+});
+
+test("matrix alignment ignores separators in nested wikitext", () => {
+    const source = [
+        "{{matrix",
+        "| a = [[A|label]] | b = {{inner|x=y}}",
+        "| longer = {{{value|x=y}}} | c = <nowiki>a|b=c</nowiki>",
+        "}}",
+    ].join("\n");
+    const result = formatWikitext(source, {
+        firstParameterLayout: "align-separator",
+        indentPipes: true,
+        subsequentParameterLayout: "align-columns-completely",
+    }).text;
+
+    assert.match(result, /\[\[A\|label\]\]/u);
+    assert.match(result, /\{\{inner\|x=y\}\}/u);
+    assert.match(result, /\{\{\{value\|x=y\}\}\}/u);
+    assert.match(result, /<nowiki>a\|b=c<\/nowiki>/u);
+    assert.deepEqual(
+        formatWikitext(result, {
+            firstParameterLayout: "align-separator",
+            indentPipes: true,
+            subsequentParameterLayout: "align-columns-completely",
+        }),
+        { changed: false, text: result },
     );
 });

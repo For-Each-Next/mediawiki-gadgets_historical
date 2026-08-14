@@ -1,5 +1,7 @@
 /** Production wikEd Lite formatter dialog story. */
 
+// eslint-disable-next-line max-len
+import { createDefaultFormatterSettings } from "wiked-lite/domain/formatter-settings.ts";
 import { registerFormatterComponents } from "wiked-lite/ui/codex.ts";
 import {
     FORMATTER_DIALOG_STYLES,
@@ -15,11 +17,17 @@ import {
 import { UI_STORIES } from "./registry.ts";
 
 const stories = UI_STORIES.filter((story) => story.gadget === "wiked-lite");
+let formatterSettings = createDefaultFormatterSettings();
 addFixtureStyles("ui-wiked-dialog-styles", FORMATTER_DIALOG_STYLES);
 installStoryHost("wiked-lite", stories, function renderStory() {
     const component = createFormatterDialogComponent(getVue(), {
+        initialSelection: formatterSettings,
+        notBrokenUrl: "/wiki/WP:NOTBROKEN",
         onClose() {},
         onError() {},
+        onSave(selection) {
+            formatterSettings = selection;
+        },
         async onSubmit() {},
     });
     return mountComponent(component, function register(app) {

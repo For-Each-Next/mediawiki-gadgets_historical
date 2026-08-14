@@ -92,6 +92,30 @@ test("custom Citation footer changes at the 639px breakpoint", async ({
     expect(new Set(desktop.map((item) => item.top)).size).toBe(1);
 });
 
+test("wikEd formatter restores explicitly saved settings", async ({
+    page,
+}) => {
+    await loadStoryPage(page, "wiked-lite", "en");
+    await mountStory(page, "wiked-formatter");
+    const compactFirst = page.locator(
+        'input[name="first-parameter-layout"][value="compact"]',
+    );
+    const compactLater = page.locator(
+        'input[name="subsequent-parameter-layout"][value="compact"]',
+    );
+    await compactFirst.check();
+    await compactLater.check();
+    await page.getByRole("button", { name: "Save current settings" }).click();
+    await expect(
+        page.getByText("Current formatter settings were saved."),
+    ).toBeVisible();
+
+    await mountStory(page, "wiked-formatter");
+
+    await expect(compactFirst).toBeChecked();
+    await expect(compactLater).toBeChecked();
+});
+
 async function inspectAllStories(
     context: BrowserContext,
     locale: string,

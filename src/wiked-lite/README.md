@@ -63,9 +63,14 @@ before saving the page.
   without Template navigation, while static `#invoke` operands open their
   Module pages.
 - Applies conservative wikEd-style basic fixes to the selection or whole page,
-  with opt-in template alignment, Chinese-conversion cleanup, redirect targets
-  rewritten as piped links that keep their original text, and target-only
-  missing-page highlighting; headings gain surrounding blank lines without
+  with independent first-parameter and same-line parameter-column layouts.
+  Later parameters can preserve entered spacing, become compact, align by
+  column, or use complete column alignment; named and positional parameters
+  remain distinct.
+- Saves the complete formatter configuration in local browser storage when
+  requested, then restores it the next time the formatter opens. Chinese-
+  conversion cleanup, redirect replacement, and target-only missing-page
+  highlighting remain optional; headings gain surrounding blank lines without
   separating `DEFAULTSORT` from later content.
 - Recognizes every English and Chinese Wikipedia namespace alias from bundled
   catalogs, and loads local namespace siteinfo in the background on other
@@ -126,8 +131,9 @@ index.ts
 - `domain/` contains deterministic formatting and preview logic backed by the
   lazy `wikitext(source)` facade. Its construct methods run focused scanners
   without building a document-wide syntax tree.
-- `adapters/` discovers current-wiki namespaces and batches redirect and
-  missing-page lookups behind UI contracts.
+- `adapters/` discovers current-wiki namespaces, batches redirect and
+  missing-page lookups, and isolates local formatter-settings storage behind UI
+  contracts.
 - Shared logging records sanitized diagnostics, while native MediaWiki
   notifications present short action results consistently with other gadgets.
 - `i18n/` keeps flat, typed locale catalogs.

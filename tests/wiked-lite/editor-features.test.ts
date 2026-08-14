@@ -1,0 +1,247 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import * as settings from "wiked-lite/domain/formatter-settings.ts";
+import {
+    createEditorFeatureController,
+    type EditorFeatureOptions,
+    type EditorFeatureTimer,
+    type MissingLinkResult,
+} from "wiked-lite/ui/editor-features.ts";
+
+test(
+    "live link checks debounce edits and ignore stale results",
+    testLiveLinkChecks,
+);
+
+async function testLiveLinkChecks(): Promise<void> {
+    const harness = new FeatureHarness();
+    const controller = createEditorFeatureController(harness.options);
+    const enabled = {
+        ...harness.options.initialSettings,
+        highlightMissing: true,
+    };
+
+    controller.setSettings(enabled);
+    assert.deepEqual(harness.timer.delays(), [0]);
+    harness.timer.runNext();
+    assert.deepEqual(harness.requestedSources, ["First"]);
+
+    harness.source.value = "Second";
+    controller.sourceChanged();
+    assert.deepEqual(harness.timer.delays(), [500]);
+    harness.requests[0].resolve(missing("Old"));
+    await settlePromises();
+    assert.deepEqual(harness.missingResults, []);
+
+    harness.timer.runNext();
+    harness.requests[1].resolve(missing("New"));
+    await settlePromises();
+    assert.deepEqual(harness.missingResults, [missing("New")]);
+
+    controller.setSettings({ ...enabled, highlightMissing: false });
+    assert.deepEqual(harness.missingResults.at(-1), missing());
+
+    controller.setSettings(enabled);
+    harness.timer.runNext();
+    controller.destroy();
+    harness.requests[2].resolve(missing("Destroyed"));
+    await settlePromises();
+    controller.sourceChanged();
+    assert.deepEqual(harness.missingResults.at(-1), missing());
+    assert.deepEqual(harness.timer.delays(), []);
+}
+
+test("only current missing-link failures are reported", async () => {
+    const harness = new FeatureHarness();
+    const controller = createEditorFeatureController(harness.options);
+    const enabled = {
+        ...harness.options.initialSettings,
+        highlightMissing: true,
+    };
+    controller.setSettings(enabled);
+    harness.timer.runNext();
+    const failure = new Error("lookup failed");
+    harness.requests[0].reject(failure);
+    await settlePromises();
+    assert.deepEqual(harness.errors, [[failure, "links"]]);
+
+    harness.source.value = "Changed";
+    controller.sourceChanged();
+    harness.timer.runNext();
+    controller.setSettings({ ...enabled, highlightMissing: false });
+    harness.requests[1].reject(new Error("stale failure"));
+    await settlePromises();
+    assert.deepEqual(harness.errors, [[failure, "links"]]);
+});
+
+test(
+    "reference settings apply immediately and cache section source",
+    testReferenceSettings,
+);
+
+async function testReferenceSettings(): Promise<void> {
+    const harness = new FeatureHarness(true);
+    const controller = createEditorFeatureController(harness.options);
+
+    controller.setSettings({
+        ...harness.options.initialSettings,
+        fullPageReferencePreviews: true,
+        referencePreviews: false,
+    });
+    assert.deepEqual(harness.previewStates, [true, false]);
+    assert.equal(harness.pageRequests.length, 1);
+    assert.deepEqual(harness.timer.delays(), []);
+
+    harness.pageRequests[0].resolve("Whole page");
+    await settlePromises();
+    assert.equal(controller.getReferenceFallbackSource(), "Whole page");
+
+    controller.setSettings({
+        ...controller.getSettings(),
+        fullPageReferencePreviews: false,
+    });
+    assert.equal(controller.getReferenceFallbackSource(), null);
+    controller.setSettings({
+        ...controller.getSettings(),
+        fullPageReferencePreviews: true,
+    });
+    assert.equal(harness.pageRequests.length, 1);
+}
+
+test(
+    "whole-page source stays optional and reports failures",
+    testOptionalWholePageSource,
+);
+
+async function testOptionalWholePageSource(): Promise<void> {
+    const wholeEdit = new FeatureHarness(false);
+    createEditorFeatureController({
+        ...wholeEdit.options,
+        initialSettings: {
+            ...wholeEdit.options.initialSettings,
+            fullPageReferencePreviews: true,
+        },
+    });
+    assert.equal(wholeEdit.pageRequests.length, 0);
+
+    const sectionEdit = new FeatureHarness(true);
+    const controller = createEditorFeatureController({
+        ...sectionEdit.options,
+        initialSettings: {
+            ...sectionEdit.options.initialSettings,
+            fullPageReferencePreviews: true,
+        },
+    });
+    const failure = new Error("API unavailable");
+    sectionEdit.pageRequests[0].reject(failure);
+    await settlePromises();
+
+    assert.deepEqual(sectionEdit.errors, [[failure, "page-source"]]);
+    assert.equal(controller.getReferenceFallbackSource(), null);
+}
+
+class FeatureHarness {
+    readonly errors: Array<[unknown, "links" | "page-source"]> = [];
+    readonly missingResults: MissingLinkResult[] = [];
+    readonly options: EditorFeatureOptions;
+    readonly pageRequests: Array<Deferred<string>> = [];
+    readonly previewStates: boolean[] = [];
+    readonly requestedSources: string[] = [];
+    readonly requests: Array<Deferred<MissingLinkResult>> = [];
+    readonly source = { value: "First" };
+    readonly timer = new FakeTimer();
+
+    constructor(sectionEditing = false) {
+        const defaults = settings.createDefaultFormatterSettings();
+        this.options = {
+            findMissingLinks: (value) => this.findMissingLinks(value),
+            getSource: () => this.source.value,
+            initialSettings: {
+                fullPageReferencePreviews: defaults.fullPageReferencePreviews,
+                highlightMissing: defaults.highlightMissing,
+                referencePreviews: defaults.referencePreviews,
+            },
+            loadPageSource: () => this.loadPageSource(),
+            onError: (error, operation) =>
+                this.errors.push([error, operation]),
+            onMissingLinks: (result) => this.missingResults.push(result),
+            onReferencePreviews: (value) => this.previewStates.push(value),
+            sectionEditing,
+            timer: this.timer,
+        };
+    }
+
+    private findMissingLinks(value: string): Promise<MissingLinkResult> {
+        this.requestedSources.push(value);
+        const request = deferred<MissingLinkResult>();
+        this.requests.push(request);
+        return request.promise;
+    }
+
+    private loadPageSource(): Promise<string> {
+        const request = deferred<string>();
+        this.pageRequests.push(request);
+        return request.promise;
+    }
+}
+
+interface Deferred<T> {
+    promise: Promise<T>;
+    reject(reason: unknown): void;
+    resolve(value: T): void;
+}
+
+function deferred<T>(): Deferred<T> {
+    let reject: (reason: unknown) => void =
+        function rejectBeforeInitialization(): void {};
+    let resolve: (value: T) => void =
+        function resolveBeforeInitialization(): void {};
+    const promise = new Promise<T>(function capture(onResolve, onReject) {
+        resolve = onResolve;
+        reject = onReject;
+    });
+    return { promise, reject, resolve };
+}
+
+function missing(...titles: string[]): MissingLinkResult {
+    return { linkClasses: [], titles: new Set(titles) };
+}
+
+async function settlePromises(): Promise<void> {
+    await Promise.resolve();
+    await Promise.resolve();
+}
+
+class FakeTimer implements EditorFeatureTimer {
+    private nextHandle = 1;
+    private readonly pending = new Map<
+        number,
+        { callback(): void; delay: number }
+    >();
+
+    clear(handle: number): void {
+        this.pending.delete(handle);
+    }
+
+    delays(): number[] {
+        return [...this.pending.values()].map((item) => item.delay);
+    }
+
+    runNext(): void {
+        const entry = this.pending.entries().next().value;
+        if (entry == null) {
+            throw new Error("No timer is pending.");
+        }
+        const [handle, item] = entry;
+        this.pending.delete(handle);
+        item.callback();
+    }
+
+    set(callback: () => void, delay: number): number {
+        const handle = this.nextHandle;
+        this.nextHandle += 1;
+        this.pending.set(handle, { callback, delay });
+        return handle;
+    }
+}

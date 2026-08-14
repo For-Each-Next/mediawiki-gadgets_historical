@@ -12,8 +12,10 @@ export interface EditorServices {
         titles: Set<string>;
     }>;
     getHighlightOptions(): HighlightOptions;
+    isSectionEditing(): boolean;
     loadFormatterSettings(): FormatterSettings;
     loadNamespaces(): Promise<void>;
+    loadPageSource(): Promise<string>;
     logger: Logger;
     notify: ActionNotifier;
     resolveRedirects(source: string): Promise<string>;

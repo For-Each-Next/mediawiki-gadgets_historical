@@ -28,7 +28,7 @@ const styles = await readFile(
     "utf8",
 );
 
-test("uses the native Codex header and responsive action footer", () => {
+test("uses two tabs and a custom responsive action footer", () => {
     const parsed = parse(template, { filename: dialogPath });
     const descriptor = parsed.descriptor;
     const source = descriptor.template?.content;
@@ -40,14 +40,18 @@ test("uses the native Codex header and responsive action footer", () => {
     assert.match(source, /^\s*<cdx-dialog\b/u);
     assert.match(source, /:title="msg\('dialog\.title'\)"/u);
     assert.match(source, /:lang="interfaceLocale"/u);
-    assert.equal(source.match(/:primary-action=/gu)?.length, 1);
-    assert.equal(source.match(/:default-action=/gu)?.length, 1);
-    assert.match(source, /actionType: 'progressive'/u);
-    assert.match(source, /@primary="apply"/u);
-    assert.match(source, /@default="onCancel"/u);
-    assert.doesNotMatch(source, /#footer/u);
-    assert.match(source, /<cdx-button\b/u);
-    assert.match(source, /type="button"/u);
+    assert.doesNotMatch(source, /:primary-action=|:default-action=/u);
+    assert.match(source, /<cdx-tabs>/u);
+    assert.equal(source.match(/<cdx-tab\b/gu)?.length, 2);
+    assert.match(source, /name="block-templates"/u);
+    assert.match(source, /name="other"/u);
+    assert.match(source, /<template #footer>/u);
+    assert.equal(source.match(/<cdx-button\b/gu)?.length, 3);
+    assert.equal(source.match(/type="button"/gu)?.length, 3);
+    assert.match(source, /action="progressive"/u);
+    assert.match(source, /weight="primary"/u);
+    assert.match(styles, /\.wiked-lite-dialog__footer/u);
+    assert.match(styles, /max-width: 639px/u);
     const compiled = compileTemplate({
         filename: dialogPath,
         id: "wiked-lite-formatter",
@@ -57,10 +61,10 @@ test("uses the native Codex header and responsive action footer", () => {
     assert.deepEqual(compiled.errors, []);
 });
 
-test("uses three Codex-owned option groups and a real policy link", () => {
+test("uses Codex controls and a real policy link", () => {
     assert.match(template, /msg\("dialog\.layout"\)/u);
     assert.match(template, /msg\("dialog\.advanced"\)/u);
-    assert.match(template, /msg\("dialog\.other"\)/u);
+    assert.match(template, /msg\("dialog\.editorFeatures"\)/u);
     assert.match(template, /input-value="5:3"/u);
     assert.match(template, /input-value="2:1"/u);
     assert.match(template, /input-value="align-separator"/u);
@@ -83,7 +87,11 @@ test("uses three Codex-owned option groups and a real policy link", () => {
         /\[\[WP:NOTBROKEN\]\]|v-html|CdxTooltip|v-tooltip/u,
     );
     assert.doesNotMatch(template, /cdx-text-input|sortCategories/u);
-    assert.doesNotMatch(styles, /\b(?:gap|margin|padding)\b/u);
+    assert.equal(template.match(/<cdx-toggle-switch\b/gu)?.length, 3);
+    assert.match(template, /updateHighlightMissing/u);
+    assert.match(template, /updateReferencePreviews/u);
+    assert.match(template, /updateFullPageReferencePreviews/u);
+    assert.doesNotMatch(styles, /\b(?:margin|padding)\b/u);
 });
 
 test("maps each character-width choice to its formatter ratio", async () => {
@@ -112,6 +120,7 @@ async function assertCharacterWidthChoice(
         onError(error) {
             assert.fail(`Unexpected formatter error: ${String(error)}`);
         },
+        onFeatureChange() {},
         onSave() {},
         onSubmit(selection) {
             submissions.push(selection);
@@ -132,9 +141,15 @@ async function assertCharacterWidthChoice(
     );
 }
 
-test("loads and saves every formatter choice without applying", async () => {
+test(
+    "loads and saves every formatter choice without applying",
+    testConfiguredSettings,
+);
+
+async function testConfiguredSettings(): Promise<void> {
     const settings = createConfiguredSettings();
     const saved: FormatterDialogSelection[] = [];
+    const featureChanges: unknown[] = [];
     let submitted = false;
     let closed = false;
     const bindings = createFormatterDialogBindings(createVueHarness(), {
@@ -146,6 +161,9 @@ test("loads and saves every formatter choice without applying", async () => {
         onError(error) {
             assert.fail(`Unexpected settings error: ${String(error)}`);
         },
+        onFeatureChange(selection) {
+            featureChanges.push(selection);
+        },
         onSave(selection) {
             saved.push(selection);
         },
@@ -154,13 +172,11 @@ test("loads and saves every formatter choice without applying", async () => {
         },
     });
 
-    assert.equal(bindings.firstParameterLayout.value, "compact");
-    assert.equal(bindings.subsequentParameterLayout.value, "align-columns");
-    assert.equal(bindings.characterWidthRatio.value, "2:1");
-    assert.equal(bindings.indentPipes.value, true);
-    assert.equal(bindings.normalizeConversion.value, true);
-    assert.equal(bindings.resolveRedirects.value, true);
-    assert.equal(bindings.highlightMissing.value, true);
+    assertConfiguredBindings(bindings);
+
+    bindings.updateReferencePreviews(true);
+
+    assertFeatureChange(featureChanges);
 
     await bindings.saveCurrentSettings();
 
@@ -168,11 +184,36 @@ test("loads and saves every formatter choice without applying", async () => {
     assert.equal(closed, false);
     assert.equal(bindings.settingsSaved.value, true);
     assert.equal(bindings.savingSettings.value, false);
-    assert.deepEqual(saved, [settings]);
-});
+    assert.deepEqual(saved, [{ ...settings, referencePreviews: true }]);
+}
+
+function assertConfiguredBindings(
+    bindings: ReturnType<typeof createFormatterDialogBindings>,
+): void {
+    assert.equal(bindings.firstParameterLayout.value, "compact");
+    assert.equal(bindings.subsequentParameterLayout.value, "align-columns");
+    assert.equal(bindings.characterWidthRatio.value, "2:1");
+    assert.equal(bindings.indentPipes.value, true);
+    assert.equal(bindings.normalizeConversion.value, true);
+    assert.equal(bindings.resolveRedirects.value, true);
+    assert.equal(bindings.highlightMissing.value, true);
+    assert.equal(bindings.referencePreviews.value, false);
+    assert.equal(bindings.fullPageReferencePreviews.value, true);
+}
+
+function assertFeatureChange(changes: unknown[]): void {
+    assert.deepEqual(changes, [
+        {
+            fullPageReferencePreviews: true,
+            highlightMissing: true,
+            referencePreviews: true,
+        },
+    ]);
+}
 
 function createConfiguredSettings(): FormatterDialogSelection {
     return {
+        fullPageReferencePreviews: true,
         formatter: {
             firstParameterLayout: "compact",
             fullWidthRatio: 2,
@@ -181,6 +222,7 @@ function createConfiguredSettings(): FormatterDialogSelection {
             subsequentParameterLayout: "align-columns",
         },
         highlightMissing: true,
+        referencePreviews: false,
         resolveRedirects: true,
     };
 }
@@ -198,6 +240,7 @@ test("reports formatter failures through the diagnostic port", async () => {
         onError(error, operation) {
             reported.push([error, operation]);
         },
+        onFeatureChange() {},
         onSave() {},
         async onSubmit() {
             throw failure;
@@ -228,6 +271,7 @@ test("keeps the dialog open when settings cannot be saved", async () => {
         onError(error, operation) {
             reported.push([error, operation]);
         },
+        onFeatureChange() {},
         onSave() {
             throw failure;
         },

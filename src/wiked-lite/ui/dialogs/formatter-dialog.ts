@@ -4,7 +4,11 @@ import type {
     FirstParameterLayout,
     SubsequentParameterLayout,
 } from "#gadget/domain/formatter.ts";
-import type { FormatterSettings } from "#gadget/domain/formatter-settings.ts";
+import {
+    getEditorFeatureSettings,
+    type EditorFeatureSettings,
+    type FormatterSettings,
+} from "#gadget/domain/formatter-settings.ts";
 import { interfaceLocale, msg } from "#gadget/i18n/index.ts";
 import type { VueModule, VueRef } from "#gadget/ui/codex.ts";
 
@@ -17,6 +21,7 @@ export interface FormatterDialogOptions {
     notBrokenUrl: string;
     onClose(): void;
     onError(error: unknown, operation: FormatterDialogOperation): void;
+    onFeatureChange(settings: EditorFeatureSettings): void;
     onSave(selection: FormatterDialogSelection): Promise<void> | void;
     onSubmit(selection: FormatterDialogSelection): Promise<void>;
 }
@@ -29,6 +34,7 @@ interface DialogBindings {
     characterWidthRatio: VueRef<CharacterWidthRatio>;
     error: VueRef<string>;
     firstParameterLayout: VueRef<FirstParameterLayout>;
+    fullPageReferencePreviews: VueRef<boolean>;
     highlightMissing: VueRef<boolean>;
     indentPipes: VueRef<boolean>;
     interfaceLocale: string;
@@ -38,11 +44,15 @@ interface DialogBindings {
     onCancel(): void;
     onOpenChange(value: boolean): void;
     open: VueRef<boolean>;
+    referencePreviews: VueRef<boolean>;
     resolveRedirects: VueRef<boolean>;
     saveCurrentSettings(): Promise<void>;
     savingSettings: VueRef<boolean>;
     settingsSaved: VueRef<boolean>;
     subsequentParameterLayout: VueRef<SubsequentParameterLayout>;
+    updateFullPageReferencePreviews(value: boolean): void;
+    updateHighlightMissing(value: boolean): void;
+    updateReferencePreviews(value: boolean): void;
 }
 
 export const FORMATTER_DIALOG_TEMPLATE =
@@ -102,12 +112,17 @@ export function createFormatterDialogBindings(
     );
     const resolveRedirects = Vue.ref(initial.resolveRedirects);
     const highlightMissing = Vue.ref(initial.highlightMissing);
+    const referencePreviews = Vue.ref(initial.referencePreviews);
+    const fullPageReferencePreviews = Vue.ref(
+        initial.fullPageReferencePreviews,
+    );
     function onCancel(): void {
         open.value = false;
         options.onClose();
     }
     function createSelection(): FormatterDialogSelection {
         return {
+            fullPageReferencePreviews: fullPageReferencePreviews.value,
             formatter: {
                 firstParameterLayout: firstParameterLayout.value,
                 fullWidthRatio:
@@ -117,8 +132,22 @@ export function createFormatterDialogBindings(
                 subsequentParameterLayout: subsequentParameterLayout.value,
             },
             highlightMissing: highlightMissing.value,
+            referencePreviews: referencePreviews.value,
             resolveRedirects: resolveRedirects.value,
         };
+    }
+    function updateFeature(
+        setting: keyof EditorFeatureSettings,
+        value: boolean,
+    ): void {
+        const target = {
+            fullPageReferencePreviews,
+            highlightMissing,
+            referencePreviews,
+        }[setting];
+        target.value = value;
+        settingsSaved.value = false;
+        options.onFeatureChange(getEditorFeatureSettings(createSelection()));
     }
     async function apply(): Promise<void> {
         applying.value = true;
@@ -153,6 +182,7 @@ export function createFormatterDialogBindings(
         characterWidthRatio,
         error,
         firstParameterLayout,
+        fullPageReferencePreviews,
         highlightMissing,
         indentPipes,
         interfaceLocale,
@@ -166,10 +196,20 @@ export function createFormatterDialogBindings(
             }
         },
         open,
+        referencePreviews,
         resolveRedirects,
         saveCurrentSettings,
         savingSettings,
         settingsSaved,
         subsequentParameterLayout,
+        updateFullPageReferencePreviews(value) {
+            updateFeature("fullPageReferencePreviews", value);
+        },
+        updateHighlightMissing(value) {
+            updateFeature("highlightMissing", value);
+        },
+        updateReferencePreviews(value) {
+            updateFeature("referencePreviews", value);
+        },
     };
 }

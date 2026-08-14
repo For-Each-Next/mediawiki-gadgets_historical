@@ -24,6 +24,9 @@ export interface CodexComponents {
     CdxMessage: unknown;
     CdxProgressBar: unknown;
     CdxRadio: unknown;
+    CdxTab: unknown;
+    CdxTabs: unknown;
+    CdxToggleSwitch: unknown;
 }
 
 export interface ResourceLoaderRequire {
@@ -48,4 +51,7 @@ export function registerFormatterComponents(
     app.component("CdxMessage", Codex.CdxMessage);
     app.component("CdxProgressBar", Codex.CdxProgressBar);
     app.component("CdxRadio", Codex.CdxRadio);
+    app.component("CdxTab", Codex.CdxTab);
+    app.component("CdxTabs", Codex.CdxTabs);
+    app.component("CdxToggleSwitch", Codex.CdxToggleSwitch);
 }

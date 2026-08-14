@@ -10,11 +10,14 @@ import type { NamespaceSource } from "#shared/wiki-titles";
 export interface ReferenceTooltipController {
     destroy(): void;
     dismiss(): void;
+    setEnabled(enabled: boolean): void;
 }
 
 export interface ReferenceTooltipOptions {
     delay?: number;
     editor: HTMLElement;
+    enabled?: boolean;
+    getFallbackSource?(): string | null;
     getNamespaceSource(): NamespaceSource | null;
     getSource(): string;
     overlay: HTMLElement;
@@ -71,6 +74,7 @@ export function attachReferenceTooltips(
     let showTimer = 0;
     let hideTimer = 0;
     let removeTimer = 0;
+    let enabled = options.enabled ?? true;
 
     function clearTimers(): void {
         view.clearTimeout(showTimer);
@@ -144,6 +148,7 @@ export function attachReferenceTooltips(
 
     function show(expectedGeneration: number): void {
         if (
+            !enabled ||
             candidate == null ||
             !candidate.isConnected ||
             generation !== expectedGeneration
@@ -151,11 +156,13 @@ export function attachReferenceTooltips(
             return;
         }
         const source = candidate.dataset.reference ?? "";
-        const preview = buildReferencePreview(
-            options.getSource(),
-            source,
-            options.getNamespaceSource(),
-        );
+        const namespaceSource = options.getNamespaceSource();
+        const preview =
+            buildReferencePreview(
+                options.getSource(),
+                source,
+                namespaceSource,
+            ) ?? buildFallbackPreview(source, namespaceSource);
         if (preview == null) {
             candidate = null;
             return;
@@ -186,7 +193,7 @@ export function attachReferenceTooltips(
     }
 
     function handlePointerOver(event: PointerEvent): void {
-        if (event.pointerType === "touch") {
+        if (!enabled || event.pointerType === "touch") {
             return;
         }
         const anchor = findReferenceAnchor(editor, event.target);
@@ -235,7 +242,23 @@ export function attachReferenceTooltips(
             view.removeEventListener("resize", positionPopup);
         },
         dismiss,
+        setEnabled(value) {
+            enabled = value;
+            if (!enabled) {
+                dismiss();
+            }
+        },
     };
+
+    function buildFallbackPreview(
+        source: string,
+        namespaceSource: NamespaceSource | null,
+    ): ReferencePreview | null {
+        const fallback = options.getFallbackSource?.();
+        return fallback == null
+            ? null
+            : buildReferencePreview(fallback, source, namespaceSource);
+    }
 }
 
 /** Calculates a viewport-safe anchored tooltip position. */

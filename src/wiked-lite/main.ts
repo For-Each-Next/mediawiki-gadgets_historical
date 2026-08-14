@@ -15,6 +15,7 @@ import {
     createFormatterSettingsStore,
     type FormatterSettingsStore,
 } from "#gadget/adapters/storage/formatter-settings.ts";
+import * as pageSource from "#gadget/adapters/mediawiki/page-source.ts";
 import type { EditorServices } from "#gadget/contracts/editor.ts";
 import { collectLinkHelperTitles } from "#gadget/domain/highlighter.ts";
 import {
@@ -70,16 +71,45 @@ function createEditorServices(
                 namespaceSource: namespaces.current().source,
             };
         },
+        isSectionEditing,
         loadFormatterSettings: formatterSettings.load,
         async loadNamespaces() {
             await namespaces.load(new mw.Api());
         },
         logger: uiLogger,
+        loadPageSource: () => loadCurrentPageSource(mediaWikiLogger),
         notify,
         resolveRedirects: (source) =>
             resolveRedirects(source, namespaces, mediaWikiLogger),
         saveFormatterSettings: formatterSettings.save,
     };
+}
+
+function isSectionEditing(): boolean {
+    if (mw.config.get("wgEditMessage") === "editingsection") {
+        return true;
+    }
+    const section = document.querySelector<HTMLInputElement>(
+        'input[name="wpSection"]',
+    );
+    return section != null && section.value !== "";
+}
+
+async function loadCurrentPageSource(logger: Logger): Promise<string> {
+    const revisionId = Number(mw.config.get("wgCurRevisionId"));
+    const stopTimer = logger.startTimer("page-source.load", { revisionId });
+    try {
+        const source = await pageSource.loadPageRevisionSource(
+            new mw.Api(),
+            revisionId,
+        );
+        stopTimer({ characterCount: source.length });
+        return source;
+    } catch (error) {
+        logger.warn("page-source.load.failed", { error, revisionId });
+        stopTimer({ outcome: "failed" });
+        throw error;
+    }
 }
 
 async function findMissingLinks(

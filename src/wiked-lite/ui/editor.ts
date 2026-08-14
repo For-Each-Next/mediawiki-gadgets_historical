@@ -10,6 +10,11 @@ import {
 } from "#gadget/domain/editor-selection.ts";
 import { formatWikitext } from "#gadget/domain/formatter.ts";
 import {
+    getEditorFeatureSettings,
+    withEditorFeatureSettings,
+    type EditorFeatureSettings,
+} from "#gadget/domain/formatter-settings.ts";
+import {
     highlightWikitext,
     type HighlightOptions,
 } from "#gadget/domain/highlighter.ts";
@@ -32,6 +37,11 @@ import {
     createCompositionSubmitHandler,
     restoreNativeSelectionAndFocus,
 } from "#gadget/ui/editor-lifecycle.ts";
+import {
+    createEditorFeatureController,
+    type EditorFeatureController,
+    type MissingLinkResult,
+} from "#gadget/ui/editor-features.ts";
 import { attachReferenceTooltips } from "#gadget/ui/reference-tooltip.ts";
 import {
     installWikEdLiteFrameStyles,
@@ -50,11 +60,12 @@ const EDITOR_FRAME_LOAD_TIMEOUT = 5_000;
 interface EditorController {
     destroy(): void;
     focus(): void;
+    getFeatureSettings(): EditorFeatureSettings;
     getSelection(): { end: number; start: number };
     isAttached(): boolean;
     refresh(): void;
     replace(start: number, end: number, value: string): void;
-    setMissingLinks(titles: Set<string>, color?: string): void;
+    setFeatureSettings(settings: EditorFeatureSettings): void;
 }
 
 interface EditorSurface {
@@ -306,6 +317,7 @@ function initializeEditorController(
     let destroyed = false;
     let controller: EditorController | null = null;
     let unregisterEditBoxBackend = function unregisterNoop(): void {};
+    let editorFeatures: EditorFeatureController | null = null;
     const history = new EditorHistory({
         end: textarea.selectionEnd,
         source: textarea.value,
@@ -314,10 +326,27 @@ function initializeEditorController(
     const referenceTooltips = attachReferenceTooltips({
         delay: window.wikEdLiteConfig?.referenceTooltipDelay,
         editor,
+        enabled: false,
+        getFallbackSource: () =>
+            editorFeatures?.getReferenceFallbackSource() ?? null,
         getNamespaceSource: () =>
             services.getHighlightOptions().namespaceSource ?? null,
         getSource: () => textarea.value,
         overlay,
+    });
+    editorFeatures = createEditorFeatureController({
+        findMissingLinks: services.findMissingLinks,
+        getSource: () => textarea.value,
+        initialSettings: getEditorFeatureSettings(
+            services.loadFormatterSettings(),
+        ),
+        loadPageSource: services.loadPageSource,
+        onError(error, operation) {
+            services.logger.warn(`feature.${operation}.failed`, { error });
+        },
+        onMissingLinks: updateMissingLinks,
+        onReferencePreviews: referenceTooltips.setEnabled,
+        sectionEditing: services.isSectionEditing(),
     });
     const connectionObserver = new MutationObserver(
         function removeDetachedEditor(): void {
@@ -356,6 +385,20 @@ function initializeEditorController(
         window.clearTimeout(timer);
         const delay = window.wikEdLiteConfig?.highlightDelay ?? 100;
         timer = window.setTimeout(render, delay);
+    }
+
+    function updateMissingLinks(result: MissingLinkResult): void {
+        missingTitles.clear();
+        result.titles.forEach((title) =>
+            missingTitles.add(normalizeTitle(title)),
+        );
+        if (result.linkClasses.length > 0) {
+            editor.style.setProperty(
+                "--wiked-lite-missing-link",
+                siteMissingLinkColor(result.linkClasses),
+            );
+        }
+        render();
     }
 
     editor.addEventListener("beforeinput", function preserveSelection(): void {
@@ -408,6 +451,7 @@ function initializeEditorController(
         }
         referenceTooltips.dismiss();
         if (!composing) {
+            editorFeatures?.sourceChanged();
             scheduleRender();
         }
     }
@@ -518,6 +562,7 @@ function initializeEditorController(
                 : null;
         destroyed = true;
         window.clearTimeout(timer);
+        editorFeatures?.destroy();
         connectionObserver.disconnect();
         unregisterEditBoxBackend();
         textarea.removeEventListener("input", updateFromNative);
@@ -541,6 +586,12 @@ function initializeEditorController(
         focus() {
             editor.focus({ preventScroll: true });
         },
+        getFeatureSettings() {
+            return (
+                editorFeatures?.getSettings() ??
+                getEditorFeatureSettings(services.loadFormatterSettings())
+            );
+        },
         getSelection() {
             return getSelectionOffsets(editor);
         },
@@ -561,15 +612,8 @@ function initializeEditorController(
                 true,
             );
         },
-        setMissingLinks(titles, color = "") {
-            missingTitles.clear();
-            titles.forEach((title) =>
-                missingTitles.add(normalizeTitle(title)),
-            );
-            if (color !== "") {
-                editor.style.setProperty("--wiked-lite-missing-link", color);
-            }
-            render();
+        setFeatureSettings(settings) {
+            editorFeatures?.setSettings(settings);
         },
     };
     try {
@@ -1130,11 +1174,14 @@ function mountFormatterDialog(
         activeDialogCleanup = null;
     }
     const component = createFormatterDialogComponent(Vue, {
-        initialSelection: services.loadFormatterSettings(),
+        initialSelection: getDialogInitialSelection(textarea, services),
         notBrokenUrl: mw.util.getUrl("WP:NOTBROKEN"),
         onClose: cleanup,
         onError(error, operation) {
             services.logger.error(`${operation}.failed`, { error });
+        },
+        onFeatureChange(settings) {
+            controllers.get(textarea)?.setFeatureSettings(settings);
         },
         onSave(selection) {
             services.saveFormatterSettings(selection);
@@ -1146,6 +1193,17 @@ function mountFormatterDialog(
     registerFormatterComponents(application, Codex);
     application.mount(host);
     activeDialogCleanup = cleanup;
+}
+
+function getDialogInitialSelection(
+    textarea: HTMLTextAreaElement,
+    services: EditorServices,
+): FormatterDialogSelection {
+    const saved = services.loadFormatterSettings();
+    const features = controllers.get(textarea)?.getFeatureSettings();
+    return features == null
+        ? saved
+        : withEditorFeatureSettings(saved, features);
 }
 
 async function applyFormatting(
@@ -1168,15 +1226,6 @@ async function applyFormatting(
     }
     if (formatted !== source) {
         writeFormattedSource(textarea, range, formatted, selected);
-    }
-    if (selection.highlightMissing) {
-        const missing = await services.findMissingLinks(textarea.value);
-        controller?.setMissingLinks(
-            missing.titles,
-            siteMissingLinkColor(missing.linkClasses),
-        );
-    } else {
-        controller?.setMissingLinks(new Set());
     }
     notifyFormattingResult(services, formatted !== source, selected);
 }

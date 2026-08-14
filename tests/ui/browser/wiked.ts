@@ -25,6 +25,7 @@ installStoryHost("wiked-lite", stories, function renderStory() {
         notBrokenUrl: "/wiki/WP:NOTBROKEN",
         onClose() {},
         onError() {},
+        onFeatureChange() {},
         onSave(selection) {
             formatterSettings = selection;
         },

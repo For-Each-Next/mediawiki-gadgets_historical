@@ -14,6 +14,7 @@ test("formatter settings round trip through versioned local storage", () => {
     const storage = new MemorySettingsStorage();
     const store = createFormatterSettingsStore(() => storage);
     const settings: FormatterSettings = {
+        fullPageReferencePreviews: true,
         formatter: {
             firstParameterLayout: "align-separator",
             fullWidthRatio: 2,
@@ -22,6 +23,7 @@ test("formatter settings round trip through versioned local storage", () => {
             subsequentParameterLayout: "align-columns-completely",
         },
         highlightMissing: true,
+        referencePreviews: false,
         resolveRedirects: true,
     };
 
@@ -31,8 +33,31 @@ test("formatter settings round trip through versioned local storage", () => {
     assert.deepEqual(store.load(), settings);
     assert.deepEqual(
         JSON.parse(storage.getItem(FORMATTER_SETTINGS_STORAGE_KEY) ?? ""),
-        { settings, version: 1 },
+        { settings, version: 2 },
     );
+});
+
+test("version-one formatter settings migrate editor defaults", () => {
+    const defaults = createDefaultFormatterSettings();
+    const legacy = {
+        formatter: {
+            ...defaults.formatter,
+            indentPipes: true,
+        },
+        highlightMissing: true,
+        resolveRedirects: true,
+    };
+    const storage = new MemorySettingsStorage(
+        JSON.stringify({ settings: legacy, version: 1 }),
+        "wiked-lite.formatter-settings.v1",
+    );
+
+    assert.deepEqual(createFormatterSettingsStore(() => storage).load(), {
+        ...defaults,
+        formatter: legacy.formatter,
+        highlightMissing: true,
+        resolveRedirects: true,
+    });
 });
 
 test("invalid formatter settings fall back to defaults", () => {
@@ -89,19 +114,22 @@ test("unavailable storage never blocks formatting defaults", () => {
 });
 
 class MemorySettingsStorage {
-    private value: string | null;
+    private readonly values = new Map<string, string>();
 
-    constructor(value: string | null = null) {
-        this.value = value;
+    constructor(
+        value: string | null = null,
+        key = FORMATTER_SETTINGS_STORAGE_KEY,
+    ) {
+        if (value != null) {
+            this.values.set(key, value);
+        }
     }
 
     getItem(key: string): string | null {
-        return key === FORMATTER_SETTINGS_STORAGE_KEY ? this.value : null;
+        return this.values.get(key) ?? null;
     }
 
     setItem(key: string, value: string): void {
-        if (key === FORMATTER_SETTINGS_STORAGE_KEY) {
-            this.value = value;
-        }
+        this.values.set(key, value);
     }
 }

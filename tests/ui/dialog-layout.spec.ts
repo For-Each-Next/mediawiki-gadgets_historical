@@ -92,6 +92,14 @@ test("custom Citation footer changes at the 639px breakpoint", async ({
     expect(new Set(desktop.map((item) => item.top)).size).toBe(1);
 });
 
+test("wikEd footer changes at the 639px breakpoint", async ({ context }) => {
+    const mobile = await inspectWikEdFooter(context, 639);
+    const desktop = await inspectWikEdFooter(context, 640);
+
+    expect(new Set(mobile.map((item) => item.top)).size).toBe(mobile.length);
+    expect(new Set(desktop.map((item) => item.top)).size).toBe(1);
+});
+
 test("wikEd formatter restores explicitly saved settings", async ({
     page,
 }) => {
@@ -114,6 +122,21 @@ test("wikEd formatter restores explicitly saved settings", async ({
 
     await expect(compactFirst).toBeChecked();
     await expect(compactLater).toBeChecked();
+});
+
+test("wikEd saves editor switches from the other tab", async ({ page }) => {
+    await loadStoryPage(page, "wiked-lite", "en");
+    await mountStory(page, "wiked-formatter");
+    await page.getByRole("tab", { name: "Other" }).click();
+    const missingLinks = page.getByRole("switch", {
+        name: /Highlight links to nonexistent pages/u,
+    });
+    await missingLinks.check();
+    await page.getByRole("button", { name: "Save current settings" }).click();
+
+    await mountStory(page, "wiked-formatter");
+    await page.getByRole("tab", { name: "Other" }).click();
+    await expect(missingLinks).toBeChecked();
 });
 
 async function inspectAllStories(
@@ -208,6 +231,25 @@ async function inspectCitationFooter(
                     width: Math.round(rect.width),
                 };
             }),
+        );
+    await page.close();
+    return result;
+}
+
+async function inspectWikEdFooter(
+    context: BrowserContext,
+    width: number,
+): Promise<Array<{ top: number }>> {
+    const page = await context.newPage();
+    await page.setViewportSize({ height: 844, width });
+    await loadStoryPage(page, "wiked-lite", "en");
+    await mountStory(page, "wiked-formatter");
+    const result = await page
+        .locator(".wiked-lite-dialog__footer .cdx-button")
+        .evaluateAll((buttons) =>
+            buttons.map((button) => ({
+                top: Math.round(button.getBoundingClientRect().top),
+            })),
         );
     await page.close();
     return result;

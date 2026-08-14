@@ -50,15 +50,16 @@ before saving the page.
   distinguishes documented file formats, alignments, dimensions, and named
   options; selected HTML or CSS keys; progressively nested HTML tag bodies; and
   entered Chinese-conversion declaration keys with the existing syntax palette.
-- Opens delayed, anchored MediaWiki-style previews for plain references and
-  `ref`, `r`, or `sfn` citations, with viewport-aware placement and hover-safe
-  transitions that keep links usable.
+- Opens optional delayed, anchored MediaWiki-style previews for plain
+  references and `ref`, `r`, or `sfn` citations, with viewport-aware placement
+  and hover-safe transitions that keep links usable. During section editing, an
+  optional whole-page lookup resolves definitions outside the section.
 - Pairs matching prefixed `last` and `first` citation fields on one row and
   preserves separate original and archived links without rendering untrusted
   HTML.
-- Displays Chinese `link-xx` and `tsl` helpers like local wikilinks, checks
-  their local page operands for missing targets, and opens template or link
-  targets on Control-click or Command-click.
+- Displays Chinese `link-xx` and `tsl` helpers like local wikilinks, optionally
+  checks their local page operands and ordinary wikilinks for missing targets
+  while editing, and opens targets on Control-click or Command-click.
 - Distinguishes brace-based magic variables and parser functions from templates
   without Template navigation, while static `#invoke` operands open their
   Module pages.
@@ -67,11 +68,12 @@ before saving the page.
   Later parameters can preserve entered spacing, become compact, align by
   column, or use complete column alignment; named and positional parameters
   remain distinct.
-- Saves the complete formatter configuration in local browser storage when
-  requested, then restores it the next time the formatter opens. Chinese-
-  conversion cleanup, redirect replacement, and target-only missing-page
-  highlighting remain optional; headings gain surrounding blank lines without
-  separating `DEFAULTSORT` from later content.
+- Splits block-template layout from other settings in a tabbed formatter and
+  saves its complete configuration from the dialog footer when requested.
+  Chinese-conversion cleanup, redirect replacement, live target-only missing-
+  page highlighting, reference previews, and whole-page reference lookup remain
+  optional; headings gain surrounding blank lines without separating
+  `DEFAULTSORT` from later content.
 - Recognizes every English and Chinese Wikipedia namespace alias from bundled
   catalogs, and loads local namespace siteinfo in the background on other
   wikis.
@@ -81,8 +83,9 @@ before saving the page.
 
 The enhanced editor does not replace the submitted textarea. It avoids pages
 where another editor has hidden that textarea. Network-backed redirect
-replacement and missing-link highlighting remain optional because their API
-requests may slow the action.
+replacement, missing-link highlighting, and whole-page reference lookup remain
+optional. Their API requests do not block editing, and failed preview lookups
+retain section-local analysis.
 
 ## Development
 
@@ -95,10 +98,11 @@ npm test -w wiked-lite
 npm run build -w wiked-lite
 ```
 
-Pure formatter, scanner, highlighter, and reference tests use local fixtures.
-Redirect and missing-page checks require a live MediaWiki API only in the
-browser. Other wikis also request namespace siteinfo in the background;
-formatting and editing continue when that optional request fails.
+Pure formatter, scanner, highlighter, editor-feature, and reference tests use
+local fixtures. Redirect, missing-page, and whole-page reference checks require
+a live MediaWiki API only in the browser. Other wikis also request namespace
+siteinfo in the background; formatting and editing continue when an optional
+request fails.
 
 See the repository [development workflow][10] for the complete verification
 gate and live-service policy.
@@ -131,9 +135,9 @@ index.ts
 - `domain/` contains deterministic formatting and preview logic backed by the
   lazy `wikitext(source)` facade. Its construct methods run focused scanners
   without building a document-wide syntax tree.
-- `adapters/` discovers current-wiki namespaces, batches redirect and
-  missing-page lookups, and isolates local formatter-settings storage behind UI
-  contracts.
+- `adapters/` discovers current-wiki namespaces, batches redirect and missing-
+  page lookups, reads exact revision source for section previews, and isolates
+  local formatter-settings storage behind UI contracts.
 - Shared logging records sanitized diagnostics, while native MediaWiki
   notifications present short action results consistently with other gadgets.
 - `i18n/` keeps flat, typed locale catalogs.

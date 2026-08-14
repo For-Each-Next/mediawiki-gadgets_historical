@@ -7,14 +7,22 @@ import type {
 } from "#gadget/domain/formatter.ts";
 
 export interface FormatterSettings {
+    fullPageReferencePreviews: boolean;
     formatter: FormatterOptions;
     highlightMissing: boolean;
+    referencePreviews: boolean;
     resolveRedirects: boolean;
 }
+
+export type EditorFeatureSettings = Pick<
+    FormatterSettings,
+    "fullPageReferencePreviews" | "highlightMissing" | "referencePreviews"
+>;
 
 /** Creates choices used when no saved configuration is valid. */
 export function createDefaultFormatterSettings(): FormatterSettings {
     return {
+        fullPageReferencePreviews: false,
         formatter: {
             firstParameterLayout: "preserve",
             fullWidthRatio: 5 / 3,
@@ -23,8 +31,28 @@ export function createDefaultFormatterSettings(): FormatterSettings {
             subsequentParameterLayout: "preserve",
         },
         highlightMissing: false,
+        referencePreviews: true,
         resolveRedirects: false,
     };
+}
+
+/** Copies editor behaviors from a formatter configuration. */
+export function getEditorFeatureSettings(
+    settings: FormatterSettings,
+): EditorFeatureSettings {
+    return {
+        fullPageReferencePreviews: settings.fullPageReferencePreviews,
+        highlightMissing: settings.highlightMissing,
+        referencePreviews: settings.referencePreviews,
+    };
+}
+
+/** Replaces editor behaviors while preserving formatter choices. */
+export function withEditorFeatureSettings(
+    settings: FormatterSettings,
+    features: EditorFeatureSettings,
+): FormatterSettings {
+    return { ...settings, ...features };
 }
 
 /** Validates and copies one persisted formatter configuration. */
@@ -41,12 +69,15 @@ export function parseFormatterSettings(
         typeof formatter.indentPipes !== "boolean" ||
         typeof formatter.normalizeConversion !== "boolean" ||
         !isSubsequentParameterLayout(formatter.subsequentParameterLayout) ||
+        typeof value.fullPageReferencePreviews !== "boolean" ||
         typeof value.highlightMissing !== "boolean" ||
+        typeof value.referencePreviews !== "boolean" ||
         typeof value.resolveRedirects !== "boolean"
     ) {
         return undefined;
     }
     return {
+        fullPageReferencePreviews: value.fullPageReferencePreviews,
         formatter: {
             firstParameterLayout: formatter.firstParameterLayout,
             fullWidthRatio: formatter.fullWidthRatio,
@@ -55,6 +86,7 @@ export function parseFormatterSettings(
             subsequentParameterLayout: formatter.subsequentParameterLayout,
         },
         highlightMissing: value.highlightMissing,
+        referencePreviews: value.referencePreviews,
         resolveRedirects: value.resolveRedirects,
     };
 }

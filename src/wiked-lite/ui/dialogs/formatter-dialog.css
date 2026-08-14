@@ -1,1 +1,26 @@
-/* Codex owns the formatter dialog's form and action layout. */
+/* Custom footer keeps persistence separate from dialog completion actions. */
+
+.wiked-lite-dialog .wiked-lite-dialog__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.wiked-lite-dialog .wiked-lite-dialog__footer-actions {
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 639px) {
+    .wiked-lite-dialog .wiked-lite-dialog__footer,
+    .wiked-lite-dialog .wiked-lite-dialog__footer-actions {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .wiked-lite-dialog .wiked-lite-dialog__footer {
+        gap: 8px;
+    }
+}

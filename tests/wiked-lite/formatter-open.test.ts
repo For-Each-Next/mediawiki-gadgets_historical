@@ -57,8 +57,12 @@ function createServices(
         getHighlightOptions() {
             return {};
         },
+        isSectionEditing: () => false,
         loadFormatterSettings: createDefaultFormatterSettings,
         async loadNamespaces() {},
+        async loadPageSource() {
+            return "";
+        },
         logger: createLogger("wiked-lite-test", {
             level: "error",
             output: createLogOutput(errors),

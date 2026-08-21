@@ -1,9 +1,15 @@
 import { planPreSaveExecution } from "#gadget/workflows/pre-save-plan.ts";
 // eslint-disable-next-line max-len
 import { assertUniqueSelectedActionIds } from "#gadget/domain/pre-save-action-identity.ts";
+import { buildNavboxEditSummary } from "#gadget/domain/edit-summary.ts";
 import { formatNamespaceTitle } from "#shared/wiki-titles";
 
 type DynamicRecord = Record<string, any>;
+
+interface PageEditCollection {
+    articleTitle?: string;
+    rows?: Array<{ pendingEdit: DynamicRecord }>;
+}
 
 export type PreSaveMessageFormatter = (
     id: PreSaveMessageId,
@@ -89,7 +95,11 @@ export function buildPreSaveActions(
         actions.push(categoryActionResult);
     }
 
-    const pageEditActionsResult = buildPageEditActions(form, formatMessage);
+    const pageEditActionsResult = buildPageEditActions(
+        form,
+        finalTitle,
+        formatMessage,
+    );
     actions.push(...pageEditActionsResult);
 
     return actions;
@@ -160,6 +170,8 @@ function createTalkBannerAction(
  * Builds staged page-edit actions from review-row collections.
  *
  * @param form - Form values.
+ * @param finalTitle - Final linked article title.
+ * @param formatMessage - Pre-save message formatter.
  * @returns Staged page-edit actions from review-row collections.
  */
 function buildPageEditActions(
@@ -169,21 +181,31 @@ function buildPageEditActions(
         navboxRows: Array<{ pendingEdit: DynamicRecord }>;
         stubTagRows: Array<{ pendingEdit: DynamicRecord }>;
     },
+    finalTitle: string,
     formatMessage: PreSaveMessageFormatter,
 ): Array<unknown> {
-    const collections = [
-        form.categoryRows,
-        form.redirectRows,
-        form.navboxRows,
-        form.stubTagRows,
+    const collections: PageEditCollection[] = [
+        { rows: form.categoryRows },
+        { rows: form.redirectRows },
+        { articleTitle: finalTitle, rows: form.navboxRows },
+        { rows: form.stubTagRows },
     ];
 
-    const mapCallbackB = (row: any) =>
-        createPageEditAction(row.pendingEdit, formatMessage);
-    const result = collections
-        .flatMap((rows) => rows || [])
-        .filter(isPreSavePageEditRow)
-        .map(mapCallbackB);
+    const flatMapCallback = function callback(collection: PageEditCollection) {
+        const mapCallback = function callback(row: {
+            pendingEdit: DynamicRecord;
+        }) {
+            return createPageEditAction(
+                row.pendingEdit,
+                formatMessage,
+                collection.articleTitle,
+            );
+        };
+        return (collection.rows || [])
+            .filter(isPreSavePageEditRow)
+            .map(mapCallback);
+    };
+    const result = collections.flatMap(flatMapCallback);
     return result;
 }
 
@@ -267,11 +289,14 @@ function createCategoryAction(
  * Creates a generic staged page edit action.
  *
  * @param edit - Staged page edit.
+ * @param formatMessage - Pre-save message formatter.
+ * @param articleTitle - Final linked article title for navbox edits.
  * @returns Page edit pre-save action.
  */
 function createPageEditAction(
     edit: any,
     formatMessage: PreSaveMessageFormatter,
+    articleTitle?: string,
 ): any {
     const title = normalizeTitle(edit.title);
     const create = edit.create === true;
@@ -294,7 +319,10 @@ function createPageEditAction(
         ),
         pageTitle: title,
         selected: true,
-        summary: getPageEditSummary(edit, title, create, formatMessage),
+        summary:
+            articleTitle == null
+                ? getPageEditSummary(edit, title, create, formatMessage)
+                : buildNavboxEditSummary(edit, articleTitle),
         text: String(edit.text || ""),
         title,
         type: "page-edit",

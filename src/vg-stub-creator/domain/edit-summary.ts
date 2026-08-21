@@ -53,6 +53,29 @@ export function addEditSummarySuffix(summary: string): string {
 }
 
 /**
+ * Builds the summary for a staged navbox edit.
+ *
+ * @param edit - Navbox edit values.
+ * @param edit.create - Whether the navbox will be created.
+ * @param edit.title - Full navbox page title.
+ * @param articleTitle - Final linked article title.
+ * @returns Navbox edit summary.
+ */
+export function buildNavboxEditSummary(
+    edit: { create?: boolean; title?: unknown },
+    articleTitle: unknown,
+): string {
+    const linkedTitle = String(articleTitle ?? "").trim();
+
+    if (edit.create !== true) {
+        return `add link to '[[${linkedTitle}]]'`;
+    }
+
+    const navboxTitle = String(edit.title ?? "").trim();
+    return `create '${navboxTitle}', with link to '[[${linkedTitle}]]'`;
+}
+
+/**
  * Builds the year link for an edit summary.
  *
  * @param year - Release year.

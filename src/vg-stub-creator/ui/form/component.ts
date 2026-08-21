@@ -10,6 +10,7 @@ import {
     isArticleListField,
     isCompletableMetadataField,
 } from "#gadget/domain/processor.ts";
+import { buildNavboxEditSummary } from "#gadget/domain/edit-summary.ts";
 import {
     createSaveProgress,
     getSaveProgressGroups,
@@ -4495,15 +4496,12 @@ function resetPageEdit(): void {
  * @returns Edit summary text.
  */
 function buildPageEditSummary(state: any): string {
-    const action = state.create ? "create" : "modify";
-    const suffix =
-        state.kind === "navbox" ? `, with link to '[[${currentTitle}]]'` : "";
-
-    if (state.kind === "navbox" && !state.create) {
-        return `add link to '[[${currentTitle}]]'`;
+    if (state.kind === "navbox") {
+        return buildNavboxEditSummary(state, getCurrentTitle());
     }
 
-    return `${action} '${state.title}'${suffix}`;
+    const action = state.create ? "create" : "modify";
+    return `${action} '${state.title}'`;
 }
 
 /**

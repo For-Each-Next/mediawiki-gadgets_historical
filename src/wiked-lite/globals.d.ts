@@ -24,6 +24,10 @@ declare global {
         };
         wikEdLiteConfig?: {
             highlightDelay?: number;
+            /**
+             * Optional source-length safety cap for live highlighting.
+             * Omission uses the default limit of 1,024,768.
+             */
             maxLiveHighlightLength?: number;
             referenceTooltipDelay?: number;
         };

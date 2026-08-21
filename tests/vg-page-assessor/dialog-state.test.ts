@@ -23,7 +23,10 @@ test("prepares registration before returning dialog state", async () => {
     assert.equal(state.newPageList.text.includes("2026年"), true);
     assert.equal(state.registration.changed, true);
     assert.equal(state.registration.eligible, true);
-    assert.match(state.registration.proposedText, /\{\{vgc\|Example\}\}/u);
+    assert.match(
+        state.registration.proposedText,
+        /\{\{vgc\|Example\}\}\{\{Dykico\}\}/u,
+    );
     assert.equal("registrationLoading" in state, false);
 });
 
@@ -68,7 +71,10 @@ function createAssessmentPages() {
             basetimestamp: "talk-base",
             exists: true,
             starttimestamp: "query-time",
-            text: "{{WikiProject Video games|importance=Low}}",
+            text: [
+                "{{DYK Invite}}",
+                "{{WikiProject Video games|importance=Low}}",
+            ].join("\n"),
         },
     };
 }

@@ -375,6 +375,7 @@ test("table queries parse only table-local structure", () => {
     const source = [
         '{| class="wikitable"',
         "|+ Caption {{lang|en|Example}}",
+        '|+ class="111" style="xxx: yyy;" | title',
         "|-",
         "! Game !! Year",
         "|-",
@@ -384,7 +385,14 @@ test("table queries parse only table-local structure", () => {
     const table = wikitext(source).table.getFirst();
 
     assert.equal(table?.attributes.class, "wikitable");
-    assert.equal(table?.captions.length, 1);
+    assert.equal(table?.captions.length, 2);
+    assert.deepEqual(table?.captions[0]?.attributes, {});
+    assert.equal(table?.captions[0]?.content, " Caption {{lang|en|Example}}");
+    assert.deepEqual(table?.captions[1]?.attributes, {
+        class: "111",
+        style: "xxx: yyy;",
+    });
+    assert.equal(table?.captions[1]?.content, " title");
     assert.equal(table?.rows.length, 2);
     assert.deepEqual(
         table?.rows.map((row) => row.cells.map((cell) => cell.header)),

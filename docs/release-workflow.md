@@ -136,6 +136,40 @@ That command builds twice with a fixed timestamp in temporary directories and
 requires byte-identical results. It does not replace `dist/` or change release
 metadata.
 
+## Automate GitHub Releases
+
+Push one formal tag per gadget after its release commit is on `trunk`. Use the
+exact form `<package>@<major>.<minor>.<patch>`, such as `wiked-lite@0.5.3`. A
+coordinated release from one commit therefore uses a separate tag and GitHub
+Release for each affected gadget.
+
+Before pushing the first qualifying tag, a repository administrator must enable
+GitHub release immutability for the repository or its organization. Enable it
+before publication because the policy applies only to future releases. The
+workflow token is deliberately limited to repository contents and cannot change
+or inspect this administrative policy.
+
+The release workflow accepts a tag only when all of these conditions hold:
+
+- `<package>` identifies a discovered package whose manifest defines
+  `gadgetBuild`.
+- The unsuffixed Semantic Versioning tag equals the package manifest version.
+- The package's current `CHANGELOG.md` entry has that exact version.
+- The remote `trunk` branch contains the tagged commit.
+
+Candidate tags containing `-dev.N` or `-post.N` do not trigger a GitHub
+Release, and the release planner rejects any non-formal version. The automation
+does not scan old tags or backfill historical releases; it handles qualifying
+tags pushed after the workflow is available.
+
+For an accepted tag, GitHub verifies the complete workspace and builds only the
+tagged package. Under the required repository policy, it creates an immutable
+release titled with the tag and uses the matching changelog entry as its
+release notes. The only asset attached to the GitHub Release is
+`dist/<output-name>.min.js` for that package. It does not attach
+`dist/00-mediawiki-gadgets.user.js` or another gadget's artifact. Existing
+releases and assets are never replaced; a collision fails the publication.
+
 ## Publish a Candidate
 
 1. Select the next unused `-dev.N` or `-post.N` version and update the affected
@@ -162,6 +196,9 @@ metadata.
    notices, and stable package order.
 6. Inspect `git diff --check`, the complete diff, and final worktree status
    before publishing the artifacts.
+7. Land the release commit on `trunk`, then push one qualifying formal tag for
+   each released gadget. Let the GitHub release workflow verify and publish
+   each package independently.
 
 [Semantic Versioning 2.0.0][1] defines the unsuffixed base version syntax.
 

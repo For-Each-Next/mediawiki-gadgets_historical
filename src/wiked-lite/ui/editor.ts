@@ -58,6 +58,7 @@ const EDITOR_FRAME_SOURCE =
     '<!doctype html><html><head><meta charset="UTF-8">' +
     "</head><body></body></html>";
 const EDITOR_FRAME_LOAD_TIMEOUT = 5_000;
+const DEFAULT_MAX_LIVE_HIGHLIGHT_LENGTH = 1_024_768;
 
 interface EditorController {
     destroy(): void;
@@ -952,7 +953,9 @@ function renderSegments(
 ): void {
     const target = editor.ownerDocument;
     const fragment = target.createDocumentFragment();
-    const limit = window.wikEdLiteConfig?.maxLiveHighlightLength ?? 300_000;
+    const limit =
+        window.wikEdLiteConfig?.maxLiveHighlightLength ??
+        DEFAULT_MAX_LIVE_HIGHLIGHT_LENGTH;
     if (source.length > limit) {
         editor.replaceChildren(target.createTextNode(source));
         return;

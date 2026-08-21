@@ -13,6 +13,11 @@ editor-display controls.
   reference options, including their tooltip and preview settings.
 - Updated localized labels and guard behavior for optional rendering and
   conversion controls without changing the major editing workflow.
+- Raised the default live-highlighting ceiling from 300,000 to 1,024,768
+  characters while preserving explicit lower, higher, or unlimited overrides.
+- Limited grey wikitable coloring to table, row, caption, and cell attributes
+  while keeping markers and displayed content uncolored and CSS property names
+  italic.
 
 ### 0.5.2 (2026-08-14 08:58 UTC)
 

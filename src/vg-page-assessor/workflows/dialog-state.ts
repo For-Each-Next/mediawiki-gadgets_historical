@@ -7,7 +7,10 @@ import type {
     DialogWorkflow,
     RegistrationSave,
 } from "#gadget/contracts/dialog.ts";
-import { createDefaultAssessment } from "#gadget/domain/assessment.ts";
+import {
+    createDefaultAssessment,
+    hasDykInviteAtTop,
+} from "#gadget/domain/assessment.ts";
 import {
     getTitlesForDate,
     prepareNewPageListRegistration,
@@ -78,7 +81,7 @@ async function loadDialogState(
     const prepared = await prepareRegistrationState(
         adapters,
         api,
-        pages.newPageList,
+        pages,
         subjectInfo,
         subjectTitle,
     );
@@ -104,10 +107,11 @@ async function loadDialogState(
 async function prepareRegistrationState(
     adapters: DialogWorkflowAdapters,
     api: mw.Api,
-    newPageList: NewPageListSnapshot,
+    pages: AssessmentPageSnapshots,
     subjectInfo: SubjectPageInfo,
     subjectTitle: string,
 ): Promise<PreparedRegistrationState> {
+    const newPageList = pages.newPageList;
     const title = subjectInfo.listedTitle || subjectTitle;
     const titles = [
         ...getTitlesForDate(newPageList.text, subjectInfo.creationDate),
@@ -119,6 +123,7 @@ async function prepareRegistrationState(
     const registration = prepareNewPageListRegistration({
         creationDate: subjectInfo.creationDate,
         creationTimes,
+        includeDykIcon: hasDykInviteAtTop(pages.talkPage.text),
         namespaceNumber: subjectInfo.namespaceNumber,
         text: newPageList.text,
         title,

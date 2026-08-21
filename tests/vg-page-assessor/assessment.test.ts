@@ -10,11 +10,27 @@ import {
     createDefaultAssessment,
     getExistingOtherProjectOptions,
     getTalkPageTopSection,
+    hasDykInviteAtTop,
     parseAssessment,
     previewTalkPageTopSection,
     updateTalkPageAssessment,
     updateTalkPageTopSection,
 } from "vg-page-assessor/domain/assessment.ts";
+
+test("recognizes a DYK invite only among leading talk-page templates", () => {
+    assert.equal(
+        hasDykInviteAtTop(
+            "{{Talk header}}\n{{template:dyk_invite|date=2026-08-14}}",
+        ),
+        true,
+    );
+    assert.equal(
+        hasDykInviteAtTop(
+            "{{Talk header}}\n\n== Discussion ==\n{{DYK Invite}}",
+        ),
+        false,
+    );
+});
 
 test("preserves custom assessment values from recognizable source", () => {
     const source = [
@@ -105,6 +121,83 @@ test("reassesses a shell after unmanaged lead templates in place", () => {
         updateTalkPageAssessment(source, assessment, projectConfig),
         source.replace("class=Unassessed", "class=B"),
     );
+});
+
+test("moves a standalone Articles for creation banner into the shell", () => {
+    const articlesForCreation = [
+        "{{WikiProject Articles for creation|class=start",
+        "|ts=20260814090210|reviewer=断岸千尺|oldid=93888495}}",
+    ].join("");
+    const source = [
+        articlesForCreation,
+        "{{WikiProject Video games|class=start}}",
+    ].join("\n");
+    const assessment = createDefaultAssessment(projectConfig, source);
+    const expected = [
+        "{{WikiProject banner shell|class=Start|1=",
+        articlesForCreation,
+        "{{WikiProject Video games|importance=}}",
+        "}}",
+    ].join("\n");
+    const result = updateTalkPageAssessment(source, assessment, projectConfig);
+
+    assert.equal(assessment.className, "Start");
+    assert.equal(result, expected);
+    assert.equal(
+        updateTalkPageAssessment(result, assessment, projectConfig),
+        expected,
+    );
+});
+
+test("integrates the standalone AfC and duplicate video-game fixture", () => {
+    const articlesForCreation =
+        "{{WikiProject Articles for creation|class=start|" +
+        "ts=20260814090210|reviewer=断岸千尺|oldid=93888495}}";
+    const standalone = "{{WikiProject Video games|class=start}}";
+    const nested = "{{WikiProject Video games|importance=}}";
+    const source = [
+        articlesForCreation,
+        standalone,
+        "",
+        "{{WikiProject banner shell|class=Unassessed|1=",
+        nested,
+        "}}",
+    ].join("\n");
+    const assessment = createDefaultAssessment(projectConfig, source);
+    const expected = [
+        "{{WikiProject banner shell|class=Unassessed|1=",
+        articlesForCreation,
+        nested,
+        "}}",
+    ].join("\n");
+    const result = updateTalkPageAssessment(source, assessment, projectConfig);
+
+    assert.equal(result, expected);
+    assert.equal(result.match(/WikiProject Video games/gu)?.length, 1);
+});
+
+test("keeps one raw AfC banner when sources duplicate", () => {
+    const outer =
+        "{{WikiProject Articles for creation|class=start|reviewer=Outer}}";
+    const nested =
+        "{{WikiProject Articles for creation|class=start|reviewer=Nested}}";
+    const source = [
+        outer,
+        "{{WikiProject banner shell|class=Start|1=",
+        nested,
+        "{{WikiProject Video games|importance=Low}}",
+        "}}",
+    ].join("\n");
+    const assessment = createDefaultAssessment(projectConfig, source);
+    const result = updateTalkPageAssessment(source, assessment, projectConfig);
+
+    const articlesForCreationCalls = result.match(
+        /WikiProject Articles for creation/gu,
+    );
+
+    assert.equal(articlesForCreationCalls?.length, 1);
+    assert.match(result, /reviewer=Outer/u);
+    assert.doesNotMatch(result, /reviewer=Nested/u);
 });
 
 test("adds controls for other conventional banners inside the shell", () => {

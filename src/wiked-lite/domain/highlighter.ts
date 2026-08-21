@@ -11,6 +11,8 @@ import {
     wikitext,
     type ParsedTemplateCall,
     type ParsedTemplateParameter,
+    type ParsedWikitableCaption,
+    type ParsedWikitableRow,
     type SourceRange,
     type TopLevelRange,
     type WikitextTag,
@@ -70,6 +72,9 @@ interface TemplateNestingRegion extends SourceRange {
 const REFERENCE_TEMPLATE_NAMES = new Set(["r", "sfn"]);
 const EFN_PATTERN = /^efn(?:$|[- /])/u;
 const LINK_HELPER_PATTERN = /^(?:tsl|translink|link-[a-z0-9-]+)$/u;
+const CSS_PROPERTY_NAME_PATTERN = /^(?:--|-(?!-))?[_\p{L}][-\p{L}\p{N}_]*$/u;
+const TAG_ATTRIBUTE_PATTERN =
+    /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gu;
 const HIGHLIGHT_LITERAL_TAGS = [
     "chem",
     "graph",
@@ -219,6 +224,7 @@ export function highlightWikitext(
     const ranges = [
         ...createOpaqueDecorations(source),
         ...createTagDecorations(source),
+        ...createWikitableDecorations(source),
         ...createTemplateDecorations(
             source,
             linkHelpers,
@@ -504,9 +510,7 @@ function createTagAttributeDecorations(
     }
     const attributesStart = openingStart + tagName.length;
     const attributes = source.slice(attributesStart, openingEnd - 1);
-    const pattern =
-        /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gu;
-    return [...attributes.matchAll(pattern)].flatMap((match) =>
+    return [...attributes.matchAll(TAG_ATTRIBUTE_PATTERN)].flatMap((match) =>
         decorateTagAttribute(source, attributesStart, match),
     );
 }
@@ -533,7 +537,7 @@ function decorateTagAttribute(
         ? [nameRange]
         : [
               nameRange,
-              ...createCssDisplayDecorations(
+              ...createCssPropertyDecorations(
                   source,
                   valueRange.start,
                   valueRange.end,
@@ -561,7 +565,175 @@ function getTagAttributeValueRange(
     return { end: start + value.length, start };
 }
 
-function createCssDisplayDecorations(
+function createWikitableDecorations(source: string): DecoratedRange[] {
+    const attributeRanges = findWikitableAttributeRanges(source);
+    return attributeRanges.flatMap(function decorateAttributes(range) {
+        const attributes = trimSourceRange(source, range.start, range.end);
+        const styleDecorations = createStyleAttributeValueDecorations(
+            source,
+            range.start,
+            range.end,
+        );
+        return attributes.start === attributes.end
+            ? styleDecorations
+            : [
+                  {
+                      ...attributes,
+                      className: "wiked-lite-token--table",
+                      priority: 10,
+                  },
+                  ...styleDecorations,
+              ];
+    });
+}
+
+function findWikitableAttributeRanges(source: string): SourceRange[] {
+    const query = createHighlightQuery(source);
+    const attributeRanges: SourceRange[] = [];
+    const parameterDelimiters = getTemplateParameterDelimiters(
+        query.template.getAll(),
+    );
+    for (const table of query.table.getAll()) {
+        attributeRanges.push({
+            end: findLineContentEnd(source, table.start + 2),
+            start: table.start + 2,
+        });
+        attributeRanges.push(
+            ...getWikitableCaptionAttributeRanges(
+                source,
+                table.captions,
+                parameterDelimiters,
+            ),
+        );
+        attributeRanges.push(
+            ...getWikitableRowAttributeRanges(
+                source,
+                table.rows,
+                parameterDelimiters,
+            ),
+        );
+    }
+    return attributeRanges;
+}
+
+function getWikitableCaptionAttributeRanges(
+    source: string,
+    captions: ParsedWikitableCaption[],
+    parameterDelimiters: ReadonlySet<number>,
+): SourceRange[] {
+    return captions.flatMap(function getRange(caption) {
+        if (parameterDelimiters.has(caption.start)) {
+            return [];
+        }
+        const range = getWikitablePayloadAttributeRange(
+            source,
+            caption.start + 2,
+            caption.contentStart,
+        );
+        return range == null ? [] : [range];
+    });
+}
+
+function getWikitableRowAttributeRanges(
+    source: string,
+    rows: ParsedWikitableRow[],
+    parameterDelimiters: ReadonlySet<number>,
+): SourceRange[] {
+    const ranges: SourceRange[] = [];
+    for (const row of rows) {
+        if (
+            source.startsWith("|-", row.start) &&
+            !parameterDelimiters.has(row.start)
+        ) {
+            ranges.push({
+                end: findLineContentEnd(source, row.start + 2),
+                start: row.start + 2,
+            });
+        }
+        for (const cell of row.cells) {
+            if (parameterDelimiters.has(cell.start)) {
+                continue;
+            }
+            const markerEnd = getWikitableCellMarkerEnd(source, cell.start);
+            const range = getWikitablePayloadAttributeRange(
+                source,
+                markerEnd,
+                cell.contentStart,
+            );
+            if (range != null) {
+                ranges.push(range);
+            }
+        }
+    }
+    return ranges;
+}
+
+function getTemplateParameterDelimiters(
+    templates: ParsedTemplateCall[],
+): Set<number> {
+    return new Set(
+        templates
+            .flatMap((template) => template.params)
+            .map((parameter) => parameter.start - 1),
+    );
+}
+
+function getWikitablePayloadAttributeRange(
+    source: string,
+    markerEnd: number,
+    contentStart: number,
+): SourceRange | null {
+    if (contentStart <= markerEnd || source[contentStart - 1] !== "|") {
+        return null;
+    }
+    return { end: contentStart - 1, start: markerEnd };
+}
+
+function getWikitableCellMarkerEnd(source: string, start: number): number {
+    return (
+        start +
+        (source.startsWith("!!", start) || source.startsWith("||", start)
+            ? 2
+            : 1)
+    );
+}
+
+function findLineContentEnd(source: string, start: number): number {
+    const newline = source.indexOf("\n", start);
+    if (newline < 0) {
+        return source.length;
+    }
+    return source[newline - 1] === "\r" ? newline - 1 : newline;
+}
+
+function createStyleAttributeValueDecorations(
+    source: string,
+    attributesStart: number,
+    attributesEnd: number,
+): DecoratedRange[] {
+    const attributes = source.slice(attributesStart, attributesEnd);
+    const scanAttributes = maskCssWikitext(attributes);
+    return [...scanAttributes.matchAll(TAG_ATTRIBUTE_PATTERN)].flatMap(
+        function decorateStyleAttribute(match) {
+            if (match[1]?.toLocaleLowerCase() !== "style") {
+                return [];
+            }
+            const valueRange = getTagAttributeValueRange(
+                attributesStart,
+                match,
+            );
+            return valueRange == null
+                ? []
+                : createCssPropertyDecorations(
+                      source,
+                      valueRange.start,
+                      valueRange.end,
+                  );
+        },
+    );
+}
+
+function createCssPropertyDecorations(
     source: string,
     start: number,
     end: number,
@@ -585,8 +757,9 @@ function createCssDisplayDecorations(
             start + declarationStart + colon,
         );
         if (
-            source.slice(property.start, property.end).toLowerCase() !==
-            "display"
+            !CSS_PROPERTY_NAME_PATTERN.test(
+                source.slice(property.start, property.end),
+            )
         ) {
             continue;
         }
@@ -1668,7 +1841,6 @@ function createPatternDecorations(source: string): DecoratedRange[] {
                 };
             }),
         ),
-        ...createTableDecorations(source),
         ...createHeadingDecorations(source),
     ];
 }
@@ -1828,44 +2000,6 @@ function isUrlSchemeColon(
     }
     const before = source.slice(lineStart, colon);
     return /(?:^|\s)[a-z][a-z\d+.-]*$/iu.test(before);
-}
-
-function createTableDecorations(source: string): DecoratedRange[] {
-    const query = createHighlightQuery(source);
-    const tables = query.table.getAll();
-    const parameterDelimiters = new Set(
-        query.template
-            .getAll()
-            .flatMap((template) => template.params)
-            .map((parameter) => parameter.start - 1),
-    );
-    return [...source.matchAll(/^\s*[|!]\s?.*$/gmu)]
-        .filter((match) =>
-            isTableSyntaxLine(match, tables, parameterDelimiters),
-        )
-        .map(function decorate(match) {
-            const start = match.index ?? 0;
-            return {
-                className: "wiked-lite-token--table",
-                end: start + match[0].length,
-                priority: 10,
-                start,
-            };
-        });
-}
-
-function isTableSyntaxLine(
-    match: RegExpMatchArray,
-    tables: SourceRange[],
-    parameterDelimiters: ReadonlySet<number>,
-): boolean {
-    const start = match.index ?? 0;
-    const markerOffset = match[0].search(/[|!]/u);
-    const marker = start + markerOffset;
-    return (
-        !parameterDelimiters.has(marker) &&
-        tables.some((table) => table.start <= start && start < table.end)
-    );
 }
 
 function createEmphasisDecorations(source: string): DecoratedRange[] {

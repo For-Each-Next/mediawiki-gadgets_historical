@@ -46,6 +46,19 @@ write all MediaWiki artifacts and the aggregate userscript under `dist/`. Those
 local outputs are ignored verification products; building them alone does not
 select or publish a release version.
 
+## Understand GitHub Verification
+
+GitHub Actions does not run repository verification for ordinary pushes or pull
+requests. A formal release tag is the only GitHub CI trigger. The release
+workflow requires a tag in the form `<package>@<major>.<minor>.<patch>`,
+verifies the complete workspace, and builds only the named gadget before
+publishing its package artifact.
+
+Release CI remains a publication gate rather than a replacement for local
+handoff verification. Push a formal tag only after its commit is on `trunk` and
+the package manifest and current changelog entry both match the tag. See the
+[release workflow][1] for the full publication contract.
+
 ## Use Fixtures for External Systems
 
 Automated checks must not edit a wiki, move a page, update Wikidata, or depend
@@ -81,7 +94,8 @@ npm run test:ui
 ```
 
 Failures retain a screenshot and browser trace below `.cache/playwright/`.
-These artifacts are ignored and uploaded by CI only when verification fails.
+These artifacts are ignored locally. The release workflow uploads them only
+when formal-tag verification fails.
 
 For a manual before-and-after visual review, capture the committed `HEAD`
 version before capturing the working tree:

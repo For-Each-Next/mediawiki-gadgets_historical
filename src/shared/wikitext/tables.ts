@@ -17,6 +17,7 @@ export interface WikitableRange extends SourceRange {
 }
 
 export interface ParsedWikitableCaption extends SourceRange {
+    attributes: Record<string, string>;
     content: string;
     contentEnd: number;
     contentStart: number;
@@ -62,6 +63,11 @@ interface RowBuilder {
     attributes: Record<string, string>;
     cells: TableToken[];
     start: number;
+}
+
+interface ParsedTablePayload {
+    attributes: Record<string, string>;
+    contentStart: number;
 }
 
 /**
@@ -135,7 +141,7 @@ export function parseWikitable(
             scanned.tokens[index + 1]?.start ?? scanned.closeStart;
         if (token.kind === "caption") {
             finishRow(token.start);
-            captions.push(buildCaption(raw, token, nextStart, start));
+            captions.push(buildCaption(raw, token, nextStart, start, options));
         } else if (token.kind === "row") {
             finishRow(token.start);
             currentRow = {
@@ -262,13 +268,15 @@ function buildCaption(
     token: TableToken,
     end: number,
     base: number,
+    options: WikitextOptions,
 ): ParsedWikitableCaption {
-    const contentStart = token.payloadStart ?? token.end;
+    const payload = parseTablePayload(source, token, options);
     const contentEnd = trimTrailingLineBreak(source, end);
     return {
-        content: source.slice(contentStart, contentEnd),
+        attributes: payload.attributes,
+        content: source.slice(payload.contentStart, contentEnd),
         contentEnd: base + contentEnd,
-        contentStart: base + contentStart,
+        contentStart: base + payload.contentStart,
         end: base + end,
         raw: source.slice(token.start, end),
         start: base + token.start,
@@ -300,6 +308,25 @@ function buildCell(
     base: number,
     options: WikitextOptions,
 ): ParsedWikitableCell {
+    const payload = parseTablePayload(source, token, options);
+    const contentEnd = trimTrailingLineBreak(source, end);
+    return {
+        attributes: payload.attributes,
+        content: source.slice(payload.contentStart, contentEnd),
+        contentEnd: base + contentEnd,
+        contentStart: base + payload.contentStart,
+        end: base + end,
+        header: token.header ?? false,
+        raw: source.slice(token.start, end),
+        start: base + token.start,
+    };
+}
+
+function parseTablePayload(
+    source: string,
+    token: TableToken,
+    options: WikitextOptions,
+): ParsedTablePayload {
     const payloadStart = token.payloadStart ?? token.end;
     const payloadEnd = token.payloadEnd ?? payloadStart;
     const payload = source.slice(payloadStart, payloadEnd);
@@ -310,18 +337,11 @@ function buildCell(
     const contentStart = hasAttributes
         ? payloadStart + (attributeParts[1]?.start ?? payload.length)
         : payloadStart;
-    const contentEnd = trimTrailingLineBreak(source, end);
     return {
         attributes: hasAttributes
             ? parseTagAttributes(attributeParts[0]?.value ?? "")
             : {},
-        content: source.slice(contentStart, contentEnd),
-        contentEnd: base + contentEnd,
-        contentStart: base + contentStart,
-        end: base + end,
-        header: token.header ?? false,
-        raw: source.slice(token.start, end),
-        start: base + token.start,
+        contentStart,
     };
 }
 

@@ -1,0 +1,141 @@
+# TODO: vg assessor
+
+1. remove '[无無]新[条條]目' of the day if add item
+2. auto add '{{Dykico}}' for talk page top current call '{{DYK Invite}}'
+
+this avoid fix like:
+https://zh.wikipedia.org/w/index.php?title=WikiProject%3A%E7%94%B5%E5%AD%90%E6%B8%B8%E6%88%8F%2F%E6%96%B0%E8%BF%9B%E6%9D%A1%E7%9B%AE&diff=93912712&oldid=93912527
+
+
+3. integreate this
+
+```
+{{WikiProject Articles for creation|class=start|ts=20260814090210|reviewer=断岸千尺|oldid=93888495}}
+{{WikiProject Video games|class=start}}
+
+{{WikiProject banner shell|class=Unassessed|1=
+{{WikiProject Video games|importance=}}
+}}
+```
+
+the outer 'Articles for creation' should be recoginzed and put into banner shell
+
+
+# TODO wiked-lite
+
+1. can not format wikitable
+
+e.g.
+
+```wikitext
+
+{|class="wikitable plainrowheaders sticky-header sortable static-row-numbers"
+|+
+!名次
+! scope="col"|遊戲名
+! scope="col"|銷量
+! scope="col"|發行日期
+! scope="col"|類型
+! scope="col"|開發
+|-
+|1
+| scope="row" |[[瑪利歐賽車世界]]
+|1,539萬<ref name=":0">{{Cite web |title=株主・投資家向け情報：業績・財務情報 - 主要タイトル販売実績 Nintendo Switch 2 ソフト |url=http://www.nintendo.co.jp/ir/finance/software/index.html |website=任天堂ホームページ |language=ja |access-date=2026-08-19}}</ref>
+|{{Date table sorting|June 5, 2025}}
+|[[競速遊戲|競速]]
+|[[任天堂企划制作本部|任天堂企劃製作本部]]
+|-
+|2
+| scope="row" |[[Pokémon Pokopia]]
+|500萬<ref>{{Cite web |title=Nintendo, Pokemon Company announce Pokemon Pokopia sales have surpassed five million |url=https://nintendoeverything.com/nintendo-pokemon-company-announce-pokemon-pokopia-sales-have-surpassed-five-million/ |website=Nintendo Everything |date=2026-08-14 |language=en |last=Brian |access-date=2026-08-19}}</ref>
+|{{Date table sorting|March 5, 2026}}
+|[[生活模擬遊戲|生活模擬]]
+[[沙盒游戏|沙盒]]
+|[[GAME FREAK|Game Freak]]
+[[Omega Force]]
+|-
+|3
+| scope="row" |[[咚奇剛 蕉力全開]]
+|478萬<ref name=":0" />
+|{{Date table sorting|July 17, 2025}}
+|[[平台游戏|平台]]
+[[动作冒险游戏|動作冒險]]
+|[[任天堂企划制作本部|任天堂企劃製作本部]]
+|-
+|4
+| scope="row" |[[寶可夢傳說 Z-A|寶可夢傳說 Z-A Nintendo Switch 2 Edition]]
+|399萬<ref name=":0" />
+|{{Date table sorting|October 16, 2025}}
+|[[動作角色扮演遊戲|動作角色扮演]]
+|[[GAME FREAK|Game Freak]]
+|-
+|5
+| scope="row" |[[卡比的馭天飛行者]]
+|190萬<ref name=":0" />
+|{{Date table sorting|November 20, 2025}}
+|[[競速遊戲|競速]]
+|[[Sora (公司)|Sora]]
+[[萬代南夢宮工作室]]
+|-
+|6
+|[[超級瑪利歐派對 空前盛會|超級瑪利歐派對 空前盛會 Nintendo Switch 2 Edition]]
+|115萬<ref name=":0" />
+|2025年7月24日
+|[[聚会游戏|聚會]]
+|[[Nintendo Cube]]
+|-
+|7
+| scope="row" |[[薩爾達無雙 封印戰記]]
+|100萬<ref>{{Cite web |title=Hyrule Warriors: Age of Imprisonment sales surpass one million |url=https://nintendoeverything.com/hyrule-warriors-age-of-imprisonment-sales-surpass-one-million/ |website=Nintendo Everything |date=2026-01-26 |language=en |last=Brian |access-date=2026-08-19}}</ref>
+|{{Date table sorting|November 6, 2025}}
+|[[砍殺遊戲|砍殺]]
+|[[光荣特库摩|光榮特庫摩]]
+|}
+```
+
+should be
+
+```wikitext
+
+{| class="wikitable plainrowheaders sticky-header sortable static-row-numbers"
+|+
+! 名次
+! scope="col" | 遊戲名
+! scope="col" | 銷量
+! scope="col" | 發行日期
+! scope="col" | 類型
+! scope="col" | 開發
+|-
+| 1
+| scope="row" | [[瑪利歐賽車世界]]
+| 1,539萬<ref name=":0">{{Cite web |title=株主・投資家向け情報：業績・財務情報 - 主要タイトル販売実績 Nintendo Switch 2 ソフト |url=http://www.nintendo.co.jp/ir/finance/software/index.html |website=任天堂ホームページ |language=ja |access-date=2026-08-19}}</ref>
+| {{Date table sorting|June 5, 2025}}
+| [[競速遊戲|競速]]
+| [[任天堂企划制作本部|任天堂企劃製作本部]]
+|-
+| 2
+| scope="row" | [[Pokémon Pokopia]]
+| 500萬<ref>{{Cite web |title=Nintendo, Pokemon Company announce Pokemon Pokopia sales have surpassed five million |url=https://nintendoeverything.com/nintendo-pokemon-company-announce-pokemon-pokopia-sales-have-surpassed-five-million/ |website=Nintendo Everything |date=2026-08-14 |language=en |last=Brian |access-date=2026-08-19}}</ref>
+| {{Date table sorting|March 5, 2026}}
+| [[生活模擬遊戲|生活模擬]]
+[[沙盒游戏|沙盒]]
+| [[GAME FREAK|Game Freak]]
+[[Omega Force]]
+...
+|}
+```
+
+
+2. apply italic for css style name in such of
+
+```<span style="font-size: smaller; color: xxx;">111</span>```
+
+```
+{| style="display: none;"
+|- style="font-size: smaller;"
+! rowspan="2" style="font-size: smaller;" | cell text
+! rowspan="2" style="font-size: larget;" | cell text
+|}
+```
+
+3. the if the heading is in the first line of the edit code (e.g. section edit), do not add blank line before the heading

@@ -70,6 +70,10 @@ interface BlockTemplateLayout {
     subsequentParameterLayout: SubsequentParameterLayout;
 }
 
+interface TextReplacement extends SourceRange {
+    text: string;
+}
+
 interface FormatterNestingState {
     comment: boolean;
     nextTemplateId: number;
@@ -182,7 +186,172 @@ function normalizeBasicLayout(source: string): string {
         .replace(/^----+\s*$/gmu, "----")
         .replace(/\[\[\s*([^\]|]+?)\s*\|\s*([^\]]+?)\s*\]\]/gu, "[[$1|$2]]")
         .replace(/\[\[\s*([^\]|]+?)\s*\]\]/gu, "[[$1]]");
-    return ensureBlankLinesAroundHeadings(normalized);
+    return ensureBlankLinesAroundHeadings(
+        normalizeWikitableSpacing(normalized),
+    );
+}
+
+function normalizeWikitableSpacing(source: string): string {
+    const replacements: TextReplacement[] = [];
+    for (const table of wikitext(source).table.getAll()) {
+        addMarkerSpacingReplacement(source, table.start, 2, replacements);
+        for (const caption of table.captions) {
+            addMarkerSpacingReplacement(
+                source,
+                caption.start,
+                2,
+                replacements,
+            );
+        }
+        for (const row of table.rows) {
+            if (source.startsWith("|-", row.start)) {
+                addMarkerSpacingReplacement(
+                    source,
+                    row.start,
+                    2,
+                    replacements,
+                );
+            }
+            for (const cell of row.cells) {
+                addCellSpacingReplacement(
+                    source,
+                    cell.start,
+                    cell.contentStart,
+                    cell.contentEnd,
+                    replacements,
+                );
+            }
+        }
+    }
+    return applyTextReplacements(source, replacements);
+}
+
+function addMarkerSpacingReplacement(
+    source: string,
+    start: number,
+    markerLength: number,
+    replacements: TextReplacement[],
+): void {
+    const markerEnd = start + markerLength;
+    const lineEnd = findLineContentEnd(source, markerEnd);
+    const contentStart = skipHorizontalWhitespace(source, markerEnd, lineEnd);
+    if (contentStart >= lineEnd) {
+        return;
+    }
+    replacements.push({
+        end: contentStart,
+        start,
+        text: `${source.slice(start, markerEnd)} `,
+    });
+}
+
+function addCellSpacingReplacement(
+    source: string,
+    start: number,
+    contentStart: number,
+    contentEnd: number,
+    replacements: TextReplacement[],
+): void {
+    const markerLength = getWikitableCellMarkerLength(source, start);
+    const markerEnd = start + markerLength;
+    const lineEnd = findLineContentEnd(source, markerEnd);
+    const contentBoundary = Math.min(contentEnd, lineEnd);
+    const content = skipHorizontalWhitespace(
+        source,
+        contentStart,
+        contentBoundary,
+    );
+    const separator = findCellSeparator(source, markerEnd, contentStart);
+    const attributes =
+        separator == null ? "" : source.slice(markerEnd, separator).trim();
+    if (separator == null && content >= contentBoundary) {
+        addEmptyInlineCellSpacingReplacement(
+            source,
+            start,
+            markerEnd,
+            replacements,
+        );
+        return;
+    }
+    const beforeMarker =
+        markerLength === 2 && !/[\t ]/u.test(source[start - 1] ?? "")
+            ? " "
+            : "";
+    const enteredMarker = `${beforeMarker}${source.slice(start, markerEnd)}`;
+    const enteredContent = content < contentBoundary ? " " : "";
+    const text =
+        separator == null
+            ? `${enteredMarker} `
+            : `${enteredMarker} ${attributes} |${enteredContent}`;
+    replacements.push({ end: content, start, text });
+}
+
+function findCellSeparator(
+    source: string,
+    markerEnd: number,
+    contentStart: number,
+): number | undefined {
+    return contentStart > markerEnd && source[contentStart - 1] === "|"
+        ? contentStart - 1
+        : undefined;
+}
+
+function addEmptyInlineCellSpacingReplacement(
+    source: string,
+    start: number,
+    markerEnd: number,
+    replacements: TextReplacement[],
+): void {
+    if (markerEnd - start !== 2 || /[\t ]/u.test(source[start - 1] ?? "")) {
+        return;
+    }
+    replacements.push({
+        end: markerEnd,
+        start,
+        text: ` ${source.slice(start, markerEnd)}`,
+    });
+}
+
+function getWikitableCellMarkerLength(source: string, start: number): number {
+    return source.startsWith("!!", start) || source.startsWith("||", start)
+        ? 2
+        : 1;
+}
+
+function findLineContentEnd(source: string, start: number): number {
+    const newline = source.indexOf("\n", start);
+    if (newline < 0) {
+        return source.length;
+    }
+    return source[newline - 1] === "\r" ? newline - 1 : newline;
+}
+
+function skipHorizontalWhitespace(
+    source: string,
+    start: number,
+    end: number,
+): number {
+    let index = start;
+    while (index < end && /[\t ]/u.test(source[index] ?? "")) {
+        index += 1;
+    }
+    return index;
+}
+
+function applyTextReplacements(
+    source: string,
+    replacements: TextReplacement[],
+): string {
+    let result = source;
+    for (const replacement of replacements.toSorted(
+        (left, right) => right.start - left.start,
+    )) {
+        result =
+            result.slice(0, replacement.start) +
+            replacement.text +
+            result.slice(replacement.end);
+    }
+    return result;
 }
 
 /**
@@ -199,7 +368,11 @@ function ensureBlankLinesAroundHeadings(source: string): string {
     const lines = source.split("\n");
     const separated: string[] = [];
     for (const [index, line] of lines.entries()) {
-        if (NORMALIZED_HEADING_PATTERN.test(line) && separated.at(-1) !== "") {
+        if (
+            index > 0 &&
+            NORMALIZED_HEADING_PATTERN.test(line) &&
+            separated.at(-1) !== ""
+        ) {
             separated.push("");
         }
         separated.push(line);

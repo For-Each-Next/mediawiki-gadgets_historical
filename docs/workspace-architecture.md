@@ -19,7 +19,8 @@ scripts/
 ├── tsconfig.json           editor-discovered Node TypeScript project
 ├── workspace/              discovery, metadata, paths, authored files
 ├── repository-check/       structural repository contracts
-└── gadget-build/           plans, bundles, notices, and outputs
+├── gadget-build/           plans, bundles, notices, and outputs
+└── github-release/         tag validation, notes, workflow outputs
 
 tests/
 ├── tsconfig.json           editor-discovered Node test project

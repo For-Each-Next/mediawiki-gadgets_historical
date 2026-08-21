@@ -8,6 +8,7 @@ import type {
 } from "#gadget/domain/types.ts";
 
 const DATE_LINE_PATTERN = /^\* (\d{1,2})月(\d{1,2})日 -\s*(.*)$/u;
+const NO_NEW_ENTRY_PATTERN = /^[无無]新[条條]目$/u;
 const SUBGROUP_PATTERN = /^\*:\s*([^：:]+)[：:]\s*(.*)$/u;
 const GROUP_ORDER = [
     "draft",
@@ -57,6 +58,7 @@ interface RegistrationEntry {
     creationDate: Date;
     creationTimes: Map<string, Date>;
     group: RegistrationGroup | null;
+    includeDykIcon: boolean;
     title: string;
 }
 
@@ -80,6 +82,8 @@ type GroupEntries = Partial<Record<RegistrationGroup, Array<string>>>;
  * @param options.creationTimes - Known title
  * creation
  * times.
+ * @param options.includeDykIcon - Whether the new entry receives a
+ * DYK icon.
  * @returns Prepared registration details.
  */
 export function prepareNewPageListRegistration({
@@ -88,16 +92,19 @@ export function prepareNewPageListRegistration({
     namespaceNumber,
     creationDate,
     creationTimes = new Map(),
+    includeDykIcon = false,
 }: {
     text: string;
     title: string;
     namespaceNumber: number;
     creationDate: Date;
     creationTimes?: Map<string, Date>;
+    includeDykIcon?: boolean;
 }): RegistrationResult {
     const context = createRegistrationContext({
         creationDate,
         creationTimes,
+        includeDykIcon,
         namespaceNumber,
         text,
         title,
@@ -113,6 +120,7 @@ export function prepareNewPageListRegistration({
 interface RegistrationContext {
     creationDate: Date;
     creationTimes: Map<string, Date>;
+    includeDykIcon: boolean;
     namespaceNumber: number;
     text: string;
     title: string;
@@ -180,6 +188,7 @@ function buildNewRegistration(
         creationDate: options.creationDate,
         creationTimes: options.creationTimes,
         group,
+        includeDykIcon: options.includeDykIcon,
         title: options.title,
     });
     const result = {
@@ -384,7 +393,7 @@ function parseDateBlockLine(line: string, year: number): DateBlock | null {
     const timestamp = Date.UTC(year, month, day);
     const result: DateBlock = {
         date: new Date(timestamp),
-        entries: parseEntries(match[3]),
+        entries: parseDateEntries(match[3]),
         groups: {},
         title: line,
     };
@@ -403,7 +412,7 @@ function addEntry(text: string, entry: RegistrationEntry): string {
     const month = entry.creationDate.getUTCMonth() + 1;
     const day = entry.creationDate.getUTCDate();
     const yearRange = findYearRange(text, year);
-    const rendered = buildVgcCall(entry.title);
+    const rendered = buildVgcCall(entry.title, entry.includeDykIcon);
 
     if (yearRange == null) {
         const block = buildDateBlock(month, day, entry.group, [rendered]);
@@ -564,10 +573,11 @@ function updateExistingDateBlock(
 ): void {
     const blockEnd = findDateBlockEnd(lines, dateIndex);
     const blocks = readDateSubgroups(lines, dateIndex, blockEnd);
+    removeNoNewEntryPlaceholder(lines, dateIndex);
 
     if (entry.group == null) {
         const match = lines[dateIndex].match(DATE_LINE_PATTERN);
-        const parsedEntries = parseEntries(match?.[3] || "");
+        const parsedEntries = parseDateEntries(match?.[3] || "");
         const entries = addAndSortEntries(
             parsedEntries,
             entry.rendered,
@@ -601,6 +611,34 @@ function updateExistingDateBlock(
     }
 
     lines.splice(dateIndex + 1, blockEnd - dateIndex - 1, ...subgroupLines);
+}
+
+/**
+ * Removes the no-new-entry marker from one date line being updated.
+ *
+ * @param lines - Section lines.
+ * @param dateIndex - Target date-line index.
+ */
+function removeNoNewEntryPlaceholder(
+    lines: Array<string>,
+    dateIndex: number,
+): void {
+    const line = lines[dateIndex];
+    const match = line.match(DATE_LINE_PATTERN);
+    const source = match?.[3];
+
+    if (source == null) {
+        return;
+    }
+
+    const updated = removeNoNewEntrySegments(source);
+
+    if (updated === source) {
+        return;
+    }
+
+    const sourceStart = line.length - source.length;
+    lines[dateIndex] = line.slice(0, sourceStart) + updated;
 }
 
 /**
@@ -893,6 +931,57 @@ function parseEntries(text: string): Array<string> {
 }
 
 /**
+ * Parses real registrations from a date line, excluding its empty
+ * marker.
+ *
+ * @param text - Date-line entry source.
+ * @returns Actual registration entries.
+ */
+function parseDateEntries(text: string): Array<string> {
+    return parseEntries(text).filter(function isRegistration(entry) {
+        return !NO_NEW_ENTRY_PATTERN.test(entry);
+    });
+}
+
+/**
+ * Removes no-new-entry segments while retaining every real entry
+ * source.
+ *
+ * @param text - Date-line entry source.
+ * @returns Entry source without empty-list markers.
+ */
+function removeNoNewEntrySegments(text: string): string {
+    const segments = String(text || "").split("、");
+    const retained: Array<{ index: number; value: string }> = [];
+
+    for (let index = 0; index < segments.length; index += 1) {
+        const value = segments[index];
+
+        if (!NO_NEW_ENTRY_PATTERN.test(value.trim())) {
+            retained.push({ index, value });
+        }
+    }
+
+    if (retained.length === segments.length) {
+        return text;
+    }
+    if (retained.length === 0) {
+        return "";
+    }
+
+    let result = retained.map((segment) => segment.value).join("、");
+
+    if (retained[0].index > 0) {
+        result = result.trimStart();
+    }
+    if (retained.at(-1)?.index !== segments.length - 1) {
+        result = result.trimEnd();
+    }
+
+    return result;
+}
+
+/**
  * Maps a subgroup label to its canonical group.
  *
  * @param label - Existing label.
@@ -961,10 +1050,12 @@ function getNamespaceGroup(namespaceNumber: number): RegistrationGroup | null {
  * Builds a vgc template call.
  *
  * @param title - Page title.
+ * @param includeDykIcon - Whether to append a DYK icon call.
  * @returns Template call.
  */
-function buildVgcCall(title: string): string {
-    return `{{vgc|${title}}}`;
+function buildVgcCall(title: string, includeDykIcon: boolean): string {
+    const dykIcon = includeDykIcon ? "{{Dykico}}" : "";
+    return `{{vgc|${title}}}${dykIcon}`;
 }
 
 /**

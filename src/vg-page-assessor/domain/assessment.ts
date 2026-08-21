@@ -19,7 +19,9 @@ import {
 } from "#gadget/domain/types.ts";
 
 export { CLASS_VALUES, IMPORTANCE_VALUES };
+const ARTICLES_FOR_CREATION_TEMPLATE = "WikiProject Articles for creation";
 const BANNER_SHELL_TEMPLATE = "WikiProject banner shell";
+const DYK_INVITE_TEMPLATE = "DYK Invite";
 const BANNER_SHELL_ALIASES = [
     "WikiProject banner shell",
     "Multiple wikiprojects",
@@ -512,7 +514,7 @@ export function buildAssessmentBanners(
     projectConfig: ProjectConfig,
     text = "",
 ): string {
-    const existingBanners = extractExistingShellBanners(text);
+    const existingBanners = extractBannersForAssessmentShell(text);
     const existingVideoGamesBanner = findProjectBanner(
         existingBanners,
         projectConfig.videoGames,
@@ -641,6 +643,20 @@ export function getTalkPageTopSection(text: string): string {
 }
 
 /**
+ * Checks whether the leading talk-page templates include a DYK invite.
+ *
+ * @param text - Talk-page wikitext.
+ * @returns Whether a DYK invite is present at the top of the page.
+ */
+export function hasDykInviteAtTop(text: string): boolean {
+    return readLeadingTemplates(String(text || "")).some(
+        function isDykInvite(template) {
+            return matchesTemplateName(template.name, DYK_INVITE_TEMPLATE);
+        },
+    );
+}
+
+/**
  * Handles is empty importance only change.
  *
  * Checks whether a proposed lead change only adds an empty importance
@@ -745,6 +761,7 @@ function buildManagedTemplatePatterns(
 ): Array<RegExp> {
     const result = [
         ...BANNER_SHELL_ALIASES,
+        ARTICLES_FOR_CREATION_TEMPLATE,
         ...[projectConfig.videoGames, ...projectConfig.otherProjects].flatMap(
             (project) => [project.template, ...(project.aliases || [])],
         ),
@@ -874,27 +891,98 @@ function readLeadingTemplates(text: string): Array<TemplateToken> {
  * @returns Existing nested banner calls.
  */
 function extractExistingShellBanners(text: string): Array<string> {
+    return extractAssessmentBanners(text, false);
+}
+
+/**
+ * Extracts banners that should be nested in the assessment shell.
+ *
+ * @param text - Existing talk-page source.
+ * @returns Existing nested banners plus one standalone AfC banner.
+ */
+function extractBannersForAssessmentShell(text: string): Array<string> {
+    return extractAssessmentBanners(text, true);
+}
+
+/**
+ * Extracts recognized project banners from leading talk-page templates.
+ *
+ * @param text - Existing talk-page source.
+ * @param includeStandaloneArticlesForCreation - Whether to collect and
+ * deduplicate a standalone Articles for creation banner.
+ * @returns Recognized banner calls in source order.
+ */
+function extractAssessmentBanners(
+    text: string,
+    includeStandaloneArticlesForCreation: boolean,
+): Array<string> {
     const source = String(text || "");
-    const patterns = buildBannerShellPatterns();
     const result = [];
+    let articlesForCreationFound = false;
 
     for (const template of readLeadingTemplates(source)) {
-        const normalizedName = normalizeTemplateName(template.name);
-
-        if (!matchesAnyPattern(patterns, normalizedName)) {
+        if (isBannerShellName(template.name)) {
+            articlesForCreationFound = appendNestedAssessmentBanners(
+                result,
+                template.source,
+                includeStandaloneArticlesForCreation,
+                articlesForCreationFound,
+            );
             continue;
         }
 
-        for (const banner of readNestedBannersFromShell(template.source)) {
-            const name = readLeadingTemplate(banner, 0)?.name;
-
-            if (name != null && !isBannerShellName(name)) {
-                result.push(banner);
-            }
+        const shouldInclude =
+            includeStandaloneArticlesForCreation &&
+            !articlesForCreationFound &&
+            matchesTemplateName(template.name, ARTICLES_FOR_CREATION_TEMPLATE);
+        if (shouldInclude) {
+            result.push(template.source.trim());
+            articlesForCreationFound = true;
         }
     }
 
     return result;
+}
+
+/**
+ * Appends recognized nested banners while optionally deduplicating AfC.
+ *
+ * @param result - Collected banner calls.
+ * @param shell - Existing banner-shell source.
+ * @param deduplicateArticlesForCreation - Whether to collapse AfC
+ * calls.
+ * @param articlesForCreationFound - Whether an AfC call was already
+ * found.
+ * @returns Whether an AfC call has been found.
+ */
+function appendNestedAssessmentBanners(
+    result: Array<string>,
+    shell: string,
+    deduplicateArticlesForCreation: boolean,
+    articlesForCreationFound: boolean,
+): boolean {
+    let found = articlesForCreationFound;
+
+    for (const banner of readNestedBannersFromShell(shell)) {
+        const name = readLeadingTemplate(banner, 0)?.name;
+
+        if (name == null || isBannerShellName(name)) {
+            continue;
+        }
+
+        const isArticlesForCreation = matchesTemplateName(
+            name,
+            ARTICLES_FOR_CREATION_TEMPLATE,
+        );
+        if (deduplicateArticlesForCreation && isArticlesForCreation && found) {
+            continue;
+        }
+
+        result.push(banner);
+        found ||= isArticlesForCreation;
+    }
+
+    return found;
 }
 
 /**
@@ -1160,6 +1248,17 @@ function isBannerShellName(name: string): boolean {
     const patterns = buildBannerShellPatterns();
     const result = matchesAnyPattern(patterns, normalizedName);
     return result;
+}
+
+/**
+ * Checks whether a template name matches one canonical template call.
+ *
+ * @param name - Existing template name.
+ * @param expected - Canonical template name.
+ * @returns Whether the template names match.
+ */
+function matchesTemplateName(name: string, expected: string): boolean {
+    return buildTemplatePattern(expected).test(normalizeTemplateName(name));
 }
 
 /**

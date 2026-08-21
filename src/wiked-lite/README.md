@@ -92,7 +92,11 @@ where another editor has hidden that textarea. Network-backed redirect
 replacement, missing-link highlighting, and whole-page reference lookup remain
 optional. Missing-link and reference lookups run without blocking editing;
 redirect lookup may delay an explicitly requested formatting run. Failed
-preview lookups retain section-local analysis.
+preview lookups retain section-local analysis. Live highlighting has a default
+source-length ceiling of 1,024,768. To choose another ceiling, set
+`window.wikEdLiteConfig.maxLiveHighlightLength` before the gadget starts;
+`Number.POSITIVE_INFINITY` leaves it uncapped. Sources longer than the selected
+character limit remain editable as plain text.
 
 ## Development
 

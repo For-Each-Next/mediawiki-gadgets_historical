@@ -15,7 +15,6 @@ test("basic formatting protects comments and literal extension tags", () => {
     assert.equal(
         result.text,
         [
-            "",
             "== Heading ==",
             "",
             "<!-- ==  keep  ==   -->",
@@ -36,7 +35,6 @@ test("basic formatting separates headings but not DEFAULTSORT", () => {
     assert.equal(
         formatWikitext(source).text,
         [
-            "",
             "== Heading ==",
             "",
             "Paragraph.",
@@ -59,7 +57,7 @@ test("basic formatting separates every MediaWiki heading level", () => {
     for (let level = 1; level <= 6; level += 1) {
         const marks = "=".repeat(level);
         const source = `${marks}Heading${marks}\nParagraph.`;
-        const expected = `\n${marks} Heading ${marks}\n\nParagraph.`;
+        const expected = `${marks} Heading ${marks}\n\nParagraph.`;
 
         assert.equal(formatWikitext(source).text, expected);
         assert.deepEqual(formatWikitext(expected), {
@@ -82,7 +80,7 @@ test("basic formatting separates headings from preceding content", () => {
 
 test("adjacent headings share one separating blank line", () => {
     const source = "==First==\n===Second===";
-    const expected = "\n== First ==\n\n=== Second ===\n\n";
+    const expected = "== First ==\n\n=== Second ===\n\n";
 
     assert.equal(formatWikitext(source).text, expected);
     assert.deepEqual(formatWikitext(expected), {
@@ -117,13 +115,90 @@ test("heading normalization does not reinterpret delimiter runs", () => {
 });
 
 test("heading separation stays idempotent at end of input", () => {
-    const expected = "\n== Heading ==\n\n";
+    const expected = "== Heading ==\n\n";
     for (const source of ["==Heading==", "==Heading==\n", expected]) {
         const once = formatWikitext(source).text;
 
         assert.equal(once, expected);
         assert.equal(formatWikitext(once).text, expected);
     }
+});
+
+test("first-line section headings do not gain a leading blank line", () => {
+    const source = "===Section===\nSection text.";
+    const expected = "=== Section ===\n\nSection text.";
+
+    assert.equal(formatWikitext(source).text, expected);
+    assert.deepEqual(formatWikitext(expected), {
+        changed: false,
+        text: expected,
+    });
+});
+
+test("basic formatting normalizes wikitable syntax spacing", () => {
+    const source = [
+        '{|class="wikitable"',
+        "|+Caption",
+        '!Name!! scope="col"|Value',
+        '|-style="font-size: smaller;"',
+        "|1||[[Target|label]]",
+        '| scope="row" |{{Sort|1|two}}',
+        "|}",
+    ].join("\n");
+    const expected = [
+        '{| class="wikitable"',
+        "|+ Caption",
+        '! Name !! scope="col" | Value',
+        '|- style="font-size: smaller;"',
+        "| 1 || [[Target|label]]",
+        '| scope="row" | {{Sort|1|two}}',
+        "|}",
+    ].join("\n");
+
+    assert.equal(formatWikitext(source).text, expected);
+    assert.deepEqual(formatWikitext(expected), {
+        changed: false,
+        text: expected,
+    });
+});
+
+test("wikitable spacing normalizes empty inline cells", () => {
+    const source = ["{|", "!a!!", "|a||", "!a!!!!b", "|a||||b", "|}"].join(
+        "\n",
+    );
+    const expected = [
+        "{|",
+        "! a !!",
+        "| a ||",
+        "! a !! !! b",
+        "| a || || b",
+        "|}",
+    ].join("\n");
+
+    assert.equal(formatWikitext(source).text, expected);
+    assert.deepEqual(formatWikitext(expected), {
+        changed: false,
+        text: expected,
+    });
+    for (const line of expected.split("\n")) {
+        assert.equal(line, line.trimEnd());
+    }
+});
+
+test("wikitable spacing ignores table-like text in protected regions", () => {
+    const source = [
+        "<!-- {|class=comment -->",
+        "<nowiki>",
+        '{|class="wikitable"',
+        "|cell",
+        "|}",
+        "</nowiki>",
+    ].join("\n");
+
+    assert.deepEqual(formatWikitext(source), {
+        changed: false,
+        text: source,
+    });
 });
 
 test("explicit formatter options align templates", () => {

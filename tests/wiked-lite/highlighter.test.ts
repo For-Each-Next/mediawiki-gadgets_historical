@@ -72,6 +72,44 @@ function assertLacksClass(
     );
 }
 
+function assertEachHasClass(
+    source: string,
+    segments: HighlightSegment[],
+    needles: readonly string[],
+    className: string,
+): void {
+    for (const needle of needles) {
+        assertHasClass(source, segments, needle, className);
+    }
+}
+
+function assertEachLacksClass(
+    source: string,
+    segments: HighlightSegment[],
+    needles: readonly string[],
+    className: string,
+): void {
+    for (const needle of needles) {
+        assertLacksClass(source, segments, needle, className);
+    }
+}
+
+function assertRangeHasClass(
+    source: string,
+    segments: HighlightSegment[],
+    needle: string,
+    className: string,
+): void {
+    const start = source.indexOf(needle);
+    assert.notEqual(start, -1);
+    for (let offset = start; offset < start + needle.length; offset += 1) {
+        const segment = segments.find(
+            (candidate) => candidate.start <= offset && offset < candidate.end,
+        );
+        assert.ok(segment?.classNames.includes(className));
+    }
+}
+
 function htmlContentClassesAt(
     source: string,
     segments: HighlightSegment[],
@@ -773,6 +811,143 @@ test("HTML attributes and CSS properties use syntax token families", () => {
         segments,
         "本文",
         "wiked-lite-token--html-content-0",
+    );
+});
+
+test("CSS property names are italicized in span and table markup", () => {
+    const source = [
+        '<span style="font-size: smaller; color: xxx;">111</span>',
+        '{| style="display: none;"',
+        '|- style="font-size: smaller;"',
+        '! rowspan="2" style="font-size: smaller;" | cell text',
+        '! rowspan="2" style="font-size: larger;" | cell text',
+        "|}",
+    ].join("\n");
+    const segments = highlightWikitext(source);
+
+    assertEachHasClass(
+        source,
+        segments,
+        ["color", "display"],
+        "wiked-lite-token--language-variant",
+    );
+    for (let occurrence = 0; occurrence < 4; occurrence += 1) {
+        assertHasClass(
+            source,
+            segments,
+            "font-size",
+            "wiked-lite-token--language-variant",
+            occurrence,
+        );
+    }
+    assertEachLacksClass(
+        source,
+        segments,
+        ["smaller", "xxx", "none", "larger"],
+        "wiked-lite-token--language-variant",
+    );
+    assertHasClass(source, segments, "display", "wiked-lite-token--table");
+});
+
+test("table CSS attributes ignore protected nested syntax", () => {
+    const source = [
+        '{| <!-- style="color:red" --> style="display:none;"',
+        "|}",
+        '{| {{foo| style="color:red"}} style="font-size:smaller;"',
+        "|}",
+        '{| [[Target|style="color:red"]] style="width:100%;"',
+        "|}",
+        '{| <span title=\'style="color:red"\' /> style="height:auto;"',
+        "|}",
+    ].join("\n");
+    const segments = highlightWikitext(source);
+
+    for (let occurrence = 0; occurrence < 4; occurrence += 1) {
+        assertLacksClass(
+            source,
+            segments,
+            "color",
+            "wiked-lite-token--language-variant",
+            occurrence,
+        );
+    }
+    for (const property of ["display", "font-size", "width", "height"]) {
+        assertHasClass(
+            source,
+            segments,
+            property,
+            "wiked-lite-token--language-variant",
+        );
+    }
+});
+
+const WIKITABLE_ATTRIBUTE_SOURCE = [
+    '{| class="wikitable"',
+    '|- data-row="primary"',
+    '| data-sort-value="24319" | 24&nbsp;kB',
+    '! scope="row" | Row heading',
+    "| plain cell",
+    '| data-first="one" | First || data-second="two" | Second',
+    '! headers="sales" | First head !! abbr="qty" | Second head',
+    '|+ class="caption" | Table caption',
+    "|}",
+].join("\n");
+const WIKITABLE_ATTRIBUTES = [
+    'class="wikitable"',
+    'data-row="primary"',
+    'data-sort-value="24319"',
+    'scope="row"',
+    'data-first="one"',
+    'data-second="two"',
+    'headers="sales"',
+    'abbr="qty"',
+    'class="caption"',
+];
+
+test("wikitable grey text is limited to parsed attributes", () => {
+    const segments = highlightWikitext(WIKITABLE_ATTRIBUTE_SOURCE);
+
+    assert.deepEqual(
+        segments
+            .filter((segment) =>
+                segment.classNames.includes("wiked-lite-token--table"),
+            )
+            .map((segment) => segment.text),
+        WIKITABLE_ATTRIBUTES,
+    );
+});
+
+test("header and caption CSS attributes retain syntax styling", () => {
+    const source = [
+        "{|",
+        '! style="font-size: smaller;" | 12.3',
+        '|+ class="111" style="xxx: yyy;" | title',
+        "|}",
+    ].join("\n");
+    const segments = highlightWikitext(source);
+
+    for (const attributes of [
+        'style="font-size: smaller;"',
+        'class="111" style="xxx: yyy;"',
+    ]) {
+        assertRangeHasClass(
+            source,
+            segments,
+            attributes,
+            "wiked-lite-token--table",
+        );
+    }
+    assertEachHasClass(
+        source,
+        segments,
+        ["font-size", "xxx"],
+        "wiked-lite-token--language-variant",
+    );
+    assertEachLacksClass(
+        source,
+        segments,
+        ["12.3", "title"],
+        "wiked-lite-token--table",
     );
 });
 
@@ -1642,18 +1817,41 @@ test("block template parameters are not treated as table rows", () => {
 
     assert.ok(parameterClasses.includes("wiked-lite-token--parameter"));
     assert.ok(!parameterClasses.includes("wiked-lite-token--table"));
-    assertHasClass(source, segments, "cell", "wiked-lite-token--table");
+    assertLacksClass(source, segments, "cell", "wiked-lite-token--table");
 });
 
 test("template parameters nested in tables remain parameter tokens", () => {
-    const source = ["{|", "| {{Infobox", " | name = value", "}}", "|}"].join(
-        "\n",
-    );
+    const source = [
+        "{|",
+        "| {{Infobox",
+        ' | style="color:red" | value',
+        ' |+ class="caption" style="width:100%" | title',
+        "}}",
+        "|}",
+    ].join("\n");
     const segments = highlightWikitext(source);
-    const parameterClasses = classesAt(source, segments, "name");
+    const parameterClasses = classesAt(source, segments, "style");
 
     assert.ok(parameterClasses.includes("wiked-lite-token--parameter"));
     assert.ok(!parameterClasses.includes("wiked-lite-token--table"));
+    assertLacksClass(
+        source,
+        segments,
+        'class="caption"',
+        "wiked-lite-token--table",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "color",
+        "wiked-lite-token--language-variant",
+    );
+    assertLacksClass(
+        source,
+        segments,
+        "width",
+        "wiked-lite-token--language-variant",
+    );
 });
 
 test("missing-link metadata covers only wikilink target text", () => {
@@ -1718,4 +1916,19 @@ test("missing links exclude label markup and non-label options", () => {
         "Category:Missing",
     );
     assert.equal(segmentAt(source, segments, "sort")?.missingTitle, undefined);
+});
+
+test("large sparse sources retain highlighting past the former limit", () => {
+    const source = `${"x".repeat(300_001)}\n{{Tail template|key=value}}`;
+    const segments = highlightWikitext(source);
+
+    assert.ok(source.indexOf("Tail template") > 300_000);
+    assertHasClass(
+        source,
+        segments,
+        "Tail template",
+        "wiked-lite-token--template-name",
+    );
+    assertHasClass(source, segments, "key", "wiked-lite-token--parameter");
+    assert.equal(segments.map((segment) => segment.text).join(""), source);
 });
